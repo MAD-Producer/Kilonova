@@ -118,27 +118,33 @@ impl Pose {
             (self.anchor[1] - 0.5) * self.size[1],
         ]
     }
-    fn handle(&self, p: [f32; 2], tool: Tool, alt: bool) -> Option<Handle> {
+    fn handle(&self, p: [f32; 2], tool: Tool, styles: &motion_ui::style::StyleSheet) -> Option<Handle> {
         if self.locked {
             return None;
         }
-        if (tool == Tool::Anchor || alt) && distance(p, self.pivot) < 12. {
-            return Some(Handle::Anchor);
+        let mut closest: Option<(f32, Handle)> = None;
+        let mut consider = |point, radius, handle| {
+            let d = distance(p, point);
+            if d < radius && closest.is_none_or(|(best, _)| d < best) {
+                closest = Some((d, handle));
+            }
+        };
+        if tool == Tool::Anchor {
+            consider(self.pivot, styles.metric("transform.anchor.hit_radius", 12.), Handle::Anchor);
         }
-        if distance(p, self.rotate) < 9. {
-            return Some(Handle::Rotate);
-        }
+        consider(self.rotate, styles.metric("transform.rotate.hit_radius", 9.), Handle::Rotate);
+        let corner_radius = styles.metric("transform.corner.hit_radius", 8.);
         for (i, point) in self.corners.iter().enumerate() {
-            if distance(p, *point) < 8. {
-                return Some(Handle::Scale(true, true, Some(i)));
-            }
+            consider(*point, corner_radius,
+                Handle::Scale(true, true, Some(i)));
         }
+        let edge_radius = styles.metric("transform.edge.hit_radius", 7.);
         for i in 0..4 {
-            if distance(p, mid(self.corners[i], self.corners[(i + 1) % 4])) < 7. {
-                return Some(Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)));
-            }
+            consider(mid(self.corners[i], self.corners[(i + 1) % 4]),
+                edge_radius,
+                Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)));
         }
-        None
+        closest.map(|(_, handle)| handle)
     }
     fn paint(&self, list: &mut PaintList, hovered: Option<Handle>) {
         let styles = list.styles();
@@ -464,6 +470,7 @@ impl Controls {
                 out.push(Action::History(4));
             }
         }
+        let styles = list.styles();
         let pose = selected.and_then(|id| Pose::new(state, id, view));
         self.cursor = self
             .drag
@@ -471,7 +478,7 @@ impl Controls {
             .map(|d| d.handle)
             .or_else(|| {
                 pose.as_ref().filter(|_| clip.contains(input.mouse))
-                    .and_then(|p| p.handle(input.mouse, self.tool, input.modifiers.alt))
+                    .and_then(|p| p.handle(input.mouse, self.tool, &styles))
             })
             .map(|h| match h {
                 Handle::Move => motion_ui::cursor::Cursor::Grabbing,
@@ -502,7 +509,7 @@ impl Controls {
             self.drag.as_ref().map(|d| d.handle)
         } else if view.contains(input.mouse) {
             pose.as_ref()
-                .and_then(|p| p.handle(input.mouse, self.tool, input.modifiers.alt))
+                .and_then(|p| p.handle(input.mouse, self.tool, &styles))
         } else {
             None
         };
@@ -516,7 +523,7 @@ impl Controls {
             {
                 let seed = Seed::new(point, state, view);
                 if let Some((p, handle)) = pose.clone().and_then(|p| {
-                    p.handle(point, self.tool, input.modifiers.alt)
+                    p.handle(point, self.tool, &styles)
                         .map(|h| (p, h))
                 }) {
                     self.drag = Drag::new(seed, p, handle);
@@ -545,7 +552,7 @@ impl Controls {
 mod tests {
     use super::*;
     use crate::engine::Engine;
-    fn fixture(three_d: bool) -> (tempfile::TempDir, Engine, Value, Rect) {
+    pub(super) fn fixture(three_d: bool) -> (tempfile::TempDir, Engine, Value, Rect) {
         let folder = tempfile::tempdir().unwrap();
         let engine = Engine::start(
             folder.path().join("project"),
@@ -661,21 +668,22 @@ mod tests {
     fn hovered_grip_identity_matches_hit_test_and_lock_disables_it() {
         let (_folder, _engine, state, view) = fixture(false);
         let mut p = Pose::new(&state, 7, view).unwrap();
+        let styles = PaintList::default().styles();
         // Every grip reports its own identity so hover highlights exactly one box.
         for i in 0..4 {
             assert_eq!(
-                p.handle(p.corners[i], Tool::Move, false),
+                p.handle(p.corners[i], Tool::Move, &styles),
                 Some(Handle::Scale(true, true, Some(i)))
             );
             assert_eq!(
-                p.handle(mid(p.corners[i], p.corners[(i + 1) % 4]), Tool::Move, false),
+                p.handle(mid(p.corners[i], p.corners[(i + 1) % 4]), Tool::Move, &styles),
                 Some(Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)))
             );
         }
-        assert_eq!(p.handle(p.rotate, Tool::Move, false), Some(Handle::Rotate));
-        assert_eq!(p.handle(p.pivot, Tool::Move, true), Some(Handle::Anchor));
-        // The anchor only answers to the anchor tool or Alt, as before.
-        assert_ne!(p.handle(p.pivot, Tool::Move, false), Some(Handle::Anchor));
+        assert_eq!(p.handle(p.rotate, Tool::Move, &styles), Some(Handle::Rotate));
+        assert_eq!(p.handle(p.pivot, Tool::Anchor, &styles), Some(Handle::Anchor));
+        // Explicit anchor-tool ownership replaces the old implicit Alt shortcut.
+        assert_ne!(p.handle(p.pivot, Tool::Move, &styles), Some(Handle::Anchor));
         // A locked pose offers no hover target, matching its muted paint.
         p.locked = true;
         for point in [
@@ -684,7 +692,7 @@ mod tests {
             mid(p.corners[1], p.corners[2]),
             p.pivot,
         ] {
-            assert_eq!(p.handle(point, Tool::Anchor, true), None);
+            assert_eq!(p.handle(point, Tool::Anchor, &styles), None);
         }
     }
     #[test]
@@ -812,3 +820,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "transform_controls_hit_tests.rs"]
+mod hit_tests;
