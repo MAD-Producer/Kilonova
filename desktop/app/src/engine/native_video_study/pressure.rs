@@ -120,6 +120,21 @@ fn require_quality(state: &Value, full: bool) -> Result<u64> {
     Ok(level)
 }
 
+fn seek_source_frame(
+    shell: &mut Shell,
+    frame: u32,
+) -> Result<Receiver<std::result::Result<Value, String>>> {
+    // Use the ordinary action: it updates Shell.frame before dispatching the
+    // same worker seek. accept_edit_state alone intentionally updates only the
+    // snapshot, so a raw worker command leaves the driver's expected ID stale.
+    shell.action(panels::Action::Seek(f64::from(frame)), None)?;
+    Ok(shell
+        .editing
+        .take()
+        .ok_or("native pressure seek did not dispatch a worker request")?
+        .1)
+}
+
 fn step(
     shell: &mut Shell,
     events: &mut EventLoop<()>,
@@ -133,12 +148,13 @@ fn step(
     )?;
     evidence.begin("stepped_source_frame", json!({"sourceFrame":*frame}))?;
     let began = Instant::now();
-    let reply = shell.engine.request(|reply| Command::Seek {
-        frame: f64::from(*frame),
-        reply,
-    })?;
+    let reply = seek_source_frame(shell, *frame)?;
     let edit = receive(events, &shell.engine, &reply, "pressure_seek", evidence)?;
     shell.accept_edit_state(edit);
+    require(
+        shell.frame == f64::from(*frame),
+        "native pressure seek did not update the shell frame",
+    )?;
     let seek_us = began.elapsed().as_micros();
     let mut record = playback::present(shell, events, evidence)?;
     record["seekReplyUs"] = json!(seek_us);
@@ -152,7 +168,10 @@ fn step(
     record["uiPerformance"] = observed["desktop"]["uiPerformance"].clone();
     require(
         record["lastPresentedFrame"] == record["sourceFrame"],
-        "pressure frame identity differs",
+        &format!(
+            "pressure frame identity differs: requested={} shell={} recorded={} presented={}",
+            *frame, shell.frame, record["sourceFrame"], record["lastPresentedFrame"]
+        ),
     )?;
     let began = Instant::now();
     let reply = shell
@@ -444,6 +463,20 @@ pub(super) fn run(
         }
     }
     result
+}
+
+#[test]
+fn stepped_native_pressure_seek_updates_shell_and_worker_frame() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(directory.path().join("project"), None, Some(Locale::En)).unwrap();
+    for frame in [0, 1, 2] {
+        let reply = seek_source_frame(&mut shell, frame).unwrap();
+        assert_eq!(shell.frame, f64::from(frame));
+        let observed = reply.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(observed["frame"].as_f64(), Some(f64::from(frame)));
+        shell.accept_edit_state(observed);
+        assert_eq!(shell.frame, f64::from(frame));
+    }
 }
 
 #[test]

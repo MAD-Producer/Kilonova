@@ -49,3 +49,12 @@ residency, operating-system exhaustion or optimization gains.
 Protocol tests exercise rejection and unknown handling only. They are not GPU
 results. A successful collector receipt and original native evidence are required
 before any run is reported as accepted. No native pressure run is claimed here.
+
+The first source-bound execution at `bc70785a` built successfully but failed the
+frame-identity check after stepping beyond frame zero. The driver sent a raw
+worker seek while leaving `Shell.frame` unchanged; accepting an edit snapshot
+does not update that field. The driver now uses the ordinary Seek action, which
+updates the shell and dispatches the worker request together. A regression checks
+both actual shell and worker frame identities for successive seeks. The original
+native failure remains failed, with its logs and source identity retained. No
+identity assertion or product behavior was relaxed for this correction.
