@@ -16,6 +16,8 @@ use std::{
     },
     time::{Duration, Instant},
 };
+#[path = "native_retirement/single_source.rs"]
+mod single_source;
 
 struct Gate {
     open: Mutex<bool>,

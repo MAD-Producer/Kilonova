@@ -1,6 +1,7 @@
 //! Exercise the host's required-right failure through the real desktop log sink.
 use super::*;
 mod shutdown_tests;
+mod retirement_tests;
 use motion_core::{render_sampling::FrameBlend, Content, Layer, Project, VideoAsset, VideoClip};
 use motion_host::{
     video_frame::{DecodedFrame, VideoPixels},
