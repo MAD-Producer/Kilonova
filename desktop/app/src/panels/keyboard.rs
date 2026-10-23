@@ -3,6 +3,7 @@ use super::{
     helpers::last_frame,
     types::{Action, EffectSearch, Panels},
 };
+use crate::i18n::Text;
 use crate::shortcuts::{self, Command, Scope};
 #[cfg(test)]
 use crate::shortcuts::{EFFECT_SEARCH, EFFECT_SEARCH_ALT};
@@ -371,6 +372,7 @@ fn handle_context_shortcuts(
                 REPORTED.call_once(|| {
                     log::warn!("shortcut ignored operation=export reason=ffmpeg_feature_disabled")
                 });
+                panels.message = Some(panels.locale.t(Text::ExportUnavailable).into());
                 continue;
             }
             Command::Undo => Action::History(0),
@@ -876,3 +878,7 @@ mod node_scope_tests;
 #[cfg(test)]
 #[path = "keyboard_search_tests.rs"]
 mod search_chord_tests;
+
+#[cfg(test)]
+#[path = "keyboard_export_feedback_tests.rs"]
+mod export_feedback_tests;

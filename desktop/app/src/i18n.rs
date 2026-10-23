@@ -82,6 +82,7 @@ pub enum Text {
     CompositionSettings,
     ExportPng,
     ExportMovie,
+    ExportUnavailable,
     CancelExport,
     ExportCancelled,
     Exporting,
@@ -269,6 +270,10 @@ impl Locale {
             CompositionSettings => ("合成设置", "Composition Settings"),
             ExportPng => ("导出当前帧 PNG", "Export Current Frame PNG"),
             ExportMovie => ("导出 MP4 视频", "Export MP4 Movie"),
+            ExportUnavailable => (
+                "此版本暂不支持视频导出",
+                "Video export is unavailable in this build",
+            ),
             CancelExport => ("取消导出", "Cancel Export"),
             ExportCancelled => ("导出已取消", "Export cancelled"),
             Exporting => ("正在导出", "Exporting"),
