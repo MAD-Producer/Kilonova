@@ -4,6 +4,7 @@ use motion_effects::{RendererKind, SceneSettings, MAX_PARAMS};
 use motion_render::{scene_generator::validate_settings, RenderError};
 
 mod alpha;
+mod history;
 mod numeric;
 
 fn effect() -> SampledEffect {

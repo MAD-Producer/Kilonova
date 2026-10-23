@@ -1,6 +1,9 @@
 use super::*;
 use scene_generator::{GeneratorScratch, Sprite};
 
+#[path = "time/history.rs"]
+mod history;
+
 fn world_emitter() -> (Project, Scene, SampledEffect) {
     let package = scene_fixtures::particle_package().unwrap();
     let mut project = Project::new(128, 128, 30, 120).unwrap();

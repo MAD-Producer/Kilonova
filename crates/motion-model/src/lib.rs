@@ -60,6 +60,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("{0}")]
+    Shared(#[source] SharedCause),
     #[error(transparent)]
     Composition(#[from] composition::CompositionError),
     #[error("expression {target} at frame {frame}: {source}")]
@@ -112,6 +114,30 @@ pub enum Error {
     Zip(#[from] zip::result::ZipError),
 }
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// A cached failure keeps the original error reachable through `source()`.
+/// Using an Arc directly as a source would skip a leaf error when traversing
+/// its sources, because Arc delegates `source()` to the contained error.
+#[derive(Clone, Debug)]
+pub struct SharedCause(std::sync::Arc<Error>);
+
+impl std::fmt::Display for SharedCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self.0.as_ref(), f)
+    }
+}
+
+impl std::error::Error for SharedCause {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.0.as_ref())
+    }
+}
+
+impl From<std::sync::Arc<Error>> for Error {
+    fn from(source: std::sync::Arc<Error>) -> Self {
+        Self::Shared(SharedCause(source))
+    }
+}
 
 pub fn ensure(condition: bool, message: &str) -> Result<()> {
     if condition {
