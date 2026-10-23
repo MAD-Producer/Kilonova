@@ -3,6 +3,7 @@ mod avc;
 mod error;
 pub use error::Error;
 pub mod fonts;
+pub mod memory;
 mod decode;
 mod formats;
 mod matroska;
