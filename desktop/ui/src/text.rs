@@ -465,6 +465,9 @@ fn load_preferred_font(
             "Microsoft YaHei UI",
             "Microsoft YaHei",
             "PingFang SC",
+            "Heiti SC",
+            "Hiragino Sans GB",
+            "Songti SC",
             "Noto Sans CJK SC",
             "WenQuanYi Micro Hei",
         ]);
@@ -496,6 +499,19 @@ fn load_preferred_font(
             .map(|face| face.id),
     );
     candidates.extend(database.faces().map(|face| face.id));
+    let prefer_chinese = chinese && family.is_none_or(|name| name == "system-ui");
+    if let Some((font, family)) = select_candidate(&database, candidates, prefer_chinese) {
+        return Ok((font, families, family));
+    }
+    Err("no usable system font was found".into())
+}
+
+fn select_candidate(
+    database: &fontdb::Database,
+    candidates: impl IntoIterator<Item = fontdb::ID>,
+    prefer_chinese: bool,
+) -> Option<(FontArc, String)> {
+    let mut fallback = None;
     for id in candidates {
         let font = database.with_face_data(id, |data, index| {
             ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index).map(FontArc::new)
@@ -506,11 +522,18 @@ fn load_preferred_font(
                 .and_then(|f| f.families.first())
                 .map(|f| f.0.clone())
                 .unwrap_or_else(|| "unknown".into());
-            return Ok((font, families, family));
+            if prefer_chinese && font.glyph_id('中').0 == 0 {
+                fallback.get_or_insert((font, family));
+                continue;
+            }
+            return Some((font, family));
         }
     }
-    Err("no usable system font was found".into())
+    fallback
 }
+
+#[cfg(test)]
+mod font_selection_tests;
 
 #[cfg(test)]
 mod tests {
