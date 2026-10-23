@@ -167,6 +167,13 @@ jobs:
       - name: Verify Windows GPU output coverage
         if: runner.os == 'Windows'
         run: cargo test -p motion-graph --test output_antialiasing --locked -- --test-threads=1
+      - name: Verify native memory pressure adapter queries
+        run: >-
+          cargo test -p motion-render --test memory_pressure
+          ${{ runner.os == 'Windows' && 'actual_dxgi_adapter_query_is_bounded_and_does_not_modify_admission' ||
+          runner.os == 'macOS' && 'actual_metal_device_query_is_bounded_and_does_not_modify_admission' ||
+          'actual_vulkan_adapter_query_is_available_or_explicitly_unsupported' }}
+          --locked -- --exact --test-threads=1 --nocapture
       - name: Run desktop unit tests
         env:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
