@@ -1,5 +1,7 @@
 //! Serial file operations and a separate CPU graph compiler keep native dialogs
 //! off the GUI thread and do not stall live preview compilation.
+#[cfg(test)]
+mod graph_native_effect_tests;
 use crate::{
     i18n::{Locale, Text as T},
     node_editor::{Action, EditorSnapshot, NodeEditor},

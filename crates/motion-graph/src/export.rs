@@ -58,58 +58,54 @@ pub fn export_msfx(
     let source = document.to_json()?;
     let bytes = compiled_package_bytes(&compiled.manifest, &compiled.source)?;
     let package = Arc::new(EffectPackage::from_bytes(bytes.clone()).map_err(|e| {
-        Error::invalid(
+        Error::effect(
             ErrorCode::Manifest,
-            None,
-            None,
-            format!("exported package rejected by host loader: {e}"),
+            "exported package rejected by host loader: ",
+            e,
         )
     })?);
     let mut registry = Registry::default();
     registry
         .insert(package.clone())
-        .map_err(|e| Error::invalid(ErrorCode::Manifest, None, None, e.to_string()))?;
+        .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
     registry
         .resolve(
             &package.manifest.id,
             &package.manifest.version,
             &package.hash,
         )
-        .map_err(|e| Error::invalid(ErrorCode::Manifest, None, None, e.to_string()))?;
+        .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
     let output = destination(output)?;
     let source_path = output.with_extension("msgraph");
     // Do not overwrite an already published identity with new shader bytes.
     // The same version/hash is deterministic and can be exported again.
     if output.exists() {
         let previous = Arc::new(EffectPackage::open(&output).map_err(|e| {
-            Error::invalid(
+            Error::effect(
                 ErrorCode::Publication,
-                None,
-                None,
-                format!("existing destination is not a valid effect package: {e}"),
+                "existing destination is not a valid effect package: ",
+                e,
             )
         })?);
         let mut previous_registry = Registry::default();
         previous_registry
             .insert(previous)
-            .map_err(|e| Error::invalid(ErrorCode::Manifest, None, None, e.to_string()))?;
+            .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
         previous_registry.insert(package.clone()).map_err(|e| {
-            Error::invalid(
+            Error::effect(
                 ErrorCode::Publication,
-                None,
-                None,
-                format!("increment the package version before replacing its contents: {e}"),
+                "increment the package version before replacing its contents: ",
+                e,
             )
         })?;
     }
     let mut package_stage = StagedFile::new(&output, &bytes)?;
     let mut source_stage = StagedFile::new(&source_path, source.as_bytes())?;
     let reopened = EffectPackage::open(package_stage.path.as_ref().unwrap()).map_err(|e| {
-        Error::invalid(
+        Error::effect(
             ErrorCode::Publication,
-            None,
-            None,
-            format!("staged .msfx cannot be reopened: {e}"),
+            "staged .msfx cannot be reopened: ",
+            e,
         )
     })?;
     if reopened.hash != package.hash {
