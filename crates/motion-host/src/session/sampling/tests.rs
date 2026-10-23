@@ -333,7 +333,10 @@ fn native_exposure_request_survives_pending_polls_and_late_commands_keep_the_ori
     use motion_render::{gpu_commands::CommandStage, AllocationFrameOutcome, FrameOperation};
     let root = tempfile::tempdir().unwrap();
     let p = project();
-    let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+    let mut r = pollster::block_on(Renderer::new_profiled(
+        &instance, None, wgpu::TextureFormat::Rgba8Unorm, true,
+    )).unwrap();
     r.configure_assets(&p, root.path()).unwrap();
     let mut scratch = PreviewFrameTargets::new(&r, 32, 32).unwrap();
     let mut videos = VideoFrames::default();
