@@ -19,6 +19,18 @@ impl Session {
         pixels.details["activeVideoStreams"] = json!(active);
         pixels.details["originalSource"] = original;
         let proxies = self.preview_video.memory_ledger();
+        // DecodeTask is not Clone: these owners have independent output/scratch
+        // allocations. Moving a completion into a retained cache requires &mut
+        // Session, so it cannot race this borrowed Session query or count twice.
+        let mut image_tasks = vec![("original_source", self.preview_inputs.image_decode_memory())];
+        if let Some(g) = &self.graphics { image_tasks.push(("preview_renderer", g.renderer.image_decode_memory())); }
+        if let Some(r) = &self.editor_renderer { image_tasks.push(("editor_renderer", r.image_decode_memory())); }
+        let image_payload: u64 = image_tasks.iter().map(|(_, s)| s.known_payload_bytes).sum();
+        let image_capacity: u64 = image_tasks.iter().map(|(_, s)| s.known_capacity_bytes).sum();
+        let image_tasks = json!({"scope":"session_retained_image_decode_tasks",
+            "knownPayloadBytes":image_payload,"knownCapacityBytes":image_capacity,
+            "tasks":image_tasks.into_iter().map(|(owner, observation)| json!({"owner":owner,"observation":observation})).collect::<Vec<_>>(),
+            "atomicAcrossTasks":false,"completeCoverage":false,"unknownBytes":null});
         let shaders = motion_effects::memory::compiled_shader_memory(
             self.effects.compiled_shader_owners()
                 .chain(self.graphics.iter().flat_map(|g| g.renderer.compiled_shader_owners()))
@@ -40,16 +52,17 @@ impl Session {
         Ok(json!({"version":2,"scope":"session_instrumented_resource_ownership",
             "textures":self.texture_resource_ledger(),
             "cpu":{"scope":"observed_owned_vectors_not_process_ram",
-                "knownPayloadBytes":pixels.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes,
-                "knownCapacityBytes":pixels.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity+packages.known_capacity_bytes+shaders.known_capacity_bytes,
+                "knownPayloadBytes":pixels.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes+image_payload,
+                "knownCapacityBytes":pixels.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity+packages.known_capacity_bytes+shaders.known_capacity_bytes+image_capacity,
                 "sourcePixelCaches":pixels,"videoPreviewProxies":proxies,
+                "imageDecodeTasks":image_tasks,
                 "fontGlyphCache":fonts,"audioMixer":mixer,
                 "effectPackages":packages,
                 "effectProgramShaders":shaders,
                 "audioOutputScratch":{"payloadBytes":audio_payload,"capacityBytes":audio_capacity},
                 "compositionBundle":{"payloadBytes":bundle_payload,"capacityBytes":bundle_capacity},
                 "completeCoverage":false,"unknownBytes":null,
-                "excludes":["image_decode_worker_and_completion_pixels","external_original_source_input_packets",
+                "excludes":["image_codec_internal_storage_and_retiring_workers","external_original_source_input_packets",
                     "font_parser_internal_storage_and_external_rasters","audio_mixer_project_voice_and_container_storage",
                     "effect_package_and_shader_metadata_and_external_owners","scene_and_project_models",
                     "job_queues","inference_weights_and_activations","allocator_and_container_overhead"]},
