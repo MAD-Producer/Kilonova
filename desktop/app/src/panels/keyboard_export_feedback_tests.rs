@@ -170,7 +170,8 @@ fn unavailable_feedback_is_painted_in_main_and_floating_status_bars() {
                 );
                 assert!(
                     !expected.glyphs.is_empty(),
-                    "locale={locale:?} size={size:?} floating={floating}"
+                    "locale={locale:?} size={size:?} floating={floating} diagnostics={}",
+                    font_diagnostics(&mut atlas, &expected)
                 );
                 let actual: Vec<_> = paint
                     .glyphs
@@ -185,4 +186,30 @@ fn unavailable_feedback_is_painted_in_main_and_floating_status_bars() {
             }
         }
     }
+}
+
+fn font_diagnostics(atlas: &mut TextAtlas, paint: &PaintList) -> String {
+    let size = paint
+        .styles()
+        .resolve("label.small.muted", Default::default())
+        .unwrap()
+        .font_size;
+    let supported = ['此', '版', '本', '中'].map(|c| (c, atlas.supports(c)));
+    let glyph = atlas.glyph_at('此', size);
+    let families = atlas
+        .families
+        .iter()
+        .filter(|family| {
+            [
+                "PingFang", "Heiti", "Hiragino", "Songti", "Noto", "CJK", "YaHei",
+            ]
+            .iter()
+            .any(|part| family.contains(part))
+        })
+        .take(16)
+        .map(|family| family.chars().take(64).collect::<String>())
+        .collect::<Vec<_>>();
+    format!("family={:?} supported={supported:?} font_size={} line_height={} ascent={} glyph_uv={:?} glyph_offset={:?} glyph_advance={} candidates={families:?}",
+        atlas.selected_family, atlas.font_size(), atlas.line_height, atlas.ascent,
+        glyph.uv, glyph.offset, glyph.advance)
 }
