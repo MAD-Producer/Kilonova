@@ -14,6 +14,14 @@ impl Session {
     pub fn resource_memory_ledger(&self) -> crate::Result<Value> {
         let video = self.video_frames.cache_memory_ledger()?;
         let proxies = self.preview_video.memory_ledger();
+        let shaders = motion_effects::memory::compiled_shader_memory(
+            self.effects.compiled_shader_owners()
+                .chain(self.graphics.iter().flat_map(|g| g.renderer.compiled_shader_owners()))
+                .chain(self.editor_renderer.iter().flat_map(|r| r.compiled_shader_owners())));
+        let packages = motion_effects::memory::package_memory(
+            self.effects.package_memory_owners()
+                .chain(self.graphics.iter().flat_map(|g| g.renderer.package_memory_owners()))
+                .chain(self.editor_renderer.iter().flat_map(|r| r.package_memory_owners())));
         let fonts = self.font_store.as_ref().map(motion_media::fonts::FontStore::memory_info);
         let mixer = self.audio_mixer.as_ref().map(|(_, mixer)| mixer.memory_info());
         let media_payload = fonts.as_ref().map_or(0, |info| info.known_payload_bytes)
@@ -27,16 +35,18 @@ impl Session {
         Ok(json!({"version":1,"scope":"session_instrumented_resource_ownership",
             "textures":self.texture_resource_ledger(),
             "cpu":{"scope":"observed_owned_vectors_not_process_ram",
-                "knownPayloadBytes":video.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload,
-                "knownCapacityBytes":video.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity,
+                "knownPayloadBytes":video.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes,
+                "knownCapacityBytes":video.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity+packages.known_capacity_bytes+shaders.known_capacity_bytes,
                 "videoDecodedCache":video,"videoPreviewProxies":proxies,
                 "fontGlyphCache":fonts,"audioMixer":mixer,
+                "effectPackages":packages,
+                "effectProgramShaders":shaders,
                 "audioOutputScratch":{"payloadBytes":audio_payload,"capacityBytes":audio_capacity},
                 "compositionBundle":{"payloadBytes":bundle_payload,"capacityBytes":bundle_capacity},
                 "completeCoverage":false,"unknownBytes":null,
                 "excludes":["image_decode_worker_and_completion_pixels","original_source_preview_input_cache",
                     "font_parser_internal_storage_and_external_rasters","audio_mixer_project_voice_and_container_storage",
-                    "effect_package_files","scene_and_project_models",
+                    "effect_package_and_shader_metadata_and_external_owners","scene_and_project_models",
                     "job_queues","inference_weights_and_activations","allocator_and_container_overhead"]},
             "external":{"driverResidentBytes":null,"decoderBytes":null,"processResidentBytes":null},
             "atomicAcrossDomains":false,"isFramePeak":false,"completeCoverage":false}))

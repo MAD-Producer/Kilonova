@@ -14,7 +14,9 @@ The version 1 response separates three domains:
 - `cpu`: observed owned Vec payload and backing-storage capacity for active
   video frame caches, preview video proxies, Session audio output scratch and
   the serialized composition bundle, cached font glyph coverage, mixer scratch
-  and deduplicated shared resampling tables
+  and deduplicated shared resampling tables, plus package archives, expanded files
+  and package-owned compiled shader text deduplicated across retained builders;
+  independent program-owned shader text is counted in `effectProgramShaders`
 - `external`: driver residency, decoder allocation and process residency remain
   null; no CPU or texture subtotal is presented as total process RAM/physical VRAM
 
@@ -44,7 +46,8 @@ same rule for its byte vector.
 Every domain publishes its exclusions. In-flight/retiring decoder output,
 external frame readers, image decode worker/completion pixels, original-source
 preview inputs, font parser internals, escaped glyphs/rasters, mixer project and
-container storage, effect package files, models/jobs, inference and
+container storage, package/shader metadata, external package/shader owners,
+models/jobs, inference and
 allocator/container overhead remain outside this increment. Their capacity is
 unknown, not zero. The complete response is not an atomic frame peak and keeps
 `completeCoverage=false`.

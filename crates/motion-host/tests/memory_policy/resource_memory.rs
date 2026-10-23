@@ -12,6 +12,13 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     let revision = session.engine.revision();
     let view = session.view_revision;
     let project = session.engine.snapshot();
+    let packages = session.effects.package_memory_info();
+    let shaders =
+        motion_effects::memory::compiled_shader_memory(session.effects.compiled_shader_owners());
+    assert!(
+        packages.known_capacity_bytes > 0,
+        "startup retains actual built-in packages"
+    );
     session.audio_pcm = Vec::with_capacity(32);
     session.audio_pcm.extend([0.; 8]);
     session.composition_bundle = Vec::with_capacity(64);
@@ -20,8 +27,16 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     let observed = session
         .plugin_request(r#"{"op":"resource_memory"}"#)
         .unwrap();
-    assert_eq!(observed["cpu"]["knownPayloadBytes"], 36);
-    assert_eq!(observed["cpu"]["knownCapacityBytes"], capacity);
+    assert_eq!(
+        observed["cpu"]["knownPayloadBytes"],
+        packages.known_payload_bytes + shaders.known_payload_bytes + 36
+    );
+    assert_eq!(
+        observed["cpu"]["knownCapacityBytes"],
+        packages.known_capacity_bytes + shaders.known_capacity_bytes + capacity as u64
+    );
+    assert_eq!(observed["cpu"]["audioOutputScratch"]["payloadBytes"], 32);
+    assert_eq!(observed["cpu"]["compositionBundle"]["payloadBytes"], 4);
     assert_eq!(observed["textures"]["knownBytes"], 0);
     assert_eq!(observed["cpu"]["videoDecodedCache"]["resourceCount"], 0);
     assert!(observed["external"]["driverResidentBytes"].is_null());
@@ -38,13 +53,21 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     session.audio_pcm.clear();
     session.composition_bundle.clear();
     let cleared = session.resource_memory_ledger().unwrap();
-    assert_eq!(cleared["cpu"]["knownPayloadBytes"], 0);
-    assert_eq!(cleared["cpu"]["knownCapacityBytes"], capacity);
+    assert_eq!(
+        cleared["cpu"]["knownPayloadBytes"],
+        packages.known_payload_bytes + shaders.known_payload_bytes
+    );
+    assert_eq!(
+        cleared["cpu"]["knownCapacityBytes"],
+        packages.known_capacity_bytes + shaders.known_capacity_bytes + capacity as u64
+    );
+    assert_eq!(cleared["cpu"]["audioOutputScratch"]["payloadBytes"], 0);
+    assert_eq!(cleared["cpu"]["compositionBundle"]["payloadBytes"], 0);
     session.audio_pcm = Vec::new();
     session.composition_bundle = Vec::new();
     assert_eq!(
         session.resource_memory_ledger().unwrap()["cpu"]["knownCapacityBytes"],
-        0
+        packages.known_capacity_bytes + shaders.known_capacity_bytes
     );
 }
 
@@ -57,11 +80,20 @@ fn public_resource_query_uses_the_same_session_read_protocol() {
         Arc::new(Stub),
     )
     .unwrap();
+    let expected = motion_host::session::with_session(handle, |session| {
+        Ok(session.effects.package_memory_info().known_capacity_bytes
+            + motion_effects::memory::compiled_shader_memory(
+                session.effects.compiled_shader_owners(),
+            )
+            .known_capacity_bytes)
+    })
+    .unwrap();
     let result = motion_host::ops::preview::resource_memory(handle);
     motion_host::session::close(handle);
     let value = result.unwrap();
     assert_eq!(value["scope"], "session_instrumented_resource_ownership");
-    assert_eq!(value["cpu"]["knownCapacityBytes"], 0);
+    assert_eq!(value["cpu"]["knownCapacityBytes"], expected);
+    assert!(expected > 0);
     assert_eq!(value["textures"]["graphicsAvailable"], false);
 }
 
@@ -103,6 +135,9 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
     let revision = session.engine.revision();
     let view = session.view_revision;
     let project_before = session.engine.snapshot();
+    let packages = session.effects.package_memory_info();
+    let shaders =
+        motion_effects::memory::compiled_shader_memory(session.effects.compiled_shader_owners());
     let mut store = FontStore::new(&directory.path().join("fonts")).unwrap();
     let glyph = store.glyph(&FontStore::builtin_id(), 'A', 32.).unwrap();
     let font_info = store.memory_info();
@@ -118,11 +153,19 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
         .unwrap();
     assert_eq!(
         observed["cpu"]["knownPayloadBytes"],
-        font_info.known_payload_bytes + mixer_info.known_payload_bytes + output_payload
+        font_info.known_payload_bytes
+            + mixer_info.known_payload_bytes
+            + output_payload
+            + packages.known_payload_bytes
+            + shaders.known_payload_bytes
     );
     assert_eq!(
         observed["cpu"]["knownCapacityBytes"],
-        font_info.known_capacity_bytes + mixer_info.known_capacity_bytes + output_capacity
+        font_info.known_capacity_bytes
+            + mixer_info.known_capacity_bytes
+            + output_capacity
+            + packages.known_capacity_bytes
+            + shaders.known_capacity_bytes
     );
     assert_eq!(
         observed["cpu"]["fontGlyphCache"],
@@ -161,7 +204,10 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
     session.font_store = None;
     session.audio_mixer = None;
     let released = session.resource_memory_ledger().unwrap();
-    assert_eq!(released["cpu"]["knownCapacityBytes"], output_capacity);
+    assert_eq!(
+        released["cpu"]["knownCapacityBytes"],
+        output_capacity + packages.known_capacity_bytes + shaders.known_capacity_bytes
+    );
     assert!(released["cpu"]["fontGlyphCache"].is_null());
     assert!(released["cpu"]["audioMixer"].is_null());
     assert!(

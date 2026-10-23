@@ -1,0 +1,1176 @@
+{
+  "acceptance": {
+    "issue60-package-memory-v1": {
+      "source": "348d9672636e7df7026501935ecdd950c7cabd05",
+      "phases": {
+        "suites": {
+          "source": "348d9672636e7df7026501935ecdd950c7cabd05",
+          "root": "E:\\Dev\\aem\\.worktrees\\effect-package-memory",
+          "target": "E:\\Dev\\aem\\target\\effect-package-memory-348d9672",
+          "phase": "suites",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "motion-effects",
+            "-p",
+            "motion-render",
+            "-j1",
+            "--",
+            "--test-threads=1"
+          ],
+          "startedUnix": 1792732828.0286324,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 1784.2114915847778,
+          "logSha256": "2f7760b6251038664e8fc6b0cd941a30201da278eef26ed7c1037dd12ffd695d",
+          "testSummaries": [
+            [
+              9,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              11,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              151,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              10,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              13,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              10,
+              0,
+              1
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              12,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              9,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              11,
+              0,
+              0
+            ],
+            [
+              9,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              9,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              9,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ],
+          "validationError": null
+        },
+        "provenance": {
+          "source": "348d9672636e7df7026501935ecdd950c7cabd05",
+          "root": "E:\\Dev\\aem\\.worktrees\\effect-package-memory",
+          "target": "E:\\Dev\\aem\\target\\effect-package-memory-348d9672",
+          "phase": "provenance",
+          "command": [
+            "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+            "tools/validate_provenance.py"
+          ],
+          "startedUnix": 1792734612.4601042,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 0.1828904151916504,
+          "logSha256": "cab88da23b8c187ad4c66154ff546e0423f3af9906b45de99266652b3b71effa",
+          "testSummaries": [],
+          "validationError": null
+        },
+        "diff": {
+          "source": "348d9672636e7df7026501935ecdd950c7cabd05",
+          "root": "E:\\Dev\\aem\\.worktrees\\effect-package-memory",
+          "target": "E:\\Dev\\aem\\target\\effect-package-memory-348d9672",
+          "phase": "diff",
+          "command": [
+            "git",
+            "diff",
+            "--check",
+            "HEAD^",
+            "HEAD"
+          ],
+          "startedUnix": 1792734612.82076,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 0.055267333984375,
+          "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "testSummaries": [],
+          "validationError": null
+        }
+      },
+      "scope": "Package/PlanBuilder known CPU ownership; Session integration and completeissue60 remain pending",
+      "completeIssue60": false
+    },
+    "issue60-package-session-v1": {
+      "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+      "phases": {
+        "suites": {
+          "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+          "root": "E:\\Dev\\aem\\.worktrees\\package-memory-session-integration",
+          "target": "E:/Dev/aem/target/package-session-1a2b4bf1",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "motion-media",
+            "-p",
+            "motion-host",
+            "-j1",
+            "--",
+            "--test-threads=1"
+          ],
+          "phase": "suites",
+          "startedUnix": 1792734680.641243,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 667.4706854820251,
+          "logSha256": "fd76db7fcd695a70dbff9e94b45cce95cce4fc575c9f70387873802ed0fe7059",
+          "testSummaries": [
+            [
+              79,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              10,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              13,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              7,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              92,
+              0,
+              0
+            ],
+            [
+              10,
+              0,
+              1
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              3,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              1
+            ],
+            [
+              6,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ],
+          "validationError": null
+        },
+        "effects-memory": {
+          "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+          "root": "E:\\Dev\\aem\\.worktrees\\package-memory-session-integration",
+          "target": "E:/Dev/aem/target/package-session-1a2b4bf1",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "motion-effects",
+            "--lib",
+            "-j1",
+            "memory::",
+            "--",
+            "--test-threads=1"
+          ],
+          "phase": "effects-memory",
+          "startedUnix": 1792735348.7621896,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 68.81091666221619,
+          "logSha256": "918f54a58aeff4a423d9bbae7e57006157779dc95e4ddc0eb36c7b8ac62a225f",
+          "testSummaries": [
+            [
+              4,
+              0,
+              0
+            ]
+          ],
+          "validationError": null
+        },
+        "render-memory": {
+          "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+          "root": "E:\\Dev\\aem\\.worktrees\\package-memory-session-integration",
+          "target": "E:/Dev/aem/target/package-session-1a2b4bf1",
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "motion-render",
+            "--lib",
+            "-j1",
+            "effect_plan::package_memory_tests::",
+            "--",
+            "--test-threads=1"
+          ],
+          "phase": "render-memory",
+          "startedUnix": 1792735418.2558534,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 23.802064180374146,
+          "logSha256": "e5287d28a6e161c16598602b5ae055ce33da8f5226722fec4ad5100efe9cd8e9",
+          "testSummaries": [
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "validationError": null
+        },
+        "provenance": {
+          "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+          "root": "E:\\Dev\\aem\\.worktrees\\package-memory-session-integration",
+          "target": "E:/Dev/aem/target/package-session-1a2b4bf1",
+          "command": [
+            "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+            "tools/validate_provenance.py"
+          ],
+          "phase": "provenance",
+          "startedUnix": 1792735442.6324155,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 0.5621767044067383,
+          "logSha256": "0f7fee30e444bfa999b54df097dbab023321d82b3b6dbe5cabcecca498acabd3",
+          "testSummaries": [],
+          "validationError": null
+        },
+        "diff": {
+          "source": "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+          "root": "E:\\Dev\\aem\\.worktrees\\package-memory-session-integration",
+          "target": "E:/Dev/aem/target/package-session-1a2b4bf1",
+          "command": [
+            "git",
+            "diff",
+            "--check",
+            "6f04b80fbf0c29882eeeecd79e2317433200e47c",
+            "HEAD"
+          ],
+          "phase": "diff",
+          "startedUnix": 1792735443.7178233,
+          "environment": {
+            "CARGO_BUILD_JOBS": "1",
+            "CARGO_PROFILE_DEV_DEBUG": "0",
+            "CARGO_PROFILE_TEST_DEBUG": "0",
+            "CARGO_INCREMENTAL": "0",
+            "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+            "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+          },
+          "exitCode": 0,
+          "elapsedSeconds": 0.49277400970458984,
+          "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "testSummaries": [],
+          "validationError": null
+        }
+      },
+      "scope": "CPU package Session/editor ownership; not native-window performance, physical residency or fullissue60",
+      "completeIssue60": false
+    }
+  },
+  "archive": {
+    "path": "data/effect-package-memory-1a2b4bf1.zip",
+    "bytes": 48846,
+    "sha256": "f592d9906a2592c9af87a9bf64de93d5e9b11a6f16e8d42534d896a08b6301e0",
+    "files": [
+      {
+        "path": "issue60-package-memory-v1-accepted.json",
+        "bytes": 9609,
+        "sha256": "78ddf0bc91c9776289b09287f3b21d596563fb336fed3ff0a85d9502064721eb"
+      },
+      {
+        "path": "issue60-package-memory-v1-diff.exit.json",
+        "bytes": 808,
+        "sha256": "6596300eab9f9a8a0319d57652a91a408671b069ffab23df617a11f1678d5696"
+      },
+      {
+        "path": "issue60-package-memory-v1-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "issue60-package-memory-v1-diff.started.json",
+        "bytes": 614,
+        "sha256": "b432ca5df1593efd9d070a7870a5bb7585e3103d6e8b5cece844eb5e13bcb81c"
+      },
+      {
+        "path": "issue60-package-memory-v1-provenance.exit.json",
+        "bytes": 867,
+        "sha256": "a9a0d6e3e54f8e4ce68b18e49a1b670b00b53b908bab5a7f309b5e2416d93656"
+      },
+      {
+        "path": "issue60-package-memory-v1-provenance.log",
+        "bytes": 46,
+        "sha256": "cab88da23b8c187ad4c66154ff546e0423f3af9906b45de99266652b3b71effa"
+      },
+      {
+        "path": "issue60-package-memory-v1-provenance.started.json",
+        "bytes": 672,
+        "sha256": "ae7c214a049be92d783f1e9288dc58df52b59bc038acee1cd9c465b47c6df687"
+      },
+      {
+        "path": "issue60-package-memory-v1-suites.exit.json",
+        "bytes": 5333,
+        "sha256": "808b799f05d722ff8f89db896d983fe3c1edc218943ce0e503d38e93b1f52a1c"
+      },
+      {
+        "path": "issue60-package-memory-v1-suites.log",
+        "bytes": 86305,
+        "sha256": "2f7760b6251038664e8fc6b0cd941a30201da278eef26ed7c1037dd12ffd695d"
+      },
+      {
+        "path": "issue60-package-memory-v1-suites.started.json",
+        "bytes": 727,
+        "sha256": "b00424d1bf6283e80bf9a6ef7b00b19345d06d885e46e8fa6422a5b8ab8851fd"
+      },
+      {
+        "path": "issue60-package-session-v1-accepted.json",
+        "bytes": 7444,
+        "sha256": "5202bf704b1d080abf1adf4ec1b02a8db4b7cfcf854eb7f53214e13a39233869"
+      },
+      {
+        "path": "issue60-package-session-v1-diff.exit.json",
+        "bytes": 850,
+        "sha256": "2a89e134bb6b4f4cc3fabfb97884986915618284a667dab46e0669d9f717ed54"
+      },
+      {
+        "path": "issue60-package-session-v1-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "issue60-package-session-v1-diff.started.json",
+        "bytes": 654,
+        "sha256": "5abc1458efc186e89e0a1038ac4906ed46dedefb182539972105c47b5b893d57"
+      },
+      {
+        "path": "issue60-package-session-v1-effects-memory.exit.json",
+        "bytes": 977,
+        "sha256": "2a7871de3280ed3ee8bb23cb673a9b10be2d70f40f1380f36fc7479f8395ed1e"
+      },
+      {
+        "path": "issue60-package-session-v1-effects-memory.log",
+        "bytes": 1551,
+        "sha256": "918f54a58aeff4a423d9bbae7e57006157779dc95e4ddc0eb36c7b8ac62a225f"
+      },
+      {
+        "path": "issue60-package-session-v1-effects-memory.started.json",
+        "bytes": 736,
+        "sha256": "4d431b3957d0e774485fbbeceb04390b8797ba586cf6ef9e53121f59413925e0"
+      },
+      {
+        "path": "issue60-package-session-v1-provenance.exit.json",
+        "bytes": 870,
+        "sha256": "aeab42538a815a1f8a3880fea39570ed8b843e12fbc5cfc1ee653048da485a82"
+      },
+      {
+        "path": "issue60-package-session-v1-provenance.log",
+        "bytes": 46,
+        "sha256": "0f7fee30e444bfa999b54df097dbab023321d82b3b6dbe5cabcecca498acabd3"
+      },
+      {
+        "path": "issue60-package-session-v1-provenance.started.json",
+        "bytes": 675,
+        "sha256": "99ce58bbb8145cfb9f187c2009dff7bbff4b6b15a16e709bf7b2f57b6d35fd17"
+      },
+      {
+        "path": "issue60-package-session-v1-render-memory.exit.json",
+        "bytes": 1003,
+        "sha256": "312b51f566cfdd9b905cc39a7274f8e06f9b6c3504feef5fcd6e22f5900edbfc"
+      },
+      {
+        "path": "issue60-package-session-v1-render-memory.log",
+        "bytes": 543,
+        "sha256": "e5287d28a6e161c16598602b5ae055ce33da8f5226722fec4ad5100efe9cd8e9"
+      },
+      {
+        "path": "issue60-package-session-v1-render-memory.started.json",
+        "bytes": 761,
+        "sha256": "89084dcbdf96bcfe88d9663eb4f437f48888b348298d5952e775ad14e1888b24"
+      },
+      {
+        "path": "issue60-package-session-v1-suites.exit.json",
+        "bytes": 2203,
+        "sha256": "561350b501a3d64ab50ee94b7ea0f29f91ff9beeadd8df1fcf6eaaa409f755cc"
+      },
+      {
+        "path": "issue60-package-session-v1-suites.log",
+        "bytes": 43420,
+        "sha256": "fd76db7fcd695a70dbff9e94b45cce95cce4fc575c9f70387873802ed0fe7059"
+      },
+      {
+        "path": "issue60-package-session-v1-suites.started.json",
+        "bytes": 725,
+        "sha256": "14e5dd63ce6d5f800cf36cfc72c7b33eb525715f505789068eeebd30e201fd3c"
+      }
+    ]
+  },
+  "nativeCostReportAcceptance": {
+    "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+    "manifest": "desktop-performance-cpu-acceptance.json",
+    "status": "Accepted six actual Release cases/408raw/360measured; independent pixels and original5824 comparison passed"
+  },
+  "completeIssue60": false,
+  "delivery": {
+    "base": "38e5be36516e81aa5d00c8876ea690b00cbe388c",
+    "codeSource": "51095815f4cd364c0d52d405dd85ae902ff6ba1c",
+    "measuredNativeCostSource": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+    "ownImplementationAndToolIdentity": [
+      {
+        "path": "crates/motion-effects/src/lib.rs",
+        "gitBlob": "0a8c42daff2afba47f9963cc4d453ac0def794db",
+        "sha256": "3143cb0bb446a70ec8b1d1fd9ab39856ba4434e5f41f4efa95a303ae96a33465"
+      },
+      {
+        "path": "crates/motion-effects/src/memory.rs",
+        "gitBlob": "f0f458c16f76b40a30af0a27b5687a4878aa9197",
+        "sha256": "f64d805e08cec4573dc0a4f46e636fb29bcda4a492bf2d65a93aa48acf985c0b"
+      },
+      {
+        "path": "crates/motion-effects/src/memory/shaders.rs",
+        "gitBlob": "31a9bbb4aeff072f66a3517682545aa8a156c169",
+        "sha256": "330ffb4ac4382b8645a615d115ba33f14c49aeb2bdac52ef2e1ed64077121e7c"
+      },
+      {
+        "path": "crates/motion-effects/src/memory/shaders/tests.rs",
+        "gitBlob": "528733615973a8c0c5af1f151fccb727392b8731",
+        "sha256": "1e1006b47e47258c32c95245e4d842011abb0927522fbb29afab62b6cb990346"
+      },
+      {
+        "path": "crates/motion-effects/src/memory/tests.rs",
+        "gitBlob": "508f23d4875a1f6c55ee46f91fcbb40d35673423",
+        "sha256": "c6a5aee00a163a13fd7a717506bca4bb8f8e1ed8ab4cc9cddd95beb5ae152f99"
+      },
+      {
+        "path": "crates/motion-host/src/ops/snapshot.rs",
+        "gitBlob": "fb028f6d5c01a0a657fdaa03f7bf34e1a1e9e28f",
+        "sha256": "44959d66992c60c27148e1bc8566aed73f5567e5b239016f2580c030bb5976c3"
+      },
+      {
+        "path": "crates/motion-host/tests/memory_policy.rs",
+        "gitBlob": "e9911851108ee63c04711d324722033d8bdea624",
+        "sha256": "9b3160e864bfdf0115b7bf8bdf3af0df13cf86e50f9148d7446692fd08119fa6"
+      },
+      {
+        "path": "crates/motion-host/tests/memory_policy/package_memory.rs",
+        "gitBlob": "effde63bfdfe3fc9b956a1a32c7dde972dd19435",
+        "sha256": "e15e3eca1441d258a9094ff64580d4406714917b2f06f1b51715ae24d4a53329"
+      },
+      {
+        "path": "crates/motion-host/tests/memory_policy/resource_memory.rs",
+        "gitBlob": "db35f307fce47e8fff3b0bd3328d5ae5de4b26bb",
+        "sha256": "1faf32eb2adba11d1e2bfbe0fc35be2fe93cd2aca2c7f5f8d76b85930b71f3c2"
+      },
+      {
+        "path": "crates/motion-render/examples/performance_baseline.rs",
+        "gitBlob": "e49e367d616ecca9d4a76c24d177bbc1984b8c0e",
+        "sha256": "62ae829d6b0f34afcac6f35b8c0398d92e2705592f874f3b336cb96ae2268601"
+      },
+      {
+        "path": "crates/motion-render/src/effect_plan.rs",
+        "gitBlob": "9bfcae1364cf9bd1cec77e1069919dee0555bc36",
+        "sha256": "d89aa455ba073a5aa4d0825dfb3f7de25ae3c41112de9a2597d3329ba9c6d355"
+      },
+      {
+        "path": "crates/motion-render/src/effect_plan/package_memory_tests.rs",
+        "gitBlob": "1bf01bcf15e2bb3320b4b7a7568997a1e86c566b",
+        "sha256": "dacf82e4b897090632f907ebc504ea8a6ae2f5ea952f6967e649d14aeed42ef4"
+      },
+      {
+        "path": "crates/motion-render/src/renderer.rs",
+        "gitBlob": "8d7512e1d4c445086cb056adaf7f9db721091ce4",
+        "sha256": "906131aed1ff496b41395b7691e8ee56432d4c2d9c8d3708da06cd72ecedb22e"
+      },
+      {
+        "path": "engineering/host-api/effect-package-memory.md",
+        "gitBlob": "800abadce8c1fc81693a2122ef5084a1f0135cb0",
+        "sha256": "80cbcb65fe9290ce7b6ecfd5b235f3d6d5e1152aa9734cb9d2b3d1c1051472f8"
+      },
+      {
+        "path": "engineering/host-api/session-resource-memory.md",
+        "gitBlob": "e963e7567d6b5f10882dd0d78826e461201de8ed",
+        "sha256": "0f846767de893a0a4f7569b6f8d77a6495499547423968453cbfcd2cb7c3b3a5"
+      },
+      {
+        "path": "engineering/validation/desktop-performance-baseline.md",
+        "gitBlob": "a9c79e4e3ea50c76c19315d17acd26c39a02caa4",
+        "sha256": "2e04ea17be675716f4fc03845db66c2a883433fdbf637c47c1431faf3f48aee5"
+      },
+      {
+        "path": "tools/VALIDATION.md",
+        "gitBlob": "daef185e0689214d8529b02a599ca355fa2bb22f",
+        "sha256": "091fbabe442c32e3ac6f91ffb38d25e2b719844aa27660775481540969aa4da0"
+      },
+      {
+        "path": "tools/collect_desktop_performance.py",
+        "gitBlob": "1e2619c73677df79e0b76c80e04cd0c120752e4c",
+        "sha256": "79e1ea7e96bf1d69c527dee34eabbceaac3a43cac1ad012b581e1c7e02410682"
+      },
+      {
+        "path": "tools/test_ci_desktop_performance.py",
+        "gitBlob": "7da25b2c4531e4830330515e1b856a28bf83e5a0",
+        "sha256": "e4d073a9b0ac28624ac7bc174d2a5ba7fa268cd32c114d84cf5f5743604d43c7"
+      },
+      {
+        "path": "tools/validation_inventory.json",
+        "gitBlob": "41f4a84b78f644d023b402874b0495cedfdad486",
+        "sha256": "ca5de58033116a9f699807bff0c3d6ea00b07e18abe2cef097ffeb028a9ace9f"
+      }
+    ],
+    "otherLatestMainPathsDifferFromMeasuredSource": [
+      "desktop/app/src/node_editor/view/canvas.rs",
+      "desktop/app/src/node_editor/view/wires.rs",
+      "desktop/app/src/node_editor/view/wires/socket_index_tests.rs",
+      "desktop/app/src/panels/timeline_shortcuts.rs",
+      "desktop/app/src/panels/timeline_shortcuts_tests.rs",
+      "desktop/app/src/panels/timeline_shortcuts_tests/reveal_axis_tests.rs",
+      "engineering/validation/node-socket-index.md",
+      "engineering/validation/reveal-selected-axis.md"
+    ],
+    "privateMergePublished": false,
+    "localNativeSuitesRelabeled": false,
+    "currentHeadCI": "Required before merge; pending publication",
+    "scope": "Actual correctness counts stay attributed to348/1a; benchmark measurements stay709; currentheadCI verifies rebased source",
+    "postMeasurementDocumentationUpdates": "Validation completion/acceptance records and baseline status are updated after native acceptance; codeSource identifies original20-file equality proof, not a new native run"
+  }
+}

@@ -91,6 +91,12 @@ original failures and source/binary/artifact hashes. Run `--validate-only` to
 check an existing archive without running a GPU. Its archive/failure regressions
 are discovered by `test_ci_desktop_performance.py`.
 
+Current schema-2 records include bounded CPU package/program text ownership,
+the actual single reusable YUV fixture capacities, and separately timed metadata
+enumeration. Unknown process/driver storage remains null. Historical schema-1
+archives require the collector at their recorded source; no missing CPU records
+are synthesized. Protocol tests do not replace a new source-bound native run.
+
 See [scope and pending native acceptance](../engineering/validation/desktop-performance-baseline.md).
 This headless, synchronized latency study does not measure window playback,
 physical display deadlines, file decoding or Android device performance.

@@ -12,6 +12,17 @@ provenance and inventory passed. See the [completed record](desktop-performance-
 failed attempts remain failed. Protocol fixtures alone are not performance evidence.
 Issue #60 remains open for its remaining original scope.
 
+The current collector writes schema 2: every frame additionally carries separate
+CPU package archive/expanded-file/text ownership, independent program shader
+text, and the two actual Vec capacities of the single reusable YUV fixture.
+The published `5824c882` schema-1 study remains attributed to its original source;
+replay it with that source's collector, not the schema-2 collector. No compatibility
+fallback invents missing observations. The new source `709de340` is accepted on six actual Release cases, 408 raw /
+360 measured frames, independent pixels and replay. See the
+[CPU cost-report completion](desktop-performance-cpu-completed.md) and its
+[exact receipts](desktop-performance-cpu-acceptance.json). Both historical and
+current studies keep their original measured source and remaining limits.
+
 ## Run and preserve evidence
 
 Commit the study source, select an otherwise idle desktop and a new output
@@ -99,6 +110,24 @@ Unsupported timestamps remain null; an enabled timer missing its actual sample
 fails the run. Image readback is excluded from every timed frame. One final PNG
 is read afterward. Neither the deliberate per-frame wait nor per-frame metadata
 enumeration is enabled in normal application playback.
+
+CPU `knownPayloadBytes` and `knownCapacityBytes` are observed owned buffers,
+separate from textures and logical admission. Actual Arc identity deduplicates
+shared packages and program shaders; independently allocated equal text counts
+separately. Archive, expanded files and package-owned text are distinct buffers,
+as are retained program shader copies. Four YUV uploads borrow one generated
+frame, so the CPU inventory counts its Y and UV Vec capacities once. No decoder
+cache is inferred from these pixels. Unknown metadata, containers, external
+owners and process/driver residency remain unknown, never zero. Queries retain
+no owners. Raw records preserve bounded allocation entries and their references;
+the summary adds distributions of the observed CPU payload and capacity.
+
+`metadataSampleUs` measures the separate texture/CPU enumeration and admission
+query after the frame has completed. It is excluded from `waitedWallUs` and has
+its own distribution. JSON serialization, retained report objects and final PNG
+scratch remain outside that timing and the observed CPU subtotal. Enumeration
+can perturb later samples; it is a diagnostic study condition, not a claim of
+zero instrumentation overhead or application frame throughput.
 
 Native adapter, driver, backend and device type are stored in each report.
 The wrapper records host platform, CPU count and an environment note. It does

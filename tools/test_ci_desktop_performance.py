@@ -14,6 +14,31 @@ import collect_desktop_performance as study
 SOURCE = "0123456789abcdef" * 2 + "01234567"
 
 
+def cpu_fixture(video):
+    def buffer(payload, capacity):
+        return {"payloadBytes": payload, "capacityBytes": capacity}
+
+    package = {"id": 1, "plugin": "protocol-fixture", "hash": "same-contents",
+               "registryReferences": 2, "programReferences": 3, "fileCount": 1, "shaderCount": 1,
+               "archive": buffer(10, 16), "expandedFiles": buffer(20, 32), "compiledShaderText": buffer(30, 64)}
+    packages = {"version": 1, "completeCoverage": False, "unknownBytes": None,
+                "unobservedReferences": 0, "allPackageOwnersObserved": True,
+                "knownPayloadBytes": 60, "knownCapacityBytes": 112, "resources": [package]}
+    shader = {"id": 1, "programReferences": 2, "programs": ["program-one", "program-two"],
+              "omittedProgramContexts": 0, "text": buffer(40, 64)}
+    shaders = {"version": 1, "completeCoverage": False, "unknownBytes": None,
+               "unobservedReferences": 0, "allProgramOwnersObserved": True,
+               "knownPayloadBytes": 40, "knownCapacityBytes": 64, "resources": [shader]}
+    size = 3840 * 2160
+    generated = {"owner": "one_reusable_generated_frame", "y": buffer(size, size + 16),
+                 "uv": buffer(size // 2, size // 2 + 32),
+                 "knownPayloadBytes": size * 3 // 2, "knownCapacityBytes": size * 3 // 2 + 48} if video else None
+    return {"scope": "benchmark_observed_owned_buffers_not_process_ram", "completeCoverage": False,
+            "unknownBytes": None, "effectPackages": packages, "effectProgramShaders": shaders,
+            "generatedYuv": generated, "knownPayloadBytes": 100 + (generated["knownPayloadBytes"] if video else 0),
+            "knownCapacityBytes": 176 + (generated["knownCapacityBytes"] if video else 0)}
+
+
 def fixture(name="animated", gpu=True, samples=3):
     frames = []
     for index in range(8 + samples):
@@ -25,6 +50,7 @@ def fixture(name="animated", gpu=True, samples=3):
                    videoConversionSubmissions=4 if name == "four-4k-yuv" else 0,
                    videoUploadBytes=4 * 3840 * 2160 * 3 // 2 if name == "four-4k-yuv" else 0,
                    pixelReadbackBytes=0, timestampReadbackBytes=32 if gpu else 0,
+                   cpuMemory=cpu_fixture(name == "four-4k-yuv"),
                    textureLedger={"knownBytes": 16, "unknownCapacityCount": 1, "resources": [
                        {"id": "shared-texture", "logicalBytes": 16, "references": [{"owner": "one"}, {"owner": "two"}]},
                        {"id": "unknown-texture", "logicalBytes": None, "references": []}]},
@@ -33,9 +59,12 @@ def fixture(name="animated", gpu=True, samples=3):
         if not gpu:
             row.update({key: None for key in study.METRICS if key.startswith("gpu")})
         frames.append(row)
-    return {"schemaVersion": 1, "case": name, "sourceRevision": SOURCE, "debugAssertions": False,
+    return {"schemaVersion": 2, "case": name, "sourceRevision": SOURCE, "debugAssertions": False,
             "dimensions": [1280, 720], "fps": 30, "renderMode": "fixed-full-resolution", "warmupFrames": 8, "measuredFrames": samples,
             "memoryPolicy": {"sourceTextureBudgetBytes": 256 << 20},
+            "syntheticYuv": {"dimensions": [3840, 2160], "sources": 4,
+                             "oneReusableCpuFixtureBytes": 3840 * 2160 * 3 // 2,
+                             "decoderMeasured": False} if name == "four-4k-yuv" else None,
             "adapter": {"name": "Protocol fixture only", "driver": "", "driverInfo": "", "backend": "Test", "deviceType": "Test"},
             "gpuTimestampSupported": gpu, "frames": frames,
             "nativeMemoryPressure": {"reading": {"status": "unavailable"}}, "coverageGaps": ["physical hardware not measured"],
@@ -43,6 +72,59 @@ def fixture(name="animated", gpu=True, samples=3):
 
 
 class DesktopPerformanceTests(unittest.TestCase):
+    def test_cpu_capacity_keeps_shared_references_and_independent_equal_packages_separate(self):
+        report = fixture()
+        # Five owners share the original allocation. Equal content in a second
+        # independently allocated package must still contribute its capacity.
+        for row in report["frames"]:
+            cpu = row["cpuMemory"]
+            package = copy.deepcopy(cpu["effectPackages"]["resources"][0])
+            package.update(id=2, registryReferences=1, programReferences=0)
+            cpu["effectPackages"]["resources"].append(package)
+            cpu["effectPackages"]["knownPayloadBytes"] += 60
+            cpu["effectPackages"]["knownCapacityBytes"] += 112
+            cpu["knownPayloadBytes"] += 60
+            cpu["knownCapacityBytes"] += 112
+        result = study.validate_case(report, "animated", SOURCE, 3)
+        self.assertEqual(result["cpuMemory"]["knownCapacityBytes"]["p95"], 288)
+        self.assertIsNone(result["cpuMemory"]["unknownBytes"])
+        self.assertFalse(result["cpuMemory"]["completeCoverage"])
+
+    def test_cpu_double_counts_missing_planes_and_false_complete_coverage_are_rejected(self):
+        mutations = [
+            (lambda c: c.update(knownCapacityBytes=c["knownCapacityBytes"] * 2), "aggregate subtotal"),
+            (lambda c: c.update(completeCoverage=True), "Partial CPU"),
+            (lambda c: c.update(unknownBytes=0), "Partial CPU"),
+            (lambda c: c["effectPackages"].update(knownCapacityBytes=0), "domain subtotal"),
+            (lambda c: c["effectPackages"]["resources"].append(copy.deepcopy(c["effectPackages"]["resources"][0])), "twice"),
+            (lambda c: c["effectProgramShaders"].update(unknownBytes=0), "Partial CPU"),
+            (lambda c: c["effectProgramShaders"].update(unobservedReferences=1), "owner coverage"),
+            (lambda c: c["effectProgramShaders"]["resources"][0].update(programs=["x"] * 9), "Unbounded CPU"),
+            (lambda c: c["effectProgramShaders"]["resources"][0]["text"].update(capacityBytes=1), "payload exceeds"),
+            (lambda c: c["generatedYuv"]["uv"].update(payloadBytes=0), "one CPU YUV"),
+            (lambda c: c["generatedYuv"]["y"].update(payloadBytes=4 * 3840 * 2160, capacityBytes=4 * 3840 * 2160), "one CPU YUV"),
+        ]
+        for mutate, reason in mutations:
+            with self.subTest(reason=reason):
+                report = fixture("four-4k-yuv")
+                mutate(report["frames"][0]["cpuMemory"])
+                with self.assertRaisesRegex(ValueError, reason):
+                    study.validate_case(report, "four-4k-yuv", SOURCE, 3)
+
+    def test_old_schema_and_absent_cpu_domain_do_not_masquerade_as_current_acceptance(self):
+        report = fixture()
+        report["schemaVersion"] = 1
+        with self.assertRaisesRegex(ValueError, "schema"):
+            study.validate_case(report, "animated", SOURCE, 3)
+        report = fixture()
+        del report["frames"][0]["cpuMemory"]["effectProgramShaders"]
+        with self.assertRaises(KeyError):
+            study.validate_case(report, "animated", SOURCE, 3)
+        report = fixture("four-4k-yuv")
+        report["syntheticYuv"]["decoderMeasured"] = True
+        with self.assertRaisesRegex(ValueError, "not file decoding"):
+            study.validate_case(report, "four-4k-yuv", SOURCE, 3)
+
     def test_dependency_reuse_rejects_changes_to_any_native_source_or_build_manifest(self):
         study.verify_dependency_cache_changes([])
         study.verify_dependency_cache_changes(list(study.BENCHMARK_INPUTS))
@@ -147,7 +229,7 @@ class DesktopPerformanceTests(unittest.TestCase):
                 (folder / "report.json").write_text(json.dumps(report))
                 (folder / "final.png").write_bytes(b"protocol-fixture-not-native-pixels")
                 cases.append({"case": name, "report": f"{name}/report.json", "projectSha256": report["projectSha256"]})
-            (native / "report.json").write_text(json.dumps({"schemaVersion": 1, "cases": cases}))
+            (native / "report.json").write_text(json.dumps({"schemaVersion": 2, "cases": cases}))
             receipt = {"sourceRevision": SOURCE, "samples": 3}
             result = study.validate_output(output, receipt)
             self.assertFalse(result["physicalDeviceAcceptanceComplete"])
@@ -155,7 +237,7 @@ class DesktopPerformanceTests(unittest.TestCase):
             (native / "static/project.json").write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "fixture changed"):
                 study.validate_output(output, receipt)
-            (native / "report.json").write_text(json.dumps({"schemaVersion": 1, "cases": cases[:-1]}))
+            (native / "report.json").write_text(json.dumps({"schemaVersion": 2, "cases": cases[:-1]}))
             with self.assertRaisesRegex(ValueError, "six-case"):
                 study.validate_output(output, receipt)
 

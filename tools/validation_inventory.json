@@ -328,7 +328,7 @@
     "tools/test_ci_desktop_performance.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
-      "reason": "Discovered by existing test_ci_*.py unittest discovery; verifies archive rejection and actual failing child output without measuring a GPU."
+      "reason": "Discovered by existing test_ci_*.py unittest discovery; verifies CPU ownership subtotals, shared capacities, unknown coverage, archive rejection and actual failing child output without measuring a GPU."
     }
   },
   "android_tests": {

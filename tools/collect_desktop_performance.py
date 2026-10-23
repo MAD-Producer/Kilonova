@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES = ("static", "animated", "effect-chain", "crossing-3d", "nested-matte", "four-4k-yuv")
 METRICS = ("sceneSampleUs", "cpuPrepareUs", "mediaUploadWallUs", "encodeWallUs",
            "submitWallUs", "waitUs", "waitedWallUs", "gpuCompositionUs",
-           "gpuPresentationUs", "gpuTotalUs")
+           "gpuPresentationUs", "gpuTotalUs", "metadataSampleUs")
 COUNTERS = ("mainSubmissions", "videoConversionSubmissions", "videoConversions",
             "videoUploadBytes", "imageUploadBytes", "parameterUploadBytes", "parameterResourceUploadBytes",
             "instanceUploadBytes", "effectPipelineBuilds", "drawCalls")
@@ -76,8 +76,83 @@ def distribution(values):
             for name, p in (("p50", .5), ("p95", .95), ("p99", .99))}, "max": values[-1]}
 
 
+def buffer_memory(buffer):
+    payload = number(buffer["payloadBytes"], "CPU payload", integer=True)
+    capacity = number(buffer["capacityBytes"], "CPU capacity", integer=True)
+    require(payload <= capacity, "CPU payload exceeds owned capacity")
+    return payload, capacity
+
+
+def validate_cpu_domain(domain, packages):
+    require(domain["version"] == 1 and domain["completeCoverage"] is False
+            and domain["unknownBytes"] is None, "Partial CPU coverage must retain unknown bytes")
+    unobserved = number(domain["unobservedReferences"], "CPU unobserved references", integer=True)
+    observed = domain["allPackageOwnersObserved" if packages else "allProgramOwnersObserved"]
+    require(type(observed) is bool and observed == (unobserved == 0), "CPU owner coverage mismatch")
+    resources = domain["resources"]
+    require(len(resources) <= (1024 if packages else 4096), "CPU observation limit exceeded")
+    require(unobserved == 0 or len(resources) == (1024 if packages else 4096),
+            "CPU owner limit does not explain unobserved references")
+    identities = [number(r["id"], "CPU allocation identity", integer=True) for r in resources]
+    require(all(i > 0 for i in identities) and len(identities) == len(set(identities)),
+            "CPU allocation counted twice or invalid identity")
+    payload = capacity = 0
+    for resource in resources:
+        if packages:
+            for key in ("plugin", "hash"):
+                require(isinstance(resource[key], str) and len(resource[key]) <= 160,
+                        "Unbounded CPU package context")
+            references = sum(number(resource[key], key, integer=True)
+                             for key in ("registryReferences", "programReferences"))
+            for key in ("fileCount", "shaderCount"):
+                number(resource[key], key, integer=True)
+            buffers = (resource[key] for key in ("archive", "expandedFiles", "compiledShaderText"))
+        else:
+            references = number(resource["programReferences"], "programReferences", integer=True)
+            contexts = resource["programs"]
+            require(isinstance(contexts, list) and len(contexts) <= 8
+                    and all(isinstance(c, str) and len(c) <= 160 for c in contexts),
+                    "Unbounded CPU program context")
+            number(resource["omittedProgramContexts"], "omittedProgramContexts", integer=True)
+            buffers = (resource["text"],)
+        require(references > 0, "CPU allocation has no observed owner")
+        for buffer in buffers:
+            p, c = buffer_memory(buffer)
+            payload += p
+            capacity += c
+    require(number(domain["knownPayloadBytes"], "CPU known payload", integer=True) == payload
+            and number(domain["knownCapacityBytes"], "CPU known capacity", integer=True) == capacity,
+            "CPU domain subtotal differs from actual owned buffers")
+    return payload, capacity
+
+
+def validate_cpu_memory(cpu, video):
+    require(cpu["scope"] == "benchmark_observed_owned_buffers_not_process_ram"
+            and cpu["completeCoverage"] is False and cpu["unknownBytes"] is None,
+            "Partial CPU coverage cannot claim process RAM or zero unknown bytes")
+    values = [validate_cpu_domain(cpu["effectPackages"], True),
+              validate_cpu_domain(cpu["effectProgramShaders"], False)]
+    fixture = cpu["generatedYuv"]
+    if video:
+        require(fixture is not None and fixture["owner"] == "one_reusable_generated_frame",
+                "Missing reusable CPU YUV fixture")
+        y = buffer_memory(fixture["y"])
+        uv = buffer_memory(fixture["uv"])
+        require(y[0] == 3840 * 2160 and uv[0] == 3840 * 2160 // 2,
+                "Four uploads must count one CPU YUV fixture, not four copies")
+        p, c = y[0] + uv[0], y[1] + uv[1]
+        require(fixture["knownPayloadBytes"] == p and fixture["knownCapacityBytes"] == c,
+                "CPU YUV subtotal differs from both actual planes")
+        values.append((p, c))
+    else:
+        require(fixture is None, "Non-video workload cannot claim CPU YUV buffers")
+    require(number(cpu["knownPayloadBytes"], "CPU known payload", integer=True) == sum(p for p, _ in values)
+            and number(cpu["knownCapacityBytes"], "CPU known capacity", integer=True) == sum(c for _, c in values),
+            "CPU aggregate subtotal differs from observed domains")
+
+
 def validate_case(report, expected_case, expected_source, samples):
-    require(report["schemaVersion"] == 1 and report["case"] == expected_case, "Unexpected case/schema")
+    require(report["schemaVersion"] == 2 and report["case"] == expected_case, "Unexpected case/schema")
     require(report["sourceRevision"] == expected_source, "Benchmark binary source does not match build receipt")
     require(report["debugAssertions"] is False, "Debug builds are not Release latency evidence")
     require(report["dimensions"] == [1280, 720] and report["fps"] == 30,
@@ -87,6 +162,13 @@ def validate_case(report, expected_case, expected_source, samples):
             "Fixed source texture budget changed")
     require(report["warmupFrames"] == 8 and report["measuredFrames"] == samples,
             "Warmup/sample contract changed")
+    if expected_case == "four-4k-yuv":
+        fixture = report["syntheticYuv"]
+        require(fixture["dimensions"] == [3840, 2160] and fixture["sources"] == 4
+                and fixture["oneReusableCpuFixtureBytes"] == 3840 * 2160 * 3 // 2
+                and fixture["decoderMeasured"] is False, "Generated YUV is not file decoding")
+    else:
+        require(report["syntheticYuv"] is None, "Unexpected generated YUV workload")
     for key in ("name", "driver", "driverInfo", "backend", "deviceType"):
         require(isinstance(report["adapter"][key], str), "Missing actual adapter/driver metadata")
     require(bool(report["adapter"]["name"]) and bool(report["adapter"]["backend"]), "Missing native adapter")
@@ -119,6 +201,7 @@ def validate_case(report, expected_case, expected_source, samples):
                 and frame["videoConversionSubmissions"] == (4 if video else 0)
                 and frame["videoUploadBytes"] == (4 * 3840 * 2160 * 3 // 2 if video else 0),
                 "Declared native video workload was not exercised")
+        validate_cpu_memory(frame["cpuMemory"], video)
         ledger = frame["textureLedger"]
         number(ledger["knownBytes"], "knownBytes", integer=True)
         number(ledger["unknownCapacityCount"], "unknownCapacityCount", integer=True)
@@ -138,13 +221,16 @@ def validate_case(report, expected_case, expected_source, samples):
     require(report["distributions"] == calculated, "Published percentiles differ from raw samples")
     return {"case": expected_case, "adapter": report["adapter"], "distributions": calculated,
             "allFrameCounterTotals": totals, "gpuSampleCoverage": 1 if report["gpuTimestampSupported"] else 0,
-            "nativeMemoryPressure": report["nativeMemoryPressure"], "coverageGaps": report["coverageGaps"]}
+            "nativeMemoryPressure": report["nativeMemoryPressure"], "coverageGaps": report["coverageGaps"],
+            "cpuMemory": {"completeCoverage": False, "unknownBytes": None,
+                          **{key: distribution(frame["cpuMemory"][key] for frame in frames[8:])
+                             for key in ("knownPayloadBytes", "knownCapacityBytes")}}}
 
 
 def validate_output(output, receipt):
     root = output / "native"
     index = json.loads((root / "report.json").read_text(encoding="utf-8"))
-    require(index["schemaVersion"] == 1 and [entry["case"] for entry in index["cases"]] == list(CASES),
+    require(index["schemaVersion"] == 2 and [entry["case"] for entry in index["cases"]] == list(CASES),
             "The complete six-case study is required")
     cases = []
     for name, entry in zip(CASES, index["cases"]):
@@ -157,7 +243,7 @@ def validate_output(output, receipt):
         # report is separate; the Python validator never substitutes compressed bytes.
         require((folder / "final.png").is_file(), "Missing final native image")
         cases.append(validate_case(report, name, receipt["sourceRevision"], receipt["samples"]))
-    return {"schemaVersion": 1, "sourceRevision": receipt["sourceRevision"], "cases": cases,
+    return {"schemaVersion": 2, "sourceRevision": receipt["sourceRevision"], "cases": cases,
             "scope": "Offline serialized headless GPU latency on the recorded adapter; not paced GUI playback or display FPS",
             "physicalDeviceAcceptanceComplete": False,
             "notMeasured": ["Native window/UI/display deadlines", "File video decoding", "Physical driver exhaustion",

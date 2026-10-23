@@ -14,6 +14,33 @@ const SIZE: [u32; 2] = [1280, 720];
 const VIDEO_SIZE: [u32; 2] = [3840, 2160];
 const WARMUP: u32 = 8;
 
+fn cpu_memory(renderer: &Renderer, video: Option<&Yuv420Frame>) -> Value {
+    let packages = motion_effects::memory::package_memory(renderer.package_memory_owners());
+    let shaders = motion_effects::memory::compiled_shader_memory(renderer.compiled_shader_owners());
+    // Four uploads borrow these same two Vec allocations. GPU outputs are a
+    // different domain, not four additional CPU copies of the fixture.
+    let fixture = video.map(|frame| {
+        json!({"owner":"one_reusable_generated_frame",
+            "y":{"payloadBytes":frame.y.len(),"capacityBytes":frame.y.capacity()},
+            "uv":{"payloadBytes":frame.uv.len(),"capacityBytes":frame.uv.capacity()},
+            "knownPayloadBytes":frame.y.len()+frame.uv.len(),
+            "knownCapacityBytes":frame.y.capacity()+frame.uv.capacity()})
+    });
+    let payload = packages.known_payload_bytes
+        + shaders.known_payload_bytes
+        + video.map_or(0, |f| (f.y.len() + f.uv.len()) as u64);
+    let capacity = packages.known_capacity_bytes
+        + shaders.known_capacity_bytes
+        + video.map_or(0, |f| (f.y.capacity() + f.uv.capacity()) as u64);
+    json!({"scope":"benchmark_observed_owned_buffers_not_process_ram",
+        "knownPayloadBytes":payload,"knownCapacityBytes":capacity,
+        "effectPackages":packages,"effectProgramShaders":shaders,"generatedYuv":fixture,
+        "completeCoverage":false,"unknownBytes":null,
+        "excludes":["project_scene_and_parameter_storage","image_decode_and_original_source_pixels",
+            "allocator_metadata_and_container_overhead","native_GPU_and_external_driver_storage",
+            "final_readback_and_PNG_encoding_scratch","inference_weights_and_activations"]})
+}
+
 fn memory_policy() -> motion_render::resource_policy::MemoryPolicy {
     motion_render::resource_policy::MemoryPolicy {
         // Four full-size RGBA outputs plus their YUV planes exceed the normal
@@ -286,6 +313,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         renderer.check_health()?;
         let waited_wall_us = began.elapsed().as_micros();
         // Explicit metadata sampling is outside the timed interval. No handles are retained.
+        let metadata_began = Instant::now();
         let mut ledger = renderer.texture_resource_ledger();
         source.collect_texture_resources(
             &mut ledger,
@@ -293,6 +321,9 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
             motion_render::TextureState::Retained,
         );
         ledger.merge(target.texture_resource_ledger());
+        let cpu = cpu_memory(&renderer, video.as_ref());
+        let admission = renderer.allocation_budget().info()?;
+        let metadata_us = metadata_began.elapsed().as_micros();
         records.push(json!({"index":index,"phase":if index==0 {"cold"} else if index<WARMUP {"warmup"} else {"measured"},
             "compositionFrame":composition_frame,"sceneSampleUs":sample_us,"cpuPrepareUs":stats.cpu_prepare_us,
             "mediaUploadWallUs":media_us,"encodeWallUs":encode_us,"submitWallUs":submit_us,"waitUs":wait_us,"waitedWallUs":waited_wall_us,
@@ -303,7 +334,8 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
             "parameterUploadBytes":stats.parameter_upload_bytes,"parameterResourceUploadBytes":stats.parameter_resource_upload_bytes,
             "instanceUploadBytes":stats.instance_upload_bytes,"effectPipelineBuilds":renderer.effect_pipeline_builds()-previous_pipelines,
             "drawCalls":stats.draw_calls,"textureLedger":{"knownBytes":ledger.total_known_bytes(),"unknownCapacityCount":ledger.unknown_capacity_count(),"resources":ledger.resources().collect::<Vec<_>>()},
-            "logicalAdmission":renderer.allocation_budget().info()?,"pixelReadbackBytes":0,"timestampReadbackBytes":if gpu.is_some(){32}else{0}}));
+            "cpuMemory":cpu,"metadataSampleUs":metadata_us,
+            "logicalAdmission":admission,"pixelReadbackBytes":0,"timestampReadbackBytes":if gpu.is_some(){32}else{0}}));
     }
     // One evidence image after all samples, explicitly excluded from timed readback.
     let pixels = renderer.read_target(&target)?;
@@ -329,6 +361,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         "gpuCompositionUs",
         "gpuPresentationUs",
         "gpuTotalUs",
+        "metadataSampleUs",
     ];
     let distributions = metrics
         .into_iter()
@@ -341,7 +374,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         .collect::<serde_json::Map<_, _>>();
     let pressure = renderer.memory_pressure();
     let info = &renderer.adapter_info;
-    let report = json!({"schemaVersion":1,"case":name,"adapter":{"name":info.name,"driver":info.driver,"driverInfo":info.driver_info,
+    let report = json!({"schemaVersion":2,"case":name,"adapter":{"name":info.name,"driver":info.driver,"driverInfo":info.driver_info,
         "backend":format!("{:?}",info.backend),"deviceType":format!("{:?}",info.device_type)},
         "sourceRevision":option_env!("MOTION_BENCHMARK_REVISION"),"debugAssertions":cfg!(debug_assertions),
         "projectSha256":format!("{:x}",Sha256::digest(&project_bytes)),"finalRgbaSha256":format!("{:x}",Sha256::digest(&pixels)),
@@ -351,7 +384,8 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         "syntheticYuv":video.as_ref().map(|frame|json!({"dimensions":VIDEO_SIZE,"sources":4,"oneReusableCpuFixtureBytes":frame.y.len()+frame.uv.len(),
             "decoderMeasured":false,"changingPixel":"Y[0] = 32 + (frame + layer_id) % 190","remainingY":128,"uv":[100,160]})),
         "scope":"Offline serialized GPU latency; fixed full-resolution encode, new renderer per case, cold and warmup retained. GPU timestamps surround root composition and offscreen presentation; earlier YUV conversions and nested/vector/MSAA preparation can fall outside them. CPU wall includes uploads and deliberate per-frame completion wait. Metadata sampling and final PNG readback are outside timing. No native window, UI, file decoder, display deadline, physical residency or process-RAM claim.",
-        "coverageGaps":["CPU image/decode cache ownership","raw Presenter uniform buffers","driver and codec external allocations","inference weights/activations","physical memory pressure","Android Adreno/Mali execution"],
+        "metadataTimingScope":"Texture and CPU ownership enumeration plus admission observation, outside waitedWallUs; excludes JSON serialization and final readback",
+        "coverageGaps":["CPU image/decode cache ownership and uninstrumented containers","raw Presenter uniform buffers","driver and codec external allocations","inference weights/activations","physical memory pressure","Android Adreno/Mali execution"],
         "distributions":distributions,"frames":records});
     std::fs::write(dir.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     Ok(report)
@@ -407,7 +441,7 @@ fn main() -> Result<()> {
     }
     std::fs::write(
         root.join("report.json"),
-        serde_json::to_vec_pretty(&json!({"schemaVersion":1,"cases":cases}))?,
+        serde_json::to_vec_pretty(&json!({"schemaVersion":2,"cases":cases}))?,
     )?;
     Ok(())
 }
