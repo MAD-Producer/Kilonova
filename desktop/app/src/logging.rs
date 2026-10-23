@@ -6,6 +6,8 @@ mod media_error_tests;
 #[cfg(test)]
 mod mp4_sample_clock_tests;
 #[cfg(test)]
+mod mp4_sample_layout_tests;
+#[cfg(test)]
 mod package_publication_tests;
 #[cfg(test)]
 mod frame_blend_tests;
