@@ -1,5 +1,9 @@
 use crate::*;
 
+#[cfg(target_os = "windows")]
+#[path = "native_gesture_tests.rs"]
+mod native_gesture_tests;
+
 #[test]
 fn acknowledged_layer_drag_cannot_advance_edge_pan_or_starve_a_pending_release() {
     let folder = tempfile::tempdir().unwrap();
