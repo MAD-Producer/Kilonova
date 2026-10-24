@@ -98,6 +98,19 @@ fn command(c: &Channel, edit: KeyEdit) -> Action {
     })
 }
 impl Controls {
+    pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<crate::panels::keyframe_clipboard::Selection> {
+        use crate::panels::keyframe_clipboard as clipboard;
+        let c = self.active.as_ref().filter(|c| c.object == object)?;
+        if !self.selected_in(state, object, c.item, &c.parameter) { return None; }
+        let (layer, parameter) = snapshot(state, c, 0, &self.cache)?;
+        if parameter.static_value { return None; }
+        let mut frames = clipboard::frames(state, parameter.keys.iter().map(|(f, _)| i64::from(*f)), i64::from(layer.timeline.map_or(0, |t| t.offset_frame)));
+        if let Some((selected, frame)) = &self.selected {
+            if selected != c { return None; }
+            frames.retain(|f| f == frame);
+        }
+        Some(clipboard::Selection::single(state, motion_core::KeyframeTarget::Vector { object, item: Some(c.item), parameter: c.parameter.clone() }, frames, !layer.locked))
+    }
     pub(in crate::panels) fn selected_in(&self, state: &Value, object: u64, item: u64, parameter: &str) -> bool {
         self.active.as_ref().is_some_and(|channel|
             channel.object == object && channel.item == item && channel.parameter == parameter)

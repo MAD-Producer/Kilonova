@@ -66,6 +66,10 @@ pub(crate) mod layer_navigation;
 #[cfg(test)]
 mod layer_switches;
 mod menus;
+mod clipboard_menu;
+pub(crate) mod text_menu;
+mod keyframe_clipboard;
+mod path_clipboard;
 pub(crate) mod numeric;
 mod observation;
 #[cfg(test)]
@@ -351,14 +355,18 @@ pub fn chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let text_menu_owned = text_menu::prepare(panels, state, input, atlas);
+    let path_context_owned = panels.path_controls.prepare_context_menu(None, state, panels.selected, input);
+    let text_menu_neutral = Input::default();
+    let editing_input = if text_menu_owned || path_context_owned { &text_menu_neutral } else { input };
     let toolbar_was_editing = panels.toolbar_style.editing();
     panels.toolbar_style.prepare(state, &panels.selection_ids(),
-        panels.path_controls.tool == path_controls::Tool::Mask, input, &mut out);
+        panels.path_controls.tool == path_controls::Tool::Mask, editing_input, &mut out);
     let toolbar_modal = toolbar_was_editing || panels.toolbar_style.editing();
     let layer_modal = panels.layer_actions.prepare(
         Some(Panel::Timeline),
         state,
-        input,
+        editing_input,
         panels.locale,
         panels.selected,
         panels.focused == Some(Panel::Timeline)
@@ -373,14 +381,26 @@ pub fn chrome(
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
-    if let Some((_, point)) = input.pressed.filter(|_| {
+    if panels.menu.is_none() && input.pressed.is_some_and(|(_, point)|
+        point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR) {
+        panels.clipboard_menu_keys = keyframe_clipboard::selection(panels, state);
+        panels.clipboard_menu_paths = path_clipboard::selection(panels, state);
+        panels.clipboard_menu_allowed = Some(panels.clipboard_menu_paths.is_some() && keyboard::path_clipboard_allowed(panels, state)
+            || !keyboard::layout_shortcuts_blocked(panels)
+            && state["observing"] != true
+            && (panels.clipboard_menu_keys.is_some() || keyboard::layer_clipboard_allowed(panels, state)));
+    }
+    if let Some((_, point)) = input.pressed.filter(|(_, point)| {
         !panels.effect_search_in(None)
             && !node_modal
             && !timeline_dropdown
             && !mask_header_modal
             && !layer_modal
+            && !path_context_owned
             && !panels.expressions.menu_open()
             && !toolbar_modal
+            && panels.menu.is_none()
+            && !(point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR)
     }) {
         let focused = frames(layout, size)
             .into_iter()
@@ -433,7 +453,7 @@ pub fn chrome(
     {
         panels.path_controls.parameter_input(
             state,
-            input,
+            editing_input,
             &mut out,
             styles.metric("motion.drag_threshold", 3.),
         );
@@ -443,11 +463,13 @@ pub fn chrome(
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
     {
-        out.extend(cancel_interaction(panels));
+        if !text_menu_owned { out.extend(cancel_interaction(panels)); }
         panels.menu = None;
         panels.panel_menu = None;
-        panels.project.search = false;
-        panels.timeline.timeline_search = false;
+        if !text_menu_owned {
+            panels.project.search = false;
+            panels.timeline.timeline_search = false;
+        }
         panels.effect_search = None;
         panels.timeline.timeline_context_menu = None;
         panels.project.context_menu = None;
@@ -469,8 +491,8 @@ pub fn chrome(
         && panels.menu.is_none();
     let expression_modal = panels.expressions.menu_open();
     let shortcut_modal =
-        expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
-    let menu_modal = layer_modal
+        expression_modal || keyboard::route(if path_context_owned { &text_menu_neutral } else { input }, panels, state, node_keyboard, None, &mut out);
+    let menu_modal = path_context_owned || text_menu_owned || layer_modal
         || toolbar_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
@@ -660,7 +682,7 @@ pub fn chrome(
     }
     titlebar::render(list, atlas, size, state, body_input, &mut out);
     toolbar::render(list, atlas, size, panels, state,
-        if toolbar_modal { input } else { body_input }, &mut out);
+        if toolbar_modal && !text_menu_owned { input } else { body_input }, &mut out);
     effect_drag::finish(list, atlas, size, panels, state, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
@@ -727,7 +749,7 @@ pub fn chrome(
         atlas,
         size,
         panels,
-        if shortcut_modal || node_modal || toolbar_modal {
+        if path_context_owned || !text_menu_owned && (shortcut_modal || node_modal || toolbar_modal) {
             &neutral
         } else {
             input
@@ -887,6 +909,8 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    panels.path_controls.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, input, panels.locale, panels.path_clipboard_available, panels.clipboard_busy, &mut out);
     if frames(layout, size)
         .iter()
         .any(|frame| frame.panel == Panel::Properties)
@@ -925,7 +949,7 @@ pub fn chrome(
         &mut out,
     );
     let toolbar_ids = panels.selection_ids();
-    panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, input, panels.locale, &mut out);
+    panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, editing_input, panels.locale, &mut out);
     if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
     if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
     apply_marker_selection(panels, state);
@@ -966,6 +990,7 @@ pub fn floating_chrome(
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
     tools::prepare(panels,Some(panel),input);
+    let path_context_owned = panels.path_controls.prepare_context_menu(Some(panel), state, panels.selected, input);
     let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
@@ -1028,6 +1053,7 @@ pub fn floating_chrome(
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = list.child();
     if !panels.effect_search_in(Some(panel))
+        && !path_context_owned
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -1044,7 +1070,7 @@ pub fn floating_chrome(
         panels.focused = Some(panel);
     }
     let shortcut_modal = keyboard::route(
-        if timeline_dropdown && !dropdown_owned {
+        if path_context_owned || timeline_dropdown && !dropdown_owned {
             &popup_neutral
         } else {
             input
@@ -1060,6 +1086,7 @@ pub fn floating_chrome(
     );
     let neutral = Input::default();
     let body_input = if panels.expressions.menu_open()
+        || path_context_owned
         || layer_modal
         || panels.layer_actions.modal_in(Some(panel))
         || shortcut_modal
@@ -1180,6 +1207,8 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    panels.path_controls.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, input, panels.locale, panels.path_clipboard_available, panels.clipboard_busy, &mut out);
     if panel == Panel::Properties {
         panels.properties.effects.finish_context_menu(
             list,
@@ -1520,14 +1549,28 @@ mod tests {
                 };
                 let state = serde_json::json!({"canUndo":false,"canRedo":false,"observing":observing,
                     "preview":{"pluginEditorRecovery":{"gesture":active}},"project":{"layers":[]}});
+                // Clipboard commands precede cancellation in the Edit menu.
+                // Exercise scrolling in the original small window before hitting
+                // cancellation, rather than clicking the obsolete third row.
+                let cancel_row = 2 + clipboard_menu::entries(&panels, &state).len();
+                let mut atlas = TextAtlas::from_system(12.).unwrap();
+                let mut out = vec![];
+                for _ in 0..cancel_row {
+                    menus(
+                        &mut PaintList::default(), &mut atlas, [280., 240.],
+                        &mut panels,
+                        &Input { mouse: [20., 100.], wheel: [0., -1.], ..Default::default() },
+                        &state, &mut out,
+                    );
+                }
                 let point = [
                     20.,
-                    metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.,
+                    metrics::TITLE_BAR + metrics::MENU_BAR + 4.
+                        + (cancel_row - panels.menu_scroll) as f32 * 32. + 15.,
                 ];
-                let mut out = vec![];
                 menus(
                     &mut PaintList::default(),
-                    &mut TextAtlas::from_system(12.).unwrap(),
+                    &mut atlas,
                     [280., 240.],
                     &mut panels,
                     &Input {
@@ -1789,6 +1832,7 @@ mod tests {
                         axis: 0,
                         text: "123".into(),
                         replace: false,
+                        editor: Default::default(),
                         rect: Rect::default(),
                         scrubbing: None,
                     }),

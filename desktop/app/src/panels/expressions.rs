@@ -36,6 +36,9 @@ pub(crate) struct Controls {
     pub(super) rects: Vec<(ExpressionTarget, Rect, Rect)>,
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        request.visit(&mut self.editor);
+    }
     pub fn editing(&self) -> bool {
         self.editor.active() || self.toggle_focus || self.menu.open
     }

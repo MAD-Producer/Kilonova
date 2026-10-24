@@ -1,4 +1,6 @@
 use super::*;
+#[path = "native/field_text.rs"]
+mod field_text;
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use winit::{
     dpi::PhysicalSize, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows,
@@ -234,6 +236,7 @@ fn native_clipboard_menus_and_pasted_graph_use_real_window_surfaces() {
         );
         assert!(e.undo());
         assert_eq!(e.document, before);
+        field_text::run(&mut events, &engine, &mut e, &mut atlas, window, size, scale, &root, language, suffix);
     }
     engine.close_window(1).unwrap();
     drop(engine);

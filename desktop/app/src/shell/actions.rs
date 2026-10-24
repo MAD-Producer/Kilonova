@@ -779,6 +779,10 @@ impl Shell {
                     result["path"].as_str().unwrap_or("")
                 ));
             }
+            Action::LayerClipboard(intent) => self.request_layer_clipboard(intent)?,
+            Action::KeyframeClipboard { intent, source, selections, targets } => self.request_keyframe_clipboard(intent, source, selections, targets)?,
+            Action::PathClipboard { intent, source, selections, target } => self.request_path_clipboard(intent, source, selections, target)?,
+            Action::CancelLayerClipboard => self.cancel_layer_clipboard(),
             Action::History(op) => {
                 if matches!(op,0|1) && panels::tools::camera::owns_history(&self.panels) {
                     self.editing = Some((Instant::now(),self.engine.camera_gesture_async(if op==0 {motion_host::ops::preview::CameraGesture::Undo} else {motion_host::ops::preview::CameraGesture::Redo})?));
@@ -864,6 +868,11 @@ impl Shell {
                 self.stop();
                 self.editing = Some((Instant::now(), self.engine.edit_async_at_revision(
                     serde_json::to_string(&command).map_err(|e| e.to_string())?, revision)?));
+            }
+            Action::PathOperation { source, operation } => {
+                self.stop();
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::PathOperation { source, operation, reply })?));
             }
         }
         self.dirty = true;

@@ -219,6 +219,7 @@ struct Field {
     text: String,
     cursor: usize,
     replace: bool,
+    editor: motion_ui::widgets::TextEditor,
     error: Option<String>,
 }
 enum Drag {
@@ -364,6 +365,21 @@ fn next_editor_epoch() -> u64 {
     NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 impl NodeEditor {
+    pub(crate) fn text_menu(&mut self, request: &mut crate::panels::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field {
+            if request.value(&mut field.editor, &mut field.text, &mut field.replace) {
+                field.error = None;
+            }
+            if field.editor.active() {
+                field.cursor = field.editor.caret_byte_index();
+                field.replace = field.editor.is_all_selected();
+            }
+        }
+        if self.search_focus && self.search.text_menu(request) {
+            self.library_scroll = 0.;
+            self.library_selected = 0;
+        }
+    }
     pub fn renew_session(&mut self) {
         self.epoch = next_editor_epoch();
         self.pending_compile = None;

@@ -54,6 +54,10 @@ pub enum Command {
     ToggleCompositeColumns,
     ToggleParentColumns,
     CopyNodes,
+    CopySelection,
+    CutSelection,
+    PasteSelection,
+    PasteInPlace,
     CutNodes,
     PasteNodes,
     Duplicate,
@@ -114,6 +118,10 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
     use Command::*;
     use Scope::*;
     let command = match (scope, key, m.control, m.shift, m.alt) {
+        (Animation, Key::C, true, false, false) => CopySelection,
+        (Animation, Key::X, true, false, false) => CutSelection,
+        (Animation, Key::V, true, false, false) => PasteSelection,
+        (Animation, Key::V, true, true, false) => PasteInPlace,
         (Animation, Key::Up, true, _, false) => SelectLayerAbove,
         (Animation, Key::Down, true, _, false) => SelectLayerBelow,
         (Animation, Key::Up, true, false, true) => OrderLayersUp,

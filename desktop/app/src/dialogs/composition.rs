@@ -165,17 +165,22 @@ impl Dialog {
                     } else {
                         self.fields[i].clone()
                     };
-                    ui::text(
-                        list,
-                        atlas,
-                        rect.shrink(5.),
-                        &shown,
-                        colors.TEXT,
-                        Align::Left,
-                    );
+                    if self.focus == i && self.text_editor_field == Some(i) && self.text_editor.active() {
+                        self.text_editor.draw(list, atlas, rect);
+                    } else {
+                        ui::text(
+                            list,
+                            atlas,
+                            rect.shrink(5.),
+                            &shown,
+                            colors.TEXT,
+                            Align::Left,
+                        );
+                    }
                     if input.pressed.is_some_and(|(_, p)| rect.contains(p)) {
                         self.focus = i;
                         self.replace = true;
+                        self.text_editor.cancel();
                     }
                     if index == 2 {
                         if Checkbox::draw(
@@ -278,36 +283,7 @@ impl Dialog {
                 y += 36.;
             }
             if !self.preset_dropdown.open {
-                if !input.text.is_empty() {
-                    if self.replace {
-                        self.fields[self.focus].clear();
-                        self.replace = false;
-                    }
-                    self.fields[self.focus].push_str(&input.text);
-                }
-                if !input.composing && !input.ime_consumed {
-                    for (key, m) in &input.keys {
-                        match key {
-                            Key::Tab => {
-                                self.focus = if m.shift {
-                                    (self.focus + 4) % 5
-                                } else {
-                                    (self.focus + 1) % 5
-                                };
-                                self.replace = true;
-                            }
-                            Key::Backspace => {
-                                if self.replace {
-                                    self.fields[self.focus].clear();
-                                    self.replace = false;
-                                } else {
-                                    self.fields[self.focus].pop();
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
+                self.edit_text(input);
                 if self.aspect_locked && matches!(self.focus, 1 | 2) {
                     if let Ok(value) = self.fields[self.focus].parse::<f64>() {
                         if value.is_finite() && self.aspect.is_finite() && self.aspect > 0. {

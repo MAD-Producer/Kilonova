@@ -18,7 +18,7 @@ use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{
-        atomic::{AtomicI64, Ordering},
+        atomic::{AtomicI64, AtomicU64, Ordering},
         Arc, Mutex, OnceLock,
     },
     thread::{self, ThreadId},
@@ -26,6 +26,14 @@ use std::{
 };
 
 pub type Result<T> = std::result::Result<T, crate::Error>;
+
+// A root path and revision can recur after reopening a document. Clipboard and
+// other asynchronous edits need an identity that cannot alias that replacement.
+fn next_document_generation() -> Result<u64> {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+        .map_err(|_| "document generation space exhausted".into())
+}
 
 mod registry_observation;
 mod last_error_observation;
@@ -100,6 +108,7 @@ pub struct Session {
     pub observing: bool,
     pub frame: f64,
     pub root: PathBuf,
+    pub document_generation: u64,
     pub graphics: Option<Graphics>,
     pub owner: ThreadId,
     pub presented: u64,
@@ -197,6 +206,7 @@ impl Session {
             observing: false,
             frame: 0.0,
             root,
+            document_generation: next_document_generation()?,
             graphics: None,
             owner: thread::current().id(),
             presented: 0,
@@ -304,6 +314,7 @@ impl Session {
     }
 
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
+        let document_generation = next_document_generation()?;
         let next_scene = Scene::new(engine.project())?;
         let mut registry=self.effects.registry.clone();
         crate::node_effects::restore(engine.project(),&mut registry)?;
@@ -334,6 +345,7 @@ impl Session {
         self.composition_contexts.clear();
         self.media_compositions.clear();
         self.engine = engine;
+        self.document_generation = document_generation;
         self.audio_jobs = audio_jobs;
         self.video_jobs = video_jobs;
         // Frozen package exports stay queryable across project replacement, but

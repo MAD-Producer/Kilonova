@@ -197,21 +197,25 @@ impl Controls {
             let p = self.parameter.as_mut().unwrap();
             p.rect = rect;
             let styles = list.styles();
-            let style = styles
-                .resolve(
-                    "field.number",
-                    motion_ui::style::States::default().with(motion_ui::style::State::Focused),
-                )
-                .unwrap();
-            motion_ui::style::box_style(list, rect, style);
-            motion_ui::style::text_style(
-                list,
-                atlas,
-                rect.shrink(style.padding),
-                &p.text,
-                style,
-                Align::Left,
-            );
+            if p.start.is_none() && p.editor.active() {
+                p.editor.draw_styled(list, atlas, rect, &styles, "field.number", Default::default());
+            } else {
+                let style = styles
+                    .resolve(
+                        "field.number",
+                        motion_ui::style::States::default().with(motion_ui::style::State::Focused),
+                    )
+                    .unwrap();
+                motion_ui::style::box_style(list, rect, style);
+                motion_ui::style::text_style(
+                    list,
+                    atlas,
+                    rect.shrink(style.padding),
+                    &p.text,
+                    style,
+                    Align::Left,
+                );
+            }
         } else {
             crate::panels::numeric::passive_with_precision(
                 list,
@@ -236,6 +240,7 @@ impl Controls {
                 values: values.to_vec(),
                 text: format!("{value:.2}"),
                 replace: true,
+                editor: Default::default(),
                 rect,
                 start: Some(input.pressed.unwrap().1[0]),
                 begun: false,
@@ -308,6 +313,11 @@ impl Controls {
             host,
         );
         if self.inspector_context.as_ref() != Some(&context) {
+            // A background inspector may catch up with a selection already
+            // made in the composition float. Its cache rebind must not cancel
+            // that window's current, document-checked path popup.
+            let path_menu = self.take_context_for_inspector(state, layer.id);
+            let path_focus = self.focus;
             let timeline_add = self
                 .timeline_add_mask_menu
                 .take()
@@ -315,6 +325,8 @@ impl Controls {
             if self.cancel() {
                 out.push(Action::History(4));
             }
+            if path_menu.is_some() { self.focus = path_focus; }
+            self.context_menu = path_menu;
             self.timeline_add_mask_menu = timeline_add;
             self.mode_dropdowns.clear();
             self.inspector_context = Some(context);

@@ -903,26 +903,44 @@ pub(super) fn render(
         panels.timeline.timeline_search = false;
     }
     if panels.timeline.timeline_search {
-        panels.timeline.timeline_query.push_str(&input.text);
-        if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-            panels.timeline.timeline_query.pop();
+        let timeline = &mut panels.timeline;
+        if !timeline.timeline_search_editor.active()
+            || timeline.timeline_search_editor.text != timeline.timeline_query
+        {
+            timeline.timeline_search_editor.begin_at_end(&timeline.timeline_query);
         }
+        let event = timeline.timeline_search_editor.input(input);
+        if timeline.timeline_search_editor.active()
+            && timeline.timeline_query != timeline.timeline_search_editor.text
+        {
+            timeline.timeline_query.clone_from(&timeline.timeline_search_editor.text);
+        }
+        if event.is_some() {
+            timeline.timeline_search = false;
+            timeline.timeline_search_editor.cancel();
+        }
+    } else {
+        panels.timeline.timeline_search_editor.cancel();
     }
-    label(
-        list,
-        atlas,
-        search.shrink(5.),
-        if panels.timeline.timeline_query.is_empty() {
-            if locale == Locale::Zh {
-                "搜索图层…"
+    if panels.timeline.timeline_search {
+        panels.timeline.timeline_search_editor.draw(list, atlas, search);
+    } else {
+        label(
+            list,
+            atlas,
+            search.shrink(5.),
+            if panels.timeline.timeline_query.is_empty() {
+                if locale == Locale::Zh {
+                    "搜索图层…"
+                } else {
+                    "Search layers…"
+                }
             } else {
-                "Search layers…"
-            }
-        } else {
-            &panels.timeline.timeline_query
-        },
-        true,
-    );
+                &panels.timeline.timeline_query
+            },
+            true,
+        );
+    }
     let zoom_x = track.max[0] - 146.;
     if ui::button(
         list,

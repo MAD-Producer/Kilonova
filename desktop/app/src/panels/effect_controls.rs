@@ -231,6 +231,14 @@ fn dimensions(kind: &str) -> usize {
     }
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if request.query(&mut self.search.editor, &mut self.query) {
+            self.library_scroll.offset = 0.;
+            self.library_selected = None;
+        }
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+        self.expressions.text_menu(request);
+    }
     pub(crate) fn reveal_effect(&mut self, object: u64, effect: u64) {
         self.choosing = false;
         self.property_filter = Default::default();

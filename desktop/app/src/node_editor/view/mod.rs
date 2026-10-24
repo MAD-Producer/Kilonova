@@ -14,6 +14,7 @@ mod compact_example_tests;
 #[cfg(test)]
 mod diagnostic_tests;
 mod diagnostics;
+mod field_text;
 #[cfg(test)]
 mod failure_tests;
 #[cfg(test)]

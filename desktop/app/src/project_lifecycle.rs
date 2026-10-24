@@ -40,6 +40,7 @@ impl Shell {
         if self.project_modal() || self.closing {
             return Ok(());
         }
+        self.cancel_layer_clipboard();
         self.flush_bound_source()?;
         self.node_tasks.cancel(&mut self.panels.node_editor);self.node_compile_due=None;self.engine.node_expect((u64::MAX,u64::MAX))?;
         self.stop();

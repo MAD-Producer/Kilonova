@@ -1,6 +1,10 @@
 //! Stateful edit widgets. They emit transactions; callers decide how values enter an engine.
 pub mod numeric_behavior;
 mod property_layout;
+mod text_history;
+mod text_input;
+mod text_commands;
+pub use text_commands::{TextCommand, TextSession};
 pub use property_layout::PropertyColumns;
 mod composite;
 pub use composite::*;
@@ -18,7 +22,7 @@ pub enum TextEvent {
     Commit(String),
     Cancel,
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct TextEditor {
     pub text: String,
     pub error: Option<String>,
@@ -27,10 +31,27 @@ pub struct TextEditor {
     /// Extended grapheme index, never a position inside a displayed character.
     cursor: usize,
     dirty: bool,
+    history: text_history::History,
+    session: text_commands::Session,
+}
+impl std::fmt::Debug for TextEditor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextEditor")
+            .field("active", &self.active)
+            .field("contents", &"<private>")
+            .finish_non_exhaustive()
+    }
 }
 impl TextEditor {
     pub fn active(&self) -> bool {
         self.active
+    }
+    /// Byte position at a complete grapheme boundary for existing scrolled fields.
+    pub fn caret_byte_index(&self) -> usize {
+        self.byte_index()
+    }
+    pub fn is_all_selected(&self) -> bool {
+        self.select_all
     }
     pub fn begin(&mut self, value: &str) {
         self.text = value.into();
@@ -39,6 +60,35 @@ impl TextEditor {
         self.cursor = self.text.graphemes(true).count();
         self.error = None;
         self.dirty = false;
+        self.history = Default::default();
+        self.session = Default::default();
+    }
+    /// Live searches resume at the end; value editors keep begin's select-all behavior.
+    pub fn begin_at_end(&mut self, value: &str) {
+        self.begin(value);
+        self.select_all = false;
+    }
+    /// Adapt a live string without changing the caller's validation/commit policy.
+    /// External replacement or a cancelled editor starts a fresh draft.
+    pub fn input_value(
+        &mut self,
+        value: &mut String,
+        replace: &mut bool,
+        input: &impl crate::InputSource,
+    ) -> Option<TextEvent> {
+        if !self.active || self.text != *value {
+            if *replace {
+                self.begin(value);
+            } else {
+                self.begin_at_end(value);
+            }
+        }
+        let event = self.input(input);
+        if self.active && self.text != *value {
+            value.clone_from(&self.text);
+            *replace = false;
+        }
+        event
     }
     pub fn cancel(&mut self) {
         self.active = false;
@@ -64,12 +114,16 @@ impl TextEditor {
         if !self.active {
             return None;
         }
-        let before = self.text.clone();
+        if !input.focus_lost && input.text.is_empty() && input.key_presses().next().is_none() {
+            return None;
+        }
+        let mut before = self.snapshot();
         if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             self.cancel();
             return Some(TextEvent::Cancel);
         }
-        for (key, mods, _) in input.key_presses() {
+        for (key, mods, repeat) in input.key_presses() {
+            if self.draft_key(input, key, mods, repeat, &mut before) { continue; }
             match key {
                 Key::A if mods.control => {
                     self.select_all = true;
@@ -127,7 +181,7 @@ impl TextEditor {
             self.place_after_byte(index + text.len());
             self.error = None;
         }
-        self.dirty |= self.text != before;
+        self.checkpoint(&mut before);
         if input.key_presses().any(|(k, _, repeat)| k == Key::Enter && !repeat) {
             return Some(TextEvent::Commit(self.text.clone()));
         }

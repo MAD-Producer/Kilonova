@@ -104,6 +104,14 @@ impl PartialEq<&str> for SearchQuery {
     }
 }
 impl SearchQuery {
+    pub(super) fn text_menu(&mut self, request: &mut crate::panels::text_menu::Request<'_>) -> bool {
+        let changed = request.visit(&mut self.0);
+        if changed {
+            // Keep the same query bound and caret behavior as keyboard paste.
+            self.input(&Input::default());
+        }
+        changed
+    }
     pub fn focus(&mut self) {
         self.0.begin(&self.0.text.clone());
     }

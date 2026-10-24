@@ -77,6 +77,26 @@ pub(crate) struct Controls {
     drag: Option<Drag>,
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+    }
+    pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<super::keyframe_clipboard::Selection> {
+        use super::keyframe_clipboard as clipboard;
+        if self.active_object != Some(object) || !self.context.as_ref().is_some_and(|(root, comp)|
+            root == state["root"].as_str().unwrap_or("") && comp == state["composition"].as_str().unwrap_or("")) { return None; }
+        let channel = match self.active_control? { Control::Left => AudioChannel::Left, Control::Right => AudioChannel::Right, Control::Gain => return None };
+        let layer = clipboard::layer(state, object).filter(|l| is_audio(l))?;
+        let name = if channel == AudioChannel::Left { "left" } else { "right" };
+        // An absent optional envelope is a valid static audio channel. Missing
+        // fields inside a present envelope are malformed and observed normally.
+        let mut frames = if layer["audio_levels"].is_null() { vec![] }
+            else { clipboard::json_frames(state, &layer["audio_levels"][name], clipboard::offset(layer), object)? };
+        if let Some(selected) = self.selection {
+            if selected.object != object || selected.item != Item::Key(channel) { return None; }
+            frames.retain(|f| *f == selected.frame);
+        }
+        Some(clipboard::Selection::single(state, motion_core::KeyframeTarget::Audio { object, channel }, frames, layer["locked"] != true))
+    }
     pub(super) fn take_selection_intent(&mut self) -> bool {
         std::mem::take(&mut self.selection_intent)
     }

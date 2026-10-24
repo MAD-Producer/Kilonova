@@ -11,8 +11,12 @@ pub mod composition;
 mod curve;
 pub mod color_curves;
 mod commands;
+pub mod layer_clipboard;
+pub mod keyframe_clipboard;
+pub mod path_clipboard;
 pub mod effects;
 pub mod expressions;
+pub mod path_conversion;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
@@ -31,6 +35,9 @@ pub mod vector;
 
 pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePublication};
 pub use commands::{Command, EditResult, Property};
+pub use layer_clipboard::LayerClipboard;
+pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use audio::{AudioAsset, AudioClip};
 pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
@@ -106,6 +113,31 @@ pub enum Error {
     Missing(u64),
     #[error("object {0} is locked")]
     Locked(u64),
+    #[error("keyframe clipboard phase={phase} object={object} channel={channel}: {source}")]
+    KeyframeClipboard {
+        phase: &'static str,
+        object: u64,
+        channel: String,
+        #[source]
+        source: Box<Error>,
+    },
+    #[error("path clipboard phase={phase} object={object} path={path}: {source}")]
+    PathClipboard {
+        phase: &'static str,
+        object: u64,
+        path: u64,
+        #[source]
+        source: Box<Error>,
+    },
+    #[error("path edit operation={operation} object={object} path={path} node={node:?}: {source}")]
+    PathOperation {
+        operation: &'static str,
+        object: u64,
+        path: u64,
+        node: Option<u64>,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("edit gesture already active or history unavailable during a gesture")]
     Gesture,
     #[error(transparent)]

@@ -19,6 +19,9 @@ pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Com
     } else { Command::Anchor { object, anchor } }
 }
 impl AnchorControls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+    }
     pub fn editing(&self) -> bool {
         self.field.is_some()
     }
@@ -745,7 +748,11 @@ pub(super) fn draw_value(
         states = states.with(motion_ui::style::State::Disabled);
     }
     let style = styles.as_ref().resolve("field.number", states).unwrap();
-    motion_ui::style::box_style(list, r, style);
+    let draft = panels.properties.field.as_ref()
+        .filter(|field| active && field.scrubbing.is_none() && field.editor.active());
+    if draft.is_none() {
+        motion_ui::style::box_style(list, r, style);
+    }
     let text = if active {
         panels.properties.field.as_ref().unwrap().text.clone()
     } else {
@@ -773,18 +780,22 @@ pub(super) fn draw_value(
             .map_or(0., |s| s.last_value - s.start_value);
         panels.drag_readout = Some((input.mouse, format!("{}  {:+.2}", text, delta)));
     }
-    motion_ui::style::text_style(
-        list,
-        atlas,
-        r.shrink(style.padding),
-        &text,
-        style,
-        if states.contains(motion_ui::style::State::Focused) {
-            Align::Left
-        } else {
-            Align::Right
-        },
-    );
+    if let Some(field) = draft {
+        field.editor.draw_styled(list, atlas, r, &styles, "field.number", states);
+    } else {
+        motion_ui::style::text_style(
+            list,
+            atlas,
+            r.shrink(style.padding),
+            &text,
+            style,
+            if states.contains(motion_ui::style::State::Focused) {
+                Align::Left
+            } else {
+                Align::Right
+            },
+        );
+    }
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;
     }
@@ -795,6 +806,7 @@ pub(super) fn draw_value(
             axis,
             text: (value as f32).to_string(),
             replace: false,
+            editor: Default::default(),
             rect: r,
             scrubbing: Some(ScrubState {
                 start_mouse: input.pressed.unwrap().1[0],
@@ -873,7 +885,7 @@ pub(super) fn process_field(
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
-    if input.focus_lost || input.keys.iter().any(|(key, _)| *key == Key::Escape) {
+    if input.focus_lost || input.key_presses().any(|(key, _, repeat)| key == Key::Escape && !repeat) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) {
             out.push(Action::History(4));
         }
@@ -973,25 +985,12 @@ pub(super) fn process_field(
             }
             field.scrubbing = None;
             field.replace = true;
+            field.editor.cancel();
         }
     }
     if field.scrubbing.is_none() {
-        if !input.text.is_empty() {
-            if field.replace {
-                field.text.clear();
-                field.replace = false;
-            }
-            field.text.push_str(&input.text);
-        }
-        if input.keys.iter().any(|(key, _)| *key == Key::Backspace) {
-            if field.replace {
-                field.text.clear();
-                field.replace = false;
-            } else {
-                field.text.pop();
-            }
-        }
-        if outside || input.keys.iter().any(|(key, _)| *key == Key::Enter) {
+        let event = field.editor.input_value(&mut field.text, &mut field.replace, input);
+        if outside || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
             if field.replace {
                 return;
             }
@@ -1015,6 +1014,7 @@ pub(super) fn process_field(
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod clipboard;
     #[test]
     fn anchor_and_scrub_fallback_evidence_preserves_values_and_empty_gestures() {
         const CHILD: &str = "MOTION_PROPERTY_FALLBACK_OBSERVATION_CHILD";
@@ -1129,6 +1129,7 @@ mod tests {
                     axis: 0,
                     text: "10.00".into(),
                     replace: false,
+                    editor: Default::default(),
                     rect: Rect::new(90., 0., 120., 30.),
                     scrubbing: Some(ScrubState {
                         start_mouse: 100.,

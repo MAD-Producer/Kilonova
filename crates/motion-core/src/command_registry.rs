@@ -78,6 +78,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
             }
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
+            "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
@@ -122,6 +123,8 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
         input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
+    Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
+    Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];
     Command::AudioLevels { .. } => "audio_levels" [("object","u64",true), ("action","crate::AudioLevelsAction",true)];
     Command::AudioMarkers { .. } => "audio_markers" [("object","u64",true), ("action","crate::AudioMarkersAction",true)];
     Command::SplitAudioChannels { .. } => "split_audio_channels" [("object","u64",true)];
@@ -157,6 +160,11 @@ registry! {
     Command::Remove { .. } => "remove" [("object","u64",true), ("frame","u32",true)];
     Command::Parent { .. } => "parent" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true)];
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
+    Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
+    Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
+    Command::PastePaths { .. } => "paste_paths" [("clipboard","PathClipboard",true), ("target","PathDestination",true), ("at_frame","Option<u32>",false)];
+    Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
+    Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];

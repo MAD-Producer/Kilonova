@@ -7,6 +7,7 @@ pub const MAX_PATHS: usize = 64;
 pub const MAX_NODES: usize = 2048;
 pub mod path_ops;
 pub mod groups;
+mod authored;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -319,6 +320,7 @@ pub struct SampledVector {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum VectorAction {
+    SetFirstVertex { item: Option<u64>, path: u64, node: u64 },
     ConvertToGroup,
     SetGroupParameter { item: u64, parameter: String, frame: u32,
         value: groups::ParameterValue, #[serde(default)] animated: Option<bool> },
@@ -671,6 +673,9 @@ impl VectorContent {
                 .map_err(|_| crate::Error::Invalid("vector local frame overflow".into()))
         };
         match action {
+            VectorAction::SetFirstVertex { item, path, node } => {
+                authored::first_vertex(self, item, path, node)?;
+            }
             VectorAction::ConvertToGroup => {
                 ensure(!matches!(self.source, VectorSource::Group { .. }), "already a vector group")?;
                 let content = self.clone();

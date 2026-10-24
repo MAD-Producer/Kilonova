@@ -43,12 +43,20 @@ struct BoxSelect {
 #[derive(Default)]
 pub(super) struct Selection {
     pub points: BTreeSet<Point>,
-    scope: Option<(String, String, u64, bool)>,
+    scope: Option<(String, String, u64, u64, bool)>,
     moving: Option<Move>,
     marquee: Option<BoxSelect>,
     rejected: motion_render::observability::FailureCounter,
 }
 impl Selection {
+    fn scope(state: &Value, object: u64, mask: bool) -> (String, String, u64, u64, bool) {
+        (state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            state["document_generation"].as_u64().unwrap_or(0), object, mask)
+    }
+    pub fn current(&self, state: &Value, object: u64, mask: bool) -> bool {
+        self.scope.as_ref().is_some_and(|scope| scope == &Self::scope(state, object, mask))
+    }
     pub fn editing(&self) -> bool {
         self.moving.is_some() || self.marquee.is_some()
     }
@@ -73,14 +81,7 @@ impl Selection {
         paths: &[Value],
         out: &mut Vec<Action>,
     ) -> bool {
-        let scope = object.map(|id| {
-            (
-                state["root"].as_str().unwrap_or("").into(),
-                state["composition"].as_str().unwrap_or("").into(),
-                id,
-                mask,
-            )
-        });
+        let scope = object.map(|id| Self::scope(state, id, mask));
         let changed = self.scope.is_some() && self.scope != scope;
         if self.scope != scope {
             if self.cancel() {
