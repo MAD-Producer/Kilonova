@@ -375,7 +375,7 @@ impl Renderer {
         if let Some(scene) = scene {
             self.check_exposure_media(scene, &format!("exposure sample={}", target.phase))?;
         }
-        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::ExposurePhase, &wgpu::CommandEncoderDescriptor {
                 label: Some("exposure phase"),
             })?;
         let stats = if let Some(scene) = scene {
@@ -425,7 +425,7 @@ impl Renderer {
         }
         let stats = self.draw_exposure_phase_tracked(context, rasters, &target.sample.view,
             target.sample.width, target.sample.height, adjustments, |ledger| ledger.merge(target.texture_resource_ledger()))?;
-        let encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::ExposurePhase, &wgpu::CommandEncoderDescriptor {
             label: Some("retained phase exposure sum"),
         })?;
         self.accumulate_exposure_encoded(target, encoder, Some(stats), true)?
@@ -531,7 +531,7 @@ impl Renderer {
                 "exposure phase=resolve: output extent or format mismatch".into(),
             ));
         }
-        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::ExposureResolve, &wgpu::CommandEncoderDescriptor {
                 label: Some("complete exposure resolve"),
             })?;
         {

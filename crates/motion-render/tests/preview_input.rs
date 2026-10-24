@@ -2,6 +2,247 @@ use motion_render::{preview_input::PreviewInputTexture, ChromaLayout, Renderer, 
 fn renderer() -> Renderer {
     pollster::block_on(Renderer::headless()).unwrap()
 }
+
+fn profiled_renderer(budget: motion_render::AllocationBudget) -> Renderer {
+    let instance =
+        wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+    pollster::block_on(Renderer::new_profiled_with_allocation_budget(
+        &instance,
+        None,
+        wgpu::TextureFormat::Rgba8UnormSrgb,
+        true,
+        budget,
+    ))
+    .unwrap()
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn input_command_timers_keep_independent_owners_across_shared_budget_devices_and_restarts() {
+    use motion_render::{
+        gpu_commands::CommandStage, AllocationBudget, AllocationFrameOutcome, FrameOperation,
+    };
+    fn assert_send<T: Send>() {}
+    assert_send::<PreviewInputTexture>();
+    let budget = AllocationBudget::default();
+    let mut first = profiled_renderer(budget.clone());
+    let second = profiled_renderer(budget.clone());
+    let mut a = PreviewInputTexture::new(
+        first.device.clone(),
+        first.queue.clone(),
+        1 << 20,
+        budget.clone(),
+    )
+    .unwrap();
+    let mut b = PreviewInputTexture::new(
+        second.device.clone(),
+        second.queue.clone(),
+        1 << 20,
+        budget.clone(),
+    )
+    .unwrap();
+    assert!(a.command_observer().is_none());
+    assert!(b.command_observer().is_none());
+    let Some(main) = first.start_command_profiling(2).unwrap() else {
+        eprintln!("GPU_INPUT_OWNERS available=false; no actual owner acceptance");
+        return;
+    };
+    let before = budget.info().unwrap().admitted_bytes;
+    let a_old = a.start_command_profiling(2).unwrap().unwrap();
+    let slot_bytes = wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT + 16;
+    assert_eq!(
+        budget.info().unwrap().admitted_bytes,
+        before + 2 * slot_bytes
+    );
+    let b_observer = b.start_command_profiling(2).unwrap().unwrap();
+    assert_eq!(
+        budget.info().unwrap().admitted_bytes,
+        before + 4 * slot_bytes
+    );
+    let a_epoch = a_old.snapshot().commands.epoch;
+    assert_ne!(a_epoch, b_observer.snapshot().commands.epoch);
+    assert_ne!(a_epoch, main.snapshot().commands.epoch);
+    let frame = budget
+        .begin_frame_at(711, FrameOperation::NodeCapture, 1.25)
+        .unwrap()
+        .unwrap();
+    a.upload_rgba_with_context(
+        4,
+        4,
+        &[255, 0, 0, 128].repeat(16),
+        false,
+        2,
+        Some(motion_render::gpu_commands::InputCommandContext::image(
+            501, 7, 1.25, 42,
+        )),
+    )
+    .unwrap();
+    let source = Yuv420Frame {
+        width: 4,
+        height: 2,
+        rotation: 90,
+        standard: 1,
+        range: 2,
+        phase: [0, 0],
+        y: vec![16, 40, 80, 120, 160, 200, 220, 235],
+        uv: vec![128; 4],
+        chroma_layout: ChromaLayout::Uv,
+    };
+    b.upload_yuv_with_context(
+        &source,
+        4,
+        Some(motion_render::gpu_commands::InputCommandContext::layer(
+            502,
+            7,
+            1.25,
+            23,
+            "source-comp",
+        )),
+    )
+    .unwrap();
+    frame.finish(AllocationFrameOutcome::Rendered);
+    assert_eq!(main.snapshot().commands.counts.started, 0);
+    for observer in [&a_old, &b_observer] {
+        let snapshot = observer.snapshot();
+        assert_eq!(snapshot.commands.active.len(), 1);
+        let command = &snapshot.commands.active[0];
+        assert_eq!(command.stage, CommandStage::AuthoringInput);
+        assert_eq!(command.contexts.len(), 1);
+        assert_eq!(command.contexts[0].request, Some(711));
+        assert_eq!(command.contexts[0].source_frame, Some(1.25));
+    }
+    let original_limit = budget.info().unwrap().budget_bytes;
+    let admitted = budget.info().unwrap().admitted_bytes;
+    budget.set_limit(admitted).unwrap();
+    let primary = a.start_command_profiling(1).err().unwrap();
+    assert!(primary.resource_rejection().is_some());
+    assert_eq!(
+        a.command_observer().unwrap().snapshot().commands.epoch,
+        a_epoch
+    );
+    assert_eq!(budget.info().unwrap().admitted_bytes, admitted);
+    budget.set_limit(original_limit).unwrap();
+    assert!(a.start_command_profiling(0).is_err());
+    assert_eq!(
+        a.stop_command_profiling()
+            .unwrap()
+            .snapshot()
+            .commands
+            .epoch,
+        a_epoch
+    );
+    let a_new = a.start_command_profiling(1).unwrap().unwrap();
+    assert_ne!(a_new.snapshot().commands.epoch, a_epoch);
+    // The old real mapping completes only after the new owner epoch exists.
+    first
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    second
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    for observer in [&a_old, &b_observer] {
+        let snapshot = observer.snapshot();
+        assert_eq!(snapshot.commands.counts.completed, 1);
+        assert_eq!(snapshot.readback.valid_samples, 1);
+        assert!(snapshot.commands.recent[0]
+            .timestamp_words
+            .is_some_and(|w| w[1] > w[0]));
+        assert_eq!(snapshot.commands.counts.omitted_slots, 0);
+    }
+    assert_eq!(a_new.snapshot().commands.counts.started, 0);
+    let a_record = a_old.snapshot().commands.recent.pop().unwrap();
+    let b_record = b_observer.snapshot().commands.recent.pop().unwrap();
+    let a_input = a_record.input.unwrap();
+    let b_input = b_record.input.unwrap();
+    assert_eq!(
+        (a_input.sequence, a_input.asset, a_input.revision),
+        (501, Some(42), 7)
+    );
+    assert_eq!(
+        (b_input.sequence, b_input.object, b_input.revision),
+        (502, Some(23), 7)
+    );
+    assert_eq!(b_input.composition.as_deref(), Some("source-comp"));
+    assert_eq!(a_record.contexts[0].request, Some(711));
+    assert_eq!(b_record.contexts[0].request, Some(711));
+    assert_eq!(a.dimensions(), (2, 2));
+    let rgba = pixels(&first, &a);
+    assert!(rgba
+        .chunks_exact(4)
+        .all(|pixel| pixel[0] > 250 && pixel[1] < 2 && pixel[2] < 2 && pixel[3] == 128));
+    let yuv = pixels(&second, &b);
+    let expected = source.to_rgba().unwrap();
+    assert!(yuv.iter().zip(&expected).all(|(a, b)| a.abs_diff(*b) <= 1));
+    // Direct premultiplied queue writes retain the existing no-encoder route.
+    let scopes = budget.info().unwrap().encoder_scopes;
+    a.upload_rgba(2, 2, &[0, 255, 0, 255].repeat(4), true, 2)
+        .unwrap();
+    assert_eq!(budget.info().unwrap().encoder_scopes, scopes);
+    assert_eq!(a_new.snapshot().commands.counts.started, 0);
+    assert_eq!(pixels(&first, &a), [0, 255, 0, 255].repeat(4));
+    assert!(main
+        .snapshot()
+        .commands
+        .recent
+        .iter()
+        .all(|command| command.stage != CommandStage::AuthoringInput));
+    eprintln!(
+        "GPU_INPUT_OWNERS {}",
+        serde_json::json!({
+            "available":true,"actualDevices":2,"distinctEpochs":[main.snapshot().commands.epoch,a_epoch,b_observer.snapshot().commands.epoch,a_new.snapshot().commands.epoch],
+            "actualInputCompletions":2,"actualPixelsChecked":4+8+4,"originalBudgetErrorPreserved":true,
+            "directUploadAddedEncoder":false,"scope":"actual RGBA/YUV conversion and pixels on two independent devices sharing admission; queue writes are not timed intervals"
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn input_timer_observer_retains_metadata_without_retaining_native_query_allocations() {
+    let renderer = profiled_renderer(Default::default());
+    let budget = renderer.allocation_budget().clone();
+    let before = budget.info().unwrap().admitted_bytes;
+    let mut input = PreviewInputTexture::new(
+        renderer.device.clone(),
+        renderer.queue.clone(),
+        1 << 20,
+        budget.clone(),
+    )
+    .unwrap();
+    let Some(observer) = input.start_command_profiling(1).unwrap() else {
+        eprintln!("GPU_INPUT_RETIRE available=false; no actual retirement acceptance");
+        return;
+    };
+    input
+        .upload_rgba(4, 4, &[64, 128, 192, 255].repeat(16), false, 2)
+        .unwrap();
+    assert_eq!(observer.snapshot().commands.active.len(), 1);
+    drop(input);
+    assert!(budget.info().unwrap().admitted_bytes > before);
+    renderer
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    renderer.check_health().unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, before);
+    let result = observer.snapshot();
+    assert_eq!(result.commands.counts.completed, 1);
+    assert_eq!(result.readback.valid_samples, 1);
+    assert!(result.commands.active.is_empty());
+    assert!(result.commands.recent[0]
+        .timestamp_words
+        .is_some_and(|w| w[1] > w[0]));
+    eprintln!(
+        "GPU_INPUT_RETIRE {}",
+        serde_json::json!({
+            "available":true,"actualInputCompletions":1,"admissionBefore":before,
+            "admissionAfterActualPoll":budget.info().unwrap().admitted_bytes,
+            "scope":"exact original queue completion and timestamp mapping after input owner destruction; logical admission, not physical residency"
+        })
+    );
+}
 fn pixels(renderer: &Renderer, input: &PreviewInputTexture) -> Vec<u8> {
     let (width, height) = input.dimensions();
     let target = renderer.capture_target(width, height).unwrap();

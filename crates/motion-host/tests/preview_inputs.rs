@@ -11,6 +11,8 @@ use std::{
 };
 #[path = "preview_inputs/source_memory.rs"]
 mod source_memory;
+#[path = "preview_inputs/command_timing.rs"]
+mod command_timing;
 struct PlatformStub;
 impl Platform for PlatformStub {
     fn name(&self) -> &'static str {

@@ -26,6 +26,8 @@ pub struct PreviewInputTexture {
     rgba: Option<OwnedTexture>,
     allocation_budget: AllocationBudget,
     allocation_owner: Arc<()>,
+    // Optional and owner-local even when several devices share admission.
+    command_profiler: Option<crate::gpu_commands::AttachedCommandProfiler>,
     // Submit pending writes only after views/bindings and owned caches drop.
     allocation_uploads: AllocationUploads,
 }
@@ -156,8 +158,38 @@ impl PreviewInputTexture {
             copy_group: None,
             allocation_budget,
             allocation_owner: Arc::new(()),
+            command_profiler: None,
             allocation_uploads,
         })
+    }
+    /// Explicit input-owner timing; starting the renderer's profiler does not
+    /// attach this independent resource. Default uploads create no query pool.
+    /// Failure preserves the previous epoch and the current visible input.
+    pub fn start_command_profiling(&mut self, slots: usize)
+        -> Result<Option<crate::gpu_commands::GpuCommandObserver>, RenderError>
+    {
+        let profiler = crate::gpu_commands::AttachedCommandProfiler::for_input(
+            &self.device, &self.queue, &self.allocation_budget, slots)?;
+        let observer = profiler.as_ref().map(|profiler| profiler.observer());
+        self.command_profiler = profiler;
+        Ok(observer)
+    }
+    pub fn command_observer(&self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.as_ref().map(|profiler| profiler.observer())
+    }
+    /// Retires only diagnostics. Does not poll, cancel uploads or change the
+    /// original upload/queue retirement behavior. Late callbacks keep their IDs.
+    pub fn stop_command_profiling(&mut self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.take().map(|profiler| profiler.observer())
+    }
+    fn command_encoder(&self, input: Option<crate::gpu_commands::InputCommandContext>) -> Result<crate::AllocationEncoder, RenderError> {
+        let descriptor = wgpu::CommandEncoderDescriptor::default();
+        match &self.command_profiler {
+            Some(profiler) => profiler.allocated_encoder(&self.device, &self.allocation_budget,
+                self.allocation_owner.clone(), &descriptor,
+                crate::gpu_commands::CommandStage::AuthoringInput, input),
+            None => self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &descriptor),
+        }
     }
     pub fn view(&self) -> Option<&AdmittedTextureView> {
         self.view.as_ref()
@@ -260,7 +292,15 @@ impl PreviewInputTexture {
         premultiplied: bool,
         max_edge: u32,
     ) -> Result<(), RenderError> {
-        self.upload_rgba_inner(width, height, pixels, premultiplied, max_edge)
+        self.upload_rgba_with_context(width, height, pixels, premultiplied, max_edge, None)
+    }
+    /// Context is captured before native encoding; no worker request is
+    /// fabricated from the independent input reader's sequence number.
+    pub fn upload_rgba_with_context(&mut self, width: u32, height: u32, pixels: &[u8],
+        premultiplied: bool, max_edge: u32, context: Option<crate::gpu_commands::InputCommandContext>)
+        -> Result<(), RenderError>
+    {
+        self.upload_rgba_inner(width, height, pixels, premultiplied, max_edge, context)
             .map_err(|error| {
                 let message = format!("authoring input size={width}x{height} edge={max_edge} phase=rgba_upload: {error}");
                 error.with_diagnostic(message)
@@ -273,6 +313,7 @@ impl PreviewInputTexture {
         pixels: &[u8],
         premultiplied: bool,
         max_edge: u32,
+        context: Option<crate::gpu_commands::InputCommandContext>,
     ) -> Result<(), RenderError> {
         let output = self.output_size(width, height, max_edge)?;
         if pixels.len() as u64 != u64::from(width) * u64::from(height) * 4 {
@@ -295,11 +336,7 @@ impl PreviewInputTexture {
             return Ok(());
         }
         // Hold the prior input through all allocation, scope and journal checks.
-        let mut encoder = self.allocation_budget.encoder(
-            &self.device,
-            self.allocation_owner.clone(),
-            &Default::default(),
-        )?;
+        let mut encoder = self.command_encoder(context)?;
         let texture = self.next_output(output)?;
         let output_view = texture.admitted_view()?;
         let source = if self.rgba_size == (width, height) {
@@ -380,7 +417,12 @@ impl PreviewInputTexture {
         Ok(())
     }
     pub fn upload_yuv(&mut self, frame: &Yuv420Frame, max_edge: u32) -> Result<(), RenderError> {
-        self.upload_yuv_inner(frame, max_edge).map_err(|error| {
+        self.upload_yuv_with_context(frame, max_edge, None)
+    }
+    pub fn upload_yuv_with_context(&mut self, frame: &Yuv420Frame, max_edge: u32,
+        context: Option<crate::gpu_commands::InputCommandContext>) -> Result<(), RenderError>
+    {
+        self.upload_yuv_inner(frame, max_edge, context).map_err(|error| {
             let message = format!(
                 "authoring input size={}x{} edge={max_edge} phase=yuv_upload: {error}",
                 frame.width, frame.height
@@ -388,17 +430,14 @@ impl PreviewInputTexture {
             error.with_diagnostic(message)
         })
     }
-    fn upload_yuv_inner(&mut self, frame: &Yuv420Frame, max_edge: u32) -> Result<(), RenderError> {
+    fn upload_yuv_inner(&mut self, frame: &Yuv420Frame, max_edge: u32,
+        context: Option<crate::gpu_commands::InputCommandContext>) -> Result<(), RenderError> {
         frame.validate()?;
         self.validate_size(frame.width, frame.height)?;
         let (width, height) = frame.display_size();
         let output = self.output_size(width, height, max_edge)?;
         self.budget(output, frame.bytes() as u64)?;
-        let mut encoder = self.allocation_budget.encoder(
-            &self.device,
-            self.allocation_owner.clone(),
-            &Default::default(),
-        )?;
+        let mut encoder = self.command_encoder(context)?;
         let texture = self.next_output(output)?;
         let output_view = texture.admitted_view()?;
         let new_converter = self

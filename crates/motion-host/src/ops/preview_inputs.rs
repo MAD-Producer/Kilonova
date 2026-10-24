@@ -60,6 +60,10 @@ pub fn upload(
     sequence: u64,
     target: &mut motion_render::preview_input::PreviewInputTexture,
 ) -> Result<Value> {
+    // poll releases its Session guard before the caller-owned upload starts.
+    // Keep native callbacks IO-free and drain even if upload fails or unwinds.
+    let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
+    command_logs.watch(target.command_observer());
     match poll(id, sequence)? {
         InputPoll::Pending(info) => Ok(json!({"version":1,"state":"pending","input":info})),
         InputPoll::Ready(packet) => {

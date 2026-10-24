@@ -17,6 +17,8 @@ fn frame(sequence: u64, source_frame: f64) -> FrameMeasurement {
         render_height: 16,
         preview_fps: 30,
         gpu: None,
+        presentation_command: None,
+        exposure: None,
         resources: None,
     }
 }
@@ -28,6 +30,44 @@ fn timing(sequence: u64, total_us: f64) -> GpuTiming {
         presentation_us: total_us * 0.25,
         total_us,
     }
+}
+
+#[test]
+fn presentation_links_keep_epoch_and_command_identity_without_source_frame_guessing() {
+    use motion_render::gpu_commands::{CommandIdentity, ExposureCommandContext};
+    let mut recorder = FrameRecorder::new(10, 3);
+    for (sequence, epoch) in [(10, 71), (14, 72)] {
+        let mut entry = frame(sequence, 1.25);
+        entry.presentation_command = Some(CommandIdentity { epoch, id: 1 });
+        entry.exposure = Some(ExposureCommandContext {
+            request: Some(9),
+            poll: Some(sequence),
+        });
+        recorder.record(entry);
+    }
+    recorder.record(frame(15, 1.25));
+    let report = recorder.report(json!({}));
+    assert_eq!(report["presentationCommandIdentityCount"], 2);
+    assert_eq!(
+        report["frames"][0]["presentationCommand"],
+        json!({"epoch":71,"id":1})
+    );
+    assert_eq!(
+        report["frames"][1]["presentationCommand"],
+        json!({"epoch":72,"id":1})
+    );
+    assert_eq!(
+        report["frames"][1]["exposure"],
+        json!({"request":9,"poll":14})
+    );
+    assert!(report["frames"][2]["presentationCommand"].is_null());
+    assert!(report["frames"][2]["exposure"].is_null());
+    assert_eq!(report["gpuSampleCount"], 0);
+    assert!(report["gpuTotalUs"].is_null());
+    assert!(report["commandJoinScope"]
+        .as_str()
+        .unwrap()
+        .contains("Never join by authored source-frame"));
 }
 
 #[test]
