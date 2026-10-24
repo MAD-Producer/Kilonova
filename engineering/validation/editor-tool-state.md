@@ -55,7 +55,7 @@ DESIGN §0.7 各项 retained with reason：path_controls 步进、双列、按�
 
 ## 实际界面
 
-截图夹具最后改为空工程分别绘制，避免既有同色图层重叠遮住创建结果；只改测试数据，没有修改生产渲染或断言。原件尺寸与 SHA-256 记录于 [captures.json](editor-tool-state/captures.json)，只转存 PNG、没有重绘。
+截图夹具最后改为空工程分别绘制，避免既有同色图层重叠遮住创建结果；只改测试数据，没有修改生产渲染或断言。原件尺寸与 SHA-256 记录于 [captures.json](editor-tool-state/captures.json)，PNG 仅做无损重编码，已逐像素核对 RGBA 一致；没有裁剪或重绘。
 
 主窗矩形候选（松开前没有创建图层）：
 

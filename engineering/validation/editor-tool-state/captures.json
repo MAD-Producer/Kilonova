@@ -10,7 +10,8 @@
       ],
       "crop": null,
       "file": "rectangle-main-zh-drag.png",
-      "sha256": "11d5fc238f8ddae685aff53f0b12fe34a24e1f7e0f6bf9de8a4bd982b4fee1e3"
+      "sha256": "11d5fc238f8ddae685aff53f0b12fe34a24e1f7e0f6bf9de8a4bd982b4fee1e3",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
     },
     {
       "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\rectangle-main-zh-created.png",
@@ -21,7 +22,8 @@
       ],
       "crop": null,
       "file": "rectangle-main-zh-created.png",
-      "sha256": "4b3b88dd6175019ab2952187c8daaae06691561e975da9e957eaab98edbc6a30"
+      "sha256": "4b3b88dd6175019ab2952187c8daaae06691561e975da9e957eaab98edbc6a30",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
     },
     {
       "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\ellipse-floating-en-drag.png",
@@ -32,7 +34,8 @@
       ],
       "crop": null,
       "file": "ellipse-floating-en-drag.png",
-      "sha256": "c169b8b2be98fe4b6efda8812a5317f30dcae41f3457aac02d692ac47633a550"
+      "sha256": "c169b8b2be98fe4b6efda8812a5317f30dcae41f3457aac02d692ac47633a550",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
     },
     {
       "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\ellipse-floating-en-created.png",
@@ -43,7 +46,8 @@
       ],
       "crop": null,
       "file": "ellipse-floating-en-created.png",
-      "sha256": "f0ea2bcd3d40ca17ec493339fbbcac9731af002f60c665ac3fcb87cc16aa072c"
+      "sha256": "f0ea2bcd3d40ca17ec493339fbbcac9731af002f60c665ac3fcb87cc16aa072c",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
     }
   ]
 }
