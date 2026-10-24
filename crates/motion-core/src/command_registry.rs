@@ -122,6 +122,8 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
         input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
+    Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
+    Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];
     Command::AudioLevels { .. } => "audio_levels" [("object","u64",true), ("action","crate::AudioLevelsAction",true)];
     Command::AudioMarkers { .. } => "audio_markers" [("object","u64",true), ("action","crate::AudioMarkersAction",true)];
     Command::SplitAudioChannels { .. } => "split_audio_channels" [("object","u64",true)];

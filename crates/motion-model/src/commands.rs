@@ -205,6 +205,13 @@ pub enum Command {
     Add {
         layer: Layer,
     },
+    PasteLayers {
+        clipboard: Box<crate::LayerClipboard>,
+        #[serde(default)]
+        at_frame: Option<u32>,
+        keep_external_references: bool,
+    },
+    RemoveLayers { objects: Vec<u64>, frame: u32 },
     Delete {
         object: u64,
     },
@@ -268,17 +275,19 @@ impl Command {
             | Self::RegisterFontAsset { .. }
             | Self::Content { .. }
             | Self::Add { .. }
+            | Self::PasteLayers { .. }
             | Self::Composition { .. } => true,
             _ => false,
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum EditResult {
+    PasteLayers { objects: Vec<u64> },
     CreateCamera { object: u64 },
     SplitLayerClip { left_object: u64, right_object: u64 },
     Composition { result: serde_json::Value },

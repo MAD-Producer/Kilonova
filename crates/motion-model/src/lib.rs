@@ -11,6 +11,7 @@ pub mod composition;
 mod curve;
 pub mod color_curves;
 mod commands;
+pub mod layer_clipboard;
 pub mod effects;
 pub mod expressions;
 pub mod geometry;
@@ -29,6 +30,7 @@ pub mod vector;
 
 pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePublication};
 pub use commands::{Command, EditResult, Property};
+pub use layer_clipboard::LayerClipboard;
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use audio::{AudioAsset, AudioClip};
 pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
