@@ -1,0 +1,80 @@
+{
+  "test": "panels::work_area::tests::native::native_work_area_drag_save_undo_main_float_bilingual",
+  "test_executable_sha256": "13ce4d7c1f3416a7959c733a227b35f6a151dcb81c2a4a8de8bd1bfd918aefcf",
+  "input": "production chrome Input injection; actual hidden Windows HWND and GPU capture; no physical OS pointer automation",
+  "main": {
+    "logical": [
+      1600,
+      1000
+    ],
+    "physical": [
+      1600,
+      1000
+    ],
+    "dpi": 1
+  },
+  "timeline_float": {
+    "logical": [
+      900,
+      600
+    ],
+    "physical": [
+      1350,
+      900
+    ],
+    "dpi": 1.5
+  },
+  "options_float": {
+    "logical": [
+      360,
+      520
+    ],
+    "physical": [
+      540,
+      780
+    ],
+    "dpi": 1.5
+  },
+  "screens": [
+    {
+      "file": "en-export-scope.png",
+      "sha256": "6991a13999e31563bae0e61065021ea0f6f1cb8a93f915982dd3a5a3d6f2f272"
+    },
+    {
+      "file": "en-float-range.png",
+      "sha256": "8d0d5c3408700dab2ea6d0df7ba1f006c9a601e3d1814525a3fea866f71bccd9"
+    },
+    {
+      "file": "en-main-range.png",
+      "sha256": "00ad11e1ae29ae7b893d9306ddef28fde110d0dede5851681fe6a8e46816be87"
+    },
+    {
+      "file": "en-preview-options.png",
+      "sha256": "ecddb864aec429fe4512985506eb8405bdd634a5f8697176598d23cec0d30f5e"
+    },
+    {
+      "file": "en-preview-range-menu.png",
+      "sha256": "753b2dd6bdcd562e67421e6103b9ca77b53ffb9674e465597cbb3988bca4000c"
+    },
+    {
+      "file": "zh-export-scope.png",
+      "sha256": "ff948fa272e9f7d1d697cf48db0f10814d82a586fd806e07527c684b0274fd5d"
+    },
+    {
+      "file": "zh-float-range.png",
+      "sha256": "3ee742dc44d66890a0ca2bdf3cf5fe919bf731d5599224fe7855857bb17044d2"
+    },
+    {
+      "file": "zh-main-range.png",
+      "sha256": "8f5be3cf152780e149f7aeda7cf4372bc9528b43ab51384e6ae65d8edcd21fea"
+    },
+    {
+      "file": "zh-preview-options.png",
+      "sha256": "720e1750be78f4d7ee0468b948434c6c7fc524190373f01813d7ddcdfa3ae85a"
+    },
+    {
+      "file": "zh-preview-range-menu.png",
+      "sha256": "a2158b29dd7d92d5738a5cdd9af06ac95ebf6c6dcf2596bcbc4205950414dbcd"
+    }
+  ]
+}

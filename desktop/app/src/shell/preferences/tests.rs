@@ -2,6 +2,53 @@ use super::*;
 use crate::workspace::Workspace;
 
 #[test]
+fn preview_options_persist_restart_and_save_failure_rolls_back() {
+    use crate::preview_playback::{Options,Start,Skip};
+    let root = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(root.path().join("project"),None,Some(Locale::En)).unwrap();
+    shell.layout_path = root.path().join("layout.json");
+    let before = shell.state["project"].clone();
+    let options = Options { scope:motion_core::FrameScope::WorkArea,start:Start::RangeStart,skip:Skip::Two,looping:false };
+    shell.action(panels::Action::PreviewPlayback(options),None).unwrap();
+    shell.action(panels::Action::MovieExportScope(motion_core::FrameScope::WorkArea),None).unwrap();
+    let saved = Workspace::load(&shell.layout_path);
+    assert_eq!(saved.preview_playback,options); assert_eq!(saved.movie_export_scope,motion_core::FrameScope::WorkArea);
+    let persisted = std::fs::read(&shell.layout_path).unwrap();
+    let blocked = root.path().join("blocked");std::fs::create_dir(&blocked).unwrap();shell.layout_path = blocked;
+    assert!(shell.action(panels::Action::PreviewPlayback(Default::default()),None).is_err());
+    assert!(shell.action(panels::Action::MovieExportScope(motion_core::FrameScope::Composition),None).is_err());
+    assert_eq!(shell.workspace.preview_playback,options); assert_eq!(shell.panels.preview_playback,options);
+    assert_eq!(shell.workspace.movie_export_scope,motion_core::FrameScope::WorkArea);
+    assert_eq!(shell.panels.movie_export_scope,motion_core::FrameScope::WorkArea);
+    assert_eq!(std::fs::read(root.path().join("layout.json")).unwrap(),persisted);
+    assert_eq!(shell.state["project"],before);
+}
+
+#[test]
+fn selected_preview_options_drive_the_real_clock_and_stop_at_the_work_area_end() {
+    let root = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(root.path().join("project"),None,Some(Locale::En)).unwrap();
+    shell.layout_path = root.path().join("layout.json");
+    shell.state = shell.engine.edit(r#"{"op":"set_work_area","in_frame":20,"out_frame":50}"#.into()).unwrap();
+    let options = crate::preview_playback::Options {
+        scope:motion_core::FrameScope::WorkArea, start:crate::preview_playback::Start::RangeStart,
+        skip:crate::preview_playback::Skip::Two, looping:false,
+    };
+    shell.frame = 93.;
+    shell.action(panels::Action::PreviewPlayback(options),None).unwrap();
+    shell.action(panels::Action::TogglePlay,None).unwrap();
+    assert_eq!(shell.frame,20.); assert!(shell.panels.playing);
+    let plan = shell.playback_plan.unwrap();assert_eq!(plan.range,motion_core::WorkArea {in_frame:20,out_frame:50});assert_eq!(plan.step,3);
+    shell.playback = Some((Instant::now() - Duration::from_secs(2),20.));
+    shell.advance_playback().unwrap();
+    assert_eq!(shell.frame,49.);assert!(!shell.panels.playing && shell.playback.is_none() && shell.playback_plan.is_none());
+    let (_,reply) = shell.editing.take().unwrap();assert_eq!(reply.recv_timeout(Duration::from_secs(10)).unwrap().unwrap()["frame"],49.);
+    shell.action(panels::Action::TogglePlay,None).unwrap();assert!(shell.playback.is_some());
+    shell.action(panels::Action::PreviewPlayback(Default::default()),None).unwrap();
+    assert!(shell.playback.is_none() && shell.audio.is_none());
+}
+
+#[test]
 fn preferences_shortcut_routes_once_from_main_and_floating_focus_and_respects_ime() {
     use motion_ui::{dock::Panel, input::Modifiers};
     for locale in [Locale::En, Locale::Zh] {

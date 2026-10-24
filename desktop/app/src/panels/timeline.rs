@@ -516,14 +516,14 @@ fn scroll_extent_signature(
     rows_key: &(String, String, u64),
     timeline: &types::TimelineState,
     query: &str,
-    area_height: f32,
+    body_height: f32,
     row_height: f32,
 ) -> u64 {
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     rows_key.hash(&mut hash);
     query.hash(&mut hash);
     timeline.hide_shy.hash(&mut hash);
-    area_height.to_bits().hash(&mut hash);
+    body_height.to_bits().hash(&mut hash);
     row_height.to_bits().hash(&mut hash);
     timeline.expanded.len().hash(&mut hash);
     for id in &timeline.expanded {
@@ -564,12 +564,16 @@ fn scroll_extent_signature(
     }
     hash.finish()
 }
+pub(super) fn header_height(styles: &motion_ui::style::StyleSheet) -> f32 {
+    // Existing toolbar/ruler baseline plus the independent work-area lane.
+    styles.metric("timeline.header.base.height", 64.) + styles.metric("timeline.work_area.height", 14.)
+}
 fn calculate_scroll_max(
     layouts: &[super::timeline_layout::LayerRows],
-    area_height: f32,
+    body_height: f32,
     row_height: f32,
 ) -> f32 {
-    (layouts.iter().map(|row| row.len()).sum::<usize>() as f32 * row_height - (area_height - 64.0))
+    (layouts.iter().map(|row| row.len()).sum::<usize>() as f32 * row_height - body_height)
         .max(0.0)
 }
 pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
@@ -729,7 +733,7 @@ pub(super) fn render(
             rows_key,
             &panels.timeline,
             &query,
-            area.height() - footer_height,
+            area.height() - footer_height - header_height(&styles),
             row_height,
         )
     };
@@ -740,7 +744,7 @@ pub(super) fn render(
     {
         panels.timeline.scroll_extent_cache.unwrap().1
     } else {
-        let max = calculate_scroll_max(&layouts, area.height() - footer_height, row_height);
+        let max = calculate_scroll_max(&layouts, area.height() - footer_height - header_height(&styles), row_height);
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
@@ -759,7 +763,7 @@ pub(super) fn render(
         (area.width() - gutter - 8.0).max(1.0),
         area.height(),
     );
-    let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), 28.0);
+    let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), header_height(&styles) - 36.0);
     panels.timeline.zoom_track = Some(track);
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
@@ -770,6 +774,7 @@ pub(super) fn render(
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
         || panels.timeline.scrubbing
+        || panels.timeline.work_area_drag.is_some()
         || panels.timeline.horizontal_drag.is_some()
         || panels.properties.field.is_some()
         || panels.audio_controls.editing()
@@ -818,7 +823,7 @@ pub(super) fn render(
     let seek_candidates = candidates_for(None, false);
     paint::rect(
         list,
-        Rect::new(area.min[0], area.min[1], area.width(), 64.0),
+        Rect::new(area.min[0], area.min[1], area.width(), ruler.max[1] - area.min[1]),
         colors.CHROME,
     );
     motion_ui::style::text_style(
@@ -1070,6 +1075,13 @@ pub(super) fn render(
         &seek_candidates,
         out,
     );
+    let band_height = styles.metric("timeline.work_area.height", 14.);
+    if let (Some(start), Some(end)) = (state["project"]["work_area"]["in_frame"].as_f64(), state["project"]["work_area"]["out_frame"].as_f64()) {
+        let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+        label(list, atlas, Rect::new(area.min[0] + styles.metric("padding.panel", 8.), ruler.max[1] - band_height,
+            gutter - styles.metric("padding.panel", 8.) * 2., band_height),
+            &format!("{}  {} .. {}", auxiliary::localized(panels.locale, "工作范围", "Work area"), timecode(start, fps), timecode(end - 1., fps)), true);
+    }
     let body = Rect::new(
         area.min[0],
         ruler.max[1],
@@ -2463,9 +2475,14 @@ pub(super) fn render_time_ruler(
         );
         f += step;
     }
-    let marker_owned =
-        super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
-    if clicked(input, ruler) && !marker_owned {
+    let band_height = list.styles().metric("timeline.work_area.height", 14.);
+    let marker_ruler = Rect { max: [ruler.max[0], ruler.max[1] - band_height], ..ruler };
+    let band = Rect::new(ruler.min[0], marker_ruler.max[1], ruler.width(), band_height);
+    let work_area_owned = super::work_area::render(list, band, panels, state, input, ppf, offset, out);
+    let neutral = Input::default();
+    let marker_owned = super::audio::render_ruler(list, atlas, marker_ruler, ppf, offset, panels, state,
+        if work_area_owned { &neutral } else { input }, out);
+    if clicked(input, marker_ruler) && !marker_owned && !work_area_owned {
         panels.timeline.scrubbing = true;
         panels.timeline.scrub_ruler = ScrubRuler::Timeline;
         panels.timeline.last_seek = None;

@@ -33,6 +33,7 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
         || panels.timeline.trimming.is_some()
         || panels.timeline.key_drag.is_some()
         || panels.timeline.timing_drag.is_some()
+        || panels.timeline.work_area_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
         || panels.timeline.horizontal_drag.is_some()

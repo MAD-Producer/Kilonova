@@ -1,0 +1,116 @@
+{
+  "desktop_passed": 175,
+  "native_screenshot_test": 1,
+  "native_pending_decode_child_branches": 3,
+  "groups": [
+    {
+      "filter": "panels::work_area::tests",
+      "log": "work-area-delivery-panels-work_area-tests.log",
+      "passed": 4,
+      "ignored": 1
+    },
+    {
+      "filter": "panels::auxiliary::tests",
+      "log": "work-area-delivery-panels-auxiliary-tests.log",
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::timeline::",
+      "log": "work-area-delivery-panels-timeline-.log",
+      "passed": 13,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::timeline_3d_tests",
+      "log": "work-area-delivery-panels-timeline_3d_tests.log",
+      "passed": 2,
+      "ignored": 0
+    },
+    {
+      "filter": "shell::presentation::curve_playback_tests",
+      "log": "work-area-delivery-shell-presentation-curve_playback_tests.log",
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "filter": "audio_output::",
+      "log": "work-area-delivery-audio_output-.log",
+      "passed": 22,
+      "ignored": 1
+    },
+    {
+      "filter": "shell::preferences::tests",
+      "log": "work-area-delivery-shell-preferences-tests.log",
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "filter": "engine::failure::work_area_tests",
+      "log": "work-area-delivery-engine-failure-work_area_tests.log",
+      "passed": 1,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::timeline_columns_tests",
+      "log": "work-area-verified-panels-timeline_columns_tests.log",
+      "passed": 12,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::property_followup_tests",
+      "log": "work-area-verified-panels-property_followup_tests.log",
+      "passed": 10,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::timeline_shortcuts_tests",
+      "log": "work-area-verified-panels-timeline_shortcuts_tests.log",
+      "passed": 48,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::audio::tests",
+      "log": "work-area-verified-panels-audio-tests.log",
+      "passed": 16,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::layer_sampling::tests",
+      "log": "work-area-verified-panels-layer_sampling-tests.log",
+      "passed": 6,
+      "ignored": 1
+    },
+    {
+      "filter": "panels::properties::tree_tests",
+      "log": "work-area-verified-panels-properties-tree_tests.log",
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "filter": "panels::key_navigation::tests",
+      "log": "work-area-verified-panels-key_navigation-tests.log",
+      "passed": 9,
+      "ignored": 0
+    },
+    {
+      "filter": "shortcuts::bindings::tests",
+      "log": "work-area-verified-shortcuts-bindings-tests.log",
+      "passed": 7,
+      "ignored": 0
+    },
+    {
+      "filter": "preview_playback::tests",
+      "log": "work-area-complete-preview_playback-tests.log",
+      "passed": 4,
+      "ignored": 0
+    },
+    {
+      "filter": "default_binding_reference_matches_live_resolver",
+      "log": "work-area-complete-default_binding_reference_matches_live_resolver.log",
+      "passed": 1,
+      "ignored": 0
+    }
+  ],
+  "test_executable_sha256": "13ce4d7c1f3416a7959c733a227b35f6a151dcb81c2a4a8de8bd1bfd918aefcf"
+}

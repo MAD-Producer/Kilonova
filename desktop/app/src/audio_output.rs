@@ -658,6 +658,23 @@ mod tests {
     }
 
     #[test]
+    fn skipped_audio_playback_stops_on_the_same_last_frame_as_the_wall_clock() {
+        let root = tempfile::tempdir().unwrap();
+        let mut shell = crate::Shell::new(root.path().join("project"),None,Some(crate::i18n::Locale::En)).unwrap();
+        shell.state = shell.engine.edit(serde_json::to_string(&motion_core::Command::SetWorkArea {in_frame:20,out_frame:50}).unwrap()).unwrap();
+        shell.workspace.preview_playback = crate::preview_playback::Options {
+            scope:motion_core::FrameScope::WorkArea, looping:false,skip:crate::preview_playback::Skip::Four,..Default::default()
+        };
+        let mut audio = output_without_device(Arc::new(Shared::new()),None);
+        audio.start_sample = 80_000 - 1; audio.range_start = 32_000; audio.total_samples = 80_000;
+        shell.audio = Some(audio); shell.playback = Some((Instant::now(),20.));
+        shell.advance_playback().unwrap();
+        assert_eq!(shell.frame,49.); assert!(shell.playback.is_none() && shell.audio.is_none());
+        let (_,reply) = shell.editing.take().unwrap();
+        assert_eq!(reply.recv_timeout(Duration::from_secs(10)).unwrap().unwrap()["frame"],49.);
+    }
+
+    #[test]
     fn injected_underrun_and_recovery_keep_playhead_monotonic() {
         let shared = Shared::new();
         shared.ready.store(true, Ordering::Release);

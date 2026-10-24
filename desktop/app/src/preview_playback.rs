@@ -111,8 +111,11 @@ impl Plan {
         if self.step == 1 {
             return source;
         }
-        let start = f64::from(self.range.in_frame);
-        start + ((source - start) / f64::from(self.step)).floor() * f64::from(self.step)
+        let step = f64::from(self.step);
+        (self.origin + ((source - self.origin) / step).floor() * step).clamp(
+            f64::from(self.range.in_frame),
+            f64::from(self.range.out_frame - 1),
+        )
     }
 }
 
@@ -201,5 +204,23 @@ mod tests {
             assert!(!ended);
             assert_eq!(plan.position(Duration::from_secs(1)), (20., false));
         }
+    }
+
+    #[test]
+    fn skipping_from_current_time_never_starts_on_an_earlier_grid_sample() {
+        let plan = Plan::new(
+            &project(),
+            Options {
+                scope: FrameScope::WorkArea,
+                skip: Skip::Three,
+                ..Default::default()
+            },
+            29.5,
+        )
+        .unwrap();
+        assert_eq!(plan.position(Duration::ZERO), (29.5, false));
+        assert_eq!(plan.position(Duration::from_millis(200)), (33.5, false));
+        assert_eq!(plan.position(Duration::from_secs(1)), (29.5, false));
+        assert_eq!(plan.display_frame(20.125), 20.);
     }
 }

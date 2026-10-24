@@ -33,6 +33,7 @@ mod frame_cache_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
 mod audio;
+mod work_area;
 mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
@@ -248,6 +249,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         .take()
         .is_some_and(|field| field.scrubbing.is_some_and(|s| s.begun));
     panels.timeline.scrubbing = false;
+    panels.timeline.work_area_drag = None;
     panels.timeline.horizontal_drag = None;
     panels.timeline.edge_pan_at = None;
     let moving = panels.timeline.moving.take().is_some();

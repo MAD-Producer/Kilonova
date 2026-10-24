@@ -41,11 +41,13 @@
 | Application | Home | false | false | false | FirstFrame | false |
 | Application | End | false | false | false | LastFrame | false |
 | Application | Comma | true | false | false | Preferences | false |
+| Animation | B | false | false | false | WorkAreaIn | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |
 | Animation | T | false | true | false | Reveal(Opacity) | false |
 | Animation | T | false | true | true | ToggleKey(Opacity) | false |
+| Animation | N | false | false | false | WorkAreaOut | false |
 | Animation | O | false | false | false | GoToOut | false |
 | Animation | O | true | false | false | Open | false |
 | Animation | I | false | false | false | GoToIn | false |
@@ -83,6 +85,8 @@
 | Animation | Down | true | false | true | OrderLayersDown | false |
 | Animation | Down | true | true | false | SelectLayerBelow | true |
 | Animation | Down | true | true | true | OrderLayersBottom | false |
+| Animation | Home | false | true | false | GoToWorkAreaIn | false |
+| Animation | End | false | true | false | GoToWorkAreaOut | false |
 | Animation | BracketLeft | false | false | false | MoveInToPlayhead | false |
 | Animation | BracketLeft | false | false | true | TrimInToPlayhead | false |
 | Animation | BracketRight | false | false | false | MoveOutToPlayhead | false |

@@ -1,6 +1,6 @@
-# 工作范围与预览策略：阶段验收
+# 工作范围、预览与范围导出验收
 
-关联 #205、#241。此文档记录已实现的后端阶段及剩余交付项，不作为关闭 issue 的依据。开发分支为 `feat/preview-work-area`，承接 #477 的工程格式与图层列表能力。#477 已在五项必需 CI 通过后合入（`85e475b778a365e65cd66b63247787318c9cfc3a`），#256 已关闭。尚未提交本组 PR。
+关联 #205、#241。开发分支 `feat/preview-work-area`，基于已合入的 #477（`85e475b778a365e65cd66b63247787318c9cfc3a`）。本文件保留后端阶段证据，并在下文补齐桌面交付；CI 状态以本组 PR 当前提交的检查为准，不把本地通过等同于已合入。
 
 ## 帧边界与功能
 
@@ -56,7 +56,7 @@
 
 ## DESIGN §0.7 基线逐项处置
 
-本阶段未修改面板生产绘制，仅同步两处面板测试的合成夹具。以下全部保留，理由为不属于本次模型、时钟与导出阶段；后续面板接线时必须再核验。
+以下逐项按本次最终桌面改动核对。路径与效果外观不在本次功能范围，没有把既有违规记为修复。
 
 1. `path_controls.rs` 六处纵向步长：保留，未触及路径控件。
 2. `path_controls.rs` 两列间距：保留，未触及字段布局。
@@ -68,15 +68,53 @@
 8. `effect_controls.rs` 枚举大按钮：保留，未触及效果枚举。
 9. `effect_controls.rs` 手工 hover 透明度：保留，未触及 hover。
 10. `effect_controls.rs` 层级缩进：保留，未触及属性树。
-11. `timeline.rs` 既有列坐标：保留，本阶段未改时间轴布局。
-12. `timeline.rs` 吸附线颜色：保留，本阶段未改吸附绘制。
+11. `timeline.rs` 既有列坐标：保留各列横坐标、宽度和行高。新范围条独占标尺下方的 token 高度；图层行整体向下移动相应距离，滚动范围使用实际正文高度。旧测试改读布局/token，父级、混合、3D、关键帧与音频的原断言不变。
+12. `timeline.rs` 吸附线颜色：保留既有颜色与行为；新增范围条使用已存在的 hover/accent token，没有改吸附绘制。
 
-## 尚未完成
+## 桌面交付
 
-- 时间轴工作范围条、端点拖动、B/N 与 Shift+Home/End；主窗/浮窗焦点、失效与取消。
-- 预览面板真实控件、导出范围选择、工作区保存；停止/切换工程的集成验收。
-- 分辨率选项核对真实后端策略；仅显示实际缓存/解码状态，移除误导性的占位提示。
-- 中文/英文、主窗/原生浮窗、DPI 与输入的实际 GPU 截图；本阶段未制作界面效果图。
-- 完整集成后的 FFmpeg 可运行构建、相关默认错误输出验证与 PR。两个 issue 保持打开。
+- WA-07：时间标尺、音频标记和工作范围各有独立区域。支持拖动入点、出点和整体平移；拖动仅预览，释放时提交一次带 revision 校验的命令，不寻帧。Escape、失焦、工程/合成/版本变化和面板切换取消本地拖动。小到一个像素的时间区域也不会因手柄 clamp 倒置而 panic。
+- WA-08：B 设置起点，N 将当前帧纳入范围；Shift+Home/End 跳到范围第一/最后一帧。快捷键不依赖图层选择，不从搜索、IME 或节点作用域抢键。空、交叉和过期范围由既有编辑错误信道拒绝，保留工程和文件。
+- WA-09：预览面板通过原生 Dropdown 提供整段/工作范围、当前时间/范围起点、跳帧 0..5；循环使用 Checkbox。选项持久化到工作区，保存失败恢复原值，成功切换选项会停止当前播放。真正的 Shell 起播与推进验证范围、跳帧步长和停止边界；音频与墙钟都在范围末帧停止。从当前时间跳帧以起播点对齐，不先退到较早的网格样本。
+- WA-10：渲染队列的 MP4 范围使用明确下拉选择。作用域在提交冻结任务时保存，之后的界面修改不会改变进行中的导出。PNG 仍明确导出当前帧，工程打包不使用电影范围。
+- WA-11：分辨率复用实际 Auto/Full/Smooth/Economy 后端策略，同时显示实际像素尺寸；不把现有 2/3 质量策略冒称为 1/2 或 1/4。缓存显示实际视频帧数、缓存字节和进行中的解码数，明确说明按需解码、未预缓存整个范围。删除“先缓存再播放”的占位说明和未接线的音视频复选框。
 
-DESIGN §12 本阶段不声称 UI 验收通过。实际样式和交互证据应随界面实现一并补齐。
+工作范围不改变图层、关键帧、效果包格式或渲染像素语义。格式 25 的变化是 #205 的持久功能要求，与外观调整分别记录；未重写渲染基线。
+
+### 桌面验证
+
+本轮相关桌面验收 **175 项通过**，包含新功能及既有回归，不声称均为新增测试，也不重复累计中间日志。分组、通过数和对应日志见 [results.json](preview-work-area/results.json)。物理音频设备手动测试继续保留忽略；PCM 混音、公共时钟和生产者 Err/panic/阻塞测试实际执行。
+
+- `work-area-ui-delivery-compile.log`：带 FFmpeg 的当前桌面测试编译完成，22 项既有警告，未声称零警告。测试程序 SHA-256 为 `13ce4d7c1f3416a7959c733a227b35f6a151dcb81c2a4a8de8bd1bfd918aefcf`。
+- `work-area-delivery-panels-work_area-tests.log`：端点/整体拖动、单次提交撤销、越界限制、小窗、取消、版本失效及快捷键。
+- `work-area-delivery-panels-auxiliary-tests.log`：中英文、停靠/浮窗实际控件选择；循环 Checkbox、电影范围 Dropdown、弹层输入独占与关闭行为。
+- `work-area-verified-panels-*`：父级、混合、3D、音频/标记、关键帧、效果/蒙版/属性树及滚动回归。只调整受新增标尺行影响的测试坐标，原断言不变。
+- `work-area-delivery-shell-preferences-tests.log`：工作区保存重读与写入失败回滚；真实 Shell 的起播、跳帧、末帧停止和切换选项释放播放状态。
+- `work-area-delivery-audio_output-.log`：22 项通过，包含三种实际 PCM 采样率、环回插值、停止取消、生产者失败/阻塞、默认错误输出，以及用真实公共时钟接口驱动的无物理设备末帧测试。后者不作为物理声卡播放证据。
+- `work-area-delivery-shell-presentation-curve_playback_tests.log`：4 项通过，包含实际原生窗口跨 DPI 的属性手势与确认帧不抢释放事件回归。
+- `work-area-native-delivery.log`：真实 Windows HWND/GPU 主窗、150% DPI 浮窗、中英文拖动、保存、撤销和重做。截图由生产 chrome 输入注入后捕获，不声称物理鼠标自动化。
+
+后台解码三个原有原生测试在不带 `gpu-tests` 的本地构建中默认忽略。最终分别设置它们已有的 CHILD 环境变量，以 `--exact --include-ignored` 执行真正的子进程分支，并在工具侧重验原父分支的日志断言；不是把零通过的忽略输出计入验收。原生窗口/GPU 和受控阻塞解码器验证界面继续呈现、失败不确认未就绪合成、冻结导出与取消，以及跨窗口曝光准备进度。`work-area-pending-png/`、`work-area-pending-chrome/`、`work-area-pending-exposure/` 保留文件、stdout/stderr；每个分支实际一项通过。真实 FFmpeg 取帧和 MP4 编解码输出由前述电影测试提供，两者不混为同一种证据。
+
+### 默认错误信道补充
+
+`work-area-verified-error/` 保留最终进程输出：三种非法范围、引擎已经处理新修改时的过期 revision、NaN 音频起播、两种工作区保存失败。全部保留原始 cause，Error 同时到文件和 stderr，不写 stdout；工作区 Info start 先于保存，失败包括操作、路径、阶段及耗时。保存失败不发布新界面值、不破坏已有配置文件。
+
+面板损坏快照属于有界既有 `observation::Counter` 覆盖：按进程内固定调用点计数，首个 Warn、累计第 60 个 Error，不把累计次数视为秒数。普通缓存未命中、未启动后台任务、主动取消、空撤销和受限边界拖动不是故障，不增加逐帧 IO 或警告。新功能没有添加自动重试、线程重启或吞掉 panic 的恢复分支。
+
+### 截图与 DESIGN §12 边界
+
+[capture.json](preview-work-area/capture.json) 记录实际像素尺寸、DPI、测试程序 hash 与十张图的 hash。以下为独立生成的产品原生截图，没有引入第三方图像素材。
+
+![中文主窗](preview-work-area/zh-main-range.png)
+![中文预览](preview-work-area/zh-preview-options.png)
+![中文范围下拉](preview-work-area/zh-preview-range-menu.png)
+![中文电影范围](preview-work-area/zh-export-scope.png)
+
+英文及时间轴浮窗图在同一目录。新控件共用既有原生 Checkbox/Dropdown 状态系统，弹层最后绘制并独占输入；尺寸和颜色使用已登记 token。对默认主窗、时间轴浮窗、预览窄窗以及 100%/150% DPI 的相关路径有实际证据。全体 19 面板、五种工作区预设、所有字体/系统缩放组合和 Reduced Motion 的操作系统接线没有在本次本地验收中逐项重跑，保持既有边界，不宣布整个 DESIGN 合规。
+
+首轮桌面编译的快捷键名称、浮窗测试 API、样式变量和测试 Arc 夹具错误，以及原有硬编码点击坐标失败，均保留原日志（`work-area-ui-compile.log`、`work-area-ui-integrated-compile.log`、`work-area-regression-*` 和首轮 `work-area-verified-shell-presentation-curve_playback_tests.log`）。修正实际接线与测试坐标后重新编译、复验；没有改断言、预算、等待期限或产品重试策略。早期零匹配的文档筛选和默认忽略的后台视频筛选不计入通过。
+
+带 FFmpeg 的可运行开发包位于 `E:/Dev/aem/artifacts/desktop-work-area-preview/motion-studio.exe`，SHA-256 为 `6b2142f17ea660c7fdceed0850d30506fe886e0f55a9f9d806e705445f4079ab`。`验证记录.json` 记录程序、7 个 DLL 与许可证等 12 个 runtime payload 文件的 hash；复制原始 FFmpeg 来源清单和项目许可说明，没有添加外部素材。普通构建见 `work-area-preview-build.log`，20 项既有警告。
+
+清除开发 FFmpeg 环境和额外 PATH 后，开发包实际完成命令目录、当前版本工程命令执行/保存，以及原生 libav 视频首帧、中段、末帧和回跳解码；24 fps、72 帧的已有仓库视频夹具确实返回 RGBA 帧。证据在 `work-area-package-check/`。这是本地 debug 包，不冒充正式发行、签名或完整发行验收产物。PR 的远程检查及合入状态以 GitHub 为准。

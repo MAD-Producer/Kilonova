@@ -178,7 +178,7 @@ fn native_shy_switches_persist_and_keep_output_with_default_error_evidence() {
             let slot = columns.shy.unwrap();
             let point = [
                 slot.x + slot.width * 0.5,
-                bounds.min[1] + 64. + paint.styles().metric("row.height", 22.) * 0.5,
+                bounds.min[1] + crate::panels::timeline::header_height(&paint.styles()) + paint.styles().metric("row.height", 22.) * 0.5,
             ];
             let actions = draw(&mut PaintList::default(), &mut shell, &press(point));
             assert_eq!(actions.len(), 1, "{language} float={floating}");

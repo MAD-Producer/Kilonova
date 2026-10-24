@@ -1548,7 +1548,9 @@ impl Shell {
             let position = audio.frame(fps);
             let error = audio.error();
             self.frame = plan.display_frame(position.clamp(f64::from(plan.range.in_frame), f64::from(plan.range.out_frame - 1)));
-            if audio.finished(position, fps) || error.is_some() {
+            let finished = audio.finished(position, fps);
+            if finished || error.is_some() {
+                if finished { self.frame = f64::from(plan.range.out_frame - 1); }
                 self.stop();
                 if let Some(error) = error {
                     self.panels.message = Some(self.workspace.locale.error(&error));

@@ -48,6 +48,8 @@ pub struct Workspace {
     #[serde(default)]
     pub(crate) preview_playback: crate::preview_playback::Options,
     #[serde(default)]
+    pub(crate) movie_export_scope: motion_core::FrameScope,
+    #[serde(default)]
     pub(crate) shortcut_bindings: crate::shortcuts::bindings::Bindings,
     #[serde(default)]
     pub favorites: std::collections::BTreeSet<String>,
@@ -93,6 +95,7 @@ impl Default for Workspace {
             style_path: None,
             preview_quality: Default::default(),
             preview_playback: Default::default(),
+            movie_export_scope: Default::default(),
             shortcut_bindings: Default::default(),
             layout: Default::default(),
         }

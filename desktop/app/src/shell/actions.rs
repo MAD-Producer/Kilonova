@@ -127,6 +127,16 @@ impl Shell {
         self.panels.select_only(Some(id));
         Ok(())
     }
+    fn save_preview_preferences(&self, operation: &str) -> Result<(), String> {
+        let began = Instant::now();
+        log::info!("preview preferences start operation={operation} phase=save path={}", self.layout_path.display());
+        let result = self.workspace.save(&self.layout_path);
+        match &result {
+            Ok(()) => log::debug!("preview preferences done operation={operation} elapsed_ms={}", began.elapsed().as_millis()),
+            Err(error) => log::error!("preview preferences failed operation={operation} phase=save path={} elapsed_ms={} cause={error}", self.layout_path.display(), began.elapsed().as_millis()),
+        }
+        result
+    }
     pub(crate) fn action(
         &mut self,
         action: panels::Action,
@@ -237,7 +247,7 @@ impl Shell {
                     self.stop();
                     let control = motion_desktop_media::movie::ExportControl::default();
                     self.freezing_movie =
-                        Some((self.engine.freeze_movie(control.clone())?, path, control));
+                        Some((self.engine.freeze_movie(control.clone())?, path, control, self.workspace.movie_export_scope));
                     self.export_notified = false;
                     self.panels.message = Some(self.workspace.locale.t(T::Exporting).into());
                 }
@@ -249,7 +259,7 @@ impl Shell {
                 if let Some(task) = &self.exporting_movie {
                     task.cancel();
                 }
-                if let Some((_, _, control)) = self.freezing_movie.take() {
+                if let Some((_, _, control, _)) = self.freezing_movie.take() {
                     control.cancel();
                 }
             }
@@ -621,6 +631,29 @@ impl Shell {
             }
             Action::PreviewMode(mode) => {
                 self.set_preview_preference(mode)?;
+            }
+            Action::PreviewPlayback(options) => {
+                let before = self.workspace.preview_playback;
+                self.workspace.preview_playback = options;
+                if self.smoke.is_none() {
+                    if let Err(error) = self.save_preview_preferences("preview_playback") {
+                        self.workspace.preview_playback = before;
+                        return Err(error);
+                    }
+                }
+                self.stop();
+                self.panels.preview_playback = options;
+            }
+            Action::MovieExportScope(scope) => {
+                let before = self.workspace.movie_export_scope;
+                self.workspace.movie_export_scope = scope;
+                if self.smoke.is_none() {
+                    if let Err(error) = self.save_preview_preferences("movie_export_scope") {
+                        self.workspace.movie_export_scope = before;
+                        return Err(error);
+                    }
+                }
+                self.panels.movie_export_scope = scope;
             }
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));

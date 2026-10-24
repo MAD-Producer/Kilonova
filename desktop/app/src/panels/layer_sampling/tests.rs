@@ -103,7 +103,7 @@ fn point(panels: &Panels, state: &Value, index: usize) -> [f32; 2] {
     let slot = columns(1200., panels, state).sampling[index].unwrap();
     [
         slot.x + slot.width * 0.5,
-        64. + PaintList::default().styles().metric("row.height", 22.) * 0.5,
+        crate::panels::timeline::header_height(&PaintList::default().styles()) + PaintList::default().styles().metric("row.height", 22.) * 0.5,
     ]
 }
 fn apply(session: &mut motion_host::Session, actions: Vec<Action>) {
@@ -722,11 +722,11 @@ fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens(
                     let at = [
                         slot.x + slot.width * 0.5,
                         body.min[1]
-                            + 64.
+                            + crate::panels::timeline::header_height(&sheet)
                             + sheet.metric("row.height", 22.) * (position as f32 + 0.5),
                     ];
                     clicked_cells.push(slot.rect(
-                        body.min[1] + 64. + sheet.metric("row.height", 22.) * position as f32,
+                        body.min[1] + crate::panels::timeline::header_height(&sheet) + sheet.metric("row.height", 22.) * position as f32,
                         sheet.metric("row.height", 22.),
                     ));
                     let (_, actions) = render(&mut panels, &mut atlas, &state, &press(at));

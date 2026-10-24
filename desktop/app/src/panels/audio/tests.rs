@@ -210,7 +210,7 @@ impl Harness {
                 area.height(),
             ),
             area.min[1]
-                + 64.
+                + crate::panels::timeline::header_height(&PaintList::default().styles())
                 + match control {
                     Control::Gain => 44.,
                     Control::Left => 66.,
@@ -515,7 +515,7 @@ fn ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floa
         let area = h.area();
         let gutter = GUTTER.min(area.width() * 0.52);
         let ppf = (area.width() - gutter - 8.) / 120.;
-        let clip = [area.min[0] + gutter + 30. * ppf, area.min[1] + 75.];
+        let clip = [area.min[0] + gutter + 30. * ppf, area.min[1] + timeline::header_height(&PaintList::default().styles()) + 11.];
         for mut input in [
             pointer(clip, true, false),
             pointer([clip[0] + 20. * ppf, clip[1]], false, true),
@@ -1005,7 +1005,7 @@ fn audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable(
                 GUTTER.min(area.width() * 0.52),
                 area.height(),
             ),
-            area.min[1] + 64. + 44.,
+            area.min[1] + crate::panels::timeline::header_height(&PaintList::default().styles()) + 44.,
             22.,
         )
         .number;
