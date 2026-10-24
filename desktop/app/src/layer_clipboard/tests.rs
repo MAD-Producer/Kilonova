@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 use worker::{Job, Output, Work};
+mod keyframes;
 
 fn project(root: &Path, images: u64) -> motion_core::Project {
     let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();

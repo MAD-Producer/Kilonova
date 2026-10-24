@@ -188,3 +188,46 @@ Session 增加不进入工程 JSON 的单调文档 generation。重新打开相�
 DESIGN §0.7 十二项仍分别保留，修改前后均未触及所列位置：path_controls 的六处步长、双列、按钮高度、数值字段、布尔字段；effect_controls 的步长、布尔、枚举、悬浮色、层级；timeline 的列坐标、吸附线。证据为本阶段 diff 仅涉及菜单、键盘及状态接线，截图不作为这些旧问题的修复证据。理由是它们属于独立的属性树/时间轴视觉整改。菜单现有其他行高、边框等硬编码也保留，未宣称全部 token 化。
 
 新模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过。没有新增依赖、第三方资产或渲染语义变更，没有审查其他人的 PR。此为已验证的图层 UI 阶段，尚未创建完成 PR，仍需按 #204 全范围继续实施。
+
+## 关键帧剪贴板：核心事务与错误信道
+
+此阶段继续 #204 的独立关键帧剪贴板要求，没有缩成仅屏蔽图层快捷键。实施前再次核对本地近期分支及 GitHub 开放 PR；当时开放列表为空，没有发现重叠实现。沿用 `feat/layer-clipboard`，未修改其他工作树。
+
+### 实现范围
+
+新增 `KeyframeClipboard` 冻结选中通道的真实关键帧数据，不保存对原关键帧的引用。保留数值、时间缓动、曲线和空间切线，也支持非 Copy 的颜色传递曲线对象。显式目标地址包括变换/摄影机及独立轴、效果参数、蒙版参数与节点、普通矢量参数/节点、嵌套形状内容与音频左右声道。只捕获真正存在的关键帧，不把采样结果冒充作者关键帧。
+
+`PasteKeyframes` 和 `RemoveKeyframes` 加入同一 typed 命令、目录、合成路由和历史事务。粘贴目标按通道明确指定，不自动复用另一个工程中的对象 ID。属性签名和数据类型必须匹配；效果还要求插件、效果、版本、hash、参数和 kind 相同，目标参数必须已实现且可动画。不跨锚点/位置等属性转写，不自动创建效果或把不匹配的值截断为另一种类型。左右音频通道和同一属性的独立轴可显式互拷，原值范围仍由原有工程校验约束。
+
+缓存时间统一为合成帧，粘贴时再转换到目标图层的有符号局部帧。原位保留原合成帧；给定播放头时以全部轨道最早选中帧对齐，保留相对间隔，不按 FPS 自动重采样。目标帧占用、范围越界、锁定、类型不符或后续通道失败，都由普通核心事务回滚整组改动、修订号和历史。未完成手势中拒绝这两个批量命令，避免混入别的拖动历史。
+
+剪切先比较缓存与当前各源关键帧的完整内容，过期数据不能删除已被修改的关键帧。完整删除一条轨道后保留最后删除关键帧的值，沿用既有 Track 行为；颜色传递曲线也遵守该规则。节点和 dash 地址先规范化数字部分，避免 `node:010:011` 与 `node:10:11` 指向同一通道却绕过重复检查。捕获用二分查找，删除用一次 retain 与二分成员检查，避免对密集关键帧反复线性查找、逐次移动整个 Vec。
+
+剪贴板元数据受 16 MiB 上限约束；捕获逐轨累计尺寸并在追加前拒绝越界，最终再校验完整序列化尺寸。每条轨道沿用已有键数/数值/曲线校验，通道数量不错误地复用 128 个图层的上限。新错误类型保留原 `Error::source()`，加入 phase、object 和有界通道描述；描述中的参数名最多 128 字符，不记录关键帧数据或完整用户内容。
+
+### 观察台账与剩余边界
+
+| ID | 分类 | 实现与证据边界 |
+| --- | --- | --- |
+| KC-01 | 新功能/协议边界 | 冻结多轨数据、严格目标匹配、原位/播放头时间转换、原子剪切/粘贴和手势隔离。不是只用 CopyKey 再读原轨道。 |
+| KC-02 | 新增错误上下文 | capture / validate / paste / cut 失败保留 typed 原因链，并附对象和通道；没有清空错误或把失败改为成功。 |
+| KC-03 | 已有覆盖 | 核心事务、回滚、保存和 panic 边界继续复用既有实现；桌面调用使用原来的 Edit 信道，其 Info 开始、在途状态、完成计时及 Error file/stderr 行为不变。没有另建日志器或后台线程。 |
+| KC-04 | 正常分支 | 只读复制不产生历史；属性不兼容和目标占用为明确拒绝。这个核心模块没有轮询、热路径日志、重试或新的退化计数器。 |
+| KC-05 | 待完成 | 应用私有关键帧缓存、typed 大载荷读取/提交、文档 generation 与取消、主窗/浮窗焦点路由及菜单/快捷键接线、实际 UI 截图仍待实现。普通 JSON Edit 传输的既有大小限制不因模型的 16 MiB 上限而消失。不能据此宣称关键帧剪贴板已经可在 UI 使用。 |
+| KC-06 | 待完成 | 文本和路径独立剪贴板、完整 OS 输入/打包验收、最新主线组合及 CI；#204 保持开放。 |
+
+本阶段未修改面板、菜单或样式，没有新增依赖、资产、工程格式或渲染语义。DESIGN §0.7 的十二项继续按上一阶段逐项保留，理由为此处只新增模型、核心命令与测试；不宣称修改了这些属性行的外观，也不需要为没有变化的 UI 伪造新截图。最终验证记录在下节补齐，早期结果不代替最终树验证。
+
+### 关键帧阶段的验证记录
+
+`E:/Dev/aem/artifacts/pr-ci-followups/` 保留全过程：首个 `keyframe-clipboard-core-first-compile.log` 错用了尚未创建的集成测试目标；随后 check 暴露 MaskProperty 缺少相等比较及 serialized_bytes 返回值类型使用错误，已修正。`keyframe-clipboard-core-first-tests.log` 保留测试夹具 API 拼写/保存参数次序错误；`keyframe-clipboard-core-second-tests.log` 实际执行 12 项，10 通过、2 失败，原因分别为音频夹具仍有空间变换、摄影机 FOV 夹具错误使用弧度。只修正新夹具，保留原有音频/FOV 校验和断言。第三次 12 项全部通过。
+
+之后增加地址别名、密集剪切、129 通道、元数据越界和原原因链测试，并加强失败后完整历史诊断不变断言。最终 `keyframe-clipboard-core-verified.log` 在当前生产代码上实际通过 67 项、0 失败、0 忽略：新增关键帧 17 项、音频电平 5 项、命令目录 3 项、效果 9 项、既有占帧保存回滚 1 项、图层剪贴板 12 项、蒙版 3 项、摄影机 9 项、空间路径 5 项和形状内容关键帧 3 项。新增 17 项用时 2.43 秒；其他阶段同名测试不重复累计。新的保存重开调用完整 storage::load，未用 JSON 反序列化替代资源/工程检查。
+
+中间的 `keyframe-clipboard-core-regression.log`、`keyframe-clipboard-core-final.log` 为扩展与诊断补充前的阶段结果，不作为最终实现的额外通过数。一次桌面构建误把 bin 名 motion-studio 当成 package 名，原失败保存在 `keyframe-clipboard-desktop-compile.log`；使用实际 package motion-desktop 修正命令，没有调整产品或 CI。此前桌面编译原件 `keyframe-clipboard-desktop-final-compile.log` 成功，保留 22 项既有测试警告，但不是诊断补充之后的最终验收结果。
+
+最终 `keyframe-clipboard-desktop-verified-tests.log` 使用 `motion-desktop --features ffmpeg --bin motion-studio`，定向执行 `layer_clipboard::`（排除 native），实际 19 项全部通过、0 失败、0 忽略，955 项未执行。编译用时 2 分 59 秒，测试用时 32.40 秒，保留 22 项既有测试警告；不宣称全桌面套件通过。本阶段未重复执行上一阶段的 native 窗口截图测试。
+
+其中新增真实引擎子进程用默认日志级别执行三条失败路径：目标已占用、属性不匹配、剪切源已改变；前两条置于 Rename 后方验证整批回滚。`keyframe-clipboard-default-channel/logs/motion-studio.log` 与 `stderr.log` 均保留原始原因及 phase/object/channel，`stdout.log` 不含这些错误。Info 开始信号仅在文件日志中，Error 同时输出 stderr；该子进程没有设置 MOTION_LOG。既有图层/控制器的失败、取消和阻塞信道测试也在此 19 项中重新通过，证据目录为 `keyframe-clipboard-layer-channel`、`keyframe-clipboard-shell-channel`；未把既有受控阻塞测试冒称新关键帧专用阻塞测试。
+
+最终可执行测试文件位于 `E:/Dev/aem/target/host-error-contract-verified/debug/deps/`。`keyframe_clipboard-46978e2a5fc6c72f.exe` 的 SHA-256 为 `8cb4f6668a804e862f63e1d6acd953eb08e1670affacde245a7758a8b3d57267`，`motion_studio-083034f6d6ffe3a9.exe` 为 `1e6c5db1b40d4402bcd98e1558355470e3d97ae332e3336fb9a4d1201051c282`。验证后未修改生产代码。新增模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过；尚未据此创建完成 PR 或关闭 #204。

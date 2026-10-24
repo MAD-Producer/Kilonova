@@ -213,6 +213,8 @@ pub enum Command {
         keep_external_references: bool,
     },
     RemoveLayers { objects: Vec<u64>, frame: u32 },
+    PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<u32> },
+    RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     Delete {
         object: u64,
     },
@@ -282,7 +284,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

@@ -201,7 +201,7 @@ pub fn validate(masks: &[LayerMask]) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MaskProperty {
     Opacity,

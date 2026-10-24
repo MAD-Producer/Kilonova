@@ -7,6 +7,7 @@ pub use command_registry::CommandRegistry;
 mod editor;
 mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
+pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 mod history_accounting;
 mod expressions;
 mod hierarchy;

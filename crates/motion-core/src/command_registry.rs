@@ -78,6 +78,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
             }
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
+            "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
@@ -159,6 +160,8 @@ registry! {
     Command::Remove { .. } => "remove" [("object","u64",true), ("frame","u32",true)];
     Command::Parent { .. } => "parent" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true)];
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
+    Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
+    Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];

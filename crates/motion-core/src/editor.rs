@@ -203,6 +203,8 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);
         }
         Command::RemoveLayers { objects, frame } => crate::layer_clipboard::remove(project, objects, frame)?,
+        Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
+        Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::SetWorkArea { in_frame, out_frame } => {
             let area = crate::WorkArea { in_frame, out_frame };
             area.validate(project.frames)?;
