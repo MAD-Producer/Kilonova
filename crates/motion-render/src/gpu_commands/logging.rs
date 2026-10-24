@@ -22,7 +22,7 @@ impl GpuCommandObserver {
             log::log!(event.level,
                 "render GPU command readback session={session:?} epoch={} command={} stage={:?} phase={:?} exposure={:?} input={:?} contexts={:?} elapsed_us={} count={} words={:?} cause={cause}",
                 record.epoch, record.id, record.stage, record.phase, record.exposure, record.input, record.contexts,
-                record.cpu_elapsed_us, event.occurrence, record.timestamp_words);
+                record.elapsed_us, event.occurrence, record.timestamp_words);
         }
         if batch.invariant_fault {
             log::error!("render GPU command observation invariant session={session:?} epoch={} phase=metadata exact_coverage=false", batch.epoch);

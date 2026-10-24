@@ -11,7 +11,9 @@ use std::{
     time::Instant,
 };
 mod exposure;
+mod trace;
 pub use exposure::{ExposureCommandContext, ExposureCommandScope};
+pub use trace::{CommandTraceSnapshot, MAX_GPU_TRACE_COMMANDS, MAX_GPU_TRACE_METADATA_BYTES};
 
 pub const MAX_ACTIVE_GPU_COMMANDS: usize = 128;
 pub const MAX_RECENT_GPU_COMMANDS: usize = 256;
@@ -80,16 +82,40 @@ pub struct InputCommandContext {
 }
 impl InputCommandContext {
     pub fn image(sequence: u64, revision: u64, source_frame: f64, asset: u64) -> Self {
-        Self { sequence, revision, source_frame, asset: Some(asset), object: None,
-            composition: None, composition_omitted: false }
+        Self {
+            sequence,
+            revision,
+            source_frame,
+            asset: Some(asset),
+            object: None,
+            composition: None,
+            composition_omitted: false,
+        }
     }
-    pub fn layer(sequence: u64, revision: u64, source_frame: f64, object: u64, composition: &str) -> Self {
+    pub fn layer(
+        sequence: u64,
+        revision: u64,
+        source_frame: f64,
+        object: u64,
+        composition: &str,
+    ) -> Self {
         let omitted = composition.chars().take(129).count() > 128;
-        Self { sequence, revision, source_frame, asset: None, object: Some(object),
-            composition: (!omitted).then(|| composition.to_owned()), composition_omitted: omitted }
+        Self {
+            sequence,
+            revision,
+            source_frame,
+            asset: None,
+            object: Some(object),
+            composition: (!omitted).then(|| composition.to_owned()),
+            composition_omitted: omitted,
+        }
     }
     fn bounded(mut self) -> Self {
-        if self.composition.as_ref().is_some_and(|id| id.chars().take(129).count() > 128) {
+        if self
+            .composition
+            .as_ref()
+            .is_some_and(|id| id.chars().take(129).count() > 128)
+        {
             self.composition = None;
             self.composition_omitted = true;
         }
@@ -109,7 +135,9 @@ pub struct CommandRecord {
     pub contexts: Vec<CommandContext>,
     pub omitted_contexts: usize,
     pub phase: CommandPhase,
-    pub cpu_elapsed_us: u64,
+    /// Wall time from encoder observation to this snapshot or terminal callback.
+    /// Includes queue/mapping waits; it is not exclusive CPU preparation time.
+    pub elapsed_us: u64,
     pub gpu_elapsed_us: Option<f64>,
     pub timestamp_words: Option<[u64; 2]>,
     pub cause: Option<String>,
@@ -170,6 +198,8 @@ struct State {
     reported_log_omissions: u64,
     reported_fault: bool,
     exposure: exposure::ExposureScopes,
+    trace_sequence: u64,
+    trace: Option<trace::CommandTrace>,
 }
 pub(super) struct CommandLogEvent {
     pub level: log::Level,
@@ -257,7 +287,9 @@ impl CommandRecords {
         self.begin_with_input(stage, contexts, None)
     }
     pub(crate) fn begin_with_input(
-        self: &Arc<Self>, stage: CommandStage, mut contexts: Vec<CommandContext>,
+        self: &Arc<Self>,
+        stage: CommandStage,
+        mut contexts: Vec<CommandContext>,
         input: Option<InputCommandContext>,
     ) -> Option<CommandTicket> {
         let input = input.map(InputCommandContext::bounded);
@@ -273,16 +305,22 @@ impl CommandRecords {
         };
         // Reject nonsensical metadata without changing caller rendering. Do not
         // turn an invalid source frame into a plausible zero frame.
-        if input.as_ref().is_some_and(|context| !context.source_frame.is_finite()) || contexts
-            .iter()
-            .any(|context| context.source_frame.is_some_and(|f| !f.is_finite()))
+        if input
+            .as_ref()
+            .is_some_and(|context| !context.source_frame.is_finite())
+            || contexts
+                .iter()
+                .any(|context| context.source_frame.is_some_and(|f| !f.is_finite()))
         {
             self.fault.store(true, Ordering::Relaxed);
             state.counts.saturated |= increment(&mut state.counts.omitted_invalid_context, 1);
             return None;
         }
         let omitted = contexts.len().saturating_sub(MAX_GPU_COMMAND_CONTEXTS);
-        if input.as_ref().is_some_and(|context| context.composition_omitted) {
+        if input
+            .as_ref()
+            .is_some_and(|context| context.composition_omitted)
+        {
             state.counts.saturated |= increment(&mut state.counts.omitted_input_identifiers, 1);
         }
         contexts.truncate(MAX_GPU_COMMAND_CONTEXTS);
@@ -312,7 +350,7 @@ impl CommandRecords {
                     contexts,
                     omitted_contexts: omitted,
                     phase: CommandPhase::Encoding,
-                    cpu_elapsed_us: 0,
+                    elapsed_us: 0,
                     gpu_elapsed_us: None,
                     timestamp_words: None,
                     cause: None,
@@ -339,7 +377,7 @@ impl CommandRecords {
                 .values()
                 .map(|active| {
                     let mut record = active.info.clone();
-                    record.cpu_elapsed_us = micros(active.began);
+                    record.elapsed_us = micros(active.began);
                     record
                 })
                 .collect(),
@@ -403,7 +441,7 @@ impl CommandRecords {
         };
         state.counts.saturated |= increment(counter, 1);
         active.info.phase = phase;
-        active.info.cpu_elapsed_us = micros(active.began);
+        active.info.elapsed_us = micros(active.began);
         active.info.timestamp_words = words;
         active.info.gpu_elapsed_us = elapsed;
         active.info.cause = cause.map(|cause| cause.chars().take(256).collect());
@@ -443,6 +481,9 @@ impl CommandRecords {
             }
         } else if matches!(phase, CommandPhase::Complete | CommandPhase::Cancelled) {
             state.consecutive_failures = 0;
+        }
+        if let Some(trace) = &mut state.trace {
+            trace.retain(&active.info);
         }
         if state.recent.len() == MAX_RECENT_GPU_COMMANDS {
             state.recent.pop_front();
@@ -772,11 +813,16 @@ mod tests {
         let input = InputCommandContext::layer(5, 7, 1.25, 23, &"界".repeat(1024));
         assert!(input.composition.is_none());
         assert!(input.composition_omitted);
-        let ticket = records.begin_with_input(CommandStage::AuthoringInput, vec![], Some(input)).unwrap();
+        let ticket = records
+            .begin_with_input(CommandStage::AuthoringInput, vec![], Some(input))
+            .unwrap();
         let record = records.snapshot().active.pop().unwrap();
         assert!(record.contexts.is_empty());
         let input = record.input.unwrap();
-        assert_eq!((input.sequence, input.revision, input.object), (5, 7, Some(23)));
+        assert_eq!(
+            (input.sequence, input.revision, input.object),
+            (5, 7, Some(23))
+        );
         assert_eq!(input.source_frame, 1.25);
         assert!(input.composition.is_none());
         assert_eq!(records.snapshot().counts.omitted_input_identifiers, 1);
@@ -784,14 +830,22 @@ mod tests {
         // Public metadata cannot bypass the string bound or turn NaN into zero.
         let mut input = InputCommandContext::image(6, 7, 2.5, 42);
         input.composition = Some("x".repeat(1024));
-        let ticket = records.begin_with_input(CommandStage::AuthoringInput, context(91), Some(input.clone())).unwrap();
+        let ticket = records
+            .begin_with_input(
+                CommandStage::AuthoringInput,
+                context(91),
+                Some(input.clone()),
+            )
+            .unwrap();
         let record = records.snapshot().active.pop().unwrap();
         assert_eq!(record.contexts[0].request, Some(91));
         assert_eq!(record.input.unwrap().sequence, 6);
         assert_eq!(records.snapshot().counts.omitted_input_identifiers, 2);
         drop(ticket);
         input.source_frame = f64::NAN;
-        assert!(records.begin_with_input(CommandStage::AuthoringInput, vec![], Some(input)).is_none());
+        assert!(records
+            .begin_with_input(CommandStage::AuthoringInput, vec![], Some(input))
+            .is_none());
         assert_eq!(records.snapshot().counts.omitted_invalid_context, 1);
         assert!(records.snapshot().observation_fault);
     }

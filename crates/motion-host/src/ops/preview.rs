@@ -157,7 +157,33 @@ pub fn stop_command_profiling(id: i64) -> Result<serde_json::Value> {
         g.renderer.device.poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| crate::Error::with_context("command profiling GPU wait", e))?;
         let observer = g.renderer.stop_command_profiling();
-        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),"completeGpuCoverage":false}))
+        let trace = observer.as_ref().and_then(|observer| {
+            observer.stop_trace();
+            observer.trace_snapshot()
+        });
+        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
+            "gpuCommandTrace":trace,"completeGpuCoverage":false}))
+    })
+}
+
+/// Recording metadata is opt-in independently of native query allocation.
+/// Starting a window cannot merge pools or change native command identities.
+pub fn start_command_trace(id: i64) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+            .ok_or("GPU command profiling is not active")?;
+        let window = observer.start_trace()?;
+        Ok(json!({"window":window,"gpuCommands":observer.snapshot(),"completeGpuCoverage":false}))
+    })
+}
+
+/// This only closes the creation window. Pending callbacks remain pending.
+pub fn stop_command_trace(id: i64) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+            .ok_or("GPU command profiling is not active")?;
+        observer.stop_trace().ok_or("GPU command trace is not active")?;
+        Ok(json!({"gpuCommandTrace":observer.trace_snapshot(),"completeGpuCoverage":false}))
     })
 }
 
@@ -205,6 +231,7 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 "imageReadback":g.renderer.image_readback_info(),
                 "timestampReadback":g.timer.as_ref().map(GpuTimer::readback_info),
                 "gpuCommands":g.renderer.command_observer().map(|observer| observer.snapshot()),
+                "gpuCommandTrace":g.renderer.command_observer().and_then(|observer|observer.trace_snapshot()),
                 "timestampReadbackBytesPerSample":if g.timer.is_some(){32}else{0},
                 "timingSkipped":g.timer.as_ref().map(|t|t.skipped),
                 "timingErrors":g.timer.as_ref().map(|t|t.errors)}))});

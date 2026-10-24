@@ -66,6 +66,111 @@ fn poll(renderer: &Renderer) {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_trace_preserves_original_words_after_recent_eviction_and_stops_without_waiting() {
+    let renderer = renderer(AllocationBudget::default());
+    let Some(profiler) = GpuCommandProfiler::new(&renderer, 4).unwrap() else {
+        eprintln!("GPU_COMMAND_TRACE available=false; no native full-trace acceptance");
+        return;
+    };
+    let observer = profiler.observer();
+    assert!(observer.trace_snapshot().is_none());
+    let target = renderer.capture_target(8, 8).unwrap();
+    let mut before_window = Vec::new();
+    for request in 900..902 {
+        let mut commands = encoder(&profiler, &renderer, request);
+        clear(&mut commands, &target.view);
+        before_window.push(commands.finish());
+    }
+    let window = observer.start_trace().unwrap();
+    assert_eq!(
+        observer.trace_snapshot().unwrap().excluded_active_at_start,
+        2
+    );
+    for commands in before_window {
+        renderer.submit_allocated(commands, |_| {}).unwrap();
+    }
+    poll(&renderer);
+    assert!(observer.trace_snapshot().unwrap().records.is_empty());
+    for batch in 0..65 {
+        let mut batch_commands = Vec::new();
+        for slot in 0..4 {
+            let mut commands = encoder(&profiler, &renderer, 1000 + batch * 4 + slot);
+            clear(&mut commands, &target.view);
+            batch_commands.push(commands.finish());
+        }
+        if batch == 64 {
+            assert_eq!(observer.stop_trace(), Some(window));
+            let pending = observer.trace_snapshot().unwrap();
+            assert_eq!(pending.started_commands, 260);
+            assert_eq!(pending.records.len() + pending.active.len(), 260);
+            assert_eq!(pending.active.len(), 4);
+            assert_eq!(pending.stopped_at_command, Some(262));
+        }
+        for commands in batch_commands {
+            renderer.submit_allocated(commands, |_| {}).unwrap();
+        }
+        poll(&renderer);
+    }
+    for request in 2000..2004 {
+        let mut commands = encoder(&profiler, &renderer, request);
+        clear(&mut commands, &target.view);
+        renderer
+            .submit_allocated(commands.finish(), |_| {})
+            .unwrap();
+    }
+    poll(&renderer);
+    assert_eq!(observer.stop_trace(), Some(window));
+    let trace = observer.trace_snapshot().unwrap();
+    let snapshot = observer.snapshot();
+    assert_eq!(trace.records.len(), 260);
+    assert!(trace.active.is_empty());
+    assert!(!trace.truncated);
+    assert_eq!(trace.omitted_records, 0);
+    assert_eq!(trace.started_commands, 260);
+    assert_eq!(trace.stopped_at_command, Some(262));
+    assert_eq!(snapshot.commands.counts.completed, 266);
+    assert_eq!(snapshot.readback.valid_samples, 266);
+    assert_eq!(snapshot.commands.recent.len(), MAX_RECENT_GPU_COMMANDS);
+    assert!(snapshot.commands.counts.evicted_recent >= 10);
+    let requests: std::collections::BTreeSet<_> = trace
+        .records
+        .iter()
+        .map(|record| {
+            assert_eq!(record.epoch, trace.epoch);
+            assert_eq!(record.phase, CommandPhase::Complete);
+            assert!(record
+                .timestamp_words
+                .is_some_and(|words| words[1] > words[0]));
+            assert!(record
+                .gpu_elapsed_us
+                .is_some_and(|elapsed| elapsed.is_finite() && elapsed > 0.0));
+            assert_eq!(record.contexts.len(), 1);
+            assert_eq!(record.contexts[0].source_frame, Some(1.25));
+            assert!(record.id > 2 && record.id <= 262);
+            record.contexts[0].request.unwrap()
+        })
+        .collect();
+    assert_eq!(requests, (1000..1260).collect());
+    assert!(!snapshot.commands.recent.iter().any(|record| record.id == 3));
+    assert!(trace.records.iter().any(|record| record.id == 3));
+    assert!(renderer
+        .read_target(&target)
+        .unwrap()
+        .chunks_exact(4)
+        .all(|pixel| pixel == [255, 0, 0, 255]));
+    eprintln!(
+        "GPU_COMMAND_TRACE {}",
+        serde_json::json!({
+            "available":true,"actualNativeSamples":266,"retainedTraceSamples":260,
+            "excludedPreWindowSamples":2,"excludedPostWindowSamples":4,"actualPixelsChecked":64,
+            "originalWordsRetained":true,"exactContextRequests":260,"sourceFramesIdentical":true,
+            "scope":"actual per-encoder clear/resolve/map across ring eviction and nonblocking trace closure; not a whole-scene performance baseline"
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_commands_publish_before_finish_and_preserve_discard_owner_and_epoch_boundaries() {
     let budget = AllocationBudget::default();
     let renderer = renderer(budget.clone());

@@ -12,8 +12,9 @@ use crate::{
 pub use logging::GpuCommandLogScope;
 pub use records::{
     CommandContext, CommandCounts, CommandPhase, CommandRecord, CommandSnapshot, CommandStage,
-    ExposureCommandContext, ExposureCommandScope, InputCommandContext,
-    MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_RECENT_GPU_COMMANDS,
+    CommandTraceSnapshot, ExposureCommandContext, ExposureCommandScope, InputCommandContext,
+    MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_GPU_TRACE_COMMANDS,
+    MAX_GPU_TRACE_METADATA_BYTES, MAX_RECENT_GPU_COMMANDS,
 };
 use records::{CommandRecords, CommandTicket};
 use serde::Serialize;
@@ -67,6 +68,22 @@ pub struct GpuCommandObserver {
     states: Vec<Arc<AtomicU8>>,
 }
 impl GpuCommandObserver {
+    /// Explicitly start a bounded recording window. Replaces only the previous
+    /// metadata trace, never the profiler, native pool or command identities.
+    /// Commands already encoding/mapping are excluded, including late callbacks.
+    pub fn start_trace(&self) -> Result<u64, RenderError> {
+        self.records.start_trace()
+    }
+    /// Close the creation window without waiting for GPU work. Existing commands
+    /// retain their original window until their actual callbacks arrive.
+    pub fn stop_trace(&self) -> Option<u64> {
+        self.records.stop_trace()
+    }
+    /// Separate from routine snapshots so polling does not clone the full trace.
+    /// Completion-order records retain original words; null/omissions are not zero.
+    pub fn trace_snapshot(&self) -> Option<CommandTraceSnapshot> {
+        self.records.trace_snapshot()
+    }
     pub fn snapshot(&self) -> GpuCommandSnapshot {
         GpuCommandSnapshot {
             commands: self.records.snapshot(),
@@ -93,8 +110,16 @@ impl GpuCommandProfiler {
     /// Admission failure preserves the actual typed budget error. Slots are
     /// bounded; busy observations are omitted without blocking/retrying work.
     pub fn new(renderer: &Renderer, capacity: usize) -> Result<Option<Self>, RenderError> {
-        let pool = Pool::new(&renderer.device, &renderer.queue, renderer.allocation_budget(), capacity)?;
-        Ok(pool.map(|pool| Self { context: renderer.allocation_context(), pool }))
+        let pool = Pool::new(
+            &renderer.device,
+            &renderer.queue,
+            renderer.allocation_budget(),
+            capacity,
+        )?;
+        Ok(pool.map(|pool| Self {
+            context: renderer.allocation_context(),
+            pool,
+        }))
     }
     pub fn observer(&self) -> GpuCommandObserver {
         self.pool.observer()
@@ -130,9 +155,12 @@ impl GpuCommandProfiler {
 // merged with another renderer or PreviewInput merely to attach observations.
 pub(crate) struct AttachedCommandProfiler(Arc<Pool>);
 impl AttachedCommandProfiler {
-    pub(crate) fn for_input(device: &wgpu::Device, queue: &wgpu::Queue,
-        budget: &crate::AllocationBudget, capacity: usize) -> Result<Option<Self>, RenderError>
-    {
+    pub(crate) fn for_input(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        budget: &crate::AllocationBudget,
+        capacity: usize,
+    ) -> Result<Option<Self>, RenderError> {
         Ok(Pool::new(device, queue, budget, capacity)?.map(Self))
     }
     pub(crate) fn exposure_scope(&self, context: ExposureCommandContext) -> ExposureCommandScope {
@@ -147,18 +175,25 @@ impl AttachedCommandProfiler {
         descriptor: &wgpu::CommandEncoderDescriptor<'_>,
         stage: CommandStage,
     ) -> Result<AllocationEncoder, RenderError> {
-        let span = self.0.begin(stage, renderer.allocation_budget().gpu_command_contexts());
+        let span = self
+            .0
+            .begin(stage, renderer.allocation_budget().gpu_command_contexts());
         let mut encoder = renderer.unobserved_command_encoder(descriptor)?;
         encoder.observe_commands(span);
         Ok(encoder)
     }
-    pub(crate) fn allocated_encoder(&self, device: &wgpu::Device,
-        budget: &crate::AllocationBudget, owner: Arc<()>,
-        descriptor: &wgpu::CommandEncoderDescriptor<'_>, stage: CommandStage,
-        input: Option<InputCommandContext>)
-        -> Result<AllocationEncoder, RenderError>
-    {
-        let span = self.0.begin_with_input(stage, budget.gpu_command_contexts(), input);
+    pub(crate) fn allocated_encoder(
+        &self,
+        device: &wgpu::Device,
+        budget: &crate::AllocationBudget,
+        owner: Arc<()>,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>,
+        stage: CommandStage,
+        input: Option<InputCommandContext>,
+    ) -> Result<AllocationEncoder, RenderError> {
+        let span = self
+            .0
+            .begin_with_input(stage, budget.gpu_command_contexts(), input);
         let mut encoder = budget.encoder(device, owner, descriptor)?;
         encoder.observe_commands(span);
         Ok(encoder)
@@ -192,9 +227,12 @@ impl Drop for AttachedCommandProfiler {
 impl Pool {
     // One pool belongs to exactly one device/queue owner. Shared admission is
     // not permission to reuse query sets or mapping buffers across devices.
-    fn new(device: &wgpu::Device, queue: &wgpu::Queue, budget: &crate::AllocationBudget,
-        capacity: usize) -> Result<Option<Arc<Self>>, RenderError>
-    {
+    fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        budget: &crate::AllocationBudget,
+        capacity: usize,
+    ) -> Result<Option<Arc<Self>>, RenderError> {
         if !(1..=MAX_ACTIVE_GPU_COMMANDS).contains(&capacity) {
             return Err(RenderError::Invalid(
                 "GPU command slots must be 1..128".into(),
@@ -247,11 +285,11 @@ impl Pool {
             })
             .collect::<Result<Vec<_>, RenderError>>()?;
         Ok(Some(Arc::new(Self {
-                slots,
-                records,
-                readback: Arc::default(),
-                period_ns,
-                queue: queue.clone(),
+            slots,
+            records,
+            readback: Arc::default(),
+            period_ns,
+            queue: queue.clone(),
         })))
     }
     fn observer(&self) -> GpuCommandObserver {
@@ -265,8 +303,12 @@ impl Pool {
     fn begin(&self, stage: CommandStage, contexts: Vec<CommandContext>) -> Option<Span> {
         self.begin_with_input(stage, contexts, None)
     }
-    fn begin_with_input(&self, stage: CommandStage, contexts: Vec<CommandContext>,
-        input: Option<InputCommandContext>) -> Option<Span> {
+    fn begin_with_input(
+        &self,
+        stage: CommandStage,
+        contexts: Vec<CommandContext>,
+        input: Option<InputCommandContext>,
+    ) -> Option<Span> {
         let Some(slot) = self
             .slots
             .iter()
