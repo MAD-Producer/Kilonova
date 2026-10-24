@@ -144,6 +144,55 @@ pub fn preview_mode(id: i64, mode: i32, thermal: i32) -> Result<serde_json::Valu
     })
 }
 
+/// Detailed command timing is an explicit allocation, separate from the old
+/// start_profiling/root timer contract. Snapshots retain exact callback epochs.
+pub fn start_command_profiling(id: i64, slots: usize) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let g = s.graphics.as_mut().ok_or("no preview surface")?;
+        let observer = g.renderer.start_command_profiling(slots)?;
+        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
+            "scope":"explicit_encoder_intervals","completeGpuCoverage":false}))
+    })
+}
+
+pub fn stop_command_profiling(id: i64) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let g = s.graphics.as_mut().ok_or("no preview surface")?;
+        // Match the existing profiling stop: callbacks complete before final
+        // reporting and errors preserve the original native poll cause.
+        g.renderer.device.poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| crate::Error::with_context("command profiling GPU wait", e))?;
+        let observer = g.renderer.stop_command_profiling();
+        let trace = observer.as_ref().and_then(|observer| {
+            observer.stop_trace();
+            observer.trace_snapshot()
+        });
+        Ok(json!({"gpuCommands":observer.map(|observer| observer.snapshot()),
+            "gpuCommandTrace":trace,"completeGpuCoverage":false}))
+    })
+}
+
+/// Recording metadata is opt-in independently of native query allocation.
+/// Starting a window cannot merge pools or change native command identities.
+pub fn start_command_trace(id: i64) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+            .ok_or("GPU command profiling is not active")?;
+        let window = observer.start_trace()?;
+        Ok(json!({"window":window,"gpuCommands":observer.snapshot(),"completeGpuCoverage":false}))
+    })
+}
+
+/// This only closes the creation window. Pending callbacks remain pending.
+pub fn stop_command_trace(id: i64) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |s| {
+        let observer = s.graphics.as_ref().and_then(|g| g.renderer.command_observer())
+            .ok_or("GPU command profiling is not active")?;
+        observer.stop_trace().ok_or("GPU command trace is not active")?;
+        Ok(json!({"gpuCommandTrace":observer.trace_snapshot(),"completeGpuCoverage":false}))
+    })
+}
+
 pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         if !(1..=65_536).contains(&limit) {
@@ -187,6 +236,8 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 "assetTextureBytes":g.renderer.texture_bytes(),"renderTargetBytes":g.scratch.texture_bytes(),
                 "imageReadback":g.renderer.image_readback_info(),
                 "timestampReadback":g.timer.as_ref().map(GpuTimer::readback_info),
+                "gpuCommands":g.renderer.command_observer().map(|observer| observer.snapshot()),
+                "gpuCommandTrace":g.renderer.command_observer().and_then(|observer|observer.trace_snapshot()),
                 "timestampReadbackBytesPerSample":if g.timer.is_some(){32}else{0},
                 "timingSkipped":g.timer.as_ref().map(|t|t.skipped),
                 "timingErrors":g.timer.as_ref().map(|t|t.errors)}))});

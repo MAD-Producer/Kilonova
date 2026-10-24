@@ -354,7 +354,7 @@ impl Renderer {
     ) -> Result<()> {
         // Refuse scope exhaustion before replacing a completed output image,
         // allocating a cache target or queuing a uniform write.
-        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::VideoBlend, &wgpu::CommandEncoderDescriptor {
                 label: Some("video frame blend"),
             })?;
         let size = self.images[&left].size;

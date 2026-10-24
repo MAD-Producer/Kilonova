@@ -5,10 +5,29 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires native windows and GPU")]
 fn native_work_area_drag_save_undo_main_float_bilingual() {
+    const NAME: &str = "panels::work_area::tests::native::native_work_area_drag_save_undo_main_float_bilingual";
+    const CHILD: &str = "MOTION_WORK_AREA_NATIVE_CHILD";
+    let Some(root) = std::env::var_os(CHILD) else {
+        let root = std::env::var_os("MOTION_WORK_AREA_ARTIFACTS")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::temp_dir().join(format!("motion-work-area-native-{}", std::process::id())));
+        std::fs::create_dir_all(&root).unwrap();
+        // Winit permits one event loop per process. Other native tests may
+        // already have created theirs, so always exercise this case in a child.
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--include-ignored", "--nocapture", "--test-threads=1"])
+            .env(CHILD, &root)
+            .env_remove("MOTION_LOG")
+            .output().unwrap();
+        std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+        std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+        assert!(output.status.success(), "native work-area child failed: root={} stdout={} stderr={}",
+            root.display(), String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed; 0 failed; 0 ignored"));
+        return;
+    };
     use winit::platform::windows::EventLoopBuilderExtWindows;
-    let root = std::env::var_os("MOTION_WORK_AREA_ARTIFACTS")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("motion-work-area-native"));
+    let root = PathBuf::from(root);
     std::fs::create_dir_all(&root).unwrap();
     let event_loop = winit::event_loop::EventLoop::builder()
         .with_any_thread(true)

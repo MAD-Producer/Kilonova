@@ -33,7 +33,9 @@ fn node_view_shortcuts_are_local_exact_and_not_repeated() {
         );
         assert_eq!(
             resolve(Scope::Animation, key, Modifiers::default(), false),
-            None
+            // Animation now owns N for the work-area end. It must still
+            // resolve independently from the node minimap command.
+            if key == Key::N { Some(Command::WorkAreaOut) } else { None }
         );
     }
     assert_eq!(

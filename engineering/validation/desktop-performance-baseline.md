@@ -12,7 +12,10 @@ provenance and inventory passed. See the [completed record](desktop-performance-
 failed attempts remain failed. Protocol fixtures alone are not performance evidence.
 Issue #60 remains open for its remaining original scope.
 
-The current collector writes schema 2: every frame additionally carries separate
+The current collector writes schema 3, adding original encoder words and exact
+request/command identities. See the [accepted command study](gpu-command-release-completed.md)
+and [maintained-scope audit](issue60-desktop-scope-completed.md).
+The earlier schema-2 increment additionally carries separate
 CPU package archive/expanded-file/text ownership, independent program shader
 text, and the two actual Vec capacities of the single reusable YUV fixture.
 The published `5824c882` schema-1 study remains attributed to its original source;
@@ -135,7 +138,7 @@ not establish controlled temperature, power state or freedom from background
 load. Results from a loaded machine remain measurements of that environment.
 There is no fixed FPS gate or unsupported speedup claim.
 
-## Remaining issue scope
+## Historical study boundaries
 
 - This exact six-case desktop Release study is accepted; later source, other
   adapters and before/after claims require independent runs
@@ -144,9 +147,8 @@ There is no fixed FPS gate or unsupported speedup claim.
 - Actual file decoding, CPU image/cache ownership, inference weights/activations,
   external driver/codec allocations and physical memory-pressure studies remain
   outside this increment
-- Android is unmaintained. No Adreno/Mali device or Android build is accepted;
-  #61's desktop delivery-scope decision is not used to close #60's original
-  physical-device checklist
+- Android is unmaintained. The user explicitly excluded Android validation
+  from #60 on 2026-10-23; no Adreno/Mali device or Android build is accepted
 - Earlier static loop-work/scratch reports and performance hypotheses retain
   their original scope; no average FPS or desktop run proves those hypotheses
 

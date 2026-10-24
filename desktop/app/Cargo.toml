@@ -12,7 +12,7 @@ path = "src/main.rs"
 [features]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.
-gpu-tests = []
+gpu-tests = ["motion-render/gpu-tests"]
 ffmpeg = ["motion-desktop-media/ffmpeg"]
 
 [dependencies]

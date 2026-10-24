@@ -1316,11 +1316,12 @@ mod interaction_tests {
             shell.panels.focused = Some(dock::Panel::Timeline);
             shell.panels.timeline.expanded.insert(7);
             shell.panels.timeline.collapsed_transforms.insert(7);
-            let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+            assert!(shell.draw_commands([1280., 700.]).1.is_empty());
+            let body_top = shell.panels.timeline.work_area_band.unwrap().max[1];
             let point = |frame: f32| {
                 [
                     640. + frame * 632. / 300.,
-                    area.min[1] + 64. + (if path { 3. } else { 4. }) * 22. + 11.,
+                    body_top + (if path { 3. } else { 4. }) * 22. + 11.,
                 ]
             };
             shell.translate(Event::MousePressed {
@@ -1432,11 +1433,12 @@ mod interaction_tests {
             .vector_open
             .extend([(7, 0, 0), (7, 1, 0), (7, 3, 2)]);
         assert!(panels::reveal_shape_keys(&mut shell.panels, &shell.state, 7).is_empty());
-        let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+        assert!(shell.draw_commands([1280., 700.]).1.is_empty());
+        let body_top = shell.panels.timeline.work_area_band.unwrap().max[1];
         let point = |frame: f32| {
             [
                 640. + frame * 632. / 300.,
-                area.min[1] + 64. + 5. * 22. + 11.,
+                body_top + 5. * 22. + 11.,
             ]
         };
         shell.translate(Event::MousePressed {

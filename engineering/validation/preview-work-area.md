@@ -118,3 +118,17 @@
 带 FFmpeg 的可运行开发包位于 `E:/Dev/aem/artifacts/desktop-work-area-preview/motion-studio.exe`，SHA-256 为 `6b2142f17ea660c7fdceed0850d30506fe886e0f55a9f9d806e705445f4079ab`。`验证记录.json` 记录程序、7 个 DLL 与许可证等 12 个 runtime payload 文件的 hash；复制原始 FFmpeg 来源清单和项目许可说明，没有添加外部素材。普通构建见 `work-area-preview-build.log`，20 项既有警告。
 
 清除开发 FFmpeg 环境和额外 PATH 后，开发包实际完成命令目录、当前版本工程命令执行/保存，以及原生 libav 视频首帧、中段、末帧和回跳解码；24 fps、72 帧的已有仓库视频夹具确实返回 RGBA 帧。证据在 `work-area-package-check/`。这是本地 debug 包，不冒充正式发行、签名或完整发行验收产物。PR 的远程检查及合入状态以 GitHub 为准。
+
+## PR #479 首轮远程失败与修正
+
+运行 `40073245257` 的 Linux 和 macOS Intel 桌面任务均报告 896 通过、15 失败、1 忽略。原始日志保存在 `work-area-ci-linux-first.log`、`work-area-ci-macos-first.log`；本地原程序也确实复现了首行选择失败，见 `work-area-ci-local-negative.log`，没有将远程失败当成环境问题。
+
+其中 14 项测试仍使用增加工作范围带以前的纵坐标：图层右键/双击、选择、Shy、蒙版关键帧、折叠布局、缩放后的图层条与鼠标释放回流。修正只将测试输入与期望几何改为实际样式中的表头/行高；Shell 的两项拖动测试先绘制一帧，从真实工作范围带的下边缘定位正文，另断言预绘制不产生动作。图层 ID、操作序列、撤销、保存重开及最新释放位置的原行为断言保留。
+
+另一项是节点视图快捷键测试对动画区域 `N` 的旧预期 `None`。本功能明确新增 `Animation/N → WorkAreaOut`，因此将此处更新为精确的新命令预期；`Nodes/N → ToggleNodeMinimap`、节点重复键不触发、Application 区域未绑定及 G 的既有预期保留。这是新增快捷键需求造成的契约更新，不以删除断言或放宽匹配消除失败。
+
+修正阶段同步当前主线 `e6576504b7b68a31ce863a5ede011bc264170232`，包含已合入的 #475 与 #478；没有审查或更改其他人的 PR。`work-area-ci-integrated-compile.log` 记录组合编译，22 项既有测试警告；中间曾新增的两个未用测试变量已移除。此阶段的 FFmpeg 桌面完整测试为 888 通过、0 失败、61 忽略，耗时 713.82 秒，见 `work-area-ci-full-desktop.log`；忽略项不计为通过。测试程序 SHA-256 为 `f17e85cb039d3ff0c29fff6a6178c0b4d5c7f8e2d8114bcd225670c647a96593`。
+
+Windows 首轮另有一项原生测试失败，合计 925 通过、16 失败、1 忽略，见 `work-area-ci-windows-first.log`。工作范围原生测试在同一测试进程再次创建 Winit 事件循环，返回 `RecreationAttempt`。沿用既有原生测试的子进程隔离方式，父进程检查实际子进程退出码及一项测试确实执行，并保留 stdout/stderr 文件；未绕过 GPU 或原生输入路径。
+
+隔离修正后重新编译，仍为 22 项既有警告，见 `work-area-ci-native-isolation-compile.log`。新程序 SHA-256 为 `eabd33d8a15403608b21d799ddde2eff93056f325e8f3b45d959e6e3a097f487`；显式执行忽略的原生工作范围测试，父、子进程均为 1 通过、0 失败、0 忽略，耗时 26.93 秒。证据在 `work-area-native-isolated-parent.log` 与 `work-area-native-isolated/`，包含重新生成的中英文主窗、浮窗和下拉框截图。完整 888 项是隔离修正之前的阶段结果，不冒充新程序的完整回归。此次没有改动 CI、忽略、预算、等待期限、重试策略或产品交互；远程新提交的完整 GPU 组合仍须通过。

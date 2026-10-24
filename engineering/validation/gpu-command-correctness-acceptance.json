@@ -1,0 +1,13 @@
+{
+  "source": "ff52fbd2abd370b1d72fa6c86231cf8f4d24fa21",
+  "recordedUtc": "2026-10-24T06:08:22.969130+00:00",
+  "archive": "E:\\Dev\\aem\\artifacts\\pr-queue\\issue60-gpu-command-correctness-ff52fbd2.zip",
+  "bytes": 2529135,
+  "sha256": "7efd16ee13bf318d0890b1b881663a2e8b6f383ba3b129b6135654163cf8b14c",
+  "entries": 299,
+  "inventoryEntriesIndependentlyVerified": 298,
+  "gitBundleVerified": true,
+  "releasePerformanceAccepted": false,
+  "issue60Complete": false,
+  "publishedArchive": "data/gpu-command-correctness-ff52fbd2.zip"
+}
