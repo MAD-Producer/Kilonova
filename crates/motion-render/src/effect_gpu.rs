@@ -47,7 +47,7 @@ pub(crate) struct EffectGpu {
 }
 pub(crate) struct GpuState {
     allocation_budget: crate::AllocationBudget,
-    format_capabilities: crate::image_formats::ImageCapabilities,
+    format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     uniform_layout: wgpu::BindGroupLayout,
     input_layout: wgpu::BindGroupLayout,
     resource_layout: wgpu::BindGroupLayout,
@@ -191,7 +191,7 @@ impl EffectGpu {
         composite: &wgpu::BindGroupLayout,
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
-        format_capabilities: crate::image_formats::ImageCapabilities,
+        format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),

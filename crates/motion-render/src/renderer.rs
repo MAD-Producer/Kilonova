@@ -24,7 +24,7 @@ use std::{
 
 #[cfg(test)]
 pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
-const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
+pub(crate) const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 // Retain at most 16 KiB of CPU eviction scratch between trims.
 const MAX_IMAGE_TRIM_CANDIDATES: usize = 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
@@ -91,6 +91,8 @@ pub enum RenderError {
     Effects(#[from] motion_effects::Error),
     #[error("{0}")]
     ImageFormat(#[from] crate::image_formats::UnsupportedStorage),
+    #[error("{0}")]
+    ImageContract(#[from] motion_effects::image_contract::ImageFormatError),
     #[error("{0}")]
     Model(#[from] motion_model::Error),
     #[error(transparent)]
@@ -239,7 +241,7 @@ impl RenderStats {
 pub struct Renderer {
     memory_pressure_probe: crate::memory_pressure::MemoryPressureProbe,
     allocation_budget: crate::AllocationBudget,
-    allocation_owner: Arc<()>,
+    pub(crate) allocation_owner: Arc<()>,
     command_profiler: Option<crate::gpu_commands::AttachedCommandProfiler>,
     submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
@@ -247,6 +249,7 @@ pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub adapter_info: wgpu::AdapterInfo,
+    pub(crate) image_capabilities: Arc<crate::image_formats::ImageCapabilities>,
     pipeline: wgpu::RenderPipeline,
     additive_pipeline: wgpu::RenderPipeline,
     masked_pipeline: wgpu::RenderPipeline,
@@ -281,7 +284,7 @@ pub struct Renderer {
     /// Explicit conversion-only submissions; excludes queue upload staging and readback.
     pub video_conversion_submissions: u64,
     pub video_encoded_conversions: u64,
-    image_readback: crate::readback::ImageReadbackCounters,
+    pub(crate) image_readback: crate::readback::ImageReadbackCounters,
     asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
@@ -516,9 +519,10 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&sampler) },
             ],
         });
+        let image_capabilities = Arc::new(crate::image_formats::ImageCapabilities::query(&adapter, &device));
         let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
             allocation_budget.clone(), allocation_uploads.clone(),
-            crate::image_formats::ImageCapabilities::query(&adapter, &device))?;
+            image_capabilities.clone())?;
         let mut renderer = Self {
             memory_pressure_probe: Default::default(),
             allocation_budget,
@@ -530,6 +534,7 @@ impl Renderer {
             device,
             queue,
             adapter_info,
+            image_capabilities,
             pipeline,
             additive_pipeline,
             masked_pipeline,
@@ -2513,6 +2518,14 @@ impl Renderer {
         })
     }
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
+        self.check_health()?;
+        if !matches!(self.target_format, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb
+            | wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
+            return Err(RenderError::Invalid(format!(
+                "PNG capture does not accept {:?}; use format-preserving readback or explicit output conversion",
+                self.target_format,
+            )));
+        }
         let target = self.render_target(width, height)?;
         let row_stride = (width * 4).div_ceil(256) * 256;
         let buffer_allocation = self.allocation_budget.reserve_in(u64::from(row_stride) * u64::from(height), crate::AllocationCategory::ReadbackBuffers)?;
