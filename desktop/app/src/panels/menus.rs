@@ -112,12 +112,12 @@ pub(super) fn render(
                 (
                     panels.shortcut_bindings.label(locale.t(T::Undo), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Undo),
                     Action::History(0),
-                    state["canUndo"].as_bool().unwrap_or(false),
+                    super::tools::camera::history_enabled(panels,state,false),
                 ),
                 (
                     panels.shortcut_bindings.label(locale.t(T::Redo), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Redo),
                     Action::History(1),
-                    state["canRedo"].as_bool().unwrap_or(false),
+                    super::tools::camera::history_enabled(panels,state,true),
                 ),
                 (
                     if locale == Locale::Zh { "取消未提交的插件编辑" } else { "Cancel Pending Plugin Edit" }.into(),

@@ -2,6 +2,9 @@
 use crate::session::Result;
 use motion_render::{FrameRecorder, GpuTimer, PreviewMode};
 use serde_json::json;
+mod gesture;
+pub use gesture::{apply as camera_gesture, Gesture as CameraGesture, Mode as CameraMode};
+pub(crate) use gesture::History as CameraHistory;
 
 pub fn configure_memory(id: i64, total_mem: i64, guarded: bool) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
@@ -38,6 +41,7 @@ pub fn seek(id: i64, frame: f64) -> Result<serde_json::Value> {
 
 pub fn observe(id: i64, enabled: bool, az: f64, el: f64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
+        s.observer_history = Default::default();
         s.observing = enabled;
         s.view_revision += 1;
         if s.observer.view == motion_core::ObservationView::Free {
@@ -70,6 +74,7 @@ pub fn navigate(
         if !s.observing || width <= 0 || height <= 0 || !dx.is_finite() || !dy.is_finite() {
             return Err("invalid observation navigation".into());
         }
+        s.observer_history = Default::default();
         s.observer
             .zoom(zoom as f32)
             .map_err(crate::Error::from)?;
@@ -104,6 +109,7 @@ pub const VIEW_SIDE: i32 = 3;
 
 pub fn view(id: i64, kind: i32) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
+        s.observer_history = Default::default();
         s.observing = kind != 0;
         s.view_revision += 1;
         s.observer.view = match kind {

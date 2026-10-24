@@ -113,12 +113,12 @@ pub fn render(
         (
             Tool::Undo,
             Action::History(0),
-            state["canUndo"].as_bool().unwrap_or(false),
+            tools::camera::history_enabled(panels,state,false),
         ),
         (
             Tool::Redo,
             Action::History(1),
-            state["canRedo"].as_bool().unwrap_or(false),
+            tools::camera::history_enabled(panels,state,true),
         ),
     ]
     .into_iter()

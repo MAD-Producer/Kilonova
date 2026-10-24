@@ -620,12 +620,8 @@ impl Shell {
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));
             }
-            Action::ViewOrbit { delta } => {
-                self.editing = Some((
-                    Instant::now(),
-                    self.engine
-                        .observe_async(true, f64::from(delta[0]), f64::from(delta[1]))?,
-                ));
+            Action::CameraGesture(action) => {
+                self.editing = Some((Instant::now(), self.engine.camera_gesture_async(action)?));
             }
             Action::ViewZoom { ratio, size } => {
                 self.editing = Some((
@@ -746,7 +742,9 @@ impl Shell {
                 ));
             }
             Action::History(op) => {
-                if matches!(
+                if matches!(op,0|1) && panels::tools::camera::owns_history(&self.panels) {
+                    self.editing = Some((Instant::now(),self.engine.camera_gesture_async(if op==0 {motion_host::ops::preview::CameraGesture::Undo} else {motion_host::ops::preview::CameraGesture::Redo})?));
+                } else if matches!(
                     self.panels.focused,
                     Some(dock::Panel::Nodes | dock::Panel::NodeProperties)
                 ) && self.panels.node_editor.focused()

@@ -60,7 +60,6 @@ pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
         || panels.transform_controls.gesture_active()
         || panels.timeline.reorder.is_some()
         || panels.composition.pan.is_some()
-        || panels.composition.orbit.is_some()
         || panels.parent_controls.open
         || panels.node_editor.editing()
         || panels.node_editor.popup_open()
@@ -413,6 +412,7 @@ fn handle_context_shortcuts(
                 panels.message = Some(panels.locale.t(Text::ExportUnavailable).into());
                 continue;
             }
+            Command::Undo | Command::Redo if super::tools::camera::history(panels, command, out) => continue,
             Command::Undo => Action::History(0),
             Command::Redo => Action::History(1),
             Command::Play => Action::TogglePlay,

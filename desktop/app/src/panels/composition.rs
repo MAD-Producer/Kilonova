@@ -86,7 +86,6 @@ pub(super) fn render(
         if let Some((_, before)) = panels.composition.pan.take() {
             panels.composition.navigation = before;
         }
-        panels.composition.orbit = None;
     } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() {
         if input
             .pressed
@@ -126,6 +125,7 @@ pub(super) fn render(
             }
         }
     }
+    if cancel_navigation { super::tools::camera::cancel(panels,out); }
     let original = panels.composition.navigation;
     let scale = original.mapping(v, canvas).map_or(1., |m| m.scale);
     let zoom_rect = Rect::new(
@@ -241,7 +241,12 @@ pub(super) fn render(
         quality_width,
         button_height,
     );
-    if quality_rect.min[0] - gap - fit_rect.max[0] >= time_width {
+    let camera_width = sheet.metric("viewer.camera.width", 24.);
+    let camera_rect = Rect::new(quality_rect.min[0] - gap - camera_width, quality_rect.min[1], camera_width, button_height);
+    if camera_rect.min[0] > fit_rect.max[0] + gap {
+        super::tools::camera::button(list, camera_rect, panels, state, input, out);
+    }
+    if camera_rect.min[0] - gap - fit_rect.max[0] >= time_width {
         let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
         motion_ui::style::text_style(
             list,
@@ -344,29 +349,6 @@ pub(super) fn render(
         .filter(|_| !tool_owned && panels.composition.pan.is_none())
     {
         panels.cursor = Some(cursor);
-    }
-    // Observation gestures: right-drag orbits (free view) or pans
-    // (orthogonal views). Wheel navigation belongs to the independent canvas.
-    if input
-        .pressed
-        .is_some_and(|(b, p)| (b == MouseButton::Right || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Camera && observing) && v.contains(p))
-    {
-        panels.composition.orbit = input.pressed.map(|(_, p)| p);
-    }
-    if let Some(last) = panels.composition.orbit {
-        if input.held == Some(MouseButton::Right) || input.held == Some(MouseButton::Left) && super::tools::active(panels) == super::tools::Active::Camera && observing {
-            let delta = [
-                (input.mouse[0] - last[0]) * 0.2,
-                (input.mouse[1] - last[1]) * 0.2,
-            ];
-            if delta != [0., 0.] {
-                out.push(Action::ViewOrbit { delta });
-            }
-            panels.composition.orbit = Some(input.mouse);
-            panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
-        } else {
-            panels.composition.orbit = None;
-        }
     }
     if input
         .pressed

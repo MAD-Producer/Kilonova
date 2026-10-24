@@ -4,7 +4,7 @@ use winit::{
     dpi::PhysicalSize, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows,
     window::Window,
 };
-fn draw(
+pub(in crate::panels::tools) fn draw(
     e: &crate::engine::Engine,
     p: &mut Panels,
     a: &mut TextAtlas,
@@ -36,7 +36,7 @@ fn draw(
     };
     (list, out)
 }
-fn capture(
+pub(in crate::panels::tools) fn capture(
     events: &mut EventLoop<()>,
     e: &crate::engine::Engine,
     p: &mut Panels,

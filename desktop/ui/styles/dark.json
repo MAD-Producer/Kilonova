@@ -67,6 +67,7 @@
       "viewer.quality.width": 68,
       "viewer.view.width": 98,
       "viewer.count.width": 74,
+      "viewer.camera.width": 24,
       "path.tools.width": 176,
       "toolbar.tools.start": 8,
       "toolbar.tools.step": 28,

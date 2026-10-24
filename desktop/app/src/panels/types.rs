@@ -84,10 +84,6 @@ pub enum Action {
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
-    /// Orbit/pan the observation camera; host picks the gesture by view.
-    ViewOrbit {
-        delta: [f32; 2],
-    },
     /// Zoom the observation camera around its target.
     ViewZoom {
         ratio: f64,
@@ -179,8 +175,6 @@ pub struct Panels {
 
 #[derive(Default)]
 pub(crate) struct CompositionState {
-    /// Last pointer position of an in-progress right-drag orbit gesture.
-    pub orbit: Option<[f32; 2]>,
     pub navigation: crate::viewer_navigation::Navigation,
     pub pan: Option<([f32; 2], crate::viewer_navigation::Navigation)>,
     pub zoom: motion_ui::widgets::NumberEditor,

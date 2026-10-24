@@ -284,6 +284,7 @@ pub enum Command {
         elevation: f64,
         reply: Sender<Result<Value, String>>,
     },
+    CameraGesture { action: motion_host::ops::preview::CameraGesture, reply: Sender<Result<Value, String>> },
     Navigate {
         dx: f64,
         dy: f64,
@@ -386,7 +387,7 @@ impl Command {
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
             | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
-            | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. }
+            | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
@@ -1062,6 +1063,13 @@ impl Engine {
             reply,
         })
     }
+    #[cfg(test)]
+    pub fn camera_gesture(&self, action: motion_host::ops::preview::CameraGesture) -> Result<Value, String> {
+        self.call(|reply| Command::CameraGesture { action, reply })
+    }
+    pub fn camera_gesture_async(&self, action: motion_host::ops::preview::CameraGesture) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::CameraGesture { action, reply })
+    }
     pub fn navigate(
         &self,
         dx: f64,
@@ -1086,19 +1094,6 @@ impl Engine {
         kind: i32,
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::View { kind, reply })
-    }
-    pub fn observe_async(
-        &self,
-        enabled: bool,
-        azimuth: f64,
-        elevation: f64,
-    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
-        self.request(|reply| Command::Observe {
-            enabled,
-            azimuth,
-            elevation,
-            reply,
-        })
     }
     pub fn navigate_async(
         &self,
@@ -1842,6 +1837,7 @@ fn handle(
         } => respond(reply,editing::drag(id, object, dx, dy, width, height)),
         Command::Seek { frame, reply } => respond(reply,preview::seek(id, frame)),
         Command::View { kind, reply } => respond(reply,preview::view(id, kind)),
+        Command::CameraGesture { action, reply } => respond(reply,preview::camera_gesture(id, action)),
         Command::Observe {
             enabled,
             azimuth,

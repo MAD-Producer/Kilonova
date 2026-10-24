@@ -24,11 +24,14 @@ pub(crate) enum Active {
     Hand,
     Zoom,
     Camera,
+    CameraPan,
+    CameraDolly,
 }
 #[derive(Default)]
 pub(crate) struct State {
     /// Path and transform controls retain ownership of their existing gestures.
     auxiliary: Option<Active>,
+    camera: camera::State,
     shape: Option<ShapeGesture>,
     owner: Option<motion_ui::dock::Panel>,
     nudge_failed: bool,
@@ -45,10 +48,11 @@ struct ShapeGesture {
 }
 impl State {
     pub(crate) fn editing(&self) -> bool {
-        self.shape.is_some()
+        self.shape.is_some() || self.camera.editing()
     }
     pub(crate) fn cancel(&mut self) {
         self.shape = None;
+        self.camera.cancel();
         self.nudge_failed = false;
         self.nudge_repeats.success();
     }
@@ -68,7 +72,6 @@ pub(crate) fn prepare(panels: &mut Panels, owner: Option<motion_ui::dock::Panel>
         if let Some((_, before)) = panels.composition.pan.take() {
             panels.composition.navigation = before;
         }
-        panels.composition.orbit = None;
     }
     if !input.focus_lost && event {
         panels.tools.owner = owner;
@@ -93,7 +96,7 @@ pub(crate) fn active(panels: &Panels) -> Active {
     }
 }
 pub(crate) fn choose(panels: &mut Panels, tool: Active, state: &Value, out: &mut Vec<Action>) {
-    if tool == Active::Camera && state["observing"] != true {
+    if camera::is_tool(tool) && state["observing"] != true {
         panels.message = Some(
             if panels.locale == Locale::Zh {
                 "摄影机工具仅用于观察视图，请先切换到观察视图"
@@ -111,10 +114,10 @@ pub(crate) fn choose(panels: &mut Panels, tool: Active, state: &Value, out: &mut
         out.push(Action::History(4));
     }
     panels.tools.cancel();
+    camera::flush(panels, out);
     if let Some((_, before)) = panels.composition.pan.take() {
         panels.composition.navigation = before;
     }
-    panels.composition.orbit = None;
     panels.path_controls.choose(
         match tool {
             Active::Pen => path_controls::Tool::Pen,
@@ -139,7 +142,7 @@ pub(crate) fn choose(panels: &mut Panels, tool: Active, state: &Value, out: &mut
             | Active::Text
             | Active::Hand
             | Active::Zoom
-            | Active::Camera
+            | Active::Camera | Active::CameraPan | Active::CameraDolly
     )
     .then_some(tool);
     panels.message = Some(hint(tool, panels));
@@ -165,7 +168,7 @@ pub(crate) fn command(
         Command::ToolText => Active::Text,
         Command::ToolHand => Active::Hand,
         Command::ToolZoom => Active::Zoom,
-        Command::ToolCamera => Active::Camera,
+        Command::ToolCamera => camera::next(active(panels), state),
         _ => return false,
     };
     choose(panels, tool, state, out);
@@ -184,7 +187,9 @@ pub(crate) fn title(tool: Active, locale: Locale) -> &'static str {
         Active::Text => ("文字工具", "Text tool"),
         Active::Hand => ("抓手工具", "Hand tool"),
         Active::Zoom => ("视图缩放工具", "Viewer zoom tool"),
-        Active::Camera => ("摄影机工具", "Camera tool"),
+        Active::Camera => ("观察环绕工具", "Observation orbit tool"),
+        Active::CameraPan => ("观察平移工具", "Observation pan tool"),
+        Active::CameraDolly => ("观察推拉工具", "Observation dolly tool"),
     };
     if locale == Locale::Zh {
         zh
@@ -202,7 +207,7 @@ pub(crate) fn hint(tool: Active, panels: &Panels) -> String {
         Active::Text => Some(Command::ToolText),
         Active::Hand => Some(Command::ToolHand),
         Active::Zoom => Some(Command::ToolZoom),
-        Active::Camera => Some(Command::ToolCamera),
+        Active::Camera | Active::CameraPan | Active::CameraDolly => Some(Command::ToolCamera),
         _ => None,
     };
     let name = title(tool, panels.locale);
@@ -228,7 +233,7 @@ pub(crate) fn hint(tool: Active, panels: &Panels) -> String {
             "点击放大，Alt 点击缩小",
             "Click to zoom in, Alt-click to zoom out",
         ),
-        Active::Camera => ("拖动观察视图", "Drag observation view"),
+        Active::Camera | Active::CameraPan | Active::CameraDolly => ("再次激活切换；拖动观察视角，Esc 取消；此工具下撤销仅作用于视角", "Activate again to cycle; drag observation view, Esc cancels; undo in this tool affects view only"),
         _ => ("", ""),
     };
     let note = if panels.locale == Locale::Zh { zh } else { en };
@@ -256,10 +261,12 @@ pub(crate) fn viewport(
     input: &Input,
     out: &mut Vec<Action>,
 ) -> bool {
-    if active(panels) == Active::Camera && state["observing"] != true {
+    camera::flush(panels, out);
+    if camera::is_tool(active(panels)) && state["observing"] != true {
         choose(panels, Active::Select, state, out);
     }
     let tool = active(panels);
+    if camera::viewport(panels, view, mapping, state, input, out) { return true; }
     if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
         panels.tools.cancel();
         return matches!(
@@ -269,7 +276,7 @@ pub(crate) fn viewport(
                 | Active::Text
                 | Active::Hand
                 | Active::Zoom
-                | Active::Camera
+                | Active::Camera | Active::CameraPan | Active::CameraDolly
         );
     }
     if panels.tools.shape.as_ref().is_some_and(|g| {
@@ -302,7 +309,7 @@ pub(crate) fn viewport(
             | Active::Text
             | Active::Hand
             | Active::Zoom
-            | Active::Camera
+            | Active::Camera | Active::CameraPan | Active::CameraDolly
     );
     if !auxiliary {
         return false;
@@ -555,5 +562,6 @@ fn nudge_rejected(panels: &mut Panels, operation: &str, state: &Value, cause: &s
     }
 }
 
+pub(crate) mod camera;
 #[cfg(test)]
 mod tests;

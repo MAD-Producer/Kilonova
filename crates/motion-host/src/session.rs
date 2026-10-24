@@ -96,6 +96,7 @@ pub struct Session {
     pub scene: Scene,
     pub geometry: motion_render::PlaneCompositor,
     pub observer: Observer,
+    pub(crate) observer_history: crate::ops::preview::CameraHistory,
     pub observing: bool,
     pub frame: f64,
     pub root: PathBuf,
@@ -192,6 +193,7 @@ impl Session {
             scene,
             geometry: motion_render::PlaneCompositor::new(),
             observer,
+            observer_history: Default::default(),
             observing: false,
             frame: 0.0,
             root,
@@ -348,6 +350,7 @@ impl Session {
         self.font_store = None;
         self.frame = 0.0;
         self.observing = false;
+        self.observer_history = Default::default();
         self.last_presented_frame = None;
         self.last_error = None;
         self.view_revision += 1;

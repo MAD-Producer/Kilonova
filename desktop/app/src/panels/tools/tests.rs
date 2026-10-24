@@ -8,13 +8,13 @@ use std::path::PathBuf;
 fn state() -> Value {
     serde_json::json!({"root":"tools","revision":1,"frame":0,"project":{"width":1920,"height":1080,"composition_id":"main","layers":[]}})
 }
-fn key(k: Key) -> Input {
+pub(super) fn key(k: Key) -> Input {
     Input {
         keys: vec![(k, Modifiers::default())],
         ..Default::default()
     }
 }
-fn route(p: &mut Panels, s: &Value, i: Input) -> Vec<Action> {
+pub(super) fn route(p: &mut Panels, s: &Value, i: Input) -> Vec<Action> {
     let mut out = vec![];
     super::super::keyboard::route(&i, p, s, false, None, &mut out);
     out
@@ -226,7 +226,7 @@ fn existing_main_and_floating_chrome_use_the_same_tool_owner() {
     }
 }
 
-fn host() -> (tempfile::TempDir, crate::engine::Engine, Value) {
+pub(super) fn host() -> (tempfile::TempDir, crate::engine::Engine, Value) {
     let root = tempfile::tempdir().unwrap();
     let e = crate::engine::Engine::start(
         root.path().join("project"),
@@ -470,7 +470,7 @@ fn actual_nudge_failure_reaches_default_sinks_and_repeat_observation_resets() {
 
 #[cfg(target_os = "windows")]
 #[path = "tests/native.rs"]
-mod native;
+pub(super) mod native;
 
 #[test]
 fn auxiliary_gestures_cancel_at_native_owner_and_project_context_boundaries() {
@@ -568,7 +568,14 @@ fn observation_camera_tool_uses_existing_orbit_commands_and_disables_on_exit() {
     ] {
         super::super::composition::render(&mut list, &mut atlas, area, &mut p, &s, &i, &mut out);
     }
-    assert!(matches!(out.as_slice(), [Action::ViewOrbit { .. }]));
+    assert!(matches!(out.first(), Some(Action::CameraGesture(motion_host::ops::preview::CameraGesture::Begin { .. }))));
+    assert!(matches!(out.last(), Some(Action::CameraGesture(motion_host::ops::preview::CameraGesture::End { commit:true, .. }))));
+    for a in out.drain(..) {
+        let Action::CameraGesture(op)=a else { panic!("camera gesture escaped observer scope") };
+        e.camera_gesture(op).unwrap();
+    }
+    assert_ne!(e.state().unwrap()["observationCamera"],s["observationCamera"]);
+    assert_eq!(e.state().unwrap()["sampledCamera"],s["sampledCamera"]);
     let s = e.observe(false, 0., 0.).unwrap();
     out.clear();
     super::super::composition::render(
