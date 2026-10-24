@@ -131,31 +131,52 @@ impl PaintList {
     /// Remove obscured text without losing creation order or shifting stale indices.
     pub fn retain_glyphs(&mut self, mut keep: impl FnMut(&Glyph) -> bool) {
         self.legacy_order();
-        let mut mapping = vec![None; self.glyphs.len()];
+        let len = self.glyphs.len();
+        let mut mapping: Option<Vec<Option<usize>>> = None;
         let mut old = 0;
         let mut next = 0;
         self.glyphs.retain(|glyph| {
             let index = old;
             old += 1;
             if keep(glyph) {
-                mapping[index] = Some(next);
+                if let Some(mapping) = &mut mapping {
+                    mapping[index] = Some(next);
+                }
                 next += 1;
                 true
             } else {
+                if mapping.is_none() {
+                    // Until the first removal, all indices still map to themselves.
+                    let mut entries = vec![None; len];
+                    for (index, entry) in entries.iter_mut().take(index).enumerate() {
+                        *entry = Some(index);
+                    }
+                    mapping = Some(entries);
+                }
                 false
             }
         });
-        self.order.retain_mut(|op| match op {
-            PaintOp::Shape(_) => true,
-            PaintOp::Glyph(index) => {
-                if let Some(new) = mapping[*index] {
-                    *index = new;
-                    true
-                } else {
-                    false
+        if let Some(mapping) = mapping {
+            self.order.retain_mut(|op| match op {
+                PaintOp::Shape(_) => true,
+                PaintOp::Glyph(index) => {
+                    if let Some(new) = mapping[*index] {
+                        *index = new;
+                        true
+                    } else {
+                        false
+                    }
+                }
+            });
+        } else {
+            // Public buffers can contain stale indices; preserve the bounds check
+            // even when every glyph survives and the order needs no remapping.
+            for op in &self.order {
+                if let PaintOp::Glyph(index) = op {
+                    let _ = &self.glyphs[*index];
                 }
             }
-        });
+        }
     }
     /// Bound flat UI geometry and adjust cropped glyph UVs to a panel rectangle.
     pub fn clip_to(&mut self, area: Rect) {
