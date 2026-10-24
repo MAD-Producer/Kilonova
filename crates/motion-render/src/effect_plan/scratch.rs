@@ -20,18 +20,19 @@ pub enum ScratchFormat {
     Rgba16Float = 2,
 }
 impl ScratchFormat {
-    pub fn native(self) -> wgpu::TextureFormat {
+    pub fn storage(self) -> motion_effects::image_contract::ImageStorage {
+        use motion_effects::image_contract::ImageStorage;
         match self {
-            Self::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
-            Self::Rgba8Unorm => wgpu::TextureFormat::Rgba8Unorm,
-            Self::Rgba16Float => wgpu::TextureFormat::Rgba16Float,
+            Self::Rgba8UnormSrgb => ImageStorage::Rgba8UnormSrgb,
+            Self::Rgba8Unorm => ImageStorage::Rgba8Unorm,
+            Self::Rgba16Float => ImageStorage::Rgba16Float,
         }
     }
+    pub fn native(self) -> wgpu::TextureFormat {
+        crate::image_formats::native_format(self.storage())
+    }
     pub fn bytes_per_pixel(self) -> u32 {
-        match self {
-            Self::Rgba8UnormSrgb | Self::Rgba8Unorm => 4,
-            Self::Rgba16Float => 8,
-        }
+        self.storage().bytes_per_pixel() as u32
     }
 }
 

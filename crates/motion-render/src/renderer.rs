@@ -90,6 +90,8 @@ pub enum RenderError {
     #[error("{0}")]
     Effects(#[from] motion_effects::Error),
     #[error("{0}")]
+    ImageFormat(#[from] crate::image_formats::UnsupportedStorage),
+    #[error("{0}")]
     Model(#[from] motion_model::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
@@ -515,7 +517,8 @@ impl Renderer {
             ],
         });
         let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
-            allocation_budget.clone(), allocation_uploads.clone())?;
+            allocation_budget.clone(), allocation_uploads.clone(),
+            crate::image_formats::ImageCapabilities::query(&adapter, &device))?;
         let mut renderer = Self {
             memory_pressure_probe: Default::default(),
             allocation_budget,

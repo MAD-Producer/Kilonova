@@ -47,6 +47,7 @@ pub(crate) struct EffectGpu {
 }
 pub(crate) struct GpuState {
     allocation_budget: crate::AllocationBudget,
+    format_capabilities: crate::image_formats::ImageCapabilities,
     uniform_layout: wgpu::BindGroupLayout,
     input_layout: wgpu::BindGroupLayout,
     resource_layout: wgpu::BindGroupLayout,
@@ -190,6 +191,7 @@ impl EffectGpu {
         composite: &wgpu::BindGroupLayout,
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+        format_capabilities: crate::image_formats::ImageCapabilities,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),
@@ -258,6 +260,7 @@ impl EffectGpu {
             builder,
             state: GpuState {
                 allocation_budget,
+                format_capabilities,
                 allocation_uploads,
                 uniform_layout,
                 input_layout,
@@ -440,6 +443,21 @@ impl GpuState {
             });
         }
         if self.pool_allocations != frame.scratch_allocations || self.pool.len() != frame.scratch_allocations.len() {
+            // Validate every replacement before admitting any allocation. An
+            // unsupported format must preserve the previous pool and bindings,
+            // just like a budget refusal. Capabilities are cached per device.
+            for (index, allocation) in frame.scratch_allocations.iter().enumerate() {
+                self.format_capabilities.require(
+                    allocation.class.format.storage(),
+                    motion_effects::image_contract::ImageUsage::EFFECT_TARGET,
+                ).map_err(|cause| {
+                    let message = format!(
+                        "effect scratch slot={index} extent={}x{} phase=format-capabilities: {cause}",
+                        allocation.width, allocation.height,
+                    );
+                    RenderError::from(cause).with_diagnostic(message)
+                })?;
+            }
             // Allocate replacements before moving any live slot. A refusal in a
             // later slot must leave the previous pool and bindings intact.
             let mut next_pool = Vec::with_capacity(frame.scratch_allocations.len());
