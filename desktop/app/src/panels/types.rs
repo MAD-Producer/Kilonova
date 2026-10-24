@@ -34,6 +34,11 @@ pub enum Action {
     AddAdjustment,
     AddPath(motion_core::vector::VectorPath),
     AddShape(motion_core::vector::ShapeKind),
+    PlaceShape {
+        shape: motion_core::vector::ShapeKind,
+        size: [f32; 2],
+        position: [f32; 3],
+    },
     NewText,
     CompositionSettings,
     Preferences,
@@ -79,10 +84,8 @@ pub enum Action {
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
-    /// Orbit/pan the observation camera; host picks the gesture by view.
-    ViewOrbit {
-        delta: [f32; 2],
-    },
+    /// Atomic observer-only gesture, independent of authored camera history.
+    CameraGesture(motion_host::ops::preview::CameraGesture),
     /// Zoom the observation camera around its target.
     ViewZoom {
         ratio: f64,
@@ -166,6 +169,7 @@ pub struct Panels {
     pub(crate) audio_controls: crate::panels::audio::Controls,
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,
+    pub(crate) tools: super::tools::State,
     pub path_controls: crate::panels::path_controls::Controls,
     pub(crate) toolbar_style: super::toolbar_style::Controls,
     pub transform_controls: crate::panels::transform_controls::Controls,
@@ -174,8 +178,6 @@ pub struct Panels {
 
 #[derive(Default)]
 pub(crate) struct CompositionState {
-    /// Last pointer position of an in-progress right-drag orbit gesture.
-    pub orbit: Option<[f32; 2]>,
     pub navigation: crate::viewer_navigation::Navigation,
     pub pan: Option<([f32; 2], crate::viewer_navigation::Navigation)>,
     pub zoom: motion_ui::widgets::NumberEditor,

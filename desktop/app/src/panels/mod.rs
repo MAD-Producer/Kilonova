@@ -98,6 +98,7 @@ mod timeline_zoom;
 mod timeline_navigation;
 pub(crate) mod titlebar;
 mod toolbar;
+pub(crate) mod tools;
 pub(crate) mod transform_controls;
 mod types;
 
@@ -221,6 +222,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.tools.cancel();
     panels.effect_drag.cancel();
     panels.browser.cancel_library_click();
     panels.property_reveal.interrupt();
@@ -257,7 +259,6 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let path = panels.path_controls.cancel();
     let toolbar = panels.toolbar_style.cancel();
     let transform = panels.transform_controls.cancel();
-    panels.composition.orbit = None;
     if let Some((_, before)) = panels.composition.pan.take() {
         panels.composition.navigation = before;
     }
@@ -283,6 +284,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     } else {
         vec![]
     };
+    tools::camera::flush(panels, &mut actions);
     if node_changed {
         actions.push(Action::Node(crate::node_editor::Action::PreviewChanged));
     }
@@ -329,11 +331,13 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    tools::prepare(panels,None,input);
     let drag_owned = panels.effect_drag.prepare(None, state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
     let input = if drag_owned { &drag_neutral } else { input };
     let mut out = Vec::new();
+    tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
     }
@@ -958,6 +962,7 @@ pub fn floating_chrome(
     }
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
+    tools::prepare(panels,Some(panel),input);
     let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
@@ -979,6 +984,7 @@ pub fn floating_chrome(
     let colors = styles.colors();
 
     let mut out = toolbar_actions;
+    tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
     }

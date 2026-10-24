@@ -60,7 +60,7 @@ impl Shortcuts {
         let sheet = list.styles();
         let row = sheet.metric("row.height", 22.);
         let gap = sheet.metric("auxiliary.gap", 6.);
-        let scope = [Scope::Application, Scope::Animation, Scope::Nodes][self.scope];
+        let scope = [Scope::Application, Scope::Animation, Scope::Nodes, Scope::Viewer][self.scope];
         let entries: Vec<_> = bindings::catalogue()
             .iter()
             .filter(|e| e.scope == scope)
@@ -119,6 +119,7 @@ impl Shortcuts {
             word(locale, "应用", "Application"),
             word(locale, "动画", "Animation"),
             word(locale, "节点", "Nodes"),
+            word(locale, "查看器工具", "Viewer tools"),
         ];
         let scopes = labels
             .iter()
@@ -344,6 +345,15 @@ impl Shortcuts {
 pub(crate) fn command_name(locale: Locale, command: Command) -> String {
     use Command::*;
     let (zh, en) = match command {
+        ToolSelect => ("选择工具", "Selection tool"),
+        ToolPen => ("钢笔工具", "Pen tool"),
+        ToolAnchor => ("锚点工具", "Anchor tool"),
+        ToolRotate => ("旋转工具", "Rotation tool"),
+        ToolShape => ("循环形状工具", "Cycle shape tools"),
+        ToolText => ("文字工具", "Text tool"),
+        ToolHand => ("抓手工具", "Hand tool"),
+        ToolZoom => ("缩放工具", "Zoom tool"),
+        ToolCamera => ("观察摄影机工具", "Observation camera tool"),
         ReloadStyle => ("重载样式", "Reload style"),
         TogglePanelMaximize => ("最大化面板", "Maximize panel"),
         NewProject => ("新建工程", "New project"),

@@ -79,6 +79,12 @@ pub(super) fn render(
         return;
     }
     panels.composition.mapping_failures = 0;
+    // A new pointer-down supersedes a lost release before footer controls can
+    // change the view or enqueue another navigation operation.
+    if panels.tools.editing() && input.pressed.is_some() {
+        panels.tools.cancel();
+        super::tools::camera::flush(panels,out);
+    }
     let center = [(v.min[0] + v.max[0]) * 0.5, (v.min[1] + v.max[1]) * 0.5];
     let observing = state["observing"].as_bool().unwrap_or(false);
     let cancel_navigation = input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape);
@@ -86,11 +92,10 @@ pub(super) fn render(
         if let Some((_, before)) = panels.composition.pan.take() {
             panels.composition.navigation = before;
         }
-        panels.composition.orbit = None;
     } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() {
         if input
             .pressed
-            .is_some_and(|(b, p)| b == MouseButton::Middle && v.contains(p))
+            .is_some_and(|(b, p)| (b == MouseButton::Middle || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Hand) && v.contains(p))
         {
             panels.composition.pan = Some((input.mouse, panels.composition.navigation));
         }
@@ -100,14 +105,14 @@ pub(super) fn render(
                 canvas,
                 [input.mouse[0] - last[0], input.mouse[1] - last[1]],
             );
-            if input.held == Some(MouseButton::Middle) {
+            if input.held == Some(MouseButton::Middle) || input.held == Some(MouseButton::Left) && super::tools::active(panels) == super::tools::Active::Hand {
                 panels.composition.pan = Some((input.mouse, before));
                 panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
             } else {
                 panels.composition.pan = None;
             }
         }
-        if input.wheel[1] != 0. && v.contains(input.mouse) && panels.composition.pan.is_none() {
+        if input.wheel[1] != 0. && v.contains(input.mouse) && panels.composition.pan.is_none() && !panels.tools.editing() {
             if let Some(mapping) = panels.composition.navigation.mapping(v, canvas) {
                 let ratio = if input.wheel[1] > 0. { 1.1 } else { 1. / 1.1 };
                 if observing && input.modifiers.alt {
@@ -126,6 +131,7 @@ pub(super) fn render(
             }
         }
     }
+    if cancel_navigation { super::tools::camera::cancel(panels,out); }
     let original = panels.composition.navigation;
     let scale = original.mapping(v, canvas).map_or(1., |m| m.scale);
     let zoom_rect = Rect::new(
@@ -241,7 +247,12 @@ pub(super) fn render(
         quality_width,
         button_height,
     );
-    if quality_rect.min[0] - gap - fit_rect.max[0] >= time_width {
+    let camera_width = sheet.metric("viewer.camera.width", 24.);
+    let camera_rect = Rect::new(quality_rect.min[0] - gap - camera_width, quality_rect.min[1], camera_width, button_height);
+    if camera_rect.min[0] > fit_rect.max[0] + gap {
+        super::tools::camera::button(list, camera_rect, panels, state, input, out);
+    }
+    if camera_rect.min[0] - gap - fit_rect.max[0] >= time_width {
         let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
         motion_ui::style::text_style(
             list,
@@ -311,7 +322,8 @@ pub(super) fn render(
         return;
     };
     let mut handles = list.child();
-    let consumed = panels.path_controls.draw_in_viewport(
+    let tool_owned = super::tools::viewport(panels, &mut handles, v, mapping, state, input, out);
+    let consumed = tool_owned || panels.path_controls.draw_in_viewport(
         &mut handles,
         atlas,
         v,
@@ -322,7 +334,7 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    let consumed = if panels.path_controls.tool == super::path_controls::Tool::Select {
+    let consumed = if !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
         panels.transform_controls.draw_in_viewport(
             &mut handles,
             v,
@@ -340,32 +352,9 @@ pub(super) fn render(
     if let Some(cursor) = panels
         .transform_controls
         .cursor
-        .filter(|_| panels.composition.pan.is_none())
+        .filter(|_| !tool_owned && panels.composition.pan.is_none())
     {
         panels.cursor = Some(cursor);
-    }
-    // Observation gestures: right-drag orbits (free view) or pans
-    // (orthogonal views). Wheel navigation belongs to the independent canvas.
-    if input
-        .pressed
-        .is_some_and(|(b, p)| b == MouseButton::Right && v.contains(p))
-    {
-        panels.composition.orbit = input.pressed.map(|(_, p)| p);
-    }
-    if let Some(last) = panels.composition.orbit {
-        if input.held == Some(MouseButton::Right) {
-            let delta = [
-                (input.mouse[0] - last[0]) * 0.2,
-                (input.mouse[1] - last[1]) * 0.2,
-            ];
-            if delta != [0., 0.] {
-                out.push(Action::ViewOrbit { delta });
-            }
-            panels.composition.orbit = Some(input.mouse);
-            panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
-        } else {
-            panels.composition.orbit = None;
-        }
     }
     if input
         .pressed

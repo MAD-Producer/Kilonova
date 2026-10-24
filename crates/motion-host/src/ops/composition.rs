@@ -104,6 +104,7 @@ impl Session {
             self.engine.project().height,
         );
         self.observing = false;
+        self.observer_history = Default::default();
         self.audio_mixer = None;
         self.video_frames.clear();
         self.view_revision += 1;

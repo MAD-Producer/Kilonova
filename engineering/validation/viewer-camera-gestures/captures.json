@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "captures": [
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\camera-native-final\\dolly-float-en.png",
+      "file": "dolly-float-en.png",
+      "sha256": "fe6f2062c2af5059f5bbf2bec15e0b5ac927e67d8689ed4293fb9400145e685a",
+      "dimensions": [
+        1350,
+        900
+      ],
+      "processing": "byte-for-byte copy; no crop, re-encoding, or redraw"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\camera-native-final\\orbit-main-zh.png",
+      "file": "orbit-main-zh.png",
+      "sha256": "6db3e490502caf6e5bd5e8e37021e1cbe613390e8afd6937e6582461fc52755e",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "processing": "byte-for-byte copy; no crop, re-encoding, or redraw"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\camera-native-final\\pan-main-zh.png",
+      "file": "pan-main-zh.png",
+      "sha256": "dcc0a93a065fea76669581dad89fd15b2c430e7de7dab7e43285717fd88afee3",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "processing": "byte-for-byte copy; no crop, re-encoding, or redraw"
+    }
+  ]
+}

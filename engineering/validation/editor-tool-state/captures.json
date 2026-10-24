@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "captures": [
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\rectangle-main-zh-drag.png",
+      "sourceSha256": "d4607763bd8b4e7c79daca82795fc2e0ce3bef0205a60a57c4d02401136be4f6",
+      "sourceDimensions": [
+        1600,
+        1000
+      ],
+      "crop": null,
+      "file": "rectangle-main-zh-drag.png",
+      "sha256": "11d5fc238f8ddae685aff53f0b12fe34a24e1f7e0f6bf9de8a4bd982b4fee1e3",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\rectangle-main-zh-created.png",
+      "sourceSha256": "97b14388534cef917a2739428ef256dae5b430e20a699afccf81d806c5784c47",
+      "sourceDimensions": [
+        1600,
+        1000
+      ],
+      "crop": null,
+      "file": "rectangle-main-zh-created.png",
+      "sha256": "4b3b88dd6175019ab2952187c8daaae06691561e975da9e957eaab98edbc6a30",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\ellipse-floating-en-drag.png",
+      "sourceSha256": "f552831280639c46a144e7680114d4ce02c78a932c73934316654513821785b9",
+      "sourceDimensions": [
+        1350,
+        900
+      ],
+      "crop": null,
+      "file": "ellipse-floating-en-drag.png",
+      "sha256": "c169b8b2be98fe4b6efda8812a5317f30dcae41f3457aac02d692ac47633a550",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\editor-tools-native-final\\ellipse-floating-en-created.png",
+      "sourceSha256": "9b2188a10a85f472ebce649eefe44322ecbf9643457b3fbecf7268db33c578c2",
+      "sourceDimensions": [
+        1350,
+        900
+      ],
+      "crop": null,
+      "file": "ellipse-floating-en-created.png",
+      "sha256": "f0ea2bcd3d40ca17ec493339fbbcac9731af002f60c665ac3fcb87cc16aa072c",
+      "processing": "PNG lossless re-encoding; decoded RGBA pixels verified identical; no crop or redraw"
+    }
+  ]
+}
