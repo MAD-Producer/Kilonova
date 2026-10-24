@@ -32,6 +32,8 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+#[cfg(test)]
+mod output_precision_tests;
 mod preview_pressure;
 #[cfg(all(test, target_os = "windows"))]
 mod surface_admission_tests;
@@ -858,7 +860,7 @@ impl Session {
     /// Persisted precision changes are applied before any content work on the
     /// existing device. A refusal returns its cause; the previous SDR front is
     /// retained and never presented as a successfully rendered new mode.
-    fn synchronize_working_precision(&mut self) -> Result<()> {
+    pub(crate) fn synchronize_working_precision(&mut self) -> Result<()> {
         let precision = self.engine.project().working_precision;
         let Some(g) = &mut self.graphics else { return Ok(()); };
         if g.renderer.working_precision() == precision { return Ok(()); }

@@ -3,9 +3,9 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project-setting UI, dense editor key insertion and export/editor-preview
-call sites are not yet connected to the native output conversion. Ordinary and
-exposure surface previews now use the retained SDR wrapper.
+open: the project-setting UI, dense editor key insertion, plugin editor preview
+and desktop UI/node screenshot paths still need integration. Ordinary/exposure
+surface previews and Host/frozen PNG/MP4 exports now use explicit SDR output.
 
 ## Scope and status
 
@@ -19,7 +19,7 @@ exposure surface previews now use the retained SDR wrapper.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command; ordinary/exposure surface previews synchronize precision on the same device and convert to SDR | Native output, project save/reopen/history and actual surface preview/mode-change probes pass; project-setting UI and export/editor-preview integration pending; no product UI changed in this stage |
+| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; ordinary/exposure surface preview and frozen export integration | Native output, project/history/surface probes and actual four-mode PNG/MP4 exports pass; project-setting UI, plugin editor preview and desktop screenshot integration pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -63,6 +63,13 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-switch-native-check-v1` | All native test targets check after extracting the existing planar pipelines into the same-device precision preparation module |
 | `issue72-stage-switch-pixels-v2` | Three actual GPU tests: repeated four-mode changes retain the same device/queue/custom registry and equal fresh native pixels, including vector and numeric LUT paths; peak preparation admission and reduced-budget commit refusal preserve old mode/pixels and recover; narrow enabled devices, foreign owners sharing a budget and outdated preparations refuse before mutation |
 | `issue72-stage-switch-regression-v1`, `issue72-stage-switch-host-check-v1` | All 24 current working/composition/curve/output pixel tests pass after the switch/cache fix; Host also compiles against project format 26 and the native transition API |
+| `issue72-stage-output-integration-check-v1`, `issue72-stage-frozen-mp4-check-v1` | Host/media test targets check, including FFmpeg production export code |
+| `issue72-stage-exposure-output-pixels-v3` | Nine original output tests and three new actual GPU tests: four-mode native/custom and exposure readback, retained identities/capacity, incomplete/foreign/stale-mode refusal, linear-black video output with opaque alpha and empty transparent input |
+| `issue72-stage-host-png-pixels-v2` | Actual Host PNG in all four modes matches the straight-alpha SDR oracle and preserves project, history and view revision; four PNGs retained |
+| `issue72-stage-frozen-png-pixels-v2` | Seven tests pass: all six original publication/resource/source/exposure tests and a new four-mode ordinary/exposure test after live edits and session close; eight PNGs retained |
+| `issue72-stage-frozen-mp4-pixels-v3` | Eight actual frozen H.264/AAC encodes in four modes, ordinary/exposure, after live edits/session close; first/last RGB, alpha, duration and color metadata verified; eight MP4s and 16 decoded endpoint PNGs retained |
+| `issue72-stage-frozen-mp4-pixels-v3/independent-ffmpeg` | Independent FFmpeg decodes all six Float32 exposure frames, maximum RGB error 3/255; ffprobe confirms 32x32 H.264 YUV420P, 30 fps, limited-range BT.709/sRGB and AAC |
+| `issue72-stage-media-output-regression-v1` | Complete FFmpeg-enabled desktop media library: 43 passed, zero failed/ignored; includes original padding, linear alpha, source freezing, shared budgets, cancellation, temporal/nested video/audio and work-area tests |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -190,6 +197,29 @@ does not claim to have rendered the requested precision. The portable plan build
 also follows required project precision, including sessions without a surface.
 Preview precision synchronization does not recreate the desktop painter, install
 a fallback, change project history or alter layout/style.
+
+The new export renderer starts at required project precision. PNG reads straight
+sRGB bytes after native rendering/resolve; movies reuse an admitted native/SDR
+target across frames and flatten onto linear black before output quantization.
+The GPU video output writes alpha one, including empty transparent pixels, so
+the existing encoder cannot multiply coverage again. Raw image APIs remain
+format-preserving, and project precision is never reduced to obtain an export.
+
+Failed output receipts are retained. Frozen PNG v1's new path assertion compared
+Windows canonical/noncanonical spellings; v2 compares canonical identities. MP4
+v1 exposed double black-matte application at the existing encoder boundary; the
+opaque GPU output fixes it without changing the encoder or its original tests.
+MP4 v2's 18x18 color fixture had isolated lossy padding-corner errors, reproduced
+by independent FFmpeg. The color-policy fixture now uses macroblock-aligned
+32x32 with the same per-channel tolerance of ten; existing nonaligned plane and
+padding tests remain unchanged and pass in the full media regression. This
+does not claim pixel-exact H.264 at arbitrary dimensions. No pre-existing test
+assertion was changed in this export stage.
+
+Actual output files and SHA-256 values are listed in
+`artifacts/pr-queue/issue72-output-stage-manifest.json`. These constant-color
+transparent/HDR probes do not replace the final comprehensive gradient/glow,
+multilayer/mask, retained/nested temporal and product UI acceptance.
 
 ## Sources and provenance
 

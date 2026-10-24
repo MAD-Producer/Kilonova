@@ -32,12 +32,12 @@ fn encode_srgb(x:vec3<f32>) -> vec3<f32> {
     let sampled=bilinear(input.uv); let alpha=clamp(sampled.a,0.0,1.0);
     // Zero source alpha produces transparent black. Division uses original
     // positive alpha before output clamping, in linear premultiplied space.
-    if sampled.a<=0.0 { return vec4(0.0); }
+    if sampled.a<=0.0 { return vec4(0.0,0.0,0.0,select(0.0,1.0,transform.reserved.x!=0u)); }
     var color=sampled.rgb/sampled.a;
     color=max(color*transform.gain,vec3(0.0));
     if transform.flags.w!=0u { color=vec3(1.0)-vec3(1.0)/(vec3(1.0)+color); }
     else { color=min(color,vec3(1.0)); }
     if transform.flags.z!=0u { color*=alpha; }
     if transform.encode_srgb!=0u { color=encode_srgb(color); }
-    return vec4(color,alpha);
+    return vec4(color,select(alpha,1.0,transform.reserved.x!=0u));
 }

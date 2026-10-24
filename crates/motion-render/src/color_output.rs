@@ -88,7 +88,13 @@ impl ColorOutput {
     ) -> Result<Self, RenderError> {
         renderer.check_health()?;
         source.check_owner(renderer)?;
-        Self::new(renderer, source.texture(), source.contract(), descriptor)
+        Self::new(
+            renderer,
+            source.texture(),
+            source.contract(),
+            descriptor,
+            false,
+        )
     }
 
     /// Native compositor targets contain linear premultiplied color, including
@@ -97,6 +103,14 @@ impl ColorOutput {
         renderer: &Renderer,
         source: &RenderTarget,
         descriptor: ColorOutputDescriptor,
+    ) -> Result<Self, RenderError> {
+        Self::for_render_target_mode(renderer, source, descriptor, false)
+    }
+    fn for_render_target_mode(
+        renderer: &Renderer,
+        source: &RenderTarget,
+        descriptor: ColorOutputDescriptor,
+        opaque_black: bool,
     ) -> Result<Self, RenderError> {
         renderer.check_health()?;
         source.check_owner(renderer)?;
@@ -109,7 +123,13 @@ impl ColorOutput {
                 RenderError::Invalid("output source has unsupported color storage".into())
             })?,
         );
-        Self::new(renderer, source.texture(), contract, descriptor)
+        Self::new(
+            renderer,
+            source.texture(),
+            contract,
+            descriptor,
+            opaque_black,
+        )
     }
 
     fn new(
@@ -117,6 +137,7 @@ impl ColorOutput {
         source: &OwnedTexture,
         contract: ImageContract,
         descriptor: ColorOutputDescriptor,
+        opaque_black: bool,
     ) -> Result<Self, RenderError> {
         renderer.check_health()?;
         descriptor.transform.validate()?;
@@ -160,7 +181,7 @@ impl ColorOutput {
             u32::from(descriptor.transform.tone_map == ToneMap::Reinhard),
             descriptor.transform.exposure_stops.exp2().to_bits(),
             u32::from(!descriptor.format.is_srgb()),
-            0,
+            u32::from(opaque_black),
             0,
         ];
         let uniform = AllocationBuffer::new_init(
@@ -324,6 +345,14 @@ pub struct SdrCaptureTarget {
     conversion: ColorOutput,
 }
 impl SdrCaptureTarget {
+    /// Native working attachment for a producer other than the scene compositor.
+    /// Its pipeline must target `working_format()` and submit before readback.
+    pub fn working_view(&self) -> &crate::AdmittedTextureView {
+        &self.source.view
+    }
+    pub fn working_format(&self) -> wgpu::TextureFormat {
+        self.source.texture().format()
+    }
     pub fn width(&self) -> u32 {
         self.source.width
     }
@@ -370,22 +399,46 @@ impl Renderer {
         height: u32,
         transform: OutputTransform,
     ) -> Result<SdrCaptureTarget, RenderError> {
+        self.sdr_output_target(width, height, transform, AlphaMode::Straight)
+    }
+    /// Opaque encoded RGB over linear black. Tone mapping precedes linear
+    /// premultiplication; alpha is then one to prevent another encoder matte.
+    pub fn sdr_video_target(
+        &self,
+        width: u32,
+        height: u32,
+        transform: OutputTransform,
+    ) -> Result<SdrCaptureTarget, RenderError> {
+        self.sdr_output_target(width, height, transform, AlphaMode::Premultiplied)
+    }
+    fn sdr_output_target(
+        &self,
+        width: u32,
+        height: u32,
+        transform: OutputTransform,
+        alpha: AlphaMode,
+    ) -> Result<SdrCaptureTarget, RenderError> {
         self.check_health()?;
         transform.validate()?;
         let source = self.render_target(width, height)?;
         let descriptor = ColorOutputDescriptor {
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            alpha: AlphaMode::Straight,
+            alpha,
             transform,
         };
-        let conversion = ColorOutput::for_render_target(self, &source, descriptor)?;
+        let conversion = ColorOutput::for_render_target_mode(
+            self,
+            &source,
+            descriptor,
+            alpha == AlphaMode::Premultiplied,
+        )?;
         let output = self.image_capture_target(
             width,
             height,
             ImageContract::new(
                 ImageMeaning::Color {
                     space: WorkingSpace::Linear,
-                    alpha: AlphaMode::Straight,
+                    alpha,
                 },
                 ChannelPrecision::Unorm8,
             ),
@@ -396,23 +449,58 @@ impl Renderer {
             conversion,
         })
     }
-    /// Render at working precision and convert to straight-alpha sRGB before
-    /// UNORM8 quantization. Returned storage bytes can be written directly to an
-    /// RGBA8 PNG or passed to the video encoder. This does not modify raw images.
+    fn check_sdr_target(&self, target: &SdrCaptureTarget) -> Result<(), RenderError> {
+        self.check_health()?;
+        target.source.check_owner(self)?;
+        target.output.check_owner(self)?;
+        target.conversion.check_owner(self)?;
+        if self.target_format != target.working_format() {
+            return Err(RenderError::Invalid(
+                "SDR capture working target format differs from renderer".into(),
+            ));
+        }
+        Ok(())
+    }
+    /// Convert already submitted native content and read its explicit SDR output.
+    /// The retained target may be reused by exposure and custom graph producers.
+    pub fn read_sdr_target(
+        &self,
+        target: &SdrCaptureTarget,
+    ) -> Result<crate::CapturedImage, RenderError> {
+        self.check_sdr_target(target)?;
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::CompositionAndPresentation,
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("native content to SDR readback"),
+            },
+        )?;
+        target
+            .conversion
+            .encode_image(self, &mut encoder, &target.output)?;
+        self.submit_allocated(encoder.finish(), |ledger| {
+            ledger.merge(target.texture_resource_ledger())
+        })?;
+        self.check_health()?;
+        self.read_image_target(&target.output)
+    }
+    pub fn capture_exposure_sdr(
+        &self,
+        exposure: &crate::ExposureTarget,
+        target: &SdrCaptureTarget,
+    ) -> Result<crate::CapturedImage, RenderError> {
+        self.check_sdr_target(target)?;
+        self.resolve_exposure(exposure, &target.source)?;
+        self.read_sdr_target(target)
+    }
+    /// Render at working precision, then convert and quantize to the target's
+    /// explicit SDR/alpha policy. Capture targets use straight alpha for PNG;
+    /// video targets provide encoded RGB over linear black. Raw APIs are unchanged.
     pub fn capture_sdr(
         &mut self,
         scene: &Scene,
         target: &SdrCaptureTarget,
     ) -> Result<(crate::CapturedImage, RenderStats), RenderError> {
-        self.check_health()?;
-        target.source.check_owner(self)?;
-        target.output.check_owner(self)?;
-        target.conversion.check_owner(self)?;
-        if self.target_format != target.source.texture().format() {
-            return Err(RenderError::Invalid(
-                "SDR capture working target format differs from renderer".into(),
-            ));
-        }
+        self.check_sdr_target(target)?;
         self.preflight_effects(scene, target.width(), target.height())?;
         let began = std::time::Instant::now();
         let mut encoder = self.allocation_command_encoder_for(

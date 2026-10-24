@@ -85,7 +85,7 @@ impl FrameFreezePlan {
             .map_err(|e| format!("create PNG temporary: {e}"))?;
         let p = &frozen.project;
         control.check()?;
-        let mut renderer = pollster::block_on(Renderer::headless_with_allocation_budget(frozen.allocation_budget.clone()))
+        let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, frozen.allocation_budget.clone()))
             .map_err(|e| format!("PNG GPU initialization: {e}"))?;
         renderer.set_effect_registry(frozen.registry.clone());
         renderer
@@ -98,6 +98,8 @@ impl FrameFreezePlan {
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
         let pixels =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Vec<u8>> {
+                let target = renderer.sdr_capture_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
+                    .map_err(|e| format!("PNG SDR output allocation: {e}"))?;
                 if motion_host::render_sampling::needs_exposure(p)? {
                     let document =
                         motion_render::exposure_scene::ExposureDocument::new(Arc::new(p.clone()))
@@ -111,6 +113,7 @@ impl FrameFreezePlan {
                         frozen.assets.path(),
                         self.frame,
                         control,
+                        &target,
                     )
                 } else {
                     let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
@@ -119,9 +122,6 @@ impl FrameFreezePlan {
                         .map_err(|e| e.to_string())?;
                     renderer
                         .prepare_scene_assets(&scene, Resolution::Full, false)
-                        .map_err(|e| e.to_string())?;
-                    let target = renderer
-                        .capture_target(p.width, p.height)
                         .map_err(|e| e.to_string())?;
                     let began = Instant::now();
                     let decoded = loop {
@@ -147,8 +147,8 @@ impl FrameFreezePlan {
                         decoded.upload(&mut renderer, object, source)?;
                     }
                     renderer
-                        .capture(&scene, &target)
-                        .map(|value| value.0)
+                        .capture_sdr(&scene, &target)
+                        .map(|value| value.0.pixels)
                         .map_err(|e| format!("PNG render: {e}"))
                 }
             }))
@@ -212,3 +212,5 @@ impl FrameFreezePlan {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod precision_tests;

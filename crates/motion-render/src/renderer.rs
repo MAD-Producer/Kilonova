@@ -594,6 +594,16 @@ impl Renderer {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         Self::new_profiled_with_allocation_budget(&instance, None, TARGET_FORMAT, false, budget).await
     }
+    /// Project-owned headless work uses the requested mode from construction and
+    /// enables supported features for later edits on this same device.
+    pub async fn headless_with_working_precision(
+        precision: motion_effects::image_contract::ChannelPrecision,
+        budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+        let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
+        Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
+    }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     pub(crate) fn allocation_uploads(&self) -> Arc<crate::allocation_uploads::AllocationUploads> {
         self.allocation_uploads.clone()

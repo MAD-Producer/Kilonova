@@ -162,6 +162,8 @@ pub fn sample_render_plan_into_inner(
 pub fn capture(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
+        s.synchronize_working_precision()?;
+        s.effects.set_precision(s.engine.project().working_precision);
         let p = s.engine.project();
         for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
@@ -173,7 +175,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
-            temporary = Some(pollster::block_on(Renderer::headless_with_allocation_budget(s.allocation_budget().clone())).map_err(crate::Error::from)?);
+            temporary = Some(pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, s.allocation_budget().clone())).map_err(crate::Error::from)?);
         }
         let renderer = if let Some(g) = &mut s.graphics {
             &mut g.renderer
@@ -194,7 +196,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             .prepare_scene_assets(&scene, motion_render::image_resources::Resolution::Full, false)
             .map_err(crate::Error::from)?;
         let target = renderer
-            .capture_target(p.width, p.height)
+            .sdr_capture_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
             .map_err(crate::Error::from)?;
         let frames = s
             .video_frames
@@ -215,12 +217,12 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             image.upload(renderer, object, source)?;
         }
         let (pixels, _) = renderer
-            .capture(&scene, &target)
+            .capture_sdr(&scene, &target)
             .map_err(crate::Error::from)?;
         let dir = s.root.join("exports");
         std::fs::create_dir_all(&dir).map_err(crate::Error::from)?;
         let file = dir.join(format!("frame-{:06}.png", s.frame.floor() as u32));
-        image::save_buffer(&file, &pixels, p.width, p.height, image::ColorType::Rgba8)
+        image::save_buffer(&file, &pixels.pixels, p.width, p.height, image::ColorType::Rgba8)
             .map_err(crate::Error::from)?;
         Ok(json!({"path":file.to_string_lossy(),"width":p.width,"height":p.height,"frame":s.frame.floor()}))
     })
