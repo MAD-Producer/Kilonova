@@ -231,3 +231,38 @@ DESIGN §0.7 十二项仍分别保留，修改前后均未触及所列位置：p
 其中新增真实引擎子进程用默认日志级别执行三条失败路径：目标已占用、属性不匹配、剪切源已改变；前两条置于 Rename 后方验证整批回滚。`keyframe-clipboard-default-channel/logs/motion-studio.log` 与 `stderr.log` 均保留原始原因及 phase/object/channel，`stdout.log` 不含这些错误。Info 开始信号仅在文件日志中，Error 同时输出 stderr；该子进程没有设置 MOTION_LOG。既有图层/控制器的失败、取消和阻塞信道测试也在此 19 项中重新通过，证据目录为 `keyframe-clipboard-layer-channel`、`keyframe-clipboard-shell-channel`；未把既有受控阻塞测试冒称新关键帧专用阻塞测试。
 
 最终可执行测试文件位于 `E:/Dev/aem/target/host-error-contract-verified/debug/deps/`。`keyframe_clipboard-46978e2a5fc6c72f.exe` 的 SHA-256 为 `8cb4f6668a804e862f63e1d6acd953eb08e1670affacde245a7758a8b3d57267`，`motion_studio-083034f6d6ffe3a9.exe` 为 `1e6c5db1b40d4402bcd98e1558355470e3d97ae332e3336fb9a4d1201051c282`。验证后未修改生产代码。新增模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过；尚未据此创建完成 PR 或关闭 #204。
+
+## 关键帧剪贴板：类型化桌面桥接与独立缓存
+
+继续在同一分支实施，并再次只读核对近期本地分支和开放 PR。此时仅 #483（效果暂存纹理复用）开放，与本阶段无重叠；未审查或修改该 PR。
+
+新增 `KeyframeClipboardRead` 从串行引擎工作线程捕获关键帧和精确的文档 Stamp；粘贴读取只返回目标代次/合成/修订号及播放头，不复制完整工程。关键帧载荷通过 typed 通道和 Arc 传递，不经过既有 256 KiB JSON Edit 入口，也没有放宽该入口上限。提交复用普通核心批量事务；复制缓存不产生历史，剪切/粘贴一次撤销。
+
+图层和关键帧使用两个独立缓存，仍共享一个 Pending、取消标志、Shell 动作屏障和提交确认状态。关键帧复制/剪切在读取成功后先缓存，再允许提交删除；失败复制不破坏前一缓存，取消读取在收到回复前保留待处理槽。提交前检查完整 Stamp，旧文档代次即使复用了目录、对象和修订号也不能被删除或写入。提交完成后的取消保留真实 Applied 回复，不把已发生的事务伪装为取消。
+
+Shell 增加类型化关键帧动作和独立状态消息，共用已有播放停止、工程切换、关闭与异步动作调度。按 Domain 区分完成结果，只有图层粘贴读取 edit_result.objects 更新图层选区；关键帧粘贴保留所选图层。本阶段尚未由键盘或菜单发出该动作，不据此宣称编辑器选区或最终 UI 已经接通。
+
+| ID | 分类 | 本阶段处置与边界 |
+| --- | --- | --- |
+| KB-01 | 新功能/协议边界 | typed 读取/提交、大载荷、独立缓存和原子事务；替代 KC-05 中对应的待完成项。 |
+| KB-02 | 新增信道覆盖 | 新回复类型加入当前命令的 Engine panic 回复匹配；排队请求在工作线程退出后仍沿用断链协议，由现有 poll_reply 附带原始故障，未改成新协议。模型产生的对象/通道/phase 错误仍经既有 Error 文件及 stderr 输出。实际故障注入在 TestPanic，未冒称直接向关键帧 capture 内部注入 panic。 |
+| KB-03 | 已有观察覆盖 | 新命令复用非 Present 的 Info 开始、在途发布、完成计时与终止边界；不新增线程、重试、计数器、每帧 IO 或 Present 日志。受控阻塞使用已有 TestWait 验证公共调度器，不能冒称关键帧计算本身的可注入阻塞。 |
+| KB-04 | 正常分支 | 空缓存、空选区、已有待处理操作、取消和 Stamp 过期为正常不提交；失败复制保留旧缓存。取消之后已提交的事务仍报告成功。 |
+| KB-05 | 待完成 | 各属性编辑器的真实关键帧选区、快捷键和菜单路由、主窗/浮窗及 UI 截图；图层 UI 仍保持原入口，不让未接通的属性动作回退为图层操作。 |
+| KB-06 | 待完成 | 文本和路径独立剪贴板、完整 OS 输入、当前主线组合、可运行打包程序和 CI；#204 仍开放。 |
+
+没有新增依赖、资产或工程格式/渲染语义；没有修改控件绘制、布局或样式 token。DESIGN §0.7 的十二项沿用前述逐项保留处置，理由是此阶段只涉及桥接、内部动作和回归测试。状态消息只经内部动作验证，未新增实际 UI 截图，也不冒称完成界面验收。
+
+### 桌面桥接阶段的验证记录
+
+首轮 `keyframe-clipboard-bridge-first-tests.log` 保留新夹具把帧写为 i64、而 Track 实际要求 i32 的编译错误；改正夹具的显式受检转换，没有改生产类型、断言或增加忽略。后续实际结果补记于此。
+
+第二轮 `keyframe-clipboard-bridge-second-tests.log` 实际执行 28 项，26 通过、2 失败。新测试中的 4,000 个简化关键帧未达到 JSON 请求上限，扩为 6,000 个并继续严格断言实际字节数大于 REQUEST_LIMIT，未调小产品上限。另一个新测试错误地直接等待终止后排队请求的原始 Receiver；生产协议本来通过 poll_reply 处理断链。改为调用真实 poll_reply，并精确断言返回值等于带操作上下文的完整主错误，没有修改 Engine 退出协议、清空原始原因或把错误改成成功。该失败的子进程原始 file/stderr/stdout 保留于 `keyframe-clipboard-bridge-default-channel/`。
+
+最终 `keyframe-clipboard-bridge-third-tests.log` 使用 `cargo test -p motion-desktop --features ffmpeg --bin motion-studio layer_clipboard:: -- --test-threads=1 --skip native`，实际 28 项全部通过、0 失败、0 忽略，955 项未执行。包含既有 19 项、新增桥接 7 项和 Shell 2 项；不重复累计既有项，不宣称全桌面套件通过。编译用时 1 分 11 秒，测试用时 58.08 秒，保留 22 项既有测试警告。核心代码自前阶段 67 项通过后未修改。
+
+新增桥接验证覆盖：6,000 键载荷实际超过普通 JSON 限制且 typed 粘贴/一次撤销/重做/完整 storage 保存重开成功；两种缓存互不覆盖并共享忙碌屏障；源改变后的旧剪切不删除但可继续粘贴缓存；读取取消等待回复、队列提交取消不修改、迟到取消保留 Applied；源 Engine 退出后仍可跨工程粘贴；同目录同修订号的新文档代次拒绝旧 cut/paste。Shell 在中英文均保留目标图层选区，验证局部帧转换、剪切一次撤销和现有动作屏障的取消/过期行为。
+
+新增默认级别子进程原件为 `keyframe-clipboard-bridge-default-channel-verified/`，保存文件日志、stderr 与 stdout。真实 typed 读取不存在对象及 typed 提交目标占用均记录 request/operation、phase/object/channel 和原始原因。TestWait 阻塞时可读取在途状态和已落盘的 Info 开始信号；引擎注入终止后，排队读取经真实 poll_reply 返回带操作上下文的完整原始 panic/恢复信息。三种错误均进入文件与 stderr，未泄漏到 stdout；Info start 仅入文件。没有给关键帧 capture 加等待钩子或重启恢复策略。
+
+最终桌面测试文件 `E:/Dev/aem/target/host-error-contract-verified/debug/deps/motion_studio-083034f6d6ffe3a9.exe` 的本阶段 SHA-256 为 `e2410353a32916c79b3fa1be7a50ef7b1388282854a739fbf4076d4e0fee90a5`；同一路径之前的阶段 hash 属于之前构建，不作为当前文件的身份。此后未修改生产代码。新模块与本阶段整理模块定向 rustfmt 检查、`git diff --check`、`verify_style_consumers()` 通过。无新 UI 入口、截图或 CI 完成声明，未关闭 #204。

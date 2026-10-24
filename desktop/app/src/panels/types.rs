@@ -26,6 +26,11 @@ pub enum Action {
     ImportPath(std::path::PathBuf),
     CancelImport,
     LayerClipboard(crate::layer_clipboard::controller::Intent),
+    KeyframeClipboard {
+        intent: crate::layer_clipboard::controller::Intent,
+        selections: Vec<motion_core::KeyframeSelection>,
+        targets: Vec<motion_core::KeyframeTarget>,
+    },
     CancelLayerClipboard,
     AnalyzeAudio(u64),
     CancelAudioAnalysis,

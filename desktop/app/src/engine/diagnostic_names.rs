@@ -4,6 +4,7 @@ impl Command {
         use Command::*;
         match self {
             ClipboardRead { .. } => "clipboard_read",
+            KeyframeClipboardRead { .. } => "keyframe_clipboard_read",
             ClipboardCommit { .. } => "clipboard_commit",
             #[cfg(test)]
             TestPanic { .. } => "test_panic",

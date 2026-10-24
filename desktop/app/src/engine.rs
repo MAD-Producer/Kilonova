@@ -133,6 +133,7 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
     ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, String>> },
+    KeyframeClipboardRead { selections: Vec<motion_core::KeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, String>> },
     ClipboardCommit { edit: crate::layer_clipboard::Edit, reply: Sender<Result<Value, String>> },
     #[cfg(test)]
     TestPanic {
@@ -377,6 +378,7 @@ impl Command {
         use Command::*;
         let reply = match self {
             ClipboardRead { reply, .. } => ErrorReply::Clipboard(reply.clone()),
+            KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
             NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
@@ -1480,6 +1482,7 @@ fn handle(
             panic!("injected panic with unavailable recovery directory");
         })),
         Command::ClipboardRead { objects, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read(s, objects))),
+        Command::KeyframeClipboardRead { selections, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read_keyframes(s, selections))),
         Command::ClipboardCommit { edit, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::commit(s, edit))),
         Command::ProjectTicket(reply) => respond(reply, guard.ticket(id)),
         Command::ChangeProject { target, ticket, save, reply } => respond(reply, (|| {

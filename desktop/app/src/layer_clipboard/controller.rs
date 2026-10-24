@@ -3,7 +3,7 @@
 //! pending slot until its worker replies, including an IO call that blocks.
 use super::{
     worker::{Job, Output, Work},
-    Edit, Frozen, Read,
+    Edit, Frozen, KeyframeRead, Read,
 };
 use crate::engine::{Command, Engine};
 use serde_json::Value;
@@ -29,18 +29,29 @@ pub(crate) enum Status {
     Cancelled,
     Superseded,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Domain {
+    Layers,
+    Keyframes,
+}
 pub(crate) struct Completion {
+    pub domain: Domain,
     pub intent: Intent,
     pub status: Status,
     pub state: Option<Value>,
 }
 enum Stage {
     Reading(Receiver<Result<Read, String>>, PathBuf),
+    ReadingKeyframes(
+        Receiver<Result<KeyframeRead, String>>,
+        Vec<motion_core::KeyframeTarget>,
+    ),
     Working(Job, Option<u32>),
     Ready(Edit),
     Committing(Receiver<Result<Value, String>>),
 }
 struct Pending {
+    domain: Domain,
     intent: Intent,
     cancel: Arc<AtomicBool>,
     stage: Stage,
@@ -48,6 +59,7 @@ struct Pending {
 #[derive(Default)]
 pub(crate) struct Clipboard {
     frozen: Option<Arc<Frozen>>,
+    keyframes: Option<Arc<motion_core::KeyframeClipboard>>,
     pending: Option<Pending>,
 }
 impl Drop for Clipboard {
@@ -58,6 +70,9 @@ impl Drop for Clipboard {
 impl Clipboard {
     pub(crate) fn available(&self) -> bool {
         self.frozen.is_some()
+    }
+    pub(crate) fn keyframes_available(&self) -> bool {
+        self.keyframes.is_some()
     }
     pub(crate) fn busy(&self) -> bool {
         self.pending.is_some()
@@ -73,7 +88,7 @@ impl Clipboard {
                 return "cancelling";
             }
             match &pending.stage {
-                Stage::Reading(..) => "reading",
+                Stage::Reading(..) | Stage::ReadingKeyframes(..) => "reading",
                 Stage::Working(job, _) => job.status().1,
                 Stage::Ready(_) => "ready",
                 Stage::Committing(_) => "committing",
@@ -107,9 +122,43 @@ impl Clipboard {
         };
         let receive = engine.request(|reply| Command::ClipboardRead { objects, reply })?;
         self.pending = Some(Pending {
+            domain: Domain::Layers,
             intent,
             cancel: Arc::new(AtomicBool::new(false)),
             stage: Stage::Reading(receive, cache),
+        });
+        Ok(true)
+    }
+    /// Property selection is resolved by its owning editor. An empty/stale
+    /// selection never falls back to copying layers. Both caches share the same
+    /// pending slot, cancellation and shell commit barrier.
+    pub(crate) fn start_keyframes(
+        &mut self,
+        engine: &Engine,
+        intent: Intent,
+        selections: Vec<motion_core::KeyframeSelection>,
+        targets: Vec<motion_core::KeyframeTarget>,
+    ) -> Result<bool, String> {
+        if self.busy()
+            || match intent {
+                Intent::Copy | Intent::Cut => selections.is_empty(),
+                Intent::Paste { .. } => !self.keyframes_available() || targets.is_empty(),
+            }
+        {
+            return Ok(false);
+        }
+        let selections = if matches!(intent, Intent::Paste { .. }) {
+            vec![]
+        } else {
+            selections
+        };
+        let receive =
+            engine.request(|reply| Command::KeyframeClipboardRead { selections, reply })?;
+        self.pending = Some(Pending {
+            domain: Domain::Keyframes,
+            intent,
+            cancel: Arc::new(AtomicBool::new(false)),
+            stage: Stage::ReadingKeyframes(receive, targets),
         });
         Ok(true)
     }
@@ -122,20 +171,71 @@ impl Clipboard {
         allow_commit: bool,
     ) -> Option<Result<Completion, String>> {
         let pending = self.pending.take()?;
+        let domain = pending.domain;
         let intent = pending.intent;
         let cancel = pending.cancel;
         let cancelled = || cancel.load(Ordering::Acquire);
         let done = |status, state| {
             Some(Ok(Completion {
+                domain,
                 intent,
                 status,
                 state,
             }))
         };
         let stage = match pending.stage {
+            Stage::ReadingKeyframes(receive, targets) => {
+                let Some(result) = engine.poll_reply(&receive, "keyframe_clipboard_read") else {
+                    self.pending = Some(Pending {
+                        domain,
+                        intent,
+                        cancel,
+                        stage: Stage::ReadingKeyframes(receive, targets),
+                    });
+                    return None;
+                };
+                let source = match result {
+                    Ok(source) => source,
+                    Err(error) => return Some(Err(error)),
+                };
+                if cancelled() {
+                    return done(Status::Cancelled, None);
+                }
+                match intent {
+                    Intent::Copy | Intent::Cut => {
+                        let Some(clipboard) = source.clipboard else {
+                            log::error!("keyframe clipboard capture failed phase=reading reason=engine returned no keys");
+                            return Some(Err("keyframe clipboard capture returned no keys".into()));
+                        };
+                        self.keyframes = Some(clipboard.clone());
+                        if intent == Intent::Copy {
+                            return done(Status::Copied, None);
+                        }
+                        Stage::Ready(Edit::CutKeyframes {
+                            stamp: source.stamp,
+                            clipboard,
+                            cancel: cancel.clone(),
+                        })
+                    }
+                    Intent::Paste { in_place } => {
+                        let Some(clipboard) = self.keyframes.clone() else {
+                            log::error!("keyframe clipboard paste failed phase=reading reason=application cache lost during pending paste");
+                            return Some(Err("keyframe clipboard cache lost during paste".into()));
+                        };
+                        Stage::Ready(Edit::PasteKeyframes {
+                            stamp: source.stamp,
+                            clipboard,
+                            targets,
+                            at_frame: (!in_place).then_some(source.frame),
+                            cancel: cancel.clone(),
+                        })
+                    }
+                }
+            }
             Stage::Reading(receive, cache) => {
                 let Some(result) = engine.poll_reply(&receive, "clipboard_read") else {
                     self.pending = Some(Pending {
+                        domain,
                         intent,
                         cancel,
                         stage: Stage::Reading(receive, cache),
@@ -175,6 +275,7 @@ impl Clipboard {
                 // Keep one cancellation flag across worker and engine phases.
                 let cancel = job.cancel.clone();
                 self.pending = Some(Pending {
+                    domain,
                     intent,
                     cancel,
                     stage: Stage::Working(job, at_frame),
@@ -184,6 +285,7 @@ impl Clipboard {
             Stage::Working(mut job, at_frame) => {
                 let Some(result) = job.poll() else {
                     self.pending = Some(Pending {
+                        domain,
                         intent,
                         cancel,
                         stage: Stage::Working(job, at_frame),
@@ -236,6 +338,7 @@ impl Clipboard {
             Stage::Committing(receive) => {
                 let Some(result) = engine.poll_reply(&receive, "clipboard_commit") else {
                     self.pending = Some(Pending {
+                        domain,
                         intent,
                         cancel,
                         stage: Stage::Committing(receive),
@@ -259,6 +362,7 @@ impl Clipboard {
             }
         };
         self.pending = Some(Pending {
+            domain,
             intent,
             cancel,
             stage,

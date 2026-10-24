@@ -2,6 +2,7 @@
 //! File IO runs on the clipboard worker; only the final transaction owns the
 //! session. A submitted paste also transfers ownership of staged files to it.
 mod storage;
+mod keyframes;
 pub(crate) mod controller;
 #[cfg(test)]
 mod tests;
@@ -18,6 +19,7 @@ use std::{
     },
 };
 pub(crate) use storage::{Frozen, Prepared};
+pub(crate) use keyframes::{read_keyframes, KeyframeRead};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Stamp {
@@ -65,6 +67,18 @@ pub(crate) fn read(session: &Session, objects: Vec<u64>) -> motion_host::Result<
 }
 
 pub(crate) enum Edit {
+    CutKeyframes {
+        stamp: Stamp,
+        clipboard: Arc<motion_core::KeyframeClipboard>,
+        cancel: Arc<AtomicBool>,
+    },
+    PasteKeyframes {
+        stamp: Stamp,
+        clipboard: Arc<motion_core::KeyframeClipboard>,
+        targets: Vec<motion_core::KeyframeTarget>,
+        at_frame: Option<u32>,
+        cancel: Arc<AtomicBool>,
+    },
     Cut {
         stamp: Stamp,
         objects: Vec<u64>,
@@ -79,6 +93,8 @@ pub(crate) enum Edit {
 }
 pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<Value> {
     let (stamp, cancel) = match &edit {
+        Edit::CutKeyframes { stamp, cancel, .. }
+        | Edit::PasteKeyframes { stamp, cancel, .. } => (stamp, cancel),
         Edit::Cut { stamp, cancel, .. } => (stamp, cancel),
         Edit::Paste {
             prepared, cancel, ..
@@ -86,7 +102,7 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
     };
     if cancel.load(Ordering::Acquire) || stamp != &Stamp::of(session) {
         log::debug!(
-            "layer clipboard commit superseded: generation={} revision={} composition={}",
+            "editor clipboard commit superseded: generation={} revision={} composition={}",
             stamp.generation,
             stamp.revision,
             stamp.composition
@@ -94,6 +110,12 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
         return Ok(serde_json::json!({"clipboard_status":"superseded"}));
     }
     let result = match edit {
+        Edit::CutKeyframes { clipboard, .. } => session.apply_command_batch(vec![
+            motion_core::Command::RemoveKeyframes { clipboard: Box::new((*clipboard).clone()) },
+        ]),
+        Edit::PasteKeyframes { clipboard, targets, at_frame, .. } => session.apply_command_batch(vec![
+            motion_core::Command::PasteKeyframes { clipboard: Box::new((*clipboard).clone()), targets, at_frame },
+        ]),
         Edit::Cut { objects, frame, .. } => {
             session.apply_command_batch(vec![motion_core::Command::RemoveLayers { objects, frame }])
         }

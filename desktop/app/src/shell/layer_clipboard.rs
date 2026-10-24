@@ -1,11 +1,40 @@
 use crate::{
-    layer_clipboard::controller::{Intent, Status},
+    layer_clipboard::controller::{Domain, Intent, Status},
     Shell,
 };
 #[cfg(test)]
 mod tests;
 
 impl Shell {
+    pub(crate) fn request_keyframe_clipboard(
+        &mut self,
+        intent: Intent,
+        selections: Vec<motion_core::KeyframeSelection>,
+        targets: Vec<motion_core::KeyframeTarget>,
+    ) -> Result<(), String> {
+        if self.project_modal() || self.closing {
+            return Ok(());
+        }
+        if self
+            .layer_clipboard
+            .start_keyframes(&self.engine, intent, selections, targets)?
+        {
+            if intent != Intent::Copy {
+                self.stop();
+            }
+            self.panels.message = Some(
+                if self.workspace.locale == crate::i18n::Locale::Zh {
+                    "正在准备关键帧剪贴板…"
+                } else {
+                    "Preparing keyframe clipboard…"
+                }
+                .into(),
+            );
+            self.dirty = true;
+        }
+        Ok(())
+    }
+
     pub(crate) fn request_layer_clipboard(&mut self, intent: Intent) -> Result<(), String> {
         if self.project_modal() || self.closing {
             return Ok(());
@@ -66,7 +95,9 @@ impl Shell {
             Ok(completed) => {
                 if let Some(state) = completed.state {
                     self.panels.normalize_selection(&state);
-                    if matches!(completed.intent, Intent::Paste { .. }) {
+                    if completed.domain == Domain::Layers
+                        && matches!(completed.intent, Intent::Paste { .. })
+                    {
                         let objects: Vec<_> = state["edit_result"]["objects"]
                             .as_array()
                             .into_iter()
@@ -81,21 +112,39 @@ impl Shell {
                 self.panels.message = Some(
                     match completed.status {
                         Status::Copied => {
-                            if zh {
+                            if completed.domain == Domain::Keyframes {
+                                if zh {
+                                    "已复制关键帧"
+                                } else {
+                                    "Keyframes copied"
+                                }
+                            } else if zh {
                                 "已复制图层"
                             } else {
                                 "Layers copied"
                             }
                         }
                         Status::Applied if completed.intent == Intent::Cut => {
-                            if zh {
+                            if completed.domain == Domain::Keyframes {
+                                if zh {
+                                    "已剪切关键帧"
+                                } else {
+                                    "Keyframes cut"
+                                }
+                            } else if zh {
                                 "已剪切图层"
                             } else {
                                 "Layers cut"
                             }
                         }
                         Status::Applied => {
-                            if zh {
+                            if completed.domain == Domain::Keyframes {
+                                if zh {
+                                    "已粘贴关键帧"
+                                } else {
+                                    "Keyframes pasted"
+                                }
+                            } else if zh {
                                 "已粘贴图层"
                             } else {
                                 "Layers pasted"

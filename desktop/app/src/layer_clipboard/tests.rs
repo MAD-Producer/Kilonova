@@ -6,6 +6,7 @@ use std::{
 };
 use worker::{Job, Output, Work};
 mod keyframes;
+mod keyframe_bridge;
 
 fn project(root: &Path, images: u64) -> motion_core::Project {
     let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();
