@@ -6,7 +6,7 @@ mod command_registry;
 pub use command_registry::CommandRegistry;
 mod editor;
 mod layer_clipboard;
-pub use motion_model::LayerClipboard;
+pub use motion_model::{serialized_bytes, LayerClipboard};
 mod history_accounting;
 mod expressions;
 mod hierarchy;

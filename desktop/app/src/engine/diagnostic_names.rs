@@ -3,6 +3,8 @@ impl Command {
     pub(super) fn diagnostic_name(&self) -> &'static str {
         use Command::*;
         match self {
+            ClipboardRead { .. } => "clipboard_read",
+            ClipboardCommit { .. } => "clipboard_commit",
             #[cfg(test)]
             TestPanic { .. } => "test_panic",
             #[cfg(test)]

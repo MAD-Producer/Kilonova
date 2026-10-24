@@ -17,6 +17,7 @@ mod node_examples;
 mod node_preview;
 mod node_tasks;
 mod owned_file;
+mod layer_clipboard;
 mod panels;
 mod project_lifecycle;
 mod shell;
