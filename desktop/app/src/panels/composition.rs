@@ -79,6 +79,12 @@ pub(super) fn render(
         return;
     }
     panels.composition.mapping_failures = 0;
+    // A new pointer-down supersedes a lost release before footer controls can
+    // change the view or enqueue another navigation operation.
+    if panels.tools.editing() && input.pressed.is_some() {
+        panels.tools.cancel();
+        super::tools::camera::flush(panels,out);
+    }
     let center = [(v.min[0] + v.max[0]) * 0.5, (v.min[1] + v.max[1]) * 0.5];
     let observing = state["observing"].as_bool().unwrap_or(false);
     let cancel_navigation = input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape);
@@ -106,7 +112,7 @@ pub(super) fn render(
                 panels.composition.pan = None;
             }
         }
-        if input.wheel[1] != 0. && v.contains(input.mouse) && panels.composition.pan.is_none() {
+        if input.wheel[1] != 0. && v.contains(input.mouse) && panels.composition.pan.is_none() && !panels.tools.editing() {
             if let Some(mapping) = panels.composition.navigation.mapping(v, canvas) {
                 let ratio = if input.wheel[1] > 0. { 1.1 } else { 1. / 1.1 };
                 if observing && input.modifiers.alt {

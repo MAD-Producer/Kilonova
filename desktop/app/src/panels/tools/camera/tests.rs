@@ -121,6 +121,10 @@ fn camera_cycles_respect_view_capability_and_preserve_ime_and_document_shortcuts
         for tool in tools {
             assert!(route(&mut p, &state, key(Key::C)).is_empty());
             assert_eq!(active(&p), tool);
+            assert!(
+                route(&mut p, &state, key(Key::Right)).is_empty(),
+                "observation tools cannot nudge authored layers"
+            );
             assert!(hint(tool, &p).contains("C"));
             let mut ime = key(Key::C);
             ime.composing = true;

@@ -84,6 +84,8 @@ pub enum Action {
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
+    /// Atomic observer-only gesture, independent of authored camera history.
+    CameraGesture(motion_host::ops::preview::CameraGesture),
     /// Zoom the observation camera around its target.
     ViewZoom {
         ratio: f64,

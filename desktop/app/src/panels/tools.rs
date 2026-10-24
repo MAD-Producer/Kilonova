@@ -440,6 +440,7 @@ pub(crate) fn nudge(
     input: &Input,
     out: &mut Vec<Action>,
 ) -> bool {
+    if camera::is_tool(active(panels)) {return false;}
     let mut delta = [0.; 2];
     let mut pressed = false;
     for (key, m, _) in input.key_presses() {
