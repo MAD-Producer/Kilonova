@@ -20,7 +20,9 @@ fn text_active(panels: &Panels) -> bool {
         || matches!(panels.focused, Some(Panel::Effects | Panel::Expression))
 }
 
-fn editor_active(panels: &Panels) -> bool {
+fn editor_active(panels: &Panels) -> bool { editor_active_for(panels, true) }
+
+fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()
         || panels.timeline_columns.editing()
@@ -45,7 +47,9 @@ fn editor_active(panels: &Panels) -> bool {
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()
         || panels.audio_controls.editing()
-        || panels.path_controls.wants_keyboard()
+        || panels.path_controls.editing()
+        || path_focus && panels.path_controls.wants_keyboard()
+        || panels.tools.editing()
         || panels.node_editor.text_editing()
 }
 
@@ -56,7 +60,6 @@ pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
         || panels.transform_controls.gesture_active()
         || panels.timeline.reorder.is_some()
         || panels.composition.pan.is_some()
-        || panels.composition.orbit.is_some()
         || panels.parent_controls.open
         || panels.node_editor.editing()
         || panels.node_editor.popup_open()
@@ -171,6 +174,23 @@ fn route_inner(
     {
         out.push(Action::ReloadStyle);
         return true;
+    }
+    // Viewer tool keys precede the path canvas's passive keyboard ownership, but
+    // defer to actual drafts, numeric editors, menus, IME and pointer gestures.
+    if !node_context && !input.focus_lost && !input.composing && !input.ime_consumed
+        && !editor_active_for(panels, false) && !panels.transform_controls.gesture_active()
+        && matches!(panels.focused, Some(Panel::Composition | Panel::Vector | Panel::Masks))
+    {
+        if super::tools::nudge(panels,state,input,out) {return true;}
+        for (key, modifiers, repeat) in input.key_presses() {
+            if key == Key::Escape && !modifiers.control && !modifiers.alt && !repeat {
+                super::tools::choose(panels, super::tools::Active::Select, state, out);
+                return true;
+            }
+            if let Some(command) = panels.shortcut_bindings.resolve(Scope::Viewer, key, modifiers, repeat) {
+                if super::tools::command(panels, command, state, out) { return true; }
+            }
+        }
     }
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
@@ -395,6 +415,7 @@ fn handle_context_shortcuts(
                 panels.message = Some(panels.locale.t(Text::ExportUnavailable).into());
                 continue;
             }
+            Command::Undo | Command::Redo if super::tools::camera::history(panels, command, out) => continue,
             Command::Undo => Action::History(0),
             Command::Redo => Action::History(1),
             Command::Play => Action::TogglePlay,

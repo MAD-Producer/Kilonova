@@ -392,6 +392,55 @@ impl Controls {
             || self.point_selection.begun()
             || self.parameter.as_ref().is_some_and(|p| p.begun)
     }
+    pub(crate) fn nudge(
+        &mut self,
+        state: &Value,
+        selected: Option<u64>,
+        delta: [f32; 2],
+    ) -> Option<motion_core::Result<Vec<Command>>> {
+        if self.point_selection.points.is_empty() || self.tool == Tool::Select {
+            return None;
+        }
+        Some((|| {
+            let object = selected
+                .ok_or_else(|| motion_core::Error::Invalid("path nudge layer missing".into()))?;
+            let layer = layer(state, object)
+                .ok_or_else(|| motion_core::Error::Invalid("path nudge source missing".into()))?;
+            if layer.locked {
+                return Ok(vec![]);
+            }
+            let [w, h] = composition_size(state);
+            let base =
+                layer_projection(state, object, Rect::new(0., 0., w, h)).ok_or_else(|| {
+                    motion_core::Error::Invalid("path nudge projection unavailable".into())
+                })?;
+            let paths = if self.tool == Tool::Mask {
+                state["mask_layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|v| v["id"].as_u64() == Some(object))
+                    .and_then(|v| v["masks"].as_array())
+                    .into_iter()
+                    .flatten()
+                    .map(|m| {
+                        let mut p = m["path"].clone();
+                        p["mask"] = m["id"].clone();
+                        p
+                    })
+                    .collect()
+            } else {
+                source_geometry::paths(&layer, state["frame"].as_f64().unwrap_or(0.))?
+            };
+            self.point_selection.nudge(
+                &layer,
+                &paths,
+                &base,
+                state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                delta,
+            )
+        })())
+    }
     pub fn wants_keyboard(&self) -> bool {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }

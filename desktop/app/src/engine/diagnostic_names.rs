@@ -43,6 +43,7 @@ impl Command {
             Seek { .. } => "seek",
             View { .. } => "view",
             Observe { .. } => "observe",
+            CameraGesture { .. } => "camera_gesture",
             Navigate { .. } => "navigate",
             Render { .. } => "render",
             ConfigureMemory { .. } => "configure_memory",

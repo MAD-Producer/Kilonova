@@ -1,6 +1,6 @@
 # 时间轴隐藏标记与列表筛选验收
 
-关联 #256。分支 `feat/timeline-shy-layers` 基于 `97842545`，检查开放 PR 和本地分支后未发现重复实现。其他线程正在处理节点绘制查找和图形裁剪，本分支未接管这些工作。
+关联 #256。分支 `feat/timeline-shy-layers` 最初基于 `97842545`，随后整合已验收主线 `ec52fcf2`（工具状态与观察摄影机 #472 已合入）。检查开放 PR 和本地分支后未发现重复实现；其他线程的节点绘制查找和图形裁剪工作未被本分支接管。
 
 ## 实际行为
 
@@ -20,9 +20,11 @@ Windows，本地共享目标目录 `E:/Dev/aem/target/host-error-contract-verifi
 | Shy 桌面专项，包含实际原生窗口和 GPU | 4 通过 | `shy-complete-desktop.log` |
 | 键盘、图层导航、选择、列布局、3D、图层采样、时间轴快捷键与行计划、工作区 | 137 通过，2 个原有 GPU 忽略 | `shy-complete-*.log`（不重复统计专项） |
 
-共 188 项通过。原有断言未删除、降级或增加忽略。全平台完整 CI 独立运行，不用本地专项代替跨平台验收。
+上表为整合前首轮 188 项通过的原始记录。整合主线 `ec52fcf2` 后，重新执行桌面上述全部组，并追加工具/观察摄影机 19、快捷键绑定 7、工具条样式 9、节点剪贴板 10 项：最终桌面 186 项通过，2 个原有忽略，日志为 `shy-integrated-desktop.log` 与 `shy-integrated-*.log`。本次整合未改变 core/model 源码，沿用同一源码的核心 47 项验证，合计 **233 项通过**。原有断言未删除、降级或增加忽略。
 
-FFmpeg debug 产品编译通过（`shy-product-build.log`）。可运行目录 `E:/Dev/aem/artifacts/desktop-shy-layers-preview`，PE x64 结构、固定运行库清单及 12 个 DLL/许可证文件哈希验证通过；清除 FFmpeg 环境变量、PATH 仅保留 System32 后，`--command-list` 正常返回 56 项命令、退出码 0、stderr 0 字节。程序 SHA-256 为 `d46e53446baa95f69b554fec8cb6f2f57eeb209f4239700233f0c9ca081635d7`，完整证据见 `shy-package-evidence.json`。这是本地 debug 开发构建，不是远端 release 验收；基于 main，不包含仍在 CI 中的 #472 工具/观察摄影机功能。
+PR #477 初版提交 `01f7f7b9` 的依赖审计、Rust/GPU、Linux、Windows 和 macOS Intel 桌面 CI 全部通过（run `40062541234`）。同步主线后的新提交需重新通过 CI；不把旧提交的绿色状态当作新提交的验证。
+
+整合后的 FFmpeg debug 产品编译通过（`shy-integrated-product-build.log`）。可运行目录 `E:/Dev/aem/artifacts/desktop-shy-layers-preview`，PE x64 结构、固定运行库清单及 12 个 DLL/许可证文件哈希验证通过；清除 FFmpeg 环境变量、PATH 仅保留 System32 后，`--command-list` 正常返回 56 项命令、退出码 0、stderr 0 字节。当前程序 SHA-256 为 `eb8a88220695b07ec7b6a980001d27ed1caf8ec0ffa3dfcda2dcde36a5afed1d`，完整证据见 `shy-integrated-package-evidence.json`；已包含 #472 工具/观察摄影机功能。这是本地 debug 开发构建，不是远端 release 验收。初版构建与打包证据保留在 `shy-product-build.log`、`shy-package-evidence.json`，其中旧程序哈希仅表示当时构建。
 
 原生窗口专项通过生产 `chrome` / `floating_chrome` 输入入口和实际异步引擎执行点击，覆盖中文、英文，主窗 1600×1000 / 100%，浮窗逻辑 900×600 / 150%（1350×900 像素）。测试构造 HWND 并注入面板输入，未宣称覆盖人工鼠标、系统 IME 或真实跨显示器拖动。新功能没有修改右键菜单。
 

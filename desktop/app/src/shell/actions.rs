@@ -423,8 +423,15 @@ impl Shell {
                 )?;
                 self.panels.select_only(Some(id));
             }
-            Action::AddShape(shape) => {
+            action @ (Action::AddShape(_) | Action::PlaceShape { .. }) => {
                 self.stop();
+                let (shape, size, position) = match action {
+                    Action::PlaceShape { shape, size, position } => (shape, size, position),
+                    Action::AddShape(shape) => (shape, [320., 180.], [
+                        self.state["project"]["width"].as_f64().unwrap_or(1920.) as f32 / 2.,
+                        self.state["project"]["height"].as_f64().unwrap_or(1080.) as f32 / 2., 0.]),
+                    _ => return Err("shape action changed during dispatch".into()),
+                };
                 let id = workflow::next_layer_id(&self.state)?;
                 let name = if shape == motion_core::vector::ShapeKind::Rectangle {
                     T::NewRectangle
@@ -436,12 +443,8 @@ impl Shell {
                         id,
                         name: self.workspace.locale.t(name).into(),
                         shape,
-                        size: [320., 180.],
-                        position: [
-                            self.state["project"]["width"].as_f64().unwrap_or(1920.) as f32 / 2.,
-                            self.state["project"]["height"].as_f64().unwrap_or(1080.) as f32 / 2.,
-                            0.,
-                        ],
+                        size,
+                        position,
                     })
                     .map_err(|e| e.to_string())?,
                 )?;
@@ -622,12 +625,8 @@ impl Shell {
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));
             }
-            Action::ViewOrbit { delta } => {
-                self.editing = Some((
-                    Instant::now(),
-                    self.engine
-                        .observe_async(true, f64::from(delta[0]), f64::from(delta[1]))?,
-                ));
+            Action::CameraGesture(action) => {
+                self.editing = Some((Instant::now(), self.engine.camera_gesture_async(action)?));
             }
             Action::ViewZoom { ratio, size } => {
                 self.editing = Some((
@@ -748,7 +747,9 @@ impl Shell {
                 ));
             }
             Action::History(op) => {
-                if matches!(
+                if matches!(op,0|1) && panels::tools::camera::owns_history(&self.panels) {
+                    self.editing = Some((Instant::now(),self.engine.camera_gesture_async(if op==0 {motion_host::ops::preview::CameraGesture::Undo} else {motion_host::ops::preview::CameraGesture::Redo})?));
+                } else if matches!(
                     self.panels.focused,
                     Some(dock::Panel::Nodes | dock::Panel::NodeProperties)
                 ) && self.panels.node_editor.focused()

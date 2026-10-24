@@ -170,6 +170,30 @@ impl Selection {
         });
         Ok(())
     }
+    pub fn nudge(
+        &mut self,
+        layer: &Layer,
+        paths: &[Value],
+        base: &Projection,
+        frame: u32,
+        delta: [f32; 2],
+    ) -> motion_core::Result<Vec<Command>> {
+        self.start_move(paths, base, [0., 0.], [0., 0.], frame)?;
+        let moving = self.moving.take().ok_or_else(|| {
+            motion_core::Error::Invalid("path nudge selection unavailable".into())
+        })?;
+        let values: Vec<_> = moving
+            .seeds
+            .iter()
+            .map(|s| {
+                let mut g = s.geometry;
+                g[0] += delta[0];
+                g[1] += delta[1];
+                g
+            })
+            .collect();
+        move_commands(layer, &moving.seeds, &values, frame)
+    }
     pub fn report(&self, object: u64, phase: &str, error: &dyn std::fmt::Display) {
         if self.rejected.failure(
             "path.point_selection",
@@ -694,3 +718,7 @@ fn line_distance(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path="point_selection/nudge_tests.rs"]
+mod nudge_tests;

@@ -1,4 +1,6 @@
 use super::*;
+mod node_index;
+use node_index::NodeIndex;
 
 impl NodeEditor {
     pub(super) fn cards(&self, canvas: Rect) -> Vec<Card> {
@@ -159,6 +161,7 @@ impl NodeEditor {
                 paint::line(&mut canvas, curve(endpoint, b.point), rubber_color);
             }
         }
+        let mut nodes = NodeIndex::new(&self.document.nodes);
         for card in cards {
             if !intersects(card.rect, area)
                 || card
@@ -170,12 +173,7 @@ impl NodeEditor {
             {
                 continue;
             }
-            let node = self
-                .document
-                .nodes
-                .iter()
-                .find(|n| n.id == card.id)
-                .unwrap();
+            let node = nodes.find(&card.id).unwrap();
             let selected = self.selected.contains(&card.id);
             let previewing = self
                 .preview_target
