@@ -89,6 +89,8 @@
 | Animation | BracketRight | false | false | true | TrimOutToPlayhead | false |
 | Animation | F4 | false | false | false | ToggleCompositeColumns | false |
 | Animation | F4 | false | true | false | ToggleParentColumns | false |
+| Nodes | C | true | false | false | CopyNodes | false |
+| Nodes | V | true | false | false | PasteNodes | false |
 | Nodes | A | false | true | false | AddNode | false |
 | Nodes | A | true | false | false | SelectAll | false |
 | Nodes | A | true | true | false | DeselectAll | false |
@@ -105,6 +107,7 @@
 | Nodes | Z | true | true | false | Redo | false |
 | Nodes | D | true | false | false | Duplicate | false |
 | Nodes | X | false | false | false | Delete | false |
+| Nodes | X | true | false | false | CutNodes | false |
 | Nodes | Equal | false | true | false | Arrange | false |
 | Nodes | Tab | false | false | false | EnterGroup | false |
 | Nodes | Tab | true | false | false | LeaveGroup | false |
