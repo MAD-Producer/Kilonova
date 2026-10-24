@@ -23,6 +23,7 @@ pub(crate) use storage::{Frozen, Prepared};
 pub(crate) use keyframes::{read_keyframes, KeyframeRead, KeyframeSource};
 pub(crate) use keyframes::KeyframeSource as PathSource;
 pub(crate) use paths::{read_paths, PathRead};
+pub(crate) use paths::{edit_path, PathOperation};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Stamp {

@@ -16,6 +16,7 @@ pub mod keyframe_clipboard;
 pub mod path_clipboard;
 pub mod effects;
 pub mod expressions;
+pub mod path_conversion;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
@@ -125,6 +126,15 @@ pub enum Error {
         phase: &'static str,
         object: u64,
         path: u64,
+        #[source]
+        source: Box<Error>,
+    },
+    #[error("path edit operation={operation} object={object} path={path} node={node:?}: {source}")]
+    PathOperation {
+        operation: &'static str,
+        object: u64,
+        path: u64,
+        node: Option<u64>,
         #[source]
         source: Box<Error>,
     },

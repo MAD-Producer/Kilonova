@@ -26,6 +26,7 @@ mod mask_path;
 mod source_geometry;
 mod point_selection;
 mod clipboard;
+mod context_menu;
 mod pen_tools;
 #[cfg(test)]
 mod property_focus_tests;
@@ -224,6 +225,10 @@ struct Drag {
 }
 #[derive(Default)]
 pub struct Controls {
+    context_menu: Option<context_menu::Menu>,
+    context_owner: Option<motion_ui::dock::Panel>,
+    #[cfg(test)]
+    pub(crate) context_rows: Vec<(String, Rect, bool)>,
     geometry_failures: motion_render::observability::FailureCounter,
     pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
@@ -385,7 +390,8 @@ impl Controls {
             || self.keys.navigate(state, selected, input, out)
     }
     pub fn editing(&self) -> bool {
-        self.draft.is_some()
+        self.context_menu.is_some()
+            || self.draft.is_some()
             || self.drag.is_some()
             || self.point_selection.editing()
             || self.pen_tools.editing()
@@ -454,6 +460,7 @@ impl Controls {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }
     pub fn cancel(&mut self) -> bool {
+        self.context_menu = None;
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let points = self.point_selection.cancel();
         let param = self.parameter.take().is_some_and(|p| p.begun);
@@ -728,6 +735,9 @@ impl Controls {
             self.selected = None;
             self.selected_item = None;
         }
+        let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
+        let context_neutral = Input { mouse: input.mouse, ..Default::default() };
+        let input = if context_owned { &context_neutral } else { input };
         let pen_owned = self.pen_tool_input(clip, &sampled, projection.as_ref(), offset,
             target.as_ref(), state, selected, input, locale, out);
         if self.focus && self.parameter.is_none() && !input.composing {

@@ -869,6 +869,11 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.edit_async_at_revision(
                     serde_json::to_string(&command).map_err(|e| e.to_string())?, revision)?));
             }
+            Action::PathOperation { source, operation } => {
+                self.stop();
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::PathOperation { source, operation, reply })?));
+            }
         }
         self.dirty = true;
         Ok(())

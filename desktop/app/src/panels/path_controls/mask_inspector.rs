@@ -313,6 +313,11 @@ impl Controls {
             host,
         );
         if self.inspector_context.as_ref() != Some(&context) {
+            // A background inspector may catch up with a selection already
+            // made in the composition float. Its cache rebind must not cancel
+            // that window's current, document-checked path popup.
+            let path_menu = self.take_context_for_inspector(state, layer.id);
+            let path_focus = self.focus;
             let timeline_add = self
                 .timeline_add_mask_menu
                 .take()
@@ -320,6 +325,8 @@ impl Controls {
             if self.cancel() {
                 out.push(Action::History(4));
             }
+            if path_menu.is_some() { self.focus = path_focus; }
+            self.context_menu = path_menu;
             self.timeline_add_mask_menu = timeline_add;
             self.mode_dropdowns.clear();
             self.inspector_context = Some(context);

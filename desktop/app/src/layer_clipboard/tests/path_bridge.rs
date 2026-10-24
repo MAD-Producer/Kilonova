@@ -68,6 +68,84 @@ fn target() -> PathDestination {
         item: None,
     }
 }
+
+#[test]
+fn path_operations_reject_stale_documents_before_resolving_reused_ids_and_undo_once() {
+    use crate::layer_clipboard::PathOperation;
+    let root = tempfile::tempdir().unwrap();
+    document(root.path(), 4, 2);
+    let engine = super::engine(root.path());
+    let before = engine.state().unwrap();
+    for field in ["root", "composition", "document_generation", "revision"] {
+        let mut stale = before.clone();
+        stale[field] = if matches!(field, "root" | "composition") { "different".into() }
+            else { (before[field].as_u64().unwrap() + 1).into() };
+        let result = engine.call(|reply| Request::PathOperation {
+            source: PathSource::of(&stale), operation: PathOperation::FirstVertex {
+                target: selection()[0].target.clone(), path: 3, node: 12,
+            }, reply,
+        }).unwrap();
+        assert_eq!(result["path_operation_status"], "superseded");
+        assert_eq!(result["project"], before["project"]);
+        assert_eq!(result["revision"], before["revision"]);
+    }
+    let result = engine.call(|reply| Request::PathOperation {
+        source: PathSource::of(&before), operation: PathOperation::FirstVertex {
+            target: selection()[0].target.clone(), path: 3, node: 12,
+        }, reply,
+    }).unwrap();
+    assert_eq!(result["path_operation_status"], "applied");
+    assert_eq!(result["project"]["layers"][0]["content"]["vector"]["source"]["paths"][0]["nodes"][0]["id"], 12);
+    assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+}
+
+#[test]
+fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout() {
+    use crate::layer_clipboard::PathOperation;
+    const NAME: &str = "layer_clipboard::tests::path_bridge::path_operation_failures_publish_start_and_default_file_stderr_without_stdout";
+    const CHILD: &str = "MOTION_PATH_OPERATION_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        document(&root.join("project"), 4, 2);
+        let engine = super::engine(&root.join("project"));
+        let before = engine.state().unwrap();
+        for operation in [
+            PathOperation::FirstVertex { target: selection()[0].target.clone(), path: 3, node: 999 },
+            PathOperation::CopyAs { target: selection()[0].target.clone(), path: 999 },
+        ] {
+            let error = engine.call(|reply| Request::PathOperation { source: PathSource::of(&before), operation, reply }).unwrap_err();
+            assert!(error.contains("object=7") && error.contains("path="), "{error}");
+            assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        }
+        let restored = engine.call(|reply| Request::PathOperation { source: PathSource::of(&before),
+            operation: PathOperation::CopyAs { target: selection()[0].target.clone(), path: 3 }, reply }).unwrap();
+        assert_eq!(restored["path_operation_status"], "applied");
+        assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        drop(engine);
+        crate::logging::flush();
+        return;
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let root = std::env::var_os("MOTION_PATH_OPERATION_ARTIFACTS").map(PathBuf::from)
+        .unwrap_or_else(|| temporary.path().into());
+    fs::create_dir_all(&root).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME, "--nocapture", "--test-threads=1"]).env(CHILD, &root).env_remove("MOTION_LOG").output().unwrap();
+    fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+    fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let log = fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(log.contains("logging initialized level=INFO"));
+    assert!(log.lines().any(|l| l.contains(" INFO ") && l.contains("start #") && l.ends_with("path_operation")));
+    for reason in ["node=Some(999)", "operation=copy_as object=7 path=999"] {
+        assert!(log.lines().any(|l| l.contains(" ERROR ") && l.contains(reason)), "{reason}\n{log}");
+        assert!(stderr.contains(reason));
+        assert!(!stdout.contains(reason));
+    }
+}
 fn read(engine: &Engine, selections: Vec<PathSelection>) -> Result<PathRead, String> {
     engine.call(|reply| Request::PathClipboardRead {
         source: PathSource::of(&engine.state().unwrap()),

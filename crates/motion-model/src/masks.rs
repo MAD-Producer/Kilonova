@@ -212,6 +212,7 @@ pub enum MaskProperty {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MaskAction {
+    SetFirstVertex { mask: u64, path: u64, node: u64 },
     Add {
         mask: LayerMask,
     },
@@ -276,6 +277,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
     let id = match &action {
         MaskAction::Add { mask } | MaskAction::Replace { mask } => mask.id,
         MaskAction::Remove { mask }
+        | MaskAction::SetFirstVertex { mask, .. }
         | MaskAction::Options { mask, .. }
         | MaskAction::Path { mask, .. }
         | MaskAction::Set { mask, .. }
@@ -324,6 +326,11 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
             if let Some(enabled)=enabled {m.enabled=enabled;}
         }
         MaskAction::Path { path, .. } => masks[existing_index()?].path = path,
+        MaskAction::SetFirstVertex { path, node, .. } => {
+            let target = &mut masks[existing_index()?].path;
+            ensure(target.id == path, "first vertex mask path ID changed")?;
+            target.set_first_vertex(node)?;
+        }
         action => {
             let property = match &action {
                 MaskAction::Set { property, .. }

@@ -39,6 +39,10 @@ pub enum Action {
         target: motion_core::PathDestination,
     },
     CancelLayerClipboard,
+    PathOperation {
+        source: crate::layer_clipboard::PathSource,
+        operation: crate::layer_clipboard::PathOperation,
+    },
     AnalyzeAudio(u64),
     CancelAudioAnalysis,
     ExportPng,

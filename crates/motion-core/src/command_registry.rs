@@ -164,6 +164,7 @@ registry! {
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::PastePaths { .. } => "paste_paths" [("clipboard","PathClipboard",true), ("target","PathDestination",true), ("at_frame","Option<u32>",false)];
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
+    Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];

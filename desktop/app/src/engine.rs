@@ -184,6 +184,11 @@ pub enum Command {
         revision: u64,
         reply: Sender<Result<Value, String>>,
     },
+    PathOperation {
+        source: crate::layer_clipboard::PathSource,
+        operation: crate::layer_clipboard::PathOperation,
+        reply: Sender<Result<Value, String>>,
+    },
     CaptureUi {
         ui: UiFrame,
         path: PathBuf,
@@ -390,7 +395,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1569,6 +1574,8 @@ fn handle(
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
+        Command::PathOperation { source, operation, reply } => respond(reply,
+            motion_host::session::with_session(id, |s| crate::layer_clipboard::edit_path(s, source, operation))),
         Command::CaptureUi { ui, path, reply } => {
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {

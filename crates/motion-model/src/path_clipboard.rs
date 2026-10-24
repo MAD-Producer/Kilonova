@@ -35,7 +35,7 @@ impl PathTarget {
             "path clipboard requires nonzero source IDs",
         )
     }
-    fn read<'a>(&self, layer: &'a Layer, path: u64) -> Result<&'a VectorPath> {
+    pub(crate) fn read<'a>(&self, layer: &'a Layer, path: u64) -> Result<&'a VectorPath> {
         match self {
             Self::Vector { item, .. } => match &editing::vector(layer, *item)?.source {
                 VectorSource::Paths { paths } => {

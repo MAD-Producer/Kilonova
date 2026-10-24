@@ -356,8 +356,9 @@ pub fn chrome(
     panels.cursor = None;
     panels.drag_readout = None;
     let text_menu_owned = text_menu::prepare(panels, state, input, atlas);
+    let path_context_owned = panels.path_controls.prepare_context_menu(None, state, panels.selected, input);
     let text_menu_neutral = Input::default();
-    let editing_input = if text_menu_owned { &text_menu_neutral } else { input };
+    let editing_input = if text_menu_owned || path_context_owned { &text_menu_neutral } else { input };
     let toolbar_was_editing = panels.toolbar_style.editing();
     panels.toolbar_style.prepare(state, &panels.selection_ids(),
         panels.path_controls.tool == path_controls::Tool::Mask, editing_input, &mut out);
@@ -395,6 +396,7 @@ pub fn chrome(
             && !timeline_dropdown
             && !mask_header_modal
             && !layer_modal
+            && !path_context_owned
             && !panels.expressions.menu_open()
             && !toolbar_modal
             && panels.menu.is_none()
@@ -489,8 +491,8 @@ pub fn chrome(
         && panels.menu.is_none();
     let expression_modal = panels.expressions.menu_open();
     let shortcut_modal =
-        expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
-    let menu_modal = text_menu_owned || layer_modal
+        expression_modal || keyboard::route(if path_context_owned { &text_menu_neutral } else { input }, panels, state, node_keyboard, None, &mut out);
+    let menu_modal = path_context_owned || text_menu_owned || layer_modal
         || toolbar_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
@@ -747,7 +749,7 @@ pub fn chrome(
         atlas,
         size,
         panels,
-        if !text_menu_owned && (shortcut_modal || node_modal || toolbar_modal) {
+        if path_context_owned || !text_menu_owned && (shortcut_modal || node_modal || toolbar_modal) {
             &neutral
         } else {
             input
@@ -907,6 +909,8 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    panels.path_controls.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, input, panels.locale, panels.path_clipboard_available, panels.clipboard_busy, &mut out);
     if frames(layout, size)
         .iter()
         .any(|frame| frame.panel == Panel::Properties)
@@ -986,6 +990,7 @@ pub fn floating_chrome(
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
     tools::prepare(panels,Some(panel),input);
+    let path_context_owned = panels.path_controls.prepare_context_menu(Some(panel), state, panels.selected, input);
     let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
@@ -1048,6 +1053,7 @@ pub fn floating_chrome(
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = list.child();
     if !panels.effect_search_in(Some(panel))
+        && !path_context_owned
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -1064,7 +1070,7 @@ pub fn floating_chrome(
         panels.focused = Some(panel);
     }
     let shortcut_modal = keyboard::route(
-        if timeline_dropdown && !dropdown_owned {
+        if path_context_owned || timeline_dropdown && !dropdown_owned {
             &popup_neutral
         } else {
             input
@@ -1080,6 +1086,7 @@ pub fn floating_chrome(
     );
     let neutral = Input::default();
     let body_input = if panels.expressions.menu_open()
+        || path_context_owned
         || layer_modal
         || panels.layer_actions.modal_in(Some(panel))
         || shortcut_modal
@@ -1200,6 +1207,8 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    panels.path_controls.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, input, panels.locale, panels.path_clipboard_available, panels.clipboard_busy, &mut out);
     if panel == Panel::Properties {
         panels.properties.effects.finish_context_menu(
             list,

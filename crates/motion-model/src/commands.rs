@@ -217,6 +217,7 @@ pub enum Command {
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     PastePaths { clipboard: Box<crate::PathClipboard>, target: crate::PathDestination, at_frame: Option<u32> },
     RemovePaths { clipboard: Box<crate::PathClipboard> },
+    CopyPathAs { target: crate::PathTarget, path: u64 },
     Delete {
         object: u64,
     },
@@ -286,7 +287,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

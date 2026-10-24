@@ -247,5 +247,66 @@ fn native_path_clipboard_selects_authored_nodes_and_shares_menu_keyboard_across_
         );
         shell.state = shell.engine.history(0).unwrap();
         assert_eq!(shell.state["project"], before);
+        verify_path_context(&mut events, &mut shell, size, scale, window, &root, name);
     }
+}
+
+fn path_menu_choose(shell: &mut Shell, size: [f32; 2], window: u64, index: usize) {
+    let (_, rect, enabled) = shell.panels.path_controls.context_rows[index].clone();
+    assert!(enabled, "disabled path menu row {index}");
+    let actions = draw_paths(shell, size, window, click([(rect.min[0]+rect.max[0])*0.5, (rect.min[1]+rect.max[1])*0.5]));
+    assert!(matches!(actions.as_slice(), [Action::PathOperation { .. }]), "{actions:?}");
+    for action in actions { shell.action(action, None).unwrap(); }
+    let (_, reply) = shell.editing.take().unwrap();
+    shell.state = reply.recv_timeout(Duration::from_secs(30)).unwrap().unwrap();
+    assert_eq!(shell.state["path_operation_status"], "applied");
+}
+fn verify_path_context(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32; 2], scale: f32, window: u64, root: &std::path::Path, name: &str) {
+    shell.panels.select_only(Some(7));
+    let before = shell.state["project"].clone();
+    let mut actions = vec![];
+    shell.panels.path_controls.choose(Tool::Pen, &mut actions);
+    assert!(actions.is_empty());
+    assert!(draw_paths(shell, size, window, Input::default()).is_empty());
+    let styles = shell.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+    let view = if window == 0 { panels::composition_view_styled(shell.workspace.display_root(), size, &styles) }
+        else { panels::floating_view_styled(Panel::Composition, size, &styles).unwrap() };
+    let mapping = shell.panels.composition.navigation.mapping(view, [64.,64.]).unwrap();
+    let point = layer_projection(&shell.state, 7, mapping.image).unwrap().screen([12., 10.]).unwrap();
+    let right = || Input { mouse: point, pressed: Some((MouseButton::Right, point)), ..Default::default() };
+    assert!(draw_paths(shell, size, window, right()).is_empty());
+    // A repaint of the other native window must not dismiss or dispatch this menu.
+    assert!(draw_paths(shell, size, 1-window, Input::default()).is_empty());
+    capture_panel(events, shell, size, scale, window, root.join(format!("{name}-path-context.png")), Panel::Composition);
+    let expected = if shell.panels.locale == Locale::Zh { "复制为蒙版路径" } else { "Copy as Mask Path" };
+    assert_eq!(shell.panels.path_controls.context_rows[1].0, expected);
+    path_menu_choose(shell, size, window, 0);
+    assert_eq!(shell.state["project"]["layers"][0]["content"]["vector"]["source"]["paths"][0]["nodes"][0]["id"], 12);
+    shell.state = shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"], before);
+    assert!(draw_paths(shell, size, window, right()).is_empty());
+    path_menu_choose(shell, size, window, 1);
+    assert_eq!(shell.state["project"]["layers"][0]["content"], before["layers"][0]["content"]);
+    assert_eq!(shell.state["project"]["layers"][0]["masks"].as_array().unwrap().len(), 1);
+    let mask_project = shell.state["project"].clone();
+    shell.panels.path_controls.choose(Tool::Mask, &mut actions);
+    shell.panels.path_controls.mask = Some(1);
+    assert!(draw_paths(shell, size, window, Input::default()).is_empty());
+    assert!(draw_paths(shell, size, window, right()).is_empty());
+    capture_panel(events, shell, size, scale, window, root.join(format!("{name}-mask-context.png")), Panel::Composition);
+    let expected = if shell.panels.locale == Locale::Zh { "复制为形状路径" } else { "Copy as Shape Path" };
+    assert_eq!(shell.panels.path_controls.context_rows[1].0, expected);
+    path_menu_choose(shell, size, window, 1);
+    assert_eq!(shell.state["project"]["layers"][0], mask_project["layers"][0]);
+    assert_eq!(shell.state["project"]["layers"].as_array().unwrap().len(), 3);
+    let new_id = shell.state["project"]["layers"][1]["id"].as_u64().unwrap();
+    shell.panels.select_only(Some(new_id));
+    shell.panels.path_controls.choose(Tool::Pen, &mut actions);
+    capture_panel(events, shell, size, scale, window, root.join(format!("{name}-copied-shape.png")), Panel::Composition);
+    shell.engine.save().unwrap();
+    assert_eq!(serde_json::to_value(motion_core::storage::load(&root.join("project")).unwrap()).unwrap(), shell.state["project"]);
+    shell.state = shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"], mask_project);
+    shell.state = shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"], before);
 }
