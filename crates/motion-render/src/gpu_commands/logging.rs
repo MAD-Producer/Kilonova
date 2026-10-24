@@ -142,6 +142,7 @@ mod tests {
         };
         let records = CommandRecords::new().unwrap();
         let observer = GpuCommandObserver {
+            period_ns: 1.0, // Unit-only observer; no native queue is created here.
             records: records.clone(),
             readback: Arc::default(),
             states: vec![],

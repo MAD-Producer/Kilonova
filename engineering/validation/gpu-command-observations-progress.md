@@ -52,7 +52,22 @@ desktop native-sink target failed to compile: the desktop `gpu-tests` feature di
 not forward to the dependency, whose defaults are disabled. Its actual Cargo
 artifact reported no render features. The later source explicitly forwards
 `motion-render/gpu-tests`; no assertion, test selection or native callback result
-is changed to accept this failure. Native sink acceptance is still pending.
+is changed to accept this failure.
+
+Source `aa06d1dd` then passed the two real default-file/stderr sink cases
+(2/0/0), exact frame sequence cases (5/0/0), frame measurement cases (4/0/0)
+and actual worker/surface presentation case (1/0/0). The native sink evidence
+contains 130 actual invalid diagnostic readbacks, two valid native samples,
+64 recovery pixels and two separately suppressed/reset Error episodes. The
+presentation evidence joins four successful normal/exposure presentations to
+their exact encoder identities and original query words. Neither result claims
+a real hardware fault, scanout validation or steady-state performance.
+
+That same run stopped before render unit tests: adding the native queue period
+left a unit-only observer initializer incomplete (`E0063`). The later fix adds
+the unit conversion constant to that metadata/log-scope fixture without changing
+its assertions. The failed receipt remains retained; the successful desktop
+cases do not turn this incomplete run into full regression acceptance.
 
 The source-`11c342d3` full desktop run failed 877/1/3 in the existing composition
 bundle child test. The same unchanged executable passed a direct isolated child
