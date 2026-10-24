@@ -1,6 +1,8 @@
 //! Stateful edit widgets. They emit transactions; callers decide how values enter an engine.
 pub mod numeric_behavior;
 mod property_layout;
+mod text_history;
+mod text_input;
 pub use property_layout::PropertyColumns;
 mod composite;
 pub use composite::*;
@@ -27,6 +29,7 @@ pub struct TextEditor {
     /// Extended grapheme index, never a position inside a displayed character.
     cursor: usize,
     dirty: bool,
+    history: text_history::History,
 }
 impl TextEditor {
     pub fn active(&self) -> bool {
@@ -39,6 +42,7 @@ impl TextEditor {
         self.cursor = self.text.graphemes(true).count();
         self.error = None;
         self.dirty = false;
+        self.history = Default::default();
     }
     pub fn cancel(&mut self) {
         self.active = false;
@@ -64,12 +68,13 @@ impl TextEditor {
         if !self.active {
             return None;
         }
-        let before = self.text.clone();
+        let mut before = self.snapshot();
         if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             self.cancel();
             return Some(TextEvent::Cancel);
         }
-        for (key, mods, _) in input.key_presses() {
+        for (key, mods, repeat) in input.key_presses() {
+            if self.draft_key(input, key, mods, repeat, &mut before) { continue; }
             match key {
                 Key::A if mods.control => {
                     self.select_all = true;
@@ -127,7 +132,7 @@ impl TextEditor {
             self.place_after_byte(index + text.len());
             self.error = None;
         }
-        self.dirty |= self.text != before;
+        self.checkpoint(&mut before);
         if input.key_presses().any(|(k, _, repeat)| k == Key::Enter && !repeat) {
             return Some(TextEvent::Commit(self.text.clone()));
         }

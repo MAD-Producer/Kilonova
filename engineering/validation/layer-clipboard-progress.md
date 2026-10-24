@@ -333,3 +333,41 @@ DESIGN §0.7 的十二项处置如下。基线行号/旧表达式不能代替当
 `keyframe-clipboard-source-default-channel-final/` 为本阶段默认级别文件日志、Error stderr、stdout 原件；过期来源的 404 正常拒绝，随后有效来源的 404、占帧和受控终止仍进入原错误信道。实际默认信道检查通过，未把产品 panic 隐藏为成功或修改排队请求的断链协议。最终桌面测试文件 SHA-256 为 `098cfa3d0d5f7385f7ff9f9e7ced0c9cc3d1a7e434b878bf15fe38f962bae7a0`。
 
 新原始关键帧截图在 `keyframe-clipboard-source-ui-native/`，图层截图在 `keyframe-clipboard-source-layer-native/`，沿用前述六图和八图文件名；本阶段没有改动外观。DESIGN §0.7 十二项逐项沿用前表的保留绘制实现处置，未冒称视觉整改。定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过；未新增依赖、第三方资产、样式 token、工程格式或渲染语义。#204 尚未关闭、尚未创建完成 PR。
+
+## 文本剪贴板：原生编辑器与应用缓存
+
+继续 #204。实施前再次核对近期本地分支和开放 PR，当时开放列表为空，没有发现文本剪贴板重叠实现；没有审查其他人的 PR，也没有操作其他工作树。
+
+新增 Shell 拥有的 `TextClipboard`，主窗 draw 与浮窗 present 都把同一 Arc 传入 Input；借用 InputView 及显式 to_owned 保留该句柄，不复制正文。缓存存储独立的 Arc<str>，不引用来源编辑器或工程对象，也不与图层、关键帧、节点缓存互相覆盖。此为应用内文本缓存，不接操作系统剪贴板，没有新增平台 API、线程、全局单例、依赖或第三方资产。
+
+现有 `TextEditor` 支持 Ctrl+C/X/V，保留现有全字段选择与字素光标规则；初次编辑或 Ctrl+A 全选，没有新增部分范围选择。剪切仅在缓存成功后清空正文，粘贴沿用单行字段的控制字符过滤，在字素边界插入。每次剪切/粘贴独立记录一份草稿快照，Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y 操作本地历史；字段提交仍复用原来的单次工程命令。普通输入与删除也记录草稿历史，开始新编辑时重置；Esc、失焦、IME、自动重复与正常空缓存沿用原输入所有权。
+
+缓存正文上限 16 MiB；每个编辑器的 undo/redo 栈各自最多 16 MiB 内容和 128 步，达到历史保留上限时丢弃最早快照，不截断单个正文。正文或当前编辑超过 16 MiB 则明确拒绝并保留先前草稿。此为新增文本编辑/历史的资源边界，不能当作纯观测改动隐去。沿用既有字段绘制、选择样式和错误样式，没有改颜色、行高、命中区、菜单或右键菜单。
+
+| ID | 分类 | 实现与剩余边界 |
+| --- | --- | --- |
+| TC-01 | 新功能 | 独立应用文本缓存、借用输入共享、缓存成功后剪切、字素插入和草稿单步撤销；现有 TextEditor 字段接入。 |
+| TC-02 | 新增故障观察 | Cache 仅 try_lock，不等待或重启；busy、poison、超限返回明确错误，保留前一缓存。每个实际用户请求 Info start、Debug 完成计时、Error 原因；不记录正文，不向 stdout 写日志。不新增轮询/退化计数器；单个用户操作错误直接报告，不当作第 60 次轮询故障。 |
+| TC-03 | UI 错误反馈 | 缓存缺失、复制/粘贴失败或草稿超限保留正文/选择并设置既有字段 error；已在缓存层观察的错误不重复记一条。日志在锁释放后写入；正常空缓存和空撤销不记 Error。 |
+| TC-04 | 已有边界 | 引擎提交、保存、panic hook 和 Error 文件/stderr 分流沿用原实现，不吞 panic、不清 poison、不改变协议返回；缓存不做 OS 调用或阻塞等待。 |
+| TC-05 | 待完成 | 时间轴/效果搜索、旧属性字段、旧蒙版参数弹出编辑及旧对话框仍有字符串输入，尚未全部接入。文本 Edit 菜单所有权、路径独立剪贴板、完整系统事件/打包、当前主线组合和 CI 继续待完成。不能据此关闭 #204 或宣称所有文本入口已支持。 |
+
+### 文本阶段的验证过程
+
+`E:/Dev/aem/artifacts/pr-ci-followups/text-clipboard-cache-first.log` 实际通过 2 项缓存测试：冻结数据独立、正常空缓存、受控锁占用立即返回、超限保留旧值及 poison 明确拒绝；poison 的 catch_unwind 仅用于测试注入，产品没有吞 panic 的分支。`text-clipboard-ui-first.log` 通过 33 项：借用输入 6、既有故障边界 4、字素编辑 9、输入所有权 9、新文本剪贴板 5。该轮在方法拆分和新增历史预算测试之前，是阶段结果，不代替最终树验证。
+
+首轮桌面 `text-clipboard-desktop-first.log` 实际 53 项中 52 通过、1 失败：新夹具把主窗时间轴 NameEdit 的 owner 误写为 None，实际主窗和浮窗时间轴均为 Some(Timeline)。改正新夹具后第二轮 `text-clipboard-desktop-second.log` 为 54 项中 52 通过、2 失败：新断言遗漏原有 InComposition 命令包裹；工程切换后的根目录为 Windows canonical 长路径，不能直接与未规范化的 TempDir 字符串相等。修正为严格验证目标合成、内层对象/名称以及两端 canonical 路径相等，未改变生产路由、原命令或既有断言。原始失败日志保留。
+
+### 文本阶段最终验证
+
+最终桌面 `text-clipboard-desktop-third.log` 使用 `cargo test -p motion-desktop --features ffmpeg --bin motion-studio clipboard -- --test-threads=1 --skip native`，54 项通过、0 失败、0 忽略，945 项未执行，用时 80.74 秒，保留 22 项既有编译警告。实际验证草稿剪切后一步撤销、不变名称提交不产生工程命令、粘贴改名的目标合成/对象、保存重开与工程一次撤销；图层缓存不被文本覆盖，真实工程替换后文本缓存仍独立存在。
+
+`text-clipboard-default-channel-final/` 保留默认级别子进程文件日志、stderr 和 stdout。缺失服务与超限均经过真实失败分支，Error 同时写文件和 stderr，stdout 无错误；Info start 仅进文件。私有正文哨兵不出现在文件或 stderr，正常空缓存不产生 Error。busy 与 poison 在缓存单元测试中受控注入；未冒称这两条也完成应用日志子进程验收。
+
+`text-clipboard-ui-library-final.log` 为 4 项通过、0 失败、3 项既有 GPU 测试忽略、58 项过滤，用时 0.02 秒。通过项含两个缓存边界、历史内容/步数预算及既有文字裁剪；本次使用 `--no-default-features`，没有把原有 GPU ignore 当作通过，也没有更改忽略属性。`text-clipboard-ui-integration-final.log` 的借用输入、故障边界、字素编辑、输入所有权与新文本集成共 33 项全部通过。方法拆分与历史预算测试均已纳入这一最终树。`text-clipboard-ui-consumers-check.log` 的 `cargo check -p motion-ui --no-default-features --tests` 通过，用时 1 分 58 秒；它验证其余测试消费者可编译，不代替执行。
+
+`text-clipboard-native-first.log` 的新增真实 Windows HWND/wgpu 测试 1 项通过，用时 13.88 秒。随后在同一桌面测试文件执行 `text-clipboard-native-regression-final.log`：既有图层、关键帧和新增文本三项均通过、无失败或忽略，用时 75.99 秒。主窗→浮窗英语 1280×800/100%，浮窗→主窗中文逻辑 1280×800/150%，覆盖剪切、草稿撤销/重做、跨窗粘贴、精确单次 Rename、保存重开和工程撤销。输入通过生产 Input/组件调用，浮窗测试 helper 与实际 present_float 注入同一缓存；没有验证 OS 键鼠注入、完整 window_event 或系统剪贴板。
+
+本轮最终四张原图位于 `text-clipboard-ui-native-final/`：`main-to-float-en-source-undo.png`、`main-to-float-en-target-paste.png`、`float-to-main-zh-source-undo.png`、`float-to-main-zh-target-paste.png`。已实际查看两张目标粘贴图，字段可读；截图为未提交草稿，属性栏仍显示 Target 属正常状态。截图只捕获 UI，不能代表合成渲染验收。保留 native stderr 中本机 Epic EOSOverlay JSON 缺失的 Vulkan loader 报错，未吞掉或更改注册表。最终桌面测试文件 SHA-256 为 `143bdc87f12b494c302dfb6a5b60886b6328657e27d9bc87aa970110f5499ef9`。
+
+本阶段没有修改面板绘制；DESIGN §0.7 十二项逐项沿用前表的保留处置，未宣称视觉整改。未新增依赖、第三方资产、样式 token、工程格式或渲染语义。TC-05 仍为待完成范围，#204 保持开放，尚未创建完成 PR。

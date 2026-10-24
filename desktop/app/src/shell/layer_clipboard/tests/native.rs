@@ -17,6 +17,7 @@ use winit::{
     window::Window,
 };
 mod keyframes;
+mod text;
 
 fn chord(key: Key, shift: bool) -> Input {
     Input {
@@ -38,11 +39,12 @@ fn click(point: [f32; 2]) -> Input {
         ..Default::default()
     }
 }
-fn draw(shell: &mut Shell, size: [f32; 2], window: u64, input: Input) -> (PaintList, Vec<Action>) {
+fn draw(shell: &mut Shell, size: [f32; 2], window: u64, mut input: Input) -> (PaintList, Vec<Action>) {
     if window == 0 {
         shell.input = input;
         shell.draw_commands(size)
     } else {
+        input.text_clipboard = Some(shell.text_clipboard.clone());
         shell.panels.clipboard_available = shell.layer_clipboard.available();
         shell.panels.keyframe_clipboard_available = shell.layer_clipboard.keyframes_available();
         shell.panels.clipboard_busy = shell.layer_clipboard.busy();

@@ -7,6 +7,7 @@ use std::{
 #[cfg(target_os = "windows")]
 mod native;
 mod keyframes;
+mod text;
 
 fn project(root: &Path, image: bool) {
     let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();

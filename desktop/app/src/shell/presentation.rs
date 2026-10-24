@@ -98,6 +98,7 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        self.input.text_clipboard = Some(self.text_clipboard.clone());
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
         self.panels.clipboard_busy = self.layer_clipboard.busy();
@@ -693,6 +694,7 @@ impl Shell {
         }
         let project_modal = self.project_modal();
         let f = self.floating.get_mut(&id).ok_or("floating window closed")?;
+        f.input.text_clipboard = Some(self.text_clipboard.clone());
         if self.rendering.contains_key(&f.key) {
             return Ok(());
         }
