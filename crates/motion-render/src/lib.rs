@@ -5,6 +5,8 @@ pub mod effect_plan;
 pub mod image_formats;
 mod image_capture;
 pub use image_capture::{CapturedImage, ImageCaptureTarget};
+mod color_output;
+pub use color_output::{ColorOutput, ColorOutputDescriptor, OutputTransform, SdrCaptureTarget, ToneMap};
 pub mod observability;
 pub mod resource_policy;
 mod resource_error;

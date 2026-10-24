@@ -2508,6 +2508,10 @@ impl Renderer {
         self.render_target_in(width, height, crate::TextureCategory::CaptureTargets)
     }
     pub(crate) fn render_target_in(&self, width: u32, height: u32, category: crate::TextureCategory) -> Result<RenderTarget> {
+        self.render_target_with_format(width, height, self.target_format, category)
+    }
+    pub(crate) fn render_target_with_format(&self, width: u32, height: u32, format: wgpu::TextureFormat,
+        category: crate::TextureCategory) -> Result<RenderTarget> {
         self.check_health()?;
         if width == 0
             || height == 0
@@ -2527,7 +2531,7 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: self.target_format,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -2539,6 +2543,7 @@ impl Renderer {
             view,
             width,
             height,
+            owner: self.allocation_owner.clone(),
         })
     }
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
@@ -2676,8 +2681,14 @@ pub struct RenderTarget {
     pub view: crate::AdmittedTextureView,
     pub width: u32,
     pub height: u32,
+    owner: Arc<()>,
 }
 impl RenderTarget {
+    pub(crate) fn texture(&self) -> &OwnedTexture { &self.texture }
+    pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<()> {
+        if Arc::ptr_eq(&renderer.allocation_owner, &self.owner) { Ok(()) }
+        else { Err(RenderError::Invalid("render target belongs to another renderer".into())) }
+    }
     pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger, owner: &str, state: crate::TextureState) {
         ledger.add(&self.texture, crate::TextureCategory::PreviewTargets, owner.into(), state);
     }

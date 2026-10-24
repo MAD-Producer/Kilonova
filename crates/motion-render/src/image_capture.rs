@@ -36,6 +36,16 @@ impl Drop for UnmapOnDrop<'_> {
 }
 
 impl ImageCaptureTarget {
+    pub(crate) fn texture(&self) -> &OwnedTexture {
+        &self.texture
+    }
+    pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<(), RenderError> {
+        if std::sync::Arc::ptr_eq(&renderer.allocation_owner, &self.owner) {
+            Ok(())
+        } else {
+            Err(RenderError::Invalid("image target belongs to another renderer".into()))
+        }
+    }
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }

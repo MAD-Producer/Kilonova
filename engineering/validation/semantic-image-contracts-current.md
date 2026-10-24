@@ -3,8 +3,8 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project setting, dense editor key insertion and explicit display/export
-conversion are not yet connected.
+open: the project setting, dense editor key insertion and product display/export
+call sites are not yet connected to the native output conversion.
 
 ## Scope and status
 
@@ -18,7 +18,7 @@ conversion are not yet connected.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Persisted project setting, native preview and explicit SDR display/PNG/movie output policy | Pending; no product UI changed in this stage |
+| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes | Nine actual GPU tests pass; persisted project setting and product preview/export call sites pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -54,6 +54,9 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-dense-scene-core-v1` | Five original color-curve and nine effect-editing tests also pass after native Scene snapshot integration |
 | `issue72-jvm-dense-v1` | Current production Kotlin compilation and nine parser tests pass; explicit encoding/precision, native float bytes, bounds and version refusals; no Android device/GLES rendering validation |
 | `issue72-stage-dense-host-check-v1`, `issue72-stage-dense-native-check-v3` | Host compiles and all native render test targets check after wire/SDK integration; these checks are not pixel acceptance |
+| `issue72-stage-output-native-check-v1` | All native test targets check with admitted explicit output conversion |
+| `issue72-stage-output-pixels-v1` | Nine actual GPU tests: independent linear tone-map/exposure/alpha oracles, RGBA/BGRA with exactly one sRGB encoding, scaling before mapping, linear premultiplied transparent edges including encoded/straight input, real floating scene preview/PNG round trips and reuse, typed uniform admission/refusal, abandoned/submitted reservation retirement and foreign source/destination/encoder refusal even with a shared budget |
+| `issue72-stage-output-regression-v1` | Fifteen unchanged raw-capture, preview-target budget and four-mode precision tests pass after the new output path; includes float raw PNG refusal, combined/peak capacity, retained-front recovery, native HDR/exposure and adjacent UNORM16 values |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -106,6 +109,16 @@ to the existing `Effects` category under `RenderAllocations`. Version v2 injects
 the shared allocation limit one byte below the exact dense-table requirement and
 asserts the typed scope, required capacity, no retained LUT and successful recovery.
 No pre-existing assertion was changed to obtain these results.
+
+The explicit output converter retains its source and admitted 32-byte transform
+uniform. Allocated encoders retain their reservations through discard or queue
+completion. Input, destination and encoder ownership are checked separately from
+shared-budget identity, before native binding or pass creation. Raw capture APIs
+remain format-preserving; existing float PNG refusal is not removed. The new SDR
+capture path emits straight-alpha, sRGB-encoded RGBA8 bytes after conversion at
+working precision. This is an SDR policy, not HDR export or a color-management
+system. No application UI setting or movie/Host export integration is claimed by
+the native output probes.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;
