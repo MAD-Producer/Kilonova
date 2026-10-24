@@ -263,7 +263,7 @@ fn native_readback_sixty_errors_reach_default_sinks_only_after_guard_exit_and_re
     };
     let output = fs::read_to_string(stdout).unwrap();
     let console = fs::read_to_string(stderr).unwrap();
-    assert!(status.success(), "{output}\n{console}");
+    assert!(status.success(), "child status={status}\n{output}\n{console}");
     let report: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join("report.json")).unwrap()).unwrap();
     if report["available"] != true {

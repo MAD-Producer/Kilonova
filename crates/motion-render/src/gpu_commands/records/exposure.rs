@@ -178,7 +178,7 @@ mod tests {
         drop(omitted);
         assert!(record(&records).exposure.is_some());
         // Out-of-order drops remove the exact scope, never a newer child.
-        scopes.remove(0);
+        drop(scopes.remove(0));
         assert_eq!(
             record(&records).exposure.unwrap().request,
             Some(MAX_GPU_COMMAND_CONTEXTS as u64)

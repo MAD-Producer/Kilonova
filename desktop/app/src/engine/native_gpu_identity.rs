@@ -245,7 +245,7 @@ fn actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames() 
     };
     assert!(
         status.success(),
-        "{}\n{}",
+        "child status={status}\n{}\n{}",
         fs::read_to_string(stdout).unwrap(),
         fs::read_to_string(stderr).unwrap()
     );

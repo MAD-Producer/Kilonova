@@ -47,6 +47,22 @@ Local receipts are under `E:/Dev/aem/artifacts/pr-queue`: `issue60-gpu-command-m
 
 G13 uses a separate explicit diagnostic injector gated by both `debug_assertions` and `gpu-tests`; it is absent from Release builds and never invoked by normal rendering or profiling startup. It submits real query/resolve/copy commands followed by an actual GPU copy that corrupts diagnostic timestamp words. The real mapping callback and unchanged escalation/log path process that data. No successful/error callback result is fabricated on the CPU, no image or project data is modified, and no driver/hardware failure is claimed. Its admitted 16-byte source buffer retires on an actual queue fence, including submission unwind. This is test infrastructure, not a rendering optimization or automatic recovery mechanism.
 
+Source `9c48a419` passed render/input/host focused cases 36/0/0, but its
+desktop native-sink target failed to compile: the desktop `gpu-tests` feature did
+not forward to the dependency, whose defaults are disabled. Its actual Cargo
+artifact reported no render features. The later source explicitly forwards
+`motion-render/gpu-tests`; no assertion, test selection or native callback result
+is changed to accept this failure. Native sink acceptance is still pending.
+
+The source-`11c342d3` full desktop run failed 877/1/3 in the existing composition
+bundle child test. The same unchanged executable passed a direct isolated child
+run once. Contemporaneous Windows access-violation events name the same test
+executable, but the old fixture did not retain the child PID/status, so their
+exact association and the crash root cause are not established. The original
+full-suite failure remains retained. Later child assertions include exit status
+for diagnosis; their success conditions remain unchanged. This is additional
+failure evidence, not a claimed native crash fix.
+
 Source `11c342d3` also renames command `cpuElapsedUs` to `elapsedUs`: it measures wall time through encoding, native queue and mapping completion. It must not be described as exclusive CPU preparation. Actual allocation-frame `cpuElapsedUs` retains its separate CPU-scope meaning. The accepted focused trace carries original words and exact input/exposure/allocation contexts. The new presentation links are a later increment with runtime acceptance still pending; neither increment claims full GPU coverage.
 
 Source `63a095aa` also makes mixed-category failure-streak saturation sticky and visible; a successful sample resets the streak without erasing its historical saturation flag. The new scope metadata tests cover controlled blocking, bounds, unknown identity, out-of-order destruction, unwind, thread mismatch and exhaustion. The host native case verifies real ExposurePhase/ExposureResolve commands and exact request/poll/worker-window links; the existing receiver-pixel oracle and terminal-failure tests still pass. Allocation-frame contexts describe active shared-budget windows, not exclusive ownership or exclusive GPU execution. A presentation scope identifies the current attempt, including retained content, rather than identifying the image's originating request; surface presentation has not been accepted by this native case.

@@ -62,7 +62,8 @@ fn composition_bundle_failure_reaches_file_and_stderr_and_recovers() {
         .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
     assert!(
         output.status.success(),
-        "{}\n{}",
+        "child status={}\n{}\n{}",
+        output.status,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
