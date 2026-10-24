@@ -53,6 +53,26 @@ fn cached_image_descriptor(width: u32, height: u32) -> wgpu::TextureDescriptor<'
         view_formats: &[],
     }
 }
+/// Restore valid snapshot pixels after a different draw reused this allocation.
+fn restore_effect_snapshot(encoder: &mut wgpu::CommandEncoder, source: &wgpu::Texture,
+    size: (u32, u32), destination: &crate::effect_gpu::FxTexture) {
+    if size.0 < destination.texture.width() || size.1 < destination.texture.height() {
+        drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("clear reused effect snapshot padding"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &destination.view, depth_slice: None, resolve_target: None,
+                ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
+            })],
+            depth_stencil_attachment: None, timestamp_writes: None, occlusion_query_set: None, multiview_mask: None,
+        }));
+    }
+    encoder.copy_texture_to_texture(
+        wgpu::TexelCopyTextureInfo { texture: source, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+        wgpu::TexelCopyTextureInfo { texture: &destination.texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+        wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 });
+}
+#[cfg(test)]
+mod scratch_reuse_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -2226,7 +2246,7 @@ impl Renderer {
         let mut executed_passes = 0;
         let mut composition_draws = 0;
         let mut accumulator = 0;
-        // Preserve each referenced source before another layer reuses slot 0.
+        // Preserve each referenced source before another draw reuses scratch.
         // This is GPU-only and independent of the composition's stacking order.
         for i in image_input_order {
             let draw=&frame.draws[i];
@@ -2237,7 +2257,7 @@ impl Renderer {
             }
             let output=&frame.passes[draw.pass_end-1];
             encoder.copy_texture_to_texture(
-                wgpu::TexelCopyTextureInfo{texture:&self.effect_gpu.state.pool[0].as_ref().unwrap().texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
+                wgpu::TexelCopyTextureInfo{texture:&self.effect_gpu.state.output(frame,i)?.texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::TexelCopyTextureInfo{texture:&self.images[&TextureKey::EffectInput(draw.layer)]._texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
         }
@@ -2267,10 +2287,8 @@ impl Renderer {
             if !frame.compositing[i].visible {continue;}
             if materialized!=Some(i) {
                 if let Some(cached)=self.images.get(&TextureKey::EffectInput(draw.layer)) {
-                    encoder.copy_texture_to_texture(
-                        wgpu::TexelCopyTextureInfo{texture:&cached._texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
-                        wgpu::TexelCopyTextureInfo{texture:&self.effect_gpu.state.pool[0].as_ref().unwrap().texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
-                        wgpu::Extent3d{width:cached.size.0,height:cached.size.1,depth_or_array_layers:1});
+                    restore_effect_snapshot(encoder, &cached._texture, cached.size,
+                        self.effect_gpu.state.output(frame,i)?);
                     materialized=Some(i);
                 }
             }
@@ -2298,7 +2316,7 @@ impl Renderer {
                 if draw.pass_start == draw.pass_end || draw.words[22] <= 0. {
                     continue;
                 }
-                let next = self.encode_adjusted_backdrop(encoder, i, accumulator)?;
+                let next = self.encode_adjusted_backdrop(encoder, i, i, accumulator)?;
                 composition_draws += 1;
                 accumulator = next;
                 continue;
@@ -2370,7 +2388,7 @@ impl Renderer {
             pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             pass.set_bind_group(0, &self.uniform_group, &[(i * self.uniform_stride) as u32]);
             let group = if draw.words[27] >= 0.0 {
-                &self.effect_gpu.state.pool[0].as_ref().unwrap().composite
+                &self.effect_gpu.state.output(frame,i)?.composite
             } else {
                 &self.images[&texture_key(&scene.layers[i])].bind_group
             };

@@ -1,0 +1,371 @@
+{
+  "recordedUtc": "2026-10-24T11:01:46.859707+00:00",
+  "issue": "https://github.com/MAD-Producer/Kilonova/issues/67",
+  "scope": "Maintained-desktop local acceptance; final PR CI and merge are tracked separately on GitHub",
+  "source": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+  "baselineSource": "1d1f284245fcd50391f672ef79653d09d432e219",
+  "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+  "sourceSha256": {
+    "android/app/src/main/java/com/motionstudio/editor/GlEffects.kt": "0aa09c5f7ade327ebc806f1e5ca106ba9f179c98e537f395b492e2ccf622d359",
+    "android/app/src/main/java/com/motionstudio/editor/RenderPlanBudget.kt": "8e460d28f436ccdb7e23670a3d727d9cc3ad3d5753a6a664c7a219af3360a82b",
+    "android/app/src/main/java/com/motionstudio/editor/VideoExporter.kt": "8ae5d76d1456922a5cfdbb1e58f6e48203ba63035f2f55c3144589a4ae7b9fe9",
+    "android/app/src/test/java/com/motionstudio/editor/RenderPlanBudgetTest.kt": "56a00c6fa8938accd81d84e630ff9ed8fdf21ed4c14492902ad8c1214e1f0b24",
+    "crates/motion-host/src/ops/export.rs": "da9e103f13f976b8a238aa73ae1697de1207a6e8006cc2759a5e7d7321423cd0",
+    "crates/motion-host/tests/failure_boundaries.rs": "137f05bdda192260962ad750a2e3f9d6beb8c6548c56d73ec8629043f2ad733d",
+    "crates/motion-render/examples/scratch_native_comparison.rs": "c9ab2057bb96e2070e45776542dd74ba8beb02fa64155fb91feca1a8ed9c387e",
+    "crates/motion-render/src/effect_gpu.rs": "8f38b7d59d77bd8cb66e4cae1813e477fd77689292814794cfe0ebd8ebf808b9",
+    "crates/motion-render/src/effect_plan.rs": "e2da7a06819363ec1b667cc7a2aee86acab5e573a74051afe3c2e5ee1c011450",
+    "crates/motion-render/src/effect_plan/scratch.rs": "bb90c1719009979d4b069daf511e02804433d795975c798a94320e00da54664c",
+    "crates/motion-render/src/effect_plan/scratch_graph.rs": "cbb0f711bb8247aeae31c03b64e61a2c3d50a3ef8247372edcb1abb820e4f16b",
+    "crates/motion-render/src/effect_plan/scratch_lifetimes.rs": "50e4c6e7228f2ca729b74968fec1e449fd09505efb7168c695e6d559230f280c",
+    "crates/motion-render/src/effect_plan/scratch_proposal_tests.rs": "025945ce05db19cc3ee19dd0d1b12fe2d866b9dfa82867446950ec8c74855edb",
+    "crates/motion-render/src/renderer.rs": "1844222987554d74ebc693ddc059dca8d91b9207d3d1da068d146a9c30079b89",
+    "crates/motion-render/src/renderer/admission_tests/effect_resources.rs": "aeedb2f8a4b1ad23ce162ced5a9847b5844dc444fc58a48c8a3400eb8e16e3fb",
+    "crates/motion-render/src/renderer/layer_raster.rs": "6d0f6649e340521cbaa3ca0568ba5dfecb8e654bbaea67477ce16d1ac27905c5",
+    "crates/motion-render/src/renderer/phase_adjustment.rs": "6c72660482e29dab0d9c744cc356298a4c61bcb9e2f83d0a3f0797c1ba238eb6",
+    "crates/motion-render/src/renderer/scratch_reuse_tests.rs": "200a04e91bb5e6788befb38fe5581b9e0e83d4e2d626c73d36aab72fc1d2368d",
+    "crates/motion-render/tests/device_scratch_budget.rs": "da56254d94c686b639a6678de0b3744fb624b526ab56afdeb7fca5e1bdba5aba",
+    "crates/motion-render/tests/effect_cost.rs": "06eb1047ec2fcdc7be1945c7e173191395898294eca57c07cdc6f81165f9c9c9",
+    "crates/motion-render/tests/effect_preview_density.rs": "18b886053665e1a051508c7f83fd03511364663ccc29b400d64b59728d65244a",
+    "crates/motion-render/tests/effects.rs": "b9dd60eb1951cc1c1d49da1969e822ab3b7bd5f66f06029c450b9fd97dad00c1",
+    "crates/motion-render/tests/projected_planes.rs": "b0a70567b9b759da7702a32b6a3e34294cda9f9f937b136428efdab51ef2a091",
+    "crates/motion-render/tests/resource_rejections.rs": "e7c4d6cb42782aeb98bfc8f6d7143fa72b2d7826a3c14e68f7c845a7b03401f5",
+    "crates/motion-render/tests/scratch_planning.rs": "86f59b434f62b8951f7983a3af96faf5f9ea9dfaa34d8f2f620a90e9a9c1d01b",
+    "crates/motion-render/tests/tiling_effects.rs": "1d1ecadc6cbcffd3b4658a7af33d48fa8e01b54191dcab80eab653145c995f92",
+    "desktop/app/src/engine/failure/composition_tests/effect_admission.rs": "d97997af8628f4168de26e85c1333240b6d5aa8dca1b370ab4e7ff3212c9b35d"
+  },
+  "archive": {
+    "path": "data/scratch-lifetimes-2f243de3.zip",
+    "bytes": 2002524,
+    "sha256": "76f3403edd6b02f7c1158fa75806b73e7465e736647a660268c457e16b6a64dd",
+    "inventoryEntries": 478,
+    "inventoryReadbackVerified": true
+  },
+  "fullRegression": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-render",
+      "-p",
+      "motion-host",
+      "-p",
+      "motion-desktop",
+      "--features",
+      "motion-host/diagnostics",
+      "--offline",
+      "--no-fail-fast",
+      "--",
+      "--test-threads=1"
+    ],
+    "suites": 113,
+    "passed": 1693,
+    "failed": 0,
+    "ignored": 2,
+    "receipt": "records/issue67-stage-integrated-all-v1/accepted.json",
+    "existingIgnoredRequirements": [
+      "Actual native audio output device",
+      "External MOTION_IMAGE_SOURCE"
+    ]
+  },
+  "checks": [
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-desktop",
+        "--offline"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-desktop-check-v1/accepted.json"
+    },
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/build_desktop.py",
+        "--task",
+        "check",
+        "--target-dir",
+        "E:\\Dev\\aem\\target\\original-source-memory-b273180a",
+        "--report",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue67-stage-integrated-desktop-policy-check-v1\\desktop-build.json"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-desktop-policy-check-v1/accepted.json"
+    },
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--test",
+        "phase_adjustments",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-phase-adjustments-v1/accepted.json"
+    },
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--lib",
+        "renderer::scratch_reuse_tests",
+        "--offline",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-dynamic-native-v1/accepted.json"
+    },
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--test",
+        "failure_boundaries",
+        "portable_buffer_hint_and_physical_table",
+        "--offline",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-host-contract-v1/accepted.json"
+    },
+    {
+      "base": "1d1f284245fcd50391f672ef79653d09d432e219",
+      "command": [
+        "cargo",
+        "run",
+        "-p",
+        "motion-render",
+        "--example",
+        "scratch_native_comparison",
+        "--offline",
+        "--",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue67-stage-integrated-baseline-native-v1\\output"
+      ],
+      "sourceTree": "5af95b154422af821d85f649ae12b086c814d36f",
+      "receipt": "records/issue67-stage-integrated-baseline-native-v1/accepted.json"
+    },
+    {
+      "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+      "command": [
+        "cargo",
+        "run",
+        "-p",
+        "motion-render",
+        "--example",
+        "scratch_native_comparison",
+        "--offline",
+        "--",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue67-stage-integrated-candidate-native-v1\\output"
+      ],
+      "sourceTree": "ef19f61ce2c6f7ff2b449e50c754fd6ecc89c080",
+      "receipt": "records/issue67-stage-integrated-candidate-native-v1/accepted.json"
+    }
+  ],
+  "jvm": {
+    "receipt": "records/issue67-jvm-v3/accepted.json",
+    "passed": 5,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "androidDeviceValidated": false
+  },
+  "nativeComparison": {
+    "accepted": true,
+    "baseline": "integrated-baseline-native-v1",
+    "candidate": "integrated-candidate-native-v1",
+    "verifierSha256": "1fe718e5e84bb3d93ae8a0cfb549717f675244af2e452d2ef74a3f30b22fdd11",
+    "sourceReceipts": [
+      {
+        "base": "1d1f284245fcd50391f672ef79653d09d432e219",
+        "sourceSha256": {
+          "crates/motion-render/examples/scratch_native_comparison.rs": "c9ab2057bb96e2070e45776542dd74ba8beb02fa64155fb91feca1a8ed9c387e"
+        }
+      },
+      {
+        "base": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+        "sourceSha256": {
+          "android/app/src/main/java/com/motionstudio/editor/GlEffects.kt": "0aa09c5f7ade327ebc806f1e5ca106ba9f179c98e537f395b492e2ccf622d359",
+          "android/app/src/main/java/com/motionstudio/editor/RenderPlanBudget.kt": "8e460d28f436ccdb7e23670a3d727d9cc3ad3d5753a6a664c7a219af3360a82b",
+          "android/app/src/main/java/com/motionstudio/editor/VideoExporter.kt": "8ae5d76d1456922a5cfdbb1e58f6e48203ba63035f2f55c3144589a4ae7b9fe9",
+          "android/app/src/test/java/com/motionstudio/editor/RenderPlanBudgetTest.kt": "56a00c6fa8938accd81d84e630ff9ed8fdf21ed4c14492902ad8c1214e1f0b24",
+          "crates/motion-host/src/ops/export.rs": "da9e103f13f976b8a238aa73ae1697de1207a6e8006cc2759a5e7d7321423cd0",
+          "crates/motion-host/tests/failure_boundaries.rs": "137f05bdda192260962ad750a2e3f9d6beb8c6548c56d73ec8629043f2ad733d",
+          "crates/motion-render/examples/scratch_native_comparison.rs": "c9ab2057bb96e2070e45776542dd74ba8beb02fa64155fb91feca1a8ed9c387e",
+          "crates/motion-render/src/effect_gpu.rs": "8f38b7d59d77bd8cb66e4cae1813e477fd77689292814794cfe0ebd8ebf808b9",
+          "crates/motion-render/src/effect_plan.rs": "e2da7a06819363ec1b667cc7a2aee86acab5e573a74051afe3c2e5ee1c011450",
+          "crates/motion-render/src/effect_plan/scratch.rs": "bb90c1719009979d4b069daf511e02804433d795975c798a94320e00da54664c",
+          "crates/motion-render/src/effect_plan/scratch_graph.rs": "cbb0f711bb8247aeae31c03b64e61a2c3d50a3ef8247372edcb1abb820e4f16b",
+          "crates/motion-render/src/effect_plan/scratch_lifetimes.rs": "50e4c6e7228f2ca729b74968fec1e449fd09505efb7168c695e6d559230f280c",
+          "crates/motion-render/src/effect_plan/scratch_proposal_tests.rs": "025945ce05db19cc3ee19dd0d1b12fe2d866b9dfa82867446950ec8c74855edb",
+          "crates/motion-render/src/renderer.rs": "1844222987554d74ebc693ddc059dca8d91b9207d3d1da068d146a9c30079b89",
+          "crates/motion-render/src/renderer/admission_tests/effect_resources.rs": "aeedb2f8a4b1ad23ce162ced5a9847b5844dc444fc58a48c8a3400eb8e16e3fb",
+          "crates/motion-render/src/renderer/layer_raster.rs": "6d0f6649e340521cbaa3ca0568ba5dfecb8e654bbaea67477ce16d1ac27905c5",
+          "crates/motion-render/src/renderer/phase_adjustment.rs": "6c72660482e29dab0d9c744cc356298a4c61bcb9e2f83d0a3f0797c1ba238eb6",
+          "crates/motion-render/src/renderer/scratch_reuse_tests.rs": "200a04e91bb5e6788befb38fe5581b9e0e83d4e2d626c73d36aab72fc1d2368d",
+          "crates/motion-render/tests/device_scratch_budget.rs": "da56254d94c686b639a6678de0b3744fb624b526ab56afdeb7fca5e1bdba5aba",
+          "crates/motion-render/tests/effect_cost.rs": "06eb1047ec2fcdc7be1945c7e173191395898294eca57c07cdc6f81165f9c9c9",
+          "crates/motion-render/tests/effect_preview_density.rs": "18b886053665e1a051508c7f83fd03511364663ccc29b400d64b59728d65244a",
+          "crates/motion-render/tests/effects.rs": "b9dd60eb1951cc1c1d49da1969e822ab3b7bd5f66f06029c450b9fd97dad00c1",
+          "crates/motion-render/tests/projected_planes.rs": "b0a70567b9b759da7702a32b6a3e34294cda9f9f937b136428efdab51ef2a091",
+          "crates/motion-render/tests/resource_rejections.rs": "e7c4d6cb42782aeb98bfc8f6d7143fa72b2d7826a3c14e68f7c845a7b03401f5",
+          "crates/motion-render/tests/scratch_planning.rs": "86f59b434f62b8951f7983a3af96faf5f9ea9dfaa34d8f2f620a90e9a9c1d01b",
+          "crates/motion-render/tests/tiling_effects.rs": "1d1ecadc6cbcffd3b4658a7af33d48fa8e01b54191dcab80eab653145c995f92",
+          "desktop/app/src/engine/failure/composition_tests/effect_admission.rs": "d97997af8628f4168de26e85c1333240b6d5aa8dca1b370ab4e7ff3212c9b35d",
+          "engineering/validation/scratch-lifetime-protocol.md": "c2e98dfef16574c478cfdb1caca4c12f7416fe9d4a54236ea89b2a4447f60d09"
+        }
+      }
+    ],
+    "adapter": {
+      "backend": "Vulkan",
+      "driver": "NVIDIA",
+      "driverInfo": "591.86",
+      "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+    },
+    "driverSha256": "c9ab2057bb96e2070e45776542dd74ba8beb02fa64155fb91feca1a8ed9c387e",
+    "rows": [
+      {
+        "name": "mixed-aspects",
+        "exactPixels": true,
+        "projectSha256": "87f09e368a61aeb69419d9b7a5075b41749fbebe28c60090463c98aba8e30a5c",
+        "rgbaSha256": "8c3677245a223aec875fcf3bebd0e9e708b5c4d2bb4fccf21dadc9e5fffe7d07",
+        "baselineBytes": 1048576,
+        "candidateBytes": 131072,
+        "physicalAllocations": 8,
+        "reductionFraction": 0.875,
+        "generatorVisibility": null
+      },
+      {
+        "name": "large-before",
+        "exactPixels": true,
+        "projectSha256": "d9ea7b9d08adf36faf710a6e61840357bbf4cecd5e6dd2e602786c8090f749ba",
+        "rgbaSha256": "e7f60f85444b3cd8770d9a5eefb0380259acf7f77d8b9ef7f8b0de2e9434aad5",
+        "baselineBytes": 1572864,
+        "candidateBytes": 1572864,
+        "physicalAllocations": 4,
+        "reductionFraction": 0.0,
+        "generatorVisibility": null
+      },
+      {
+        "name": "small",
+        "exactPixels": true,
+        "projectSha256": "c21ca580d1010a475e1b8361dde45d3b428407c7cd68faf01f2775244248401b",
+        "rgbaSha256": "19e3cd14e4a08bbdd93fe7392069f556bfdc045703da99ce08e9331b09d3158c",
+        "baselineBytes": 4096,
+        "candidateBytes": 4096,
+        "physicalAllocations": 4,
+        "reductionFraction": 0.0,
+        "generatorVisibility": null
+      },
+      {
+        "name": "large-after",
+        "exactPixels": true,
+        "projectSha256": "d9ea7b9d08adf36faf710a6e61840357bbf4cecd5e6dd2e602786c8090f749ba",
+        "rgbaSha256": "e7f60f85444b3cd8770d9a5eefb0380259acf7f77d8b9ef7f8b0de2e9434aad5",
+        "baselineBytes": 1572864,
+        "candidateBytes": 1572864,
+        "physicalAllocations": 4,
+        "reductionFraction": 0.0,
+        "generatorVisibility": null
+      },
+      {
+        "name": "padding-long-blur",
+        "exactPixels": true,
+        "projectSha256": "7ce61a0ee18b83dd79e5f15ea96afcd5677fd97b3367e574d1d81c75b465c163",
+        "rgbaSha256": "fae714494f3418996d6777d496002fa0e211860f204227c8ee5a1e9e88c2f835",
+        "baselineBytes": 704952,
+        "candidateBytes": 611928,
+        "physicalAllocations": 6,
+        "reductionFraction": 0.1319579205392708,
+        "generatorVisibility": null
+      },
+      {
+        "name": "effected-matte",
+        "exactPixels": true,
+        "projectSha256": "3995a9ee9e9cf58c8c35bde094ae8a520f1bd00dbb328aae580caa9d93e71e4b",
+        "rgbaSha256": "046a7ebb5db55faf951e27a29cee49da29ba4932667ab69274a953ee6e503dae",
+        "baselineBytes": 716800,
+        "candidateBytes": 716800,
+        "physicalAllocations": 4,
+        "reductionFraction": 0.0,
+        "generatorVisibility": null
+      },
+      {
+        "name": "generator-matte-nested",
+        "exactPixels": true,
+        "projectSha256": "3c7007e453c82c90cf63240b50c69594ea5d08daed58291f769235831e9f553c",
+        "rgbaSha256": "728bd02cca5a5adcfa4ebc94a1200456ef6df2052e655f0cc9edd25c4234fe0b",
+        "baselineBytes": 5242880,
+        "candidateBytes": 5242880,
+        "physicalAllocations": 4,
+        "reductionFraction": 0.0,
+        "generatorVisibility": {
+          "generatorChangedPixels": 2578,
+          "nestedMatteControlVisiblePixels": 4725,
+          "nestedMattePixelsPreservedWithGenerator": 4685
+        }
+      },
+      {
+        "name": "mixed-aspects-revisited",
+        "exactPixels": true,
+        "projectSha256": "87f09e368a61aeb69419d9b7a5075b41749fbebe28c60090463c98aba8e30a5c",
+        "rgbaSha256": "8c3677245a223aec875fcf3bebd0e9e708b5c4d2bb4fccf21dadc9e5fffe7d07",
+        "baselineBytes": 1048576,
+        "candidateBytes": 131072,
+        "physicalAllocations": 8,
+        "reductionFraction": 0.875,
+        "generatorVisibility": null
+      }
+    ],
+    "scope": "Debug native pixel equivalence and exact top-pool descriptor bytes; no physical VRAM, universal savings or latency claim",
+    "limits": [
+      "Only the measured fixtures and top-level active scratch pool are compared",
+      "These eight captures do not establish all boundary, BSP, failure/recovery or consumer cases"
+    ]
+  },
+  "packedLifetimeReceipt": "records/issue67-packed-lifetimes-integrated-v1.json",
+  "archiveReplay": {
+    "accepted": true,
+    "archiveSha256": "76f3403edd6b02f7c1158fa75806b73e7465e736647a660268c457e16b6a64dd",
+    "recordedUtc": "2026-10-24T10:59:27.035533+00:00",
+    "source": "2f243de3176ed4714ee9dae17f20f3b0acefdf80",
+    "verifiers": [
+      {
+        "script": "verify-issue67-native-comparison.py",
+        "sha256": "1fe718e5e84bb3d93ae8a0cfb549717f675244af2e452d2ef74a3f30b22fdd11",
+        "exitCode": 0,
+        "stdout": "{\"receipt\": \"E:\\\\Dev\\\\aem\\\\artifacts\\\\pr-queue\\\\issue67-replay-2f243de3\\\\records\\\\issue67-native-comparison-replay.json\", \"cases\": 8, \"exactPixels\": true}"
+      },
+      {
+        "script": "verify-issue67-packed-lifetimes.py",
+        "sha256": "8e88e1e8a82b63e20d3a635c0414a3a8eedbe772becee745a133d2d71a86a56f",
+        "exitCode": 0,
+        "stdout": "{\"receipt\": \"E:\\\\Dev\\\\aem\\\\artifacts\\\\pr-queue\\\\issue67-replay-2f243de3\\\\records\\\\issue67-packed-lifetimes-replay.json\", \"cases\": 8}"
+      }
+    ]
+  },
+  "limits": [
+    "Measured Debug fixture logical scratch capacity and exact pixels; no latency, bandwidth, universal savings or physical VRAM claim",
+    "Android physical-device/GLES rendering excluded by user",
+    "Existing warm pool can retain native allocation for120idle frames",
+    "PR CI and merge not yet complete at record creation"
+  ]
+}

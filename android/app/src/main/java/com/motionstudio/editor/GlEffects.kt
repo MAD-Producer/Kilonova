@@ -10,11 +10,10 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
     private data class Shader(val id:Int,val samplers:List<Triple<Int,Int,Int>>,val resources:IntArray,val sprite:Boolean,val additive:Boolean)
     private val shaders=ArrayList<Shader>()
     private val ownedTextures=ArrayList<Int>()
-    private val pool=IntArray(8)
+    private var pool=IntArray(0)
     private val luts=HashMap<Int,Pair<Int,ByteArray>>()
     private var packageBytes=0L
-    private var poolWidth=0;private var poolHeight=0;private var poolMask=0
-    private var poolSizes=IntArray(16)
+    private var poolDescriptors=emptyList<RenderPlanBudget.ScratchAllocation>()
     private var framebuffer=0;private var uniform=0;private var sprites=0;private var spriteVao=0
     init {
         try {
@@ -80,26 +79,33 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
             val data=plan.duplicate().order(ByteOrder.nativeOrder()).apply{position(spriteOffset);limit(spriteOffset+spriteCount*48)}.slice()
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER,sprites);GL.glBufferSubData(GL.GL_ARRAY_BUFFER,0,spriteCount*48,data)
         }
-        val w=plan.getInt(32);val h=plan.getInt(36);val mask=plan.getInt(40)
-        check(mask and 255==mask&&w>=0&&h>=0){"效果纹理描述错误"}
-        // Capacities are derived from the existing v2 pass table, identically to Rust.
-        val sizes=IntArray(16);val passBase=plan.getInt(20);val passCount=plan.getInt(12)
-        check(passCount>=0&&passBase>=128&&passBase.toLong()+passCount.toLong()*40<=plan.getInt(28)){"效果 pass 表错误"}
-        var actualMask=0
+        val descriptors=RenderPlanBudget.scratchAllocations(plan)
+        val passBase=plan.getInt(20);val passCount=plan.getInt(12)
+        check(passCount in 0..RenderPlanBudget.MAX_SCRATCH_PASSES&&passBase>=RenderPlanBudget.HEADER_BYTES&&passBase.toLong()+passCount.toLong()*40<=plan.getInt(28)){"效果 pass 表错误"}
         for(i in 0 until passCount) {
             val p=passBase+i*40;val slot=plan.getInt(p+12);val pw=plan.getInt(p+16);val ph=plan.getInt(p+20)
-            check(slot in 0..7&&pw in 1..w&&ph in 1..h){"效果纹理尺寸错误"}
-            actualMask=actualMask or (1 shl slot)
-            sizes[slot*2]=maxOf(sizes[slot*2],pw);sizes[slot*2+1]=maxOf(sizes[slot*2+1],ph)
+            check(slot in descriptors.indices&&pw in 1..descriptors[slot].width&&ph in 1..descriptors[slot].height){"效果纹理尺寸错误"}
+            for(field in intArrayOf(4,8)){val input=plan.getInt(p+field);check(input<0||input in descriptors.indices){"效果输入纹理索引失效"};check(input!=slot){"效果输入输出纹理别名失效"}}
         }
-        check(mask==actualMask){"效果纹理槽位不一致"}
-        val bytes=(0..7).sumOf{i->sizes[i*2].toLong()*sizes[i*2+1]*(if(i==7)8 else 4)}
+        var bytes=0L
+        for(a in descriptors){check(a.bytes()<=Long.MAX_VALUE-bytes){"效果临时纹理总容量溢出"};bytes+=a.bytes()}
         val budget=RenderPlanBudget.scratchBytes(plan)
         check(bytes<=budget){"效果临时纹理需要 ${bytes/1048576.0} MiB，预算 ${budget/1048576.0} MiB"}
-        if(w!=poolWidth||h!=poolHeight||mask!=poolMask||!sizes.contentEquals(poolSizes)) {
-            GL.glDeleteTextures(8,pool,0);pool.fill(0);poolWidth=w;poolHeight=h;poolMask=mask
-            poolSizes=sizes
-            for(i in pool.indices)if(mask and (1 shl i)!=0)pool[i]=texture(sizes[i*2],sizes[i*2+1],i !in 1..3&&i!=7,null,i==7)
+        if(descriptors!=poolDescriptors) {
+            val next=IntArray(descriptors.size);val reused=BooleanArray(descriptors.size)
+            try {
+                for((i,a) in descriptors.withIndex()) {
+                    if(poolDescriptors.getOrNull(i)?.sameStorage(a)==true&&pool.getOrNull(i)!=null&&pool[i]!=0){next[i]=pool[i];reused[i]=true}
+                    else {next[i]=texture(a.width,a.height,a.format==0,null,a.format==2);check(GL.glGetError()==GL.GL_NO_ERROR){"效果临时纹理分配失败: $i"}}
+                }
+            } catch(failure:Throwable) {
+                val created=next.filterIndexed{i,id->id!=0&&!reused[i]}.toIntArray()
+                GL.glDeleteTextures(created.size,created,0)
+                throw failure
+            }
+            val retired=pool.filterIndexed{i,_->i>=reused.size||!reused[i]}.toIntArray()
+            GL.glDeleteTextures(retired.size,retired,0)
+            pool=next;poolDescriptors=descriptors
         }
         val lutBase=plan.getInt(44);val count=plan.getInt(48)
         for(i in 0 until count) {
@@ -154,7 +160,17 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
         }
         return result
     }
-    fun scratchBytes():Long=(0..7).sumOf{i->poolSizes[i*2].toLong()*poolSizes[i*2+1]*(if(i==7)8 else 4)}
+    fun scratchBytes():Long=poolDescriptors.sumOf{it.bytes()}
+    /** Restoring a logical snapshot must not retain another draw's padding. */
+    fun clearRestoredOutput(slot:Int) {
+        val image=texture(slot)
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER,framebuffer)
+        GL.glFramebufferTexture2D(GL.GL_FRAMEBUFFER,GL.GL_COLOR_ATTACHMENT0,GL.GL_TEXTURE_2D,image,0)
+        check(GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER)==GL.GL_FRAMEBUFFER_COMPLETE){"效果快照恢复目标失效"}
+        GL.glDisable(GL.GL_SCISSOR_TEST)
+        GL.glColorMask(true,true,true,true)
+        GL.glClearColor(0f,0f,0f,0f);GL.glClear(GL.GL_COLOR_BUFFER_BIT)
+    }
     fun texture(slot:Int):Int {check(slot in pool.indices&&pool[slot]!=0){"效果纹理索引错误"};return pool[slot]}
     fun passes(plan:ByteBuffer,start:Int,end:Int,videoTexture:Int?=null,maskTexture:((Int)->Int)?=null,layerTexture:((Int,Boolean)->Int)?=null) {
         val count=plan.getInt(12);check(start>=0&&end in start..count){"效果 pass 范围错误"}
@@ -170,11 +186,13 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
             val shaderIndex=plan.getInt(p);check(shaderIndex in shaders.indices){"效果程序索引错误"}
             val shader=shaders[shaderIndex];val source=input(plan.getInt(p+8),shader.sprite);val previous=input(plan.getInt(p+4),shader.sprite)
             val targetSlot=plan.getInt(p+12);val target=texture(targetSlot);val w=plan.getInt(p+16);val h=plan.getInt(p+20)
-            check(w in 1..poolSizes[targetSlot*2]&&h in 1..poolSizes[targetSlot*2+1]&&target!=source&&target!=previous){"效果输出目标错误"}
+            check(w in 1..poolDescriptors[targetSlot].width&&h in 1..poolDescriptors[targetSlot].height&&target!=source&&target!=previous){"效果输出目标错误"}
             val offset=plan.getInt(p+24);check(offset>=128&&offset+624<=plan.getInt(28)){"效果参数地址错误"}
             GL.glBindFramebuffer(GL.GL_FRAMEBUFFER,framebuffer)
             GL.glFramebufferTexture2D(GL.GL_FRAMEBUFFER,GL.GL_COLOR_ATTACHMENT0,GL.GL_TEXTURE_2D,target,0)
             check(GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER)==GL.GL_FRAMEBUFFER_COMPLETE){"效果离屏目标不可用"}
+            // Clears end the previous logical lifetime across the entire backing.
+            GL.glDisable(GL.GL_SCISSOR_TEST);GL.glColorMask(true,true,true,true)
             GL.glDisable(GL.GL_BLEND);GL.glViewport(0,0,w,h);GL.glClearColor(0f,0f,0f,0f);GL.glClear(GL.GL_COLOR_BUFFER_BIT)
             GL.glUseProgram(shader.id);GL.glBindBuffer(GL.GL_UNIFORM_BUFFER,uniform)
             val data=plan.duplicate().order(ByteOrder.nativeOrder()).apply{position(offset);limit(offset+624)}.slice()
@@ -213,7 +231,7 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
     }
     fun close() {
         shaders.forEach{GL.glDeleteProgram(it.id)};shaders.clear()
-        GL.glDeleteTextures(8,pool,0);pool.fill(0)
+        GL.glDeleteTextures(pool.size,pool,0);pool=IntArray(0);poolDescriptors=emptyList()
         luts.filterKeys{it>=0}.values.forEach{GL.glDeleteTextures(1,intArrayOf(it.first),0)};luts.clear()
         GL.glDeleteTextures(ownedTextures.size,ownedTextures.toIntArray(),0);ownedTextures.clear()
         GL.glDeleteBuffers(1,intArrayOf(uniform),0);GL.glDeleteFramebuffers(1,intArrayOf(framebuffer),0)

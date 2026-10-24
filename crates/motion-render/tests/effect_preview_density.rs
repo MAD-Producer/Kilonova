@@ -3,7 +3,7 @@ mod scene_fixtures;
 use motion_core::{EffectInstance, Layer, Project};
 use motion_render::Scene;
 use motion_render::{
-    effect_plan::{scratch_capacity_bytes, PlanBuilder},
+    effect_plan::PlanBuilder,
     PreviewMode, PreviewPolicy, PreviewTier, Renderer,
 };
 
@@ -91,7 +91,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
         let mut scene = Scene::new(&p).unwrap();
         scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let full = builder.build(&scene, &[0], 512, 256, true).unwrap();
-        let full_scratch = scratch_capacity_bytes(&full.scratch_sizes);
+        let full_scratch = full.scratch_bytes();
         let full_uniform = full.passes[full.draws[0].pass_end - 1].uniform;
         let bytes = full.buffer_bytes(&scene);
         let mut original = vec![0; bytes];
@@ -102,7 +102,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
             "{name}: {:?}",
             preview.diagnostics
         );
-        assert!(scratch_capacity_bytes(&preview.scratch_sizes) < full_scratch);
+        assert!(preview.scratch_bytes() < full_scratch);
         let first = &preview.draws[0];
         let out = &preview.passes[first.pass_end - 1];
         assert_eq!(out.uniform.region, full_uniform.region);
@@ -110,7 +110,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
         assert!((out.uniform.output_mode[3] - 0.25).abs() < 1e-6);
         assert_eq!(
             first.words[25],
-            out.width as f32 / preview.scratch_sizes[0][0] as f32
+            out.width as f32 / preview.scratch_allocations[first.words[27] as usize].width as f32
         );
         assert!(
             first.words[25] < 1.,

@@ -1,6 +1,6 @@
 use motion_core::{Asset, Content, EffectInstance, Layer, Project};
 use motion_render::{
-    effect_plan::{scratch_capacity_bytes, PlanBuilder},
+    effect_plan::PlanBuilder,
     image_resources::Resolution,
     RenderError, Renderer, ResourceBudgetScope, ResourceRejection, Scene,
 };
@@ -44,11 +44,11 @@ fn typed_plan_preserves_messages_and_distinguishes_capacity_from_dimensions() {
         .build(&scene, &[0], 64, 64, true)
         .err()
         .unwrap();
-    let required = scratch_capacity_bytes(&builder.last_scratch_request.unwrap().sizes);
+    let required = builder.last_scratch_request.unwrap().required_bytes;
     assert_eq!(error.to_string(), format!("GPU validation: layer 1, effect 1 (gaussian_blur): effect scratch textures require {:.2} MiB; budget is 64 MiB (full layer bounds, including effect padding)", required as f64 / 1048576.));
     let rejected = ResourceRejection::Budget {
         scope: ResourceBudgetScope::EffectScratch,
-        required_bytes: scratch_capacity_bytes(&builder.last_scratch_request.unwrap().sizes),
+        required_bytes: required,
         budget_bytes: builder.scratch_budget(),
     };
     assert_eq!(error.resource_rejection(), Some(&rejected));

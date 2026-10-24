@@ -271,3 +271,40 @@ fn contained_triangles_still_drop_trailing_incomplete_vertices() {
     list.clip_to(Rect::new(0., 0., 10., 10.));
     assert!(list.shapes.is_empty() && list.colors.is_empty() && list.order.is_empty());
 }
+
+#[test]
+fn unchanged_glyph_retention_does_not_allocate_an_index_map() {
+    assert!(
+        allocations(|| {
+            black_box(Box::new(7u64));
+        }) > 0
+    );
+    let mut list = PaintList::default();
+    for i in 0..256 {
+        list.push_glyph(Glyph {
+            uv: [0., 0., 1., 1.],
+            atlas_size: Some([64, 64]),
+            position: [i as f32, 1.],
+            size: [8., 12.],
+            color: Color::grey(220),
+        });
+    }
+    let order = list.order.clone();
+    let glyphs = format!("{:?}", list.glyphs);
+    let storage = (list.glyphs.as_ptr(), list.glyphs.capacity());
+    let mut calls = 0;
+    let count = allocations(|| {
+        for _ in 0..20 {
+            black_box(&mut list).retain_glyphs(|_| {
+                calls += 1;
+                true
+            });
+        }
+    });
+    println!("20 unchanged retentions / 256 glyphs: {count} allocation requests");
+    assert_eq!(count, 0, "unchanged glyph indices need no temporary map");
+    assert_eq!(calls, 20 * 256);
+    assert_eq!(list.order, order);
+    assert_eq!(format!("{:?}", list.glyphs), glyphs);
+    assert_eq!((list.glyphs.as_ptr(), list.glyphs.capacity()), storage);
+}

@@ -764,7 +764,7 @@ impl Renderer {
                             })?;
                         draws += 1;
                     }
-                    accumulator = self.encode_adjusted_backdrop(&mut encoder, i, accumulator)?;
+                    accumulator = self.encode_adjusted_backdrop(&mut encoder, i, *index, accumulator)?;
                     draws += 1;
                     continue;
                 }

@@ -1,6 +1,8 @@
 //! Node view layout and shared geometry; each editor region is a reusable component.
 mod add_menu;
 mod canvas;
+#[cfg(test)]
+mod frame_cards_tests;
 mod connection_menu;
 mod context_menu;
 mod control_popup;
@@ -397,7 +399,11 @@ impl NodeEditor {
         }
         layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
-        let cards = self.cards(layout.canvas);
+        let geometry_stamp = |editor: &Self| {
+            (editor.epoch, editor.revision, editor.preview_revision, editor.view.pan, editor.view.zoom)
+        };
+        let mut cards = self.cards(layout.canvas);
+        let mut geometry = geometry_stamp(self);
         let numeric_file = if self.inline.popup.is_none()
             && self
                 .inline
@@ -507,11 +513,21 @@ impl NodeEditor {
         if let Some(inspector) = layout.inspector {
             self.inspector(list, atlas, inspector, body_input, language);
         }
-        let cards = self.cards(layout.canvas);
+        let current = geometry_stamp(self);
+        if current != geometry {
+            cards = self.cards(layout.canvas);
+            geometry = current;
+        }
+        let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
         }
-        let cards = self.cards(layout.canvas);
+        // Node positions can change during a held drag before history is committed.
+        if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. }))
+            || geometry != geometry_stamp(self)
+        {
+            cards = self.cards(layout.canvas);
+        }
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         self.paint_minimap(list, layout.canvas);
         self.paint_welcome(list, atlas, area, input, language);

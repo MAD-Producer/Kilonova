@@ -2,11 +2,32 @@ package com.motionstudio.editor
 
 import java.nio.ByteBuffer
 
-/** v9 adds ordered vector paint commands; the header and scratch allowance remain stable. */
+/** v10 carries the exact physical scratch descriptor table and mapped pass IDs. */
 internal object RenderPlanBudget {
-    const val VERSION=9
+    const val VERSION=10
     const val VECTOR_RECORD_BYTES=40
-    const val HEADER_BYTES=144
+    const val HEADER_BYTES=160
+    const val SCRATCH_RECORD_BYTES=32
+    const val MAX_SCRATCH_PASSES=128*(16*(8+3)+1)
+    data class ScratchAllocation(val width:Int,val height:Int,val format:Int,
+        val workingSpaces:Int,val alphaModes:Int,val usage:Int,val bytesPerPixel:Int) {
+        fun bytes():Long=width.toLong()*height*bytesPerPixel
+        fun sameStorage(other:ScratchAllocation)=width==other.width&&height==other.height&&format==other.format&&usage==other.usage
+    }
+    fun scratchAllocations(plan:ByteBuffer):List<ScratchAllocation> {
+        scratchBytes(plan)
+        val total=plan.getInt(28);val offset=plan.getInt(140);val count=plan.getInt(144)
+        check(total in HEADER_BYTES..plan.capacity()&&offset>=HEADER_BYTES&&offset%4==0&&count in 0..MAX_SCRATCH_PASSES&&plan.getInt(148)==SCRATCH_RECORD_BYTES&&offset.toLong()+count.toLong()*SCRATCH_RECORD_BYTES<=total){"效果临时纹理表失效"}
+        return List(count){i->
+            val p=offset+i*SCRATCH_RECORD_BYTES
+            val a=ScratchAllocation(plan.getInt(p),plan.getInt(p+4),plan.getInt(p+8),
+                plan.getInt(p+12),plan.getInt(p+16),plan.getInt(p+20),plan.getInt(p+24))
+            // Semantic bit sets describe separate, fully cleared value lifetimes.
+            check(a.width>0&&a.height>0&&a.format in 0..2&&a.workingSpaces in 1..3&&a.alphaModes in 1..3&&a.usage==15&&a.bytesPerPixel==(if(a.format==2)8 else 4)&&plan.getInt(p+28)==0){"效果临时纹理描述失效"}
+            check(a.width.toLong()*a.height<=Long.MAX_VALUE/a.bytesPerPixel){"效果临时纹理容量溢出"}
+            a
+        }
+    }
     fun compositingOffset(plan:ByteBuffer):Int {
         scratchBytes(plan)
         val count=plan.getInt(132);val offset=plan.getInt(128);val total=plan.getInt(28)
