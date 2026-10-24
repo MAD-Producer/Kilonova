@@ -154,6 +154,18 @@ grading, HDR input/output equivalence, or Android device validation is claimed.
 
 ## Sources and provenance
 
+The retained SDR preview wrapper has four additional GPU probes in
+`issue72-stage-sdr-preview-pixels-v1`; all pass alongside the five unchanged raw
+preview-budget tests. Each high-precision slot retains its native working texture,
+admitted SDR texture and conversion binding; UNORM8 retains direct presentation.
+Tests cover four-mode pixels/capacity/reuse, same-size precision and extent
+replacement, preview-budget refusal without changing the displayed front, exact
+32-byte uniform admission/refusal and recovery, required conversion before
+publication, and foreign renderer/encoder refusal. The initial wrapper check
+caught a new test using an obsolete readback-counter field name; its failed
+receipt is retained. No pre-existing assertion changed. These probes verify the
+wrapper, not application integration, which remains pending.
+
 All new shaders, probes and fixtures are independently authored repository code.
 The white resource used by a test is generated from four constant bytes. No new
 third-party asset, dependency or Adobe material is included. Format identifiers
