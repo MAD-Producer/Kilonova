@@ -4,6 +4,8 @@ use node_index::NodeIndex;
 
 impl NodeEditor {
     pub(super) fn cards(&self, canvas: Rect) -> Vec<Card> {
+        #[cfg(test)]
+        super::frame_cards_tests::record_build();
         self.document
             .nodes
             .iter()
@@ -63,6 +65,8 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
+        #[cfg(test)]
+        super::frame_cards_tests::record_paint(cards);
         let styles = list.styles();
         let colors = styles.colors();
 
