@@ -3,7 +3,7 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project-setting UI, dense editor key insertion and final comprehensive
+open: the project-setting UI and final comprehensive
 acceptance remain pending. Ordinary/exposure surface previews, plugin editor
 preview, desktop UI/node screenshots and Host/frozen PNG/MP4 exports now use
 explicit SDR output.
@@ -19,7 +19,7 @@ explicit SDR output.
 | 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve tested; a comprehensive retained/nested temporal precision golden remains pending |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
-| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
+| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire probes, resource/scene regressions and actual row/worker key-insertion tests pass; final end-to-end goldens pending |
 | 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; project-setting UI remains pending; no product layout/style changed in these stages |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
@@ -78,6 +78,8 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-desktop-display-pixels-v1` | Real worker test passes in all four modes: UI pixel arrays and independent node-preview pixel arrays are identical across modes; session ledgers retain the four corresponding native formats; four UI and four node PNGs, default-Info log and report retained |
 | `issue72-stage-desktop-node-capture-regression-v1` | Original installed-node admission/refusal test passes with unchanged assertions, including retained capture fingerprint, recovery and default file/Error stderr/stdout isolation |
 | `issue72-stage-desktop-display-surface-regression-v1` | Original native surface replacement refusal test passes with unchanged assertions, preserving factory/front and default error channels |
+| `issue72-stage-desktop-dense-key-v1` | All six row-navigation tests pass: three original selection/shortcut/default-error-log tests plus dense diamond insertion across four precisions, static/animated curves and shifted layer times, single-step undo/redo, serialization, actual bounded worker edits, locked-row and malformed-source refusal |
+| `issue72-stage-desktop-dense-key-style-v1` | Existing `tools/ci_desktop.py::verify_style_consumers` passes; no palette/default stylesheet call or new token added |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -256,6 +258,24 @@ capture, not Float32 draft arithmetic parity. Applied node effects use the
 project's actual effect chain. No panel, layout, style, menu or interaction was
 changed in this stage. These selected regressions do not replace the final
 complete desktop/Host run or the pending project-setting UI acceptance.
+
+Curve-row key insertion now freezes the authored/interpolated 4081-point table
+in every project mode; changing precision later therefore cannot reveal a prior
+256-point editor freeze. The authored-data test uses a narrow feature that the
+old preview grid entirely misses and verifies its exact interpolated peak.
+The click still emits the existing two-command atomic batch, preserving layer
+time conversion, selection, one-step history and failure observation. The frozen
+table is authoritative, so obsolete per-channel overrides are removed from that
+new value instead of duplicating their data. A genuine worker edit verifies the
+serialized dense-table case stays within its unchanged 256 KiB request limit.
+
+This changes authored key data, not row geometry or styling. The five §0.7
+`effect_controls.rs` items (row stepping, boolean buttons, enum buttons, hover
+alpha and hierarchy) are retained outside this callback-only change; their
+current visual remediation status is pending verification. Other baseline
+locations are untouched. No new dimension/color token, control, menu or
+interaction gesture was introduced. Final project-setting UI screenshots and
+comprehensive acceptance remain pending.
 
 ## Sources and provenance
 
