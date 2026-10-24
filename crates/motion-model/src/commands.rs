@@ -49,6 +49,7 @@ pub enum Command {
     SetTrackMatte {object:u64,matte:Option<crate::compositing::TrackMatte>},
     InComposition { composition: String, command: Box<Command> },
     Composition { action: crate::CompositionAction },
+    SetWorkArea { in_frame: u32, out_frame: u32 },
     RegisterAudioAsset {
         asset: crate::AudioAsset,
     },

@@ -19,6 +19,7 @@ mod node_tasks;
 mod owned_file;
 mod panels;
 mod project_lifecycle;
+mod preview_playback;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
@@ -288,6 +289,7 @@ struct Shell {
     pending: bool,
     frame: f64,
     playback: Option<(Instant, f64)>,
+    playback_plan: Option<preview_playback::Plan>,
     next_composition: Instant,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
@@ -410,6 +412,7 @@ impl Shell {
             pending: false,
             frame: 0.0,
             playback: None,
+            playback_plan: None,
             next_composition: Instant::now(),
             audio: None,
             freezing_movie: None,
@@ -1060,6 +1063,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
 }
+#[cfg(test)]
 fn playback_frame(origin: f64, elapsed: Duration, fps: u32, frames: u32) -> f64 {
     (origin + elapsed.as_secs_f64() * f64::from(fps.max(1))).rem_euclid(f64::from(frames.max(1)))
 }

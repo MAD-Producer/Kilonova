@@ -787,16 +787,19 @@ impl Shell {
                 if self.playback.is_some() {
                     self.stop();
                 } else {
+                    let project = serde_json::from_value::<Project>(self.state["project"].clone())
+                        .map_err(|error| error.to_string())?;
+                    let plan = crate::preview_playback::Plan::new(&project, self.workspace.preview_playback, self.frame)?;
+                    self.frame = plan.origin;
                     if self.state["has_audio"].as_bool().unwrap_or(false) {
-                        let project =
-                            serde_json::from_value::<Project>(self.state["project"].clone())
-                                .map_err(|e| e.to_string())?;
-                        match audio_output::AudioOutput::start(
+                        match audio_output::AudioOutput::start_in_range(
                             project,
                             std::path::Path::new(
                                 self.state["root"].as_str().ok_or("project root missing")?,
                             ),
                             self.frame,
+                            plan.range,
+                            plan.looping,
                         ) {
                             Ok(audio) => self.audio = Some(audio),
                             Err(error) => {
@@ -808,6 +811,7 @@ impl Shell {
                         }
                     }
                     self.playback = Some((Instant::now(), self.frame));
+                    self.playback_plan = Some(plan);
                     self.panels.playing = true;
                 }
             }
@@ -841,6 +845,7 @@ impl Shell {
             audio.stop();
         }
         self.playback = None;
+        self.playback_plan = None;
         self.next_composition = Instant::now();
         self.panels.playing = false;
     }

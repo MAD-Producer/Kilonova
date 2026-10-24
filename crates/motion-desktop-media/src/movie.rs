@@ -38,6 +38,7 @@ fn package_budget_project() -> Project {
 #[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
 pub struct FrozenMovie {
     project: Project,
+    range: motion_core::WorkArea,
     registry: Registry,
     assets: tempfile::TempDir,
     memory_policy: MemoryPolicy,
@@ -51,6 +52,8 @@ pub struct FrozenMovie {
 mod camera_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod session_budget_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod work_area_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
@@ -61,7 +64,7 @@ mod tests {
     };
     use std::io::Write;
 
-    fn tone(count: usize, offset: u64) -> Vec<f32> {
+    pub(super) fn tone(count: usize, offset: u64) -> Vec<f32> {
         (0..count)
             .flat_map(|i| {
                 let value = ((offset + i as u64) as f32 * 440.0 * std::f32::consts::TAU / 48_000.0)
@@ -190,7 +193,7 @@ mod tests {
         l.sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:2.,samples:8});
         if nested {
             p.compositions.push(motion_core::Composition {id:"comp-movie-shutter".into(),name:"60 fps child".into(),
-                width:64,height:64,fps:60,frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
+                width:64,height:64,fps:60,work_area: motion_core::WorkArea::full(12), frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
                 layers:vec![l],expressions:vec![]});
             let mut parent=Layer::solid(1,"parent shutter",[64.;2],[32.,32.,0.],[1.;4]);
             parent.content=Content::Composition {clip:motion_core::CompositionClip::new("comp-movie-shutter".into())};
@@ -273,7 +276,7 @@ mod tests {
         }
         encode.finish().unwrap();
     }
-    fn decoded_audio_rms(path: &Path) -> (usize, f64) {
+    pub(super) fn decoded_audio_rms(path: &Path) -> (usize, f64) {
         use ffmpeg_next::{codec, format, frame, media};
         let mut input = format::input(path).unwrap();
         let stream = input.streams().best(media::Type::Audio).unwrap();
@@ -860,6 +863,7 @@ impl MovieFreezePlan {
         source_paths.insert(root.join("project.json"));
         control.set_progress(0.1);
         Ok(FrozenMovie {
+            range: motion_core::WorkArea::full(project.frames),
             project,
             registry,
             assets,
@@ -873,6 +877,13 @@ impl MovieFreezePlan {
 }
 
 impl FrozenMovie {
+    /// Resolve against the frozen document, never against a later UI revision.
+    /// Layer timing and the composition clock remain absolute source time.
+    pub fn with_scope(mut self, scope: motion_core::FrameScope) -> Self {
+        self.range = self.project.frame_range(scope);
+        self
+    }
+
     /// Call on the session's owning worker. The private directory contains actual
     /// copies, including PCM and PTS caches; retained original file handles alone
     /// would not freeze an in-place external source edit.
@@ -931,7 +942,7 @@ impl FrozenMovie {
     }
 
     pub fn frames(&self) -> u32 {
-        self.project.frames
+        self.range.out_frame - self.range.in_frame
     }
 
     pub fn export(
@@ -1002,15 +1013,18 @@ impl FrozenMovie {
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
         let mut videos = motion_host::video_frames::VideoFrames::new(crate::platform());
         let mut mixer = motion_media::AudioMixer::new(p.clone(), self.assets.path())?;
-        let total_samples = mixer.total_frames();
+        let samples = self.range.sample_bounds(p.fps, motion_media::OUTPUT_RATE as u32)
+            .map_err(|error| error.to_string())?;
+        let total_samples = samples.end;
+        let output_frames = self.frames();
         let block_size = encoder.audio_frame_size();
         if block_size == 0 || block_size > motion_media::MAX_BLOCK_FRAMES {
             return Err("unsupported AAC frame size".into());
         }
         let mut pcm = vec![0f32; block_size * 2];
-        let mut sample = 0;
+        let mut sample = samples.start;
         report(0.1);
-        for frame in 0..p.frames {
+        for frame in self.range.in_frame..self.range.out_frame {
             allocation_observation::run(
                 &self.allocation_budget,
                 self.observation_request,
@@ -1057,7 +1071,7 @@ impl FrozenMovie {
                             .map_err(|e| format!("render export frame {frame}: {e}"))?.0
                     };
                     control.check()?;
-                    encoder.video_frame(&pixels, frame)?;
+                    encoder.video_frame(&pixels, frame - self.range.in_frame)?;
                     let until = (u64::from(frame + 1) * motion_media::OUTPUT_RATE / u64::from(p.fps))
                         .min(total_samples);
                     while sample < until {
@@ -1067,16 +1081,16 @@ impl FrozenMovie {
                         if actual != count {
                             return Err("audio mixer ended before the frozen composition".into());
                         }
-                        encoder.audio_frame(&pcm[..count * 2], sample)?;
+                        encoder.audio_frame(&pcm[..count * 2], sample - samples.start)?;
                         sample += count as u64;
                     }
-                    report(0.1 + f64::from(frame + 1) / f64::from(p.frames) * 0.88);
+                    report(0.1 + f64::from(frame + 1 - self.range.in_frame) / f64::from(output_frames) * 0.88);
                     Ok(())
                 },
             )?;
         }
         if sample != total_samples {
-            return Err("movie mix did not cover the complete composition".into());
+            return Err("movie mix did not cover the complete selected frame range".into());
         }
         control.check()?;
         encoder.finish()?;
@@ -1094,7 +1108,7 @@ impl FrozenMovie {
             .ok_or("completed MP4 has no audio")?;
         if video.parameters().id() != ffmpeg_next::codec::Id::H264
             || audio.parameters().id() != ffmpeg_next::codec::Id::AAC
-            || video.frames() != i64::from(p.frames)
+            || video.frames() != i64::from(output_frames)
         {
             return Err("completed MP4 stream verification failed".into());
         }
@@ -1126,7 +1140,7 @@ impl FrozenMovie {
             bytes,
             width: p.width,
             height: p.height,
-            frames: p.frames,
+            frames: output_frames,
             fps: p.fps,
             revision: self.revision,
             video_encoder: encoder_name,

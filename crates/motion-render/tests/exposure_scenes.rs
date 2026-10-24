@@ -447,6 +447,7 @@ fn composition(id: &str, fps: u32, layers: Vec<Layer>) -> Composition {
         height: 128,
         fps,
         frames: 300,
+        work_area: motion_core::WorkArea::full(300),
         background: [0.; 4],
         camera: Camera::new(128, 128),
         layers,

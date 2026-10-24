@@ -86,6 +86,7 @@ fn fixture() -> Project {
             height: 32,
             fps: 30,
             frames: 180,
+            work_area: motion_core::WorkArea::full(180),
             background: [0.; 4],
             camera: motion_core::Camera::new(32, 32),
             layers,

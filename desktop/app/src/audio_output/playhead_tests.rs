@@ -15,6 +15,8 @@ fn output(rate: u32, start_sample: u64, total_samples: u64) -> AudioOutput {
         rate,
         start_sample,
         total_samples,
+        range_start: 0,
+        looping: false,
     }
 }
 

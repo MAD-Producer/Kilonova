@@ -46,6 +46,8 @@ pub struct Workspace {
     #[serde(default)]
     pub(crate) preview_quality: preferences::PreviewQuality,
     #[serde(default)]
+    pub(crate) preview_playback: crate::preview_playback::Options,
+    #[serde(default)]
     pub(crate) shortcut_bindings: crate::shortcuts::bindings::Bindings,
     #[serde(default)]
     pub favorites: std::collections::BTreeSet<String>,
@@ -90,6 +92,7 @@ impl Default for Workspace {
             timeline_hide_shy: false,
             style_path: None,
             preview_quality: Default::default(),
+            preview_playback: Default::default(),
             shortcut_bindings: Default::default(),
             layout: Default::default(),
         }
