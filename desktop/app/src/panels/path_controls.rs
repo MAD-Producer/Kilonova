@@ -28,6 +28,8 @@ mod point_selection;
 mod pen_tools;
 #[cfg(test)]
 mod property_focus_tests;
+#[cfg(test)]
+mod clipboard_tests;
 pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -262,6 +264,7 @@ struct Parameter {
     values: Vec<f32>,
     text: String,
     replace: bool,
+    editor: motion_ui::widgets::TextEditor,
     rect: Rect,
     start: Option<f32>,
     begun: bool,
@@ -1526,7 +1529,7 @@ impl Controls {
                 },
             })
         };
-        if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             if p.begun {
                 out.push(Action::History(4));
             }
@@ -1580,22 +1583,8 @@ impl Controls {
             }
         }
         if p.start.is_none() {
-            if !input.text.is_empty() {
-                if p.replace {
-                    p.text.clear();
-                    p.replace = false;
-                }
-                p.text.push_str(&input.text);
-            }
-            if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-                if p.replace {
-                    p.text.clear();
-                    p.replace = false;
-                } else {
-                    p.text.pop();
-                }
-            }
-            if outside || input.keys.iter().any(|(k, _)| *k == Key::Enter) {
+            let event = p.editor.input_value(&mut p.text, &mut p.replace, input);
+            if outside || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
                 if p.text.trim().is_empty() {
                     return;
                 }
@@ -1808,6 +1797,7 @@ mod numeric_tests {
                     values: vec![50.],
                     text: "50".into(),
                     replace: true,
+                    editor: Default::default(),
                     rect: Rect::new(90., 0., 120., 30.),
                     start: Some(100.),
                     begun: false,

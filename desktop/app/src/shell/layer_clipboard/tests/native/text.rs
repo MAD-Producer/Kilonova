@@ -1,6 +1,7 @@
 //! Actual HWND/wgpu rename fields, component input, shared application text cache.
 use super::*;
 use crate::panels;
+mod legacy_fields;
 
 fn enter() -> Input {
     Input {
@@ -230,5 +231,6 @@ fn native_text_clipboard_crosses_main_and_floating_fields_and_commits_once() {
         let after_search = shell.engine.state().unwrap();
         assert_eq!(after_search["project"], before["project"]);
         assert_eq!(after_search["revision"], shell.state["revision"]);
+        legacy_fields::run(&mut events, &mut shell, size, scale, name, &root);
     }
 }

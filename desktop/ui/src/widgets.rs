@@ -57,6 +57,28 @@ impl TextEditor {
         self.begin(value);
         self.select_all = false;
     }
+    /// Adapt a live string without changing the caller's validation/commit policy.
+    /// External replacement or a cancelled editor starts a fresh draft.
+    pub fn input_value(
+        &mut self,
+        value: &mut String,
+        replace: &mut bool,
+        input: &impl crate::InputSource,
+    ) -> Option<TextEvent> {
+        if !self.active || self.text != *value {
+            if *replace {
+                self.begin(value);
+            } else {
+                self.begin_at_end(value);
+            }
+        }
+        let event = self.input(input);
+        if self.active && self.text != *value {
+            value.clone_from(&self.text);
+            *replace = false;
+        }
+        event
+    }
     pub fn cancel(&mut self) {
         self.active = false;
         self.error = None;

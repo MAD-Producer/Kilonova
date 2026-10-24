@@ -26,6 +26,33 @@ fn begin(text: &str) -> TextEditor {
 }
 
 #[test]
+fn live_value_adapter_preserves_failed_copy_and_resets_history_for_external_values() {
+    let cache = Arc::new(TextClipboard::default());
+    let mut editor = TextEditor::default();
+    let mut value = "原文 👩🏽‍🚀".to_string();
+    let mut replace = true;
+    let mut unavailable = chord(&cache, Key::X, false);
+    unavailable.text_clipboard = None;
+    editor.input_value(&mut value, &mut replace, &unavailable);
+    assert_eq!(value, "原文 👩🏽‍🚀");
+    assert!(replace && editor.error.is_some());
+    editor.input_value(&mut value, &mut replace, &chord(&cache, Key::X, false));
+    assert_eq!(value, "");
+    assert!(!replace);
+    editor.input_value(&mut value, &mut replace, &chord(&cache, Key::Z, false));
+    assert_eq!(value, "原文 👩🏽‍🚀");
+    value = "外部替换".into();
+    replace = true;
+    editor.input_value(&mut value, &mut replace, &chord(&cache, Key::Y, false));
+    assert_eq!(value, "外部替换");
+    cache.store("数值").unwrap();
+    editor.input_value(&mut value, &mut replace, &chord(&cache, Key::V, false));
+    assert_eq!(value, "数值");
+    editor.input_value(&mut value, &mut replace, &chord(&cache, Key::Z, false));
+    assert_eq!(value, "外部替换");
+}
+
+#[test]
 fn resumed_search_appends_at_grapheme_end_and_clones_own_their_history() {
     let cache = Arc::new(TextClipboard::default());
     let mut source = TextEditor::default();

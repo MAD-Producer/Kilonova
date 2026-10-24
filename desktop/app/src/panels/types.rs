@@ -384,6 +384,7 @@ pub(crate) struct Field {
     pub axis: usize,
     pub text: String,
     pub replace: bool,
+    pub editor: motion_ui::widgets::TextEditor,
     pub rect: Rect,
     pub scrubbing: Option<ScrubState>,
 }

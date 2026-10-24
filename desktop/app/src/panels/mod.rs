@@ -1800,6 +1800,7 @@ mod tests {
                         axis: 0,
                         text: "123".into(),
                         replace: false,
+                        editor: Default::default(),
                         rect: Rect::default(),
                         scrubbing: None,
                     }),
