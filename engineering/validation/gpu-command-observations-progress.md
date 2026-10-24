@@ -43,6 +43,7 @@ Local receipts are under `E:/Dev/aem/artifacts/pr-queue`: `issue60-gpu-command-m
 | G11: bounded recording window | Source `11c342d3` passed the focused unit/native cases. A separate explicit trace preserves terminal records beyond the 256-entry watchdog ring, capped at 8192 commands and 16 MiB of retained record-slot/string/context bytes. Creation boundaries use epoch and nonwrapping command/window IDs. Pre-window work stays excluded even when callbacks arrive late; stopping does not wait, fabricate completion or extend into later commands. Tests hit both actual production limits. Overflow preserves a prefix and counts omitted IDs; routine snapshots never clone the full trace |
 | G12: exact presentation links (validation pending) | Successful normal and exposure FrameRecorder entries save the exact encoder epoch/id before native submission, plus the exposure request/poll when present. Finished buffers preserve that identity. Missing/disabled/busy observations stay null. This uses scalar Copy metadata, not a floating source-frame join or a growing per-frame context list. New tests cover duplicate numeric IDs across epochs, unchanged source frames, actual native callbacks and actual worker/surface/report joins; they have not yet run |
 | G13: native threshold sinks (validation pending) | A new desktop child-process test drives 59/60/70 actual invalid native readbacks, a valid native render/pixel recovery, then a second 59/60 episode through actual Session guards and the default file/console logger. It checks retained caller requests, original primary failure, suppression, reset and stdout isolation. This test has not yet run; the metadata invariant sink case is not substituted for it |
+| G14: explicit baseline trace integration (native validation pending) | The offline six-case collector now records original encoder words and the native queue period, exact main encoder identities, per-sample mapped diagnostic bytes and completed allocation windows. Its request domain is explicitly the offline case's sample index plus one, not a worker request or a floating source-frame join. Nested commands have a distinct stage; vector/MSAA preparation remains inside the main encoder, before root-pass timing. Seventeen Python protocol/archive tests passed, including five new rejection tests. This source has not been compiled or measured on a GPU; synthetic protocol records are not native evidence |
 
 G13 uses a separate explicit diagnostic injector gated by both `debug_assertions` and `gpu-tests`; it is absent from Release builds and never invoked by normal rendering or profiling startup. It submits real query/resolve/copy commands followed by an actual GPU copy that corrupts diagnostic timestamp words. The real mapping callback and unchanged escalation/log path process that data. No successful/error callback result is fabricated on the CPU, no image or project data is modified, and no driver/hardware failure is claimed. Its admitted 16-byte source buffer retires on an actual queue fence, including submission unwind. This is test infrastructure, not a rendering optimization or automatic recovery mechanism.
 
@@ -64,3 +65,14 @@ The ordinary root timer remains separate. Command intervals include marker overh
 - Publish the new raw evidence and completion dispositions only after those gates pass; retain the existing application's allowance-pressure baseline without presenting it as physical/OS pressure acceptance
 
 Issue #60 remains open. Neither compilation nor the focused test count closes these remaining requirements.
+
+The new baseline writer emits schema 3. Historical schema-2 archives remain
+replayable with their original source attribution and explicitly have no command
+evidence. A fresh collection cannot publish schema 2. Its validation checks
+original words against the queue timestamp period, exact epoch/encoder and caller
+identities, actual callback byte counts, trace completeness/limits and completed
+allocation windows. It rejects hidden omissions and unavailable data presented
+as measured zero. Command intervals may overlap root timings and one another;
+they are never summed into exclusive GPU busy time. Profiling overhead is part
+of this new explicit study condition, so prior baselines cannot demonstrate an
+optimization gain for this increment. Actual native collection remains pending.

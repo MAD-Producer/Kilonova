@@ -13,6 +13,7 @@ import platform
 import subprocess
 import sys
 import time
+from desktop_performance_commands import validate_command_trace
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ("static", "animated", "effect-chain", "crossing-3d", "nested-matte", "four-4k-yuv")
@@ -27,6 +28,7 @@ COUNTERS = ("mainSubmissions", "videoConversionSubmissions", "videoConversions",
 BENCHMARK_INPUTS = frozenset((
     "crates/motion-render/examples/performance_baseline.rs",
     "tools/collect_desktop_performance.py", "tools/test_ci_desktop_performance.py",
+    "tools/desktop_performance_commands.py", "tools/test_ci_desktop_performance_commands.py",
     "tools/VALIDATION.md", "tools/validation_inventory.json",
     "engineering/validation/desktop-performance-baseline.md",
     "engineering/validation/desktop-performance-baseline-completed.md",
@@ -152,7 +154,9 @@ def validate_cpu_memory(cpu, video):
 
 
 def validate_case(report, expected_case, expected_source, samples):
-    require(report["schemaVersion"] == 2 and report["case"] == expected_case, "Unexpected case/schema")
+    # Schema 2 is retained only to replay its source-attributed historical
+    # archives. New native studies require schema 3 before publication below.
+    require(report["schemaVersion"] in (2, 3) and report["case"] == expected_case, "Unexpected case/schema")
     require(report["sourceRevision"] == expected_source, "Benchmark binary source does not match build receipt")
     require(report["debugAssertions"] is False, "Debug builds are not Release latency evidence")
     require(report["dimensions"] == [1280, 720] and report["fps"] == 30,
@@ -219,7 +223,9 @@ def validate_case(report, expected_case, expected_source, samples):
     calculated = {key: distribution(frame[key] for frame in frames[8:] if frame[key] is not None)
                   for key in METRICS}
     require(report["distributions"] == calculated, "Published percentiles differ from raw samples")
+    command_evidence = validate_command_trace(report) if report["schemaVersion"] == 3 else None
     return {"case": expected_case, "adapter": report["adapter"], "distributions": calculated,
+            "commandEvidence": command_evidence,
             "allFrameCounterTotals": totals, "gpuSampleCoverage": 1 if report["gpuTimestampSupported"] else 0,
             "nativeMemoryPressure": report["nativeMemoryPressure"], "coverageGaps": report["coverageGaps"],
             "cpuMemory": {"completeCoverage": False, "unknownBytes": None,
@@ -230,20 +236,21 @@ def validate_case(report, expected_case, expected_source, samples):
 def validate_output(output, receipt):
     root = output / "native"
     index = json.loads((root / "report.json").read_text(encoding="utf-8"))
-    require(index["schemaVersion"] == 2 and [entry["case"] for entry in index["cases"]] == list(CASES),
+    require(index["schemaVersion"] in (2, 3) and [entry["case"] for entry in index["cases"]] == list(CASES),
             "The complete six-case study is required")
     cases = []
     for name, entry in zip(CASES, index["cases"]):
         require(entry["report"] == f"{name}/report.json", "Unexpected report path")
         folder = root / name
         report = json.loads((folder / "report.json").read_text(encoding="utf-8"))
+        require(report["schemaVersion"] == index["schemaVersion"], "Mixed native schemas cannot share an archive")
         project_hash = digest(folder / "project.json")
         require(project_hash == report["projectSha256"] == entry["projectSha256"], "Project fixture changed")
         # The PNG is retained and hashed as a file. Its decoded RGBA digest in the native
         # report is separate; the Python validator never substitutes compressed bytes.
         require((folder / "final.png").is_file(), "Missing final native image")
         cases.append(validate_case(report, name, receipt["sourceRevision"], receipt["samples"]))
-    return {"schemaVersion": 2, "sourceRevision": receipt["sourceRevision"], "cases": cases,
+    return {"schemaVersion": index["schemaVersion"], "sourceRevision": receipt["sourceRevision"], "cases": cases,
             "scope": "Offline serialized headless GPU latency on the recorded adapter; not paced GUI playback or display FPS",
             "physicalDeviceAcceptanceComplete": False,
             "notMeasured": ["Native window/UI/display deadlines", "File video decoding", "Physical driver exhaustion",
@@ -310,6 +317,7 @@ def main():
         require(git("rev-parse", "HEAD") == source and not git("status", "--porcelain"), "Source changed during measurement")
         require(digest(binary) == receipt["binary"]["sha256"], "Benchmark binary changed during measurement")
         summary = validate_output(output, receipt)
+        require(summary["schemaVersion"] == 3, "A new native study requires exact command records, not historical schema 2")
         (output / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         receipt["files"] = {path.relative_to(output).as_posix(): digest(path)
                             for path in sorted(output.rglob("*")) if path.is_file() and path.name != "provenance.json"}

@@ -91,11 +91,23 @@ original failures and source/binary/artifact hashes. Run `--validate-only` to
 check an existing archive without running a GPU. Its archive/failure regressions
 are discovered by `test_ci_desktop_performance.py`.
 
-Current schema-2 records include bounded CPU package/program text ownership,
+New schema-3 records add original per-encoder timestamp words, the native queue
+timestamp period, exact epoch/encoder IDs, and complete bounded trace windows.
+Offline request IDs are explicitly case-local sample ordinals, never Engine
+worker requests or joins by authored frame. Static vector preparation is inside
+the main encoder before the root pass; nested composition and YUV conversion
+commands retain separate identities. These intervals can overlap and must not
+be summed into exclusive GPU busy time. Final PNG readback is after trace stop.
+`test_ci_desktop_performance_commands.py` checks malformed protocol rejection;
+its synthetic records do not establish actual native availability or timings.
+
+Schema-2 records include bounded CPU package/program text ownership,
 the actual single reusable YUV fixture capacities, and separately timed metadata
 enumeration. Unknown process/driver storage remains null. Historical schema-1
 archives require the collector at their recorded source; no missing CPU records
-are synthesized. Protocol tests do not replace a new source-bound native run.
+are synthesized. Schema-2 archives remain attributed to their historical source
+and have no command evidence. New native collection requires schema 3. Protocol
+tests do not replace a new source-bound native run.
 
 See [scope and pending native acceptance](../engineering/validation/desktop-performance-baseline.md).
 This headless, synchronized latency study does not measure window playback,

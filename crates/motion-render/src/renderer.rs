@@ -1695,11 +1695,11 @@ impl Renderer {
         width: u32,
         height: u32,
     ) -> Result<RenderStats> {
-        self.draw_internal(scene,view,width,height,false)
+        self.draw_internal(scene,view,width,height,false,crate::gpu_commands::CommandStage::Composition)
     }
-    fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool)->Result<RenderStats> {
+    fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool,stage:crate::gpu_commands::CommandStage)->Result<RenderStats> {
         let mut encoder = self
-            .allocation_command_encoder_for(crate::gpu_commands::CommandStage::Composition, &wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder_for(stage, &wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio frame"),
             })?;
         let mut stats = self.encode_internal(scene, view, width, height, &mut encoder, None, preview)?;
@@ -1792,7 +1792,7 @@ impl Renderer {
                 self.effect_gpu.invalidate();
             }
             let view=self.images[&key].view.clone();
-            let stats=self.draw_internal(&node.scene,&view,w,h,preview).map_err(|e| {
+            let stats=self.draw_internal(&node.scene,&view,w,h,preview,crate::gpu_commands::CommandStage::NestedComposition).map_err(|e| {
                 let message=node.scene.diagnostic(&e.to_string());
                 e.with_diagnostic(message)
             })?;

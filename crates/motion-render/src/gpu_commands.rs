@@ -52,6 +52,8 @@ struct Pool {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpuCommandSnapshot {
+    /// Native queue conversion for this epoch's original timestamp words.
+    pub timestamp_period_ns: f64,
     pub commands: CommandSnapshot,
     pub readback: TimestampReadbackInfo,
     pub capacity: usize,
@@ -65,6 +67,7 @@ pub struct GpuCommandSnapshot {
 /// The metadata and readback atomics are not one atomic cross-counter snapshot.
 #[derive(Clone)]
 pub struct GpuCommandObserver {
+    period_ns: f64,
     records: Arc<CommandRecords>,
     readback: Arc<TimestampReadbackCounters>,
     states: Vec<Arc<AtomicU8>>,
@@ -88,6 +91,7 @@ impl GpuCommandObserver {
     }
     pub fn snapshot(&self) -> GpuCommandSnapshot {
         GpuCommandSnapshot {
+            timestamp_period_ns: self.period_ns,
             commands: self.records.snapshot(),
             readback: self.readback.info(),
             capacity: self.states.len(),
@@ -296,6 +300,7 @@ impl Pool {
     }
     fn observer(&self) -> GpuCommandObserver {
         GpuCommandObserver {
+            period_ns: self.period_ns,
             records: self.records.clone(),
             readback: self.readback.clone(),
             states: self.slots.iter().map(|slot| slot.state.clone()).collect(),
