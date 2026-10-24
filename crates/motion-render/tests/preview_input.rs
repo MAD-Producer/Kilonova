@@ -66,8 +66,17 @@ fn input_command_timers_keep_independent_owners_across_shared_budget_devices_and
         .begin_frame_at(711, FrameOperation::NodeCapture, 1.25)
         .unwrap()
         .unwrap();
-    a.upload_rgba(4, 4, &[255, 0, 0, 128].repeat(16), false, 2)
-        .unwrap();
+    a.upload_rgba_with_context(
+        4,
+        4,
+        &[255, 0, 0, 128].repeat(16),
+        false,
+        2,
+        Some(motion_render::gpu_commands::InputCommandContext::image(
+            501, 7, 1.25, 42,
+        )),
+    )
+    .unwrap();
     let source = Yuv420Frame {
         width: 4,
         height: 2,
@@ -79,7 +88,18 @@ fn input_command_timers_keep_independent_owners_across_shared_budget_devices_and
         uv: vec![128; 4],
         chroma_layout: ChromaLayout::Uv,
     };
-    b.upload_yuv(&source, 4).unwrap();
+    b.upload_yuv_with_context(
+        &source,
+        4,
+        Some(motion_render::gpu_commands::InputCommandContext::layer(
+            502,
+            7,
+            1.25,
+            23,
+            "source-comp",
+        )),
+    )
+    .unwrap();
     frame.finish(AllocationFrameOutcome::Rendered);
     assert_eq!(main.snapshot().commands.counts.started, 0);
     for observer in [&a_old, &b_observer] {
@@ -132,6 +152,21 @@ fn input_command_timers_keep_independent_owners_across_shared_budget_devices_and
         assert_eq!(snapshot.commands.counts.omitted_slots, 0);
     }
     assert_eq!(a_new.snapshot().commands.counts.started, 0);
+    let a_record = a_old.snapshot().commands.recent.pop().unwrap();
+    let b_record = b_observer.snapshot().commands.recent.pop().unwrap();
+    let a_input = a_record.input.unwrap();
+    let b_input = b_record.input.unwrap();
+    assert_eq!(
+        (a_input.sequence, a_input.asset, a_input.revision),
+        (501, Some(42), 7)
+    );
+    assert_eq!(
+        (b_input.sequence, b_input.object, b_input.revision),
+        (502, Some(23), 7)
+    );
+    assert_eq!(b_input.composition.as_deref(), Some("source-comp"));
+    assert_eq!(a_record.contexts[0].request, Some(711));
+    assert_eq!(b_record.contexts[0].request, Some(711));
     assert_eq!(a.dimensions(), (2, 2));
     let rgba = pixels(&first, &a);
     assert!(rgba

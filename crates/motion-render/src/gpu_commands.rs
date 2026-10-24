@@ -12,7 +12,7 @@ use crate::{
 pub use logging::GpuCommandLogScope;
 pub use records::{
     CommandContext, CommandCounts, CommandPhase, CommandRecord, CommandSnapshot, CommandStage,
-    ExposureCommandContext, ExposureCommandScope,
+    ExposureCommandContext, ExposureCommandScope, InputCommandContext,
     MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_RECENT_GPU_COMMANDS,
 };
 use records::{CommandRecords, CommandTicket};
@@ -154,10 +154,11 @@ impl AttachedCommandProfiler {
     }
     pub(crate) fn allocated_encoder(&self, device: &wgpu::Device,
         budget: &crate::AllocationBudget, owner: Arc<()>,
-        descriptor: &wgpu::CommandEncoderDescriptor<'_>, stage: CommandStage)
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>, stage: CommandStage,
+        input: Option<InputCommandContext>)
         -> Result<AllocationEncoder, RenderError>
     {
-        let span = self.0.begin(stage, budget.gpu_command_contexts());
+        let span = self.0.begin_with_input(stage, budget.gpu_command_contexts(), input);
         let mut encoder = budget.encoder(device, owner, descriptor)?;
         encoder.observe_commands(span);
         Ok(encoder)
@@ -262,6 +263,10 @@ impl Pool {
     }
 
     fn begin(&self, stage: CommandStage, contexts: Vec<CommandContext>) -> Option<Span> {
+        self.begin_with_input(stage, contexts, None)
+    }
+    fn begin_with_input(&self, stage: CommandStage, contexts: Vec<CommandContext>,
+        input: Option<InputCommandContext>) -> Option<Span> {
         let Some(slot) = self
             .slots
             .iter()
@@ -275,7 +280,7 @@ impl Pool {
             self.records.omit_slot();
             return None;
         };
-        let Some(ticket) = self.records.begin(stage, contexts) else {
+        let Some(ticket) = self.records.begin_with_input(stage, contexts, input) else {
             slot.state.store(FREE, Ordering::Release);
             return None;
         };

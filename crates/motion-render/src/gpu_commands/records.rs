@@ -65,6 +65,38 @@ pub struct CommandContext {
     pub exposure_poll: Option<u64>,
 }
 
+/// Caller-owned input sequence, separate from worker request IDs and allocation
+/// windows. Unknown/oversized composition IDs are omitted explicitly.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InputCommandContext {
+    pub sequence: u64,
+    pub revision: u64,
+    pub source_frame: f64,
+    pub asset: Option<u64>,
+    pub object: Option<u64>,
+    pub composition: Option<String>,
+    pub composition_omitted: bool,
+}
+impl InputCommandContext {
+    pub fn image(sequence: u64, revision: u64, source_frame: f64, asset: u64) -> Self {
+        Self { sequence, revision, source_frame, asset: Some(asset), object: None,
+            composition: None, composition_omitted: false }
+    }
+    pub fn layer(sequence: u64, revision: u64, source_frame: f64, object: u64, composition: &str) -> Self {
+        let omitted = composition.chars().take(129).count() > 128;
+        Self { sequence, revision, source_frame, asset: None, object: Some(object),
+            composition: (!omitted).then(|| composition.to_owned()), composition_omitted: omitted }
+    }
+    fn bounded(mut self) -> Self {
+        if self.composition.as_ref().is_some_and(|id| id.chars().take(129).count() > 128) {
+            self.composition = None;
+            self.composition_omitted = true;
+        }
+        self
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandRecord {
@@ -73,6 +105,7 @@ pub struct CommandRecord {
     pub stage: CommandStage,
     /// Captured independently of allowance frames, which may be absent.
     pub exposure: Option<ExposureCommandContext>,
+    pub input: Option<InputCommandContext>,
     pub contexts: Vec<CommandContext>,
     pub omitted_contexts: usize,
     pub phase: CommandPhase,
@@ -92,6 +125,7 @@ pub struct CommandCounts {
     pub omitted_identity_exhausted: u64,
     pub omitted_contexts: u64,
     pub omitted_exposure_scopes: u64,
+    pub omitted_input_identifiers: u64,
     pub completed: u64,
     pub discarded: u64,
     pub unconfirmed: u64,
@@ -217,8 +251,15 @@ impl CommandRecords {
     pub(crate) fn begin(
         self: &Arc<Self>,
         stage: CommandStage,
-        mut contexts: Vec<CommandContext>,
+        contexts: Vec<CommandContext>,
     ) -> Option<CommandTicket> {
+        self.begin_with_input(stage, contexts, None)
+    }
+    pub(crate) fn begin_with_input(
+        self: &Arc<Self>, stage: CommandStage, mut contexts: Vec<CommandContext>,
+        input: Option<InputCommandContext>,
+    ) -> Option<CommandTicket> {
+        let input = input.map(InputCommandContext::bounded);
         let mut state = self.lock();
         let state = &mut *state;
         if state.active.len() == MAX_ACTIVE_GPU_COMMANDS {
@@ -231,7 +272,7 @@ impl CommandRecords {
         };
         // Reject nonsensical metadata without changing caller rendering. Do not
         // turn an invalid source frame into a plausible zero frame.
-        if contexts
+        if input.as_ref().is_some_and(|context| !context.source_frame.is_finite()) || contexts
             .iter()
             .any(|context| context.source_frame.is_some_and(|f| !f.is_finite()))
         {
@@ -240,6 +281,9 @@ impl CommandRecords {
             return None;
         }
         let omitted = contexts.len().saturating_sub(MAX_GPU_COMMAND_CONTEXTS);
+        if input.as_ref().is_some_and(|context| context.composition_omitted) {
+            state.counts.saturated |= increment(&mut state.counts.omitted_input_identifiers, 1);
+        }
         contexts.truncate(MAX_GPU_COMMAND_CONTEXTS);
         let (exposure, wrong_thread) = state.exposure.current();
         if wrong_thread {
@@ -263,6 +307,7 @@ impl CommandRecords {
                     id,
                     stage,
                     exposure,
+                    input,
                     contexts,
                     omitted_contexts: omitted,
                     phase: CommandPhase::Encoding,
@@ -719,5 +764,34 @@ mod tests {
         outcome(&records, true);
         assert_eq!(records.snapshot().consecutive_readback_failures, 0);
         assert!(records.snapshot().counts.saturated);
+    }
+    #[test]
+    fn input_sequences_remain_distinct_from_worker_requests_and_identifiers_are_bounded() {
+        let records = CommandRecords::new().unwrap();
+        let input = InputCommandContext::layer(5, 7, 1.25, 23, &"界".repeat(1024));
+        assert!(input.composition.is_none());
+        assert!(input.composition_omitted);
+        let ticket = records.begin_with_input(CommandStage::AuthoringInput, vec![], Some(input)).unwrap();
+        let record = records.snapshot().active.pop().unwrap();
+        assert!(record.contexts.is_empty());
+        let input = record.input.unwrap();
+        assert_eq!((input.sequence, input.revision, input.object), (5, 7, Some(23)));
+        assert_eq!(input.source_frame, 1.25);
+        assert!(input.composition.is_none());
+        assert_eq!(records.snapshot().counts.omitted_input_identifiers, 1);
+        drop(ticket);
+        // Public metadata cannot bypass the string bound or turn NaN into zero.
+        let mut input = InputCommandContext::image(6, 7, 2.5, 42);
+        input.composition = Some("x".repeat(1024));
+        let ticket = records.begin_with_input(CommandStage::AuthoringInput, context(91), Some(input.clone())).unwrap();
+        let record = records.snapshot().active.pop().unwrap();
+        assert_eq!(record.contexts[0].request, Some(91));
+        assert_eq!(record.input.unwrap().sequence, 6);
+        assert_eq!(records.snapshot().counts.omitted_input_identifiers, 2);
+        drop(ticket);
+        input.source_frame = f64::NAN;
+        assert!(records.begin_with_input(CommandStage::AuthoringInput, vec![], Some(input)).is_none());
+        assert_eq!(records.snapshot().counts.omitted_invalid_context, 1);
+        assert!(records.snapshot().observation_fault);
     }
 }

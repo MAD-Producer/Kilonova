@@ -20,8 +20,8 @@ impl GpuCommandObserver {
                         "native mapping failed without a retained cause"
                     });
             log::log!(event.level,
-                "render GPU command readback session={session:?} epoch={} command={} stage={:?} phase={:?} exposure={:?} contexts={:?} elapsed_us={} count={} words={:?} cause={cause}",
-                record.epoch, record.id, record.stage, record.phase, record.exposure, record.contexts,
+                "render GPU command readback session={session:?} epoch={} command={} stage={:?} phase={:?} exposure={:?} input={:?} contexts={:?} elapsed_us={} count={} words={:?} cause={cause}",
+                record.epoch, record.id, record.stage, record.phase, record.exposure, record.input, record.contexts,
                 record.cpu_elapsed_us, event.occurrence, record.timestamp_words);
         }
         if batch.invariant_fault {
