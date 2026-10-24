@@ -16,6 +16,7 @@ enum Choice {
     Expose(PortRef, bool),
     Add,
     Fit,
+    Clipboard(crate::shortcuts::Command),
     Duplicate,
     Delete,
     Disconnect(PortRef),
@@ -94,6 +95,9 @@ impl NodeEditor {
                 ));
             }
             MenuKind::Canvas => {
+                if self.clipboard.is_some() {
+                    entries.push((self.shortcut_bindings.label(language.text("粘贴节点", "Paste nodes"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::PasteNodes), Choice::Clipboard(crate::shortcuts::Command::PasteNodes)));
+                }
                 if !self.parents.is_empty() {
                     entries.push((
                         self.shortcut_bindings.label(language.text("返回父图", "Parent"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::LeaveGroup),
@@ -149,8 +153,14 @@ impl NodeEditor {
                             Choice::Collapse(id.clone()),
                         ));
                     }
+                    for (command, title) in [
+                        (crate::shortcuts::Command::CopyNodes, language.text("复制节点", "Copy nodes")),
+                        (crate::shortcuts::Command::CutNodes, language.text("剪切节点", "Cut nodes")),
+                    ] {
+                        entries.push((self.shortcut_bindings.label(title,crate::shortcuts::Scope::Nodes,command), Choice::Clipboard(command)));
+                    }
                     entries.push((
-                        self.shortcut_bindings.label(language.text("复制", "Duplicate"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Duplicate),
+                        self.shortcut_bindings.label(language.text("创建副本", "Duplicate"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Duplicate),
                         Choice::Duplicate,
                     ));
                     entries.push((
@@ -325,6 +335,7 @@ impl NodeEditor {
                 Choice::Delete => {
                     self.delete_selected();
                 }
+                Choice::Clipboard(command) => self.clipboard_command(command, language, menu.position),
                 Choice::Duplicate => {
                     if let Err(error) = self.duplicate_selected() {
                         self.notice = Some(error.to_string());

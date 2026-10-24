@@ -13,7 +13,7 @@
 
 ## 验证记录
 
-最终生产源码对应 153 项相关测试通过，0 失败：
+首轮实现对应 153 项相关测试通过，0 失败：
 
 | 验证 | 结果 | 本机 `artifacts/pr-ci-followups/` 证据 |
 |---|---|---|
@@ -68,3 +68,14 @@ DESIGN §0.7 各项 retained with reason：path_controls 步进、双列、按�
 英文 150% 浮窗中的椭圆：
 
 ![浮窗椭圆](editor-tool-state/ellipse-floating-en-created.png)
+
+
+## CI 回归修复与合入节点剪贴板后的复验
+
+首轮 PR 的 Linux / macOS Intel 门禁均在既有 `custom_animated_property_chords_preserve_double_press_and_input_ownership` 失败：给动画属性显式设置 Q 后，Composition 焦点下被新 Viewer 默认 Q 抢占。保留原断言与原始 CI 日志，修复实际快捷键仲裁；没有改成 ignore、等待或重试。
+
+新增默认工具键对显式 Animation 改键让位，默认工具提示同步隐藏被占用的快捷键；两个显式 Animation / Viewer 映射仍不能占用同一组合，拒绝时保持原绑定。解除 Animation 显式映射后恢复默认 Viewer 快捷键及提示。默认 T 在查看器与时间轴的不同作用域语义保持。
+
+同步已合并 #471 与 main 现有 UI 绘制优化，仅解决快捷键说明的内容冲突，保留完整节点剪贴板说明。合入后的时间轴快捷键 48 项、完整快捷键目录与冲突 9 项、工具状态 12 项、键盘仲裁 24 项、节点剪贴板 10 项共 **103 项通过**。本机证据为 `artifacts/pr-ci-followups/editor-tools-ci-timeline-fix.log` 和 `editor-tools-ci-{shortcuts,panels-tools,panels-keyboard,node_editor-clipboard}.log`。Linux / macOS 原始失败日志分别为 `editor-tools-linux-ci.log` / `editor-tools-macos-ci.log`；新版跨平台 CI 尚待远端验证。
+
+同步后的 FFmpeg 开发构建再次成功（64 s，20 项既有 app 警告），同一路径的 exe 更新为 SHA-256 `9fc9028498b223c457b96326a02381ae89a9b2b839ca86811bcc7cc00614ae3c`。Windows PE 架构与原固定运行时再次校验，隔离 PATH 启动退出 0、stderr 0 字节；证据为 `editor-tools-ci-product-build.log` 和 `editor-tools-ci-startup.stdout.json` / `.stderr.log`。

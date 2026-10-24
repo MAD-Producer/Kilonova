@@ -231,3 +231,18 @@ fn reset_conflicts_preferences_and_property_adaptation_preserve_effective_owners
         );
     }
 }
+
+#[test]
+fn explicit_animation_chord_takes_precedence_over_new_viewer_default_and_its_hint() {
+    let mut bindings=Bindings::default();let q=KeyChord::new(Key::Q,false,false,false);
+    bindings.bind(Scope::Animation,Command::AnimatedProperties,Some(q)).unwrap();
+    assert_eq!(bindings.resolve(Scope::Animation,q.key,q.modifiers,false),Some(Command::AnimatedProperties));
+    assert_eq!(bindings.resolve(Scope::Viewer,q.key,q.modifiers,false),None);
+    assert_eq!(bindings.hint(Scope::Viewer,Command::ToolShape),"");
+    let before=bindings.clone();
+    assert!(bindings.bind(Scope::Viewer,Command::ToolShape,Some(q)).is_err());
+    assert_eq!(bindings,before,"conflicting explicit assignments must remain atomic");
+    bindings.bind(Scope::Animation,Command::AnimatedProperties,None).unwrap();
+    assert_eq!(bindings.resolve(Scope::Viewer,q.key,q.modifiers,false),Some(Command::ToolShape));
+    assert_eq!(bindings.hint(Scope::Viewer,Command::ToolShape),"Q");
+}

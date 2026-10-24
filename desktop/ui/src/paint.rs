@@ -161,14 +161,16 @@ impl PaintList {
     pub fn clip_to(&mut self, area: Rect) {
         let mut shape_map = vec![None; self.shapes.len()];
         let mut glyph_map = vec![None; self.glyphs.len()];
-        let mut shapes = Vec::new();
-        let mut colors = Vec::new();
-        for (old, (mut shape, color)) in std::mem::take(&mut self.shapes)
-            .into_iter()
-            .zip(std::mem::take(&mut self.colors))
-            .enumerate()
-        {
-            if let Shape::Line { clip, .. } | Shape::Stroke { clip, .. } = &mut shape {
+        // Keep the old zip truncation for callers that fill the public buffers
+        // directly, while retaining their allocations through compaction.
+        self.shapes.truncate(self.colors.len());
+        self.colors.truncate(self.shapes.len());
+        let mut old_shape = 0;
+        let mut new_shape = 0;
+        self.shapes.retain_mut(|shape| {
+            let old = old_shape;
+            old_shape += 1;
+            let keep = if let Shape::Line { clip, .. } | Shape::Stroke { clip, .. } = shape {
                 let bounds = clip.get_or_insert(area);
                 bounds.min = [
                     bounds.min[0].max(area.min[0]),
@@ -178,58 +180,49 @@ impl PaintList {
                     bounds.max[0].min(area.max[0]),
                     bounds.max[1].min(area.max[1]),
                 ];
-                if bounds.width() > 0. && bounds.height() > 0. {
-                    shape_map[old] = Some(shapes.len());
-                    shapes.push(shape);
-                    colors.push(color);
-                }
-                continue;
-            }
-            if let Shape::Procedural { clip, .. } = &mut shape {
+                bounds.width() > 0. && bounds.height() > 0.
+            } else if let Shape::Procedural { clip, .. } = shape {
                 clip.min = [clip.min[0].max(area.min[0]), clip.min[1].max(area.min[1])];
                 clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
-                if clip.width() > 0. && clip.height() > 0. {
-                    shape_map[old] = Some(shapes.len());
-                    shapes.push(shape);
-                    colors.push(color);
-                }
-                continue;
-            }
-            if let Shape::Triangles { points } = &mut shape {
+                clip.width() > 0. && clip.height() > 0.
+            } else if let Shape::Triangles { points } = shape {
                 *points = clip_triangles(points, area);
-                if !points.is_empty() {
-                    shape_map[old] = Some(shapes.len());
-                    shapes.push(shape);
-                    colors.push(color);
-                }
-                continue;
-            }
-            let inside = |p: &[f32; 2]| {
-                area.contains(*p)
-                    || p[0] == area.max[0] && p[1] >= area.min[1] && p[1] <= area.max[1]
-                    || p[1] == area.max[1] && p[0] >= area.min[0] && p[0] <= area.max[0]
-            };
-            let all_inside = match &shape {
-                Shape::Quad { points } => points.iter().all(inside),
-                _ => false,
-            };
-            if !all_inside {
-                let triangles = match &shape {
-                    Shape::Quad { points } => expand_quad(*points).to_vec(),
-                    _ => unreachable!(),
+                !points.is_empty()
+            } else {
+                let inside = |p: &[f32; 2]| {
+                    area.contains(*p)
+                        || p[0] == area.max[0] && p[1] >= area.min[1] && p[1] <= area.max[1]
+                        || p[1] == area.max[1] && p[0] >= area.min[0] && p[0] <= area.max[0]
                 };
-                let points = clip_triangles(&triangles, area);
-                if points.is_empty() {
-                    continue;
+                let all_inside = match &*shape {
+                    Shape::Quad { points } => points.iter().all(inside),
+                    _ => false,
+                };
+                if !all_inside {
+                    let triangles = match &*shape {
+                        Shape::Quad { points } => expand_quad(*points).to_vec(),
+                        _ => unreachable!(),
+                    };
+                    let points = clip_triangles(&triangles, area);
+                    if points.is_empty() {
+                        return false;
+                    }
+                    *shape = Shape::Triangles { points };
                 }
-                shape = Shape::Triangles { points };
+                true
+            };
+            if keep {
+                shape_map[old] = Some(new_shape);
+                new_shape += 1;
             }
-            shape_map[old] = Some(shapes.len());
-            shapes.push(shape);
-            colors.push(color);
-        }
-        self.shapes = shapes;
-        self.colors = colors;
+            keep
+        });
+        let mut old_color = 0;
+        self.colors.retain(|_| {
+            let keep = shape_map[old_color].is_some();
+            old_color += 1;
+            keep
+        });
         let mut old_glyph = 0;
         let mut new_glyph = 0;
         self.glyphs.retain_mut(|glyph| {

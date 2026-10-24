@@ -244,6 +244,12 @@ impl Bindings {
         }) {
             return (!repeat || repeatable(item.command)).then_some(item.command);
         }
+        // Viewer tools were added after animation overrides. A new default must
+        // not steal an explicit user chord in the shared composition context.
+        if scope == Scope::Viewer && self.overrides.iter().any(|item|
+            item.scope == Scope::Animation && item.chord.is_some_and(|c|c.matches(key,modifiers))) {
+            return None;
+        }
         let command = super::resolve(scope, key, modifiers, repeat)?;
         (!self
             .overrides
@@ -258,6 +264,8 @@ impl Bindings {
             .find(|item| item.scope == entry.scope && item.command == entry.command)
         {
             Some(item) => item.chord.into_iter().collect(),
+            None if entry.scope == Scope::Viewer => entry.defaults.iter().copied().filter(|chord|
+                !self.overrides.iter().any(|item|item.scope==Scope::Animation && item.chord==Some(*chord))).collect(),
             None => entry.defaults.clone(),
         }
     }
@@ -326,7 +334,9 @@ impl Bindings {
                     continue;
                 }
                 for chord in self.chords(a) {
-                    if self.chords(b).contains(&chord) && domains(a, chord) & domains(b, chord) != 0
+                    let explicit_shared_view = matches!((a.scope,b.scope),(Scope::Animation,Scope::Viewer)|(Scope::Viewer,Scope::Animation))
+                        && [a,b].into_iter().all(|entry|self.overrides.iter().any(|item|item.scope==entry.scope && item.command==entry.command && item.chord==Some(chord)));
+                    if self.chords(b).contains(&chord) && (domains(a, chord) & domains(b, chord) != 0 || explicit_shared_view)
                     {
                         return Err(format!(
                             "shortcut conflict: {} ({:?}/{:?}) and {:?}/{:?}",

@@ -2,7 +2,11 @@ use super::*;
 use crate::shortcuts::{Command, Scope};
 
 impl NodeEditor {
+    #[cfg(test)]
     pub(super) fn keyboard(&mut self, input: &Input, actions: &mut Vec<Action>) {
+        self.keyboard_language(input, actions, Language::English);
+    }
+    pub(super) fn keyboard_language(&mut self, input: &Input, actions: &mut Vec<Action>, language: Language) {
         self.settle_nudge(input);
         if !self.focus {
             return;
@@ -65,6 +69,11 @@ impl NodeEditor {
                 continue;
             };
             match command {
+                Command::CopyNodes | Command::CutNodes | Command::PasteNodes => {
+                    if !input.composing && !input.ime_consumed && !input.focus_lost {
+                        self.clipboard_command(command, language, input.mouse);
+                    }
+                }
                 Command::ToggleNodeGrid if !self.inline.busy() => {
                     self.view_preferences.grid = !self.view_preferences.grid;
                 }

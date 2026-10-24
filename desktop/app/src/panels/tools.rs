@@ -34,6 +34,7 @@ pub(crate) struct State {
     camera: camera::State,
     shape: Option<ShapeGesture>,
     owner: Option<motion_ui::dock::Panel>,
+    render_owner: Option<motion_ui::dock::Panel>,
     nudge_failed: bool,
     nudge_repeats: motion_render::observability::FailureCounter,
 }
@@ -60,6 +61,7 @@ impl State {
 /// Only an input-bearing window changes ownership; background redraws cannot
 /// cancel a gesture in another native window.
 pub(crate) fn prepare(panels: &mut Panels, owner: Option<motion_ui::dock::Panel>, input: &Input) {
+    panels.tools.render_owner = owner;
     let event = input.pending
         || input.pressed.is_some()
         || input.released.is_some()
@@ -262,6 +264,7 @@ pub(crate) fn viewport(
     out: &mut Vec<Action>,
 ) -> bool {
     camera::flush(panels, out);
+    if panels.tools.editing() && panels.tools.owner != panels.tools.render_owner { return true; }
     if camera::is_tool(active(panels)) && state["observing"] != true {
         choose(panels, Active::Select, state, out);
     }

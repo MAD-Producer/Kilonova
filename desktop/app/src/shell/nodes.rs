@@ -112,6 +112,7 @@ impl Shell {
             } else {
                 next.layer_target = Some(target.clone());
             }
+            next.take_clipboard_from(&mut self.panels.node_editor);
             let old = std::mem::replace(&mut self.panels.node_editor, next);
             if old.layer_target.is_none() {
                 self.node_standalone = Some(old);
@@ -158,10 +159,12 @@ impl Shell {
         self.flush_bound_source()?;
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
-        self.panels.node_editor = self.node_standalone.take().unwrap_or_else(|| {
+        let mut restored = self.node_standalone.take().unwrap_or_else(|| {
             log::debug!("node standalone draft unavailable reason=no_saved_standalone fallback=default");
             node_editor::NodeEditor::default()
         });
+        restored.take_clipboard_from(&mut self.panels.node_editor);
+        self.panels.node_editor = restored;
         self.panels.node_editor.view_preferences = self.workspace.node_view;
         self.panels.node_editor.shortcut_bindings = self.panels.shortcut_bindings.clone();
         self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
@@ -189,10 +192,12 @@ impl Shell {
         {
             self.node_tasks.cancel(&mut self.panels.node_editor);
             self.node_compile_due = None;
-            self.panels.node_editor = self.node_standalone.take().unwrap_or_else(|| {
+            let mut restored = self.node_standalone.take().unwrap_or_else(|| {
                 log::debug!("node standalone draft unavailable reason=bound_target_invalidated fallback=default");
                 node_editor::NodeEditor::default()
             });
+            restored.take_clipboard_from(&mut self.panels.node_editor);
+            self.panels.node_editor = restored;
             self.panels.node_editor.view_preferences = self.workspace.node_view;
         self.panels.node_editor.shortcut_bindings = self.panels.shortcut_bindings.clone();
             self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();

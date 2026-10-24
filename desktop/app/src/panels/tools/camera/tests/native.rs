@@ -125,8 +125,15 @@ fn observation_modes_render_on_native_main_and_scaled_float_without_authoring_ch
             pointer([480., 245.], 1),
             pointer([480., 245.], 2),
         ] {
+            let moving = i.held == Some(MouseButton::Left) && i.pressed.is_none();
             let (_, out) = draw(&e, &mut p, &mut atlas, window, size, i);
             apply(&e, out);
+            if moving {
+                let (other,other_size)=if window==0 {(1,[900.,600.])} else {(0,[1600.,1000.])};
+                let (_,background)=draw(&e,&mut p,&mut atlas,other,other_size,Input::default());
+                assert!(background.is_empty(),"background paint must not end another window's gesture");
+                assert!(p.tools.camera.editing());
+            }
         }
         let after = e.state().unwrap();
         assert_ne!(after["observationCamera"], baseline);
