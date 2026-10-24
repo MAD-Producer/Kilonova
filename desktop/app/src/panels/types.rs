@@ -28,6 +28,7 @@ pub enum Action {
     LayerClipboard(crate::layer_clipboard::controller::Intent),
     KeyframeClipboard {
         intent: crate::layer_clipboard::controller::Intent,
+        source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     },

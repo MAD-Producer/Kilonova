@@ -36,8 +36,10 @@ fn document(root: &Path, count: u32) -> motion_core::Project {
     project
 }
 fn read_keys(engine: &Engine, frames: Vec<u32>) -> KeyframeRead {
+    let source = KeyframeSource::of(&engine.state().unwrap());
     engine
         .call(|reply| Request::KeyframeClipboardRead {
+            source,
             selections: selection(frames),
             reply,
         })
@@ -73,7 +75,13 @@ fn begin(
     targets: Vec<KeyframeTarget>,
 ) {
     assert!(clipboard
-        .start_keyframes(engine, intent, selection(frames), targets)
+        .start_keyframes(
+            engine,
+            intent,
+            KeyframeSource::of(&engine.state().unwrap()),
+            selection(frames),
+            targets
+        )
         .unwrap());
 }
 fn edit(engine: &Engine, command: motion_core::Command) -> Value {
@@ -148,18 +156,31 @@ fn separate_caches_survive_failed_copy_and_share_one_pending_slot() {
         .start_keyframes(
             &engine,
             Intent::Paste { in_place: true },
+            KeyframeSource::of(&engine.state().unwrap()),
             vec![],
             vec![target(9)]
         )
         .unwrap());
     assert!(!clipboard
-        .start_keyframes(&engine, Intent::Copy, vec![], vec![])
+        .start_keyframes(
+            &engine,
+            Intent::Copy,
+            KeyframeSource::of(&engine.state().unwrap()),
+            vec![],
+            vec![]
+        )
         .unwrap());
     assert!(clipboard
         .start(&engine, Intent::Copy, vec![7], cache.path().into())
         .unwrap());
     assert!(!clipboard
-        .start_keyframes(&engine, Intent::Copy, selection(vec![0]), vec![])
+        .start_keyframes(
+            &engine,
+            Intent::Copy,
+            KeyframeSource::of(&engine.state().unwrap()),
+            selection(vec![0]),
+            vec![]
+        )
         .unwrap());
     assert_eq!(
         finish(&mut clipboard, &engine).unwrap().domain,
@@ -288,6 +309,7 @@ fn cancellation_waits_for_reply_and_queued_commit_is_a_noop() {
     let mut clipboard = Clipboard::default();
     begin(&mut clipboard, &engine, Intent::Copy, vec![0, 1], vec![]);
     finish(&mut clipboard, &engine).unwrap();
+    let source = KeyframeSource::of(&engine.state().unwrap());
     let (entered, ready_wait) = std::sync::mpsc::channel();
     let (release, proceed) = std::sync::mpsc::channel();
     let wait = engine
@@ -298,7 +320,9 @@ fn cancellation_waits_for_reply_and_queued_commit_is_a_noop() {
         })
         .unwrap();
     ready_wait.recv_timeout(Duration::from_secs(10)).unwrap();
-    begin(&mut clipboard, &engine, Intent::Cut, vec![0, 1], vec![]);
+    assert!(clipboard
+        .start_keyframes(&engine, Intent::Cut, source, selection(vec![0, 1]), vec![])
+        .unwrap());
     clipboard.cancel();
     assert!(clipboard.poll(&engine, true).is_none());
     assert!(clipboard.busy());
@@ -388,7 +412,29 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
         motion_desktop_media::platform(),
     )
     .unwrap();
-    let read = read_keyframes(&session, selection(vec![0, 1])).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let source = KeyframeSource::of(&snapshot);
+    for field in ["root", "composition", "document_generation", "revision"] {
+        let mut incomplete = snapshot.clone();
+        incomplete[field] = serde_json::Value::Null;
+        if field == "composition" {
+            incomplete["project"]["composition_id"] = serde_json::Value::Null;
+        }
+        let rejected = read_keyframes(
+            &session,
+            KeyframeSource::of(&incomplete),
+            vec![KeyframeSelection {
+                target: target(404),
+                frames: vec![0],
+            }],
+        )
+        .unwrap();
+        assert!(
+            rejected.superseded && rejected.clipboard.is_none(),
+            "{field}"
+        );
+    }
+    let read = read_keyframes(&session, source.clone(), selection(vec![0, 1])).unwrap();
     let clipboard = read.clipboard.unwrap();
     session
         .replace_project(
@@ -398,6 +444,8 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
         .unwrap();
     assert_eq!(read.stamp.revision, session.engine.revision());
     assert_ne!(read.stamp.generation, session.document_generation);
+    let rejected_read = read_keyframes(&session, source, selection(vec![0, 1])).unwrap();
+    assert!(rejected_read.superseded && rejected_read.clipboard.is_none());
     for edit in [
         Edit::CutKeyframes {
             stamp: read.stamp.clone(),
@@ -422,6 +470,124 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
 }
 
 #[test]
+fn queued_source_is_bound_before_composition_switch_and_never_replaces_the_cache() {
+    let root = tempfile::tempdir().unwrap();
+    let original = document(root.path(), 2);
+    let engine = super::engine(root.path());
+    let created = edit(
+        &engine,
+        motion_core::Command::Composition {
+            action: motion_core::CompositionAction::Create {
+                settings: motion_core::CompositionSettings {
+                    name: "Other composition".into(),
+                    width: 64,
+                    height: 64,
+                    fps: 30,
+                    frames: 12000,
+                    timing: "preserve_frames".into(),
+                    shorten: "reject".into(),
+                },
+            },
+        },
+    );
+    let child = created["project"]["compositions"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    for mut layer in original.layers {
+        if layer.id == 7 {
+            for key in &mut layer.transform.position.keys {
+                key.value = [99.; 3];
+            }
+        }
+        edit(
+            &engine,
+            motion_core::Command::InComposition {
+                composition: child.clone(),
+                command: Box::new(motion_core::Command::Add { layer }),
+            },
+        );
+    }
+    let source = KeyframeSource::of(&engine.state().unwrap());
+    let mut clipboard = Clipboard::default();
+    begin(&mut clipboard, &engine, Intent::Copy, vec![0, 1], vec![]);
+    assert_eq!(
+        finish(&mut clipboard, &engine).unwrap().status,
+        Status::Copied
+    );
+    let (entered, blocked) = std::sync::mpsc::channel();
+    let (release, proceed) = std::sync::mpsc::channel();
+    let wait = engine
+        .request(|reply| Request::TestWait {
+            entered,
+            release: proceed,
+            reply,
+        })
+        .unwrap();
+    blocked.recv_timeout(Duration::from_secs(10)).unwrap();
+    let open = engine
+        .request(|reply| Request::Composition {
+            text: serde_json::json!({"version":1,"composition":child,"op":"open"}).to_string(),
+            reply,
+        })
+        .unwrap();
+    assert!(clipboard
+        .start_keyframes(
+            &engine,
+            Intent::Copy,
+            source.clone(),
+            selection(vec![0, 1]),
+            vec![]
+        )
+        .unwrap());
+    assert!(clipboard.poll(&engine, true).is_none());
+    release.send(()).unwrap();
+    wait.recv_timeout(Duration::from_secs(10)).unwrap().unwrap();
+    let opened = open.recv_timeout(Duration::from_secs(20)).unwrap().unwrap();
+    assert_eq!(opened["project"]["composition_id"], child);
+    assert_eq!(
+        finish(&mut clipboard, &engine).unwrap().status,
+        Status::Superseded
+    );
+    for intent in [Intent::Cut, Intent::Paste { in_place: false }] {
+        assert!(clipboard
+            .start_keyframes(
+                &engine,
+                intent,
+                source.clone(),
+                selection(vec![0, 1]),
+                vec![target(9)]
+            )
+            .unwrap());
+        assert_eq!(
+            finish(&mut clipboard, &engine).unwrap().status,
+            Status::Superseded
+        );
+    }
+    let after = engine.state().unwrap();
+    assert_eq!(after["project"], opened["project"]);
+    assert_eq!(after["revision"], opened["revision"]);
+    assert_eq!(after["canUndo"], opened["canUndo"]);
+    engine.seek(50.).unwrap();
+    begin(
+        &mut clipboard,
+        &engine,
+        Intent::Paste { in_place: false },
+        vec![],
+        vec![target(9)],
+    );
+    let pasted = finish(&mut clipboard, &engine).unwrap().state.unwrap();
+    let keys = &pasted["project"]["layers"][1]["transform"]["position"]["keys"];
+    assert_eq!(keys[0]["frame"], 50);
+    assert_eq!(keys[0]["value"], serde_json::json!([0., 0., 0.]));
+    assert_eq!(
+        keys[1]["value"],
+        serde_json::json!([0.1_f32, 0.1_f32, 0.1_f32])
+    );
+    assert_eq!(engine.history(0).unwrap()["project"], after["project"]);
+}
+
+#[test]
 fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
     const NAME: &str = "layer_clipboard::tests::keyframe_bridge::typed_failures_and_queued_panic_reply_reach_default_error_outputs";
     const CHILD: &str = "MOTION_KEYFRAME_BRIDGE_CHILD";
@@ -431,7 +597,29 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         let source = root.join("source");
         document(&source, 2);
         let engine = super::engine(&source);
+        // A superseded source must be rejected before even resolving object 404.
+        let mut stale = engine.state().unwrap();
+        stale["revision"] = (stale["revision"].as_u64().unwrap() + 1).into();
+        let superseded = engine
+            .call(|reply| Request::KeyframeClipboardRead {
+                source: KeyframeSource::of(&stale),
+                selections: vec![KeyframeSelection {
+                    target: target(404),
+                    frames: vec![0],
+                }],
+                reply,
+            })
+            .unwrap();
+        assert!(superseded.superseded && superseded.clipboard.is_none());
+        crate::logging::flush();
+        let normal = fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+        assert!(
+            !normal.lines().any(|line| line.contains(" ERROR ")),
+            "{normal}"
+        );
+        let source = KeyframeSource::of(&engine.state().unwrap());
         let failure = engine.call(|reply| Request::KeyframeClipboardRead {
+            source,
             selections: vec![KeyframeSelection {
                 target: target(404),
                 frames: vec![0],
@@ -458,8 +646,10 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
             })
         };
         assert_eq!(apply(read.stamp).unwrap()["clipboard_status"], "applied");
+        let source = KeyframeSource::of(&engine.state().unwrap());
         let read = engine
             .call(|reply| Request::KeyframeClipboardRead {
+                source,
                 selections: vec![],
                 reply,
             })
@@ -472,6 +662,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         assert_eq!(before["project"], after["project"]);
         assert_eq!(before["revision"], after["revision"]);
 
+        let source = KeyframeSource::of(&after);
         let (entered, blocked) = std::sync::mpsc::channel();
         let (release, proceed) = std::sync::mpsc::channel();
         let wait = engine
@@ -496,6 +687,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
             .unwrap();
         let queued = engine
             .request(|reply| Request::KeyframeClipboardRead {
+                source,
                 selections: selection(vec![0]),
                 reply,
             })

@@ -311,3 +311,25 @@ DESIGN §0.7 的十二项处置如下。基线行号/旧表达式不能代替当
 | timeline 吸附线 | 保留绘制实现；本轮不改拖动反馈。 |
 
 定向格式、`git diff --check`、`verify_style_consumers()` 通过；无新依赖、第三方资产、工程格式或渲染语义变更。
+
+## 关键帧剪贴板：排队前来源绑定
+
+在 `fc5276f4` 的 UI 接线之后，补齐 KU-05 的异步读取边界。宿主运行时 snapshot 增加已有 `document_generation`，不写入工程 JSON，不更改工程版本或渲染语义。属性选区保存 root、composition、generation、revision，并随 Action、Shell 和 typed 请求传到串行引擎。引擎在查找对象或捕获关键帧之前检查来源；不匹配或标识缺失返回正常 Superseded。控制器收到后不更新缓存、不排队删除/粘贴，并复用既有中英文状态提示。读取成功后的完整 Stamp 提交校验仍保留。
+
+| ID | 分类 | 实现与证据边界 |
+| --- | --- | --- |
+| KS-01 | 功能边界修复 | UI 生成动作时绑定来源，替代“到引擎读取时才绑定”的窗口；旧请求不能因对象 ID 在新合成中重复而捕获/修改新对象。 |
+| KS-02 | 正常分支 | 来源失效/缺失作为正常 Superseded，不记 Error、不重试、不覆盖前一缓存，不把它改为成功复制或成功编辑。 |
+| KS-03 | 已有观察 | 真实读取错误、终止 panic、阻塞前 Info/in-flight 和默认 Error 信道继续沿用原桥接；本阶段不新增日志站点、退化计数器、线程或每帧 IO。 |
+| KS-04 | 验证边界 | 新真实队列测试以 TestWait 阻塞工作线程，先排合成 open，再排原合成复制；随后旧 Cut/Paste 同样失效，当前工程、修订号和撤销状态不变。继续在新合成粘贴，验证仍是旧缓存的值，并可一次撤销。 |
+| KS-05 | 剩余范围 | 文本、路径独立剪贴板，完整系统输入/打包程序、当前主线组合与 CI 尚未完成；#204 继续开放。节点独立缓存沿用既有实现。 |
+
+同目录同修订号重开测试增加读取阶段的 generation 检查，并测试 root、composition、generation、revision 各自缺失时，在解析不存在对象 404 之前就正常拒绝。默认信道子进程另用过期修订号请求 404，确认此时没有 Error；紧接着使用有效来源请求 404 仍产生原始错误，未静默处理真实失败。受控阻塞仍为已有 TestWait，不冒称关键帧计算内部可注入阻塞。
+
+首轮 `keyframe-clipboard-source-first.log` 实际 51 项通过、0 失败、0 忽略，944 项未执行，用时 57.32 秒。该结果早于来源缺失夹具的补充，不代替下述最终验证。没有修改既有断言、日志阈值或超时来使测试通过；既有新夹具只补传实际 snapshot 来源，受控阻塞用例在进入阻塞前捕获来源，避免测试自身同步读取工作线程。
+
+最终 `keyframe-clipboard-source-final.log` 使用相同 FFmpeg 桌面 clipboard 过滤命令，实际 51 项通过、0 失败、0 忽略，944 项未执行，用时 56.15 秒；编译用时 1 分 14 秒，22 项既有警告。`keyframe-clipboard-source-native-final.log` 在同一最终测试文件执行两项真实 native 图层/关键帧回归，均通过，用时 55.86 秒；主窗与浮窗、中英文菜单/快捷键、保存重开与撤销继续成立，输入边界仍是生产组件 Input，未升级为系统事件验收。
+
+`keyframe-clipboard-source-default-channel-final/` 为本阶段默认级别文件日志、Error stderr、stdout 原件；过期来源的 404 正常拒绝，随后有效来源的 404、占帧和受控终止仍进入原错误信道。实际默认信道检查通过，未把产品 panic 隐藏为成功或修改排队请求的断链协议。最终桌面测试文件 SHA-256 为 `098cfa3d0d5f7385f7ff9f9e7ced0c9cc3d1a7e434b878bf15fe38f962bae7a0`。
+
+新原始关键帧截图在 `keyframe-clipboard-source-ui-native/`，图层截图在 `keyframe-clipboard-source-layer-native/`，沿用前述六图和八图文件名；本阶段没有改动外观。DESIGN §0.7 十二项逐项沿用前表的保留绘制实现处置，未冒称视觉整改。定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过；未新增依赖、第三方资产、样式 token、工程格式或渲染语义。#204 尚未关闭、尚未创建完成 PR。

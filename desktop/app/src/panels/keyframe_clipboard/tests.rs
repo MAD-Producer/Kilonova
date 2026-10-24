@@ -86,6 +86,7 @@ fn clipboard_property_and_single_key_route_in_both_locales_and_timeline_modes() 
                     intent: Intent::Copy,
                     selections,
                     targets,
+                    ..
                 }] = actions.as_slice()
                 else {
                     panic!("{actions:?}")

@@ -19,7 +19,7 @@ use std::{
     },
 };
 pub(crate) use storage::{Frozen, Prepared};
-pub(crate) use keyframes::{read_keyframes, KeyframeRead};
+pub(crate) use keyframes::{read_keyframes, KeyframeRead, KeyframeSource};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Stamp {

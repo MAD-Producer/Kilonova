@@ -30,9 +30,10 @@ fn document(root: &Path) {
     project.layers.push(destination);
     motion_core::storage::save(root, &project).unwrap();
 }
-fn action(intent: Intent, copy: bool) -> Action {
+fn action(state: &serde_json::Value, intent: Intent, copy: bool) -> Action {
     Action::KeyframeClipboard {
         intent,
+        source: crate::layer_clipboard::KeyframeSource::of(state),
         selections: if copy {
             vec![KeyframeSelection {
                 target: target(7),
@@ -51,7 +52,9 @@ fn keyframe_shell_paste_keeps_layer_selection_and_cut_uses_one_history_entry() {
         let root = tempfile::tempdir().unwrap();
         document(root.path());
         let mut shell = super::shell(root.path(), locale);
-        shell.action(action(Intent::Copy, true), None).unwrap();
+        shell
+            .action(action(&shell.state, Intent::Copy, true), None)
+            .unwrap();
         wait(&mut shell);
         assert!(shell.layer_clipboard.keyframes_available());
         assert!(!shell.layer_clipboard.available());
@@ -66,7 +69,10 @@ fn keyframe_shell_paste_keeps_layer_selection_and_cut_uses_one_history_entry() {
         shell.panels.select_only(Some(9));
         shell.state = shell.engine.seek(50.).unwrap();
         shell
-            .action(action(Intent::Paste { in_place: false }, false), None)
+            .action(
+                action(&shell.state, Intent::Paste { in_place: false }, false),
+                None,
+            )
             .unwrap();
         wait(&mut shell);
         assert_eq!(
@@ -86,7 +92,9 @@ fn keyframe_shell_paste_keeps_layer_selection_and_cut_uses_one_history_entry() {
                 "Keyframes pasted"
             })
         );
-        shell.action(action(Intent::Cut, true), None).unwrap();
+        shell
+            .action(action(&shell.state, Intent::Cut, true), None)
+            .unwrap();
         wait(&mut shell);
         assert!(
             shell.state["project"]["layers"][0]["transform"]["position"]["keys"]
@@ -115,6 +123,7 @@ fn shell_keyframe_cancel_and_stale_commit_share_existing_action_barrier() {
         .action(
             Action::KeyframeClipboard {
                 intent: Intent::Cut,
+                source: crate::layer_clipboard::KeyframeSource::of(&shell.state),
                 selections: vec![],
                 targets: vec![],
             },
@@ -126,7 +135,9 @@ fn shell_keyframe_cancel_and_stale_commit_share_existing_action_barrier() {
         "empty selection is a normal no-op"
     );
     let before = shell.state["project"].clone();
-    shell.action(action(Intent::Cut, true), None).unwrap();
+    shell
+        .action(action(&shell.state, Intent::Cut, true), None)
+        .unwrap();
     assert!(shell.playback.is_none());
     shell.actions.push_back(Action::Save); // hold the existing dispatch barrier
     until_phase(&mut shell, "ready");
@@ -137,7 +148,9 @@ fn shell_keyframe_cancel_and_stale_commit_share_existing_action_barrier() {
     assert!(shell.layer_clipboard.keyframes_available());
     assert_eq!(shell.engine.state().unwrap()["project"], before);
     shell.actions.clear();
-    shell.action(action(Intent::Cut, true), None).unwrap();
+    shell
+        .action(action(&shell.state, Intent::Cut, true), None)
+        .unwrap();
     shell.actions.push_back(Action::Save);
     until_phase(&mut shell, "ready");
     shell.state = shell

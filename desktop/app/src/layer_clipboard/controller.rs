@@ -136,6 +136,7 @@ impl Clipboard {
         &mut self,
         engine: &Engine,
         intent: Intent,
+        source: super::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     ) -> Result<bool, String> {
@@ -153,7 +154,7 @@ impl Clipboard {
             selections
         };
         let receive =
-            engine.request(|reply| Command::KeyframeClipboardRead { selections, reply })?;
+            engine.request(|reply| Command::KeyframeClipboardRead { source, selections, reply })?;
         self.pending = Some(Pending {
             domain: Domain::Keyframes,
             intent,
@@ -200,6 +201,9 @@ impl Clipboard {
                 };
                 if cancelled() {
                     return done(Status::Cancelled, None);
+                }
+                if source.superseded {
+                    return done(Status::Superseded, None);
                 }
                 match intent {
                     Intent::Copy | Intent::Cut => {

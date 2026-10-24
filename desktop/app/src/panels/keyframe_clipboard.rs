@@ -6,21 +6,13 @@ use serde_json::Value;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Selection {
-    scope: (String, String, Option<u64>),
+    scope: crate::layer_clipboard::KeyframeSource,
     pub selections: Vec<KeyframeSelection>,
     pub targets: Vec<KeyframeTarget>,
     pub writable: bool,
 }
-fn scope(state: &Value) -> (String, String, Option<u64>) {
-    (
-        state["root"].as_str().unwrap_or("").into(),
-        state["composition"]
-            .as_str()
-            .or_else(|| state["project"]["composition_id"].as_str())
-            .unwrap_or("")
-            .into(),
-        state["revision"].as_u64(),
-    )
+fn scope(state: &Value) -> crate::layer_clipboard::KeyframeSource {
+    crate::layer_clipboard::KeyframeSource::of(state)
 }
 pub(super) fn frames(state: &Value, keys: impl Iterator<Item = i64>, offset: i64) -> Vec<u32> {
     let last = super::last_frame(state);
@@ -101,6 +93,7 @@ impl Selection {
     pub(super) fn action(&self, intent: Intent) -> Action {
         Action::KeyframeClipboard {
             intent,
+            source: self.scope.clone(),
             selections: self.selections.clone(),
             targets: self.targets.clone(),
         }

@@ -9,6 +9,7 @@ impl Shell {
     pub(crate) fn request_keyframe_clipboard(
         &mut self,
         intent: Intent,
+        source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     ) -> Result<(), String> {
@@ -17,7 +18,7 @@ impl Shell {
         }
         if self
             .layer_clipboard
-            .start_keyframes(&self.engine, intent, selections, targets)?
+            .start_keyframes(&self.engine, intent, source, selections, targets)?
         {
             if intent != Intent::Copy {
                 self.stop();
