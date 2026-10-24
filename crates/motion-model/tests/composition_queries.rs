@@ -24,6 +24,7 @@ fn node(
         height: size[1],
         fps,
         frames,
+        work_area: motion_model::WorkArea::full(frames),
         background: [0.; 4],
         camera: Camera::new(size[0], size[1]),
         layers,

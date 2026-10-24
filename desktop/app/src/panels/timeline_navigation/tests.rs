@@ -256,7 +256,9 @@ fn offscreen_layer_handles_do_not_paint_or_edit_the_property_gutter() {
     // Layer out-frame 200 maps well into the property gutter at this zoom.
     let x = GUTTER.min(1200. * 0.52)
         + (200. - 400.) * (1200. - GUTTER.min(1200. * 0.52) - 8.) / 1200. * 4.;
-    let mouse = [x, 75.];
+    let styles = PaintList::default().styles();
+    let body_top = super::super::timeline::header_height(&styles);
+    let mouse = [x, body_top + styles.metric("row.height", 22.) * 0.5];
     let (paint, actions) = draw(
         &mut atlas,
         area,
@@ -274,7 +276,7 @@ fn offscreen_layer_handles_do_not_paint_or_edit_the_property_gutter() {
         Action::History(_) | Action::Edit(Command::SetLayerRange { .. })
     )));
     let accent = paint.styles().color("focus");
-    assert!(!paint.shapes.iter().zip(&paint.colors).any(|(shape,color)| matches!(shape,motion_ui::paint::Shape::Quad {points} if (points[0][0]-(x-4.)).abs()<0.01 && points[0][1]>64.) && *color==accent));
+    assert!(!paint.shapes.iter().zip(&paint.colors).any(|(shape,color)| matches!(shape,motion_ui::paint::Shape::Quad {points} if (points[0][0]-(x-4.)).abs()<0.01 && points[0][1]>body_top) && *color==accent));
 }
 
 #[test]
@@ -302,5 +304,7 @@ fn zoom_button_paints_the_new_layer_coordinates_in_the_same_frame() {
     assert!(actions.is_empty());
     assert_eq!(panels.timeline.zoom, 1.25);
     let x = track.min[0] + (200. - 120.) * track.width() / 1200. * 1.25;
-    assert!(paint.shapes.iter().any(|shape| matches!(shape,motion_ui::paint::Shape::Quad {points} if (points[1][0]-x).abs()<0.01 && (points[0][1]-69.).abs()<0.01)));
+    let styles = paint.styles();
+    let bar_top = super::super::timeline::header_height(&styles) + styles.metric("padding", 5.);
+    assert!(paint.shapes.iter().any(|shape| matches!(shape,motion_ui::paint::Shape::Quad {points} if (points[1][0]-x).abs()<0.01 && (points[0][1]-bar_top).abs()<0.01)));
 }

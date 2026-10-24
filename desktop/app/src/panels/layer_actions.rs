@@ -1460,7 +1460,8 @@ mod tests {
     fn point() -> [f32; 2] {
         let layout = dock::Node::dock(Panel::Timeline.dock());
         let frame = frames(&layout, [1280., 700.]).remove(0);
-        [140., frame.content.min[1] + 64. + 11.]
+        let styles = PaintList::default().styles();
+        [140., frame.content.min[1] + timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5]
     }
 
     #[test]
@@ -2039,7 +2040,8 @@ mod tests {
         let engine = engine();
         let state = state(&engine);
         let mut panels = Panels::default();
-        let p = [140., 105.];
+        let styles = PaintList::default().styles();
+        let p = [140., 30. + timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5];
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         assert!(floating_chrome(
             &mut PaintList::default(),

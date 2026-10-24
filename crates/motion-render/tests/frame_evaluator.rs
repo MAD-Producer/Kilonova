@@ -72,6 +72,7 @@ fn nested_compositions_use_the_real_evaluator_at_fractional_source_frames() {
         height: 100,
         fps: 60,
         frames: 240,
+        work_area: motion_core::WorkArea::full(240),
         background: [0.; 4],
         camera: Camera::new(100, 100),
         layers: vec![reference(2, "comp-leaf", 3, 7, 240)],
@@ -84,6 +85,7 @@ fn nested_compositions_use_the_real_evaluator_at_fractional_source_frames() {
         height: 100,
         fps: 24,
         frames: 96,
+        work_area: motion_core::WorkArea::full(96),
         background: [0.; 4],
         camera: Camera::new(100, 100),
         layers: vec![Layer::solid(

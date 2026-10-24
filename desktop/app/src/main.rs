@@ -19,6 +19,7 @@ mod node_tasks;
 mod owned_file;
 mod panels;
 mod project_lifecycle;
+mod preview_playback;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
@@ -288,12 +289,14 @@ struct Shell {
     pending: bool,
     frame: f64,
     playback: Option<(Instant, f64)>,
+    playback_plan: Option<preview_playback::Plan>,
     next_composition: Instant,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
         std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
         PathBuf,
         motion_desktop_media::movie::ExportControl,
+        motion_core::FrameScope,
     )>,
     exporting_movie: Option<movie_export::MovieExport>,
     exporting_frame: Option<(
@@ -410,6 +413,7 @@ impl Shell {
             pending: false,
             frame: 0.0,
             playback: None,
+            playback_plan: None,
             next_composition: Instant::now(),
             audio: None,
             freezing_movie: None,
@@ -473,6 +477,8 @@ impl Shell {
         if shell.smoke.is_none() { shell.restore_preview_preference()?; }
         shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         shell.panels.timeline.hide_shy = shell.workspace.timeline_hide_shy;
+        shell.panels.preview_playback = shell.workspace.preview_playback;
+        shell.panels.movie_export_scope = shell.workspace.movie_export_scope;
         Ok(shell)
     }
 }
@@ -695,13 +701,14 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.dirty = true;
         }
         self.poll_frame_export();
-        if let Some((receive, path, control)) = &self.freezing_movie {
+        if let Some((receive, path, control, scope)) = &self.freezing_movie {
             if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
                 let control = control.clone();
+                let scope = *scope;
                 self.freezing_movie = None;
                 match result.and_then(|snapshot| {
-                    movie_export::MovieExport::start_with_control(snapshot, output, control)
+                    movie_export::MovieExport::start_with_control(snapshot.with_scope(scope), output, control)
                 }) {
                     Ok(task) => self.exporting_movie = Some(task),
                     Err(error) => self.panels.message = Some(self.workspace.locale.error(&error)),
@@ -1060,6 +1067,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
 }
+#[cfg(test)]
 fn playback_frame(origin: f64, elapsed: Duration, fps: u32, frames: u32) -> f64 {
     (origin + elapsed.as_secs_f64() * f64::from(fps.max(1))).rem_euclid(f64::from(frames.max(1)))
 }

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 24;
+pub const CURRENT_PROJECT_VERSION: u32 = 25;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -274,6 +274,7 @@ pub struct Project {
     pub height: u32,
     pub fps: u32,
     pub frames: u32,
+    pub work_area: crate::WorkArea,
     pub background: [f32; 4],
     pub assets: Vec<Asset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -302,6 +303,7 @@ impl Project {
             height,
             fps,
             frames,
+            work_area: crate::WorkArea::full(frames),
             background: [0.05, 0.06, 0.09, 1.0],
             assets: Vec::new(),
             fonts: Vec::new(),
@@ -376,6 +378,7 @@ impl Project {
             (1..=MAX_FRAMES).contains(&self.frames),
             "invalid composition duration",
         )?;
+        self.work_area.validate(self.frames)?;
         ensure(self.name.len() <= 1024, "project name too long")?;
         validate_color(self.background)?;
         ensure(self.layers.len() <= MAX_LAYERS, "layer limit exceeded")?;

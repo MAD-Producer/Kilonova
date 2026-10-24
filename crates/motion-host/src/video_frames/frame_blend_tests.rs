@@ -598,7 +598,7 @@ fn nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_fr
     let mut video=p.layers.remove(0);
     video.sampling.motion_blur=Some(motion_core::render_sampling::Shutter {frames:1.,samples:4});
     p.compositions.push(motion_core::Composition {id:"comp-exposure-video".into(),name:"video clocks".into(),
-        width:16,height:16,fps:p.fps,frames:p.frames,background:[0.;4],camera:motion_core::Camera::new(16,16),
+        width:16,height:16,fps:p.fps,work_area: motion_core::WorkArea::full(p.frames), frames:p.frames,background:[0.;4],camera:motion_core::Camera::new(16,16),
         layers:vec![video],expressions:vec![]});
     for id in 1..=3 {
         let mut reference=Layer::solid(id,"video reference",[16.;2],[8.,8.,0.],[1.;4]);

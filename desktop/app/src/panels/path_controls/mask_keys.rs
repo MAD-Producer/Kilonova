@@ -1495,7 +1495,8 @@ mod tests {
             };
             let point = [
                 640. + 21. / 120. * 632.,
-                top + 64. + (if path { 3. } else { 4. }) * 22. + 11.,
+                top + crate::panels::timeline::header_height(&PaintList::default().styles())
+                    + (if path { 3.5 } else { 4.5 }) * PaintList::default().styles().metric("row.height", 22.),
             ];
             let mut render = |panels: &mut crate::panels::Panels, input: &Input| {
                 if floating {

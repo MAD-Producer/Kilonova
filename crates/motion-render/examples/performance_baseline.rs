@@ -149,6 +149,7 @@ fn fixture(name: &str, samples: u32) -> Result<Project> {
             height: p.height,
             fps: p.fps,
             frames: p.frames,
+            work_area: motion_core::WorkArea::full(p.frames),
             background: [0.; 4],
             camera: p.camera.clone(),
             layers,

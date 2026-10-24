@@ -117,7 +117,9 @@ fn shy_row_dispatches_one_checked_edit_and_hidden_extent_recovers_on_show() {
         false,
     );
     let shy = columns.shy.unwrap();
-    let point = [shy.x + shy.width * 0.5, 75.]; // top row is layer 5
+    let styles = list.styles();
+    let point = [shy.x + shy.width * 0.5,
+        super::super::timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5]; // top row is layer 5
     let (_, actions) = render(&mut panels, &mut atlas, &state, &press(point));
     assert!(matches!(
         actions.as_slice(),

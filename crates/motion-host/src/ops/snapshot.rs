@@ -419,6 +419,10 @@ impl Session {
             "already_coupled":"no_change","project_format_change":false});
         snapshot["capabilities"]["layer_sampling"]=crate::render_sampling::capabilities();
         snapshot["capabilities"]["composition_api"]["project_format"]=json!(motion_core::CURRENT_PROJECT_VERSION);
+        snapshot["capabilities"]["work_area"]=json!({"supported":true,
+            "project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_work_area",
+            "field":"work_area","scope":"composition","interval":"half_open",
+            "coordinates":"composition_frames","animated":false,"history":true});
         snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_rotation_order",
             "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",
             "changes_pose":true,"animated":false,"camera":false});

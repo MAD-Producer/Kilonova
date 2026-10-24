@@ -206,14 +206,18 @@ fn timeline_modifier_clicks_and_blank_clear_selection_without_editing() {
     let mut panels = Panels::default();
     let area = Rect::new(0., 0., 1200., 400.);
     let mut actions = vec![];
-    for (y, control, shift, count) in [
-        (74., false, false, 1),
-        (118., false, true, 3),
-        (96., true, false, 2),
-        (96., true, false, 3),
-        (96., true, false, 2),
-        (350., false, false, 0),
+    let styles = PaintList::default().styles();
+    let body_top = timeline::header_height(&styles);
+    let row_height = styles.metric("row.height", 22.);
+    for (row, control, shift, count) in [
+        (0., false, false, 1),
+        (2., false, true, 3),
+        (1., true, false, 2),
+        (1., true, false, 3),
+        (1., true, false, 2),
+        (12., false, false, 0),
     ] {
+        let y = body_top + (row + 0.5) * row_height;
         let point = [150., y];
         let input = Input {
             mouse: point,
@@ -339,7 +343,7 @@ fn timeline_group_drag_keeps_offsets_and_whole_gesture_commits_or_cancels() {
         let area = Rect::new(0., 0., 1200., 400.);
         let ppf = (area.width() - GUTTER.min(area.width() * 0.52) - 8.) / 120.;
         let mut input = Input {
-            mouse: [100. + ppf * 10., 74.],
+            mouse: [100. + ppf * 10., timeline::header_height(&PaintList::default().styles()) + 11.],
             held: Some(MouseButton::Left),
             modifiers: Modifiers {
                 alt: true,

@@ -101,7 +101,7 @@ fn narrow_timeline_3d_click_does_not_open_parent_menu() {
     render(&mut panels, &Input::default());
     let styles = PaintList::default().styles();
     let gutter = GUTTER.min(360. * 0.52);
-    let columns = layer_switches::columns(&styles, Rect::new(0., 30. + 64., gutter, 22.), gutter);
+    let columns = layer_switches::columns(&styles, Rect::new(0., 30. + crate::panels::timeline::header_height(&styles), gutter, 22.), gutter);
     let actions = render(&mut panels, &click(columns.three_d, MouseButton::Left));
     assert!(actions.iter().any(|action| matches!(
         action,
@@ -184,7 +184,7 @@ fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
                     let gutter = GUTTER.min(width * 0.52);
                     let columns = layer_switches::columns(
                         &styles,
-                        Rect::new(0., top + 64., gutter, height),
+                        Rect::new(0., top + crate::panels::timeline::header_height(&styles), gutter, height),
                         gutter,
                     );
                     assert!(columns.three_d_visible);
@@ -247,7 +247,7 @@ fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
                         assert!(!panels.timeline_columns.editing());
                         host.history(0).unwrap();
                     }
-                    let parent = Rect::new(gutter - 94., top + 66., 86., height - 4.);
+                    let parent = Rect::new(gutter - 94., top + timeline::header_height(&styles) + 2., 86., height - 4.);
                     let actions = render(
                         &mut panels,
                         &initial,
@@ -368,7 +368,7 @@ fn timeline_mask_header_actions_and_add_menu_preserve_targets_locking_and_undo()
                     let rects = path_controls::mask_header::action_rects(
                         &styles,
                         area,
-                        top + 64. + height * 2.,
+                        top + crate::panels::timeline::header_height(&styles) + height * 2.,
                         height,
                     );
                     assert!(rects
@@ -696,7 +696,7 @@ fn masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows() {
                 let gutter = GUTTER.min(1000. * 0.52);
                 let columns = super::layer_switches::columns(
                     &styles,
-                    Rect::new(0., top(Panel::Timeline) + 64., gutter, height),
+                    Rect::new(0., top(Panel::Timeline) + crate::panels::timeline::header_height(&styles), gutter, height),
                     gutter,
                 );
                 let edit = command(draw(

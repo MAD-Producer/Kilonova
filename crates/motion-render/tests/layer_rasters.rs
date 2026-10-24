@@ -662,6 +662,7 @@ fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
         height: 64,
         fps: 30,
         frames: 120,
+        work_area: motion_core::WorkArea::full(120),
         background: [0.; 4],
         camera: motion_core::Camera::new(64, 64),
         layers: vec![child],

@@ -18,7 +18,7 @@ fn anchor_stopwatch_and_animated_numeric_cancel_agree_in_both_property_hosts() {
         let area=Rect::new(0.,0.,720.,520.);let mut atlas=TextAtlas::from_system(12.).unwrap();
         let mut paint=PaintList::default();let styles=paint.styles();let row=styles.metric("row.height",22.);
         // Inspector Masks precedes Transform; this empty layer has no timeline mask rows.
-        let y=if host==Panel::Timeline {64.+row*2.} else {styles.metric("padding.panel",8.)+row*3.};
+        let y=if host==Panel::Timeline {crate::panels::timeline::header_height(&styles)+row*2.} else {styles.metric("padding.panel",8.)+row*3.};
         let layout=if host==Panel::Timeline {super::super::timeline::property_layout(&styles,area,y,row,0,2)}else{inspector_layout(&styles,area,y,0,2)};
         let point=[layout.watch.min[0]+layout.watch.width()*0.5,y+row*0.5];let mut actions=vec![];
         let state=anchor_state(&e,30.);

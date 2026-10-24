@@ -90,6 +90,7 @@ fn only_current_format_accepts_video_documents() {
 #[test]
 fn video_span_keeps_recoverable_source_time_before_zero_and_after_composition_end() {
     let mut p=project();p.version = motion_model::CURRENT_PROJECT_VERSION;p.frames=60;
+    p.work_area=motion_model::WorkArea::full(p.frames);
     p.layers[0].timeline=Some(LayerTimeline{in_frame:-12,out_frame:100,offset_frame:-12});
     p.validate().unwrap();let mut scene=Scene::new(&p).unwrap();
     scene.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();

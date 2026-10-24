@@ -199,6 +199,11 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::SetWorkArea { in_frame, out_frame } => {
+            let area = crate::WorkArea { in_frame, out_frame };
+            area.validate(project.frames)?;
+            project.work_area = area;
+        }
         Command::Composition { action } => result=Some(EditResult::Composition { result: project.edit_composition(action)? }),
         Command::SetColor {object,value} => {
             ensure(value.iter().all(|v|v.is_finite()&&(0. ..=1.).contains(v)),"color requires four normalized 0..1 components")?;

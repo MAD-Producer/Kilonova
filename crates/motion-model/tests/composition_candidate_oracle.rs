@@ -40,6 +40,7 @@ fn project(edges: &[Vec<usize>]) -> Project {
             height: 32,
             fps: 30,
             frames: 60,
+            work_area: motion_model::WorkArea::full(60),
             background: [0.; 4],
             camera: Camera::new(32, 32),
             layers: layers(source),

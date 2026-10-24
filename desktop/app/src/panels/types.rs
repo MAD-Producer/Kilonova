@@ -83,6 +83,8 @@ pub enum Action {
     SamplingColumnVisibility(super::layer_sampling::Visibility),
     HideShyLayers(bool),
     PreviewMode(i32),
+    PreviewPlayback(crate::preview_playback::Options),
+    MovieExportScope(motion_core::FrameScope),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
     /// Atomic observer-only gesture, independent of authored camera history.
@@ -138,6 +140,8 @@ pub struct Panels {
     pub(crate) focused: Option<dock::Panel>,
     pub(crate) expressions: super::expressions::Controls,
     pub(crate) auxiliary: super::auxiliary::State,
+    pub(crate) preview_playback: crate::preview_playback::Options,
+    pub(crate) movie_export_scope: motion_core::FrameScope,
     pub(crate) library_scroll: motion_ui::widgets::ScrollArea,
     pub(crate) library_height: f32,
     pub(crate) effect_drag: super::effect_drag::Controls,
@@ -514,6 +518,9 @@ pub(crate) struct TimelineState {
     pub(crate) graph_drag: Option<super::graph_handles::Drag>,
     pub(crate) key_drag: Option<super::graph_keys::Drag>,
     pub(crate) timing_drag: Option<super::timeline_key_drag::Drag>,
+    pub(crate) work_area_drag: Option<super::work_area::Drag>,
+    #[cfg(test)]
+    pub(crate) work_area_band: Option<Rect>,
     pub graph_y_zoom: f32,
     pub graph_y_offset: f32,
     pub scroll: f32,

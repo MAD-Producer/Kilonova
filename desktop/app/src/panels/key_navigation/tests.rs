@@ -616,7 +616,7 @@ fn camera_rows_keep_axis_targets_and_cancellation_in_both_native_hosts() {
                     let height = styles.metric("row.height", 22.);
                     Rect::new(
                         0.,
-                        top + 64. + plan.property_offsets[index] as f32 * height,
+                        top + crate::panels::timeline::header_height(&styles) + plan.property_offsets[index] as f32 * height,
                         1000.,
                         height,
                     )

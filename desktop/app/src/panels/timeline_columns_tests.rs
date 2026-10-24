@@ -43,6 +43,9 @@ fn click(x: f32, y: f32) -> Input {
         ..Default::default()
     }
 }
+fn row_click(x: f32, y: f32) -> Input {
+    click(x, y + PaintList::default().styles().metric("timeline.work_area.height", 14.))
+}
 #[test]
 fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() {
     for locale in [Locale::Zh, Locale::En] {
@@ -54,10 +57,10 @@ fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() 
             focused: Some(Panel::Timeline),
             ..Default::default()
         };
-        assert!(draw(&mut panels, &state, click(560., 118.)).is_empty());
+        assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
         assert!(panels.timeline_columns.editing());
         assert_eq!(panels.selected, Some(7));
-        let actions = draw(&mut panels, &state, click(560., 190.));
+        let actions = draw(&mut panels, &state, row_click(560., 190.));
         assert!(matches!(
             actions.as_slice(),
             [Action::Edit(Command::Parent {
@@ -116,8 +119,8 @@ fn blend_dropdown_reads_mode_object_and_changes_only_mode_as_one_undo() {
         timeline_columns::blend_name(&state["project"]["layers"][0], Locale::Zh),
         "屏幕"
     );
-    assert!(draw(&mut panels, &state, click(460., 118.)).is_empty());
-    let actions = draw(&mut panels, &state, click(460., 183.));
+    assert!(draw(&mut panels, &state, row_click(460., 118.)).is_empty());
+    let actions = draw(&mut panels, &state, row_click(460., 183.));
     assert!(matches!(
         actions.as_slice(),
         [Action::Edit(Command::SetLayerBlend {
@@ -144,7 +147,7 @@ fn popup_owns_keyboard_and_outside_click_and_reselecting_current_is_noop() {
         focused: Some(Panel::Timeline),
         ..Default::default()
     };
-    assert!(draw(&mut panels, &state, click(560., 118.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
     let mut actions = vec![];
     keyboard::route(
         &Input {
@@ -158,13 +161,13 @@ fn popup_owns_keyboard_and_outside_click_and_reselecting_current_is_noop() {
         &mut actions,
     );
     assert!(actions.is_empty());
-    assert!(draw(&mut panels, &state, click(800., 74.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(800., 74.)).is_empty());
     assert!(!panels.timeline_columns.editing());
     assert!(panels.timeline.moving.is_none());
-    assert!(draw(&mut panels, &state, click(560., 118.)).is_empty());
-    assert!(draw(&mut panels, &state, click(560., 139.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(560., 139.)).is_empty());
     assert!(!panels.timeline_columns.editing());
-    assert!(draw(&mut panels, &state, click(560., 118.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
     assert!(draw(
         &mut panels,
         &state,
@@ -196,7 +199,7 @@ fn parent_candidates_exclude_self_descendants_audio_and_camera_cycles() {
     let mut locked = snapshot(&engine);
     locked["project"]["layers"][0]["locked"] = Value::Bool(true);
     let mut panels = Panels::default();
-    assert!(draw(&mut panels, &locked, click(560., 118.)).is_empty());
+    assert!(draw(&mut panels, &locked, row_click(560., 118.)).is_empty());
     assert!(!panels.timeline_columns.editing());
 }
 
@@ -215,7 +218,7 @@ fn parent_menu_keeps_disabled_self_and_descendants_and_keyboard_skips_them() {
         focused: Some(Panel::Timeline),
         ..Default::default()
     };
-    assert!(draw(&mut panels, &state, click(560., 118.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
     assert!(draw(
         &mut panels,
         &state,
@@ -373,7 +376,7 @@ fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() 
         focused: Some(Panel::Timeline),
         ..Default::default()
     };
-    assert!(draw(&mut panels, &state, click(517., 118.)).is_empty());
+    assert!(draw(&mut panels, &state, row_click(517., 118.)).is_empty());
     assert!(panels.timeline_columns.editing());
     panels.timeline_columns.cancel();
     let layout = Node::Split {
@@ -387,9 +390,10 @@ fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() 
         .into_iter()
         .find(|f| f.panel == Panel::Timeline)
         .unwrap();
+    let styles = PaintList::default().styles();
     let point = [
         frame.content.min[0] + 640. - 158.,
-        frame.content.min[1] + 64. + 44. + 11.,
+        frame.content.min[1] + crate::panels::timeline::header_height(&styles) + 44. + 11.,
     ];
     let mut atlas = TextAtlas::from_system(12.).unwrap();
     let mut paint = PaintList::default();
@@ -462,7 +466,7 @@ fn visible_column_preferences_never_share_the_3d_switch_hit_target() {
     // Display order is the reverse of storage order; target the intended
     // object rather than assuming it is the first visible layer.
     let target_row = timeline::rows(&state).iter().position(|row| row.id == 7).unwrap();
-    let target_y = 40. + 64. + (target_row as f32 + 0.5) * styles.metric("row.height", 22.);
+    let target_y = 40. + crate::panels::timeline::header_height(&styles) + (target_row as f32 + 0.5) * styles.metric("row.height", 22.);
     for locale in [Locale::Zh, Locale::En] {
         for width in [360_f32, 500., 720., 1280.] {
             for bits in 0..8 {
