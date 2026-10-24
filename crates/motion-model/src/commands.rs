@@ -224,6 +224,7 @@ pub enum Command {
         visible: bool,
         locked: bool,
     },
+    SetLayerShy { object: u64, shy: bool },
     Anchor {
         object: u64,
         anchor: [f32; 2],

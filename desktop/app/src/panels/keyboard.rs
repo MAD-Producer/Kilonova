@@ -286,6 +286,9 @@ fn handle_context_shortcuts(
     node_context: bool,
     owner: Option<Panel>,
 ) {
+    if super::shy_layers::reconcile_selection(panels, state) {
+        out.extend(super::cancel_interaction(panels));
+    }
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
         let property_reveal = panels.shortcut_bindings.resolve(
@@ -502,10 +505,15 @@ fn handle_context_shortcuts(
                     panels.select_only(None);
                 } else {
                     let primary = panels.selected;
+                    let query = panels.timeline.timeline_query.to_lowercase();
                     panels.selected_layers = state["project"]["layers"]
                         .as_array()
                         .into_iter()
                         .flatten()
+                        .filter(|layer| panels.focused != Some(Panel::Timeline)
+                            || ((!panels.timeline.hide_shy || layer["shy"] != true)
+                                && layer["name"].as_str().unwrap_or("Layer").to_lowercase()
+                                    .contains(&query)))
                         .filter_map(|layer| layer["id"].as_u64())
                         .filter(|id| *id != 0)
                         .collect();

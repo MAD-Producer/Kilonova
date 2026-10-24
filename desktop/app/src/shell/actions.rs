@@ -614,6 +614,11 @@ impl Shell {
                 self.workspace.timeline_sampling_columns = visibility;
                 if self.smoke.is_none() { self.workspace.save(&self.layout_path)?; }
             }
+            Action::HideShyLayers(hidden) => {
+                self.panels.timeline.hide_shy = hidden;
+                self.workspace.timeline_hide_shy = hidden;
+                if self.smoke.is_none() { self.workspace.save(&self.layout_path)?; }
+            }
             Action::PreviewMode(mode) => {
                 self.set_preview_preference(mode)?;
             }

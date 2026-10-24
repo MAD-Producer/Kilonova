@@ -172,6 +172,7 @@ registry! {
     Command::Rename { .. } => "rename" [("object","u64",true), ("name","String",true)];
     Command::Reorder { .. } => "reorder" [("object","u64",true), ("index","usize",true)];
     Command::Flags { .. } => "flags" [("object","u64",true), ("visible","bool",true), ("locked","bool",true)];
+    Command::SetLayerShy { .. } => "set_layer_shy" [("object","u64",true), ("shy","bool",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];

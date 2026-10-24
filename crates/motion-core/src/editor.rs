@@ -773,6 +773,11 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             layer.visible = visible;
             layer.locked = locked;
         }
+        Command::SetLayerShy { object, shy } => {
+            let layer = project.layer_mut(object)?;
+            if layer.locked { return Err(Error::Locked(object)); }
+            layer.shy = shy;
+        }
         Command::Reorder { object, index } => {
             ensure(index < project.layers.len(), "invalid layer destination")?;
             let from = project

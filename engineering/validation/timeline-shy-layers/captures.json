@@ -1,0 +1,120 @@
+{
+  "captures": [
+    {
+      "file": "en-float-hidden.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\en-float-hidden.png",
+      "sha256": "7c60b461e792524caad97310fa0b88ead366bc19e3fe1078440a563a98746e41",
+      "dimensions": [
+        1350,
+        900
+      ],
+      "modified": false
+    },
+    {
+      "file": "en-float-marked.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\en-float-marked.png",
+      "sha256": "d0632bf1289046ad7a6ff3fcd716df62742aa8cdea48943f23379d7aea21b3ac",
+      "dimensions": [
+        1350,
+        900
+      ],
+      "modified": false
+    },
+    {
+      "file": "en-main-hidden.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\en-main-hidden.png",
+      "sha256": "f9b25d19667d2b7d9b506d2c165f96b66961aa99454f96c9ef9b8dcae122c478",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "modified": false
+    },
+    {
+      "file": "en-main-marked.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\en-main-marked.png",
+      "sha256": "b8ee2b4a19726ccc07b36cd30e06fdcf02f1cbbc68abd83aa9443016c89734ae",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "modified": false
+    },
+    {
+      "file": "zh-float-hidden.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\zh-float-hidden.png",
+      "sha256": "f573712bfc67aeed20f929886183942f31bd9bb8c4f72cf23aa570fce0bfcf59",
+      "dimensions": [
+        1350,
+        900
+      ],
+      "modified": false
+    },
+    {
+      "file": "zh-float-marked.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\zh-float-marked.png",
+      "sha256": "ba8094510243e3b8dcc4eb9e7af1db0d4ddd740d11180e2e6f2bdb0115b4e4e0",
+      "dimensions": [
+        1350,
+        900
+      ],
+      "modified": false
+    },
+    {
+      "file": "zh-main-hidden.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\zh-main-hidden.png",
+      "sha256": "274b1d3fc049fb56bd9df28b629598334dac1bcf532081efcdff5f09300e2522",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "modified": false
+    },
+    {
+      "file": "zh-main-marked.png",
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shy-integrated-native\\zh-main-marked.png",
+      "sha256": "5ed966adf668e4935deb2fc8b8969d1f634a9a72b0e1171e1a0aa89844ec5841",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "modified": false
+    }
+  ],
+  "compositionPixels": [
+    {
+      "language": "en",
+      "region": [
+        290,
+        111,
+        1272,
+        557
+      ],
+      "sha256": "8eafaa1baf4cb2a5b79346b2fab15899d8f6f3d64ec673b225f330d30b7e76b0",
+      "identical": true,
+      "positivePixel": [
+        51,
+        128,
+        204,
+        255
+      ]
+    },
+    {
+      "language": "zh",
+      "region": [
+        290,
+        111,
+        1272,
+        557
+      ],
+      "sha256": "8eafaa1baf4cb2a5b79346b2fab15899d8f6f3d64ec673b225f330d30b7e76b0",
+      "identical": true,
+      "positivePixel": [
+        51,
+        128,
+        204,
+        255
+      ]
+    }
+  ]
+}
