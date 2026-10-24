@@ -248,6 +248,7 @@ impl CommandRecords {
     /// Reserve before entering an encoder operation. An omitted observation
     /// must never refuse/retry the actual render operation. No logging or native
     /// API is invoked under this lock (callbacks may run under Session locks).
+    #[cfg(test)]
     pub(crate) fn begin(
         self: &Arc<Self>,
         stage: CommandStage,
