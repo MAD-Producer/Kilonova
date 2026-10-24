@@ -27,16 +27,21 @@ macro_rules! observe {
 }
 
 mod align;
+mod frame_cache;
+#[cfg(test)]
+mod frame_cache_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
 mod audio;
 mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
+mod toolbar_style;
 mod composition;
 mod curves;
 pub(crate) mod effect_controls;
 mod effect_removal;
+pub(crate) mod effect_drag;
 mod effects;
 mod effect_timeline;
 mod expressions;
@@ -110,7 +115,30 @@ use types::{Field, ScrubState};
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
 const GUTTER: f32 = 640.0;
 
+thread_local! {
+    static FRAME_CACHE: std::cell::RefCell<frame_cache::Cache<Frame>> =
+        const { std::cell::RefCell::new(frame_cache::Cache::new()) };
+}
+
 pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
+    if let Some(hit) = FRAME_CACHE
+        .try_with(|slot| slot.try_borrow().ok().and_then(|cache| cache.get(layout, size)))
+        .ok()
+        .flatten()
+    {
+        return hit;
+    }
+    let result = calculate_frames(layout, size);
+    // Unavailable slots and oversized/nonfinite keys keep the uncached result.
+    let _ = FRAME_CACHE.try_with(|slot| {
+        if let Ok(mut cache) = slot.try_borrow_mut() {
+            cache.store(layout, size, &result);
+        }
+    });
+    result
+}
+
+fn calculate_frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
     dock::solve(
         layout,
         Rect::new(
@@ -190,6 +218,8 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.effect_drag.cancel();
+    panels.browser.cancel_library_click();
     panels.property_reveal.interrupt();
     let effect_timeline = panels.effect_timeline.cancel();
     let node_changed = panels.node_editor.cancel_interaction();
@@ -222,6 +252,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         | panels.timeline.key_drag.take().is_some_and(|d| d.begun())
         | panels.timeline.timing_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
+    let toolbar = panels.toolbar_style.cancel();
     let transform = panels.transform_controls.cancel();
     panels.composition.orbit = None;
     if let Some((_, before)) = panels.composition.pan.take() {
@@ -243,6 +274,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || camera
         || audio
         || auxiliary
+        || toolbar
     {
         vec![Action::History(4)]
     } else {
@@ -294,6 +326,10 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let drag_owned = panels.effect_drag.prepare(None, state, input);
+    if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
+    let drag_neutral = Input::default();
+    let input = if drag_owned { &drag_neutral } else { input };
     let mut out = Vec::new();
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
@@ -305,6 +341,10 @@ pub fn chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let toolbar_was_editing = panels.toolbar_style.editing();
+    panels.toolbar_style.prepare(state, &panels.selection_ids(),
+        panels.path_controls.tool == path_controls::Tool::Mask, input, &mut out);
+    let toolbar_modal = toolbar_was_editing || panels.toolbar_style.editing();
     let layer_modal = panels.layer_actions.prepare(
         Some(Panel::Timeline),
         state,
@@ -330,6 +370,7 @@ pub fn chrome(
             && !mask_header_modal
             && !layer_modal
             && !panels.expressions.menu_open()
+            && !toolbar_modal
     }) {
         let focused = frames(layout, size)
             .into_iter()
@@ -420,6 +461,7 @@ pub fn chrome(
     let shortcut_modal =
         expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
     let menu_modal = layer_modal
+        || toolbar_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
         || panels.menu.is_some()
@@ -449,6 +491,7 @@ pub fn chrome(
         || audio_modal
         || auxiliary_modal
         || mask_header_modal
+        || toolbar_modal
     {
         &neutral
     } else {
@@ -606,7 +649,9 @@ pub fn chrome(
         paint::rect(list, handle.area, styles.color("dock"));
     }
     titlebar::render(list, atlas, size, state, body_input, &mut out);
-    toolbar::render(list, atlas, size, panels, state, body_input, &mut out);
+    toolbar::render(list, atlas, size, panels, state,
+        if toolbar_modal { input } else { body_input }, &mut out);
+    effect_drag::finish(list, atlas, size, panels, state, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
@@ -621,6 +666,7 @@ pub fn chrome(
     let message = localized_error
         .as_deref()
         .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
+        .or(panels.effect_drag.status())
         .or(panels.message.as_deref())
         .or(plugin_warning)
         .unwrap_or(panels.locale.t(T::Ready));
@@ -671,7 +717,7 @@ pub fn chrome(
         atlas,
         size,
         panels,
-        if shortcut_modal || node_modal {
+        if shortcut_modal || node_modal || toolbar_modal {
             &neutral
         } else {
             input
@@ -868,6 +914,10 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    let toolbar_ids = panels.selection_ids();
+    panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, input, panels.locale, &mut out);
+    if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
+    if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -896,6 +946,19 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    // The toolbar belongs to the main native window. Moving input to a float
+    // cancels its gesture before that window can dispatch another edit.
+    let mut toolbar_actions = vec![];
+    let toolbar_modal = panels.toolbar_style.editing();
+    if toolbar_modal && (input.focus_lost || input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty()) {
+        if panels.toolbar_style.cancel() { toolbar_actions.push(Action::History(4)); }
+    }
+    let toolbar_neutral = Input::default();
+    let input = if toolbar_modal { &toolbar_neutral } else { input };
+    let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
+    if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
+    let drag_neutral = Input::default();
+    let input = if drag_owned { &drag_neutral } else { input };
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     let mask_header_neutral = Input::default();
     let input = if mask_header_modal && panel != Panel::Timeline {
@@ -912,7 +975,7 @@ pub fn floating_chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
-    let mut out = vec![];
+    let mut out = toolbar_actions;
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
     }
@@ -1029,6 +1092,7 @@ pub fn floating_chrome(
         Action::Redock(panel.dock()),
         &mut out,
     );
+    effect_drag::finish(list, atlas, size, panels, state, &mut out);
     paint::rect(
         list,
         Rect::new(0.0, size[1] - 20.0, size[0], 20.0),
@@ -1043,6 +1107,7 @@ pub fn floating_chrome(
         localized_error
             .as_deref()
             .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
+            .or(panels.effect_drag.status())
             .or(panels.message.as_deref())
             .unwrap_or(panels.locale.t(T::SharedProject)),
         styles

@@ -39,6 +39,14 @@ pub(super) fn render(
             panels.locale,
             out,
         );
+        if let Some((entry, point)) = panels.browser.take_library_drag() {
+            panels.effect_drag.begin(entry, point, state);
+            if input.released.is_some_and(|(button, _)| button == MouseButton::Left) {
+                if let Some((owner, _)) = panels.effect_drag.pointer_owner() {
+                    panels.effect_drag.pointer(owner, input.mouse, true, styles.metric("motion.drag_threshold", 3.));
+                }
+            }
+        }
         return;
     }
     let controls = if panel == Panel::Effects {

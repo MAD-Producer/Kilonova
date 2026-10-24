@@ -36,7 +36,7 @@ impl Entry {
         .to_lowercase();
         query.split_whitespace().all(|term| haystack.contains(term))
     }
-    fn can_apply(&self, layer: &Value) -> bool {
+    pub(crate) fn can_apply(&self, layer: &Value) -> bool {
         self.supported
             && layer["id"].as_u64().is_some_and(|id| id != 0)
             && layer["locked"] != true
@@ -102,6 +102,16 @@ pub(crate) fn entries(catalogue: &Value, locale: Locale) -> Vec<Entry> {
     chosen.into_values().collect()
 }
 impl Controls {
+    #[cfg(test)]
+    pub(crate) fn library_row(&self, key: &str) -> Option<Rect> { self.library_row_hits.get(key).copied() }
+    pub(crate) fn cancel_library_click(&mut self) { self.library_last_click = None; }
+    pub(crate) fn take_library_drag(&mut self) -> Option<(Entry, [f32; 2])> { self.library_drag.take() }
+    pub(crate) fn record_recent(&mut self, key: String) {
+        self.recent.retain(|k| k != &key);
+        self.recent.insert(0, key);
+        self.recent.truncate(24);
+        self.library_last_click = None;
+    }
     pub(crate) fn preview_categories(&mut self, locale: Locale) {
         let entries = entries(&self.catalogue, locale);
         self.collapsed_categories = entries.iter().map(|e| e.category.clone()).collect();
@@ -148,6 +158,8 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        #[cfg(test)]
+        self.library_row_hits.clear();
         let styles = list.styles();
         let colors = styles.colors();
         let zh = locale == Locale::Zh;
@@ -359,6 +371,10 @@ impl Controls {
                     (scroll.viewport.width() - 8.).max(1.),
                     row,
                 );
+                #[cfg(test)]
+                if rect.min[1] >= scroll.viewport.min[1] && rect.max[1] <= scroll.viewport.max[1] {
+                    self.library_row_hits.insert(e.key.clone(), rect);
+                }
                 let mut states = motion_ui::style::States::default();
                 if !e.supported {
                     states = states.with(motion_ui::style::State::Disabled);
@@ -422,6 +438,8 @@ impl Controls {
                     self.library_last_click = Some((e.key.clone(), now));
                     if double && e.can_apply(layer) {
                         apply = Some(e.clone());
+                    } else if e.supported {
+                        self.library_drag = child.pressed.map(|(_, point)| (e.clone(), point));
                     }
                 }
                 if !response.active

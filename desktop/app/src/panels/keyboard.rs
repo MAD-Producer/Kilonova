@@ -22,6 +22,7 @@ fn text_active(panels: &Panels) -> bool {
 
 fn editor_active(panels: &Panels) -> bool {
     panels.composition.zoom.interacting()
+        || panels.toolbar_style.editing()
         || panels.timeline_columns.editing()
         || panels.properties.field.is_some()
         || panels.project.search
