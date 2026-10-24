@@ -3,6 +3,19 @@ use super::*;
 enum Choice {
     Direct(Action),
     RecentEffect(usize),
+    Text(motion_ui::widgets::TextCommand),
+}
+
+// Reuse the existing menu geometry for hit testing before fields process outside clicks.
+pub(super) fn regions(atlas: &mut TextAtlas, locale: Locale) -> Vec<(T, Rect)> {
+    let mut x = 8.0;
+    [T::File, T::Edit, T::Composition, T::Layer, T::Effect,
+        T::Animation, T::View, T::Window, T::Help].into_iter().map(|key| {
+        let width = atlas.measure(locale.t(key)) + 22.0;
+        let rect = Rect::new(x, metrics::TITLE_BAR, width, metrics::MENU_BAR);
+        x += width;
+        (key, rect)
+    }).collect()
 }
 
 pub(super) fn render(
@@ -28,25 +41,11 @@ pub(super) fn render(
         Rect::new(0.0, metrics::TITLE_BAR, size[0], metrics::MENU_BAR),
         colors.CHROME,
     );
-    let mut x = 8.0;
     let mut starts = vec![];
-    for (i, key) in [
-        T::File,
-        T::Edit,
-        T::Composition,
-        T::Layer,
-        T::Effect,
-        T::Animation,
-        T::View,
-        T::Window,
-        T::Help,
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (i, (key, r)) in regions(atlas, locale).into_iter().enumerate() {
         let name = locale.t(key);
-        let width = atlas.measure(name) + 22.0;
-        let r = Rect::new(x, metrics::TITLE_BAR, width, metrics::MENU_BAR);
+        let x = r.min[0];
+        let width = r.width();
         starts.push(x);
         if r.contains(input.mouse) || panels.menu == Some(i) {
             paint::rect(list, r, colors.SUNKEN);
@@ -74,7 +73,6 @@ pub(super) fn render(
             }
             panels.menu = next;
         }
-        x += width;
     }
     if let Some(menu) = panels.menu {
         let selected = panels.selected.filter(|id| *id != 0);
@@ -313,6 +311,12 @@ pub(super) fn render(
                 (locale.t(T::About).into(), Action::About, true),
             ],
         };
+        let entries: Vec<_> = if menu == 1 && panels.text_menu.is_some() {
+            super::text_menu::entries(panels, state).into_iter()
+                .map(|(text, command, enabled)| (text, Choice::Text(command), enabled)).collect()
+        } else {
+            entries.into_iter().map(|(text, action, enabled)| (text, Choice::Direct(action), enabled)).collect()
+        };
         let recent = if menu == 4 {
             super::effect_recent::rows(panels, state)
         } else {
@@ -367,7 +371,6 @@ pub(super) fn render(
         paint::stroke(&mut popup_list, popup, colors.BORDER, 1.0);
         let choices = entries
             .into_iter()
-            .map(|(text, action, enabled)| (text, Choice::Direct(action), enabled))
             .chain(recent.into_iter().map(|(text, index, enabled)| {
                 (text, Choice::RecentEffect(index), enabled)
             }));
@@ -387,7 +390,7 @@ pub(super) fn render(
             }
             let action = match &choice {
                 Choice::Direct(action) => Some(action),
-                Choice::RecentEffect(_) => None,
+                Choice::RecentEffect(_) | Choice::Text(_) => None,
             };
             let checked = match action {
                 Some(Action::TimelineColumnVisibility(next)) => {
@@ -419,6 +422,10 @@ pub(super) fn render(
             );
             if clicked(input, r) && enabled {
                 out.extend(match choice {
+                    Choice::Text(command) => {
+                        super::text_menu::apply(panels, state, command, input.text_clipboard.as_ref());
+                        None
+                    }
                     Choice::Direct(action) => Some(action),
                     Choice::RecentEffect(index) => super::effect_recent::apply(index, panels, state),
                 });

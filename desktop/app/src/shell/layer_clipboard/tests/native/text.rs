@@ -2,6 +2,7 @@
 use super::*;
 use crate::panels;
 mod legacy_fields;
+mod menu;
 
 fn enter() -> Input {
     Input {
@@ -232,5 +233,6 @@ fn native_text_clipboard_crosses_main_and_floating_fields_and_commits_once() {
         assert_eq!(after_search["project"], before["project"]);
         assert_eq!(after_search["revision"], shell.state["revision"]);
         legacy_fields::run(&mut events, &mut shell, size, scale, name, &root);
+        menu::run(&mut events, &mut shell, size, scale, name, &root);
     }
 }

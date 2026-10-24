@@ -3,6 +3,8 @@ pub mod numeric_behavior;
 mod property_layout;
 mod text_history;
 mod text_input;
+mod text_commands;
+pub use text_commands::{TextCommand, TextSession};
 pub use property_layout::PropertyColumns;
 mod composite;
 pub use composite::*;
@@ -30,6 +32,7 @@ pub struct TextEditor {
     cursor: usize,
     dirty: bool,
     history: text_history::History,
+    session: text_commands::Session,
 }
 impl std::fmt::Debug for TextEditor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,6 +61,7 @@ impl TextEditor {
         self.error = None;
         self.dirty = false;
         self.history = Default::default();
+        self.session = Default::default();
     }
     /// Live searches resume at the end; value editors keep begin's select-all behavior.
     pub fn begin_at_end(&mut self, value: &str) {

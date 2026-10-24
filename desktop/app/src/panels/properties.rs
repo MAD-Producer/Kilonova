@@ -19,6 +19,9 @@ pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Com
     } else { Command::Anchor { object, anchor } }
 }
 impl AnchorControls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+    }
     pub fn editing(&self) -> bool {
         self.field.is_some()
     }

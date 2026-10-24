@@ -77,6 +77,9 @@ pub(crate) struct Controls {
     drag: Option<Drag>,
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+    }
     pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<super::keyframe_clipboard::Selection> {
         use super::keyframe_clipboard as clipboard;
         if self.active_object != Some(object) || !self.context.as_ref().is_some_and(|(root, comp)|

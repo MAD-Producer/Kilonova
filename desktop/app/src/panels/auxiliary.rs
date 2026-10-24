@@ -33,6 +33,9 @@ struct ColorPopup {
     opened: bool,
 }
 impl State {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some((_, field)) = &mut self.color_field { request.visit(&mut field.editor.text); }
+    }
     pub fn editing(&self) -> bool {
         self.owner().is_some()
     }

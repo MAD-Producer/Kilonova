@@ -171,6 +171,7 @@ pub struct Panels {
     /// Eligibility captured before opening application chrome clears focus.
     pub(crate) clipboard_menu_allowed: Option<bool>,
     pub(crate) clipboard_menu_keys: Option<super::keyframe_clipboard::Selection>,
+    pub(crate) text_menu: Option<super::text_menu::Capture>,
     /// First visible row in the application menu when the popup is taller than
     /// the available window height.
     pub(crate) menu_scroll: usize,

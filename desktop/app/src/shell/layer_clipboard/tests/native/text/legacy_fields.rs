@@ -91,6 +91,57 @@ pub(super) fn run(
         0,
         root.join(format!("{name}-property-number.png")),
     );
+    // Menu clicks retain this exact numeric draft, rather than committing it.
+    use crate::shell::layer_clipboard::tests::text_menu as menu;
+    assert!(menu::open(shell).is_empty());
+    assert!(
+        shell.panels.text_menu.is_some(),
+        "numeric menu must capture the draft; focus={:?} menu={:?} field={}",
+        shell.panels.focused,
+        shell.panels.menu,
+        shell.panels.properties.field.is_some()
+    );
+    assert!(
+        shell.panels.properties.field.is_some(),
+        "numeric draft lost on opening"
+    );
+    assert!(menu::choose(shell, 5).is_empty());
+    assert!(shell.panels.menu.is_none());
+    assert!(menu::open(shell).is_empty());
+    assert!(menu::choose(shell, 2).is_empty());
+    assert!(shell.panels.menu.is_none());
+    assert!(
+        shell.panels.properties.field.is_some(),
+        "numeric draft lost on copy"
+    );
+    assert_eq!(&*shell.text_clipboard.read().unwrap().unwrap(), "64");
+    shell.text_clipboard.store("96").unwrap();
+    assert!(menu::open(shell).is_empty());
+    assert!(
+        shell.panels.text_menu.is_some(),
+        "numeric paste menu must capture the draft; focus={:?} menu={:?} field={}",
+        shell.panels.focused,
+        shell.panels.menu,
+        shell.panels.properties.field.is_some()
+    );
+    assert!(
+        shell.panels.properties.field.is_some(),
+        "numeric draft lost on reopening"
+    );
+    assert!(menu::choose(shell, 4).is_empty());
+    assert_eq!(shell.panels.properties.field.as_ref().unwrap().text, "96");
+    assert!(menu::open(shell).is_empty());
+    capture(
+        events,
+        shell,
+        size,
+        scale,
+        0,
+        root.join(format!("{name}-property-text-menu.png")),
+    );
+    assert!(menu::choose(shell, 0).is_empty());
+    assert_eq!(shell.panels.properties.field.as_ref().unwrap().text, "64");
+    assert_eq!(shell.engine.state().unwrap()["project"], before);
     let (_, actions) = draw(shell, size, 0, enter());
     assert!(
         matches!(actions.as_slice(),[Action::Edit(Command::SetVector {

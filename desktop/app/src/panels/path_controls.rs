@@ -363,6 +363,11 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
     Some(g)
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = self.parameter.as_mut().filter(|field| field.start.is_none()) {
+            request.value(&mut field.editor, &mut field.text, &mut field.replace);
+        }
+    }
     pub(in crate::panels) fn reveal_masks(&mut self, object: u64) {
         self.masks_open = true;
         self.collapsed_mask_cards.retain(|(id,_)| *id != object);
