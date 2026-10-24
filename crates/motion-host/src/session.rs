@@ -724,6 +724,7 @@ impl Session {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
             }
             let submitting = Instant::now();
+            let presentation_command = encoder.command_identity();
             g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
             for upload in video_uploads {
                 upload.mark_submitted();
@@ -762,6 +763,8 @@ impl Session {
                     render_height: rh,
                     preview_fps: tier.fps(),
                     gpu: None,
+                    presentation_command,
+                    exposure: None,
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
                         vector_upload: g.renderer.vector_upload_info()?,

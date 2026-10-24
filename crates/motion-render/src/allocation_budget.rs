@@ -336,6 +336,11 @@ impl DerefMut for AllocationEncoder {
     }
 }
 impl AllocationEncoder {
+    /// Read-only identity of this actual encoder's observation. None means
+    /// disabled/unavailable/omitted, never a fabricated zero-duration sample.
+    pub fn command_identity(&self) -> Option<crate::gpu_commands::CommandIdentity> {
+        self.encoder.command_identity()
+    }
     pub(crate) fn observe_commands(&mut self, span: Option<crate::gpu_commands::Span>) {
         self.encoder.observe(span);
     }
@@ -355,6 +360,9 @@ pub struct AllocatedCommandBuffer {
     owner: Arc<()>,
 }
 impl AllocatedCommandBuffer {
+    pub fn command_identity(&self) -> Option<crate::gpu_commands::CommandIdentity> {
+        self.buffer.command_identity()
+    }
     pub(crate) fn submit(
         self,
         budget: &AllocationBudget,

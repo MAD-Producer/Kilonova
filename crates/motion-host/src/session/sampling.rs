@@ -339,7 +339,8 @@ impl Session {
             let poll_us = micros(poll_began.elapsed());
             // Presentation belongs to this attempt, including a pending attempt
             // that only presents retained content. This is not a content ID.
-            let _command_scope = self.sampling.command_context()
+            let exposure_context = self.sampling.command_context();
+            let _command_scope = exposure_context
                 .and_then(|context| g.renderer.exposure_command_scope(context));
             match result {
                 Ok(ExposurePoll::Pending(_)) => {
@@ -398,6 +399,7 @@ impl Session {
             )?;
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             let submitting = Instant::now();
+            let presentation_command = encoder.command_identity();
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 g.scratch.collect_texture_resources(ledger)
             })?;
@@ -437,6 +439,8 @@ impl Session {
                     render_height: rh,
                     preview_fps: self.preview.tier().fps(),
                     gpu: None,
+                    presentation_command,
+                    exposure: exposure_context,
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
                         vector_upload: g.renderer.vector_upload_info()?,

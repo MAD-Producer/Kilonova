@@ -18,6 +18,8 @@ fn resources_are_separate_sampled_distributions_and_recording_remains_bounded() 
             render_height: 16,
             preview_fps: 30,
             gpu: None,
+            presentation_command: None,
+            exposure: None,
             resources: if sequence == 2 {
                 None
             } else {
@@ -71,7 +73,7 @@ fn exposure_capacity_and_combined_media_time_are_reported_without_inventing_gpu_
     let mut recorder=FrameRecorder::new(9,1);
     recorder.record(FrameMeasurement {sequence:9,frame:1.25,elapsed_us:100,
         cpu_prepare_us:25,acquire_us:2,submit_us:3,present_call_us:4,render_wall_us:20,
-        render_width:4,render_height:2,preview_fps:30,gpu:None,
+        render_width:4,render_height:2,preview_fps:30,gpu:None,presentation_command:None,exposure:None,
         resources:Some(FrameResources {vector_upload: Default::default(),textures:TextureMemoryBreakdown::default(),
             preview_target_bytes:32,exposure_target_bytes:96,exposure_media_us:7,
             cpu_video_cache_bytes:16,cpu_video_proxy_bytes:0,video_prepare_us:0,video_upload_us:0,
@@ -90,7 +92,7 @@ fn vector_upload_capacity_is_separate_from_texture_capacity_and_gpu_timings() {
     let mut recorder=FrameRecorder::new(1,1);
     recorder.record(FrameMeasurement {sequence:1,frame:0.,elapsed_us:1,cpu_prepare_us:0,
         acquire_us:0,submit_us:0,present_call_us:0,render_wall_us:0,
-        render_width:4,render_height:2,preview_fps:30,gpu:None,
+        render_width:4,render_height:2,preview_fps:30,gpu:None,presentation_command:None,exposure:None,
         resources:Some(FrameResources {textures:TextureMemoryBreakdown::default(),
             vector_upload:motion_render::VectorUploadInfo {
                 vertex_capacity_bytes:16,opacity_capacity_bytes:16,pending_bytes:64,idle_bytes:128,
@@ -119,7 +121,7 @@ fn readback_observations_keep_unavailable_counters_distinct_from_known_zero() {
         recorder.record(FrameMeasurement {
             sequence, frame:sequence as f64, elapsed_us:1, cpu_prepare_us:0,
             acquire_us:0, submit_us:0, present_call_us:0, render_wall_us:0,
-            render_width:4, render_height:2, preview_fps:30, gpu:None,
+            render_width:4, render_height:2, preview_fps:30, gpu:None,presentation_command:None,exposure:None,
             resources:Some(FrameResources {
                 textures:Default::default(), vector_upload:Default::default(),
                 preview_target_bytes:0, exposure_target_bytes:0, exposure_media_us:0,

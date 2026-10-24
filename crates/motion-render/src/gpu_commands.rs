@@ -11,9 +11,9 @@ use crate::{
 };
 pub use logging::GpuCommandLogScope;
 pub use records::{
-    CommandContext, CommandCounts, CommandPhase, CommandRecord, CommandSnapshot, CommandStage,
-    CommandTraceSnapshot, ExposureCommandContext, ExposureCommandScope, InputCommandContext,
-    MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_GPU_TRACE_COMMANDS,
+    CommandContext, CommandCounts, CommandIdentity, CommandPhase, CommandRecord, CommandSnapshot,
+    CommandStage, CommandTraceSnapshot, ExposureCommandContext, ExposureCommandScope,
+    InputCommandContext, MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_GPU_TRACE_COMMANDS,
     MAX_GPU_TRACE_METADATA_BYTES, MAX_RECENT_GPU_COMMANDS,
 };
 use records::{CommandRecords, CommandTicket};
@@ -465,6 +465,13 @@ impl ObservedEncoder {
     pub(crate) fn new(raw: wgpu::CommandEncoder) -> Self {
         Self { raw, span: None }
     }
+    pub(crate) fn command_identity(&self) -> Option<CommandIdentity> {
+        self.span
+            .as_ref()?
+            .ticket
+            .as_ref()
+            .map(CommandTicket::identity)
+    }
     pub(crate) fn observe(&mut self, span: Option<Span>) {
         self.span = span;
         if let Some(span) = &self.span {
@@ -549,6 +556,13 @@ impl TrackedCommandBuffer {
     }
 }
 impl ObservedCommandBuffer {
+    pub(crate) fn command_identity(&self) -> Option<CommandIdentity> {
+        self.span
+            .as_ref()?
+            .ticket
+            .as_ref()
+            .map(CommandTicket::identity)
+    }
     /// Called only after the existing owner/budget validation. The closure is
     /// the original native submission and retains its exact error/unwind path.
     pub(crate) fn submit(

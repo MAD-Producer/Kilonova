@@ -66,6 +66,78 @@ fn poll(renderer: &Renderer) {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_encoder_identity_survives_finish_and_late_callbacks_across_replacement_epochs() {
+    let renderer = renderer(AllocationBudget::default());
+    let disabled = renderer
+        .allocation_command_encoder(&wgpu::CommandEncoderDescriptor::default())
+        .unwrap();
+    assert!(disabled.command_identity().is_none());
+    assert!(disabled.finish().command_identity().is_none());
+    let Some(old_profiler) = GpuCommandProfiler::new(&renderer, 1).unwrap() else {
+        eprintln!("GPU_COMMAND_IDENTITY available=false; no native identity acceptance");
+        return;
+    };
+    let old_observer = old_profiler.observer();
+    let target = renderer.capture_target(8, 8).unwrap();
+    let mut old = encoder(&old_profiler, &renderer, 401);
+    let old_id = old.command_identity().unwrap();
+    let busy = encoder(&old_profiler, &renderer, 402);
+    assert!(busy.command_identity().is_none());
+    drop(busy);
+    clear(&mut old, &target.view);
+    let old = old.finish();
+    assert_eq!(old.command_identity(), Some(old_id));
+    let new_profiler = GpuCommandProfiler::new(&renderer, 1).unwrap().unwrap();
+    let new_observer = new_profiler.observer();
+    let mut new = encoder(&new_profiler, &renderer, 403);
+    let new_id = new.command_identity().unwrap();
+    assert_eq!(old_id.id, new_id.id);
+    assert_ne!(old_id.epoch, new_id.epoch);
+    clear(&mut new, &target.view);
+    let new = new.finish();
+    assert_eq!(new.command_identity(), Some(new_id));
+    renderer.submit_allocated(old, |_| {}).unwrap();
+    renderer.submit_allocated(new, |_| {}).unwrap();
+    drop(old_profiler);
+    poll(&renderer);
+    for (observer, identity, request) in [(old_observer, old_id, 401), (new_observer, new_id, 403)]
+    {
+        let snapshot = observer.snapshot();
+        assert_eq!(snapshot.commands.counts.completed, 1);
+        assert_eq!(snapshot.commands.recent.len(), 1);
+        let record = &snapshot.commands.recent[0];
+        assert_eq!(
+            CommandIdentity {
+                epoch: record.epoch,
+                id: record.id
+            },
+            identity
+        );
+        assert_eq!(record.contexts[0].request, Some(request));
+        assert!(record
+            .timestamp_words
+            .is_some_and(|words| words[1] > words[0]));
+        assert!(record
+            .gpu_elapsed_us
+            .is_some_and(|elapsed| elapsed.is_finite() && elapsed > 0.0));
+    }
+    assert!(renderer
+        .read_target(&target)
+        .unwrap()
+        .chunks_exact(4)
+        .all(|pixel| pixel == [255, 0, 0, 255]));
+    eprintln!(
+        "GPU_COMMAND_IDENTITY {}",
+        serde_json::json!({
+            "available":true,"actualNativeSamples":2,"actualPixelsChecked":64,
+            "reusedNumericCommandId":old_id.id,"epochs":[old_id.epoch,new_id.epoch],
+            "scope":"exact native encoder/finished-buffer/callback identities; disabled and capacity-omitted commands stay unknown"
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_trace_preserves_original_words_after_recent_eviction_and_stops_without_waiting() {
     let renderer = renderer(AllocationBudget::default());
     let Some(profiler) = GpuCommandProfiler::new(&renderer, 4).unwrap() else {

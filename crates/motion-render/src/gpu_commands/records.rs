@@ -123,6 +123,14 @@ impl InputCommandContext {
     }
 }
 
+/// Exact observed encoder identity. An ID alone is not unique across epochs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandIdentity {
+    pub epoch: u64,
+    pub id: u64,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandRecord {
@@ -502,6 +510,12 @@ pub(crate) struct CommandTicket {
     armed: bool,
 }
 impl CommandTicket {
+    pub(crate) fn identity(&self) -> CommandIdentity {
+        CommandIdentity {
+            epoch: self.records.epoch,
+            id: self.id,
+        }
+    }
     #[cfg(test)]
     pub(crate) fn id(&self) -> u64 {
         self.id
