@@ -2,6 +2,7 @@
 //! File IO runs on the clipboard worker; only the final transaction owns the
 //! session. A submitted paste also transfers ownership of staged files to it.
 mod storage;
+pub(crate) mod controller;
 #[cfg(test)]
 mod tests;
 pub(crate) mod worker;

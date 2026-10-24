@@ -29,6 +29,7 @@ impl Shell {
             && self.rendering.is_empty()
             && self.exposure_presentations.is_empty()
             && self.editing.is_none()
+            && !self.layer_clipboard.committing()
             && !self.present_due
             && self.actions.is_empty()
             && self.resizing.is_none()

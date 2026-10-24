@@ -779,6 +779,8 @@ impl Shell {
                     result["path"].as_str().unwrap_or("")
                 ));
             }
+            Action::LayerClipboard(intent) => self.request_layer_clipboard(intent)?,
+            Action::CancelLayerClipboard => self.cancel_layer_clipboard(),
             Action::History(op) => {
                 if matches!(op,0|1) && panels::tools::camera::owns_history(&self.panels) {
                     self.editing = Some((Instant::now(),self.engine.camera_gesture_async(if op==0 {motion_host::ops::preview::CameraGesture::Undo} else {motion_host::ops::preview::CameraGesture::Redo})?));

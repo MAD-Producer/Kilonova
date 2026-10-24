@@ -253,6 +253,8 @@ enum UserEvent {
 }
 struct Shell {
     window: Option<Arc<Window>>,
+    // Cancel queued clipboard transactions before the engine's shutdown/drop.
+    layer_clipboard: layer_clipboard::controller::Clipboard,
     engine: Arc<Engine>,
     atlas: TextAtlas,
     cursors: cursors::Cursors,
@@ -392,6 +394,7 @@ impl Shell {
             floating: Default::default(),
             next_window: 1,
             panels: Default::default(),
+            layer_clipboard: Default::default(),
             node_tasks: node_tasks::NodeTasks::start()?,
             node_standalone:None,
             node_save_project:None,
@@ -750,6 +753,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         self.poll_effect_import();
+        self.poll_layer_clipboard();
         if let Err(error) = self.poll_audio_analysis() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -840,6 +844,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.resizing.is_none()
             && self.editing.is_none()
             && self.project_pending.is_none()
+            && !self.layer_clipboard.committing()
             && self.actions.is_empty()
         {
             event_loop.exit();
@@ -850,6 +855,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.resizing.is_none()
             && self.editing.is_none()
             && self.project_pending.is_none()
+            && !self.layer_clipboard.committing()
             && (!self.present_due || self.closing)
         {
             while let Some(action) = shell::actions::pop_action(&mut self.actions) {
@@ -1002,6 +1008,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         let busy = self.attaching.is_some()
+            || self.layer_clipboard.busy()
             || self.diagnostics_export.is_some()
             || self.present_due
             || self.editing.is_some()

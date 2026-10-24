@@ -86,3 +86,57 @@ Session 增加不进入工程 JSON 的单调文档 generation。重新打开相�
 组合验证：`layer-clipboard-current-main-core.log` 为 12 项剪贴板、3 项命令目录、8 项工作范围测试，合计 23 项实际通过。`layer-clipboard-current-main-compile.log` 重新编译带 FFmpeg 的桌面测试程序，22 项既有测试警告；`layer-clipboard-current-main-host.log` 的 10 项宿主测试全部通过、0 忽略，27.83 秒。该程序 SHA-256 为 `7a1663600f4606cc561ad83b21589324c5fff2ea806acf94137513998a3a6c9d`。默认日志原件保存在 `layer-clipboard-current-main-channel/`，再次实际验证文件日志、Error stderr、stdout 隔离与阻塞前开始信号。
 
 上述为当前组合的 33 项相关验证，不是完整 959 项桌面验收；此前阶段的 22 项宿主回归也不冒充本次新组合重跑。尚未接入 Shell、快捷键和菜单，未创建完成 PR 或关闭 #204。
+
+## Shell 调度、取消与提交确认
+
+本阶段把宿主基础接入实际 `Shell::action` 和应用轮询，尚未提供用户可点击的 Edit 菜单及快捷键。图层剪贴板属于应用而非工程；主窗与浮窗后续共用同一实例。读取、后台 IO、待提交、提交确认分别保留状态，同时最多一个操作；取消不会丢掉尚未返回的任务再启动替代线程，也未添加超时、重启或重试。关闭和切换工程会发送取消，字段析构顺序保证剪贴板先于引擎取消。应用等待策略把剪贴板列为在途工作，避免空闲窗口停止轮询。
+
+复制不产生历史；剪切先完成冻结，再提交原子删除；粘贴只在实际提交成功后更新状态和选择。原位粘贴保留帧位置，播放头粘贴使用读取目标时的帧。多选保留主图层和原有堆叠次序；剪切后立即清理已删除对象的选择。空剪贴板是正常 miss，不暂停播放。缓存失败不替换旧剪贴板，已缓存的素材在源文件删除、切换工程后仍可粘贴并保存重开。
+
+提交必须等待既有编辑、工程切换、窗口附着/调整、素材导入和节点状态回包处理完毕；提交确认期间暂缓普通编辑派发、播放推进与新的节点轮询安装，避免旧确认覆盖较新的工程快照。取消从普通动作队列单独取出，能够到达已经排队的提交；若提交实际已经完成，仍确认真实改动，不能把成功伪装成取消。
+
+### 观察与协议台账
+
+| ID | 分类 | 本阶段实现与证据边界 |
+| --- | --- | --- |
+| LC-01 | 功能/协议边界 | Shell 展示宿主/后台返回的原始错误；取消与目标失效展示各自的正常状态，不清空错误、吞掉 panic 或改写已提交的结果。 |
+| LC-02 | 已有覆盖 | 读取/提交继续使用既有串行引擎的请求号、Info 开始、在途状态、Error 回包；后台 IO 沿用上一阶段的线程信道。没有另建日志系统。 |
+| LC-03 | 正常分支 | 空剪贴板、已有待处理请求、取消、superseded 均不视为故障。真实阶段测试覆盖空缓存不暂停播放、重复请求不替换在途槽、取消清理暂存与保留已提交结果。 |
+| LC-04 | 新增观察 | 调度器保留 reading / queued / io / ready / committing / cancelling 状态；健康轮询不记录日志、不执行文件 IO。仅“应用缓存意外丢失”的内部协议断裂新增一条 Error；该不变量路径未伪造为可由正常操作触发。 |
+| LC-05 | 仍待完成 | Ctrl+C/X/V、Edit 菜单、用户可见取消入口、多窗输入和实际截图、完整组合 CI、强杀进程后的遗留缓存策略尚未完成。当前原生输入回归不能证明新剪贴板 UI 已验收。 |
+| LC-06 | 新功能验证 | 使用真实 Shell、Engine、素材文件和保存重开验证复制/剪切/粘贴、跨工程缓存、单步撤销、取消与失效，不以成功 mock 返回值代替命令执行。 |
+| LC-07 | 默认信道验证 | 独立子进程在不设置 MOTION_LOG 时运行实际 Shell 缺失对象与缺失文件操作，检查原原因出现在 UI 提示、文件日志、Error stderr，未进入 stdout；取消不产生 Error。 |
+| LC-08 | 调度边界 | 新增受控旧状态回包测试，回包来自真实 Engine::State；证明 pending surface acknowledgement 未处理时不提交，提交确认前不启动节点编译。它是快照调度验证，不冒充真实 GPU resize 验收。 |
+
+### #204 完成性检查
+
+| 需求 | 当前权威证据 | 结果 |
+| --- | --- | --- |
+| 工程内/跨工程依赖、全新 ID、资源/父级/效果/关键帧 | 核心 12 项与宿主 10 项；Shell 实际跨工程保存重开 | 已有已验证实现，完整 UI 入口仍待完成 |
+| 剪切缓存成功后删除；重复粘贴无别名；单步撤销 | Shell 中英文命令、取消/失效、资源复用及主选择测试 | 已接入 Shell 并验证命令路径 |
+| Ctrl+C/X/V、Edit、原位/播放头粘贴 | 原位/播放头 typed intent 已接入；菜单/键盘未接 | 未完成 |
+| 文本、关键帧、路径、节点独立剪贴板 | 节点已有实现；当前 TextEditor 没有通用 C/X/V，关键帧仅有局部复制/缓动缓冲，路径只有部分拖动复制 | 未完成；不能把屏蔽图层快捷键当作这些能力已存在 |
+| 主窗/浮窗、焦点与中英文一致 | 已验证中英文 Shell；既有原生输入回归与新 UI 验收分开 | 新剪贴板多窗 UI 未验证 |
+| 成功、取消、失效、保存重开与撤销 | 真实 Shell 及默认信道测试；IO 阻塞前状态发布由宿主现有测试覆盖 | 命令路径已有证据，交互路径待完成 |
+
+本阶段不修改面板绘制、token、属性行或菜单布局，没有新增依赖或外部资产。DESIGN §0.7 的十二项分别保留：路径六处行步长、双列划分、按钮高度、数值字段、布尔字段；效果行步长、布尔字段、枚举字段、悬浮色、层级；时间轴列坐标、吸附线。保留理由均为本阶段未触及这些绘制位置；未宣称它们已修复。DESIGN §12 的新剪贴板视觉、多尺寸/DPI、浮窗交互及性能验收仍待执行。尚未创建完成 PR 或关闭 #204。
+
+### 本阶段最终验证
+
+最终代码基于 `4c5c644a`；编译后仅更新本证据文档。验证产物均位于 `E:/Dev/aem/artifacts/pr-ci-followups/`：
+
+| 日志 | 实际结果 |
+| --- | --- |
+| `layer-clipboard-shell-ordering-compile.log` | 带 FFmpeg 的桌面测试程序编译成功，2 分 07 秒，22 项既有测试警告 |
+| `layer-clipboard-shell-ordering-tests.log` | 宿主/后台既有 10 项与新增 Shell 8 项，共 18 项通过、0 失败、0 忽略，47.77 秒 |
+| `layer-clipboard-shell-ordering-playback.log` | 4 项播放、曲线和原生属性手势回归通过、0 忽略，35.56 秒 |
+| `layer-clipboard-shell-ordering-native.log` | 1 项真实原生主窗/浮窗输入回归通过、0 忽略，17.43 秒；不作为新剪贴板快捷键的完成证据 |
+| `layer-clipboard-shell-ordering-project.log` | 16 项工程切换、确认、保存失败、撤销及默认错误信道回归通过、0 忽略，42.11 秒 |
+| `layer-clipboard-shell-ordering-node-save.log` | 1 项实际节点源码保存后再替换图的回归通过、0 忽略，13.80 秒 |
+| `layer-clipboard-shell-ordering-node-exit.log` | 2 项节点退出保存/取消及过期确认回归通过、0 忽略，15.99 秒 |
+
+以上合计 42 项实际通过，来自同一个测试程序，SHA-256 为 `10196e39efb5208b778cc9b48a86f40455ae9889cee08771708786102649012c`；不是全部 967 项桌面测试，也不与早期同名重跑重复累计。默认信道原件分别位于 `layer-clipboard-shell-ordering-foundation-channel/` 和 `layer-clipboard-shell-ordering-default-channel/`。宿主测试中的 `clipboard-post-commit-panic` 是预期的故障注入，测试确认原 panic 与已提交文件均得到保留，不是被忽略的失败。
+
+早期 `layer-clipboard-controller-compile.log`、`layer-clipboard-shell-compile.log`、`layer-clipboard-shell-first-tests.log`、`layer-clipboard-shell-tests.log`、`layer-clipboard-shell-final-*`、`layer-clipboard-shell-verified-*` 及 `layer-clipboard-shell-*-regression.log` 保留渐进实现的编译/测试原件，不冒充最终组合。之后因主选择清理、空缓存播放行为、空闲轮询与状态回包顺序的实际变化继续验证；未修改既有断言来换取通过。
+
+新模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过，未全局重排已有紧凑源文件。当前已发现远端 main 推进到 `7c0cd60b`，该新主线尚未组合；完成 #204 PR 前仍需同步当时最新主线并执行相关验收，不以本阶段测试代替该步骤。

@@ -25,6 +25,8 @@ pub enum Action {
     ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
     CancelImport,
+    LayerClipboard(crate::layer_clipboard::controller::Intent),
+    CancelLayerClipboard,
     AnalyzeAudio(u64),
     CancelAudioAnalysis,
     ExportPng,
