@@ -9,6 +9,8 @@ mod layer_raster;
 mod phase_adjustment;
 mod exposure_frame;
 mod nested_exposure;
+mod working_precision;
+pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;
@@ -332,6 +334,28 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
     ) -> Result<Self> {
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, false).await
+    }
+    /// Hosts offering live project precision changes enable the optional
+    /// supported working-format features up front. Unsupported modes still fail
+    /// explicitly when selected; other constructors retain their narrow request.
+    pub async fn new_profiled_with_precision_changes(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, true).await
+    }
+    async fn new_profiled_with_options(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+        precision_changes: bool,
+    ) -> Result<Self> {
         let precision = crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter = instance
@@ -363,7 +387,12 @@ impl Renderer {
                     required_features: (adapter.features()
                         & (wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
                             | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES))
-                        | precision_features | if timestamps {
+                        | precision_features
+                        | if precision_changes {
+                            adapter.features() & crate::image_formats::working_features(
+                                motion_effects::image_contract::ChannelPrecision::Float32)
+                        } else { wgpu::Features::empty() }
+                        | if timestamps {
                             adapter.features() & wgpu::Features::TIMESTAMP_QUERY
                         } else {
                             wgpu::Features::empty()
@@ -465,64 +494,8 @@ impl Renderer {
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             ..Default::default()
         });
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::BASIC, true).into()),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Motion Studio planar pipeline"),
-            bind_group_layouts: &[Some(&uniform_layout), Some(&image_layout)],
-            immediate_size: 0,
-        });
-        let create_pipeline = |blend| {
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Motion Studio planar compositor"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: Some("vertex_main"),
-                    compilation_options: Default::default(),
-                    buffers: &[Some(wgpu::VertexBufferLayout {
-                        array_stride: std::mem::size_of::<GeometryVertex>() as u64,
-                        step_mode: wgpu::VertexStepMode::Vertex,
-                        attributes: &wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2],
-                    })],
-                },
-                primitive: wgpu::PrimitiveState {
-                    cull_mode: None,
-                    ..Default::default()
-                },
-                depth_stencil: None,
-                multisample: Default::default(),
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: Some("fragment_main"),
-                    compilation_options: Default::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(blend),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                multiview_mask: None,
-                cache: None,
-            })
-        };
-        let pipeline = create_pipeline(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING);
-        let additive_pipeline = create_pipeline(wgpu::BlendState {
-            color: wgpu::BlendComponent {
-                src_factor: wgpu::BlendFactor::One,
-                dst_factor: wgpu::BlendFactor::One,
-                operation: wgpu::BlendOperation::Add,
-            },
-            alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
-        });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MASK, true).into())});
-        let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
-            vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
-            fragment:Some(wgpu::FragmentState {module:&mask_shader,entry_point:Some("fragment_main"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend:Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),write_mask:wgpu::ColorWrites::ALL})]}),
-            primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
+        let (pipeline, additive_pipeline, masked_pipeline) = working_precision::pipelines(
+            &device, &uniform_layout, &image_layout, format);
         let allocation_uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(queue.clone()));
         let layer_gpu = crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format, &allocation_budget)?;
         let mask_gpu=crate::mask_gpu::MaskGpu::with_precision(&device,&image_layout,

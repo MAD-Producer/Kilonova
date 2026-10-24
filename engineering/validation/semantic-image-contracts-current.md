@@ -18,7 +18,7 @@ call sites are not yet connected to the native output conversion.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command | Native output and project save/reopen/history probes pass; project-setting UI, live GPU precision switching and product preview/export call sites pending; no product UI changed in this stage |
+| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command; prepared same-device precision changes | Native output, project save/reopen/history and same-device mode-change probes pass; project-setting UI and product preview/export/precision synchronization pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -59,6 +59,9 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-output-regression-v1` | Fifteen unchanged raw-capture, preview-target budget and four-mode precision tests pass after the new output path; includes float raw PNG refusal, combined/peak capacity, retained-front recovery, native HDR/exposure and adjacent UNORM16 values |
 | `issue72-stage-project-precision-v2` | Three model/core tests: four distinct required values in project format 26, strict missing/unknown/old-format refusal, save/reopen/undo/redo and failed-batch rollback, composition and frame-view inheritance, typed command catalogue schema |
 | `issue72-stage-project-regression-v1` | Complete current model/core suites: 360 passed, zero failed, one unchanged manual large-document history performance measurement ignored; 79 test summaries; no assertion was weakened |
+| `issue72-stage-switch-native-check-v1` | All native test targets check after extracting the existing planar pipelines into the same-device precision preparation module |
+| `issue72-stage-switch-pixels-v2` | Three actual GPU tests: repeated four-mode changes retain the same device/queue/custom registry and equal fresh native pixels, including vector and numeric LUT paths; peak preparation admission and reduced-budget commit refusal preserve old mode/pixels and recover; narrow enabled devices, foreign owners sharing a budget and outdated preparations refuse before mutation |
+| `issue72-stage-switch-regression-v1`, `issue72-stage-switch-host-check-v1` | All 24 current working/composition/curve/output pixel tests pass after the switch/cache fix; Host also compiles against project format 26 and the native transition API |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -130,6 +133,18 @@ missing frame-view initializer; the failed v1 receipt is retained. Core commands
 persist and undo the setting; application GPU preparation, surface preview and
 settings controls are still pending, so this model stage is not a usable product
 precision switch yet.
+
+The native precision-change API prepares new planar/vector/mask pipelines and
+admitted resources before changing live fields. It performs no queue writes;
+dropping a candidate releases its capacity immediately. An opt-in host constructor
+enables supported floating features for future changes; existing constructors
+retain their narrow feature requests. The first switch-pixel run caught a
+same-size vector cache entry retaining an old F16 texture after selecting UNORM16.
+Successful commit now retires working-format vector/mask/effect-input/nested
+cache entries while preserving static sources and decoded video. The original
+pixel-equality assertion passes in v2; the failed v1 receipt remains available.
+Application preview-target conversion and precision synchronization are still
+pending; no live product setting is claimed by these native probes.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;

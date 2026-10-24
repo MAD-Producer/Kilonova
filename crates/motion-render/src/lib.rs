@@ -74,6 +74,7 @@ pub use renderer::premultiply_pixels;
 pub use renderer::{CaptureTarget, ExposureTarget, LayerRaster, RenderError, RenderStats, RenderTarget, Renderer};
 pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
+pub use renderer::WorkingPrecisionChange;
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
