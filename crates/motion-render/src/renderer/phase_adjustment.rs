@@ -85,6 +85,7 @@ impl Renderer {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         uniform_index: usize,
+        effect_draw_index: usize,
         accumulator: usize,
     ) -> Result<usize> {
         let next = 1 - accumulator;
@@ -98,9 +99,7 @@ impl Renderer {
         let output = self.layer_gpu.accumulators.get(next).ok_or_else(|| {
             RenderError::Invalid("adjustment phase=backdrop: output accumulator missing".into())
         })?;
-        let filtered = self.effect_gpu.state.pool[0].as_ref().ok_or_else(|| {
-            RenderError::Invalid("adjustment phase=backdrop: filtered image missing".into())
-        })?;
+        let filtered = self.effect_gpu.state.output(&self.effect_gpu.builder.frame, effect_draw_index)?;
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("adjust lower composite"),

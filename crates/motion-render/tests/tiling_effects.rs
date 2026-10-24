@@ -67,6 +67,7 @@ fn asymmetric_expansion_cropping_preview_scale_and_budget_keep_layer_transform()
     assert_eq!(plan.scratch_sizes[0], [128, 16]);
     assert_eq!(plan.scratch_sizes[1], [32, 16]);
     assert_eq!(plan.scratch_sizes[2], [0, 0]);
+    assert!(plan.scratch_bytes() <= motion_effects::SCRATCH_BUDGET);
     assert_eq!(
         scratch_capacity_bytes(&plan.scratch_sizes),
         (128 * 16 + 32 * 16) * 4

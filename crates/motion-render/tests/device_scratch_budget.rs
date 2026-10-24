@@ -59,7 +59,7 @@ fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
             Ok(plan) => {
                 assert!(fits);
                 assert!(
-                    motion_render::effect_plan::scratch_capacity_bytes(&plan.scratch_sizes) <= budget
+                    plan.scratch_bytes() <= budget
                 );
                 let mut out = vec![0; plan.buffer_bytes(&scene)];
                 plan.write(&scene, &mut out).unwrap();

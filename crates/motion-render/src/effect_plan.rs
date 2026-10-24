@@ -8,12 +8,20 @@ use std::sync::Arc;
 
 #[cfg(test)]
 mod error_tests;
+mod scratch_graph;
+mod scratch_lifetimes;
+mod scratch;
+pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
+#[cfg(test)]
+mod scratch_proposal_tests;
 
 pub const PLAN_MAGIC: u32 = 0x46584d53;
-pub const PLAN_VERSION: u32 = 9;
-pub const HEADER_BYTES: usize = 144;
+pub const PLAN_VERSION: u32 = 10;
+pub const HEADER_BYTES: usize = 160;
 pub const DRAW_WORDS: usize = 32;
 pub const PASS_WORDS: usize = 10;
+/// Counterfactual equal-sized semantic slots, retained for regression comparisons.
+/// Actual native capacity is EffectFramePlan::scratch_bytes().
 pub fn scratch_bytes(width: u32, height: u32, slots: u32) -> u64 {
     u64::from(width)
         * u64::from(height)
@@ -53,6 +61,8 @@ mod vector_frame_budget_tests {
     }
 }
 /// Exact capacities of the independently sized, host-owned scratch textures.
+/// Semantic-slot maxima for construction diagnostics and baseline comparisons.
+/// Physical admission and allocation use EffectFramePlan::scratch_bytes().
 pub fn scratch_capacity_bytes(sizes: &[[u32; 2]; 8]) -> u64 {
     sizes
         .iter()
@@ -118,6 +128,11 @@ pub struct EffectFramePlan {
     pub height: u32,
     pub slots: u32,
     pub scratch_sizes: [[u32; 2]; 8],
+    /// Actual physical descriptors; semantic maxima above are counterfactual
+    /// construction diagnostics, not native capacity or budget accounting.
+    pub scratch_allocations: Vec<ScratchAllocation>,
+    pub scratch_bindings: Vec<ScratchBinding>,
+    pub scratch_outputs: Vec<Option<u32>>,
     pub diagnostics: Vec<String>,
     pub vertices: Vec<crate::PlaneVertex>,
     pub batches: Vec<crate::PlaneBatch>,
@@ -194,6 +209,13 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
 }
 
 impl EffectFramePlan {
+    pub fn scratch_bytes(&self) -> u64 {
+        self.scratch_allocations.iter().map(|allocation| allocation.bytes()).sum()
+    }
+    pub(crate) fn scratch_output(&self, draw: usize) -> Result<usize, RenderError> {
+        self.scratch_outputs.get(draw).copied().flatten().map(|id| id as usize)
+            .ok_or_else(|| RenderError::Invalid(format!("effect draw {draw} has no scratch output")))
+    }
     pub fn buffer_bytes(&self, scene: &Scene) -> usize {
         HEADER_BYTES
             + self.draws.len() * 128
@@ -213,6 +235,7 @@ impl EffectFramePlan {
             + self.masks.len() * crate::mask_plan::RECORD_BYTES
             + self.masks.iter().map(|m|m.vertices.len()*24).sum::<usize>()
             + self.compositing.len()*20
+            + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
         let size = self.buffer_bytes(scene);
@@ -232,6 +255,7 @@ impl EffectFramePlan {
         let mask_offset = vector_command_offset + self.vectors.iter().map(|v|v.commands.len()*16).sum::<usize>();
         let mask_data_offset = mask_offset + self.masks.len()*crate::mask_plan::RECORD_BYTES;
         let compositing_offset=mask_data_offset+self.masks.iter().map(|m|m.vertices.len()*24).sum::<usize>();
+        let scratch_offset = compositing_offset + self.compositing.len()*20;
         let header = [
             PLAN_MAGIC,
             PLAN_VERSION,
@@ -265,7 +289,9 @@ impl EffectFramePlan {
             self.masks.len() as u32,
             mask_data_offset as u32,
             crate::mask_plan::RECORD_BYTES as u32,
-            compositing_offset as u32,self.compositing.len() as u32,20,0,
+            compositing_offset as u32,self.compositing.len() as u32,20,
+            scratch_offset as u32, self.scratch_allocations.len() as u32,
+            SCRATCH_RECORD_BYTES as u32, 0, 0,
         ];
         out[..HEADER_BYTES].copy_from_slice(bytemuck::cast_slice(&header));
         for (i, d) in self.draws.iter().enumerate() {
@@ -273,11 +299,12 @@ impl EffectFramePlan {
                 .copy_from_slice(bytemuck::cast_slice(&d.words));
         }
         for (i, p) in self.passes.iter().enumerate() {
+            let binding = self.scratch_bindings.get(i).ok_or("packed effect scratch binding is missing")?;
             let data = [
                 p.program,
-                p.input as u32,
-                p.source as u32,
-                p.output,
+                binding.input as u32,
+                binding.source as u32,
+                binding.output,
                 p.width,
                 p.height,
                 (uniform_offset + i * shader::UNIFORM_BYTES) as u32,
@@ -350,6 +377,10 @@ impl EffectFramePlan {
         }
         crate::mask_plan::write(&self.masks,out,mask_offset,mask_data_offset);
         for (i,c) in self.compositing.iter().enumerate(){let words=[c.blend,c.space,c.matte as u32,c.mode,u32::from(c.visible)];out[compositing_offset+i*20..compositing_offset+(i+1)*20].copy_from_slice(bytemuck::cast_slice(&words));}
+        for (i, allocation) in self.scratch_allocations.iter().enumerate() {
+            out[scratch_offset+i*SCRATCH_RECORD_BYTES..scratch_offset+(i+1)*SCRATCH_RECORD_BYTES]
+                .copy_from_slice(bytemuck::cast_slice(&allocation.words()));
+        }
         Ok(size)
     }
 }
@@ -368,7 +399,10 @@ pub enum ScratchRejection {
 /// Last checked candidate, including one rejected before frame capacities commit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScratchRequest {
+    /// Semantic maxima retained for counterfactual diagnostics only.
     pub sizes: [[u32; 2]; 8],
+    pub required_bytes: u64,
+    pub allocations: u32,
     pub budget_bytes: u64,
     pub rejection: Option<ScratchRejection>,
 }
@@ -455,7 +489,8 @@ impl PlanBuilder {
         rejection: &mut Option<ResourceRejection>,
     ) -> Result<(), RenderError> {
         *rejection = None;
-        *request = Some(ScratchRequest { sizes: *sizes, budget_bytes: budget, rejection: None });
+        *request = Some(ScratchRequest { sizes: *sizes, required_bytes: 0,
+            allocations: 0, budget_bytes: budget, rejection: None });
         for (slot, size) in sizes.iter().enumerate() {
             if size.iter().any(|&n| n > device_dimension) {
                 request.as_mut().unwrap().rejection = Some(ScratchRejection::DimensionLimit);
@@ -467,15 +502,27 @@ impl PlanBuilder {
                 ) });
             }
         }
-        let bytes = scratch_capacity_bytes(sizes);
-        if bytes > budget {
-            request.as_mut().unwrap().rejection = Some(ScratchRejection::CapacityBudget);
-            let refused = ResourceRejection::Budget { scope: ResourceBudgetScope::EffectScratch, required_bytes: bytes, budget_bytes: budget };
-            *rejection = Some(refused);
-            return Err(RenderError::Resource { rejection: refused, message: format!("effect scratch textures require {:.2} MiB; budget is {} MiB (full layer bounds, including effect padding)",
-                bytes as f64 / 1048576.0, budget / 1048576) });
-        }
         Ok(())
+    }
+    fn check_placed_scratch(
+        frame: &EffectFramePlan, current: Option<std::ops::Range<usize>>,
+        sizes: [[u32; 2]; 8], budget: u64,
+        request: &mut Option<ScratchRequest>, rejection: &mut Option<ResourceRejection>,
+    ) -> Result<scratch::Layout, RenderError> {
+        let layout = scratch::layout(frame, current)?;
+        let denied = (layout.bytes > budget).then_some(ScratchRejection::CapacityBudget);
+        *request = Some(ScratchRequest { sizes, required_bytes: layout.bytes,
+            allocations: layout.allocations.len() as u32, budget_bytes: budget, rejection: denied });
+        if denied.is_some() {
+            let refused = ResourceRejection::Budget { scope: ResourceBudgetScope::EffectScratch,
+                required_bytes: layout.bytes, budget_bytes: budget };
+            *rejection = Some(refused);
+            return Err(RenderError::Resource { rejection: refused, message: format!(
+                "effect scratch textures require {:.2} MiB; budget is {} MiB (full layer bounds, including effect padding)",
+                layout.bytes as f64 / 1048576.0, budget / 1048576) });
+        }
+        *rejection = None;
+        Ok(layout)
     }
     pub fn set_alpha(
         &mut self,
@@ -955,6 +1002,9 @@ impl PlanBuilder {
         self.frame.height = 0;
         self.frame.slots = 0;
         self.frame.scratch_sizes = [[0; 2]; 8];
+        self.frame.scratch_allocations.clear();
+        self.frame.scratch_bindings.clear();
+        self.frame.scratch_outputs.clear();
         self.frame.draws.clear();
         self.frame.vectors.clear();
         let mut vector_remaining = crate::vector_mesh::MAX_TRIANGLE_VERTICES;
@@ -1158,6 +1208,9 @@ impl PlanBuilder {
                 .filter(|(_, e)| e.layer == layer.id && e.enabled)
             {
                 let clock_start = self.frame.passes.len();
+                let sprite_start = self.frame.sprites.len();
+                let generator_stats = self.frame.generator_stats;
+                let original_region = region;
                 self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
                 let result = (|| -> Result<(), RenderError> {
@@ -1302,6 +1355,8 @@ impl PlanBuilder {
                             sprite_start: 0,
                             sprite_count: 0,
                         });
+                        Self::check_placed_scratch(&self.frame, Some(pass_start..self.frame.passes.len()),
+                            sizes, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                         self.frame.width = w;
                         self.frame.height = h;
                         self.frame.slots = slots;
@@ -1506,6 +1561,8 @@ impl PlanBuilder {
                         u.output_mode = [0.0, 0.0, 1.0, scale];
                         push(&mut self.frame, 1, input, input, 0, u, -1);
                     }
+                    Self::check_placed_scratch(&self.frame, Some(pass_start..self.frame.passes.len()),
+                        sizes, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                     self.frame.width = w;
                     self.frame.height = h;
                     self.frame.slots = slots;
@@ -1514,8 +1571,11 @@ impl PlanBuilder {
                     materialized = true;
                     Ok(())
                 })();
-                self.pass_clocks.extend(std::iter::repeat_n(Some(index), self.frame.passes.len() - clock_start));
                 if let Err(err) = result {
+                    self.frame.passes.truncate(clock_start);
+                    self.frame.sprites.truncate(sprite_start);
+                    self.frame.generator_stats = generator_stats;
+                    region = original_region;
                     let message = format!(
                         "layer {}, effect {} ({}): {}",
                         layer.id, e.instance, e.effect, err.planning_message()
@@ -1526,6 +1586,8 @@ impl PlanBuilder {
                     self.frame.diagnostics.push(message);
                     // A bypassed effect is a diagnostic, not the cause of a later error.
                     self.last_resource_rejection = None;
+                } else {
+                    self.pass_clocks.extend(std::iter::repeat_n(Some(index), self.frame.passes.len() - clock_start));
                 }
             }
             if post_sources.contains(&layer.id)&&!materialized {
@@ -1544,6 +1606,8 @@ impl PlanBuilder {
                 self.frame.passes.push(EffectPass {resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
                     source:if masked{crate::mask_plan::SOURCE_TOKEN-layer_index as i32}else{-(asset as i32)-1},output:0,width:w,height:h,
                     lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
+                Self::check_placed_scratch(&self.frame, Some(pass_start..self.frame.passes.len()),
+                    self.frame.scratch_sizes, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                 self.pass_clocks.push(None);self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
             }
             let mut words = [0.0; 32];
@@ -1602,12 +1666,21 @@ impl PlanBuilder {
                 pass_end: self.frame.passes.len(),
             });
         }
+        let layout = if self.frame.passes.is_empty() { scratch::layout(&self.frame, None)? }
+            else { Self::check_placed_scratch(&self.frame, None, self.frame.scratch_sizes,
+                self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)? };
+        self.frame.scratch_allocations = layout.allocations;
+        self.frame.scratch_bindings = layout.bindings;
+        self.frame.scratch_outputs = layout.outputs;
         if self.frame.width > 0 {
-            for d in &mut self.frame.draws {
+            for (index, d) in self.frame.draws.iter_mut().enumerate() {
                 if d.words[27] >= 0.0 {
                     let output = &self.frame.passes[d.pass_end - 1];
-                    d.words[25] = output.width as f32 / self.frame.scratch_sizes[0][0] as f32;
-                    d.words[26] = output.height as f32 / self.frame.scratch_sizes[0][1] as f32;
+                    let id = self.frame.scratch_outputs[index].ok_or("missing final scratch output")?;
+                    let allocation = self.frame.scratch_allocations[id as usize];
+                    d.words[27] = id as f32;
+                    d.words[25] = output.width as f32 / allocation.width as f32;
+                    d.words[26] = output.height as f32 / allocation.height as f32;
                 }
             }
         }
@@ -1681,7 +1754,7 @@ impl PlanBuilder {
         let mask_scratch=u64::from(mw)*u64::from(mh)*slots as u64;
         let mask_outputs=self.frame.masks.chunk_by(|a,b|a.layer==b.layer).map(|g|u64::from(g[0].width)*u64::from(g[0].height)).sum::<u64>();
         if mask_outputs>self.source_texture_budget {return Err(self.reject_budget(ResourceBudgetScope::MaskOutputs, mask_outputs, self.source_texture_budget, "layer mask outputs exceed configured source texture budget"));}
-        let scratch = mask_scratch+scratch_capacity_bytes(&self.frame.scratch_sizes);
+        let scratch = mask_scratch+self.frame.scratch_bytes();
         if scratch>self.scratch_budget {
             return Err(self.reject_budget(ResourceBudgetScope::MaskAndEffectScratch, scratch, self.scratch_budget, format!("layer mask and effect scratch textures require {:.2} MiB; budget is {} MiB", scratch as f64/1048576., self.scratch_budget/1048576)));
         }

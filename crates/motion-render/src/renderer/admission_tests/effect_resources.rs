@@ -105,24 +105,20 @@ fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_reco
     let ids = scratch_ids(&renderer);
     let large = scene(&project("gaussian_blur", 128));
     build(&mut renderer, &large, 128);
-    let sizes = renderer.effect_gpu.builder.frame.scratch_sizes;
-    let replacements: Vec<_> = sizes
+    let allocations = &renderer.effect_gpu.builder.frame.scratch_allocations;
+    let replacements: Vec<_> = allocations
         .iter()
         .enumerate()
-        .filter(|(i, size)| {
-            renderer.effect_gpu.builder.frame.slots & (1 << i) != 0
-                && renderer.effect_gpu.state.pool[*i]
-                    .as_ref()
+        .filter(|(i, allocation)| {
+            renderer.effect_gpu.state.pool.get(*i)
+                    .and_then(Option::as_ref)
                     .is_none_or(|texture| {
-                        texture.texture.width() != size[0] || texture.texture.height() != size[1]
+                        texture.texture.width() != allocation.width
+                            || texture.texture.height() != allocation.height
+                            || texture.texture.format() != allocation.class.format.native()
                     })
         })
-        .map(|(i, size)| {
-            (
-                i,
-                u64::from(size[0]) * u64::from(size[1]) * if i == 7 { 8 } else { 4 },
-            )
-        })
+        .map(|(i, allocation)| (i, allocation.bytes()))
         .collect();
     assert!(
         replacements.len() >= 2,
@@ -171,9 +167,7 @@ fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recover
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let scene = scene(&project("tint", 8));
     build(&mut renderer, &scene, 8);
-    let scratch = crate::effect_plan::scratch_capacity_bytes(
-        &renderer.effect_gpu.builder.frame.scratch_sizes,
-    );
+    let scratch = renderer.effect_gpu.builder.frame.scratch_bytes();
     let required = SYSTEM_BYTES + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
     budget.set_limit(required - 1).unwrap();
     let error = prepare(&mut renderer, &scene).unwrap_err();
@@ -215,9 +209,7 @@ fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let scene = scene(&project("curves", 8));
     build(&mut renderer, &scene, 8);
-    let scratch = crate::effect_plan::scratch_capacity_bytes(
-        &renderer.effect_gpu.builder.frame.scratch_sizes,
-    );
+    let scratch = renderer.effect_gpu.builder.frame.scratch_bytes();
     budget.set_limit(SYSTEM_BYTES + scratch + 1023).unwrap();
     let error = prepare(&mut renderer, &scene).unwrap_err();
     assert!(
@@ -267,7 +259,7 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
         .pending_resource_bytes(&renderer.effect_gpu.builder);
     assert!(resources > 0, "fixture must include an actual packaged PNG");
     let frame = &renderer.effect_gpu.builder.frame;
-    let scratch = crate::effect_plan::scratch_capacity_bytes(&frame.scratch_sizes);
+    let scratch = frame.scratch_bytes();
     let parameters = frame.passes.len() as u64 * motion_effects::shader::UNIFORM_BYTES as u64;
     let required = SYSTEM_BYTES + scratch + parameters + resources;
     budget.set_limit(required - 1).unwrap();

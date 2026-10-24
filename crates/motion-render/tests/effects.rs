@@ -214,9 +214,9 @@ fn full_hd_polar_then_edge_glow_fits_and_every_capacity_matches_written_passes()
     }
     assert_eq!(
         plan.scratch_sizes, derived,
-        "GLES derives capacities from this table"
+        "semantic maxima remain an exact construction diagnostic"
     );
-    let bytes = motion_render::effect_plan::scratch_capacity_bytes(&derived);
+    let bytes = plan.scratch_bytes();
     assert!(bytes < motion_effects::SCRATCH_BUDGET);
     let old_bytes = motion_render::effect_plan::scratch_bytes(1280, 2048, 127);
     assert!(old_bytes > motion_effects::SCRATCH_BUDGET);

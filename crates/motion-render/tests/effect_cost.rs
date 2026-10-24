@@ -4,7 +4,7 @@ use motion_render::Scene;
 use motion_effects::{
     AlphaMode, BoundsExpr, EffectDefinition, EffectPackage, OutputBounds, Registry, WorkingSpace,
 };
-use motion_render::effect_plan::{scratch_capacity_bytes, PlanBuilder, ScratchRejection};
+use motion_render::effect_plan::{PlanBuilder, ScratchAllocation, ScratchRejection};
 use serde::Serialize;
 use std::{collections::BTreeMap, fmt::Write, path::Path, sync::Arc};
 
@@ -45,6 +45,8 @@ struct EffectCost {
     loop_work_max: u64,
     loop_work_sum: u64,
     scratch_4k_bytes: Option<u64>,
+    scratch_4k_allocations: Option<Vec<ScratchAllocation>>,
+    // Semantic-slot maxima are a construction diagnostic, not physical bytes.
     scratch_4k_sizes: Option<[[u32; 2]; 8]>,
     scratch_4k_required_bytes: Option<u64>,
     scratch_4k_required_sizes: Option<[[u32; 2]; 8]>,
@@ -128,16 +130,20 @@ fn measure(
     // Own the result before reading builder metadata; no device or GPU allocations.
     let outcome = builder
         .build(&scene, &[0], WIDTH, HEIGHT, true)
-        .map(|p| (p.passes.len(), p.scratch_sizes, p.diagnostics.clone()));
+        .map(|p| (p.passes.len(), p.scratch_sizes, p.scratch_allocations.clone(),
+            p.scratch_bytes(), p.diagnostics.clone()));
     let request = builder.last_scratch_request;
-    let (status, planned_passes, scratch_4k_sizes, diagnostics) = match outcome {
-        Ok((passes, sizes, diagnostics)) => ("planned", Some(passes), Some(sizes), diagnostics),
+    let (status, planned_passes, scratch_4k_sizes, scratch_4k_allocations, scratch_4k_bytes, diagnostics) = match outcome {
+        Ok((passes, sizes, allocations, bytes, diagnostics)) =>
+            ("planned", Some(passes), Some(sizes), Some(allocations), Some(bytes), diagnostics),
         Err(error) => (
             if request.is_some_and(|r| r.rejection == Some(ScratchRejection::CapacityBudget)) {
                 "budgetRejected"
             } else {
                 "planningError"
             },
+            None,
+            None,
             None,
             None,
             vec![error.to_string()],
@@ -167,11 +173,8 @@ fn measure(
             name: p.name.clone(),
         })
         .collect();
-    let scratch_4k_bytes = scratch_4k_sizes.as_ref().map(scratch_capacity_bytes);
     let scratch_4k_required_sizes = request.map(|r| r.sizes);
-    let scratch_4k_required_bytes = scratch_4k_required_sizes
-        .as_ref()
-        .map(scratch_capacity_bytes);
+    let scratch_4k_required_bytes = request.map(|r| r.required_bytes);
     let mut warnings = Vec::new();
     for pass in &pass_costs {
         if pass.loop_work > LOOP_WARNING {
@@ -227,6 +230,7 @@ fn measure(
         loop_work_sum: pass_costs.iter().map(|p| p.loop_work).sum(),
         pass_costs,
         scratch_4k_bytes,
+        scratch_4k_allocations,
         scratch_4k_sizes,
         scratch_4k_required_bytes,
         scratch_4k_required_sizes,
@@ -469,8 +473,8 @@ fn scratch_observation_keeps_rejections_passthrough_and_reset_behavior() -> Test
     let rejected = builder.last_scratch_request.unwrap();
     assert_eq!(rejected.budget_bytes, builder.scratch_budget());
     assert_eq!(rejected.rejection, Some(ScratchRejection::CapacityBudget));
-    assert!(scratch_capacity_bytes(&rejected.sizes) > motion_effects::SCRATCH_BUDGET);
-    assert_eq!(scratch_capacity_bytes(&builder.frame.scratch_sizes), 0);
+    assert!(rejected.required_bytes > motion_effects::SCRATCH_BUDGET);
+    assert_eq!(builder.frame.scratch_bytes(), 0);
     let passthrough = builder.build(&sample(&project), &[0], 64, 64, false)?;
     assert!(passthrough.passes.is_empty());
     assert_eq!(passthrough.diagnostics.len(), 1);
@@ -481,8 +485,8 @@ fn scratch_observation_keeps_rejections_passthrough_and_reset_behavior() -> Test
     let accepted = builder.last_scratch_request.unwrap();
     assert_eq!(accepted.rejection, None);
     assert_eq!(
-        scratch_capacity_bytes(&accepted.sizes),
-        scratch_capacity_bytes(&builder.frame.scratch_sizes)
+        accepted.required_bytes,
+        builder.frame.scratch_bytes()
     );
     builder.device_dimension = 32;
     assert!(builder
