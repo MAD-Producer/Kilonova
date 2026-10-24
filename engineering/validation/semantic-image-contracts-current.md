@@ -3,8 +3,9 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project-setting UI, dense editor key insertion and product display/export
-call sites are not yet connected to the native output conversion.
+open: the project-setting UI, dense editor key insertion and export/editor-preview
+call sites are not yet connected to the native output conversion. Ordinary and
+exposure surface previews now use the retained SDR wrapper.
 
 ## Scope and status
 
@@ -18,7 +19,7 @@ call sites are not yet connected to the native output conversion.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command; prepared same-device precision changes | Native output, project save/reopen/history and same-device mode-change probes pass; project-setting UI and product preview/export/precision synchronization pending; no product UI changed in this stage |
+| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command; ordinary/exposure surface previews synchronize precision on the same device and convert to SDR | Native output, project save/reopen/history and actual surface preview/mode-change probes pass; project-setting UI and export/editor-preview integration pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -152,8 +153,6 @@ logical texture capacity includes each descriptor's actual format and samples.
 This is not physical VRAM, bandwidth or a performance claim. No professional
 grading, HDR input/output equivalence, or Android device validation is claimed.
 
-## Sources and provenance
-
 The retained SDR preview wrapper has four additional GPU probes in
 `issue72-stage-sdr-preview-pixels-v1`; all pass alongside the five unchanged raw
 preview-budget tests. Each high-precision slot retains its native working texture,
@@ -164,7 +163,35 @@ replacement, preview-budget refusal without changing the displayed front, exact
 publication, and foreign renderer/encoder refusal. The initial wrapper check
 caught a new test using an obsolete readback-counter field name; its failed
 receipt is retained. No pre-existing assertion changed. These probes verify the
-wrapper, not application integration, which remains pending.
+wrapper itself. Application integration is separately tested below.
+
+`issue72-stage-host-preview-check-v1` checks Host/media test targets.
+`issue72-stage-host-preview-pixels-v2` exercises actual Windows surfaces for
+ordinary and exposure frames: required initial F16 selection, all four modes,
+native target formats, admitted native/SDR double-buffer capacity, unchanged
+device/queue/surface, exact green-background/red-layer pixels, retained fronts,
+pipeline-admission refusal without precision fallback, recovery and undo/redo.
+The first version's new readback fixture incorrectly declared shader-visible
+sRGB for an sRGB attachment, causing a format-validation failure. Correcting the
+fixture to linear shader-visible values preserves every pixel assertion; the
+failed receipt remains. No pre-existing assertion was weakened.
+
+`issue72-stage-host-sampling-regression-v1` passes all five existing sampling
+tests. `issue72-stage-host-surface-regression-v1` passes the original native
+surface-replacement refusal test, and `issue72-stage-host-pressure-regression-v1`
+passes the original ordinary/exposure pressure test. Their setup now explicitly
+encodes output before committing the candidate, matching the new publication
+contract. Existing assertions remain unchanged.
+
+Project edits persist independently of GPU availability. Before content rendering,
+the Host prepares and commits the requested mode on the owning device; failed
+capability/admission returns its cause and retains the displayed SDR front. It
+does not claim to have rendered the requested precision. The portable plan builder
+also follows required project precision, including sessions without a surface.
+Preview precision synchronization does not recreate the desktop painter, install
+a fallback, change project history or alter layout/style.
+
+## Sources and provenance
 
 All new shaders, probes and fixtures are independently authored repository code.
 The white resource used by a test is generated from four constant bytes. No new

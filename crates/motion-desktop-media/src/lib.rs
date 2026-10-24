@@ -149,7 +149,7 @@ impl Platform for DesktopPlatform {
                     continue;
                 }
             };
-            match pollster::block_on(motion_render::Renderer::new_profiled_with_allocation_budget(
+            match pollster::block_on(motion_render::Renderer::new_profiled_with_precision_changes(
                 &instance,
                 Some(&surface),
                 wgpu::TextureFormat::Rgba8UnormSrgb,

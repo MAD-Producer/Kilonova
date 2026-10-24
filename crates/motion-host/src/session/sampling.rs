@@ -373,7 +373,7 @@ impl Session {
             let acquire_us = micros(acquiring.elapsed());
             let candidate = g
                 .scratch
-                .prepared()
+                .prepared_output()
                 .ok_or("completed exposure preview target missing")?
                 .view
                 .clone();
@@ -384,6 +384,7 @@ impl Session {
                     .allocation_command_encoder_for(motion_render::gpu_commands::CommandStage::CompositionAndPresentation, &wgpu::CommandEncoderDescriptor {
                         label: Some("Motion Studio exposure presentation"),
                     })?;
+            g.scratch.encode_output(&g.renderer, &mut encoder)?;
             g.presenter.encode_view(
                 &g.renderer.queue,
                 &mut encoder,
@@ -408,7 +409,7 @@ impl Session {
                 g.presenter.set_admitted_source(&g.renderer.device, &g.scratch.view);
                 return Err(error.into());
             }
-            g.scratch.commit_submitted();
+            g.scratch.commit_submitted()?;
             g.actual_preview_quality = Some(quality);
             g.last_canvas = [self.scene.width, self.scene.height];
             g.last_background = self.scene.background;
