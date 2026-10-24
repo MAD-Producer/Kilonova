@@ -1,5 +1,10 @@
 use super::*;
 
+enum Choice {
+    Direct(Action),
+    RecentEffect(usize),
+}
+
 pub(super) fn render(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -305,14 +310,20 @@ pub(super) fn render(
                 (locale.t(T::About).into(), Action::About, true),
             ],
         };
-        let desired_height = entries.len() as f32 * 32.0 + 8.0;
+        let recent = if menu == 4 {
+            super::effect_recent::rows(panels, state)
+        } else {
+            Vec::new()
+        };
+        let row_count = entries.len() + recent.len();
+        let desired_height = row_count as f32 * 32.0 + 8.0;
         let top = metrics::TITLE_BAR + metrics::MENU_BAR;
         let bottom = (size[1] - 20.0).max(top + 32.0);
         let max_height = (bottom - top).max(32.0);
         let visible_rows = (((max_height - 8.0) / 32.0).floor() as usize)
             .max(1)
-            .min(entries.len());
-        let max_scroll = entries.len().saturating_sub(visible_rows);
+            .min(row_count);
+        let max_scroll = row_count.saturating_sub(visible_rows);
         if panels.menu_scroll > max_scroll {
             panels.menu_scroll = max_scroll;
         }
@@ -345,8 +356,13 @@ pub(super) fn render(
         let mut popup_list = list.child();
         paint::rect(&mut popup_list, popup, colors.CHROME);
         paint::stroke(&mut popup_list, popup, colors.BORDER, 1.0);
-        for (i, (text, action, enabled)) in entries
+        let choices = entries
             .into_iter()
+            .map(|(text, action, enabled)| (text, Choice::Direct(action), enabled))
+            .chain(recent.into_iter().map(|(text, index, enabled)| {
+                (text, Choice::RecentEffect(index), enabled)
+            }));
+        for (i, (text, choice, enabled)) in choices
             .enumerate()
             .skip(start)
             .take(visible_rows)
@@ -360,19 +376,23 @@ pub(super) fn render(
             if r.contains(input.mouse) {
                 paint::rect(&mut popup_list, r, colors.SUNKEN);
             }
-            let checked = match &action {
-                Action::TimelineColumnVisibility(next) => {
+            let action = match &choice {
+                Choice::Direct(action) => Some(action),
+                Choice::RecentEffect(_) => None,
+            };
+            let checked = match action {
+                Some(Action::TimelineColumnVisibility(next)) => {
                     let current = panels.timeline.column_visibility;
                     if next.matte != current.matte { current.matte }
                     else if next.blend != current.blend { current.blend }
                     else { current.parent }
                 }
-                Action::ToggleDiagnostics => state["desktop"]["diagnostics"]["enabled"] == true,
-                Action::SamplingColumnVisibility(next) => panels.timeline.sampling_visibility.0.iter()
+                Some(Action::ToggleDiagnostics) => state["desktop"]["diagnostics"]["enabled"] == true,
+                Some(Action::SamplingColumnVisibility(next)) => panels.timeline.sampling_visibility.0.iter()
                     .zip(next.0).find(|(current,next)| **current != *next).is_some_and(|(current,_)|*current),
                 _ => false,
             };
-            let slot = if matches!(&action, Action::TimelineColumnVisibility(_) | Action::SamplingColumnVisibility(_) | Action::ToggleDiagnostics) {
+            let slot = if matches!(action, Some(Action::TimelineColumnVisibility(_) | Action::SamplingColumnVisibility(_) | Action::ToggleDiagnostics)) {
                 styles.metric("icon.slot", 20.)
             } else { 0. };
             if checked {
@@ -389,7 +409,10 @@ pub(super) fn render(
                 !enabled,
             );
             if clicked(input, r) && enabled {
-                out.push(action);
+                out.extend(match choice {
+                    Choice::Direct(action) => Some(action),
+                    Choice::RecentEffect(index) => super::effect_recent::apply(index, panels, state),
+                });
                 panels.menu = None;
                 panels.menu_scroll = 0;
             }

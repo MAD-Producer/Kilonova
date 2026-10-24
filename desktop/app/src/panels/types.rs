@@ -138,6 +138,7 @@ pub struct Panels {
     pub(crate) library_height: f32,
     pub(crate) effect_drag: super::effect_drag::Controls,
     pub(crate) browser: crate::panels::effect_controls::Controls,
+    pub(crate) recent_effect_menu: super::effect_recent::Cache,
     pub selected: Option<u64>,
     /// Stable selection collection for timeline multi-select. `selected` is
     /// kept as the primary layer for panels whose controls still need one

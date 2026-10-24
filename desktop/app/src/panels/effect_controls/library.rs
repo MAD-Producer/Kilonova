@@ -112,6 +112,9 @@ impl Controls {
         self.recent.truncate(24);
         self.library_last_click = None;
     }
+    pub(crate) fn recent_keys(&self) -> &[String] {
+        &self.recent
+    }
     pub(crate) fn preview_categories(&mut self, locale: Locale) {
         let entries = entries(&self.catalogue, locale);
         self.collapsed_categories = entries.iter().map(|e| e.category.clone()).collect();
