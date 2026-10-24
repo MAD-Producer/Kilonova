@@ -199,6 +199,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::SetWorkingPrecision { precision } => project.working_precision = precision,
         Command::SetWorkArea { in_frame, out_frame } => {
             let area = crate::WorkArea { in_frame, out_frame };
             area.validate(project.frames)?;

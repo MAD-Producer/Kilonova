@@ -3,7 +3,7 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project setting, dense editor key insertion and product display/export
+open: the project-setting UI, dense editor key insertion and product display/export
 call sites are not yet connected to the native output conversion.
 
 ## Scope and status
@@ -18,7 +18,7 @@ call sites are not yet connected to the native output conversion.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes | Nine actual GPU tests pass; persisted project setting and product preview/export call sites pending; no product UI changed in this stage |
+| 72-S9 | Native admitted working-to-SDR targets, explicit clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG bytes; required project precision and undoable typed command | Native output and project save/reopen/history probes pass; project-setting UI, live GPU precision switching and product preview/export call sites pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -57,6 +57,8 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-output-native-check-v1` | All native test targets check with admitted explicit output conversion |
 | `issue72-stage-output-pixels-v1` | Nine actual GPU tests: independent linear tone-map/exposure/alpha oracles, RGBA/BGRA with exactly one sRGB encoding, scaling before mapping, linear premultiplied transparent edges including encoded/straight input, real floating scene preview/PNG round trips and reuse, typed uniform admission/refusal, abandoned/submitted reservation retirement and foreign source/destination/encoder refusal even with a shared budget |
 | `issue72-stage-output-regression-v1` | Fifteen unchanged raw-capture, preview-target budget and four-mode precision tests pass after the new output path; includes float raw PNG refusal, combined/peak capacity, retained-front recovery, native HDR/exposure and adjacent UNORM16 values |
+| `issue72-stage-project-precision-v2` | Three model/core tests: four distinct required values in project format 26, strict missing/unknown/old-format refusal, save/reopen/undo/redo and failed-batch rollback, composition and frame-view inheritance, typed command catalogue schema |
+| `issue72-stage-project-regression-v1` | Complete current model/core suites: 360 passed, zero failed, one unchanged manual large-document history performance measurement ignored; 79 test summaries; no assertion was weakened |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -119,6 +121,15 @@ capture path emits straight-alpha, sRGB-encoded RGBA8 bytes after conversion at
 working precision. This is an SDR policy, not HDR export or a color-management
 system. No application UI setting or movie/Host export integration is claimed by
 the native output probes.
+
+Project format 26 requires `working_precision`; a newly created document starts
+at `unorm8`, while loading a document with the field missing fails rather than
+inventing a migration. The setting applies to the whole document, including
+inactive composition/frame views. The first project-precision check caught one
+missing frame-view initializer; the failed v1 receipt is retained. Core commands
+persist and undo the setting; application GPU preparation, surface preview and
+settings controls are still pending, so this model stage is not a usable product
+precision switch yet.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;

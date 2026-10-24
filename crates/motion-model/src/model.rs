@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 25;
+pub const CURRENT_PROJECT_VERSION: u32 = 26;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -266,6 +266,9 @@ pub struct ParentLink {
 #[serde(deny_unknown_fields)]
 pub struct Project {
     pub version: u32,
+    /// One project-wide working precision, shared by every composition.
+    /// Required on disk; unsupported GPU modes are never silently reduced.
+    pub working_precision: motion_effects::image_contract::ChannelPrecision,
     pub composition_id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub compositions: Vec<crate::Composition>,
@@ -296,6 +299,7 @@ impl Project {
         ensure(width > 0 && height > 0, "composition size must be positive")?;
         let mut project = Self {
             version: CURRENT_PROJECT_VERSION,
+            working_precision: motion_effects::image_contract::ChannelPrecision::Unorm8,
             composition_id: crate::MAIN_COMPOSITION.into(),
             compositions: Vec::new(),
             name: "空间练习 01".into(),
