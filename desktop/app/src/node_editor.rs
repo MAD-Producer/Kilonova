@@ -15,6 +15,8 @@ use std::{
 mod catalog;
 #[cfg(test)]
 mod compact_example_tests;
+#[path = "node_editor/clipboard.rs"]
+mod clipboard;
 #[path = "node_editor/editing.rs"]
 mod editing;
 #[path = "node_editor/grouping.rs"]
@@ -275,6 +277,7 @@ pub struct NodeEditor {
     observations: observability::Observations,
     pub layer_target: Option<crate::node_layer::Target>,
     document: GraphDocument,
+    clipboard: Option<clipboard::Fragment>,
     parents: Vec<grouping::ParentScope>,
     last_group_click: Option<(String, std::time::Instant, [f32; 2])>,
     options: CompileOptions,
@@ -374,6 +377,7 @@ impl NodeEditor {
             observations: Default::default(),
             layer_target: None,
             document,
+            clipboard: None,
             parents: vec![],
             last_group_click: None,
             options,
@@ -543,7 +547,9 @@ impl NodeEditor {
         let preferences = self.view_preferences;
         let shortcuts = self.shortcut_bindings.clone();
         let recent = self.recent_nodes.clone();
+        let clipboard = self.clipboard.take();
         *self = Self::new(document);
+        self.clipboard = clipboard;
         self.recent_nodes = recent;
         self.view_preferences = preferences;
         self.shortcut_bindings = shortcuts;

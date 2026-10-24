@@ -392,7 +392,7 @@ impl NodeEditor {
         let welcome_input = !diagnostic_input
             && self.welcome_input(area, input, &styles, &mut response.actions);
         if !had_menu && !diagnostic_input && !welcome_input {
-            self.keyboard(input, &mut response.actions);
+            self.keyboard_language(input, &mut response.actions, language);
         }
         layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;

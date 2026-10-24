@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "captures": [
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\node-clipboard-native-final\\node-menu-main-zh.png",
+      "sourceSha256": "2975b48a22fba0b64af792c0a15554fb80480a924b756a6df6cb53e96da7d302",
+      "sourceDimensions": [
+        1200,
+        700
+      ],
+      "crop": [
+        380,
+        90,
+        700,
+        355
+      ],
+      "file": "node-menu.png",
+      "sha256": "11ed3d17fbe6736ae249b9a81b3ee7a0402c629bdd78d74abcdb72415ba89568"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\node-clipboard-native-final\\paste-menu-main-zh.png",
+      "sourceSha256": "7be2833c859d3e94f5293f98a26d755c956a829c5a33da1ab2f1142d237ed3b6",
+      "sourceDimensions": [
+        1200,
+        700
+      ],
+      "crop": [
+        330,
+        135,
+        680,
+        330
+      ],
+      "file": "paste-menu.png",
+      "sha256": "5bf3d12c51c237a18b4387dd6850b8ab7f1cc5b74cba4c55ec8a7cdd36f6df2c"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\node-clipboard-native-final\\pasted-main-zh.png",
+      "sourceSha256": "0732a2a09adff1dad01f2dd0e30fd11730a3db1780cf9d7d5af42b0112fc3ec7",
+      "sourceDimensions": [
+        1200,
+        700
+      ],
+      "crop": null,
+      "file": "pasted-main.png",
+      "sha256": "0a7ad604ca3d981f80575a5a9f3e894d86ad0e711d260bcf1464a2edad31769d"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\node-clipboard-native-final\\pasted-floating-en.png",
+      "sourceSha256": "21e59ddd05e8f88a16dc26ca071846df3338df130984e507a9134064fd7bdda6",
+      "sourceDimensions": [
+        1350,
+        900
+      ],
+      "crop": null,
+      "file": "pasted-floating.png",
+      "sha256": "753689c175dc24abca5744e19fe3e03570953ba3cd4cb954607ddfe75b521032"
+    }
+  ]
+}
