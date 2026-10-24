@@ -1,5 +1,7 @@
 //! Bounded image decoding. Dimensions describe the source, never the proxy.
 use motion_model::Asset;
+mod allowed;
+pub(crate) use allowed::allowed_assets;
 mod error;
 pub use error::Error;
 mod memory;

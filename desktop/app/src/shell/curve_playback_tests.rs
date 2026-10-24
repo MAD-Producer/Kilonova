@@ -18,13 +18,14 @@ fn acknowledged_layer_drag_cannot_advance_edge_pan_or_starve_a_pending_release()
     shell.panels.timeline.offset = 60.;
     let size = [1200., 900.];
     shell.draw_commands(size);
-    let area = panels::frames(&shell.workspace.root, size)[0].content;
     let left = shell.panels.timeline.zoom_track.unwrap().min[0];
-    shell.translate(Event::MousePressed { position: [left + 60., area.min[1] + 75.], button: MouseButton::Left });
+    let row_y = shell.panels.timeline.work_area_band.unwrap().max[1]
+        + PaintList::default().styles().metric("row.height",22.) * 0.5;
+    shell.translate(Event::MousePressed { position: [left + 60., row_y], button: MouseButton::Left });
     let actions = shell.draw_commands(size).1;
     shell.actions.extend(actions);
     finish_actions(&mut shell);
-    let edge = [left - 10., area.min[1] + 75.];
+    let edge = [left - 10., row_y];
     shell.translate(Event::MouseMoved { position: edge });
     let actions = shell.draw_commands(size).1;
     shell.actions.extend(actions);

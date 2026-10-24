@@ -26,6 +26,8 @@ pub mod render_sampling;
 pub mod storage;
 mod timeline;
 mod video;
+mod work_area;
+pub use work_area::{FrameScope, WorkArea};
 pub mod vector;
 
 pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePublication};

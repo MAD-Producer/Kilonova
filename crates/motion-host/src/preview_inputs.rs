@@ -111,17 +111,28 @@ impl PreparedInput {
         target: &mut motion_render::preview_input::PreviewInputTexture,
     ) -> Result<()> {
         let edge = self.info.raster_size[0].max(self.info.raster_size[1]);
+        // The packet's reader sequence is its own domain, not an Engine request.
+        // Allocate context only for the explicitly enabled destination owner.
+        let context = target.command_observer().map(|_| {
+            use motion_render::gpu_commands::InputCommandContext;
+            match &self.info.source {
+                InputSource::ImageAsset { asset } => InputCommandContext::image(
+                    self.info.sequence, self.info.revision, self.info.clock.composition_frame, *asset),
+                InputSource::Layer { composition, object } => InputCommandContext::layer(
+                    self.info.sequence, self.info.revision, self.info.clock.composition_frame, *object, composition),
+            }
+        });
         match &self.pixels {
             InputPixels::Image(pixels) => {
-                target.upload_rgba(pixels.width, pixels.height, &pixels.rgba, true, edge)
+                target.upload_rgba_with_context(pixels.width, pixels.height, &pixels.rgba, true, edge, context)
             }
             InputPixels::Video(frame) => match &frame.pixels {
-                crate::video_frame::VideoPixels::Yuv(pixels) => target.upload_yuv(pixels, edge),
+                crate::video_frame::VideoPixels::Yuv(pixels) => target.upload_yuv_with_context(pixels, edge, context),
                 crate::video_frame::VideoPixels::Rgba(pixels) => {
-                    target.upload_rgba(frame.width, frame.height, pixels, false, edge)
+                    target.upload_rgba_with_context(frame.width, frame.height, pixels, false, edge, context)
                 }
             },
-            InputPixels::Transparent => target.transparent(),
+            InputPixels::Transparent => target.upload_rgba_with_context(1,1,&[0;4],true,1,context),
         }.map_err(crate::Error::from)
     }
 }

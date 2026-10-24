@@ -107,8 +107,7 @@ impl ExposureMedia<'_> {
             return Ok(false);
         };
         let mut encoder = renderer
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .tracked_command_encoder_for(motion_render::gpu_commands::CommandStage::ExposureMedia, &wgpu::CommandEncoderDescriptor {
                 label: Some("exposure media conversions"),
             });
         let mut uploads = Vec::new();
@@ -138,7 +137,7 @@ impl ExposureMedia<'_> {
             }
         }
         if !uploads.is_empty() {
-            renderer.submit_tracked(encoder.finish(), |_| {});
+            renderer.submit_observed(encoder.finish(), |_| {})?;
             for upload in uploads {
                 upload.mark_submitted();
             }

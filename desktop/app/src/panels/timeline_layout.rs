@@ -289,7 +289,10 @@ mod tests {
         let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1280., 1000.);
-        let point = [110., 64. + plan.masks.start as f32 * 22. + 11.];
+        let styles = PaintList::default().styles();
+        let body_top = timeline::header_height(&styles);
+        let row_height = styles.metric("row.height", 22.);
+        let point = [110., body_top + (plan.masks.start as f32 + 0.5) * row_height];
         let mut actions = vec![];
         timeline::render(
             &mut PaintList::default(),
@@ -315,7 +318,7 @@ mod tests {
         )]
             .1;
         // Vector header, group, collapsed group transform, repeater, then copies.
-        assert_eq!(rect.min[1], 64. + (plan.vectors.start + 4) as f32 * 22.);
+        assert_eq!(rect.min[1], body_top + (plan.vectors.start + 4) as f32 * row_height);
         timeline::render(
             &mut PaintList::default(),
             &mut atlas,
@@ -335,7 +338,7 @@ mod tests {
             .1;
         assert_eq!(
             rect.min[1] - next.min[1],
-            (plan.masks.len() - 1) as f32 * 22.
+            (plan.masks.len() - 1) as f32 * row_height
         );
     }
     #[test]

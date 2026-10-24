@@ -330,6 +330,16 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Discovered by existing test_ci_*.py unittest discovery; verifies CPU ownership subtotals, shared capacities, unknown coverage, archive rejection and actual failing child output without measuring a GPU."
     },
+    "tools/desktop_performance_commands.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_desktop_performance_commands.py",
+      "reason": "Validate original native timestamp words, exact offline caller and encoder identities, complete callback records and explicit omissions. Protocol tests are not device measurements."
+    },
+    "tools/test_ci_desktop_performance_commands.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Discovered by existing test_ci_*.py unittest discovery; reject wrong native words, sample identity aliases, missing callbacks, byte counts and hidden preparation gaps without claiming GPU evidence."
+    },
     "tools/collect_native_video_window.py": {
       "mode": "manual",
       "command": "python tools/collect_native_video_window.py --fixtures <four-file-fixtures> --output <new-evidence> --target-dir <build-cache>",

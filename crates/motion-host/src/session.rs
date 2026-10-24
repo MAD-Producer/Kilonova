@@ -616,7 +616,7 @@ impl Session {
             let sequence = self.presented + 1;
             let mut encoder =
                 g.renderer
-                    .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    .allocation_command_encoder_for(motion_render::gpu_commands::CommandStage::CompositionAndPresentation, &wgpu::CommandEncoderDescriptor {
                         label: Some("Motion Studio bounded composition and presentation"),
                     })?;
             let uploading = Instant::now();
@@ -739,6 +739,7 @@ impl Session {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
             }
             let submitting = Instant::now();
+            let presentation_command = encoder.command_identity();
             g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
             for upload in video_uploads {
                 upload.mark_submitted();
@@ -777,6 +778,8 @@ impl Session {
                     render_height: rh,
                     preview_fps: tier.fps(),
                     gpu: None,
+                    presentation_command,
+                    exposure: None,
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
                         vector_upload: g.renderer.vector_upload_info()?,
@@ -919,7 +922,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     let Some(output) = acquire_preview_surface(g)? else { return Ok(false); };
     let view = output.texture.create_view(&Default::default());
-    let mut encoder = g.renderer.allocation_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") })?;
+    let mut encoder = g.renderer.allocation_command_encoder_for(motion_render::gpu_commands::CommandStage::CompositionAndPresentation, &wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") })?;
     if let Some(viewport) = retained_viewport {
         g.presenter.encode_view(&g.renderer.queue, &mut encoder, &view, None,
             if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background)?;
@@ -962,6 +965,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
+    let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
     let slot = {
         let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
         registry.get(&id).cloned().ok_or("native session is closed")?
@@ -972,13 +976,18 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let mut guard = slot.session.lock().unwrap_or_else(|e| e.into_inner());
     let session = guard.as_mut().ok_or("native session is closed")?;
     session.check_thread()?;
+    command_logs.watch(session.graphics.as_ref().and_then(|g| g.renderer.command_observer()));
+    command_logs.watch(session.editor_renderer.as_ref().and_then(Renderer::command_observer));
     let result = session.recover_plugin_editor(Instant::now()).and_then(|()| operation(session));
+    command_logs.watch(session.graphics.as_ref().and_then(|g| g.renderer.command_observer()));
+    command_logs.watch(session.editor_renderer.as_ref().and_then(Renderer::command_observer));
     let event = session.last_error_observation.observe(
         session.last_error.as_deref(), session.frame,
         &session.engine.project().composition_id, began,
     );
     // Logging can call host-owned sinks. Release the session before any IO.
     drop(guard);
+    command_logs.flush();
     if let Some(event) = event { event.emit(id); }
     result
 }
@@ -1062,6 +1071,7 @@ pub fn set_creation_error(error: String) {
 /// Close a session and release its GPU resources.
 pub fn close(id: i64) {
     let _allocation_scope = motion_render::AllocationLogScope::enter(id);
+    let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
     let slot = {
         let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
         if !registry
@@ -1077,6 +1087,8 @@ pub fn close(id: i64) {
         // Detach, decoder cleanup and GPU destruction run on the owner thread
         // after both guards have gone, even when another reader retains a slot.
         if let Some(mut session) = session {
+            command_logs.watch(session.graphics.as_ref().and_then(|g| g.renderer.command_observer()));
+            command_logs.watch(session.editor_renderer.as_ref().and_then(Renderer::command_observer));
             session.detach();
         }
     }

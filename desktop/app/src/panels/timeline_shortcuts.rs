@@ -372,9 +372,11 @@ pub(super) fn handle(
         || panels.timeline.trimming.is_some()
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
+        || panels.timeline.work_area_drag.is_some()
     {
         return true;
     }
+    if super::work_area::shortcut(command, state, frame, out) { return true; }
     let object = panels
         .selected
         .filter(|id| visual_layer(state, *id).is_some());

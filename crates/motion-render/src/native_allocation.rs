@@ -52,6 +52,9 @@ impl Deref for AdmittedBuffer {
 }
 
 impl AllocationContext {
+    pub(crate) fn same_owner(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.owner, &other.owner)
+    }
     pub(crate) fn new(
         device: wgpu::Device,
         queue: wgpu::Queue,

@@ -48,7 +48,7 @@ fn three_d_switch_is_editable_in_observation_views_without_changing_the_view() {
                     .unwrap();
                     let point = [
                         slot.x + slot.width * 0.5,
-                        top + 64. + styles.metric("row.height", 22.) * 0.5,
+                        top + crate::panels::timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5,
                     ];
                     let render = |shell: &mut crate::Shell, input: Input| {
                         shell.panels.focused = Some(Panel::Timeline);
@@ -193,7 +193,7 @@ fn three_d_click_updates_the_shell_after_scrolling_and_switching_panel_focus() {
                 let switch = columns.three_d.unwrap();
                 let point = [
                     switch.x + switch.width * 0.5,
-                    area.min[1] + 64. + index as f32 * row_height - shell.panels.timeline.scroll
+                    area.min[1] + crate::panels::timeline::header_height(&styles) + index as f32 * row_height - shell.panels.timeline.scroll
                         + row_height * 0.5,
                 ];
                 for enabled in [true, false] {

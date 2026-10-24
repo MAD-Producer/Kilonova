@@ -36,6 +36,7 @@ fn fixture() -> Project {
         height: 64,
         fps: 60,
         frames: 12,
+        work_area: motion_core::WorkArea::full(12),
         background: [0.; 4],
         camera: Camera::new(64, 64),
         layers: layers(12, [0., 1., 0., 1.], 19.),

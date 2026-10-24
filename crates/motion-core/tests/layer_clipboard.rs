@@ -412,3 +412,28 @@ fn inactive_destination_composition_keeps_root_unchanged_and_undoes_in_one_step(
     assert_eq!(engine.project(), &target);
     assert!(!engine.can_undo());
 }
+
+#[test]
+fn cut_and_paste_cannot_merge_their_history_into_an_unfinished_gesture() {
+    let document = source().snapshot();
+    let clipboard = LayerClipboard::capture(&document, vec![1, 9]).unwrap();
+    let mut engine = Engine::new(document.clone()).unwrap();
+    engine.begin_gesture().unwrap();
+    assert!(matches!(
+        engine.apply(Command::RemoveLayers {
+            objects: vec![1, 9],
+            frame: 0
+        }),
+        Err(motion_core::Error::Gesture)
+    ));
+    assert!(matches!(
+        engine.apply(paste(clipboard, None, false)),
+        Err(motion_core::Error::Gesture)
+    ));
+    assert_eq!(engine.project(), &document);
+    assert_eq!(engine.revision(), 0);
+    assert!(!engine.can_undo());
+    engine.end_gesture(false).unwrap();
+    assert_eq!(engine.project(), &document);
+    assert!(!engine.can_undo());
+}

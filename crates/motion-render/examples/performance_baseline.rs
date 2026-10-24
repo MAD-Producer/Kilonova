@@ -4,7 +4,10 @@ use motion_core::{
     compositing::{MatteMode, TrackMatte},
     Composition, CompositionClip, Content, Ease, EffectInstance, Layer, Project, VideoSample,
 };
-use motion_render::{ChromaLayout, GpuTimer, Presenter, Renderer, Scene, Yuv420Frame};
+use motion_render::{
+    gpu_commands::CommandStage, AllocationFrameOutcome, ChromaLayout, FrameOperation, GpuTimer,
+    Presenter, Renderer, Scene, Yuv420Frame,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{fs::File, io::Write, path::Path, time::Instant};
@@ -146,6 +149,7 @@ fn fixture(name: &str, samples: u32) -> Result<Project> {
             height: p.height,
             fps: p.fps,
             frames: p.frames,
+            work_area: motion_core::WorkArea::full(p.frames),
             background: [0.; 4],
             camera: p.camera.clone(),
             layers,
@@ -220,10 +224,26 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
     let mut timer = GpuTimer::new(&renderer)?;
     let mut scene = Scene::new(&project)?;
     let mut video = (name == "four-4k-yuv").then(video_fixture);
+    let commands = renderer.start_command_profiling(128)?;
+    if let Some(observer) = &commands {
+        observer.start_trace()?;
+    }
+    let mut previous_command_readback_bytes = 0;
     let mut records = Vec::new();
     for index in 0..WARMUP + samples {
         let began = Instant::now();
         let composition_frame = if name == "static" { 0 } else { index };
+        // This is the actual offline caller's sample domain, not an Engine
+        // worker request. Static samples intentionally share source frame 0.
+        let offline_request = u64::from(index) + 1;
+        let allocation_frame = renderer
+            .allocation_budget()
+            .begin_frame_at(
+                offline_request,
+                FrameOperation::Render,
+                f64::from(composition_frame),
+            )?
+            .ok_or("benchmark allocation-frame observation unavailable")?;
         scene.sample(
             &project,
             f64::from(composition_frame),
@@ -257,7 +277,11 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
                     .ok_or("benchmark timing slot unavailable")
             })
             .transpose()?;
-        let mut encoder = renderer.allocation_command_encoder(&Default::default())?;
+        let mut encoder = renderer.allocation_command_encoder_for(
+            CommandStage::CompositionAndPresentation,
+            &Default::default(),
+        )?;
+        let main_command = encoder.command_identity();
         let encode_began = Instant::now();
         let stats = renderer.encode(
             &scene,
@@ -312,6 +336,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         let wait_us = wait_began.elapsed().as_micros();
         renderer.check_health()?;
         let waited_wall_us = began.elapsed().as_micros();
+        allocation_frame.finish(AllocationFrameOutcome::Rendered);
         // Explicit metadata sampling is outside the timed interval. No handles are retained.
         let metadata_began = Instant::now();
         let mut ledger = renderer.texture_resource_ledger();
@@ -323,9 +348,31 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         ledger.merge(target.texture_resource_ledger());
         let cpu = cpu_memory(&renderer, video.as_ref());
         let admission = renderer.allocation_budget().info()?;
+        let allocation_frames = renderer.allocation_budget().frame_peaks()?;
+        let matching_windows: Vec<_> = allocation_frames
+            .recent
+            .iter()
+            .filter(|window| window.request == offline_request)
+            .collect();
+        if allocation_frames.tracking_fault
+            || allocation_frames.omitted_frames != 0
+            || matching_windows.len() != 1
+        {
+            return Err("benchmark allocation-frame identity missing or ambiguous".into());
+        }
+        let command_snapshot = commands.as_ref().map(|observer| observer.snapshot());
+        let command_readback_bytes = command_snapshot
+            .as_ref()
+            .map_or(0, |snapshot| snapshot.readback.mapped_buffer_bytes);
+        let sample_command_readback_bytes = command_readback_bytes
+            .checked_sub(previous_command_readback_bytes)
+            .ok_or("benchmark command readback counter moved backwards")?;
+        previous_command_readback_bytes = command_readback_bytes;
         let metadata_us = metadata_began.elapsed().as_micros();
         records.push(json!({"index":index,"phase":if index==0 {"cold"} else if index<WARMUP {"warmup"} else {"measured"},
-            "compositionFrame":composition_frame,"sceneSampleUs":sample_us,"cpuPrepareUs":stats.cpu_prepare_us,
+            "compositionFrame":composition_frame,"offlineRequest":offline_request,"allocationFrame":matching_windows[0],"mainCommand":main_command,
+            "commandTimestampReadbackBytes":sample_command_readback_bytes,
+            "sceneSampleUs":sample_us,"cpuPrepareUs":stats.cpu_prepare_us,
             "mediaUploadWallUs":media_us,"encodeWallUs":encode_us,"submitWallUs":submit_us,"waitUs":wait_us,"waitedWallUs":waited_wall_us,
             "gpuCompositionUs":gpu.map(|value|value.composition_us),"gpuPresentationUs":gpu.map(|value|value.presentation_us),"gpuTotalUs":gpu.map(|value|value.total_us),
             "mainSubmissions":1,"videoConversionSubmissions":renderer.video_conversion_submissions-previous_submissions,
@@ -337,6 +384,12 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
             "cpuMemory":cpu,"metadataSampleUs":metadata_us,
             "logicalAdmission":admission,"pixelReadbackBytes":0,"timestampReadbackBytes":if gpu.is_some(){32}else{0}}));
     }
+    let command_trace = commands.as_ref().and_then(|observer| {
+        observer.stop_trace();
+        observer.trace_snapshot()
+    });
+    let command_snapshot = commands.as_ref().map(|observer| observer.snapshot());
+    renderer.stop_command_profiling();
     // One evidence image after all samples, explicitly excluded from timed readback.
     let pixels = renderer.read_target(&target)?;
     image::save_buffer(
@@ -374,16 +427,19 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         .collect::<serde_json::Map<_, _>>();
     let pressure = renderer.memory_pressure();
     let info = &renderer.adapter_info;
-    let report = json!({"schemaVersion":2,"case":name,"adapter":{"name":info.name,"driver":info.driver,"driverInfo":info.driver_info,
+    let report = json!({"schemaVersion":3,"case":name,"adapter":{"name":info.name,"driver":info.driver,"driverInfo":info.driver_info,
         "backend":format!("{:?}",info.backend),"deviceType":format!("{:?}",info.device_type)},
         "sourceRevision":option_env!("MOTION_BENCHMARK_REVISION"),"debugAssertions":cfg!(debug_assertions),
         "projectSha256":format!("{:x}",Sha256::digest(&project_bytes)),"finalRgbaSha256":format!("{:x}",Sha256::digest(&pixels)),
         "dimensions":SIZE,"fps":30,"renderMode":"fixed-full-resolution","memoryPolicy":renderer.memory_policy(),"warmupFrames":WARMUP,"measuredFrames":samples,"rendererCreateUs":renderer_create_us,
         "submissionScope":"Explicit main and YUV conversion queue submissions; excludes implicit driver/upload staging submissions",
         "gpuTimestampSupported":timer.is_some(),"nativeMemoryPressure":pressure,
+        "commandTimestampSupported":commands.is_some(),"gpuCommands":command_snapshot,"gpuCommandTrace":command_trace,
+        "commandRequestDomain":"offline_case_sample_index_plus_one_not_engine_worker_request",
+        "commandScope":"Explicit native encoder intervals with original timestamp words and exact epoch/id. Allocation contexts identify this serialized offline caller, independently of repeated authored source frames. Intervals overlap root timings and may overlap each other; never add them into exclusive GPU busy time. Marker work is included. Queue writes before a marker and physical bus traffic are outside the interval. Final PNG readback occurs after trace/profiler stop.",
         "syntheticYuv":video.as_ref().map(|frame|json!({"dimensions":VIDEO_SIZE,"sources":4,"oneReusableCpuFixtureBytes":frame.y.len()+frame.uv.len(),
             "decoderMeasured":false,"changingPixel":"Y[0] = 32 + (frame + layer_id) % 190","remainingY":128,"uv":[100,160]})),
-        "scope":"Offline serialized GPU latency; fixed full-resolution encode, new renderer per case, cold and warmup retained. GPU timestamps surround root composition and offscreen presentation; earlier YUV conversions and nested/vector/MSAA preparation can fall outside them. CPU wall includes uploads and deliberate per-frame completion wait. Metadata sampling and final PNG readback are outside timing. No native window, UI, file decoder, display deadline, physical residency or process-RAM claim.",
+        "scope":"Offline serialized GPU latency with explicit command profiling; fixed full-resolution encode, new renderer per case, cold and warmup retained. Root timestamps surround composition and offscreen presentation. Separate command records observe original encoder boundaries, including preparation outside root passes, with instrumentation overhead and possible interval overlap. CPU wall includes uploads and deliberate per-frame completion wait. Metadata sampling and final PNG readback are outside timing. No native window, UI, file decoder, display deadline, physical residency, exclusive GPU busy time or process-RAM claim.",
         "metadataTimingScope":"Texture and CPU ownership enumeration plus admission observation, outside waitedWallUs; excludes JSON serialization and final readback",
         "coverageGaps":["CPU image/decode cache ownership and uninstrumented containers","raw Presenter uniform buffers","driver and codec external allocations","inference weights/activations","physical memory pressure","Android Adreno/Mali execution"],
         "distributions":distributions,"frames":records});
@@ -441,7 +497,7 @@ fn main() -> Result<()> {
     }
     std::fs::write(
         root.join("report.json"),
-        serde_json::to_vec_pretty(&json!({"schemaVersion":2,"cases":cases}))?,
+        serde_json::to_vec_pretty(&json!({"schemaVersion":3,"cases":cases}))?,
     )?;
     Ok(())
 }

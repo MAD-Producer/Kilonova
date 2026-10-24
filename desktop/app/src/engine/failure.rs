@@ -154,3 +154,5 @@ mod model_edit_tests;
 mod audio_clock_tests;
 #[cfg(test)]
 mod video_frame_tests;
+#[cfg(test)]
+mod work_area_tests;

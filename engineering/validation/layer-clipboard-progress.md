@@ -57,7 +57,7 @@ Session 增加不进入工程 JSON 的单调文档 generation。重新打开相�
 
 - `layer-clipboard-host-first-compile.log`、`layer-clipboard-host-first-tests.log`：初始宿主版本 6 项通过。之后继续补充所有权和路径边界，并非完成后无理由重复测试。
 - `layer-clipboard-host-owned-compile.log`、`layer-clipboard-host-owned-tests.log`：提交后故障和默认信道增加后 8 项通过。
-- `layer-clipboard-host-final-compile.log`、`layer-clipboard-host-final-tests.log`：最终 10 项实际通过、0 失败、0 忽略，30.87 秒；测试程序 SHA-256 `a39a1650e4d32d40d998702c9bbdc92c48e6bf2e9be0eaaa31b084532963ece7`。编译保留 22 项既有测试警告。范围包括源删除后的跨工程粘贴、连续粘贴资源复用、完整撤销/重做、真实保存重开、源缺失、部分暂存失败、外国文件碰撞、取消/失效目标、同根重开身份、外部父级变化、真实目录联接和默认错误信道。
+- `layer-clipboard-host-final-compile.log`、`layer-clipboard-host-final-tests.log`：最终 10 项实际通过、0 失败、0 忽略，30.87 秒；测试程序 SHA-256 `a39a1650e4d32d40d998702c9bbdc92c48e6bf2e9be0eaaa31b084532963ece7`。编译保留 22 项既有测试警告。范围包括源删除后的跨工程粘贴、连续粘贴资源复用、完整撤销/重做、真实保存重开、源缺失、部分暂存失败、非本操作文件碰撞、取消/失效目标、同根重开身份、外部父级变化、真实目录联接和默认错误信道。
 - `layer-clipboard-host-regression.log`：既有素材登记 8 项、失败边界 10 项、panic 边界 1 项、会话并发 3 项，全部实际通过，共 22 项，不包含上述 10 项。不以它们宣称完整桌面/GPU 组合通过。
 - `layer-clipboard-default-channel-final/`：实际默认级别文件日志、Error stderr 与 stdout 原件。缺失对象、缺失文件、非法目标帧及后台 panic 的原原因进入文件和 stderr，stdout 无这些标记；Info 开始只进入文件。受控阻塞时检查到在途 `io` 状态，并在释放阻塞前实际读取已落盘的 Info 开始。panic 沿用现有全局 hook 记录栈，后台任务另返回带请求 ID 关联的故障，不自动重启。
 
@@ -74,3 +74,15 @@ Session 增加不进入工程 JSON 的单调文档 generation。重新打开相�
 | LC-05 | 待完成 | 新后台任务的默认文件日志/Error stderr/stdout 隔离、真实 IO 失败、受控阻塞已证明；Shell 取消/过期输入和 UI 提示、原生多窗验证、完整组合 CI，以及进程强杀后的遗留缓存策略仍未完成。 |
 
 本阶段未修改 UI 样式或交互面板，DESIGN §0.7 的既有基线均保留，理由为未进入任何相关绘制代码；也未以编译或核心测试宣称 DESIGN §12 的视觉验收完成。
+
+## 同步当前主线与工作范围
+
+本线程的 #479 在五项必需 CI 通过后合入为 `1d1f284245fcd50391f672ef79653d09d432e219`，关闭 #205、#241。合入前另将最新主线 `28880872` 与 #479 组合，5 项工作范围测试（包含实际原生主窗/浮窗）和 1 项图像资源集合测试通过；GitHub 合并树与实际测试树 `5af95b154422af821d85f649ae12b086c814d36f` 完全一致。未审查其他人的 PR。
+
+随后将该主线同步到剪贴板分支。`editor.rs` 的命令分派有一处相邻新增冲突，保留 `SetWorkArea`、`PasteLayers` 和 `RemoveLayers` 三个分支。工程格式 25 和必填工作范围由已合入的 #479 提供，本剪贴板功能没有另加迁移或版本分支；嵌套合成复制沿用完整结构克隆，也保留各自的工作范围。
+
+独立的功能修正：批量剪切删除加入既有事务手势保护。未完成的拖动手势中，剪切与粘贴都返回原来的 `Error::Gesture`，不改变工程、修订号或撤销历史；新增真实开始/取消手势测试，避免剪切被并入另一操作的历史。
+
+组合验证：`layer-clipboard-current-main-core.log` 为 12 项剪贴板、3 项命令目录、8 项工作范围测试，合计 23 项实际通过。`layer-clipboard-current-main-compile.log` 重新编译带 FFmpeg 的桌面测试程序，22 项既有测试警告；`layer-clipboard-current-main-host.log` 的 10 项宿主测试全部通过、0 忽略，27.83 秒。该程序 SHA-256 为 `7a1663600f4606cc561ad83b21589324c5fff2ea806acf94137513998a3a6c9d`。默认日志原件保存在 `layer-clipboard-current-main-channel/`，再次实际验证文件日志、Error stderr、stdout 隔离与阻塞前开始信号。
+
+上述为当前组合的 33 项相关验证，不是完整 959 项桌面验收；此前阶段的 22 项宿主回归也不冒充本次新组合重跑。尚未接入 Shell、快捷键和菜单，未创建完成 PR 或关闭 #204。

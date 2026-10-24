@@ -38,6 +38,12 @@ pub struct FrameMeasurement {
     pub render_height: u32,
     pub preview_fps: u32,
     pub gpu: Option<GpuTiming>,
+    /// Exact encoder identity of this successful presentation. This metadata
+    /// does not claim a completed query or exclusive whole-frame GPU time.
+    pub presentation_command: Option<crate::gpu_commands::CommandIdentity>,
+    /// Exposure request/poll of the presentation attempt. Earlier phase records
+    /// can join by request across polls, independently of authored frame values.
+    pub exposure: Option<crate::gpu_commands::ExposureCommandContext>,
     pub resources: Option<FrameResources>,
 }
 pub struct FrameRecorder {
@@ -98,10 +104,11 @@ impl FrameRecorder {
             distribution(self.frames.iter().filter_map(field))
         };
         let resource_count = self.frames.iter().filter(|f| f.resources.is_some()).count();
+        let command_identity_count = self.frames.iter().filter(|f| f.presentation_command.is_some()).count();
         let frames = self.frames.iter().map(|f|json!({"sequence":f.sequence,"frame":f.frame,"elapsedUs":f.elapsed_us,"cpuPrepareUs":f.cpu_prepare_us,
                 "acquireUs":f.acquire_us,"submitUs":f.submit_us,"presentCallUs":f.present_call_us,"renderWallUs":f.render_wall_us,
                 "renderWidth":f.render_width,"renderHeight":f.render_height,"previewFps":f.preview_fps,
-                "resources":f.resources,
+                "resources":f.resources,"presentationCommand":f.presentation_command,"exposure":f.exposure,
                 "gpuCompositionUs":f.gpu.map(|g|g.composition_us),"gpuPresentationUs":f.gpu.map(|g|g.presentation_us),"gpuTotalUs":f.gpu.map(|g|g.total_us)})).collect::<Vec<_>>();
         json!({"metadata":metadata,"durationSeconds":self.start.elapsed().as_secs_f64(),"frameCount":self.frames.len(),"overflowFrames":self.overflow,
             "gpuSampleCount":gpu_count,"gpuSampleCoverage":if self.frames.is_empty(){0.0}else{gpu_count as f64/self.frames.len() as f64},
@@ -109,6 +116,8 @@ impl FrameRecorder {
             "submitUs":metric(|f|Some(f.submit_us as f64)),"presentCallUs":metric(|f|Some(f.present_call_us as f64)),"renderWallUs":metric(|f|Some(f.render_wall_us as f64)),
             "gpuTotalUs":metric(|f|f.gpu.map(|g|g.total_us)),"gpuCompositionUs":metric(|f|f.gpu.map(|g|g.composition_us)),"gpuPresentationUs":metric(|f|f.gpu.map(|g|g.presentation_us)),
             "resourceSampleCount":resource_count,
+            "presentationCommandIdentityCount":command_identity_count,
+            "commandJoinScope":"presentationCommand is the exact encoder epoch/id, not proof of query completion or total GPU cost. Exposure request joins phases across polls; the current presentation poll is not the originating content of retained frames. Unavailable or omitted identities remain null. Never join by authored source-frame value or add overlapping root/command intervals.",
             "resourceSampleScope":"Successful frame boundaries; logical application texture capacity, separate vector upload buffers and CPU video caches. Excludes transient peaks, other buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
             "readbackScope":"Per-renderer image and per-timer timestamp lifetime counters at successful frame boundaries, individually atomic. Missing observations stay null. Encoded spans and mapped buffer lengths are not physical bus traffic. Image capture outside the recorded interval is not an exclusive frame cost.",
             "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes+r.exposure_target_bytes) as f64)),

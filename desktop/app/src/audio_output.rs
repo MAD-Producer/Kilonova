@@ -217,17 +217,44 @@ pub struct AudioOutput {
     rate: u32,
     start_sample: u64,
     total_samples: u64,
+    range_start: u64,
+    looping: bool,
 }
 
 impl AudioOutput {
+    #[cfg(test)]
     pub fn start(project: Project, root: &Path, start_frame: f64) -> Result<Self, String> {
+        let range = motion_core::WorkArea::full(project.frames);
+        Self::start_in_range(project, root, start_frame, range, false)
+    }
+
+    pub fn start_in_range(
+        project: Project, root: &Path, start_frame: f64,
+        range: motion_core::WorkArea, looping: bool,
+    ) -> Result<Self, String> {
+        let began = Instant::now();
+        let fps = project.fps;
+        log::info!("audio preview start phase=start fps={fps} in_frame={} out_frame={} looping={looping}", range.in_frame, range.out_frame);
+        let result = Self::start_inner(project, root, start_frame, range, looping);
+        if let Err(error) = &result {
+            log::error!("audio preview start failed phase=start elapsed_ms={} fps={fps} in_frame={} out_frame={} looping={looping} cause={error}", began.elapsed().as_millis(), range.in_frame, range.out_frame);
+        } else {
+            log::debug!("audio preview ready elapsed_ms={} fps={fps} in_frame={} out_frame={} looping={looping}", began.elapsed().as_millis(), range.in_frame, range.out_frame);
+        }
+        result
+    }
+
+    fn start_inner(project: Project, root: &Path, start_frame: f64, range: motion_core::WorkArea, looping: bool) -> Result<Self, String> {
         project.validate().map_err(|e| e.to_string())?;
-        if !start_frame.is_finite() || start_frame < 0.0 || start_frame >= f64::from(project.frames)
+        range.validate(project.frames).map_err(|error| error.to_string())?;
+        if !start_frame.is_finite() || start_frame < f64::from(range.in_frame) || start_frame >= f64::from(range.out_frame)
         {
             return Err("audio start outside composition".into());
         }
         let start_sample = (start_frame * 48_000.0 / f64::from(project.fps)).floor() as u64;
-        let total_samples = u64::from(project.frames) * 48_000 / u64::from(project.fps);
+        let samples = range.sample_bounds(project.fps, 48_000).map_err(|error| error.to_string())?;
+        let range_start = samples.start;
+        let total_samples = samples.end;
         let root = root.to_path_buf();
         let device = cpal::default_host()
             .default_output_device()
@@ -281,11 +308,13 @@ impl AudioOutput {
         let producer = spawn_producer(shared.clone(), move || {
             // Initialization also opens PCM files; do all of it on this worker.
             if source.is_none() {
-                source = Some(Producer::new(
+                source = Some(Producer::in_range(
                     AudioMixer::new(project.take().unwrap(), &root)?,
                     start_sample,
                     rate,
-                ));
+                    range_start..total_samples,
+                    looping,
+                )?);
             }
             source.as_mut().unwrap().next()
         })?;
@@ -297,6 +326,8 @@ impl AudioOutput {
             rate,
             start_sample,
             total_samples,
+            range_start,
+            looping,
         };
         output.shared.begin_playback_at(output.shared.now_ns());
         if let Err(error) = output.stream.as_ref().unwrap().play() {
@@ -316,12 +347,19 @@ impl AudioOutput {
             .device_frames_at(self.shared.now_ns(), self.rate);
         let sample =
             self.start_sample as f64 + device_frames as f64 * 48_000.0 / f64::from(self.rate);
-        sample.min(self.total_samples as f64) * f64::from(fps) / 48_000.0
+        let sample = if self.looping {
+            self.range_start as f64 + (sample - self.range_start as f64)
+                .rem_euclid((self.total_samples - self.range_start) as f64)
+        } else { sample.min(self.total_samples as f64) };
+        sample * f64::from(fps) / 48_000.0
     }
     pub fn error(&self) -> Option<String> {
         self.shared.check_callback_at(self.shared.now_ns());
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         crate::fallback_observation::recovered(&self.shared.error, &FAILURES, "audio.error.read", |value| value.clone())
+    }
+    pub fn finished(&self, frame: f64, fps: u32) -> bool {
+        !self.looping && frame >= (self.total_samples.saturating_sub(1)) as f64 * f64::from(fps) / 48_000.
     }
     pub fn underruns(&self) -> u64 {
         self.shared.underruns.load(Ordering::Relaxed)
@@ -529,9 +567,12 @@ struct Producer {
     source_start: u64,
     output_frame: u64,
     output_rate: u32,
+    range: std::ops::Range<u64>,
+    looping: bool,
 }
 impl Producer {
     fn new(mixer: AudioMixer, source_start: u64, output_rate: u32) -> Self {
+        let end = mixer.total_frames();
         Self {
             mixer,
             buffer: vec![0.0; MIX_FRAMES * 2],
@@ -540,12 +581,21 @@ impl Producer {
             source_start,
             output_frame: 0,
             output_rate,
+            range: 0..end,
+            looping: false,
         }
     }
-    fn sample(&mut self, sample: u64) -> Result<[f32; 2], String> {
-        if sample >= self.mixer.total_frames() {
-            return Ok([0.0; 2]);
+    fn in_range(mixer: AudioMixer, source_start: u64, output_rate: u32, range: std::ops::Range<u64>, looping: bool) -> Result<Self, String> {
+        if range.start >= range.end || range.end > mixer.total_frames() || !range.contains(&source_start) || output_rate == 0 {
+            return Err("audio playback range or output rate is invalid".into());
         }
+        let mut producer = Self::new(mixer, source_start, output_rate);
+        producer.range = range;
+        producer.looping = looping;
+        Ok(producer)
+    }
+    fn sample(&mut self, sample: u64) -> Result<[f32; 2], String> {
+        let sample = match self.source_index(sample) { Some(sample) => sample, None => return Ok([0.; 2]) };
         if self.buffer_start == u64::MAX
             || sample < self.buffer_start
             || sample >= self.buffer_start + self.buffer_count as u64
@@ -559,7 +609,7 @@ impl Producer {
     fn next(&mut self) -> Result<Option<[f32; 2]>, String> {
         let numerator = u128::from(self.output_frame) * 48_000;
         let index = self.source_start + (numerator / u128::from(self.output_rate)) as u64;
-        if index >= self.mixer.total_frames() {
+        if self.source_index(index).is_none() {
             return Ok(None);
         }
         let a = self.sample(index)?;
@@ -575,10 +625,17 @@ impl Producer {
             a[1] + (b[1] - a[1]) * fraction,
         ]))
     }
+    fn source_index(&self, index: u64) -> Option<u64> {
+        if index < self.range.start { return None; }
+        if index < self.range.end { return Some(index); }
+        self.looping.then(|| self.range.start + (index - self.range.start) % (self.range.end - self.range.start))
+    }
 }
 
 #[cfg(test)]
 mod playhead_tests;
+#[cfg(test)]
+mod work_area_tests;
 
 #[cfg(test)]
 mod tests {
@@ -595,7 +652,26 @@ mod tests {
             rate: 48_000,
             start_sample: 0,
             total_samples: 48_000,
+            range_start: 0,
+            looping: false,
         }
+    }
+
+    #[test]
+    fn skipped_audio_playback_stops_on_the_same_last_frame_as_the_wall_clock() {
+        let root = tempfile::tempdir().unwrap();
+        let mut shell = crate::Shell::new(root.path().join("project"),None,Some(crate::i18n::Locale::En)).unwrap();
+        shell.state = shell.engine.edit(serde_json::to_string(&motion_core::Command::SetWorkArea {in_frame:20,out_frame:50}).unwrap()).unwrap();
+        shell.workspace.preview_playback = crate::preview_playback::Options {
+            scope:motion_core::FrameScope::WorkArea, looping:false,skip:crate::preview_playback::Skip::Four,..Default::default()
+        };
+        let mut audio = output_without_device(Arc::new(Shared::new()),None);
+        audio.start_sample = 80_000 - 1; audio.range_start = 32_000; audio.total_samples = 80_000;
+        shell.audio = Some(audio); shell.playback = Some((Instant::now(),20.));
+        shell.advance_playback().unwrap();
+        assert_eq!(shell.frame,49.); assert!(shell.playback.is_none() && shell.audio.is_none());
+        let (_,reply) = shell.editing.take().unwrap();
+        assert_eq!(reply.recv_timeout(Duration::from_secs(10)).unwrap().unwrap()["frame"],49.);
     }
 
     #[test]

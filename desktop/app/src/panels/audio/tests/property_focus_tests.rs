@@ -22,7 +22,7 @@ fn left_caption(h: &Harness) -> Rect {
             GUTTER.min(area.width() * 0.52),
             area.height(),
         ),
-        area.min[1] + 64. + (plan.audio.start + 2) as f32 * styles.metric("row.height", 22.)
+        area.min[1] + crate::panels::timeline::header_height(&styles) + (plan.audio.start + 2) as f32 * styles.metric("row.height", 22.)
             - h.panels.timeline.scroll,
         styles.metric("row.height", 22.),
     )

@@ -1316,11 +1316,12 @@ mod interaction_tests {
             shell.panels.focused = Some(dock::Panel::Timeline);
             shell.panels.timeline.expanded.insert(7);
             shell.panels.timeline.collapsed_transforms.insert(7);
-            let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+            assert!(shell.draw_commands([1280., 700.]).1.is_empty());
+            let body_top = shell.panels.timeline.work_area_band.unwrap().max[1];
             let point = |frame: f32| {
                 [
                     640. + frame * 632. / 300.,
-                    area.min[1] + 64. + (if path { 3. } else { 4. }) * 22. + 11.,
+                    body_top + (if path { 3. } else { 4. }) * 22. + 11.,
                 ]
             };
             shell.translate(Event::MousePressed {
@@ -1432,11 +1433,12 @@ mod interaction_tests {
             .vector_open
             .extend([(7, 0, 0), (7, 1, 0), (7, 3, 2)]);
         assert!(panels::reveal_shape_keys(&mut shell.panels, &shell.state, 7).is_empty());
-        let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+        assert!(shell.draw_commands([1280., 700.]).1.is_empty());
+        let body_top = shell.panels.timeline.work_area_band.unwrap().max[1];
         let point = |frame: f32| {
             [
                 640. + frame * 632. / 300.,
-                area.min[1] + 64. + 5. * 22. + 11.,
+                body_top + 5. * 22. + 11.,
             ]
         };
         shell.translate(Event::MousePressed {
@@ -1530,23 +1532,39 @@ impl Shell {
         let Some((start, origin)) = self.playback else {
             return Ok(());
         };
-        let fps = self.state["project"]["fps"].as_u64().unwrap_or(30) as u32;
-        let frames = self.state["project"]["frames"].as_u64().unwrap_or(1) as u32;
+        // The plan is frozen for this playback episode. Direct clock consumers
+        // may initialize the episode lazily; regular TogglePlay sets it before
+        // starting audio. Project edits and option changes stop the episode.
+        let plan = match self.playback_plan {
+            Some(plan) => plan,
+            None => {
+                let project = serde_json::from_value::<Project>(self.state["project"].clone())
+                    .map_err(|error| error.to_string())?;
+                let plan = crate::preview_playback::Plan::new(&project, self.workspace.preview_playback, origin)?;
+                self.playback_plan = Some(plan);
+                plan
+            }
+        };
+        let fps = plan.fps;
         if let Some(audio) = &self.audio {
             let position = audio.frame(fps);
             let error = audio.error();
-            self.frame = position.min(f64::from(frames - 1));
-            if position >= f64::from(frames) - f64::from(fps) / 48000. || error.is_some() {
+            self.frame = plan.display_frame(position.clamp(f64::from(plan.range.in_frame), f64::from(plan.range.out_frame - 1)));
+            let finished = audio.finished(position, fps);
+            if finished || error.is_some() {
+                if finished { self.frame = f64::from(plan.range.out_frame - 1); }
                 self.stop();
                 if let Some(error) = error {
                     self.panels.message = Some(self.workspace.locale.error(&error));
                 }
             }
         } else {
-            self.frame = playback_frame(origin, start.elapsed(), fps, frames);
+            let (frame, finished) = plan.position(start.elapsed());
+            self.frame = frame;
+            if finished { self.stop(); }
         }
         self.editing = Some((Instant::now(), self.engine.seek_async(self.frame)?));
-        let rate = (fps as f64)
+        let rate = (f64::from(fps) / f64::from(plan.step))
             .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.))
             .clamp(1., 120.);
         self.next_composition = Instant::now() + Duration::from_secs_f64(1. / rate);

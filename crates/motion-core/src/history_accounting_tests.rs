@@ -98,6 +98,31 @@ fn rename(name: &str) -> Command {
 }
 
 #[test]
+fn work_area_history_counts_changed_header_without_reserializing_layer_payloads() {
+    let mut project = Project::new(64, 64, 30, 36_000).unwrap();
+    let mut layer = Layer::solid(1, "Unchanged animated payload", [64.; 2], [32., 32., 0.], [1.; 4]);
+    for frame in 0..1000 {
+        layer.transform.position.set_at(frame, [frame as f32, 32., 0.]).unwrap();
+    }
+    project.layers.push(layer);
+    let mut engine = Engine::new(project).unwrap();
+    for (in_frame, out_frame) in [(1, 2), (1000, 35_999), (0, 36_000)] {
+        reset_serialized_bytes();
+        engine.apply(Command::SetWorkArea { in_frame, out_frame }).unwrap();
+        assert!(serialized_visit_bytes() < 4096, "range edits must reuse untouched animation sizes");
+        assert_exact(&engine);
+    }
+    for _ in 0..3 {
+        assert!(engine.undo().unwrap());
+        assert_exact(&engine);
+    }
+    for _ in 0..3 {
+        assert!(engine.redo().unwrap());
+        assert_exact(&engine);
+    }
+}
+
+#[test]
 fn history_accounting_matches_json_through_payload_changes_and_undo_redo() {
     let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     assert_exact(&engine);
@@ -381,6 +406,7 @@ fn history_accounting_composition_routing_and_activation_keep_exact_payload_size
         height: 64,
         fps: 30,
         frames: 180,
+        work_area: crate::WorkArea::full(180),
         background: [0.; 4],
         camera: crate::Camera::new(64, 64),
         layers: vec![Layer::solid(

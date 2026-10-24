@@ -305,6 +305,7 @@ mod tests {
             height: 16,
             fps: 30,
             frames: 60,
+            work_area: motion_core::WorkArea::full(60),
             background: p.background,
             camera: p.camera.clone(),
             layers,

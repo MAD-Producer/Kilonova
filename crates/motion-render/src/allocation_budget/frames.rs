@@ -134,6 +134,16 @@ impl Frames {
 }
 
 impl AllocationBudget {
+    pub(crate) fn gpu_command_contexts(&self) -> Vec<crate::gpu_commands::CommandContext> {
+        let state = cleanup_lock(&self.0);
+        state.frames.active.values().filter(|frame| frame.info.outcome.is_none()).map(|frame| {
+            crate::gpu_commands::CommandContext {
+                allocation_frame: frame.info.id, request: Some(frame.info.request),
+                operation: frame.info.operation, source_frame: frame.info.source_frame,
+                exposure_request: None, exposure_poll: None,
+            }
+        }).collect()
+    }
     /// Start before entering the frame handler. Saturation skips observation
     /// explicitly without refusing or changing the actual frame operation.
     pub fn begin_frame(

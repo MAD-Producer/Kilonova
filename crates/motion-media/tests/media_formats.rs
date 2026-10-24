@@ -112,6 +112,7 @@ fn downsampling_filters_ultrasonic_aliases_and_is_independent_of_block_boundarie
     drop(f);
     let mut p = project();
     p.frames = 30;
+    p.work_area = motion_model::WorkArea::full(p.frames);
     p.audio_assets.push(a);
     let mut l = Layer::solid(1, "audio", [0.0; 2], [0.0; 3], [1.0; 4]);
     l.content = Content::Audio {

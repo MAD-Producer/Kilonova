@@ -22,6 +22,7 @@ pub struct Composition {
     pub height: u32,
     pub fps: u32,
     pub frames: u32,
+    pub work_area: crate::WorkArea,
     pub background: [f32; 4],
     pub camera: Camera,
     pub layers: Vec<Layer>,
@@ -38,6 +39,7 @@ pub struct CompositionView<'a> {
     pub height: u32,
     pub fps: u32,
     pub frames: u32,
+    pub work_area: crate::WorkArea,
     pub background: [f32; 4],
     pub camera: &'a Camera,
     pub layers: &'a [Layer],
@@ -208,6 +210,7 @@ impl Composition {
             height: p.height,
             fps: p.fps,
             frames: p.frames,
+            work_area: p.work_area,
             background: p.background,
             camera: p.camera.clone(),
             layers: p.layers.clone(),
@@ -221,6 +224,7 @@ impl Composition {
         p.height = self.height;
         p.fps = self.fps;
         p.frames = self.frames;
+        p.work_area = self.work_area;
         p.background = self.background;
         p.camera = self.camera;
         p.layers = self.layers;
@@ -234,9 +238,11 @@ impl Project {
         std::iter::once(CompositionView {
             id: &self.composition_id, name: &self.name, width: self.width, height: self.height,
             fps: self.fps, frames: self.frames, background: self.background, camera: &self.camera,
+            work_area: self.work_area,
             layers: &self.layers, expressions: &self.expressions,
         }).chain(self.compositions.iter().map(|c| CompositionView {
             id: &c.id, name: &c.name, width: c.width, height: c.height, fps: c.fps, frames: c.frames,
+            work_area: c.work_area,
             background: c.background, camera: &c.camera, layers: &c.layers, expressions: &c.expressions,
         }))
     }
@@ -262,6 +268,7 @@ impl Project {
             height: body.height,
             fps: body.fps,
             frames: body.frames,
+            work_area: body.work_area,
             background: body.background,
             camera: body.camera.clone(),
             layers: body.layers.to_vec(),
@@ -987,7 +994,7 @@ impl Project {
                         }
                     }
                     for (k, v) in o.iter_mut() {
-                        if k == "keys" {
+                        if k == "keys" || k == "work_area" {
                             continue;
                         }
                         if k == "audio_markers" {
@@ -1037,6 +1044,7 @@ impl Project {
         node.height = s.height;
         node.fps = s.fps;
         node.frames = s.frames;
+        node.work_area = self.work_area.resized(old_frames, old_fps, s.frames, s.fps, s.timing == "preserve_seconds")?;
         for layer in &mut node.layers {
             if let Some(range)=layer.subframe_range {layer.set_interval(s.frames,range)?;}
         }

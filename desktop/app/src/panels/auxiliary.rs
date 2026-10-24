@@ -12,8 +12,16 @@ pub(crate) struct State {
     pub scroll: BTreeMap<u32, f32>,
     color_popup: Option<ColorPopup>,
     preview_quality: Dropdown,
+    preview_options: [Dropdown; 3],
+    export_scope: Dropdown,
     #[cfg(test)]
     preview_rect: Option<Rect>,
+    #[cfg(test)]
+    preview_fields: [Option<Rect>; 3],
+    #[cfg(test)]
+    preview_loop: Option<Rect>,
+    #[cfg(test)]
+    movie_scope_rect: Option<Rect>,
     #[cfg(test)]
     play_rect: Option<Rect>,
     color_field: Option<(usize, numeric::Field)>,
@@ -31,8 +39,10 @@ impl State {
     pub fn owner(&self) -> Option<Panel> {
         if self.color_popup.is_some() {
             Some(Panel::Character)
-        } else if self.preview_quality.open {
+        } else if self.preview_quality.open || self.preview_options.iter().any(|d| d.open) {
             Some(Panel::Preview)
+        } else if self.export_scope.open {
+            Some(Panel::RenderQueue)
         } else if self.align.target.open {
             Some(Panel::Align)
         } else {
@@ -43,6 +53,8 @@ impl State {
         let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
         self.color_popup = None;
         self.preview_quality.open = false;
+        for dropdown in &mut self.preview_options { dropdown.open = false; }
+        self.export_scope.open = false;
         self.align.target.open = false;
         begun
     }
@@ -201,7 +213,7 @@ pub(super) fn render(
     let locale = panels.locale;
     let layer = selected(panels, state).cloned();
     let height = match panel {
-        Panel::Preview => pad * 3. + control * 3. + gap * 3. + row,
+        Panel::Preview => pad * 2. + control * 5. + gap * 6. + row * 4.,
         Panel::Character
             if layer
                 .as_ref()
@@ -342,7 +354,6 @@ pub(super) fn render(
             }
         }
         Panel::Preview => {
-            let width = (area.width() - pad * 2.).max(0.);
             let transport_width = styles.metric("auxiliary.transport.width", 36.);
             let start =
                 area.min[0] + (area.width() - (transport_width * 3. + gap * 2.)).max(0.) * 0.5;
@@ -386,83 +397,7 @@ pub(super) fn render(
                 );
             }
             y += control + gap * 2.;
-            let caption = styles.metric("label.column", 72.).min(width * 0.32);
-            label(
-                list,
-                atlas,
-                Rect::new(area.min[0] + pad, y, caption, control),
-                locale.t(T::PlayShortcut),
-                true,
-            );
-            placeholder_field(
-                list,
-                atlas,
-                Rect::new(
-                    area.min[0] + pad + caption + gap,
-                    y,
-                    (width - caption - gap).max(0.),
-                    control,
-                ),
-                localized(locale, "空格键", "Space"),
-                true,
-            );
-            y += control + gap;
-            let cell = ((width - gap * 2.) / 3.).max(0.);
-            for (i, title) in [T::PreviewVideo, T::PreviewAudio].into_iter().enumerate() {
-                Checkbox::draw(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad + i as f32 * (cell + gap), y, cell, row),
-                    locale.t(title),
-                    true,
-                    input,
-                    false,
-                    false,
-                    None,
-                );
-            }
-            label(
-                list,
-                atlas,
-                Rect::new(area.min[0] + pad + (cell + gap) * 2., y, cell, row),
-                locale.t(T::CacheThenPlay),
-                true,
-            );
-            y += row + pad;
-            let selected = match state["preview"]["mode"].as_str().unwrap_or("auto") {
-                "high" => 1,
-                "balanced" => 2,
-                "economy" => 3,
-                _ => 0,
-            };
-            let labels = [
-                locale.t(T::Auto),
-                locale.t(T::Full),
-                locale.t(T::Smooth),
-                locale.t(T::Economy),
-            ];
-            let items = labels.map(|label| DropdownItem {
-                label,
-                enabled: true,
-            });
-            #[cfg(test)]
-            {
-                panels.auxiliary.preview_rect =
-                    Some(Rect::new(area.min[0] + pad, y, width, control));
-            }
-            if let Some(next) = panels.auxiliary.preview_quality.draw(
-                list,
-                atlas,
-                Rect::new(area.min[0] + pad, y, width, control),
-                area,
-                &items,
-                selected,
-                original_input,
-                true,
-                false,
-            ) {
-                out.push(Action::PreviewMode(next as i32));
-            }
+            preview_options(list, atlas, area, panels, state, original_input, input, y, out);
         }
         Panel::Character => {
             if let Some(l) = layer.as_ref().filter(|l| l["content"]["kind"] == "text") {
@@ -714,6 +649,12 @@ pub(super) fn render(
             }
         }
         Panel::RenderQueue => {
+            let width = (area.width() - pad * 2.).max(0.);
+            let caption = styles.metric("label.column", 72.).min(width * 0.36);
+            label(list, atlas, Rect::new(area.min[0]+pad,y,caption,control), localized(locale,"MP4 范围","MP4 range"), true);
+            let scope_rect = Rect::new(area.min[0] + pad + caption + gap, y, (width - caption - gap).max(0.), control);
+            #[cfg(test)] { panels.auxiliary.movie_scope_rect = Some(scope_rect); }
+            y += control + gap;
             line(
                 list,
                 atlas,
@@ -744,11 +685,91 @@ pub(super) fn render(
                 );
                 y += control + gap;
             }
+            let items = [localized(locale, "整段合成", "Full composition"), localized(locale, "工作范围", "Work area")]
+                .map(|label| DropdownItem { label, enabled: true });
+            if let Some(index) = panels.auxiliary.export_scope.draw(list, atlas, scope_rect, area, &items,
+                usize::from(panels.movie_export_scope == motion_core::FrameScope::WorkArea), original_input, true, false) {
+                out.push(Action::MovieExportScope(if index == 0 { motion_core::FrameScope::Composition } else { motion_core::FrameScope::WorkArea }));
+            }
+
         }
         _ => {}
     }
     if panel == Panel::Character {
         color_overlay(list, atlas, area, panels, &layer, original_input, out);
+    }
+}
+
+fn preview_options(
+    list: &mut PaintList, atlas: &mut TextAtlas, area: Rect, panels: &mut Panels,
+    state: &Value, original: &Input, input: &Input, y: f32, out: &mut Vec<Action>,
+) {
+    use crate::preview_playback::{Skip, Start};
+    use motion_core::FrameScope;
+    let styles = list.styles();
+    let pad = styles.metric("padding.panel", 8.);
+    let gap = styles.metric("auxiliary.gap", 6.);
+    let control = styles.metric("auxiliary.control.height", 26.).max(styles.metric("row.height", 22.));
+    let row = styles.metric("row.height", 22.);
+    let width = (area.width() - pad * 2.).max(0.);
+    let caption = styles.metric("label.column", 72.).min(width * 0.36);
+    let locale = panels.locale;
+    let t = |zh, en| localized(locale, zh, en);
+    let options = panels.preview_playback;
+    let titles = [t("范围", "Range"), t("开始播放", "Start from"), t("跳帧", "Skip"), t("分辨率", "Resolution")];
+    let labels = [
+        vec![t("整段合成", "Full composition"), t("工作范围", "Work area")],
+        vec![t("当前时间", "Current time"), t("范围起点", "Range start")],
+        vec![t("不跳帧", "No skipping"), "1", "2", "3", "4", "5"],
+        vec![locale.t(T::Auto), locale.t(T::Full), locale.t(T::Smooth), locale.t(T::Economy)],
+    ];
+    let selected = [usize::from(options.scope == FrameScope::WorkArea), usize::from(options.start == Start::RangeStart), options.skip as usize,
+        match state["preview"]["mode"].as_str().unwrap_or("auto") { "high" => 1, "balanced" => 2, "economy" => 3, _ => 0 }];
+    let rects: [Rect;4] = std::array::from_fn(|i| Rect::new(area.min[0] + pad + caption + gap,
+        y + i as f32 * (control + gap), (width - caption - gap).max(0.), control));
+    for i in 0..4 {
+        label(list, atlas, Rect::new(area.min[0]+pad, rects[i].min[1], caption, control), titles[i], true);
+    }
+    let below = y + 4. * (control + gap);
+    #[cfg(test)] { panels.auxiliary.preview_loop = Some(Rect::new(area.min[0]+pad,below,width,row)); }
+    if Checkbox::draw(list, atlas, Rect::new(area.min[0]+pad,below,width,row), t("循环播放", "Loop playback"), options.looping, input, true, false, None).clicked {
+        out.push(Action::PreviewPlayback(crate::preview_playback::Options { looping: !options.looping, ..options }));
+    }
+    let width_px = state["preview"]["memoryAdaptation"]["actualWidth"].as_u64().or_else(|| state["preview"]["width"].as_u64());
+    let height_px = state["preview"]["memoryAdaptation"]["actualHeight"].as_u64().or_else(|| state["preview"]["height"].as_u64());
+    let dimensions = match (width_px,height_px) { (Some(w),Some(h)) => format!("{}: {w} × {h}",t("实际像素", "Actual pixels")), _ => t("等待首帧", "Waiting for first frame").into() };
+    label(list,atlas,Rect::new(area.min[0]+pad,below+row,width,row),&dimensions,true);
+    let video = &state["preview"]["video"];
+    let frames = video["cacheFrames"].as_u64().unwrap_or(0);
+    let bytes = video["cacheBytes"].as_u64().unwrap_or(0);
+    let pending = video["decodeInFlight"].as_array().map_or(0,Vec::len);
+    let status = format!("{}: {frames} {} · {:.1} MiB",t("视频缓存", "Video cache"),t("帧", "frames"),bytes as f64/(1024.*1024.));
+    label(list,atlas,Rect::new(area.min[0]+pad,below+row*2.,width,row),&status,true);
+    let status = if pending > 0 { format!("{}: {pending}", t("正在解码", "Decoding")) }
+        else { t("按需解码 · 未预缓存整个范围", "On-demand decode · range not pre-cached").into() };
+    label(list,atlas,Rect::new(area.min[0]+pad,below+row*3.,width,row),&status,true);
+    #[cfg(test)] {
+        panels.auxiliary.preview_rect = Some(rects[3]);
+        panels.auxiliary.preview_fields = [Some(rects[0]),Some(rects[1]),Some(rects[2])];
+    }
+    // The active popup paints after its siblings and is the only input owner.
+    let active = (0..4).find(|&i| if i == 3 {panels.auxiliary.preview_quality.open} else {panels.auxiliary.preview_options[i].open});
+    let mut order = [0,1,2,3]; order.sort_by_key(|i| Some(*i) == active);
+    let neutral = Input::default();
+    for i in order {
+        let items: Vec<_> = labels[i].iter().map(|label| DropdownItem { label, enabled:true }).collect();
+        let dropdown = if i == 3 { &mut panels.auxiliary.preview_quality } else { &mut panels.auxiliary.preview_options[i] };
+        let key_input = if active.is_none() || active == Some(i) { original } else { &neutral };
+        if let Some(index) = dropdown.draw(list,atlas,rects[i],area,&items,selected[i],key_input,true,false) {
+            if i == 3 {out.push(Action::PreviewMode(index as i32)); continue;}
+            let mut next = options;
+            match i {
+                0 => next.scope = if index == 0 {FrameScope::Composition} else {FrameScope::WorkArea},
+                1 => next.start = if index == 0 {Start::Current} else {Start::RangeStart},
+                _ => next.skip = [Skip::None,Skip::One,Skip::Two,Skip::Three,Skip::Four,Skip::Five][index],
+            }
+            out.push(Action::PreviewPlayback(next));
+        }
     }
 }
 
@@ -936,6 +957,58 @@ fn color_overlay(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn loop_checkbox_and_movie_scope_dropdown_dispatch_real_values_in_both_hosts() {
+        for locale in [Locale::En,Locale::Zh] { for floating in [false,true] {
+            let mut p = Panels::default(); p.locale = locale;
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let mut draw = |panel,p: &mut Panels,i: &Input| if floating {
+                super::super::floating_chrome(&mut PaintList::default(),&mut atlas,panel,[300.,420.],p,&state,i)
+            } else {
+                super::super::chrome(&mut PaintList::default(),&mut atlas,[300.,420.],&dock::Node::dock(panel.dock()),p,&state,i)
+            };
+            let click = |r:Rect| {let point=[(r.min[0]+r.max[0])/2.,(r.min[1]+r.max[1])/2.];Input {mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default()}};
+            draw(Panel::Preview,&mut p,&Input::default());
+            let rect = p.auxiliary.preview_loop.unwrap();
+            assert!(matches!(draw(Panel::Preview,&mut p,&click(rect)).as_slice(),[Action::PreviewPlayback(options)] if !options.looping));
+            draw(Panel::RenderQueue,&mut p,&Input::default());
+            let rect = p.auxiliary.movie_scope_rect.unwrap();
+            assert!(draw(Panel::RenderQueue,&mut p,&click(rect)).is_empty());
+            assert_eq!(p.auxiliary.owner(),Some(Panel::RenderQueue));
+            draw(Panel::RenderQueue,&mut p,&Input {keys:vec![(Key::Down,Default::default())],..Default::default()});
+            assert!(matches!(draw(Panel::RenderQueue,&mut p,&Input {keys:vec![(Key::Enter,Default::default())],..Default::default()}).as_slice(),[Action::MovieExportScope(motion_core::FrameScope::WorkArea)]));
+            assert!(!p.auxiliary.editing());
+        }}
+    }
+    #[test]
+    fn preview_range_start_and_skip_select_explicit_values_in_both_hosts_and_locales() {
+        for locale in [Locale::En,Locale::Zh] { for floating in [false,true] {
+            let mut panels = Panels::default(); panels.locale = locale;
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let mut draw = |p: &mut Panels,i: &Input| if floating {
+                super::super::floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Preview,[300.,420.],p,&state,i)
+            } else {
+                super::super::chrome(&mut PaintList::default(),&mut atlas,[300.,420.],&dock::Node::dock(Panel::Preview.dock()),p,&state,i)
+            };
+            for field in 0..3 {
+                draw(&mut panels,&Input::default());
+                let rect = panels.auxiliary.preview_fields[field].unwrap();
+                let point = [(rect.min[0]+rect.max[0])/2.,(rect.min[1]+rect.max[1])/2.];
+                assert!(draw(&mut panels,&Input {mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default()}).is_empty());
+                assert_eq!(panels.auxiliary.owner(),Some(Panel::Preview));
+                assert!(draw(&mut panels,&Input {keys:vec![(Key::Down,Default::default())],..Default::default()}).is_empty());
+                let actions = draw(&mut panels,&Input {keys:vec![(Key::Enter,Default::default())],..Default::default()});
+                let [Action::PreviewPlayback(options)] = actions.as_slice() else {panic!("{actions:?}");};
+                panels.preview_playback = *options;
+                assert!(!panels.auxiliary.editing());
+            }
+            assert_eq!(panels.preview_playback.scope,motion_core::FrameScope::WorkArea);
+            assert_eq!(panels.preview_playback.start,crate::preview_playback::Start::RangeStart);
+            assert_eq!(panels.preview_playback.skip,crate::preview_playback::Skip::One);
+        }}
+    }
     #[test]
     fn content_shrink_clamps_scroll_even_when_pointer_is_outside() {
         let mut panels = Panels::default();

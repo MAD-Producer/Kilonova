@@ -49,6 +49,7 @@ pub enum Command {
     SetTrackMatte {object:u64,matte:Option<crate::compositing::TrackMatte>},
     InComposition { composition: String, command: Box<Command> },
     Composition { action: crate::CompositionAction },
+    SetWorkArea { in_frame: u32, out_frame: u32 },
     RegisterAudioAsset {
         asset: crate::AudioAsset,
     },
@@ -281,7 +282,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

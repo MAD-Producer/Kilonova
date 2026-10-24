@@ -158,6 +158,7 @@ impl Session {
             "compositingPipelineSetBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.compositing_pipeline_set_builds()),
             "surfaceBounded":self.preview.mode != PreviewMode::High,
             "gpuTimingActive":!self.sampling.required() && self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
+            "gpuCommands":self.graphics.as_ref().and_then(|g|g.renderer.command_observer()).map(|observer|observer.snapshot()),
             "profiling":self.recorder.is_some(),
             "pluginEditorRecovery":{"open":self.editor.is_some(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture),
                 "leaseMillis":super::effects::PLUGIN_EDITOR_LEASE.as_millis(),"cancelOperation":"cancel_plugin_gesture","last":self.editor_recovery},
@@ -418,6 +419,10 @@ impl Session {
             "already_coupled":"no_change","project_format_change":false});
         snapshot["capabilities"]["layer_sampling"]=crate::render_sampling::capabilities();
         snapshot["capabilities"]["composition_api"]["project_format"]=json!(motion_core::CURRENT_PROJECT_VERSION);
+        snapshot["capabilities"]["work_area"]=json!({"supported":true,
+            "project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_work_area",
+            "field":"work_area","scope":"composition","interval":"half_open",
+            "coordinates":"composition_frames","animated":false,"history":true});
         snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_rotation_order",
             "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",
             "changes_pose":true,"animated":false,"camera":false});
