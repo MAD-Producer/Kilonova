@@ -197,3 +197,77 @@ fn unequal_public_shape_color_buffers_keep_the_existing_zip_truncation() {
         );
     }
 }
+
+#[test]
+fn fully_contained_icon_clips_keep_triangle_storage() {
+    use motion_ui::icons::{self, Icon};
+    let mut list = PaintList::default();
+    for &icon in Icon::ALL {
+        icons::draw(
+            &mut list,
+            Rect::new(10., 10., 24., 24.),
+            icon,
+            20.,
+            Color::grey(220),
+        );
+    }
+    let area = Rect::new(0., 0., 100., 100.);
+    let buffers: Vec<_> = list
+        .shapes
+        .iter()
+        .map(|shape| {
+            let Shape::Triangles { points } = shape else {
+                panic!("icon triangles")
+            };
+            assert!(!points.is_empty() && points.len() % 3 == 0);
+            assert!(points.iter().all(|p| area.contains(*p)));
+            (points.as_ptr(), points.capacity())
+        })
+        .collect();
+    let count = allocations(|| {
+        for _ in 0..20 {
+            black_box(&mut list).clip_to(area);
+        }
+    });
+    println!(
+        "20 clips / {} contained icons: {count} allocation requests",
+        buffers.len()
+    );
+    // Only the existing shape-index map may allocate, once per clip.
+    assert!(
+        count <= 20,
+        "unnecessary contained triangle allocations: {count}"
+    );
+    for (shape, expected) in list.shapes.iter().zip(buffers) {
+        let Shape::Triangles { points } = shape else {
+            panic!("icon triangles")
+        };
+        assert_eq!((points.as_ptr(), points.capacity()), expected);
+    }
+}
+
+#[test]
+fn contained_triangles_still_drop_trailing_incomplete_vertices() {
+    let triangle = [[1., 1.], [4., 1.], [1., 4.]];
+    for trailing in [0, 1, 2] {
+        let mut points = triangle.to_vec();
+        points.extend([[2., 2.], [3., 3.]][..trailing].iter().copied());
+        let mut list = PaintList::default();
+        list.push_shape(Shape::Triangles { points }, Color::grey(220));
+        list.clip_to(Rect::new(0., 0., 10., 10.));
+        let Shape::Triangles { points } = &list.shapes[0] else {
+            panic!("triangle output")
+        };
+        assert_eq!(points, &triangle);
+        assert_eq!(list.order, vec![PaintOp::Shape(0)]);
+    }
+    let mut list = PaintList::default();
+    list.push_shape(
+        Shape::Triangles {
+            points: vec![[1., 1.], [2., 2.]],
+        },
+        Color::grey(220),
+    );
+    list.clip_to(Rect::new(0., 0., 10., 10.));
+    assert!(list.shapes.is_empty() && list.colors.is_empty() && list.order.is_empty());
+}
