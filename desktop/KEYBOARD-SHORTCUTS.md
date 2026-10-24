@@ -12,8 +12,8 @@
 
 | 快捷键 | 当前行为 | 范围 |
 | --- | --- | --- |
-| Ctrl+C / Ctrl+X / Ctrl+V | 复制 / 剪切图层 / 在播放头粘贴图层 | 时间轴片段模式和合成视口；文本字段、输入法、菜单、路径编辑及已选关键帧优先。图层缓存属于应用，与节点剪贴板分离 |
-| Ctrl+Shift+V | 原位粘贴图层 | 保留源图层的帧位置；Ctrl+V 把选区最早的入点移到读取目标时的播放头 |
+| Ctrl+C / Ctrl+X / Ctrl+V | 复制 / 剪切当前选择 / 在播放头粘贴 | 时间轴片段模式和合成视口操作图层；选中属性或关键帧时操作该通道，支持变换、效果、蒙版、嵌套形状及音频电平。文本字段、输入法、菜单和路径编辑优先；失效属性不回退为图层操作。图层、关键帧和节点缓存彼此独立 |
+| Ctrl+Shift+V | 原位粘贴图层或关键帧 | 保留源合成帧位置；Ctrl+V 把图层选区最早入点或关键帧选区最早帧移到读取目标时的播放头。选中属性时复制该通道的全部作者关键帧，选中单个关键帧时只复制该帧；目标通道必须兼容且目标帧不能被占用 |
 | Backquote (U+0060) | Temporarily maximize / restore the dock under the pointer; use the focused visible panel when outside the docks | Main window; text, IME, menus and gestures take priority. Floating windows retain their geometry. Temporary state is not saved. |
 | Ctrl+Alt+N / Ctrl+N | 新建工程 / 合成 | 工程与三个节点面板；文本编辑优先 |
 | Ctrl+O / Ctrl+S | 打开 / 保存当前文档 | 工程或节点；节点属性和预览浮窗也保存节点文档 |

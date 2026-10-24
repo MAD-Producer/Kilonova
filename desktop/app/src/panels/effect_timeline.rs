@@ -170,6 +170,9 @@ pub(crate) struct Controls {
     pub(super) rects: std::collections::HashMap<(u64, String, i32), Rect>,
 }
 impl Controls {
+    pub(in crate::panels) fn clipboard_frame(&self, state: &Value, object: u64, effect: u64, param: &str) -> Option<u32> {
+        self.key.as_ref().filter(|(target, _)| *target == Target::new(state, object, effect, param)).map(|(_, frame)| *frame)
+    }
     pub(crate) fn begin_probe(&mut self, effect: u64, parameter: &str) {
         self.probe.start();
         self.probe_parameter = Some((effect, parameter.into()));

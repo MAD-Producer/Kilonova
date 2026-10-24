@@ -99,6 +99,53 @@ fn route(panels: &mut Panels, state: &Value, key: Key, owner: Option<Panel>) -> 
 }
 
 #[test]
+fn clipboard_mask_and_nested_shape_channels_keep_typed_targets_and_authored_times() {
+    let engine = fixture();
+    let state = state(&engine);
+    for owner in [None, Some(Panel::Timeline)] { for shape in [false, true] {
+        let mut panels = Panels { focused: Some(Panel::Timeline), ..Default::default() };
+        panels.select_only(Some(7));
+        if shape { choose_shape(&mut panels, &state); } else { choose_mask(&mut panels, &state); }
+        let mut actions = vec![];
+        keyboard::route(&Input { keys: vec![(Key::C, motion_ui::input::Modifiers { control: true, ..Default::default() })], ..Default::default() }, &mut panels, &state, false, owner, &mut actions);
+        let [Action::KeyframeClipboard { selections, targets, .. }] = actions.as_slice() else { panic!("{actions:?}") };
+        assert_eq!(selections[0].frames, if shape { vec![30, 70] } else { vec![20, 80] });
+        assert_eq!(targets, &vec![if shape { motion_core::KeyframeTarget::Vector { object: 7, item: Some(1), parameter: "position".into() } } else { motion_core::KeyframeTarget::Mask { object: 7, mask: 1, property: MaskProperty::Opacity } }]);
+        motion_core::KeyframeClipboard::capture(engine.project(), selections).unwrap();
+        let mut stale = state.clone(); stale["composition"] = "other".into();
+        assert!(crate::panels::keyframe_clipboard::selection(&panels, &stale).is_none());
+        assert!(!keyboard::layer_clipboard_allowed(&panels, &stale));
+    } }
+}
+
+#[test]
+fn clipboard_mask_path_copies_whole_vertex_poses_and_rejects_partial_authored_pose() {
+    let mut project = fixture().project().clone();
+    for node in &mut project.layers[0].masks[0].path.nodes {
+        let original = node.geometry.value;
+        node.geometry.set_animated(0, true).unwrap();
+        node.geometry.set_at(20, original).unwrap();
+    }
+    let engine = Engine::new(project.clone()).unwrap();
+    let source = state(&engine);
+    let mut panels = Panels { focused: Some(Panel::Timeline), ..Default::default() };
+    panels.select_only(Some(7));
+    panels.path_controls.keys.choose(&source, mask_keys::Owner::from(&project.layers[0]), 1, mask_path::CHANNEL, &mut vec![]);
+    property_focus::settle(&mut panels);
+    let keys = crate::panels::keyframe_clipboard::selection(&panels, &source).unwrap();
+    assert_eq!(keys.targets.len(), 3);
+    assert_eq!(keys.selections.len(), 3);
+    assert!(keys.selections.iter().all(|s| s.frames == [0, 20]));
+    motion_core::KeyframeClipboard::capture(engine.project(), &keys.selections).unwrap();
+    project.layers[0].masks[0].path.nodes[1].geometry.keys.pop();
+    let partial = Engine::new(project).unwrap();
+    let source = state(&partial);
+    let keys = crate::panels::keyframe_clipboard::selection(&panels, &source).unwrap();
+    let error = motion_core::KeyframeClipboard::capture(partial.project(), &keys.selections).unwrap_err();
+    assert!(error.to_string().contains("phase=capture object=7"));
+}
+
+#[test]
 fn latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners() {
     let engine = fixture();
     let state = state(&engine);

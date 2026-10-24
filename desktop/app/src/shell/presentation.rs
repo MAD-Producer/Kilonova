@@ -99,6 +99,7 @@ impl Shell {
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
         self.panels.clipboard_available = self.layer_clipboard.available();
+        self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
         self.panels.clipboard_busy = self.layer_clipboard.busy();
         self.panel_maximize_shortcut(size);
         self.atlas.set_pixel_ratio(self.scale);
@@ -675,6 +676,7 @@ impl Shell {
         _event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
         self.panels.clipboard_available = self.layer_clipboard.available();
+        self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
         self.panels.clipboard_busy = self.layer_clipboard.busy();
         if (!self.actions.is_empty() && !self.present_due)
             || self.editing.is_some()

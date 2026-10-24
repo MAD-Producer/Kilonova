@@ -66,6 +66,23 @@ fn setup(catalogue: &Value, locale: Locale) -> Panels {
     p.timeline.expanded_effects.insert(7);
     p
 }
+
+#[test]
+fn clipboard_effect_key_uses_only_the_selected_timeline_key() {
+    let (engine, catalogue) = fixture();
+    let source = state(&engine);
+    let mut panels = setup(&catalogue, Locale::En);
+    choose(&mut panels, &source, &Target::new(&source, 7, 1, "speed"), Some(20));
+    let keys = super::super::keyframe_clipboard::selection(&panels, &source).unwrap();
+    assert_eq!(keys.selections[0].frames, [20]);
+    assert_eq!(keys.targets, [motion_core::KeyframeTarget::Effect { object: 7, effect: 1, param: "speed".into() }]);
+    motion_core::KeyframeClipboard::capture(engine.project(), &keys.selections).unwrap();
+    panels.focused = Some(Panel::EffectControls);
+    panels.effect_controls.choose_parameter(&source, 7, 1, "speed");
+    property_focus::settle(&mut panels);
+    let keys = super::super::keyframe_clipboard::selection(&panels, &source).unwrap();
+    assert_eq!(keys.selections[0].frames, [20, 80], "the inspector owns the property, not the timeline's retained diamond");
+}
 fn draw(
     p: &mut Panels,
     s: &Value,

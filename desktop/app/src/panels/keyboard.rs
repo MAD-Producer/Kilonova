@@ -28,7 +28,7 @@ pub(super) fn layer_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
         && !(panels.focused == Some(Panel::Timeline) && panels.timeline.graph_mode)
         && panels.animation_controls.user_key().is_none()
         && panels.animation_controls.track_selection(state, panels.selected)
-            != super::animation_controls::TrackSelection::Invalid
+            == super::animation_controls::TrackSelection::Unselected
         && state["observing"] != true
 }
 
@@ -363,12 +363,13 @@ fn handle_context_shortcuts(
                     == super::animation_controls::TrackSelection::Invalid;
         if let Some(mut command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
             if let Some(intent) = clipboard_intent(command) {
-                if !input.focus_lost && layer_clipboard_allowed(panels, state)
-                    && !panels.clipboard_busy
-                    && (matches!(intent, crate::layer_clipboard::controller::Intent::Copy | crate::layer_clipboard::controller::Intent::Cut)
-                        || panels.clipboard_available)
-                {
-                    out.push(Action::LayerClipboard(intent));
+                if !input.focus_lost && !panels.clipboard_busy && !layout_shortcuts_blocked(panels) && state["observing"] != true {
+                    if let Some(keys) = super::keyframe_clipboard::selection(panels, state) {
+                        if keys.enabled(state, intent, panels.keyframe_clipboard_available) { out.push(keys.action(intent)); }
+                    } else if layer_clipboard_allowed(panels, state)
+                        && (matches!(intent, crate::layer_clipboard::controller::Intent::Copy | crate::layer_clipboard::controller::Intent::Cut) || panels.clipboard_available) {
+                        out.push(Action::LayerClipboard(intent));
+                    }
                 }
                 continue;
             }

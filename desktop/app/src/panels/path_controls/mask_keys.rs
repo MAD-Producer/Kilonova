@@ -172,6 +172,33 @@ fn emit(
     }
 }
 impl Controls {
+    pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<crate::panels::keyframe_clipboard::Selection> {
+        use crate::panels::keyframe_clipboard as clipboard;
+        let c = self.active.as_ref().filter(|c| c.object == object)?;
+        if !self.selected_in(state, object, c.mask, c.property) { return None; }
+        let layer = clipboard::layer(state, object)?;
+        let mask = layer["masks"].as_array()?.iter().find(|m| m["id"] == c.mask)?;
+        let track = |property| motion_core::KeyframeTarget::Mask { object, mask: c.mask, property };
+        let (targets, mut frames): (Vec<_>, Vec<_>) = if c.property == mask_path::CHANNEL {
+            mask["path"]["nodes"].as_array()?.iter().map(|node| Some((track(MaskProperty::Node(node["id"].as_u64()?)), clipboard::json_frames(state, &node["geometry"], clipboard::offset(layer), object)?)))
+                .collect::<Option<Vec<_>>>()?.into_iter().unzip()
+        } else {
+            let name = match c.property { 0 => "opacity", 1 => "feather", _ => "expansion" };
+            (vec![track(property(c.property))], vec![clipboard::json_frames(state, &mask[name], clipboard::offset(layer), object)?])
+        };
+        if let Some((selected, frame)) = &self.selected {
+            if selected != c { return None; }
+            for frames in &mut frames { frames.retain(|f| f == frame); }
+        }
+        // A whole-path key is a pose. Include every vertex at the selected pose
+        // times; partial authored poses are rejected explicitly by core capture.
+        if c.property == mask_path::CHANNEL {
+            let mut union: Vec<_> = frames.iter().flatten().copied().collect();
+            union.sort_unstable(); union.dedup();
+            frames = targets.iter().map(|_| union.clone()).collect();
+        }
+        Some(clipboard::Selection::new(state, targets, frames, layer["locked"] != true))
+    }
     pub(super) fn take_selection_intent(&mut self) -> bool {
         std::mem::take(&mut self.selection_intent)
     }

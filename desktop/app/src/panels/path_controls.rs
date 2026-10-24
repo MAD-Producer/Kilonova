@@ -1430,6 +1430,9 @@ impl Controls {
     pub(super) fn take_mask_selection_intent(&mut self) -> bool {
         self.keys.take_selection_intent()
     }
+    pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<super::keyframe_clipboard::Selection> {
+        self.keys.clipboard_selection(state, object).or_else(|| self.groups.keys.clipboard_selection(state, object))
+    }
     pub(super) fn take_shape_selection_intent(&mut self) -> bool {
         self.groups.keys.take_selection_intent()
     }

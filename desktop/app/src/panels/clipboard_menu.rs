@@ -6,9 +6,12 @@ use crate::{
 use serde_json::Value;
 
 pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Action, bool)> {
+    let current_keys = if panels.clipboard_menu_allowed.is_none() { super::keyframe_clipboard::selection(panels, state) } else { None };
+    let keys = panels.clipboard_menu_keys.as_ref().filter(|_| panels.clipboard_menu_allowed.is_some()).or(current_keys.as_ref());
     let allowed = panels
         .clipboard_menu_allowed
-        .unwrap_or_else(|| super::keyboard::layer_clipboard_allowed(panels, state));
+        .unwrap_or_else(|| !super::keyboard::layout_shortcuts_blocked(panels) && state["observing"] != true
+            && (keys.is_some() || super::keyboard::layer_clipboard_allowed(panels, state)));
     let selected = panels.selection_ids();
     let copy = allowed && !panels.clipboard_busy && !selected.is_empty();
     let cut = copy
@@ -21,22 +24,23 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Action, bo
         });
     let paste = allowed && !panels.clipboard_busy && panels.clipboard_available;
     let zh = panels.locale == Locale::Zh;
+    let keyframes = keys.is_some();
     [
         (
             Command::CopySelection,
-            if zh { "复制图层" } else { "Copy Layers" },
+            if keyframes { if zh { "复制关键帧" } else { "Copy Keyframes" } } else if zh { "复制图层" } else { "Copy Layers" },
             Intent::Copy,
             copy,
         ),
         (
             Command::CutSelection,
-            if zh { "剪切图层" } else { "Cut Layers" },
+            if keyframes { if zh { "剪切关键帧" } else { "Cut Keyframes" } } else if zh { "剪切图层" } else { "Cut Layers" },
             Intent::Cut,
             cut,
         ),
         (
             Command::PasteSelection,
-            if zh {
+            if keyframes { if zh { "在播放头粘贴关键帧" } else { "Paste Keyframes at Playhead" } } else if zh {
                 "在播放头粘贴图层"
             } else {
                 "Paste Layers at Playhead"
@@ -46,7 +50,7 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Action, bo
         ),
         (
             Command::PasteInPlace,
-            if zh {
+            if keyframes { if zh { "原位粘贴关键帧" } else { "Paste Keyframes in Place" } } else if zh {
                 "原位粘贴图层"
             } else {
                 "Paste Layers in Place"
@@ -61,8 +65,8 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Action, bo
             panels
                 .shortcut_bindings
                 .label(label, Scope::Animation, command),
-            Action::LayerClipboard(intent),
-            enabled,
+            keys.map(|keys| keys.action(intent)).unwrap_or(Action::LayerClipboard(intent)),
+            keys.map(|keys| allowed && !panels.clipboard_busy && keys.enabled(state, intent, panels.keyframe_clipboard_available)).unwrap_or(enabled),
         )
     })
     .chain(std::iter::once((

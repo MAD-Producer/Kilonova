@@ -266,3 +266,48 @@ Shell 增加类型化关键帧动作和独立状态消息，共用已有播放�
 新增默认级别子进程原件为 `keyframe-clipboard-bridge-default-channel-verified/`，保存文件日志、stderr 与 stdout。真实 typed 读取不存在对象及 typed 提交目标占用均记录 request/operation、phase/object/channel 和原始原因。TestWait 阻塞时可读取在途状态和已落盘的 Info 开始信号；引擎注入终止后，排队读取经真实 poll_reply 返回带操作上下文的完整原始 panic/恢复信息。三种错误均进入文件与 stderr，未泄漏到 stdout；Info start 仅入文件。没有给关键帧 capture 加等待钩子或重启恢复策略。
 
 最终桌面测试文件 `E:/Dev/aem/target/host-error-contract-verified/debug/deps/motion_studio-083034f6d6ffe3a9.exe` 的本阶段 SHA-256 为 `e2410353a32916c79b3fa1be7a50ef7b1388282854a739fbf4076d4e0fee90a5`；同一路径之前的阶段 hash 属于之前构建，不作为当前文件的身份。此后未修改生产代码。新模块与本阶段整理模块定向 rustfmt 检查、`git diff --check`、`verify_style_consumers()` 通过。无新 UI 入口、截图或 CI 完成声明，未关闭 #204。
+
+## 关键帧剪贴板：属性选区、快捷键和菜单
+
+继续 #204，实施前只读检查近期分支及开放 PR，当时只有渲染暂存纹理 #483，与此处不重叠，未审查该 PR。新增选区投影读取既有控制器，不另建关键帧选区：变换、效果、蒙版、嵌套形状及音频电平可复制当前通道全部作者关键帧，显式选择单帧时只复制该帧。效果检查器复制属性，不受时间轴此前留下的单帧选择限制。蒙版路径聚合选择要求各节点存在相应作者关键帧；部分姿态由核心明确拒绝，不用采样值补造关键帧。
+
+快捷键按当前编辑器发出 typed 关键帧动作；失效的显式属性阻止回退为图层操作。Edit 菜单在标题栏改变焦点前保存所有者、目标和修订号，显示对应中英文关键帧标签，并检查忙碌、锁定、缓存和作用域。主窗和浮窗镜像同一应用缓存可用状态；文本、IME、节点、菜单和手势仍优先。快捷键说明同步更新，默认键位目录和偏好设置通用命令名无需变动。没有改右键菜单、行结构、绘制颜色、尺寸或样式 token。
+
+| ID | 分类 | 处置与证据边界 |
+| --- | --- | --- |
+| KU-01 | 新功能 | 属性/单帧选择、编辑菜单和键盘接入独立关键帧缓存；不跨属性自动转写。替代 KB-05 中对应待完成项。 |
+| KU-02 | 新观察 | 非可选轨道缺失 keys 或帧不是整数时，复用现有面板 `observe!` 固定站点 `clipboard.key_frames`，记录对象、阶段及禁用分支，不记录键值。该既有观察器按进程寿命累计，首次 Warn、第 60 次 Error，此后抑制；邻近正常行不重置，不能理解为连续一秒。 |
+| KU-03 | 正常分支 | 空轨道、尚未创建的可选音频包络、失效选区、无缓存、只读、重复键、IME 和失焦不作为错误。默认信道测试比较正常分支前后日志，确认没有新增记录。 |
+| KU-04 | 已有覆盖 | typed worker 失败、panic、阻塞前发布状态、取消、旧 Stamp 和大载荷沿用桥接阶段信道，本轮 clipboard 回归重新执行。未增加线程、重试、Present 日志或每帧文件 IO。 |
+| KU-05 | 待完成 | 选区作用域当前在 UI 路由/菜单激活时检查，尚需把来源绑定贯穿到异步读取，验证组合切换前已排队的旧动作；后读取 Stamp 验证不能代替这一项。文本、路径独立缓存、完整系统事件、当前主线组合、打包及 CI 仍待完成，#204 保持开放。 |
+
+### 实际验证与截图
+
+`E:/Dev/aem/artifacts/pr-ci-followups/` 保留最初编译失败 `keyframe-clipboard-routing-first.log`：新增字段的私有可见性妨碍既有外部 Panels 构造，已改正。第二轮实际 50 项中 48 通过、2 失败：新音频夹具没有设置焦点；新日志夹具错误断言之前已写日志的文件为空。分别补上焦点并改为严格比较正常分支前后内容；没有修改既有产品断言、阈值或忽略测试。第三轮和 verified 轮各 50 项通过，是中间结果，不重复累计。
+
+最终 `keyframe-clipboard-routing-final.log` 使用 `cargo test -p motion-desktop --features ffmpeg --bin motion-studio clipboard -- --test-threads=1 --skip native`，实际 50 项通过、0 失败、0 忽略，944 项未执行，用时 57.38 秒，保留 22 项既有编译警告。覆盖既有桥接/Shell/节点/menu 及新增十项属性路由回归。核心代码自之前 67 项验收后未变。`keyframe-clipboard-selection-default-channel-final/` 保留 malformed 真实退化子进程的文件、stderr、stdout：120 次异常只产生首次 Warn 和第 60 次 Error，Error 同时进入文件及 stderr，stdout 不含错误；默认 MOTION_LOG 未设置。合法空轨道和可选包络另有正常分支断言。
+
+`keyframe-clipboard-native-first.log` 的真实 HWND/wgpu 测试通过，用时 15.78 秒。四组为主窗英语 900×600/100%、主窗中文 1600×1000/150%、浮窗英语 900×600/150%、浮窗中文 1600×1000/100%，分别覆盖普通单帧与曲线整通道。生产组件 Ctrl+C 实际捕获；主窗打开菜单并点击播放头粘贴，浮窗 Ctrl+Shift+V 原位粘贴。验证真实局部帧、目标图层选择保留、完整 storage::load 保存重开和一次撤销。选区通过既有控制器设置，输入经生产 `Input`/组件路由，未覆盖 OS 键鼠注入及完整 `window_event`。
+
+原始六图位于 `keyframe-clipboard-ui-native/`：`main-en-single-edit-menu.png`、`main-en-single-pasted.png`、`main-zh-curve-edit-menu.png`、`main-zh-curve-pasted.png`、`float-en-single-pasted.png`、`float-zh-curve-pasted.png`。已查看中文主窗菜单、英语普通时间轴和中文浮窗曲线；菜单可读且实际目标关键帧存在。空 composition 只绘制 UI，不伪造合成输出。最小窗口右侧属性裁切沿用既有布局，本轮未修复，不能宣称全界面验收通过。原生子进程保留本机 Epic EOSOverlay JSON 缺失的 Vulkan loader 错误，未吞掉或改注册表。
+
+既有图层 native 回归先因未加载 FFmpeg DLL 环境而退出 `-1073741515`，没有进入测试；加载仓库既有 env.ps1 后，`keyframe-clipboard-layer-native-regression-with-env.log` 实际 1 项通过，用时 21.93 秒。没有把失败启动当作产品测试通过。最终测试文件 SHA-256 为 `8eb30659e8860811c19e07eca46cc17d7f6b22d14ef9a3af28e4a30c6f040da7`，对应上述 UI 阶段构建。
+
+DESIGN §0.7 的十二项处置如下。基线行号/旧表达式不能代替当前代码判断；本阶段不宣称这些旧问题已被修好或仍以原表达式存在。截图仅验收新增菜单行为。
+
+| 基线项 | 处置与理由 |
+| --- | --- |
+| path_controls 六处行步长 | 保留绘制实现；本轮只增加选区读取。 |
+| path_controls 双列 | 保留绘制实现；本轮不改属性布局。 |
+| path_controls 混合按钮高度 | 保留绘制实现；本轮不改命中区。 |
+| path_controls 数值字段 | 保留绘制实现；本轮不改输入字段。 |
+| path_controls 布尔字段 | 保留绘制实现；本轮不改控件。 |
+| effect_controls 行步长 | 保留绘制实现；本轮只读取既有属性所有者。 |
+| effect_controls 布尔字段 | 保留绘制实现；本轮不改控件。 |
+| effect_controls 枚举字段 | 保留绘制实现；本轮不改控件。 |
+| effect_controls 悬浮色 | 保留绘制实现；本轮不改颜色。 |
+| effect_controls 层级 | 保留绘制实现；本轮不改树形布局。 |
+| timeline 列坐标 | 保留绘制实现；新增 getter 不改列坐标。 |
+| timeline 吸附线 | 保留绘制实现；本轮不改拖动反馈。 |
+
+定向格式、`git diff --check`、`verify_style_consumers()` 通过；无新依赖、第三方资产、工程格式或渲染语义变更。

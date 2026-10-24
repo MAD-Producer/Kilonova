@@ -16,6 +16,7 @@ use winit::{
     dpi::PhysicalSize, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows,
     window::Window,
 };
+mod keyframes;
 
 fn chord(key: Key, shift: bool) -> Input {
     Input {
@@ -43,6 +44,7 @@ fn draw(shell: &mut Shell, size: [f32; 2], window: u64, input: Input) -> (PaintL
         shell.draw_commands(size)
     } else {
         shell.panels.clipboard_available = shell.layer_clipboard.available();
+        shell.panels.keyframe_clipboard_available = shell.layer_clipboard.keyframes_available();
         shell.panels.clipboard_busy = shell.layer_clipboard.busy();
         let mut paint = PaintList::default();
         paint.stylesheet = shell.panels.styles.clone();

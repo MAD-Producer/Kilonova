@@ -67,6 +67,7 @@ pub(crate) mod layer_navigation;
 mod layer_switches;
 mod menus;
 mod clipboard_menu;
+mod keyframe_clipboard;
 pub(crate) mod numeric;
 mod observation;
 #[cfg(test)]
@@ -376,7 +377,10 @@ pub fn chrome(
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     if panels.menu.is_none() && input.pressed.is_some_and(|(_, point)|
         point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR) {
-        panels.clipboard_menu_allowed = Some(keyboard::layer_clipboard_allowed(panels, state));
+        panels.clipboard_menu_keys = keyframe_clipboard::selection(panels, state);
+        panels.clipboard_menu_allowed = Some(!keyboard::layout_shortcuts_blocked(panels)
+            && state["observing"] != true
+            && (panels.clipboard_menu_keys.is_some() || keyboard::layer_clipboard_allowed(panels, state)));
     }
     if let Some((_, point)) = input.pressed.filter(|(_, point)| {
         !panels.effect_search_in(None)
