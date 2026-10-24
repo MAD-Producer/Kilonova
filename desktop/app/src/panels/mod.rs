@@ -1540,14 +1540,28 @@ mod tests {
                 };
                 let state = serde_json::json!({"canUndo":false,"canRedo":false,"observing":observing,
                     "preview":{"pluginEditorRecovery":{"gesture":active}},"project":{"layers":[]}});
+                // Clipboard commands precede cancellation in the Edit menu.
+                // Exercise scrolling in the original small window before hitting
+                // cancellation, rather than clicking the obsolete third row.
+                let cancel_row = 2 + clipboard_menu::entries(&panels, &state).len();
+                let mut atlas = TextAtlas::from_system(12.).unwrap();
+                let mut out = vec![];
+                for _ in 0..cancel_row {
+                    menus(
+                        &mut PaintList::default(), &mut atlas, [280., 240.],
+                        &mut panels,
+                        &Input { mouse: [20., 100.], wheel: [0., -1.], ..Default::default() },
+                        &state, &mut out,
+                    );
+                }
                 let point = [
                     20.,
-                    metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.,
+                    metrics::TITLE_BAR + metrics::MENU_BAR + 4.
+                        + (cancel_row - panels.menu_scroll) as f32 * 32. + 15.,
                 ];
-                let mut out = vec![];
                 menus(
                     &mut PaintList::default(),
-                    &mut TextAtlas::from_system(12.).unwrap(),
+                    &mut atlas,
                     [280., 240.],
                     &mut panels,
                     &Input {
