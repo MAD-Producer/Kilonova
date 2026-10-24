@@ -521,6 +521,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if self.route_effect_drag_event(id, &event) { return; }
         if self.floating.contains_key(&id) {
             self.floating_event(event_loop, id, event);
             return;

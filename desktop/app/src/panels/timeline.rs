@@ -1155,6 +1155,9 @@ pub(super) fn render(
         if y < body.min[1] || y + row_height > body.max[1] {
             continue;
         }
+        if row.id != 0 {
+            panels.effect_drag.target(Rect::new(area.min[0], y, area.width(), row_height), Some(row.id));
+        }
         let name = Rect::new(
             columns.name.x,
             y,

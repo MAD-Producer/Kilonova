@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "capture": "Windows native HWND + GPU Present/CaptureUi, injected production WindowEvent bridge; no redraw",
+  "files": [
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\effect-drag-native-verified-final\\batch-target-zh.png",
+      "sourceSHA256": "d7575d48d803c0ee6f3682dfe72c216e392bcbdb931ada01518515b9e483d842",
+      "sourceSize": [
+        1600,
+        1000
+      ],
+      "crop": [
+        0,
+        590,
+        1280,
+        815
+      ],
+      "output": "batch-target.png",
+      "outputSHA256": "4ca1b2ba62a68ab621081bcbaa4115cfd6d96d6791d51eaf5a7c014432d4ecc1"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\effect-drag-native-verified-final\\locked-target-zh.png",
+      "sourceSHA256": "3ba6ad9a1f0649e0b06b52441265f77e612a65560cc98e273ea9f861efc75ef9",
+      "sourceSize": [
+        1600,
+        1000
+      ],
+      "crop": [
+        0,
+        590,
+        1280,
+        790
+      ],
+      "output": "locked-target.png",
+      "outputSHA256": "52e2a4bcd1c1a6cf6389ca8a14860b560e94523cf7950dedb9f5003ec1e155ca"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\effect-drag-native-verified-final\\minimum-target-zh.png",
+      "sourceSHA256": "fd316e61dcf0100bf8e2a0c968b26ef352897c3f173722f9e60c62279315077a",
+      "sourceSize": [
+        900,
+        600
+      ],
+      "crop": null,
+      "output": "minimum-target.png",
+      "outputSHA256": "99d1138da2ebc58694cca1556a2e76b0611019ff3d66204f97d79b0ea9aee918"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\effect-drag-native-verified-final\\floating-target-dpi-1.png",
+      "sourceSHA256": "3d1e2878541754579c40df59005e2478fed538efdd7d301a2e6a53de63d2926e",
+      "sourceSize": [
+        360,
+        500
+      ],
+      "crop": null,
+      "output": "floating-target.png",
+      "outputSHA256": "7cbcbd3333645d84d7638545b8650eefb273b4f9183d31f22b0d0f0445663a3e"
+    },
+    {
+      "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\effect-drag-native-verified-final\\library-source-zh.png",
+      "sourceSHA256": "497f7130d44b1ca6d2fbf1eaabc50865ef5ab1dcc36aee22c4a8c472798f4fef",
+      "sourceSize": [
+        360,
+        500
+      ],
+      "crop": null,
+      "output": "library-source.png",
+      "outputSHA256": "dc1b4e15d27b57df0927e261333d65c1319d9e6390c9eaa1385a5a59f5f1d039"
+    }
+  ]
+}
