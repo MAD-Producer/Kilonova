@@ -93,69 +93,8 @@ impl GpuCommandProfiler {
     /// Admission failure preserves the actual typed budget error. Slots are
     /// bounded; busy observations are omitted without blocking/retrying work.
     pub fn new(renderer: &Renderer, capacity: usize) -> Result<Option<Self>, RenderError> {
-        if !(1..=MAX_ACTIVE_GPU_COMMANDS).contains(&capacity) {
-            return Err(RenderError::Invalid(
-                "GPU command slots must be 1..128".into(),
-            ));
-        }
-        let device = &renderer.device;
-        let period_ns = f64::from(renderer.queue.get_timestamp_period());
-        if !device.features().contains(wgpu::Features::TIMESTAMP_QUERY)
-            || device.limits().max_compute_workgroups_per_dimension == 0
-            || !period_ns.is_finite()
-            || period_ns <= 0.0
-        {
-            return Ok(None);
-        }
-        let records = CommandRecords::new()
-            .ok_or_else(|| RenderError::Invalid("GPU command epoch identity exhausted".into()))?;
-        let context = renderer.allocation_context();
-        let slots = (0..capacity)
-            .map(|_| {
-                // Complete fallible reservations before creating/publishing queries.
-                let resolve = AllocationBuffer::new(
-                    device,
-                    context.budget(),
-                    &wgpu::BufferDescriptor {
-                        label: Some("Motion Studio command timestamp resolve"),
-                        size: wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
-                        usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
-                        mapped_at_creation: false,
-                    },
-                )?;
-                let mapped = AllocationBuffer::new(
-                    device,
-                    context.budget(),
-                    &wgpu::BufferDescriptor {
-                        label: Some("Motion Studio command timestamp words"),
-                        size: WORD_BYTES,
-                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                        mapped_at_creation: false,
-                    },
-                )?;
-                Ok(Arc::new(Slot {
-                    queries: device.create_query_set(&wgpu::QuerySetDescriptor {
-                        label: Some("Motion Studio command interval"),
-                        ty: wgpu::QueryType::Timestamp,
-                        count: 2,
-                    }),
-                    resolve,
-                    mapped,
-                    state: Arc::new(AtomicU8::new(FREE)),
-                    cancelled: AtomicBool::new(false),
-                }))
-            })
-            .collect::<Result<Vec<_>, RenderError>>()?;
-        Ok(Some(Self {
-            context,
-            pool: Arc::new(Pool {
-                slots,
-                records,
-                readback: Arc::default(),
-                period_ns,
-                queue: renderer.queue.clone(),
-            }),
-        }))
+        let pool = Pool::new(&renderer.device, &renderer.queue, renderer.allocation_budget(), capacity)?;
+        Ok(pool.map(|pool| Self { context: renderer.allocation_context(), pool }))
     }
     pub fn observer(&self) -> GpuCommandObserver {
         self.pool.observer()
@@ -191,6 +130,11 @@ impl GpuCommandProfiler {
 // merged with another renderer or PreviewInput merely to attach observations.
 pub(crate) struct AttachedCommandProfiler(Arc<Pool>);
 impl AttachedCommandProfiler {
+    pub(crate) fn for_input(device: &wgpu::Device, queue: &wgpu::Queue,
+        budget: &crate::AllocationBudget, capacity: usize) -> Result<Option<Self>, RenderError>
+    {
+        Ok(Pool::new(device, queue, budget, capacity)?.map(Self))
+    }
     pub(crate) fn exposure_scope(&self, context: ExposureCommandContext) -> ExposureCommandScope {
         self.0.records.exposure_scope(context)
     }
@@ -203,10 +147,18 @@ impl AttachedCommandProfiler {
         descriptor: &wgpu::CommandEncoderDescriptor<'_>,
         stage: CommandStage,
     ) -> Result<AllocationEncoder, RenderError> {
-        let span = self
-            .0
-            .begin(stage, renderer.allocation_budget().gpu_command_contexts());
+        let span = self.0.begin(stage, renderer.allocation_budget().gpu_command_contexts());
         let mut encoder = renderer.unobserved_command_encoder(descriptor)?;
+        encoder.observe_commands(span);
+        Ok(encoder)
+    }
+    pub(crate) fn allocated_encoder(&self, device: &wgpu::Device,
+        budget: &crate::AllocationBudget, owner: Arc<()>,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>, stage: CommandStage)
+        -> Result<AllocationEncoder, RenderError>
+    {
+        let span = self.0.begin(stage, budget.gpu_command_contexts());
+        let mut encoder = budget.encoder(device, owner, descriptor)?;
         encoder.observe_commands(span);
         Ok(encoder)
     }
@@ -237,6 +189,70 @@ impl Drop for AttachedCommandProfiler {
     }
 }
 impl Pool {
+    // One pool belongs to exactly one device/queue owner. Shared admission is
+    // not permission to reuse query sets or mapping buffers across devices.
+    fn new(device: &wgpu::Device, queue: &wgpu::Queue, budget: &crate::AllocationBudget,
+        capacity: usize) -> Result<Option<Arc<Self>>, RenderError>
+    {
+        if !(1..=MAX_ACTIVE_GPU_COMMANDS).contains(&capacity) {
+            return Err(RenderError::Invalid(
+                "GPU command slots must be 1..128".into(),
+            ));
+        }
+        let period_ns = f64::from(queue.get_timestamp_period());
+        if !device.features().contains(wgpu::Features::TIMESTAMP_QUERY)
+            || device.limits().max_compute_workgroups_per_dimension == 0
+            || !period_ns.is_finite()
+            || period_ns <= 0.0
+        {
+            return Ok(None);
+        }
+        let records = CommandRecords::new()
+            .ok_or_else(|| RenderError::Invalid("GPU command epoch identity exhausted".into()))?;
+        let slots = (0..capacity)
+            .map(|_| {
+                // Complete fallible reservations before creating/publishing queries.
+                let resolve = AllocationBuffer::new(
+                    device,
+                    budget,
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio command timestamp resolve"),
+                        size: wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
+                        usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
+                        mapped_at_creation: false,
+                    },
+                )?;
+                let mapped = AllocationBuffer::new(
+                    device,
+                    budget,
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio command timestamp words"),
+                        size: WORD_BYTES,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                        mapped_at_creation: false,
+                    },
+                )?;
+                Ok(Arc::new(Slot {
+                    queries: device.create_query_set(&wgpu::QuerySetDescriptor {
+                        label: Some("Motion Studio command interval"),
+                        ty: wgpu::QueryType::Timestamp,
+                        count: 2,
+                    }),
+                    resolve,
+                    mapped,
+                    state: Arc::new(AtomicU8::new(FREE)),
+                    cancelled: AtomicBool::new(false),
+                }))
+            })
+            .collect::<Result<Vec<_>, RenderError>>()?;
+        Ok(Some(Arc::new(Self {
+                slots,
+                records,
+                readback: Arc::default(),
+                period_ns,
+                queue: queue.clone(),
+        })))
+    }
     fn observer(&self) -> GpuCommandObserver {
         GpuCommandObserver {
             records: self.records.clone(),

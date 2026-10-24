@@ -26,6 +26,8 @@ pub struct PreviewInputTexture {
     rgba: Option<OwnedTexture>,
     allocation_budget: AllocationBudget,
     allocation_owner: Arc<()>,
+    // Optional and owner-local even when several devices share admission.
+    command_profiler: Option<crate::gpu_commands::AttachedCommandProfiler>,
     // Submit pending writes only after views/bindings and owned caches drop.
     allocation_uploads: AllocationUploads,
 }
@@ -156,8 +158,38 @@ impl PreviewInputTexture {
             copy_group: None,
             allocation_budget,
             allocation_owner: Arc::new(()),
+            command_profiler: None,
             allocation_uploads,
         })
+    }
+    /// Explicit input-owner timing; starting the renderer's profiler does not
+    /// attach this independent resource. Default uploads create no query pool.
+    /// Failure preserves the previous epoch and the current visible input.
+    pub fn start_command_profiling(&mut self, slots: usize)
+        -> Result<Option<crate::gpu_commands::GpuCommandObserver>, RenderError>
+    {
+        let profiler = crate::gpu_commands::AttachedCommandProfiler::for_input(
+            &self.device, &self.queue, &self.allocation_budget, slots)?;
+        let observer = profiler.as_ref().map(|profiler| profiler.observer());
+        self.command_profiler = profiler;
+        Ok(observer)
+    }
+    pub fn command_observer(&self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.as_ref().map(|profiler| profiler.observer())
+    }
+    /// Retires only diagnostics. Does not poll, cancel uploads or change the
+    /// original upload/queue retirement behavior. Late callbacks keep their IDs.
+    pub fn stop_command_profiling(&mut self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.take().map(|profiler| profiler.observer())
+    }
+    fn command_encoder(&self) -> Result<crate::AllocationEncoder, RenderError> {
+        let descriptor = wgpu::CommandEncoderDescriptor::default();
+        match &self.command_profiler {
+            Some(profiler) => profiler.allocated_encoder(&self.device, &self.allocation_budget,
+                self.allocation_owner.clone(), &descriptor,
+                crate::gpu_commands::CommandStage::AuthoringInput),
+            None => self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &descriptor),
+        }
     }
     pub fn view(&self) -> Option<&AdmittedTextureView> {
         self.view.as_ref()
@@ -295,11 +327,7 @@ impl PreviewInputTexture {
             return Ok(());
         }
         // Hold the prior input through all allocation, scope and journal checks.
-        let mut encoder = self.allocation_budget.encoder(
-            &self.device,
-            self.allocation_owner.clone(),
-            &Default::default(),
-        )?;
+        let mut encoder = self.command_encoder()?;
         let texture = self.next_output(output)?;
         let output_view = texture.admitted_view()?;
         let source = if self.rgba_size == (width, height) {
@@ -394,11 +422,7 @@ impl PreviewInputTexture {
         let (width, height) = frame.display_size();
         let output = self.output_size(width, height, max_edge)?;
         self.budget(output, frame.bytes() as u64)?;
-        let mut encoder = self.allocation_budget.encoder(
-            &self.device,
-            self.allocation_owner.clone(),
-            &Default::default(),
-        )?;
+        let mut encoder = self.command_encoder()?;
         let texture = self.next_output(output)?;
         let output_view = texture.admitted_view()?;
         let new_converter = self
