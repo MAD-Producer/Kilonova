@@ -14,6 +14,15 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
     private val luts=HashMap<Int,Pair<Int,ByteArray>>()
     private var packageBytes=0L
     private var poolDescriptors=emptyList<RenderPlanBudget.ScratchAllocation>()
+    private val extensions by lazy {
+        val count=IntArray(1);GL.glGetIntegerv(GL.GL_NUM_EXTENSIONS,count,0)
+        (0 until count[0]).mapNotNull{GL.glGetStringi(GL.GL_EXTENSIONS,it)}.toSet()
+    }
+    private val coreFloatTargets by lazy {
+        val major=IntArray(1);val minor=IntArray(1)
+        GL.glGetIntegerv(GL.GL_MAJOR_VERSION,major,0);GL.glGetIntegerv(GL.GL_MINOR_VERSION,minor,0)
+        major[0]>3||(major[0]==3&&minor[0]>=2)
+    }
     private var framebuffer=0;private var uniform=0;private var sprites=0;private var spriteVao=0
     init {
         try {
@@ -96,7 +105,7 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
             try {
                 for((i,a) in descriptors.withIndex()) {
                     if(poolDescriptors.getOrNull(i)?.sameStorage(a)==true&&pool.getOrNull(i)!=null&&pool[i]!=0){next[i]=pool[i];reused[i]=true}
-                    else {next[i]=texture(a.width,a.height,a.format==0,null,a.format==2);check(GL.glGetError()==GL.GL_NO_ERROR){"效果临时纹理分配失败: $i"}}
+                    else {next[i]=texture(a.width,a.height,a.format==0,null,a.format)}
                 }
             } catch(failure:Throwable) {
                 val created=next.filterIndexed{i,id->id!=0&&!reused[i]}.toIntArray()
@@ -238,14 +247,40 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
         GL.glDeleteBuffers(1,intArrayOf(sprites),0);GL.glDeleteVertexArrays(1,intArrayOf(spriteVao),0)
         sprites=0;spriteVao=0;uniform=0;framebuffer=0
     }
-    private fun texture(w:Int,h:Int,srgb:Boolean,data:ByteBuffer?,floating:Boolean=false):Int {
+    private fun texture(w:Int,h:Int,srgb:Boolean,data:ByteBuffer?,storage:Int=if(srgb)0 else 1):Int {
         val limit=IntArray(1);GL.glGetIntegerv(GL.GL_MAX_TEXTURE_SIZE,limit,0)
         check(w in 1..limit[0]&&h in 1..limit[0]){"效果纹理超过设备能力"}
-        val id=IntArray(1);GL.glGenTextures(1,id,0);GL.glBindTexture(GL.GL_TEXTURE_2D,id[0])
-        GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MIN_FILTER,GL.GL_LINEAR);GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MAG_FILTER,GL.GL_LINEAR)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_S,GL.GL_CLAMP_TO_EDGE);GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_T,GL.GL_CLAMP_TO_EDGE)
-        GL.glTexImage2D(GL.GL_TEXTURE_2D,0,if(floating)GL.GL_RGBA16F else if(srgb)GL.GL_SRGB8_ALPHA8 else GL.GL_RGBA8,w,h,0,GL.GL_RGBA,if(floating)GL.GL_HALF_FLOAT else GL.GL_UNSIGNED_BYTE,data)
-        return id[0]
+        val (internal,type)=when(storage) {
+            0->GL.GL_SRGB8_ALPHA8 to GL.GL_UNSIGNED_BYTE
+            1->GL.GL_RGBA8 to GL.GL_UNSIGNED_BYTE
+            2->{
+                check(coreFloatTargets||"GL_EXT_color_buffer_float" in extensions||"GL_EXT_color_buffer_half_float" in extensions){"Float16 缺少可渲染浮点格式；未降低精度"}
+                GL.GL_RGBA16F to GL.GL_HALF_FLOAT
+            }
+            3->{
+                check("GL_EXT_texture_norm16" in extensions){"UNORM16 缺少 GL_EXT_texture_norm16；未降低精度"}
+                // RGBA16_EXT from the Khronos EXT_texture_norm16 registry.
+                0x805B to GL.GL_UNSIGNED_SHORT
+            }
+            4->{
+                check((coreFloatTargets||"GL_EXT_color_buffer_float" in extensions)
+                    &&"GL_OES_texture_float_linear" in extensions&&"GL_EXT_float_blend" in extensions){"Float32 缺少渲染、线性过滤或混合能力；未降低精度"}
+                GL.GL_RGBA32F to GL.GL_FLOAT
+            }
+            else->error("不支持的效果纹理格式: $storage")
+        }
+        val id=IntArray(1);GL.glGenTextures(1,id,0)
+        try {
+            check(id[0]!=0){"效果纹理分配失败: format=$storage"}
+            GL.glBindTexture(GL.GL_TEXTURE_2D,id[0])
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MIN_FILTER,GL.GL_LINEAR);GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MAG_FILTER,GL.GL_LINEAR)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_S,GL.GL_CLAMP_TO_EDGE);GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_T,GL.GL_CLAMP_TO_EDGE)
+            GL.glTexImage2D(GL.GL_TEXTURE_2D,0,internal,w,h,0,GL.GL_RGBA,type,data)
+            check(GL.glGetError()==GL.GL_NO_ERROR){"效果纹理分配失败: ${w}x$h format=$storage"}
+            return id[0]
+        } catch(failure:Throwable) {
+            GL.glDeleteTextures(1,id,0);throw failure
+        }
     }
     private fun link(vertex:String,fragment:String):Int {
         val shaderIds=ArrayList<Int>();var program=0

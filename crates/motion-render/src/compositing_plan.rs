@@ -13,8 +13,8 @@ pub(crate) fn cached_program<T>(
         .map_err(|cause| RenderError::Shared(cause.clone()))
 }
 pub const BLEND: &str = r#"
-fn transfer(b:vec3<f32>,s:vec3<f32>,mode:u32)->vec3<f32> {
-    if mode==1u{return min(b+s,vec3(1.0));}
+fn transfer(b:vec3<f32>,s:vec3<f32>,mode:u32,extended:bool)->vec3<f32> {
+    if mode==1u{return select(min(b+s,vec3(1.0)),b+s,extended);}
     if mode==2u{return b*s;}
     if mode==3u{return b+s-b*s;}
     if mode==4u{return select(vec3(1.0)-2.0*(vec3(1.0)-b)*(vec3(1.0)-s),2.0*b*s,b<=vec3(0.5));}
@@ -27,7 +27,7 @@ fn transfer(b:vec3<f32>,s:vec3<f32>,mode:u32)->vec3<f32> {
     if mode==11u {let c=select(min(b/max(vec3(1.0)-s,vec3(0.000001)),vec3(1.0)),vec3(1.0),s==vec3(1.0));return select(c,vec3(0.0),b==vec3(0.0));}
     if mode==12u {let c=select(vec3(1.0)-min((vec3(1.0)-b)/max(s,vec3(0.000001)),vec3(1.0)),vec3(0.0),s==vec3(0.0));return select(c,vec3(1.0),b==vec3(1.0));}
     if mode==13u{return select(vec3(1.0)-2.0*(vec3(1.0)-b)*(vec3(1.0)-s),2.0*b*s,s<=vec3(0.5));}
-    if mode==14u {let d=select(sqrt(b),((16.0*b-12.0)*b+4.0)*b,b<=vec3(0.25));return select(b+(2.0*s-1.0)*(d-b),b-(1.0-2.0*s)*b*(1.0-b),s<=vec3(0.5));}
+    if mode==14u {let d=select(sqrt(max(b,vec3(0.0))),((16.0*b-12.0)*b+4.0)*b,b<=vec3(0.25));return select(b+(2.0*s-1.0)*(d-b),b-(1.0-2.0*s)*b*(1.0-b),s<=vec3(0.5));}
     return s;
 }
 fn encode_srgb(c:vec3<f32>)->vec3<f32>{return select(1.055*pow(max(c,vec3(0.0)),vec3(1.0/2.4))-0.055,c*12.92,c<=vec3(0.0031308));}
@@ -39,7 +39,10 @@ fn main_fx(p:vec2<f32>)->vec4<f32> {
     var b=select(vec3(0.0),backdrop.rgb/max(ba,0.000001),ba>0.0);
     if fx.params[0].y>0.5 {s=encode_srgb(s);b=encode_srgb(b);}
     let alpha=sa+ba-sa*ba;
-    var color=(1.0-sa)*b*ba+(1.0-ba)*s*sa+sa*ba*transfer(clamp(b,vec3(0.0),vec3(1.0)),clamp(s,vec3(0.0),vec3(1.0)),u32(fx.params[0].x));
+    let extended=fx.params[0].z>0.5;
+    let tb=select(clamp(b,vec3(0.0),vec3(1.0)),b,extended);
+    let ts=select(clamp(s,vec3(0.0),vec3(1.0)),s,extended);
+    var color=(1.0-sa)*b*ba+(1.0-ba)*s*sa+sa*ba*transfer(tb,ts,u32(fx.params[0].x),extended);
     if fx.params[0].y>0.5 {color=decode_srgb(color/max(alpha,0.000001))*alpha;}
     return vec4(color,alpha);
 }

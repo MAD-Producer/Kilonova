@@ -54,4 +54,20 @@ class RenderPlanBudgetTest {
         assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchAllocations(
             physical(intArrayOf(Int.MAX_VALUE,Int.MAX_VALUE,2,1,1,15,8,0)))}
     }
+    @Test fun readsFourPrecisionsAndRejectsImplicitPrecisionFallback() {
+        for((precision,format,pixelBytes) in listOf(Triple(0,0,4),Triple(1,3,8),Triple(2,2,8),Triple(3,4,16))) {
+            val descriptor=intArrayOf(17,3,format,1,1,15,pixelBytes,0)
+            val buffer=physical(descriptor).apply{putInt(152,precision)}
+            assertEquals(51L*pixelBytes,RenderPlanBudget.scratchAllocations(buffer).single().bytes())
+            if(precision!=0) {
+                val downgraded=physical(rgba8).apply{putInt(152,precision)}
+                assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchAllocations(downgraded)}
+            }
+        }
+        for(code in listOf(-1,4,Int.MAX_VALUE)) {
+            assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchBytes(plan(64*1024*1024).apply{putInt(152,code)})}
+        }
+        assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchBytes(plan(64*1024*1024,10))}
+    }
+
 }

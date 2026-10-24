@@ -254,7 +254,7 @@ fn split_perspective_uvs_match_an_unsplit_textured_plane_without_changing_the_ve
         u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
         motion_render::effect_plan::PLAN_VERSION
     );
-    assert_eq!(motion_render::effect_plan::PLAN_VERSION, 10);
+    assert_eq!(motion_render::effect_plan::PLAN_VERSION, 11);
     assert_eq!(std::mem::size_of::<motion_render::PlaneVertex>(), 20);
     renderer.check_health().unwrap();
 }

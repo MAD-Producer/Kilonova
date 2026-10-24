@@ -18,6 +18,8 @@ pub enum ScratchFormat {
     Rgba8UnormSrgb = 0,
     Rgba8Unorm = 1,
     Rgba16Float = 2,
+    Rgba16Unorm = 3,
+    Rgba32Float = 4,
 }
 impl ScratchFormat {
     pub fn storage(self) -> motion_effects::image_contract::ImageStorage {
@@ -26,6 +28,8 @@ impl ScratchFormat {
             Self::Rgba8UnormSrgb => ImageStorage::Rgba8UnormSrgb,
             Self::Rgba8Unorm => ImageStorage::Rgba8Unorm,
             Self::Rgba16Float => ImageStorage::Rgba16Float,
+            Self::Rgba16Unorm => ImageStorage::Rgba16Unorm,
+            Self::Rgba32Float => ImageStorage::Rgba32Float,
         }
     }
     pub fn native(self) -> wgpu::TextureFormat {
@@ -118,7 +122,7 @@ pub(super) fn layout(
     }
     let mut passes = Vec::with_capacity(frame.passes.len());
     for (index, p) in frame.passes.iter().enumerate() {
-        let format = match p.output {
+        let default_format = match p.output {
             0 | 4..=6 => ScratchFormat::Rgba8UnormSrgb,
             1..=3 => ScratchFormat::Rgba8Unorm,
             7 => ScratchFormat::Rgba16Float,
@@ -127,6 +131,12 @@ pub(super) fn layout(
                     format!("effect pass {index} semantic output {other} is invalid").into(),
                 )
             }
+        };
+        let format = match frame.precision {
+            motion_effects::image_contract::ChannelPrecision::Unorm8 => default_format,
+            motion_effects::image_contract::ChannelPrecision::Unorm16 => ScratchFormat::Rgba16Unorm,
+            motion_effects::image_contract::ChannelPrecision::Float16 => ScratchFormat::Rgba16Float,
+            motion_effects::image_contract::ChannelPrecision::Float32 => ScratchFormat::Rgba32Float,
         };
         let semantic = |value: f32, name: &str| -> Result<u32, RenderError> {
             if value == 0. {

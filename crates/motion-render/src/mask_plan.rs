@@ -26,7 +26,7 @@ fn main_fx(p:vec2<f32>)->vec4<f32> {
             weight+=w;
         }
     }
-    let value=sum/max(weight,0.000001);return vec4(value,value,value,1.0);
+    let value=clamp(sum/max(weight,0.000001),0.0,1.0);return vec4(value,value,value,1.0);
 }
 "#;
 pub const COMBINE: &str = r#"
@@ -42,7 +42,7 @@ fn main_fx(p:vec2<f32>)->vec4<f32> {
     if mode==4.0 {value=max(a,b);}
     if mode==5.0 {value=min(a,b);}
     if mode==6.0 {value=a*(1.0-b)+b*(1.0-a);}
-    return vec4(value,value,value,1.0);
+    let coverage=clamp(value,0.0,1.0);return vec4(coverage,coverage,coverage,1.0);
 }
 "#;
 pub const APPLY: &str = r#"

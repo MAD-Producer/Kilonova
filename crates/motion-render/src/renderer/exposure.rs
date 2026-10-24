@@ -2,15 +2,14 @@
 use super::*;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-const ACCUMULATION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Unorm;
-
 pub(super) struct ExposureGpu {
     layout: wgpu::BindGroupLayout,
     accumulate: wgpu::RenderPipeline,
     resolve: wgpu::RenderPipeline,
 }
 impl ExposureGpu {
-    fn new(device: &wgpu::Device, output: wgpu::TextureFormat) -> Self {
+    fn new(device: &wgpu::Device, output: wgpu::TextureFormat,
+        accumulation: wgpu::TextureFormat, output_unorm8: bool) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("exposure layout"),
             entries: &[
@@ -38,7 +37,9 @@ impl ExposureGpu {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("linear exposure accumulation"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("exposure.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(format!(
+                "const OUTPUT_UNORM8: bool = {output_unorm8};\n{}",
+                include_str!("exposure.wgsl")).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("exposure pipeline layout"),
@@ -79,7 +80,7 @@ impl ExposureGpu {
         };
         let accumulate = pipeline(
             "accumulate",
-            ACCUMULATION_FORMAT,
+            accumulation,
             Some(wgpu::BlendState {
                 color: mean,
                 alpha: mean,
@@ -104,7 +105,8 @@ impl Drop for Reservation {
     }
 }
 
-/// One reusable sRGB sample and one UNORM16 linear weighted mean: twelve bytes per pixel.
+/// One reusable working-format sample and one linear weighted mean. Bounded
+/// working modes accumulate in UNORM16; floating modes retain their precision.
 /// Drop cancels the exposure; no partial result can be resolved. Queued work may
 /// outlive ownership, as represented by the renderer's submission ledger.
 pub struct ExposureTarget {
@@ -225,31 +227,25 @@ impl Renderer {
         if u64::from(width) * u64::from(height) > CAPTURE_PIXEL_LIMIT {
             return Err(invalid("extent exceeds offscreen pixel limit"));
         }
-        if !matches!(
-            self.target_format,
-            wgpu::TextureFormat::Rgba8UnormSrgb | wgpu::TextureFormat::Bgra8UnormSrgb
-        ) {
-            return Err(invalid("requires an sRGB render target"));
+        use motion_effects::image_contract::{ChannelPrecision, ImageStorage, ImageUsage};
+        let precision = crate::image_formats::color_precision(self.target_format)
+            .ok_or_else(|| invalid("unsupported working color format"))?;
+        if precision == ChannelPrecision::Unorm8 && !matches!(self.target_format,
+            wgpu::TextureFormat::Rgba8UnormSrgb | wgpu::TextureFormat::Bgra8UnormSrgb) {
+            return Err(invalid("UNORM8 exposure requires an sRGB render target"));
         }
-        if !self.device.features().contains(
-            wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
-                | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
-        ) {
-            return Err(invalid("adapter lacks 16-bit normalized exposure accumulation"));
-        }
-        let features = self
-            .adapter
-            .get_texture_format_features(ACCUMULATION_FORMAT);
-        if !features
-            .allowed_usages
-            .contains(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
-            || !features
-                .flags
-                .contains(wgpu::TextureFormatFeatureFlags::BLENDABLE)
-        {
-            return Err(invalid("adapter lacks linear 16-bit normalized blending"));
-        }
-        let bytes = u64::from(width) * u64::from(height) * 12;
+        let accumulation_storage = match precision {
+            ChannelPrecision::Unorm8 | ChannelPrecision::Unorm16 => ImageStorage::Rgba16Unorm,
+            ChannelPrecision::Float16 => ImageStorage::Rgba16Float,
+            ChannelPrecision::Float32 => ImageStorage::Rgba32Float,
+        };
+        self.image_capabilities.require(accumulation_storage, ImageUsage {
+            sampled: true, render: true, blend: true, ..ImageUsage::default()
+        })?;
+        let accumulation_format = crate::image_formats::native_format(accumulation_storage);
+        let bytes = u64::from(width) * u64::from(height)
+            * (crate::image_formats::color_storage(precision).bytes_per_pixel()
+                + accumulation_storage.bytes_per_pixel());
         let reservation = self.reserve_exposure_bytes(bytes, &format!("exposure {width}x{height} phase=allocate"))?;
         let diagnostic = |error: RenderError| {
             let message = format!("exposure {width}x{height} phase=allocate: {error}");
@@ -257,7 +253,7 @@ impl Renderer {
         };
         let sample = self.render_target_in(width, height, crate::TextureCategory::ExposureTargets).map_err(diagnostic)?;
         let accumulation = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
-            label: Some("linear normalized exposure mean"),
+            label: Some("linear exposure mean"),
             size: wgpu::Extent3d {
                 width,
                 height,
@@ -266,7 +262,7 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: ACCUMULATION_FORMAT,
+            format: accumulation_format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         }, &self.allocation_budget, crate::TextureCategory::ExposureTargets).map_err(diagnostic)?;
@@ -283,7 +279,8 @@ impl Renderer {
         ).map_err(diagnostic)?;
         let gpu = self
             .exposure_gpu
-            .get_or_insert_with(|| ExposureGpu::new(&self.device, self.target_format));
+            .get_or_insert_with(|| ExposureGpu::new(&self.device, self.target_format,
+                accumulation_format, precision == ChannelPrecision::Unorm8));
         let group = |view: &wgpu::TextureView| {
             self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("exposure source"),
@@ -576,6 +573,31 @@ impl Renderer {
                 crate::TextureState::Retained,
             )
         })
+    }
+    /// Format-preserving offscreen result. This allocates a semantic RGBA
+    /// capture target and performs no display conversion or unpremultiplication.
+    /// The renderer must use the canonical RGBA working format.
+    pub fn capture_exposure_image(&self, target: &ExposureTarget) -> Result<crate::CapturedImage> {
+        self.check_exposure(target, "capture_image")?;
+        if !target.complete() {
+            return Err(RenderError::Invalid("exposure phase=capture_image: incomplete".into()));
+        }
+        let precision = crate::image_formats::color_precision(self.target_format)
+            .ok_or_else(|| RenderError::Invalid("exposure phase=capture_image: unsupported working format".into()))?;
+        if self.target_format != crate::image_formats::native_format(crate::image_formats::color_storage(precision)) {
+            return Err(RenderError::Invalid(
+                "exposure phase=capture_image: raw capture requires the canonical RGBA working format".into()));
+        }
+        let contract = motion_effects::image_contract::ImageContract::new(
+            motion_effects::image_contract::ImageMeaning::Color {
+                space: motion_effects::WorkingSpace::Linear,
+                alpha: motion_effects::AlphaMode::Premultiplied,
+            }, precision);
+        let output = self.image_capture_target(target.sample.width, target.sample.height, contract)?;
+        self.resolve_exposure_view(target, output.view(), |ledger| {
+            ledger.merge(output.texture_resource_ledger());
+        })?;
+        self.read_image_target(&output)
     }
     /// Explicit readback for tests and frozen output; not called during preview.
     pub fn capture_exposure(&self, target: &ExposureTarget) -> Result<Vec<u8>> {

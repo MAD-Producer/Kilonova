@@ -2,9 +2,9 @@ package com.motionstudio.editor
 
 import java.nio.ByteBuffer
 
-/** v10 carries the exact physical scratch descriptor table and mapped pass IDs. */
+/** v11 adds explicit working precision to the physical scratch contract. */
 internal object RenderPlanBudget {
-    const val VERSION=10
+    const val VERSION=11
     const val VECTOR_RECORD_BYTES=40
     const val HEADER_BYTES=160
     const val SCRATCH_RECORD_BYTES=32
@@ -23,7 +23,8 @@ internal object RenderPlanBudget {
             val a=ScratchAllocation(plan.getInt(p),plan.getInt(p+4),plan.getInt(p+8),
                 plan.getInt(p+12),plan.getInt(p+16),plan.getInt(p+20),plan.getInt(p+24))
             // Semantic bit sets describe separate, fully cleared value lifetimes.
-            check(a.width>0&&a.height>0&&a.format in 0..2&&a.workingSpaces in 1..3&&a.alphaModes in 1..3&&a.usage==15&&a.bytesPerPixel==(if(a.format==2)8 else 4)&&plan.getInt(p+28)==0){"效果临时纹理描述失效"}
+            check(a.width>0&&a.height>0&&a.format in 0..4&&a.workingSpaces in 1..3&&a.alphaModes in 1..3&&a.usage==15&&a.bytesPerPixel==(when(a.format){2,3->8;4->16;else->4})&&plan.getInt(p+28)==0){"效果临时纹理描述失效"}
+            check(when(plan.getInt(152)){0->a.format in 0..2;1->a.format==3;2->a.format==2;3->a.format==4;else->false}){"效果纹理格式与工作精度不一致"}
             check(a.width.toLong()*a.height<=Long.MAX_VALUE/a.bytesPerPixel){"效果临时纹理容量溢出"}
             a
         }
@@ -37,6 +38,7 @@ internal object RenderPlanBudget {
     }
     fun scratchBytes(plan:ByteBuffer):Long {
         check(plan.capacity()>=HEADER_BYTES&&plan.getInt(0)==0x46584d53&&plan.getInt(4)==VERSION){"不兼容的帧预算协议"}
+        check(plan.getInt(152) in 0..3&&plan.getInt(156)==0){"帧工作精度协议失效"}
         val bytes=plan.getInt(76).toLong()
         check(bytes>0){"效果临时纹理预算失效"}
         return bytes

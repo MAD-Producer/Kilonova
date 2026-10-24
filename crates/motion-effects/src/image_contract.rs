@@ -32,13 +32,19 @@ pub enum ImageMeaning {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[repr(u32)]
 pub enum ChannelPrecision {
     #[default]
-    Unorm8,
+    Unorm8 = 0,
     /// Uniform 16-bit fixed-point steps in [0,1], distinct from half-float HDR.
-    Unorm16,
-    Float16,
-    Float32,
+    Unorm16 = 1,
+    Float16 = 2,
+    Float32 = 3,
+}
+impl ChannelPrecision {
+    pub const fn is_float(self) -> bool {
+        matches!(self, Self::Float16 | Self::Float32)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

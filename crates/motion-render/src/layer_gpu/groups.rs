@@ -18,6 +18,8 @@ pub(super) struct GroupGpu {
     opacity_group: Option<OpacityBinding>,
     opacity_buffer: crate::vector_upload::ReusableBuffer,
     opacity_upload: Vec<u8>,
+    raster_format: wgpu::TextureFormat,
+    raster_pixel_bytes: u64,
 }
 impl GroupGpu {
     pub(super) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
@@ -27,7 +29,11 @@ impl GroupGpu {
             ledger.retained(&target.resolved.texture, crate::TextureCategory::VectorGroupScratch, format!("{owner}/resolve"));
         }
     }
-    pub fn new(device:&wgpu::Device,image:&wgpu::BindGroupLayout,budget:&crate::AllocationBudget) -> Self {
+    pub fn new(device:&wgpu::Device,image:&wgpu::BindGroupLayout,budget:&crate::AllocationBudget,
+        precision:motion_effects::image_contract::ChannelPrecision) -> Self {
+        let raster_storage=crate::image_formats::raster_storage(precision);
+        let raster_format=crate::image_formats::native_format(raster_storage);
+        let color_format=crate::image_formats::native_format(crate::image_formats::color_storage(precision));
         let uniform=device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label:Some("vector group opacity"), entries:&[wgpu::BindGroupLayoutEntry {
                 binding:0,visibility:wgpu::ShaderStages::FRAGMENT,
@@ -42,8 +48,9 @@ impl GroupGpu {
             fragment:Some(wgpu::FragmentState {module:&shader,entry_point:Some("fs"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend,write_mask:wgpu::ColorWrites::ALL})]}),
             primitive:Default::default(),depth_stencil:None,multisample:wgpu::MultisampleState {count:samples,..Default::default()},multiview_mask:None,cache:None,
         });
-        Self {targets:HashMap::new(),composite:pipeline(4,wgpu::TextureFormat::Rgba8Unorm,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
-            encode:pipeline(1,wgpu::TextureFormat::Rgba8UnormSrgb,None),uniform,
+        Self {targets:HashMap::new(),composite:pipeline(4,raster_format,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
+            encode:pipeline(1,color_format,None),uniform,
+            raster_format, raster_pixel_bytes: raster_storage.bytes_per_pixel(),
             opacity_buffer:crate::vector_upload::ReusableBuffer::new(budget.clone()),opacity_group:None,opacity_upload:Vec::new()}
     }
     pub fn grouped(mesh:&VectorMesh) -> bool { !mesh.commands.is_empty() || mesh.root_opacity!=1. }
@@ -51,9 +58,11 @@ impl GroupGpu {
         meshes.iter().filter(|m|Self::grouped(m)).flat_map(|m|(0..=m.scope_depth()).map(move|d|(m.width,m.height,d))).collect()
     }
     pub fn retain(&mut self,meshes:&[VectorMesh]) { let needed=Self::needed(meshes);self.targets.retain(|k,_|needed.contains(k)); }
-    pub fn bytes(&self) -> u64 {self.targets.keys().map(|(w,h,_)|u64::from(*w)*u64::from(*h)*20).sum()}
+    pub fn bytes(&self) -> u64 {self.targets.values().flat_map(|t| [&t.multisample, &t.resolved.texture])
+        .map(|t| crate::resource_ledger::logical_bytes(t).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)}
     pub fn release(&mut self) {self.targets.clear();self.opacity_group=None;self.opacity_buffer.clear();self.opacity_upload=Vec::new();}
-    pub fn required_bytes(meshes:&[VectorMesh]) -> u64 {Self::needed(meshes).iter().map(|(w,h,_)|u64::from(*w)*u64::from(*h)*20).sum()}
+    pub fn required_bytes(&self,meshes:&[VectorMesh]) -> u64 {Self::needed(meshes).iter()
+        .map(|(w,h,_)|u64::from(*w)*u64::from(*h)*self.raster_pixel_bytes*5).sum()}
     pub(super) fn upload_info(&self) -> (u64,u64) { (self.opacity_buffer.bytes(),self.opacity_buffer.created) }
     pub(super) fn stage_targets(&self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, scene: &crate::Scene, meshes: &[&VectorMesh],
@@ -66,7 +75,7 @@ impl GroupGpu {
             for depth in 0..=mesh.scope_depth() {
                 let key = (mesh.width, mesh.height, depth);
                 if self.targets.contains_key(&key) || !seen.insert(key) { continue; }
-                let format = wgpu::TextureFormat::Rgba8Unorm;
+                let format = self.raster_format;
                 let multisample = device.create_admitted_texture(&wgpu::TextureDescriptor {
                     label: Some("pooled vector group MSAA"),
                     size: wgpu::Extent3d { width: mesh.width, height: mesh.height, depth_or_array_layers: 1 },

@@ -1,0 +1,86 @@
+# Semantic images and working precision: current delivery ledger
+
+This is the active acceptance ledger for issue #72 on top of the merged #61
+resource-admission and #67 physical scratch-lifetime implementations. Historical
+experiments are not delivery evidence for the current source. The issue remains
+open: the project setting, dense curve LUTs and explicit display/export conversion
+are not yet connected.
+
+## Scope and status
+
+| Item | Current implementation | Status and remaining limits |
+| --- | --- | --- |
+| 72-S1 | Versioned color/alpha, coverage and scalar/vector data contracts; 13 R/RG/RGBA storage formats; four independent precisions | Implemented; named weight, depth and normal contracts still pending |
+| 72-S2 | Enabled-device format/usage/filter/blend snapshot and same-precision channel padding | Implemented; optional features are never inferred from adapter reports alone |
+| 72-S3 | Before-allocation capability validation, including 4-sample vector attachments and resolve | Implemented; unsupported working modes return a cause instead of reducing precision |
+| 72-S4 | Physical effect descriptors, same-frame layer snapshots, accumulation, masks, mattes, ordinary nested compositions and vector/group rasters retain working precision | Implemented; actual pixel tests cover the named paths below |
+| 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve tested; a comprehensive retained/nested temporal precision golden remains pending |
+| 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
+| 72-S7 | Current packed plan v11 publishes precision at byte 152 and five physical scratch format codes | Implemented; Host derives version/header from Rust; GLES rejects missing capabilities and never allocates an 8-bit substitute for a high-precision descriptor |
+| 72-S8 | High-precision authored-curve sampling/LUT, current packed LUT representation | Pending |
+| 72-S9 | Persisted project setting, native preview and explicit SDR display/PNG/movie output policy | Pending; no product UI changed in this stage |
+| 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
+
+UNORM16 is a normalized integer format, distinct from binary16 floating point.
+The native path requires actual enabled normalized-format attachment support.
+Float32 additionally requires enabled filtering/blending and applicable sample
+support. A capability refusal is not counted as a successful pixel test.
+
+## Source-bound local evidence
+
+Each local receipt below contains the exact command, input SHA-256 values,
+terminal exit status and logs under `artifacts/pr-queue/`. They describe separate
+source stages; counts must not be added as if they were one full-suite run.
+
+| Receipt directory | Result and evidence |
+| --- | --- |
+| `issue72-stage-contract-v1` | Nine portable contract tests |
+| `issue72-stage-native-capabilities-v1` | Four capability tests at the foundation stage; the current five tests, including attachment-versus-MSAA support, also pass in the full regression below |
+| `issue72-stage-native-formats-v1` | Four actual GPU format tests: numeric data/coverage, transfer/alpha isolation, HDR/fine Float32 and adjacent UNORM16 values |
+| `issue72-stage-capture-layout-v1` | Raw row-stride and overflow layout test |
+| `issue72-stage-native-capture-v1` | Five actual raw capture/admission tests, including foreign-owner refusal, rollback and device-failure priority |
+| `issue72-stage-working-native-check-v2` | Current native test targets compile after replacing a private-helper access with the shared descriptor-capacity helper |
+| `issue72-stage-working-pixels-v3` | Five tests: four-mode packed physical descriptors/capacity, real two-pass effect HDR/sign/detail and reuse, adjacent UNORM16 levels, floating temporal mean/resolve, vector/group MSAA and opacity in all four modes |
+| `issue72-stage-composition-pixels-v1` | Five actual GPU tests: layer-input snapshots in both stack orders; float Multiply/Add/Screen and adjustment; half-coverage mask/projected matte/retained raster; budget refusal and recovery; ordinary nested texture pixels/capacity/reuse |
+| `issue72-jvm-working-v1` | Production Kotlin compilation and six JVM parser tests; no Android device/GLES rendering validation |
+| `issue72-stage-working-render-regression-v2` | Complete current `cargo test -p motion-render --offline -- --test-threads=1`: 601 passed, zero failed, one unchanged external-source probe ignored; includes the five working-precision and five composition-precision tests |
+
+The failed `working-native-check-v1` receipt is retained. The first version of
+the new vector-group test required one exact UNORM8 alpha byte; its `127` result
+exposed an overstrict new oracle at the two rounding boundaries. Version v3 uses
+the repository's existing one-LSB UNORM8 group contract. Its UNORM16 and floating
+checks independently reject 8-bit steps. No pre-existing assertion was relaxed.
+The sole changed pre-existing assertion tracks the deliberately new packed-plan
+version in `projected_planes.rs`.
+
+The first full render attempt (`issue72-stage-working-render-regression-v1`)
+reported 221 passing unit tests and one failed snapshot-category admission test.
+Its unchanged assertion caught an early subtraction of the old snapshot from
+replacement admission. The implementation now checks the peak old-plus-new
+capacity and deducts the old allocation only after successful replacement.
+The failed receipt is retained. The focused unchanged snapshot test passes in
+`issue72-stage-snapshot-peak-regression-v1`; the corrected full regression above
+also passes. Its only ignored test is `optional_local_original_image_probe`,
+which requires `MOTION_IMAGE_SOURCE` outside the repository; no test was newly
+ignored to obtain this result.
+
+The current changes preserve the
+existing allocation leases, admission checks, rollback and submission ledger;
+logical texture capacity includes each descriptor's actual format and samples.
+This is not physical VRAM, bandwidth or a performance claim. No professional
+grading, HDR input/output equivalence, or Android device validation is claimed.
+
+## Sources and provenance
+
+All new shaders, probes and fixtures are independently authored repository code.
+The white resource used by a test is generated from four constant bytes. No new
+third-party asset, dependency or Adobe material is included. Format identifiers
+and capabilities follow public primary references:
+
+- [wgpu texture format flags](https://docs.rs/wgpu/latest/wgpu/struct.TextureFormatFeatureFlags.html)
+- [Khronos EXT_texture_norm16, revision 6](https://registry.khronos.org/OpenGL/extensions/EXT/EXT_texture_norm16.txt)
+- [Khronos EXT_color_buffer_float, revision 10](https://registry.khronos.org/OpenGL/extensions/EXT/EXT_color_buffer_float.txt)
+- [Khronos EXT_float_blend, revision 2](https://registry.khronos.org/OpenGL/extensions/EXT/EXT_float_blend.txt)
+
+These references describe behavior and enum identifiers; no specification text
+or third-party implementation was copied into the product.

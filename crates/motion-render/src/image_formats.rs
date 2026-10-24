@@ -3,7 +3,26 @@
 use motion_effects::image_contract::{
     ChannelPrecision, ImageContract, ImageFormatError, ImageStorage, ImageUsage,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Linear premultiplied working color. Only UNORM8 uses an automatic transfer
+/// to preserve more useful shadow steps in its limited storage range.
+pub const fn color_storage(precision: ChannelPrecision) -> ImageStorage {
+    match precision {
+        ChannelPrecision::Unorm8 => ImageStorage::Rgba8UnormSrgb,
+        ChannelPrecision::Unorm16 => ImageStorage::Rgba16Unorm,
+        ChannelPrecision::Float16 => ImageStorage::Rgba16Float,
+        ChannelPrecision::Float32 => ImageStorage::Rgba32Float,
+    }
+}
+
+/// Vector MSAA and group composition accumulate linear samples directly.
+pub const fn raster_storage(precision: ChannelPrecision) -> ImageStorage {
+    match precision {
+        ChannelPrecision::Unorm8 => ImageStorage::Rgba8Unorm,
+        _ => color_storage(precision),
+    }
+}
 
 const STORAGES: [ImageStorage; 13] = [
     ImageStorage::R8Unorm,
@@ -76,12 +95,23 @@ pub fn capabilities(
 ) -> ImageUsage {
     let format = native_format(storage);
     let features = device.features();
-    let reported = if features.contains(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES) {
+    enabled_capabilities(
+        storage,
+        reported_features(adapter, format, features),
+        features,
+    )
+}
+
+fn reported_features(
+    adapter: &wgpu::Adapter,
+    format: wgpu::TextureFormat,
+    features: wgpu::Features,
+) -> wgpu::TextureFormatFeatures {
+    if features.contains(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES) {
         adapter.get_texture_format_features(format)
     } else {
         format.guaranteed_format_features(features)
-    };
-    enabled_capabilities(storage, reported, features)
+    }
 }
 
 fn enabled_capabilities(
@@ -124,19 +154,37 @@ pub struct UnsupportedStorage {
     pub missing: ImageUsage,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("image storage {storage:?} lacks enabled {samples}-sample attachment and resolve support")]
+pub struct UnsupportedSamples {
+    pub storage: ImageStorage,
+    pub samples: u32,
+}
+
 /// One bounded snapshot per device. Healthy frame preparation never queries
 /// the adapter again; at most thirteen storage entries are retained.
 pub struct ImageCapabilities {
     available: BTreeMap<ImageStorage, ImageUsage>,
+    msaa4: BTreeSet<ImageStorage>,
 }
 impl ImageCapabilities {
     pub fn query(adapter: &wgpu::Adapter, device: &wgpu::Device) -> Self {
-        Self {
-            available: STORAGES
-                .into_iter()
-                .map(|storage| (storage, capabilities(adapter, device, storage)))
-                .collect(),
+        let mut available = BTreeMap::new();
+        let mut msaa4 = BTreeSet::new();
+        for storage in STORAGES {
+            let reported = reported_features(adapter, native_format(storage), device.features());
+            let usage = enabled_capabilities(storage, reported, device.features());
+            if usage.render
+                && reported.flags.sample_count_supported(4)
+                && reported
+                    .flags
+                    .contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_RESOLVE)
+            {
+                msaa4.insert(storage);
+            }
+            available.insert(storage, usage);
         }
+        Self { available, msaa4 }
     }
     pub fn available(&self, storage: ImageStorage) -> ImageUsage {
         self.available.get(&storage).copied().unwrap_or_default()
@@ -160,11 +208,40 @@ impl ImageCapabilities {
             Err(UnsupportedStorage { storage, missing })
         }
     }
+    pub fn require_msaa4(&self, storage: ImageStorage) -> Result<(), UnsupportedSamples> {
+        if self.msaa4.contains(&storage) {
+            Ok(())
+        } else {
+            Err(UnsupportedSamples {
+                storage,
+                samples: 4,
+            })
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn attachment_support_does_not_imply_four_sample_resolve() {
+        let mut snapshot = ImageCapabilities {
+            available: BTreeMap::from([(ImageStorage::Rgba32Float, ImageUsage::EFFECT_TARGET)]),
+            msaa4: BTreeSet::new(),
+        };
+        snapshot
+            .require(ImageStorage::Rgba32Float, ImageUsage::EFFECT_TARGET)
+            .unwrap();
+        let error = snapshot
+            .require_msaa4(ImageStorage::Rgba32Float)
+            .unwrap_err();
+        assert_eq!(error.storage, ImageStorage::Rgba32Float);
+        assert_eq!(error.samples, 4);
+        snapshot.msaa4.insert(ImageStorage::Rgba32Float);
+        snapshot.require_msaa4(ImageStorage::Rgba32Float).unwrap();
+        assert!(snapshot.require_msaa4(ImageStorage::Rgba16Float).is_err());
+    }
 
     #[test]
     fn native_storage_sizes_and_color_precision_are_explicit() {
@@ -255,6 +332,7 @@ mod tests {
     #[test]
     fn missing_storage_is_explicit_and_exact_usage_is_required() {
         let snapshot = ImageCapabilities {
+            msaa4: BTreeSet::new(),
             available: BTreeMap::from([(
                 ImageStorage::Rgba32Float,
                 ImageUsage {
