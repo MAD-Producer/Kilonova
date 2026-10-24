@@ -3,6 +3,21 @@ pub(super) mod allocation;
 #[cfg(test)]
 mod admission_tests;
 
+/// UI and node-preview screenshots capture display pixels independently of
+/// the project's native working attachment. The shader sees linear premultiplied
+/// values; the sRGB attachment encodes them once for PNG readback.
+pub(super) fn display_capture_target(
+    renderer: &motion_render::Renderer,
+    width: u32,
+    height: u32,
+) -> Result<motion_render::ImageCaptureTarget, motion_render::RenderError> {
+    use motion_effects::{AlphaMode, WorkingSpace, image_contract::{ChannelPrecision, ImageContract, ImageMeaning}};
+    renderer.image_capture_target(width, height, ImageContract::new(
+        ImageMeaning::Color { space: WorkingSpace::Linear, alpha: AlphaMode::Premultiplied },
+        ChannelPrecision::Unorm8,
+    ))
+}
+
 pub(super) fn finish(
     result: Result<bool, String>,
     error: Option<motion_ui::paint::PaintError>,

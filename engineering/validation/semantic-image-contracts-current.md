@@ -3,9 +3,10 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project-setting UI, dense editor key insertion, plugin editor preview
-and desktop UI/node screenshot paths still need integration. Ordinary/exposure
-surface previews and Host/frozen PNG/MP4 exports now use explicit SDR output.
+open: the project-setting UI, dense editor key insertion and final comprehensive
+acceptance remain pending. Ordinary/exposure surface previews, plugin editor
+preview, desktop UI/node screenshots and Host/frozen PNG/MP4 exports now use
+explicit SDR output.
 
 ## Scope and status
 
@@ -19,7 +20,7 @@ surface previews and Host/frozen PNG/MP4 exports now use explicit SDR output.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
-| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; ordinary/exposure surface preview and frozen export integration | Native output, project/history/surface probes and actual four-mode PNG/MP4 exports pass; project-setting UI, plugin editor preview and desktop screenshot integration pending; no product UI changed in this stage |
+| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; project-setting UI remains pending; no product layout/style changed in these stages |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -70,14 +71,21 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-frozen-mp4-pixels-v3` | Eight actual frozen H.264/AAC encodes in four modes, ordinary/exposure, after live edits/session close; first/last RGB, alpha, duration and color metadata verified; eight MP4s and 16 decoded endpoint PNGs retained |
 | `issue72-stage-frozen-mp4-pixels-v3/independent-ffmpeg` | Independent FFmpeg decodes all six Float32 exposure frames, maximum RGB error 3/255; ffprobe confirms 32x32 H.264 YUV420P, 30 fps, limited-range BT.709/sRGB and AAC |
 | `issue72-stage-media-output-regression-v1` | Complete FFmpeg-enabled desktop media library: 43 passed, zero failed/ignored; includes original padding, linear alpha, source freezing, shared budgets, cancellation, temporal/nested video/audio and work-area tests |
+| `issue72-stage-editor-integration-check-v1` | Host and desktop-media test targets compile after the editor target becomes an admitted native/SDR pair |
+| `issue72-stage-editor-preview-pixels-v2` | All ten editor-recovery tests pass, including actual packaged-editor four-mode HDR/transparent PNG output, mode return to UNORM8, retained system/target identities, healthy capacity reuse, typed resize refusal, recovery and close retirement; four actual PNGs retained |
+| `issue72-stage-editor-memory-regression-v1` | All 17 Host memory-policy tests pass, including retained native views across project replacement, runtime tracking, caller targets and shared session limits |
+| `issue72-stage-desktop-display-check-v1` | FFmpeg-enabled desktop application and all its test targets compile, including the native-video study's explicit display readback |
+| `issue72-stage-desktop-display-pixels-v1` | Real worker test passes in all four modes: UI pixel arrays and independent node-preview pixel arrays are identical across modes; session ledgers retain the four corresponding native formats; four UI and four node PNGs, default-Info log and report retained |
+| `issue72-stage-desktop-node-capture-regression-v1` | Original installed-node admission/refusal test passes with unchanged assertions, including retained capture fingerprint, recovery and default file/Error stderr/stdout isolation |
+| `issue72-stage-desktop-display-surface-regression-v1` | Original native surface replacement refusal test passes with unchanged assertions, preserving factory/front and default error channels |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
 exposed an overstrict new oracle at the two rounding boundaries. Version v3 uses
 the repository's existing one-LSB UNORM8 group contract. Its UNORM16 and floating
 checks independently reject 8-bit steps. No pre-existing assertion was relaxed.
-The sole changed pre-existing assertion tracks the deliberately new packed-plan
-version in `projected_planes.rs`.
+At that working-format stage, the sole changed pre-existing assertion tracked
+the deliberately new packed-plan version in `projected_planes.rs`.
 
 The first full render attempt (`issue72-stage-working-render-regression-v1`)
 reported 221 passing unit tests and one failed snapshot-category admission test.
@@ -220,6 +228,34 @@ Actual output files and SHA-256 values are listed in
 `artifacts/pr-queue/issue72-output-stage-manifest.json`. These constant-color
 transparent/HDR probes do not replace the final comprehensive gradient/glow,
 multilayer/mask, retained/nested temporal and product UI acceptance.
+
+Plugin preview starts at project precision and prepares later mode changes on
+the same renderer. Its retained target owns the native working image, a separate
+SDR image, the converter and admitted staging. PNG bytes use straight alpha,
+including the UNORM8 control. A failed replacement does not discard the old
+target. Healthy repeated requests keep target identities and live capacity.
+The real protocol's base64 PNG is compared with the independently checked GPU
+pixels encoded through the production PNG encoder.
+
+The editor-memory fixtures now use that genuine two-image target. Two existing
+capacity expectations therefore increase from one RGBA8 image (`5*7*4`) to two
+(`5*7*8`). This records additional ownership rather than relaxing a budget;
+the retained-view retirement, exact peak, project and history assertions remain
+unchanged. The failed new editor v1 test had incorrectly expected policy updates
+to leave view revision unchanged. The existing policy deliberately invalidates
+presentation once per update; v2 asserts those two exact invalidations and no
+additional invalidation from refusal or recovery. No product behavior was
+changed to satisfy that test.
+
+Desktop UI and node screenshots allocate a semantic linear-premultiplied
+UNORM8 image attachment, physically RGBA8 sRGB. This captures display pixels
+without changing the project's working precision. The native-video study uses
+the same display helper for its readback oracle. The independent N1 node draft
+preview still renders internally at Float16; this stage verifies its display
+capture, not Float32 draft arithmetic parity. Applied node effects use the
+project's actual effect chain. No panel, layout, style, menu or interaction was
+changed in this stage. These selected regressions do not replace the final
+complete desktop/Host run or the pending project-setting UI acceptance.
 
 ## Sources and provenance
 

@@ -137,7 +137,7 @@ pub struct Session {
     pub(crate) editor_activity: Option<Instant>,
     pub(crate) editor_recovery: Option<Value>,
     pub editor_renderer: Option<Renderer>,
-    pub editor_target: Option<motion_render::CaptureTarget>,
+    pub editor_target: Option<motion_render::SdrCaptureTarget>,
     allocation_budget: motion_render::AllocationBudget,
     platform: Arc<dyn Platform>,
 }
