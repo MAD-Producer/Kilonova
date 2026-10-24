@@ -186,7 +186,11 @@ impl PaintList {
                 clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
                 clip.width() > 0. && clip.height() > 0.
             } else if let Shape::Triangles { points } = shape {
-                *points = clip_triangles(points, area);
+                // A complete triangle list inside the clip needs no new output.
+                // Keep incomplete lists on the existing chunks_exact path.
+                if points.len() % 3 != 0 || !points.iter().all(|p| area.contains(*p)) {
+                    *points = clip_triangles(points, area);
+                }
                 !points.is_empty()
             } else {
                 let inside = |p: &[f32; 2]| {
