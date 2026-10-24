@@ -134,6 +134,7 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 pub enum Command {
     ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, String>> },
     KeyframeClipboardRead { source: crate::layer_clipboard::KeyframeSource, selections: Vec<motion_core::KeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, String>> },
+    PathClipboardRead { source: crate::layer_clipboard::PathSource, selections: Vec<motion_core::PathSelection>, reply: Sender<Result<crate::layer_clipboard::PathRead, String>> },
     ClipboardCommit { edit: crate::layer_clipboard::Edit, reply: Sender<Result<Value, String>> },
     #[cfg(test)]
     TestPanic {
@@ -379,6 +380,7 @@ impl Command {
         let reply = match self {
             ClipboardRead { reply, .. } => ErrorReply::Clipboard(reply.clone()),
             KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
+            PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
             NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
@@ -1483,6 +1485,7 @@ fn handle(
         })),
         Command::ClipboardRead { objects, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read(s, objects))),
         Command::KeyframeClipboardRead { source, selections, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read_keyframes(s, source, selections))),
+        Command::PathClipboardRead { source, selections, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read_paths(s, source, selections))),
         Command::ClipboardCommit { edit, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::commit(s, edit))),
         Command::ProjectTicket(reply) => respond(reply, guard.ticket(id)),
         Command::ChangeProject { target, ticket, save, reply } => respond(reply, (|| {

@@ -5,6 +5,7 @@ impl Command {
         match self {
             ClipboardRead { .. } => "clipboard_read",
             KeyframeClipboardRead { .. } => "keyframe_clipboard_read",
+            PathClipboardRead { .. } => "path_clipboard_read",
             ClipboardCommit { .. } => "clipboard_commit",
             #[cfg(test)]
             TestPanic { .. } => "test_panic",

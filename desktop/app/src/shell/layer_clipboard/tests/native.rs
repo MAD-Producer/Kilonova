@@ -18,6 +18,7 @@ use winit::{
 };
 mod keyframes;
 mod text;
+mod paths;
 
 fn chord(key: Key, shift: bool) -> Input {
     Input {
@@ -39,7 +40,10 @@ fn click(point: [f32; 2]) -> Input {
         ..Default::default()
     }
 }
-fn draw(shell: &mut Shell, size: [f32; 2], window: u64, mut input: Input) -> (PaintList, Vec<Action>) {
+fn draw(shell: &mut Shell, size: [f32; 2], window: u64, input: Input) -> (PaintList, Vec<Action>) {
+    draw_panel(shell, size, window, input, Panel::Timeline)
+}
+fn draw_panel(shell: &mut Shell, size: [f32; 2], window: u64, mut input: Input, panel: Panel) -> (PaintList, Vec<Action>) {
     if window == 0 {
         shell.input = input;
         shell.draw_commands(size)
@@ -47,13 +51,14 @@ fn draw(shell: &mut Shell, size: [f32; 2], window: u64, mut input: Input) -> (Pa
         input.text_clipboard = Some(shell.text_clipboard.clone());
         shell.panels.clipboard_available = shell.layer_clipboard.available();
         shell.panels.keyframe_clipboard_available = shell.layer_clipboard.keyframes_available();
+        shell.panels.path_clipboard_available = shell.layer_clipboard.paths_available();
         shell.panels.clipboard_busy = shell.layer_clipboard.busy();
         let mut paint = PaintList::default();
         paint.stylesheet = shell.panels.styles.clone();
         let actions = crate::panels::floating_chrome(
             &mut paint,
             &mut shell.atlas,
-            Panel::Timeline,
+            panel,
             size,
             &mut shell.panels,
             &shell.state,
@@ -78,8 +83,14 @@ fn capture(
     window: u64,
     path: PathBuf,
 ) {
-    let (paint, actions) = draw(shell, size, window, Input::default());
+    capture_panel(events, shell, size, scale, window, path, Panel::Timeline);
+}
+fn capture_panel(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32; 2], scale: f32, window: u64, path: PathBuf, panel: Panel) {
+    let (paint, actions) = draw_panel(shell, size, window, Input::default(), panel);
     assert!(actions.is_empty(), "capture emitted actions: {actions:?}");
+    let view = (panel == Panel::Composition).then(|| if window == 0 {
+        crate::panels::composition_view_styled(shell.workspace.display_root(), size, &paint.styles())
+    } else { crate::panels::floating_view_styled(panel, size, &paint.styles()).unwrap() });
     let config = shell.atlas.config();
     let ui = UiFrame {
         paint,
@@ -89,8 +100,8 @@ fn capture(
             height: config.height,
         }),
         logical_size: size,
-        composition: None,
-        composition_image: None,
+        composition: view.map(|v| [v.min[0] * scale, v.min[1] * scale, v.width() * scale, v.height() * scale]),
+        composition_image: view.and_then(|v| shell.viewer_image(v, scale)),
         window,
         node_preview: None,
     };

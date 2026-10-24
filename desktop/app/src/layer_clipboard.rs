@@ -3,6 +3,7 @@
 //! session. A submitted paste also transfers ownership of staged files to it.
 mod storage;
 mod keyframes;
+mod paths;
 pub(crate) mod controller;
 #[cfg(test)]
 mod tests;
@@ -20,6 +21,8 @@ use std::{
 };
 pub(crate) use storage::{Frozen, Prepared};
 pub(crate) use keyframes::{read_keyframes, KeyframeRead, KeyframeSource};
+pub(crate) use keyframes::KeyframeSource as PathSource;
+pub(crate) use paths::{read_paths, PathRead};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Stamp {
@@ -67,6 +70,18 @@ pub(crate) fn read(session: &Session, objects: Vec<u64>) -> motion_host::Result<
 }
 
 pub(crate) enum Edit {
+    CutPaths {
+        stamp: Stamp,
+        clipboard: Arc<motion_core::PathClipboard>,
+        cancel: Arc<AtomicBool>,
+    },
+    PastePaths {
+        stamp: Stamp,
+        clipboard: Arc<motion_core::PathClipboard>,
+        target: motion_core::PathDestination,
+        at_frame: Option<u32>,
+        cancel: Arc<AtomicBool>,
+    },
     CutKeyframes {
         stamp: Stamp,
         clipboard: Arc<motion_core::KeyframeClipboard>,
@@ -93,7 +108,9 @@ pub(crate) enum Edit {
 }
 pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<Value> {
     let (stamp, cancel) = match &edit {
-        Edit::CutKeyframes { stamp, cancel, .. }
+        Edit::CutPaths { stamp, cancel, .. }
+        | Edit::PastePaths { stamp, cancel, .. }
+        | Edit::CutKeyframes { stamp, cancel, .. }
         | Edit::PasteKeyframes { stamp, cancel, .. } => (stamp, cancel),
         Edit::Cut { stamp, cancel, .. } => (stamp, cancel),
         Edit::Paste {
@@ -110,6 +127,12 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
         return Ok(serde_json::json!({"clipboard_status":"superseded"}));
     }
     let result = match edit {
+        Edit::CutPaths { clipboard, .. } => session.apply_command_batch(vec![
+            motion_core::Command::RemovePaths { clipboard: Box::new((*clipboard).clone()) },
+        ]),
+        Edit::PastePaths { clipboard, target, at_frame, .. } => session.apply_command_batch(vec![
+            motion_core::Command::PastePaths { clipboard: Box::new((*clipboard).clone()), target, at_frame },
+        ]),
         Edit::CutKeyframes { clipboard, .. } => session.apply_command_batch(vec![
             motion_core::Command::RemoveKeyframes { clipboard: Box::new((*clipboard).clone()) },
         ]),

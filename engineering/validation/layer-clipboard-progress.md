@@ -512,3 +512,50 @@ text-menu-ui-native-second/ 八张新增原图全部实际查看：main-to-float
 同一最终测试文件执行 text-menu-clipboard-final.log：68 项通过、0 失败／忽略、946 项过滤，96.56 秒；text-menu-node-final.log：154 项通过、0 失败／忽略、860 项过滤，42.82 秒。两集与菜单集有重叠，不能相加冒称独立总数。text-menu-default-channel-final/ 真实检查到默认 INFO 初始化与 start 仅入文件，缓存缺失／超限的原始 ERROR 同时入文件及 stderr，stdout 无错误或私有正文哨兵，文件／stderr 也不泄露正文；这是已有观察机制回归，没有新观察阈值。桌面最终测试文件 SHA-256 为 1655b07d3cea44a1c67450859e2871d1b78bac2956438af90d54a372ae0f9d62。定向 rustfmt --check、git diff --check、verify_style_consumers() 通过。
 
 text-menu-native-regression-final.log 的既有图层／关键帧实际主窗和浮窗菜单测试两项均通过、0 失败／忽略、1012 项过滤，44.37 秒；新文本菜单没有替换非文本目标的原菜单行为。此前测试通过后仅补充验证记录，未再改生产逻辑。TM-06 剩余工作尚未完成，#204 不关闭。
+
+## 自由路径独立剪贴板（作者几何、类型化信道与原生组件验证）
+
+本阶段从 84411103 继续。实施前重新核对其他工作树与 GitHub：开放 PR 为空，精度、暂存纹理、节点布局、字形保留和工作区验收等分支没有路径剪贴板实现；没有修改其他工作树或审阅别人的 PR。后续拉取 main 后确认仅落后三个已合入提交，主线组合另行记录，不能把本阶段结果当成组合验收。
+
+| 项目 | 分类 | 实际处置与边界 |
+| --- | --- | --- |
+| PC-01 | 功能 | 新增 PathClipboard / PathSelection / PathDestination 与 PastePaths / RemovePaths 事务。仅捕获作者路径、选中节点、相对手柄与全部几何关键帧；不复制组变换、填充、描边、修剪或重复器输出。断开选区拆开放片段，闭合路径全选保持闭合。参数几何明确拒绝，需先转换自由路径。 |
+| PC-02 | 功能 | 向指定自由路径容器追加几何；蒙版工具逐片段新建蒙版，不覆盖已有蒙版。内部核心另支持替换单个蒙版路径并保留其设置。粘贴按图层偏移和可选播放头差换算局部时间；每次使用新路径／节点 ID。剪切先核验所有原几何再一次删除，失败不发布部分编辑。 |
+| PC-03 | 新协议信道、复用观察 | PathClipboardRead 和 ClipboardCommit 使用不可变 Arc 元数据，不经过普通 edit 的 256 KiB JSON 上限；16 MiB 元数据及既有几何／蒙版限额仍严格执行。新请求名、panic 回复类型接入原工作器；没有新线程、重试、重启、观察计数器或日志阈值。 |
+| PC-04 | 功能／正常分支 | 路径、图层、关键帧、文本与节点子图缓存独立；路径复用单个异步 pending 槽。成功缓存后才允许剪切提交；取消保持 pending 直到回复，取消／过期／空选区是正常分支。源 root、合成、generation、revision 必须一致，复用 ID 的工程替换也失效。 |
+| PC-05 | 交互修正 | 钢笔／蒙版活动时接入 Ctrl+C/X/V、Ctrl+Shift+V 与主窗 Edit 路径菜单。字段、IME、重复、菜单和未完成手势优先，无路径选区不回退图层复制。真实组件测试发现切换目标清掉内部点焦点后粘贴被挡；现由获得焦点的合成面板和活动工具共同授权，属性面板仍要求路径自身取得输入。 |
+| PC-06 | 既有观察的实际验证 | 默认 INFO 的读／提交 start 在文件出现，stderr 不含 start；缺失源 object=404、缺失目标 object=405 的 phase 与原始错误同时进入文件和 Error stderr，stdout 隔离。实际 worker panic 与排队读断连保留同一主要原因及恢复文件。可控 TestWait 验证已有在途发布和未回复时的 pending 保留；没有在路径捕获函数内部另注入永久阻塞，不能把该项扩大为每个函数的阻塞证明。 |
+| PC-07 | 待完成 | 系统键鼠／window_event、系统文本服务、打包版和当前 main 组合及 CI 尚未完成验证。缓存不是操作系统剪贴板。#204 保持开放，阶段结果不等于全部桌面闭环完成。 |
+
+### 真实验证与失败记录
+
+证据位于 `E:/Dev/aem/artifacts/pr-ci-followups/`。`path-clipboard-core-third.log` 实际通过路径 8、既有关键帧 17、图层 12 项，均零失败／忽略；路径覆盖跨工程源删除、时间偏移、曲线／手柄、闭合接缝、不连续选区、嵌套作者几何、蒙版保留设置、连续粘贴、ID／时间／16 MiB／几何限额、保存重开和单步撤销。新测试最初的 VectorContent 夹具类型及私有目录调用错误已修正；命令解析器合法返回 InComposition 的首轮断言失败，改为明确验证合成 ID 与内部完整命令，保留原始失败日志。没有修改既有断言。
+
+`path-clipboard-regression-final.log` 实际通过 80 项、0 失败／忽略、943 过滤，212.81 秒，其中新桥接 6 项、原生路径组件 1 项，原图层／关键帧／文本缓存、菜单、取消与错误信道测试继续通过。`path-clipboard-controls-final.log` 实际通过路径控件 82 项、0 失败／忽略、941 过滤，45.59 秒；两组有重叠，不相加声称独立用例数。新桥接覆盖大于普通 JSON 信道上限的真实几何、源引擎退出后跨工程粘贴、独立缓存、取消、过期与重复 generation 的拒绝、保存／重开／一步撤销，以及默认文件／stderr／stdout 输出。
+
+新桌面夹具最初缺 Track.axes、直接比较未实现 PartialEq 的目标枚举，以及尚未落盘的测试子模块导致编译失败，分别补齐夹具、使用显式模式断言并完成模块；原始日志保留。原生第四／五轮发现 PC-05 的真实焦点问题并修正生产逻辑；第六轮新夹具错误假设路径有 Ctrl+A 全选，改用既有四次真实 Shift 追加点击，保留闭合与四节点断言，没有添加产品快捷键或放宽断言。
+
+`path-clipboard-errors-final/` 保留默认日志与子进程 stdout／stderr，包括受控 panic 的恢复文件路径。正常取消及过期请求先被实际执行，确认没有 Error 后再注入失败；未修改失败返回值。路径捕获和提交没有资源暂存／清理协议，复用原工作器非 Present 的开始／在途／完成和 panic 机制；没有新增 Present 热路径日志。
+
+`path-clipboard-native-final/` 生成并逐张查看 6 张真实隐藏 HWND／wgpu 截图：英文 1280×800、100%；中文 1920×1200、150%。主窗两个路径菜单及粘贴后的两图、原生浮窗粘贴后的两图；使用生产 Input 和组件绘制路由，经共享 Shell 缓存跨窗粘贴，检查四个节点及闭合、保存重开和单次撤销。截图显示真实选择轮廓和菜单，不以黑色合成背景证明填充／最终渲染像素语义。未修改右键菜单，未模拟 OS 输入。英文既有路径说明文本的字体显示问题及窄属性值省略保留；stderr 中本机 Epic EOSOverlay JSON 缺失的 Vulkan loader 报错原样保留。
+
+`path-clipboard-build-final.log` 测试程序编译成功；SHA-256 `32a8f438a41313b3f7f452f9f055db084e114ea0d45c5ca4d2d2bd84bc1529a7`。`path-clipboard-bin-final.log` 的 `cargo build -p motion-desktop --features ffmpeg --bin motion-studio --locked` 成功，53.93 秒；实际 exe SHA-256 `e19669dad41dc4ff1670b5c06221e74cdf37b8eadf0d0140ed2df0d50b148e39`。定向格式检查、样式消费者检查及 diff 空白检查另在提交前执行。已有警告保留，不以它们冒充新的错误观察。
+
+### DESIGN §0.7 基线处置
+
+本阶段只增加菜单文案、命令与输入路由，没有产品绘制颜色、尺寸、控件类型或树行布局变更；未引入依赖、资产、工程格式或渲染语义变化。十二行逐项保留，原因如下，不宣称全规范已符合：
+
+| 基线行 | 状态／原因 |
+| --- | --- |
+| path 六个纵向步进 | retained：不改行布局；本阶段菜单截图不能验收其整改。 |
+| path 两列拆分 | retained：未改字段列计划。 |
+| path 混合按钮高度 | retained：未改控件或点击范围。 |
+| path 自绘数字字段 | retained：不改既有数值显示。 |
+| path 全宽布尔按钮 | retained：无布尔控件变更。 |
+| effect 行步进 | retained：未编辑效果行。 |
+| effect 布尔文本按钮 | retained：未编辑效果控件。 |
+| effect 全宽枚举按钮 | retained：未编辑枚举控件。 |
+| effect 手工 hover alpha | retained：未改悬停绘制。 |
+| effect 缺层级缩进 | retained：未改效果树。 |
+| timeline 既有列坐标 | retained：兼容基线，未动列宽或坐标。 |
+| timeline 黄色吸附线 | retained：兼容基线，未改颜色。 |

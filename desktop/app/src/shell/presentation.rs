@@ -101,6 +101,7 @@ impl Shell {
         self.input.text_clipboard = Some(self.text_clipboard.clone());
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
+        self.panels.path_clipboard_available = self.layer_clipboard.paths_available();
         self.panels.clipboard_busy = self.layer_clipboard.busy();
         self.panel_maximize_shortcut(size);
         self.atlas.set_pixel_ratio(self.scale);
@@ -678,6 +679,7 @@ impl Shell {
     ) -> Result<(), String> {
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
+        self.panels.path_clipboard_available = self.layer_clipboard.paths_available();
         self.panels.clipboard_busy = self.layer_clipboard.busy();
         if (!self.actions.is_empty() && !self.present_due)
             || self.editing.is_some()

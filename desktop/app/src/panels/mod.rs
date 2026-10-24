@@ -69,6 +69,7 @@ mod menus;
 mod clipboard_menu;
 pub(crate) mod text_menu;
 mod keyframe_clipboard;
+mod path_clipboard;
 pub(crate) mod numeric;
 mod observation;
 #[cfg(test)]
@@ -382,7 +383,9 @@ pub fn chrome(
     if panels.menu.is_none() && input.pressed.is_some_and(|(_, point)|
         point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR) {
         panels.clipboard_menu_keys = keyframe_clipboard::selection(panels, state);
-        panels.clipboard_menu_allowed = Some(!keyboard::layout_shortcuts_blocked(panels)
+        panels.clipboard_menu_paths = path_clipboard::selection(panels, state);
+        panels.clipboard_menu_allowed = Some(panels.clipboard_menu_paths.is_some() && keyboard::path_clipboard_allowed(panels, state)
+            || !keyboard::layout_shortcuts_blocked(panels)
             && state["observing"] != true
             && (panels.clipboard_menu_keys.is_some() || keyboard::layer_clipboard_allowed(panels, state)));
     }

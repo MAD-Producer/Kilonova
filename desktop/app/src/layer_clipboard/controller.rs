@@ -33,6 +33,7 @@ pub(crate) enum Status {
 pub(crate) enum Domain {
     Layers,
     Keyframes,
+    Paths,
 }
 pub(crate) struct Completion {
     pub domain: Domain,
@@ -41,6 +42,7 @@ pub(crate) struct Completion {
     pub state: Option<Value>,
 }
 enum Stage {
+    ReadingPaths(Receiver<Result<super::PathRead, String>>, Option<motion_core::PathDestination>),
     Reading(Receiver<Result<Read, String>>, PathBuf),
     ReadingKeyframes(
         Receiver<Result<KeyframeRead, String>>,
@@ -60,6 +62,7 @@ struct Pending {
 pub(crate) struct Clipboard {
     frozen: Option<Arc<Frozen>>,
     keyframes: Option<Arc<motion_core::KeyframeClipboard>>,
+    paths: Option<Arc<motion_core::PathClipboard>>,
     pending: Option<Pending>,
 }
 impl Drop for Clipboard {
@@ -74,6 +77,7 @@ impl Clipboard {
     pub(crate) fn keyframes_available(&self) -> bool {
         self.keyframes.is_some()
     }
+    pub(crate) fn paths_available(&self) -> bool { self.paths.is_some() }
     pub(crate) fn busy(&self) -> bool {
         self.pending.is_some()
     }
@@ -88,7 +92,7 @@ impl Clipboard {
                 return "cancelling";
             }
             match &pending.stage {
-                Stage::Reading(..) | Stage::ReadingKeyframes(..) => "reading",
+                Stage::Reading(..) | Stage::ReadingKeyframes(..) | Stage::ReadingPaths(..) => "reading",
                 Stage::Working(job, _) => job.status().1,
                 Stage::Ready(_) => "ready",
                 Stage::Committing(_) => "committing",
@@ -163,6 +167,20 @@ impl Clipboard {
         });
         Ok(true)
     }
+    pub(crate) fn start_paths(
+        &mut self, engine: &Engine, intent: Intent, source: super::PathSource,
+        selections: Vec<motion_core::PathSelection>, target: Option<motion_core::PathDestination>,
+    ) -> Result<bool, String> {
+        if self.busy() || match intent {
+            Intent::Copy | Intent::Cut => selections.is_empty(),
+            Intent::Paste { .. } => !self.paths_available() || target.is_none(),
+        } { return Ok(false); }
+        let selections = if matches!(intent, Intent::Paste { .. }) { vec![] } else { selections };
+        let receive = engine.request(|reply| Command::PathClipboardRead { source, selections, reply })?;
+        self.pending = Some(Pending { domain: Domain::Paths, intent, cancel: Arc::new(AtomicBool::new(false)),
+            stage: Stage::ReadingPaths(receive, target) });
+        Ok(true)
+    }
     /// Only submit a transaction when the shell has drained prior edits and
     /// project transitions. While committing, it must wait before dispatching
     /// another edit, so an old acknowledgement cannot replace newer UI state.
@@ -185,6 +203,38 @@ impl Clipboard {
             }))
         };
         let stage = match pending.stage {
+            Stage::ReadingPaths(receive, target) => {
+                let Some(result) = engine.poll_reply(&receive, "path_clipboard_read") else {
+                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingPaths(receive, target) });
+                    return None;
+                };
+                let source = match result { Ok(source) => source, Err(error) => return Some(Err(error)) };
+                if cancelled() { return done(Status::Cancelled, None); }
+                if source.superseded { return done(Status::Superseded, None); }
+                match intent {
+                    Intent::Copy | Intent::Cut => {
+                        let Some(clipboard) = source.clipboard else {
+                            log::error!("path clipboard capture failed phase=reading reason=engine returned no paths");
+                            return Some(Err("path clipboard capture returned no paths".into()));
+                        };
+                        self.paths = Some(clipboard.clone());
+                        if intent == Intent::Copy { return done(Status::Copied, None); }
+                        Stage::Ready(Edit::CutPaths { stamp: source.stamp, clipboard, cancel: cancel.clone() })
+                    }
+                    Intent::Paste { in_place } => {
+                        let Some(clipboard) = self.paths.clone() else {
+                            log::error!("path clipboard paste failed phase=reading reason=application cache lost during pending paste");
+                            return Some(Err("path clipboard cache lost during paste".into()));
+                        };
+                        let Some(target) = target else {
+                            log::error!("path clipboard paste failed phase=reading reason=destination lost during pending paste");
+                            return Some(Err("path clipboard destination lost during paste".into()));
+                        };
+                        Stage::Ready(Edit::PastePaths { stamp: source.stamp, clipboard, target,
+                            at_frame: (!in_place).then_some(source.frame), cancel: cancel.clone() })
+                    }
+                }
+            }
             Stage::ReadingKeyframes(receive, targets) => {
                 let Some(result) = engine.poll_reply(&receive, "keyframe_clipboard_read") else {
                     self.pending = Some(Pending {

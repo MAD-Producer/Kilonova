@@ -77,7 +77,10 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
 
 /// Layout shortcuts must defer to the same editors as document shortcuts.
 pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
-    editor_active(panels)
+    layout_shortcuts_blocked_for(panels, true)
+}
+fn layout_shortcuts_blocked_for(panels: &Panels, path_focus: bool) -> bool {
+    editor_active_for(panels, path_focus)
         || (panels.focused == Some(Panel::Effects) && panels.browser.library_search_editing())
         || panels.transform_controls.gesture_active()
         || panels.timeline.reorder.is_some()
@@ -94,6 +97,12 @@ pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || panels.layer_actions.text_in(None)
         || panels.layer_actions.text_in(Some(Panel::Timeline))
+}
+pub(super) fn path_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
+    matches!(panels.focused, Some(Panel::Composition | Panel::Masks | Panel::Vector))
+        && panels.path_controls.tool != super::path_controls::Tool::Select
+        && (panels.focused == Some(Panel::Composition) || panels.path_controls.wants_keyboard())
+        && !layout_shortcuts_blocked_for(panels, false) && state["observing"] != true
 }
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
@@ -203,6 +212,18 @@ fn route_inner(
         && !editor_active_for(panels, false) && !panels.transform_controls.gesture_active()
         && matches!(panels.focused, Some(Panel::Composition | Panel::Vector | Panel::Masks))
     {
+        if path_clipboard_allowed(panels, state) {
+            for (key, modifiers, repeat) in input.key_presses() {
+                if let Some(intent) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat).and_then(clipboard_intent) {
+                    if !panels.clipboard_busy {
+                        if let Some(paths) = super::path_clipboard::selection(panels, state) {
+                            if paths.enabled(state, intent, panels.path_clipboard_available) { out.push(paths.action(intent)); }
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
         if super::tools::nudge(panels,state,input,out) {return true;}
         for (key, modifiers, repeat) in input.key_presses() {
             if key == Key::Escape && !modifiers.control && !modifiers.alt && !repeat {

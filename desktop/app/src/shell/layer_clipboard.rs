@@ -6,6 +6,20 @@ use crate::{
 mod tests;
 
 impl Shell {
+    pub(crate) fn request_path_clipboard(
+        &mut self, intent: Intent, source: crate::layer_clipboard::PathSource,
+        selections: Vec<motion_core::PathSelection>, target: motion_core::PathDestination,
+    ) -> Result<(), String> {
+        if self.project_modal() || self.closing { return Ok(()); }
+        if self.layer_clipboard.start_paths(&self.engine, intent, source, selections, Some(target))? {
+            if intent != Intent::Copy { self.stop(); }
+            self.panels.message = Some(if self.workspace.locale == crate::i18n::Locale::Zh {
+                "正在准备路径剪贴板…"
+            } else { "Preparing path clipboard…" }.into());
+            self.dirty = true;
+        }
+        Ok(())
+    }
     pub(crate) fn request_keyframe_clipboard(
         &mut self,
         intent: Intent,
@@ -113,7 +127,9 @@ impl Shell {
                 self.panels.message = Some(
                     match completed.status {
                         Status::Copied => {
-                            if completed.domain == Domain::Keyframes {
+                            if completed.domain == Domain::Paths {
+                                if zh { "已复制路径" } else { "Paths copied" }
+                            } else if completed.domain == Domain::Keyframes {
                                 if zh {
                                     "已复制关键帧"
                                 } else {
@@ -126,7 +142,10 @@ impl Shell {
                             }
                         }
                         Status::Applied if completed.intent == Intent::Cut => {
-                            if completed.domain == Domain::Keyframes {
+                            if completed.domain == Domain::Paths {
+                                self.panels.path_controls.clipboard_cut_completed();
+                                if zh { "已剪切路径" } else { "Paths cut" }
+                            } else if completed.domain == Domain::Keyframes {
                                 if zh {
                                     "已剪切关键帧"
                                 } else {
@@ -139,7 +158,9 @@ impl Shell {
                             }
                         }
                         Status::Applied => {
-                            if completed.domain == Domain::Keyframes {
+                            if completed.domain == Domain::Paths {
+                                if zh { "已粘贴路径" } else { "Paths pasted" }
+                            } else if completed.domain == Domain::Keyframes {
                                 if zh {
                                     "已粘贴关键帧"
                                 } else {

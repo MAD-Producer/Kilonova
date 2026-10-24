@@ -13,6 +13,7 @@ pub mod color_curves;
 mod commands;
 pub mod layer_clipboard;
 pub mod keyframe_clipboard;
+pub mod path_clipboard;
 pub mod effects;
 pub mod expressions;
 pub mod geometry;
@@ -35,6 +36,7 @@ pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePubli
 pub use commands::{Command, EditResult, Property};
 pub use layer_clipboard::LayerClipboard;
 pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use audio::{AudioAsset, AudioClip};
 pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
@@ -115,6 +117,14 @@ pub enum Error {
         phase: &'static str,
         object: u64,
         channel: String,
+        #[source]
+        source: Box<Error>,
+    },
+    #[error("path clipboard phase={phase} object={object} path={path}: {source}")]
+    PathClipboard {
+        phase: &'static str,
+        object: u64,
+        path: u64,
         #[source]
         source: Box<Error>,
     },

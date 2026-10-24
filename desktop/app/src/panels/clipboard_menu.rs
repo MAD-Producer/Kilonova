@@ -6,6 +6,11 @@ use crate::{
 use serde_json::Value;
 
 pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Action, bool)> {
+    let current_paths = if panels.clipboard_menu_allowed.is_none() { super::path_clipboard::selection(panels, state) } else { None };
+    if let Some(paths) = panels.clipboard_menu_paths.as_ref().filter(|_| panels.clipboard_menu_allowed.is_some()).or(current_paths.as_ref()) {
+        return super::path_clipboard::entries(panels, state, paths,
+            panels.clipboard_menu_allowed.unwrap_or_else(|| super::keyboard::path_clipboard_allowed(panels, state)));
+    }
     let current_keys = if panels.clipboard_menu_allowed.is_none() { super::keyframe_clipboard::selection(panels, state) } else { None };
     let keys = panels.clipboard_menu_keys.as_ref().filter(|_| panels.clipboard_menu_allowed.is_some()).or(current_keys.as_ref());
     let allowed = panels

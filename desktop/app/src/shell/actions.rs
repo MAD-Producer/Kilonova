@@ -781,6 +781,7 @@ impl Shell {
             }
             Action::LayerClipboard(intent) => self.request_layer_clipboard(intent)?,
             Action::KeyframeClipboard { intent, source, selections, targets } => self.request_keyframe_clipboard(intent, source, selections, targets)?,
+            Action::PathClipboard { intent, source, selections, target } => self.request_path_clipboard(intent, source, selections, target)?,
             Action::CancelLayerClipboard => self.cancel_layer_clipboard(),
             Action::History(op) => {
                 if matches!(op,0|1) && panels::tools::camera::owns_history(&self.panels) {

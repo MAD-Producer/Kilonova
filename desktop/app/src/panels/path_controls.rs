@@ -25,6 +25,7 @@ mod mask_keys;
 mod mask_path;
 mod source_geometry;
 mod point_selection;
+mod clipboard;
 mod pen_tools;
 #[cfg(test)]
 mod property_focus_tests;

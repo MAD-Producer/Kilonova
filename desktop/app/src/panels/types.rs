@@ -32,6 +32,12 @@ pub enum Action {
         selections: Vec<motion_core::KeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     },
+    PathClipboard {
+        intent: crate::layer_clipboard::controller::Intent,
+        source: crate::layer_clipboard::PathSource,
+        selections: Vec<motion_core::PathSelection>,
+        target: motion_core::PathDestination,
+    },
     CancelLayerClipboard,
     AnalyzeAudio(u64),
     CancelAudioAnalysis,
@@ -167,10 +173,12 @@ pub struct Panels {
     pub(crate) menu: Option<usize>,
     pub(crate) clipboard_available: bool,
     pub(crate) keyframe_clipboard_available: bool,
+    pub(crate) path_clipboard_available: bool,
     pub(crate) clipboard_busy: bool,
     /// Eligibility captured before opening application chrome clears focus.
     pub(crate) clipboard_menu_allowed: Option<bool>,
     pub(crate) clipboard_menu_keys: Option<super::keyframe_clipboard::Selection>,
+    pub(crate) clipboard_menu_paths: Option<super::path_clipboard::Selection>,
     pub(crate) text_menu: Option<super::text_menu::Capture>,
     /// First visible row in the application menu when the popup is taller than
     /// the available window height.
