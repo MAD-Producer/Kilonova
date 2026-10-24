@@ -1,3 +1,9 @@
+# GPU command observations: historical implementation notes
+
+The current frozen ff52 correctness and Release increments are accepted locally. See [accepted correctness](gpu-command-observations-completed.md), [Release measurement](gpu-command-release-completed.md) and [original requirement audit](issue60-desktop-scope-completed.md). Final-head PR CI remains required before delivery.
+
+The notes below retain the original per-source progress history. Pending statements describe those earlier stages, not the later ff52 acceptance.
+
 # GPU command observations: implementation and remaining acceptance
 
 This is a progress record for issue #60, not a completion claim. Android validation is excluded by the user's confirmed scope. No optimization gain, exclusive GPU busy time, complete pass coverage or new performance baseline is claimed.
