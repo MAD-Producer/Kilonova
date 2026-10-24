@@ -1546,11 +1546,8 @@ impl Renderer {
         for id in stale { self.remove_static_image(id); }
         self.trim_image_cache(0);
         let demand_missing = wanted.iter().any(|id| !self.images.contains_key(&TextureKey::Static(*id)));
-        let candidates: std::collections::BTreeSet<_> = self.image_prefetch.iter().copied()
-            .filter(|id| !wanted.contains(id)).take(crate::image_resources::MAX_PREFETCH_IMAGES).collect();
-        let allowed = if self.image_cache_enabled && asynchronous && !demand_missing {
-            wanted.union(&candidates).copied().collect()
-        } else { wanted.clone() };
+        let allowed = crate::image_resources::allowed_assets(&wanted, &self.image_prefetch,
+            self.image_cache_enabled && asynchronous && !demand_missing);
         self.image_decode.cancel_unwanted_with_budget(&allowed, resolution, decode_budget);
         if let Some((source, mode, speculative, result)) = self.image_decode.poll() {
             if mode == resolution && allowed.contains(&source.id) && self.image_sources.get(&source.id) == Some(&source)
@@ -1581,6 +1578,7 @@ impl Renderer {
                 }
             }
         }
+        drop(allowed);
         for id in wanted {
             if self.images.contains_key(&TextureKey::Static(id)) { continue; }
             let source = self.image_sources[&id].clone();
