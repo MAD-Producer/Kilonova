@@ -159,6 +159,10 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    pub(crate) clipboard_available: bool,
+    pub(crate) clipboard_busy: bool,
+    /// Eligibility captured before opening application chrome clears focus.
+    pub(crate) clipboard_menu_allowed: Option<bool>,
     /// First visible row in the application menu when the popup is taller than
     /// the available window height.
     pub(crate) menu_scroll: usize,

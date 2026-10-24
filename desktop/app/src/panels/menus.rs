@@ -113,7 +113,7 @@ pub(super) fn render(
                 (locale.t(T::CancelExport).into(), Action::CancelExport, true),
                 (locale.t(T::CancelImport).into(), Action::CancelImport, true),
             ],
-            1 => vec![
+            1 => { let mut entries = vec![
                 (
                     panels.shortcut_bindings.label(locale.t(T::Undo), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Undo),
                     Action::History(0),
@@ -134,7 +134,10 @@ pub(super) fn render(
                     Action::Preferences,
                     true,
                 ),
-            ],
+            ];
+                entries.splice(2..2, super::clipboard_menu::entries(panels, state));
+                entries
+            },
             2 => vec![
                 (
                     panels.shortcut_bindings.label(locale.t(T::NewComposition), crate::shortcuts::Scope::Application, crate::shortcuts::Command::NewComposition),
@@ -328,14 +331,20 @@ pub(super) fn render(
             panels.menu_scroll = max_scroll;
         }
         let popup_height = desired_height.min(max_height);
+        let minimum_width = styles.metric("menu.popup.min_width", styles.metric("context.menu.width", f32::default()));
+        let popup_width = if menu == 1 {
+            entries.iter().map(|(text,_,_)| atlas.measure(text))
+                .fold(minimum_width, |width, text| width.max(text + styles.metric("padding.panel", f32::default()) * 4.))
+                .min(size[0])
+        } else { minimum_width };
         let popup = Rect::new(
             starts
                 .get(menu)
                 .copied()
                 .unwrap_or(8.0)
-                .min((size[0] - 280.0).max(0.0)),
+                .min((size[0] - popup_width).max(0.0)),
             top,
-            280.0,
+            popup_width,
             popup_height,
         );
         if popup.contains(input.mouse) {

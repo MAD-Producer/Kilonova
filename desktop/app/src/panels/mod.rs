@@ -66,6 +66,7 @@ pub(crate) mod layer_navigation;
 #[cfg(test)]
 mod layer_switches;
 mod menus;
+mod clipboard_menu;
 pub(crate) mod numeric;
 mod observation;
 #[cfg(test)]
@@ -373,7 +374,11 @@ pub fn chrome(
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
-    if let Some((_, point)) = input.pressed.filter(|_| {
+    if panels.menu.is_none() && input.pressed.is_some_and(|(_, point)|
+        point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR) {
+        panels.clipboard_menu_allowed = Some(keyboard::layer_clipboard_allowed(panels, state));
+    }
+    if let Some((_, point)) = input.pressed.filter(|(_, point)| {
         !panels.effect_search_in(None)
             && !node_modal
             && !timeline_dropdown
@@ -381,6 +386,8 @@ pub fn chrome(
             && !layer_modal
             && !panels.expressions.menu_open()
             && !toolbar_modal
+            && panels.menu.is_none()
+            && !(point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR)
     }) {
         let focused = frames(layout, size)
             .into_iter()

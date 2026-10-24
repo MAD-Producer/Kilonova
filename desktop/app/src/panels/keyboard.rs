@@ -22,6 +22,27 @@ fn text_active(panels: &Panels) -> bool {
 
 fn editor_active(panels: &Panels) -> bool { editor_active_for(panels, true) }
 
+pub(super) fn layer_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
+    matches!(panels.focused, Some(Panel::Timeline | Panel::Composition))
+        && !layout_shortcuts_blocked(panels)
+        && !(panels.focused == Some(Panel::Timeline) && panels.timeline.graph_mode)
+        && panels.animation_controls.user_key().is_none()
+        && panels.animation_controls.track_selection(state, panels.selected)
+            != super::animation_controls::TrackSelection::Invalid
+        && state["observing"] != true
+}
+
+pub(super) fn clipboard_intent(command: Command) -> Option<crate::layer_clipboard::controller::Intent> {
+    use crate::layer_clipboard::controller::Intent;
+    Some(match command {
+        Command::CopySelection => Intent::Copy,
+        Command::CutSelection => Intent::Cut,
+        Command::PasteSelection => Intent::Paste { in_place: false },
+        Command::PasteInPlace => Intent::Paste { in_place: true },
+        _ => return None,
+    })
+}
+
 fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()
@@ -341,6 +362,16 @@ fn handle_context_shortcuts(
                 && panels.animation_controls.track_selection(state, panels.selected)
                     == super::animation_controls::TrackSelection::Invalid;
         if let Some(mut command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+            if let Some(intent) = clipboard_intent(command) {
+                if !input.focus_lost && layer_clipboard_allowed(panels, state)
+                    && !panels.clipboard_busy
+                    && (matches!(intent, crate::layer_clipboard::controller::Intent::Copy | crate::layer_clipboard::controller::Intent::Cut)
+                        || panels.clipboard_available)
+                {
+                    out.push(Action::LayerClipboard(intent));
+                }
+                continue;
+            }
             if command == Command::AnimatedProperties && matches!(panels.focused,
                 Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)) {
                 use std::hash::{Hash, Hasher};

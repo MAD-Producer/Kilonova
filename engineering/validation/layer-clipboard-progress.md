@@ -140,3 +140,51 @@ Session 增加不进入工程 JSON 的单调文档 generation。重新打开相�
 早期 `layer-clipboard-controller-compile.log`、`layer-clipboard-shell-compile.log`、`layer-clipboard-shell-first-tests.log`、`layer-clipboard-shell-tests.log`、`layer-clipboard-shell-final-*`、`layer-clipboard-shell-verified-*` 及 `layer-clipboard-shell-*-regression.log` 保留渐进实现的编译/测试原件，不冒充最终组合。之后因主选择清理、空缓存播放行为、空闲轮询与状态回包顺序的实际变化继续验证；未修改既有断言来换取通过。
 
 新模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过，未全局重排已有紧凑源文件。当前已发现远端 main 推进到 `7c0cd60b`，该新主线尚未组合；完成 #204 PR 前仍需同步当时最新主线并执行相关验收，不以本阶段测试代替该步骤。
+
+## 图层快捷键、编辑菜单与实际窗口截图
+
+本节更新前面阶段的未接线状态。时间轴片段模式和合成视口现可使用 Ctrl+C / Ctrl+X 复制、剪切图层，Ctrl+V 在读取目标时的播放头粘贴，Ctrl+Shift+V 保留源帧位置。编辑菜单提供相同命令和取消入口，快捷键标签使用真实可定制绑定。剪贴板忙碌、空缓存、锁定图层和不适用的编辑上下文分别控制菜单可用性。文本字段、输入法、搜索、节点、路径编辑、曲线和显式关键帧选择仍优先，不能把这项隔离当作它们自己的剪贴板已经实现。
+
+独立功能修正：点击主窗菜单栏和弹出菜单不再重分配文档焦点，避免打开编辑菜单后丢失时间轴所有权。菜单打开前捕获可用上下文。菜单宽度改读 `dark.json` 的 `menu.popup.min_width`，编辑菜单还按实际字宽及既有 padding 扩展，保留原有行高和点击范围；不新增颜色或另一套菜单控件。没有修改右键菜单。
+
+### 本阶段验证与原始失败
+
+所有下列日志均位于 `E:/Dev/aem/artifacts/pr-ci-followups/`，对应同一测试程序，SHA-256 为 `cb9823c7f974cb690eba8f94f090ee518a40865874ea99ee5e6d203974d12ee2`：
+
+| 日志 | 实际结果 |
+| --- | --- |
+| `layer-clipboard-ui-menu-compile.log` | 带 FFmpeg 的测试程序编译成功，2 分 24 秒，保留 22 项既有测试警告 |
+| `layer-clipboard-ui-native-tests.log` | 1 项实际原生窗口剪贴板测试通过、0 忽略，35.03 秒 |
+| `layer-clipboard-ui-menu-tests.log` | 2 项菜单状态及键盘上下文隔离测试通过、0 忽略 |
+| `layer-clipboard-ui-shortcut-verified-tests.log` | 9 项绑定、解析与文档一致性测试通过、0 忽略 |
+| `layer-clipboard-ui-host-tests.log` | 18 项宿主/后台/Shell 测试通过、0 忽略，53.76 秒 |
+| `layer-clipboard-ui-input-tests.log` | 1 项已有真实主窗/浮窗输入隔离回归通过、0 忽略，15.87 秒 |
+| `layer-clipboard-ui-playback-tests.log` | 4 项播放、曲线及原生属性手势回归通过、0 忽略，27.16 秒 |
+| `layer-clipboard-ui-keyboard-tests.log` | 24 项键盘回归通过、0 忽略 |
+| `layer-clipboard-ui-timeline-keyboard-tests.log` | 48 项时间轴快捷键/关键帧回归通过、0 忽略 |
+
+合计 107 项实际通过，不与初次运行或文档生成重复累计，也不是全部 970 项桌面测试。首轮 `layer-clipboard-ui-shortcut-tests.log` 保留 8 通过、1 失败：新增四项绑定后，生成的 `DEFAULT-KEY-BINDINGS.md` 未更新。使用既有 `MOTION_UPDATE_SHORTCUT_DOCS=1` 生成入口更新文档，`layer-clipboard-ui-doc-generation.log` 保留生成成功记录，再运行原有全部快捷键断言通过；没有修改断言或增加忽略项。最终编译后仅改文档和生成截图裁剪，没有再修改 Rust 源码。
+
+### 实际画面与交互证据
+
+`layer-clipboard-ui-native/` 保留八张原始 GPU 截图：`main-en-minimum-edit-menu.png`、`main-en-minimum-pasted.png`、`main-en-minimum-cancel-menu.png`、`main-zh-default-edit-menu.png`、`main-zh-default-pasted.png`、`main-zh-default-cancel-menu.png`、`float-en-minimum-pasted.png`、`float-zh-default-pasted.png`。另外两张 `main-zh-default-*-menu-crop.png` 是原截图的 540×540 左上角裁剪，未重画 UI。
+
+真实隐藏 HWND 和 wgpu surface 分别验证主窗英语 900×600/100%、主窗中文 1600×1000/150%、浮窗英语 900×600/150%、浮窗中文 1600×1000/100%。输入通过生产 `Input` 送入实际 chrome 和快捷键路由，再执行真实 Shell/Engine 命令，不是 OS 键盘注入或完整 `window_event` 分派测试。四种情况实际复制；主窗实际打开编辑菜单并点击播放头粘贴，验证结果在 50 帧且打开/点击后仍聚焦时间轴；浮窗实际 Ctrl+Shift+V，验证结果保留 10 帧。主窗另以受控排队保持 ready 阶段，实际点击取消入口，等待确认后不再 busy。最后实际保存并用完整 storage::load 重开，确认四次成功粘贴后为五图层。
+
+已查看中英文主窗菜单、忙碌取消菜单和中文浮窗原始画面，新增标签/提示可读。900×600 主窗既有右侧属性布局仍有裁切，本次没有修改该布局，不能宣称整个最小窗口符合 DESIGN §12。截图没有伪造合成画面；UI 捕获使用空 composition。
+
+原生截图子进程 stderr 保留本机 Vulkan loader 找不到 Epic EOSOverlay Win32/Win64 JSON 的既有驱动环境 Error；不宣称整个 stderr 为空，也未修改注册表或吞掉这些记录。剪贴板默认信道原件位于 `layer-clipboard-ui-foundation-channel/` 与 `layer-clipboard-ui-shell-channel/`，由上述 18 项真实故障/阻塞/取消测试重新生成。
+
+### 台账与剩余范围
+
+| ID | 分类 | 本阶段处置与边界 |
+| --- | --- | --- |
+| LC-01 / LC-02 / LC-07 | 已有覆盖 | UI 入口复用原有类型化请求、后台 IO 和 Shell 错误信道；上述 18 项重新验证原始故障、默认文件日志/Error stderr/stdout 隔离。不新增每帧日志。 |
+| LC-03 | 正常分支 | 禁用、空缓存、重复键、失焦、输入法和其他编辑器所有权由菜单/路由测试验证；实际取消入口返回正常取消，不作为 Error。 |
+| LC-04 | 新增观察 | 面板只镜像应用剪贴板 available/busy 状态；无文件 IO、额外后台任务、计数器或热路径开始/完成日志。 |
+| LC-06 / LC-08 | 功能/协议边界 | 实际窗口完成菜单点击、主窗/浮窗粘贴、取消与保存重开。输入是显式组件输入，未冒充 OS 输入服务或 GPU resize 调度的完整验收。 |
+| LC-05 | 待完成 | 文本、关键帧、路径独立剪贴板及完整上下文路由；完整 OS 多窗交互、打包程序、最新主线组合与 CI；强杀后的缓存遗留回收。节点独立剪贴板沿用既有实现。本阶段不关闭 #204。 |
+
+DESIGN §0.7 十二项仍分别保留，修改前后均未触及所列位置：path_controls 的六处步长、双列、按钮高度、数值字段、布尔字段；effect_controls 的步长、布尔、枚举、悬浮色、层级；timeline 的列坐标、吸附线。证据为本阶段 diff 仅涉及菜单、键盘及状态接线，截图不作为这些旧问题的修复证据。理由是它们属于独立的属性树/时间轴视觉整改。菜单现有其他行高、边框等硬编码也保留，未宣称全部 token 化。
+
+新模块定向 rustfmt、`git diff --check` 和 `verify_style_consumers()` 通过。没有新增依赖、第三方资产或渲染语义变更，没有审查其他人的 PR。此为已验证的图层 UI 阶段，尚未创建完成 PR，仍需按 #204 全范围继续实施。
