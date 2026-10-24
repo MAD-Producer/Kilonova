@@ -3,8 +3,8 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project setting, dense curve LUTs and explicit display/export conversion
-are not yet connected.
+open: the project setting, dense editor key insertion and explicit display/export
+conversion are not yet connected.
 
 ## Scope and status
 
@@ -16,8 +16,8 @@ are not yet connected.
 | 72-S4 | Physical effect descriptors, same-frame layer snapshots, accumulation, masks, mattes, ordinary nested compositions and vector/group rasters retain working precision | Implemented; actual pixel tests cover the named paths below |
 | 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve tested; a comprehensive retained/nested temporal precision golden remains pending |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
-| 72-S7 | Current packed plan v11 publishes precision at byte 152 and five physical scratch format codes | Implemented; Host derives version/header from Rust; GLES rejects missing capabilities and never allocates an 8-bit substitute for a high-precision descriptor |
-| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage and pre-copy source-budget API | Model implemented and tested; native GPU LUT, aggregate scene source admission, current wire/SDK/GLES and editor key-insertion integration pending |
+| 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
+| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables and bounded scene source payload | Actual GPU/wire probes and existing resource/scene regressions pass; editor key-insertion integration and final end-to-end goldens pending |
 | 72-S9 | Persisted project setting, native preview and explicit SDR display/PNG/movie output policy | Pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
@@ -48,6 +48,12 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-semantic-native-v1` | Five original raw-capture tests, four original GPU format/sampling tests and one new actual numeric capture test: weight above one, relative/linear depth, negative normal at zero fourth channel, odd row width and descriptor capacity |
 | `issue72-stage-dense-model-v2` | Complete `motion-model` suite: 73 passed, zero failed/ignored; includes authored fine features, temporal sampling, immutable-source reuse, budget refusal, dense save/edit round trip and original malformed-input/cause tests |
 | `issue72-stage-dense-core-v2` | Five original color-curve and nine original effect-editing tests pass, including freeze, seek order, atomic edits, dependencies and undo |
+| `issue72-stage-dense-pixels-v2` | Four tests: real high-precision narrow features versus the bounded UNORM8 control; fine F32 gradients/temporal seeks with cached tables and pipelines; exact shared-allocation refusal/recovery; versioned packed native float bits and missing-source refusal before writing |
+| `issue72-stage-dense-lifecycle-v1` | Actual high-precision two-to-one-to-two table lifecycle retains the surviving allocation, releases removed capacity and rebinds the replacement with correct pixels |
+| `issue72-stage-dense-admission-v1` | Both unchanged curve-resource unit tests pass, including queued uploads/abandoned encoders and shrink/growth without retained capacity |
+| `issue72-stage-dense-scene-core-v1` | Five original color-curve and nine effect-editing tests also pass after native Scene snapshot integration |
+| `issue72-jvm-dense-v1` | Current production Kotlin compilation and nine parser tests pass; explicit encoding/precision, native float bytes, bounds and version refusals; no Android device/GLES rendering validation |
+| `issue72-stage-dense-host-check-v1`, `issue72-stage-dense-native-check-v3` | Host compiles and all native render test targets check after wire/SDK integration; these checks are not pixel acceptance |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -85,6 +91,21 @@ preserves all preview points exactly. The corrected current model and core
 receipts above pass without changes to those assertions. Frozen/channel tables
 accept the explicit 256- or 4081-point authored grid; this is not a project
 migration or an attempt to invent detail from a low-resolution table.
+
+Native dense tables are materialized only after GPU admission. Scene snapshots
+bound selected authored payload to 32 MiB per scene before copying keys; cloned
+contexts share Arcs. This payload bound excludes fixed containers/allocator
+overhead and is separate from the shared GPU allocation budget. Dense tables
+remain a finite approximation between taps. UNORM8 retains its 1024-byte table;
+each high-precision table uses 65296 bytes of sample-only RGBA32Float storage.
+
+The first native checks caught a helper-name/type mismatch and a binding-helper
+fixture signature mismatch; their failed receipts are retained. The preliminary
+new GPU budget probe incorrectly reduced `SourceTextures`; LUT allocations belong
+to the existing `Effects` category under `RenderAllocations`. Version v2 injects
+the shared allocation limit one byte below the exact dense-table requirement and
+asserts the typed scope, required capacity, no retained LUT and successful recovery.
+No pre-existing assertion was changed to obtain these results.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;

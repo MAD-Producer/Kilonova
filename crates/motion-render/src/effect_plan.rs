@@ -17,7 +17,7 @@ pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat
 mod scratch_proposal_tests;
 
 pub const PLAN_MAGIC: u32 = 0x46584d53;
-pub const PLAN_VERSION: u32 = 11;
+pub const PLAN_VERSION: u32 = 12;
 pub const HEADER_BYTES: usize = 160;
 pub const DRAW_WORDS: usize = 32;
 pub const PASS_WORDS: usize = 10;
@@ -211,6 +211,15 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
 }
 
 impl EffectFramePlan {
+    /// Wire word 156 selects this numeric table encoding. Sampling is manual.
+    pub fn curve_lut_layout(&self) -> (usize, usize) {
+        if self.precision == ChannelPrecision::Unorm8 { (256, 4) }
+        else { (motion_model::HIGH_PRECISION_CURVE_SAMPLES, 16) }
+    }
+    fn curve_lut_stride(&self) -> usize {
+        let (samples, pixel_bytes) = self.curve_lut_layout();
+        samples * pixel_bytes
+    }
     pub fn scratch_bytes(&self) -> u64 {
         self.scratch_allocations.iter().map(|allocation| allocation.bytes()).sum()
     }
@@ -223,7 +232,7 @@ impl EffectFramePlan {
             + self.draws.len() * 128
             + self.passes.len() * 40
             + self.passes.len() * shader::UNIFORM_BYTES
-            + scene.curve_luts.len() * 1024
+            + scene.curve_luts.len() * self.curve_lut_stride()
             + self.batches.len() * 12
             + self.vertices.len() * 20
             + self.sprites.len() * 48
@@ -240,6 +249,11 @@ impl EffectFramePlan {
             + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
+        if self.precision != ChannelPrecision::Unorm8 && scene.curve_sources.len() != scene.curve_luts.len() {
+            return Err(RenderError::Invalid(format!(
+                "packed high-precision curve sources={} do not match LUTs={}",
+                scene.curve_sources.len(), scene.curve_luts.len())));
+        }
         let size = self.buffer_bytes(scene);
         if out.len() < size {
             return Err(format!("render plan buffer requires {size} bytes").into());
@@ -248,7 +262,8 @@ impl EffectFramePlan {
         let pass_offset = draw_offset + self.draws.len() * 128;
         let uniform_offset = pass_offset + self.passes.len() * 40;
         let lut_offset = uniform_offset + self.passes.len() * shader::UNIFORM_BYTES;
-        let sprite_offset = lut_offset + scene.curve_luts.len() * 1024;
+        let lut_stride = self.curve_lut_stride();
+        let sprite_offset = lut_offset + scene.curve_luts.len() * lut_stride;
         let batch_offset = sprite_offset + self.sprites.len() * 48;
         let vertex_offset = batch_offset + self.batches.len() * 12;
         let vector_offset = vertex_offset + self.vertices.len() * 20;
@@ -293,7 +308,8 @@ impl EffectFramePlan {
             crate::mask_plan::RECORD_BYTES as u32,
             compositing_offset as u32,self.compositing.len() as u32,20,
             scratch_offset as u32, self.scratch_allocations.len() as u32,
-            SCRATCH_RECORD_BYTES as u32, self.precision as u32, 0,
+            SCRATCH_RECORD_BYTES as u32, self.precision as u32,
+            u32::from(self.precision != ChannelPrecision::Unorm8),
         ];
         out[..HEADER_BYTES].copy_from_slice(bytemuck::cast_slice(&header));
         for (i, d) in self.draws.iter().enumerate() {
@@ -313,7 +329,7 @@ impl EffectFramePlan {
                 if p.lut < 0 {
                     u32::MAX
                 } else {
-                    (lut_offset + p.lut as usize * 1024) as u32
+                    (lut_offset + p.lut as usize * lut_stride) as u32
                 },
                 if p.sprite {p.sprite_start} else {p.resource_input as u32},
                 p.sprite_count,
@@ -325,6 +341,14 @@ impl EffectFramePlan {
                 .copy_from_slice(bytemuck::bytes_of(&p.uniform));
         }
         for (i, lut) in scene.curve_luts.iter().enumerate() {
+            if self.precision != ChannelPrecision::Unorm8 {
+                let source = scene.curve_sources.get(i).ok_or_else(|| RenderError::Invalid(
+                    format!("packed effect curve index={i}: high-precision authored source is missing")))?;
+                let rows = source.high_precision_lut();
+                out[lut_offset + i * lut_stride..lut_offset + (i + 1) * lut_stride]
+                    .copy_from_slice(bytemuck::cast_slice(&rows));
+                continue;
+            }
             for (j, pixel) in lut.iter().enumerate() {
                 for c in 0..4 {
                     out[lut_offset + i * 1024 + j * 4 + c] =

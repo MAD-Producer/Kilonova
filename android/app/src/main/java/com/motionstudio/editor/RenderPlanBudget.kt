@@ -2,13 +2,24 @@ package com.motionstudio.editor
 
 import java.nio.ByteBuffer
 
-/** v11 adds explicit working precision to the physical scratch contract. */
+/** v12 adds explicit numeric LUT encoding without changing physical slots. */
 internal object RenderPlanBudget {
-    const val VERSION=11
+    const val VERSION=12
+    const val DENSE_CURVE_SAMPLES=4081
     const val VECTOR_RECORD_BYTES=40
     const val HEADER_BYTES=160
     const val SCRATCH_RECORD_BYTES=32
     const val MAX_SCRATCH_PASSES=128*(16*(8+3)+1)
+    data class LutLayout(val samples:Int,val pixelBytes:Int,val floating:Boolean) {
+        val stride get()=samples*pixelBytes
+    }
+    fun lutLayout(plan:ByteBuffer):LutLayout {
+        scratchBytes(plan)
+        val layout=if(plan.getInt(156)==0)LutLayout(256,4,false)else LutLayout(DENSE_CURVE_SAMPLES,16,true)
+        val offset=plan.getInt(44);val count=plan.getInt(48);val total=plan.getInt(28)
+        check(total in HEADER_BYTES..plan.capacity()&&offset>=HEADER_BYTES&&offset%4==0&&count in 0..128*16&&offset.toLong()+count.toLong()*layout.stride<=total){"曲线数值表范围失效"}
+        return layout
+    }
     data class ScratchAllocation(val width:Int,val height:Int,val format:Int,
         val workingSpaces:Int,val alphaModes:Int,val usage:Int,val bytesPerPixel:Int) {
         fun bytes():Long=width.toLong()*height*bytesPerPixel
@@ -38,7 +49,8 @@ internal object RenderPlanBudget {
     }
     fun scratchBytes(plan:ByteBuffer):Long {
         check(plan.capacity()>=HEADER_BYTES&&plan.getInt(0)==0x46584d53&&plan.getInt(4)==VERSION){"不兼容的帧预算协议"}
-        check(plan.getInt(152) in 0..3&&plan.getInt(156)==0){"帧工作精度协议失效"}
+        val precision=plan.getInt(152);val encoding=plan.getInt(156)
+        check(precision in 0..3&&encoding==(if(precision==0)0 else 1)){"帧工作精度与曲线编码协议失效"}
         val bytes=plan.getInt(76).toLong()
         check(bytes>0){"效果临时纹理预算失效"}
         return bytes

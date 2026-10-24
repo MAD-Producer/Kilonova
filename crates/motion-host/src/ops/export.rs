@@ -78,7 +78,9 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             + p.layers.len() * (128 + 20)
             + passes * (40 + motion_effects::shader::UNIFORM_BYTES
                 + motion_render::effect_plan::SCRATCH_RECORD_BYTES)
-            + count * 1024
+            + count * if s.effects.precision() == motion_effects::image_contract::ChannelPrecision::Unorm8 {
+                1024
+            } else { motion_core::HIGH_PRECISION_CURVE_SAMPLES * 16 }
             + motion_effects::MAX_SPRITES * 48
             + 8192 * 12
             + 65536 * 20
@@ -89,7 +91,12 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
         let has_audio = !p.audio_voices()
             .map_err(|e| crate::Error::with_context("export audio plan", e))?.is_empty();
         let mut info=json!({"version":motion_render::effect_plan::PLAN_VERSION,
+            "curveLutAbi":motion_effects::shader::CURVE_LUT_ABI_VERSION,
+            "curveLutEncodings":[
+                {"code":0,"format":"rgba8_unorm","samples":256,"pixelBytes":4},
+                {"code":1,"format":"rgba32_float","samples":motion_core::HIGH_PRECISION_CURVE_SAMPLES,"pixelBytes":16}],
             "scratchBudgetBytes":s.effects.scratch_budget(),
+            "sourceTextureBudgetBytes":s.effects.memory_policy().source_texture_budget_bytes,
             "headerBytes":motion_render::effect_plan::HEADER_BYTES,
             "composition_bundle_version":1,"composition_bundle_buffer_hint":131072,
             "has_video":!p.video_assets.is_empty(),

@@ -13,6 +13,7 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
     private var pool=IntArray(0)
     private val luts=HashMap<Int,Pair<Int,ByteArray>>()
     private var packageBytes=0L
+    private val sourceBudget=info.getLong("sourceTextureBudgetBytes")
     private var poolDescriptors=emptyList<RenderPlanBudget.ScratchAllocation>()
     private val extensions by lazy {
         val count=IntArray(1);GL.glGetIntegerv(GL.GL_NUM_EXTENSIONS,count,0)
@@ -27,6 +28,7 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
     init {
         try {
             check(info.getInt("version")==RenderPlanBudget.VERSION&&info.getInt("headerBytes")==RenderPlanBudget.HEADER_BYTES&&info.getInt("uniformBytes")==624){"不兼容的效果渲染协议"}
+            check(info.getInt("curveLutAbi")==2&&sourceBudget>0){"不兼容的数值曲线协议"}
             val ids=IntArray(1);GL.glGenFramebuffers(1,ids,0);framebuffer=ids[0]
             GL.glGenBuffers(1,ids,0);uniform=ids[0];GL.glBindBuffer(GL.GL_UNIFORM_BUFFER,uniform)
             GL.glBufferData(GL.GL_UNIFORM_BUFFER,624,null,GL.GL_DYNAMIC_DRAW)
@@ -69,7 +71,7 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
                     val image=images.getJSONObject(i);val w=image.getInt("width");val h=image.getInt("height")
                     val key=program.getString("key").substringBefore(':')+":"+image.getString("path")
                     resources[i]=resourceCache[key]?:run {
-                        packageBytes+=w.toLong()*h*4;resourceBytes+=w.toLong()*h*4;check(resourceBytes<=128L*1024*1024){"素材和效果资源超过 128 MiB"}
+                        packageBytes+=w.toLong()*h*4;resourceBytes+=w.toLong()*h*4;check(resourceBytes<=sourceBudget){"素材和效果资源超过原生预算"}
                         val pixels=NativeBridge.pluginPixels(native,index,i)?:error("效果资源读取失败")
                         val texture=texture(w,h,false,ByteBuffer.allocateDirect(pixels.size).put(pixels).apply{flip()})
                         ownedTextures.add(texture);resourceCache[key]=texture;texture
@@ -117,19 +119,52 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
             pool=next;poolDescriptors=descriptors
         }
         val lutBase=plan.getInt(44);val count=plan.getInt(48)
+        val layout=RenderPlanBudget.lutLayout(plan)
+        check(packageBytes+count.toLong()*layout.stride<=sourceBudget){"数值曲线和效果资源超过原生预算"}
+        for(index in luts.keys.filter{it>=count&&it>=0}) {
+            luts.remove(index)?.let{GL.glDeleteTextures(1,intArrayOf(it.first),0)}
+        }
         for(i in 0 until count) {
-            val offset=lutBase+i*1024;check(offset>=0&&offset+1024<=plan.getInt(28)){"LUT 范围错误"}
-            val bytes=ByteArray(1024);plan.duplicate().apply{position(offset);get(bytes)}
+            val offset=lutBase+i*layout.stride
+            val bytes=ByteArray(layout.stride);plan.duplicate().apply{position(offset);get(bytes)}
             val previous=luts[i]
-            if(previous==null){val data=ByteBuffer.allocateDirect(1024).put(bytes).apply{flip()};luts[i]=texture(256,1,false,data) to bytes}
+            if(previous==null||previous.second.size!=layout.stride){
+                val data=ByteBuffer.allocateDirect(layout.stride).put(bytes).apply{flip()}
+                val next=curveTexture(layout.samples,layout.floating,data)
+                if(previous!=null)GL.glDeleteTextures(1,intArrayOf(previous.first),0)
+                luts[i]=next to bytes
+            }
             else if(!previous.second.contentEquals(bytes)) {
                 GL.glBindTexture(GL.GL_TEXTURE_2D,previous.first)
-                GL.glTexSubImage2D(GL.GL_TEXTURE_2D,0,0,0,256,1,GL.GL_RGBA,GL.GL_UNSIGNED_BYTE,ByteBuffer.allocateDirect(1024).put(bytes).apply{flip()})
+                GL.glTexSubImage2D(GL.GL_TEXTURE_2D,0,0,0,layout.samples,1,GL.GL_RGBA,
+                    if(layout.floating)GL.GL_FLOAT else GL.GL_UNSIGNED_BYTE,
+                    ByteBuffer.allocateDirect(layout.stride).put(bytes).apply{flip()})
+                check(GL.glGetError()==GL.GL_NO_ERROR){"数值曲线上传失败"}
                 luts[i]=previous.first to bytes
             }
         }
     }
-    fun resourceBytes():Long=packageBytes
+    fun resourceBytes():Long=packageBytes+luts.filterKeys{it>=0}.values.sumOf{it.second.size.toLong()}
+    private fun curveTexture(width:Int,floating:Boolean,pixels:ByteBuffer):Int {
+        val maximum=IntArray(1);GL.glGetIntegerv(GL.GL_MAX_TEXTURE_SIZE,maximum,0)
+        check(width in 1..maximum[0]){"数值曲线尺寸超过设备能力"}
+        val ids=IntArray(1);GL.glGenTextures(1,ids,0);val id=ids[0]
+        try {
+            GL.glBindTexture(GL.GL_TEXTURE_2D,id)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MIN_FILTER,GL.GL_NEAREST)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_MAG_FILTER,GL.GL_NEAREST)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_S,GL.GL_CLAMP_TO_EDGE)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D,GL.GL_TEXTURE_WRAP_T,GL.GL_CLAMP_TO_EDGE)
+            // Sample-only F32 is core GLES 3; scratch render/blend/filter extensions do not apply.
+            GL.glTexImage2D(GL.GL_TEXTURE_2D,0,if(floating)GL.GL_RGBA32F else GL.GL_RGBA8,
+                width,1,0,GL.GL_RGBA,if(floating)GL.GL_FLOAT else GL.GL_UNSIGNED_BYTE,pixels)
+            check(GL.glGetError()==GL.GL_NO_ERROR){"数值曲线分配失败"}
+            return id
+        } catch(failure:Throwable) {
+            GL.glDeleteTextures(1,intArrayOf(id),0)
+            throw failure
+        }
+    }
     fun imageAssetSlots(plan:ByteBuffer):Set<Int> {
         val base=plan.getInt(20);val result=HashSet<Int>()
         repeat(plan.getInt(12)){i->val token=plan.getInt(base+i*40+32);if(token<0){val slot=-token-1;check(slot in assets.indices);result.add(slot)}}
@@ -207,9 +242,10 @@ internal class GlEffects(info:JSONObject,native:Long,private val assets:List<Int
             val data=plan.duplicate().order(ByteOrder.nativeOrder()).apply{position(offset);limit(offset+624)}.slice()
             GL.glBufferSubData(GL.GL_UNIFORM_BUFFER,0,624,data);GL.glBindBufferBase(GL.GL_UNIFORM_BUFFER,0,uniform)
             val lutOffset=plan.getInt(p+28);val lutBase=plan.getInt(44)
+            val lutStride=RenderPlanBudget.lutLayout(plan).stride
             val lutIndex=if(lutOffset==-1)-1 else {
-                check(lutOffset>=lutBase&&(lutOffset-lutBase)%1024==0){"LUT 地址错误"}
-                ((lutOffset-lutBase)/1024).also{check(it in 0 until plan.getInt(48)){"LUT 索引错误"}}
+                check(lutOffset>=lutBase&&(lutOffset-lutBase)%lutStride==0){"LUT 地址错误"}
+                ((lutOffset-lutBase)/lutStride).also{check(it in 0 until plan.getInt(48)){"LUT 索引错误"}}
             }
             val lut=luts[lutIndex]?.first?:luts[-1]!!.first
             val override=if(shader.sprite)0 else plan.getInt(p+32)

@@ -57,10 +57,10 @@ class RenderPlanBudgetTest {
     @Test fun readsFourPrecisionsAndRejectsImplicitPrecisionFallback() {
         for((precision,format,pixelBytes) in listOf(Triple(0,0,4),Triple(1,3,8),Triple(2,2,8),Triple(3,4,16))) {
             val descriptor=intArrayOf(17,3,format,1,1,15,pixelBytes,0)
-            val buffer=physical(descriptor).apply{putInt(152,precision)}
+            val buffer=physical(descriptor).apply{putInt(152,precision);putInt(156,if(precision==0)0 else 1)}
             assertEquals(51L*pixelBytes,RenderPlanBudget.scratchAllocations(buffer).single().bytes())
             if(precision!=0) {
-                val downgraded=physical(rgba8).apply{putInt(152,precision)}
+                val downgraded=physical(rgba8).apply{putInt(152,precision);putInt(156,1)}
                 assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchAllocations(downgraded)}
             }
         }
@@ -68,6 +68,43 @@ class RenderPlanBudgetTest {
             assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchBytes(plan(64*1024*1024).apply{putInt(152,code)})}
         }
         assertThrows(IllegalStateException::class.java){RenderPlanBudget.scratchBytes(plan(64*1024*1024,10))}
+    }
+
+    private fun curves(precision:Int,count:Int=2):ByteBuffer {
+        val stride=if(precision==0)1024 else RenderPlanBudget.DENSE_CURVE_SAMPLES*16
+        return ByteBuffer.allocate(RenderPlanBudget.HEADER_BYTES+stride*count).order(ByteOrder.nativeOrder()).apply {
+            putInt(0,0x46584d53);putInt(4,RenderPlanBudget.VERSION);putInt(28,capacity());putInt(76,64*1024*1024)
+            putInt(44,RenderPlanBudget.HEADER_BYTES);putInt(48,count)
+            putInt(152,precision);putInt(156,if(precision==0)0 else 1)
+        }
+    }
+    @Test fun numericCurveLayoutsPreserveSamplesCapacityAndNativeFloatValues() {
+        for(precision in 0..3) {
+            val plan=curves(precision);val layout=RenderPlanBudget.lutLayout(plan)
+            assertEquals(if(precision==0)256 else 4081,layout.samples)
+            assertEquals(if(precision==0)4 else 16,layout.pixelBytes)
+            assertEquals(precision!=0,layout.floating)
+            assertEquals(plan.capacity(),RenderPlanBudget.HEADER_BYTES+2*layout.stride)
+            if(layout.floating) {
+                val offset=plan.getInt(44)+layout.stride+2049*16
+                plan.putFloat(offset,0.50001f);plan.putFloat(offset+12,0.25f)
+                assertEquals(0.50001f.toRawBits(),plan.getFloat(offset).toRawBits())
+                assertEquals(0.25f.toRawBits(),plan.getFloat(offset+12).toRawBits())
+            }
+        }
+    }
+    @Test fun numericCurvesRejectUnknownEncodingPrecisionMismatchAndPreviousVersion() {
+        for((precision,encoding) in listOf(0 to 1,1 to 0,2 to 2,3 to -1)) {
+            assertThrows(IllegalStateException::class.java){RenderPlanBudget.lutLayout(curves(precision).apply{putInt(156,encoding)})}
+        }
+        assertThrows(IllegalStateException::class.java){RenderPlanBudget.lutLayout(curves(2).apply{putInt(4,11)})}
+    }
+    @Test fun numericCurvesRejectTruncatedMisalignedAndUnboundedTables() {
+        for((field,value) in listOf(44 to 0,44 to 161,44 to Int.MAX_VALUE,48 to -1,48 to 2049,28 to 160)) {
+            assertThrows(IllegalStateException::class.java){RenderPlanBudget.lutLayout(curves(2).apply{putInt(field,value)})}
+        }
+        val short=curves(3,1).duplicate().apply{limit(capacity()-1)}.slice().order(ByteOrder.nativeOrder())
+        assertThrows(IllegalStateException::class.java){RenderPlanBudget.lutLayout(short)}
     }
 
 }
