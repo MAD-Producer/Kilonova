@@ -88,7 +88,7 @@ pub(crate) fn catalogue() -> &'static [Entry] {
     static ITEMS: OnceLock<Vec<Entry>> = OnceLock::new();
     ITEMS.get_or_init(|| {
         let mut entries: Vec<Entry> = vec![];
-        for scope in [Scope::Application, Scope::Animation, Scope::Nodes] {
+        for scope in [Scope::Application, Scope::Animation, Scope::Nodes, Scope::Viewer] {
             for key in KEYS {
                 for flags in 0..8 {
                     let modifiers = Modifiers {
@@ -390,6 +390,7 @@ fn domains(entry: &Entry, chord: KeyChord) -> u8 {
     match entry.scope {
         Scope::Animation => 1,
         Scope::Nodes => 2,
+        Scope::Viewer => 4,
         Scope::Application => {
             if matches!(
                 entry.command,
@@ -409,9 +410,9 @@ fn domains(entry: &Entry, chord: KeyChord) -> u8 {
             ) || matches!(entry.command, Command::PreviousFrame | Command::NextFrame)
                 && (!matches!(chord.key, Key::Left | Key::Right) || chord.modifiers.control)
             {
-                3
+                7
             } else {
-                1
+                5
             }
         }
     }

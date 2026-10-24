@@ -27,7 +27,7 @@ fn default_catalogue_preserves_every_existing_scope_modifier_and_repeat() {
     let bindings = Bindings::default();
     bindings.validate().unwrap();
     assert!(catalogue().len() > 60);
-    for scope in [Scope::Application, Scope::Animation, Scope::Nodes] {
+    for scope in [Scope::Application, Scope::Animation, Scope::Nodes, Scope::Viewer] {
         for key in KEYS {
             for flags in 0..8 {
                 let m = Modifiers {

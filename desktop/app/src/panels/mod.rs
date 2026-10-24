@@ -95,6 +95,7 @@ mod timeline_zoom;
 mod timeline_navigation;
 pub(crate) mod titlebar;
 mod toolbar;
+pub(crate) mod tools;
 pub(crate) mod transform_controls;
 mod types;
 
@@ -218,6 +219,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.tools.cancel();
     panels.effect_drag.cancel();
     panels.browser.cancel_library_click();
     panels.property_reveal.interrupt();
@@ -326,6 +328,7 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    tools::prepare(panels,None,input);
     let drag_owned = panels.effect_drag.prepare(None, state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
@@ -955,6 +958,7 @@ pub fn floating_chrome(
     }
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
+    tools::prepare(panels,Some(panel),input);
     let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();

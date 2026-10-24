@@ -43,61 +43,70 @@ pub fn render(
         colors.BORDER,
     );
     let locale = panels.locale;
-    for (i, tool) in [PathTool::Select, PathTool::Pen, PathTool::Mask]
-        .into_iter()
-        .enumerate()
-    {
-        let rect = Rect::new(8. + i as f32 * 28., area.min[1] + 4., 24., 24.);
-        let states = if panels.path_controls.tool == tool
-            && (tool != PathTool::Select
-                || panels.transform_controls.tool == super::transform_controls::Tool::Move)
-        {
+    use super::tools::{self, Active};
+    let step = styles.metric("toolbar.tools.step", 28.);
+    let side = styles.metric("toolbar.tools.size", 24.);
+    let top = styles.metric("toolbar.tools.top", 4.);
+    let start = styles.metric("toolbar.tools.start", 8.);
+    let transforms = styles.metric("toolbar.transform.start", 96.);
+    let actions = styles.metric("toolbar.actions.start", 180.);
+    for (i, tool, icon) in [
+        (0, Active::Select, Icon::Select),
+        (1, Active::Pen, Icon::Pen),
+        (2, Active::Mask, Icon::Shape),
+        (3, Active::Rotate, Icon::Rotate),
+        (4, Active::Scale, Icon::Scale),
+        (5, Active::Anchor, Icon::Anchor),
+        (
+            8,
+            if tools::active(panels) == Active::Ellipse {
+                Active::Ellipse
+            } else {
+                Active::Rectangle
+            },
+            Icon::Shape,
+        ),
+        (9, Active::Text, Icon::Text),
+    ] {
+        let x = if i < 3 {
+            start + i as f32 * step
+        } else if i < 6 {
+            transforms + (i - 3) as f32 * step
+        } else {
+            actions + (i - 6) as f32 * step
+        };
+        let side = if i >= 6 {
+            styles.metric("toolbar.actions.size", 25.)
+        } else {
+            side
+        };
+        let top = if i >= 6 {
+            styles.metric("toolbar.actions.top", 3.)
+        } else {
+            top
+        };
+        let rect = Rect::new(x, area.min[1] + top, side, side);
+        let states = if tools::active(panels) == tool {
             States::default().with(State::Selected)
         } else {
             States::default()
         };
-        let icon = match tool {
-            PathTool::Select => Icon::Select,
-            PathTool::Pen => Icon::Pen,
-            PathTool::Mask => Icon::Shape,
-        };
-        if icons::button(list, rect, icon, input, styles.as_ref(), states).clicked {
-            panels.path_controls.choose(tool, out);
-            if tool == PathTool::Select {
-                panels
-                    .transform_controls
-                    .choose(super::transform_controls::Tool::Move, out);
-            }
+        if icons::button(list, rect, icon, input, &styles, states).clicked {
+            let tool = if matches!(tool, Active::Rectangle | Active::Ellipse)
+                && tools::active(panels) == tool
+            {
+                if tool == Active::Rectangle {
+                    Active::Ellipse
+                } else {
+                    Active::Rectangle
+                }
+            } else {
+                tool
+            };
+            tools::choose(panels, tool, state, out);
         }
-    }
-    use super::transform_controls::Tool as TransformTool;
-    for (i, (tool, icon)) in [
-        (TransformTool::Rotate, Icon::Rotate),
-        (TransformTool::Scale, Icon::Scale),
-        (TransformTool::Anchor, Icon::Anchor),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let states = if panels.path_controls.tool == PathTool::Select
-            && panels.transform_controls.tool == tool
-        {
-            States::default().with(State::Selected)
-        } else {
-            States::default()
-        };
-        if icons::button(
-            list,
-            Rect::new(96. + i as f32 * 28., area.min[1] + 4., 24., 24.),
-            icon,
-            input,
-            styles.as_ref(),
-            states,
-        )
-        .clicked
-        {
-            panels.path_controls.choose(PathTool::Select, out);
-            panels.transform_controls.choose(tool, out);
+        if rect.contains(paint_input.mouse) && !panels.toolbar_style.editing() {
+            panels.drag_readout = Some((paint_input.mouse, tools::hint(tool, panels)));
         }
     }
     for (i, (tool, action, enabled)) in [
@@ -111,19 +120,18 @@ pub fn render(
             Action::History(1),
             state["canRedo"].as_bool().unwrap_or(false),
         ),
-        (
-            Tool::Rectangle,
-            Action::AddShape(motion_core::vector::ShapeKind::Rectangle),
-            true,
-        ),
-        (Tool::Text, Action::NewText, true),
     ]
     .into_iter()
     .enumerate()
     {
         icon_button(
             list,
-            Rect::new(180. + i as f32 * 28., area.min[1] + 3., 25., 25.),
+            Rect::new(
+                actions + i as f32 * step,
+                area.min[1] + styles.metric("toolbar.actions.top", 3.),
+                styles.metric("toolbar.actions.size", 25.),
+                styles.metric("toolbar.actions.size", 25.),
+            ),
             tool,
             input,
             enabled,
@@ -133,7 +141,8 @@ pub fn render(
     }
     paint::rect(
         list,
-        Rect::new(299., area.min[1] + 6., 1., 20.),
+        Rect::new(styles.metric("toolbar.separator.x", 299.), area.min[1] + styles.metric("toolbar.separator.top",6.),
+            styles.metric("toolbar.separator.width", 1.), styles.metric("toolbar.separator.height", 20.)),
         colors.BORDER,
     );
     let ids = panels.selection_ids();

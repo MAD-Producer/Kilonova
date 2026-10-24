@@ -120,3 +120,12 @@
 | Nodes | Down | false | false | false | MoveDown | true |
 | Nodes | Down | false | true | false | MoveDown | true |
 | Nodes | Home | false | false | false | FitAll | false |
+| Viewer | C | false | false | false | ToolCamera | false |
+| Viewer | H | false | false | false | ToolHand | false |
+| Viewer | Q | false | false | false | ToolShape | false |
+| Viewer | V | false | false | false | ToolSelect | false |
+| Viewer | W | false | false | false | ToolRotate | false |
+| Viewer | G | false | false | false | ToolPen | false |
+| Viewer | T | false | false | false | ToolText | false |
+| Viewer | Z | false | false | false | ToolZoom | false |
+| Viewer | Y | false | false | false | ToolAnchor | false |

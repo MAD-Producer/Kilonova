@@ -70,7 +70,7 @@ fn default_binding_reference_matches_live_resolver() {
     let enumerated: BTreeSet<_> = keys.iter().map(|k| format!("{k:?}")).collect();
     assert_eq!(declared, enumerated);
     let mut text=String::from("# 默认键位解析目录\n\n此表由真实 `shortcuts::resolve` 生成；文本、IME、菜单、手势和面板路由还会限制可达性。完整行为见 [快捷键与作用域](KEYBOARD-SHORTCUTS.md)。\n\n| Scope | Key | Control | Shift | Alt | Command | OS repeat |\n| --- | --- | --- | --- | --- | --- | --- |\n");
-    for scope in [Scope::Application, Scope::Animation, Scope::Nodes] {
+    for scope in [Scope::Application, Scope::Animation, Scope::Nodes, Scope::Viewer] {
         for key in keys {
             for control in [false, true] {
                 for shift in [false, true] {

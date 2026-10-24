@@ -90,7 +90,7 @@ pub(super) fn render(
     } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() {
         if input
             .pressed
-            .is_some_and(|(b, p)| b == MouseButton::Middle && v.contains(p))
+            .is_some_and(|(b, p)| (b == MouseButton::Middle || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Hand) && v.contains(p))
         {
             panels.composition.pan = Some((input.mouse, panels.composition.navigation));
         }
@@ -100,7 +100,7 @@ pub(super) fn render(
                 canvas,
                 [input.mouse[0] - last[0], input.mouse[1] - last[1]],
             );
-            if input.held == Some(MouseButton::Middle) {
+            if input.held == Some(MouseButton::Middle) || input.held == Some(MouseButton::Left) && super::tools::active(panels) == super::tools::Active::Hand {
                 panels.composition.pan = Some((input.mouse, before));
                 panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
             } else {
@@ -311,7 +311,8 @@ pub(super) fn render(
         return;
     };
     let mut handles = list.child();
-    let consumed = panels.path_controls.draw_in_viewport(
+    let tool_owned = super::tools::viewport(panels, &mut handles, v, mapping, state, input, out);
+    let consumed = tool_owned || panels.path_controls.draw_in_viewport(
         &mut handles,
         atlas,
         v,
@@ -322,7 +323,7 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    let consumed = if panels.path_controls.tool == super::path_controls::Tool::Select {
+    let consumed = if !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
         panels.transform_controls.draw_in_viewport(
             &mut handles,
             v,
@@ -340,7 +341,7 @@ pub(super) fn render(
     if let Some(cursor) = panels
         .transform_controls
         .cursor
-        .filter(|_| panels.composition.pan.is_none())
+        .filter(|_| !tool_owned && panels.composition.pan.is_none())
     {
         panels.cursor = Some(cursor);
     }
@@ -348,12 +349,12 @@ pub(super) fn render(
     // (orthogonal views). Wheel navigation belongs to the independent canvas.
     if input
         .pressed
-        .is_some_and(|(b, p)| b == MouseButton::Right && v.contains(p))
+        .is_some_and(|(b, p)| (b == MouseButton::Right || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Camera && observing) && v.contains(p))
     {
         panels.composition.orbit = input.pressed.map(|(_, p)| p);
     }
     if let Some(last) = panels.composition.orbit {
-        if input.held == Some(MouseButton::Right) {
+        if input.held == Some(MouseButton::Right) || input.held == Some(MouseButton::Left) && super::tools::active(panels) == super::tools::Active::Camera && observing {
             let delta = [
                 (input.mouse[0] - last[0]) * 0.2,
                 (input.mouse[1] - last[1]) * 0.2,
