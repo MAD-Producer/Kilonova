@@ -219,6 +219,7 @@ struct Field {
     text: String,
     cursor: usize,
     replace: bool,
+    editor: motion_ui::widgets::TextEditor,
     error: Option<String>,
 }
 enum Drag {

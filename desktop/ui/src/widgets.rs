@@ -43,6 +43,13 @@ impl TextEditor {
     pub fn active(&self) -> bool {
         self.active
     }
+    /// Byte position at a complete grapheme boundary for existing scrolled fields.
+    pub fn caret_byte_index(&self) -> usize {
+        self.byte_index()
+    }
+    pub fn is_all_selected(&self) -> bool {
+        self.select_all
+    }
     pub fn begin(&mut self, value: &str) {
         self.text = value.into();
         self.active = true;

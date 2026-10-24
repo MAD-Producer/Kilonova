@@ -256,6 +256,7 @@ fn text_search_rename_and_unfocused_inputs_do_not_cut_or_paste_nodes() {
         text: "1".into(),
         cursor: 1,
         replace: false,
+        editor: Default::default(),
         error: None,
     });
     command(&mut e, Key::X, Language::Chinese);

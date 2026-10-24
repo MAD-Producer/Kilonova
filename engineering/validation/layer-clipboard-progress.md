@@ -456,3 +456,26 @@ native 子进程仍保留本机 Epic EOSOverlay Win32/Win64 JSON 缺失的 Vulka
 | timeline 吸附线 | 保留；本轮未改吸附反馈。 |
 
 定向 rustfmt、git diff --check 与 verify_style_consumers() 通过。未新增依赖、第三方资产、工程格式或渲染语义。DESIGN §12 的全窗口／全尺寸验收不能由这些定向测试代替。
+
+## 文本剪贴板：节点检查器与向量字段
+
+继续 TL-05。节点检查器的旧 Field 和卡片向量输入共用 TextEditor 的 input_value，替代手写插入／退格／Delete 及字节光标逻辑。TextEditor 提供只读的字素边界字节光标和全选状态，旧 Field 的 cursor/replace 仅同步供已有横向滚动、选择与光标绘制使用；没有改变卡片行高、字段命中区或滚动。无输入提前返回，不在健康空闲帧克隆正文。缓存错误进入原字段错误边框；图文档校验错误仍由原 commit_field 保留字段和 notice。
+
+功能变化：所有节点字段支持 Ctrl+A/C/X/V 和本地 Ctrl+Z／Shift+Z／Y；删除和光标移动以完整字素为界，避免拆开组合字符或 emoji。Enter／Escape 通过 TextEditor 保留 IME 和重复过滤，失焦取消未提交草稿；原 InputValue 的 composing 屏蔽及 Open／Save／Save As 先提交有效字段的规则保留。字段提交才调用原图文档事务，文本操作不剪切／粘贴节点子图。复制失败不清字段、不覆盖其他缓存；正常空缓存和空历史不是故障。
+
+| ID | 分类 | 实现与证据边界 |
+| --- | --- | --- |
+| TN-01 | 新功能 | 节点 Field 接入现有应用文本缓存和草稿历史；字素光标同步到原滚动绘制，保留图文档提交／保存／撤销。 |
+| TN-02 | 已有观察 | 复用 TextClipboard / TextEditor 的默认 Error 信道、原业务诊断和边框，没有新日志站点、阈值、线程、重试或重启。用户数值／向量输入校验继续按原业务错误处理，未将它改为基础设施故障。 |
+| TN-03 | 验证 | 新测试实际经节点 draw/键盘与 field_input 验证：字段剪切粘贴／本地撤销不改图或修订；提交后保存重开、一次撤销；原节点缓存仍可粘贴。非法向量不写历史，撤销草稿后可修正提交；IME／重复 Enter 不提交，缺失缓存保值，组合字素删除、失焦取消有效。 |
+| TN-04 | 剩余 | 文本 Edit 菜单所有权、路径独立剪贴板、完整系统事件／打包、当前 main 组合和 CI 仍待完成；不关闭 #204，不创建完成 PR。 |
+
+text-node-desktop-first.log 使用 FFmpeg 桌面 node_editor:: 过滤并跳过 native，实际 154 项通过、0 失败／忽略、856 项过滤，用时 32.76 秒，编译 1 分 44 秒，保留 22 项既有编译警告。覆盖新增三项及原节点字段、向量、默认输入、请求、剪贴板、焦点、IME、事务、观察与图操作回归。之后只整理一处错误状态条件换行并扩展 native 夹具，没有改变字段逻辑。text-node-native-first.log 保留新 native 子模块未显式指定 path 的编译失败；该父模块原本通过 #[path] 加载，已给新子模块补上相对路径，未修改已有断言、阈值、超时或忽略项。
+
+text-node-native-second.log 实际 1 项通过、0 失败／忽略、1009 项过滤，用时 18.70 秒，编译 1 分 16 秒。保留原节点右键菜单和粘贴回归，增加中文 1200×700 主窗 100% 及英文 900×600 浮窗 150% 字段输入：粘贴、草稿撤销／重做不改图文档和 undo 栈，提交后保存重开、一次撤销恢复原图，节点缓存内容未变。字段选择由夹具设置，后续键盘经过生产 draw；各窗口注入文本服务验证相同行为，没有冒称 Shell 系统事件和跨窗共享缓存的专门验收。共用 Arc 的 Input/借用转换及主浮窗 Shell 缓存覆盖仍沿用前述文本阶段证据。
+
+text-node-ui-native-second/text-field-main-zh.png 与 text-field-floating-en.png 已实际查看：节点属性的中文名字文本、光标及焦点可见，原行位置和卡片不变。原 Plugin ID 的省略和窄浮窗工具栏截断保留；没有改右键菜单，本目录其他菜单图为原回归截图。native.stderr.log 继续保留本机 Epic EOSOverlay JSON 缺失的 Vulkan loader 报错，未吞掉或改注册表。最终桌面测试文件 SHA-256 为 8ae667ff1e98bed37223fe9a1dffcec7283bbaf46a0dce0769137daea892f2f9。
+
+同一最终测试文件的 text-node-clipboard-final.log 为 65 项通过、0 失败／忽略、945 项过滤，用时 69.36 秒；此集与节点 154 项有重叠，不能相加为独立总数。text-node-default-channel-final/ 保留默认文件日志、stderr、stdout，检查到 INFO start 仅进文件，缺失服务及超限的原始 ERROR 同时进文件和 stderr，stdout 不含错误或私有正文哨兵；正常空缓存不记错误。既有节点观察阈值／恢复测试也在 154 项回归中通过，本阶段未新增计数器。定向 rustfmt、git diff --check 和 verify_style_consumers() 通过。
+
+本阶段没有编辑 panels 下的基线绘制位置。DESIGN §0.7 十二项逐项沿用 TL 阶段处置：路径行步长、双列、按钮高度、数值字段剩余绘制、布尔；效果行步长、布尔、枚举、悬浮、层级；时间轴列坐标和吸附线，均未再改变。节点检查器原有错误色字面量和其他硬编码保留，不宣称已全部 token 化。没有新增依赖、资产、工程格式或渲染语义。

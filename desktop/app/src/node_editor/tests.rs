@@ -395,6 +395,7 @@ fn active_field(binding: Binding, text: &str) -> Field {
         text: text.into(),
         cursor: text.len(),
         replace: false,
+        editor: Default::default(),
         error: None,
     }
 }
