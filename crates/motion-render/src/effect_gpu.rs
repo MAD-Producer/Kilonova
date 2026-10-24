@@ -1,6 +1,6 @@
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{
-    effect_plan::{EffectFramePlan, PlanBuilder},
+    effect_plan::{EffectFramePlan, PlanBuilder, ScratchAllocation},
     renderer::GpuImage,
     RenderError,
 };
@@ -67,8 +67,7 @@ pub(crate) struct GpuState {
     pub pool: Vec<Option<FxTexture>>,
     pool_width: u32,
     pool_height: u32,
-    pool_slots: u32,
-    pool_sizes: [[u32; 2]; 8],
+    pool_allocations: Vec<ScratchAllocation>,
     scratch_idle_frames: u32,
     epoch: u64,
     buffers: Vec<Buffer>,
@@ -277,8 +276,7 @@ impl EffectGpu {
                 pool: (0..8).map(|_| None).collect(),
                 pool_width: 0,
                 pool_height: 0,
-                pool_slots: 0,
-                pool_sizes: [[0; 2]; 8],
+                pool_allocations: Vec::new(),
                 scratch_idle_frames: 0,
                 epoch: 0,
                 buffers: Vec::new(),
@@ -339,7 +337,7 @@ impl GpuState {
     }
     pub fn release_scratch(&mut self) {
         self.sprite_buffer = None;
-        let has_resources = self.pool_slots != 0
+        let has_resources = !self.pool_allocations.is_empty()
             || self.pool.iter().any(Option::is_some)
             || !self.luts.is_empty()
             || !self.buffers.is_empty();
@@ -347,8 +345,7 @@ impl GpuState {
             self.pool.iter_mut().for_each(|v| *v = None);
             self.pool_width = 0;
             self.pool_height = 0;
-            self.pool_slots = 0;
-            self.pool_sizes = [[0; 2]; 8];
+            self.pool_allocations.clear();
             self.scratch_idle_frames = 0;
             self.luts.clear();
             self.buffers.clear();
@@ -372,12 +369,17 @@ impl GpuState {
         }
     }
     pub fn bytes(&self) -> u64 {
-        crate::effect_plan::scratch_capacity_bytes(&self.pool_sizes)
+        self.scratch_bytes()
             + self.resource_bytes
             + self.luts.len() as u64 * 1024
     }
     pub fn scratch_bytes(&self) -> u64 {
-        crate::effect_plan::scratch_capacity_bytes(&self.pool_sizes)
+        self.pool_allocations.iter().map(|allocation| allocation.bytes()).sum()
+    }
+    pub fn output(&self, frame: &EffectFramePlan, draw: usize) -> Result<&FxTexture, RenderError> {
+        let id = frame.scratch_output(draw)?;
+        self.pool.get(id).and_then(Option::as_ref)
+            .ok_or_else(|| RenderError::Invalid(format!("effect draw {draw} output allocation {id} is unavailable")))
     }
     pub fn curve_lut_bytes(&self) -> u64 { self.luts.len() as u64 * 1024 }
     /// Permanent white fallback and identity curve, omitted by the legacy sum.
@@ -437,55 +439,43 @@ impl GpuState {
                 message: "effect texture exceeds device dimensions".into(),
             });
         }
-        if self.pool_slots != frame.slots || self.pool_sizes != frame.scratch_sizes || self.pool.len() != 8 {
+        if self.pool_allocations != frame.scratch_allocations || self.pool.len() != frame.scratch_allocations.len() {
             // Allocate replacements before moving any live slot. A refusal in a
             // later slot must leave the previous pool and bindings intact.
-            let mut next_pool = Vec::with_capacity(8);
-            for i in 0..8 {
-                let active = frame.slots & (1 << i) != 0;
-                let reusable = active
-                    && self.pool_slots & (1 << i) != 0
-                    && self.pool_sizes[i] == frame.scratch_sizes[i]
+            let mut next_pool = Vec::with_capacity(frame.scratch_allocations.len());
+            for (i, allocation) in frame.scratch_allocations.iter().enumerate() {
+                let reusable = self.pool_allocations.get(i).is_some_and(|old| old.same_storage(*allocation))
                     && self.pool.get(i).is_some_and(|slot| slot.is_some());
                 if reusable {
                     next_pool.push(None);
-                } else if active {
+                } else {
                     next_pool.push(Some(admitted_texture(
                         device,
                         composite,
                         &self.sampler,
-                        frame.scratch_sizes[i][0],
-                        frame.scratch_sizes[i][1],
-                        if i == 7 {
-                            wgpu::TextureFormat::Rgba16Float
-                        } else if (1..=3).contains(&i) {
-                            wgpu::TextureFormat::Rgba8Unorm
-                        } else {
-                            wgpu::TextureFormat::Rgba8UnormSrgb
-                        },
+                        allocation.width,
+                        allocation.height,
+                        allocation.class.format.native(),
                         &self.allocation_budget,
                         crate::TextureCategory::EffectScratch,
                     ).map_err(|error| {
                         let message = format!("effect scratch slot={i} extent={}x{} phase=allocate: {error}",
-                            frame.scratch_sizes[i][0], frame.scratch_sizes[i][1]);
+                            allocation.width, allocation.height);
                         error.with_diagnostic(message)
                     })?));
-                } else {
-                    next_pool.push(None);
                 }
             }
             self.invalidate();
             for (i, slot) in next_pool.iter_mut().enumerate() {
-                if slot.is_none() && frame.slots & (1 << i) != 0 {
+                if slot.is_none() {
                     *slot = self.pool[i].take();
                 }
             }
             self.pool = next_pool;
-            self.pool_slots = frame.slots;
-            self.pool_sizes = frame.scratch_sizes;
+            self.pool_allocations.clone_from(&frame.scratch_allocations);
         }
         // Width and height are frame metadata; scratch texture dimensions come
-        // from scratch_sizes. Do not rebuild the pool for a one-pixel frame
+        // from physical descriptors. Do not rebuild for a one-pixel frame
         // change when every slot can still be reused.
         self.pool_width = frame.width;
         self.pool_height = frame.height;
@@ -553,15 +543,11 @@ impl GpuState {
         if !frame.sprites.is_empty() {
             self.upload_instances(device, queue, &frame.sprites)?;
         }
-        for p in &frame.passes {
-            let gamma = (1..=3).contains(&p.output);
-            let target_kind = if p.output == 7 {
-                7
-            } else if gamma {
-                1
-            } else {
-                0
-            };
+        for (index, p) in frame.passes.iter().enumerate() {
+            let binding = frame.scratch_bindings.get(index).ok_or("missing effect scratch binding")?;
+            let target = frame.scratch_allocations.get(binding.output as usize)
+                .ok_or("missing effect scratch descriptor")?.class.format;
+            let target_kind = target as u32;
             let key = (p.program, target_kind);
             if !self.pipelines.contains_key(&key) {
                 let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
@@ -610,13 +596,7 @@ impl GpuState {
                         entry_point: Some("sdk_fragment"),
                         compilation_options: Default::default(),
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: if p.output == 7 {
-                                wgpu::TextureFormat::Rgba16Float
-                            } else if gamma {
-                                wgpu::TextureFormat::Rgba8Unorm
-                            } else {
-                                wgpu::TextureFormat::Rgba8UnormSrgb
-                            },
+                            format: target.native(),
                             blend: if sprite {
                                 Some(if additive {
                                     wgpu::BlendState {
@@ -760,6 +740,8 @@ impl GpuState {
             .get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} is out of range")))?;
         let source_key = if p.sprite {None} else {source_key};
+        let physical = frame.scratch_bindings.get(index)
+            .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} scratch binding is missing")))?;
         let external = if p.sprite {None} else {external};
         let buffer = self
             .buffers
@@ -773,8 +755,8 @@ impl GpuState {
         );
         let external_id = external.map_or(0, |v| v as *const _ as usize);
         let key = (
-            p.input,
-            p.source,
+            physical.input,
+            physical.source,
             p.lut,
             p.program,
             self.epoch,
@@ -861,8 +843,8 @@ impl GpuState {
             } else {
                 &self.identity.view
             };
-            let input = view(p.input)?;
-            let source = view(p.source)?;
+            let input = view(physical.input)?;
+            let source = view(physical.source)?;
             let allocations = [input, source, lut].map(|view| images.values()
                 .find_map(|image| image._texture.allocation_for_view(view))
                 .or_else(|| self.pool.iter().flatten().find_map(|texture| texture.texture.allocation_for_view(view)))
@@ -909,10 +891,10 @@ impl GpuState {
         }
         let target = self
             .pool
-            .get(p.output as usize)
+            .get(physical.output as usize)
             .and_then(|texture| texture.as_ref())
             .map(|texture| &texture.view)
-            .ok_or_else(|| RenderError::Invalid(format!("effect output slot {} is unavailable", p.output)))?;
+            .ok_or_else(|| RenderError::Invalid(format!("effect output allocation {} is unavailable", physical.output)))?;
         if p.resource_input != 0 {
             use crate::renderer::TextureKey;
             let image = if p.resource_input < 0 {
@@ -968,13 +950,8 @@ impl GpuState {
                 }) });
             }
         }
-        let pipeline_format = if p.output == 7 {
-            7
-        } else if (1..=3).contains(&p.output) {
-            1
-        } else {
-            0
-        };
+        let pipeline_format = frame.scratch_allocations.get(physical.output as usize)
+            .ok_or("effect output descriptor is missing")?.class.format as u32;
         let pipeline = self
             .pipelines
             .get(&(p.program, pipeline_format))

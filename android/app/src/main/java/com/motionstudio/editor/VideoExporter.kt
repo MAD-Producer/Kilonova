@@ -393,7 +393,7 @@ internal class EglMovieRenderer(surface:Surface?,private val width:Int,private v
         for(inputLayer in sourceOrder) {
             val base=buffer.getInt(16)/4+inputLayer*32
             effects!!.passes(buffer,values.get(base+28).toInt(),values.get(base+29).toInt(),sourceTexture(inputLayer,false),masks!!::textureFor,::sourceTexture)
-            layerSources!!.copyEffectInput(inputLayer,effects!!.texture(0))
+            layerSources!!.copyEffectInput(inputLayer,effects!!.texture(values.get(base+27).toInt()))
         }
         comp?.extract(buffer,w,h,vertexArray,layerSources!!::effectInput)
         val batchOffset=buffer.getInt(52);val count=buffer.getInt(56)
@@ -407,7 +407,8 @@ internal class EglMovieRenderer(surface:Surface?,private val width:Int,private v
             val asset=values.get(base+24).toInt();if(sourceKind==0&&asset in skippedSlots)continue
             val passStart=values.get(base+28).toInt();val passEnd=values.get(base+29).toInt()
             if(materialized!=layer&&layerSources!!.hasEffectInput(layer)) {
-                layerSources!!.restoreEffectInput(layer,effects!!.texture(0));materialized=layer
+                effects!!.clearRestoredOutput(values.get(base+27).toInt())
+                layerSources!!.restoreEffectInput(layer,effects!!.texture(values.get(base+27).toInt()));materialized=layer
             }
             if(passStart<passEnd&&materialized!=layer) {
                 val video=when(sourceKind){
@@ -418,7 +419,7 @@ internal class EglMovieRenderer(surface:Surface?,private val width:Int,private v
                 effects!!.passes(buffer,passStart,passEnd,video,masks!!::textureFor,::sourceTexture);materialized=layer
             }
             if(sourceKind==2) {
-                if(passStart<passEnd&&values.get(base+22)>0f)accumulator=layerSources!!.adjust(accumulator,effects!!.texture(0),buffer,base)
+                if(passStart<passEnd&&values.get(base+22)>0f)accumulator=layerSources!!.adjust(accumulator,effects!!.texture(values.get(base+27).toInt()),buffer,base)
                 continue
             }
             val transfer=comp?.transfer(buffer,layer)==true

@@ -73,10 +73,11 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             .iter()
             .map(|l| l.effects.iter().filter(|e| e.enabled).count())
             .sum::<usize>();
-        let passes = count * 10 + p.layers.len() * 2;
+        let passes = count * (motion_effects::MAX_PASSES + 3) + p.layers.len() * 2;
         let buffer_bytes = motion_render::effect_plan::HEADER_BYTES
             + p.layers.len() * (128 + 20)
-            + passes * (40 + motion_effects::shader::UNIFORM_BYTES)
+            + passes * (40 + motion_effects::shader::UNIFORM_BYTES
+                + motion_render::effect_plan::SCRATCH_RECORD_BYTES)
             + count * 1024
             + motion_effects::MAX_SPRITES * 48
             + 8192 * 12
@@ -98,6 +99,8 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             "maskSourceToken":motion_render::mask_plan::SOURCE_TOKEN,
             "bufferBytes":buffer_bytes,"uniformBytes":motion_effects::shader::UNIFORM_BYTES,
             "passBytes":40,"spriteBytes":48,"assetBytes":4,
+            "scratchRecordBytes":motion_render::effect_plan::SCRATCH_RECORD_BYTES,
+            "maxScratchPasses":motion_render::effect_plan::MAX_SCRATCH_PASSES,
             "declaredAssetBytes":4+p.assets.iter().map(|a|u64::from(a.width)*u64::from(a.height)*4).sum::<u64>(),
             "imageResources":{"version":1,"demandLoading":true,
                 "previewMaxEdge":motion_render::image_resources::MAX_PREVIEW_EDGE,

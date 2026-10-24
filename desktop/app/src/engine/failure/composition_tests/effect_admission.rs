@@ -36,7 +36,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
         )
         .unwrap();
         let plan = builder.build(&scene, &[0], 8, 8, true).unwrap();
-        let scratch = motion_render::effect_plan::scratch_capacity_bytes(&plan.scratch_sizes);
+        let scratch = plan.scratch_bytes();
         let required = SYSTEM_BYTES + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
         let budget = motion_render::AllocationBudget::new(required - 1).unwrap();
         let mut renderer = pollster::block_on(

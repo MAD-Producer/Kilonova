@@ -340,3 +340,49 @@ fn keyframe_collision_reaches_command_reply_without_changing_session() {
         motion_host::session::close(id);
     }
 }
+
+#[test]
+fn portable_buffer_hint_and_physical_table_cover_more_than_eight_scratch_allocations() {
+    let package = motion_effects::builtin::package().unwrap();
+    let mut project = Project::new(512, 512, 30, 60).unwrap();
+    for (index, size) in [[512., 1.], [1., 512.], [32., 32.]].into_iter().enumerate() {
+        let mut layer = Layer::solid(index as u64 + 1, "physical table contract", size, [256., 256., 0.], [1.; 4]);
+        for (effect, name) in ["gaussian_blur", "tint"].iter().enumerate() {
+            let definition = package.manifest.effects.iter().find(|d| &d.id == name).unwrap();
+            layer.effects.push(motion_core::EffectInstance::new((index * 2 + effect + 1) as u64,
+                &package.manifest.id, &package.manifest.version, &package.hash, definition, size));
+        }
+        project.layers.push(layer);
+    }
+    project.rebuild_plugin_dependencies();
+    let directory = tempfile::tempdir().unwrap();
+    let id = motion_host::session::open(directory.path().into(), project, Arc::new(Stub)).unwrap();
+    let info = motion_host::ops::export::render_plan_info(id).unwrap();
+    assert_eq!(info["version"], 10);
+    assert_eq!(info["headerBytes"], 160);
+    assert_eq!(info["scratchRecordBytes"], 32);
+    assert_eq!(info["maxScratchPasses"], motion_render::effect_plan::MAX_SCRATCH_PASSES);
+    let hint = info["bufferBytes"].as_u64().unwrap() as usize;
+    assert!(hint <= 64 << 20, "portable hint must remain bounded");
+    let mut bytes = vec![0; hint];
+    let written = motion_host::ops::export::sample_render_plan_into(id, 17, &mut bytes).unwrap();
+    let bytes = &bytes[..written];
+    let word = |offset| u32::from_ne_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
+    assert_eq!(word(4), 10);
+    assert_eq!(word(28), written);
+    let table = word(140); let count = word(144); let stride = word(148);
+    assert!(count > 8, "fixture must exceed the old fixed pool");
+    assert_eq!(stride, 32);
+    assert_eq!(table + count * stride, written);
+    let mut capacity = 0u64;
+    for index in 0..count {
+        let p = table + index * stride;
+        capacity += (word(p) * word(p + 4) * word(p + 24)) as u64;
+    }
+    motion_host::session::with_session(id, |session| {
+        assert_eq!(session.effects.frame.scratch_bytes(), capacity);
+        assert_eq!(session.effects.frame.scratch_allocations.len(), count);
+        Ok(())
+    }).unwrap();
+    motion_host::session::close(id);
+}
