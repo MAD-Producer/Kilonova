@@ -3,8 +3,8 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: the project-setting UI and final comprehensive
-acceptance remain pending. Ordinary/exposure surface previews, plugin editor
+open: final comprehensive acceptance remains pending. The project-setting UI
+now has native interaction and screenshot evidence. Ordinary/exposure surface previews, plugin editor
 preview, desktop UI/node screenshots and Host/frozen PNG/MP4 exports now use
 explicit SDR output.
 
@@ -20,7 +20,7 @@ explicit SDR output.
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire probes, resource/scene regressions and actual row/worker key-insertion tests pass; final end-to-end goldens pending |
-| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; project-setting UI remains pending; no product layout/style changed in these stages |
+| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration; project-wide settings dialog | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; native menu/dialog, persistence, history and 60 UI captures pass; final full integration remains pending |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
@@ -80,6 +80,9 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-desktop-display-surface-regression-v1` | Original native surface replacement refusal test passes with unchanged assertions, preserving factory/front and default error channels |
 | `issue72-stage-desktop-dense-key-v1` | All six row-navigation tests pass: three original selection/shortcut/default-error-log tests plus dense diamond insertion across four precisions, static/animated curves and shifted layer times, single-step undo/redo, serialization, actual bounded worker edits, locked-row and malformed-source refusal |
 | `issue72-stage-desktop-dense-key-style-v1` | Existing `tools/ci_desktop.py::verify_style_consumers` passes; no palette/default stylesheet call or new token added |
+| `issue72-stage-project-precision-ui-controls-v1` | Three native-control tests pass: four distinct modes in both locales; saved state and draft-only selection; popup input ownership; repeat, IME and focus-loss guards; missing/invalid metadata refusal |
+| `issue72-stage-project-precision-ui-native-v1` | Actual desktop worker/window test passes across English/Chinese, 900x600/1600x1000 logical sizes and 1/1.5/2 renderer pixel ratios; real File menu route, Cancel, Apply, save/reopen metadata, actual Rgba32Float resource, single-step undo/redo; 60 actual GPU PNGs and report retained |
+| `issue72-stage-project-precision-ui-style-v1`, `issue72-stage-project-precision-ui-check-v1` | Style-consumer guard and FFmpeg-enabled desktop application/all-test-target checks pass; these checks alone are not UI acceptance |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -148,9 +151,9 @@ at `unorm8`, while loading a document with the field missing fails rather than
 inventing a migration. The setting applies to the whole document, including
 inactive composition/frame views. The first project-precision check caught one
 missing frame-view initializer; the failed v1 receipt is retained. Core commands
-persist and undo the setting; application GPU preparation, surface preview and
-settings controls are still pending, so this model stage is not a usable product
-precision switch yet.
+persist and undo the setting. Application GPU preparation, surface preview and
+settings controls were pending at that model-only stage; subsequent integration
+and native UI evidence below now cover them.
 
 The native precision-change API prepares new planar/vector/mask pipelines and
 admitted resources before changing live fields. It performs no queue writes;
@@ -161,8 +164,8 @@ same-size vector cache entry retaining an old F16 texture after selecting UNORM1
 Successful commit now retires working-format vector/mask/effect-input/nested
 cache entries while preserving static sources and decoded video. The original
 pixel-equality assertion passes in v2; the failed v1 receipt remains available.
-Application preview-target conversion and precision synchronization are still
-pending; no live product setting is claimed by these native probes.
+Those native probes alone did not cover application preview-target conversion
+or precision synchronization; subsequent Host/desktop and UI evidence below do.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;
@@ -257,7 +260,7 @@ preview still renders internally at Float16; this stage verifies its display
 capture, not Float32 draft arithmetic parity. Applied node effects use the
 project's actual effect chain. No panel, layout, style, menu or interaction was
 changed in this stage. These selected regressions do not replace the final
-complete desktop/Host run or the pending project-setting UI acceptance.
+complete desktop/Host run or the separate project-setting UI acceptance below.
 
 Curve-row key insertion now freezes the authored/interpolated 4081-point table
 in every project mode; changing precision later therefore cannot reveal a prior
@@ -274,8 +277,49 @@ This changes authored key data, not row geometry or styling. The five §0.7
 alpha and hierarchy) are retained outside this callback-only change; their
 current visual remediation status is pending verification. Other baseline
 locations are untouched. No new dimension/color token, control, menu or
-interaction gesture was introduced. Final project-setting UI screenshots and
-comprehensive acceptance remain pending.
+interaction gesture was introduced by that curve-key stage. The following UI
+stage adds the separate project-wide settings entry. Comprehensive acceptance
+remains pending.
+
+## Project precision UI acceptance
+
+File → Project Precision opens one project-wide draft using the existing native
+dropdown and semantic popup/row/spacing/button tokens. It distinguishes integer
+UNORM16 from Float16 and states that preview/PNG/video output is SDR. The menu
+entry is disabled during observation. It reuses the existing core command and
+error presentation; Apply is one history edit, while selection and Cancel do
+not edit the project. No new dependency, asset, theme token or application
+preference is introduced. DESIGN.md §4.1 records this new setting's contract.
+
+The three control tests exercise all four values in both locales, popup versus
+footer input ownership, Escape, focus loss, IME and repeated Enter. A separate
+real-window test routes the actual menu action through Shell, selects Float32,
+cancels a draft, then applies, saves, reloads stored project metadata and checks
+undo/redo. It presents through the actual worker and confirms Rgba32Float in its
+resource ledger. Screenshots do not edit project/history. Both locales run at
+900x600 and 1600x1000 logical pixels with controlled 1/1.5/2 renderer pixel
+ratios. This does not claim that the Windows OS DPI setting was changed.
+
+`artifacts/pr-queue/issue72-project-precision-ui-manifest.json` binds all 60
+original PNGs and the report by SHA-256/dimensions; three derived contact sheets
+normalize them only for visual inspection. The File menu and option/saved-state
+contact sheets were inspected: labels, enum field, popup and footer fit at every
+combination. Default-Info file logs contain pre-handler edit starts and suppress
+healthy Present starts. Existing environment font/memory-probe and external
+Vulkan overlay discovery messages remain recorded; they were not suppressed or
+treated as failures of the precision conversion.
+
+For DESIGN.md §0.7, the path row-step, two-column, mixed-button, custom-number
+and boolean-button entries are retained outside this new setting. The five
+effect-control baseline entries remain retained outside this dialog/menu work,
+as recorded above. Timeline columns and snap-guide color retain their documented
+compatibility behavior. No baseline location is changed or claimed remediated;
+their independent visual re-audit remains pending. Existing flat-menu dimensions
+are also retained; the new row adds no literal dimension/color to panel code.
+
+These four passing UI tests and selected checks do not replace the final full
+render/Host/desktop run or the remaining gradient/glow, transparent-edge,
+multiblend/mask and retained/nested temporal golden acceptance.
 
 ## Sources and provenance
 

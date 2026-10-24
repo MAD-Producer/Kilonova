@@ -14,6 +14,8 @@ mod nodes;
 mod presentation;
 #[cfg(all(test, target_os = "windows"))]
 mod native_input_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod project_precision_tests;
 pub(crate) mod presentation_observation;
 
 pub(crate) mod styles;
