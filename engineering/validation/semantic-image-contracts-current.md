@@ -17,7 +17,7 @@ are not yet connected.
 | 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve tested; a comprehensive retained/nested temporal precision golden remains pending |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v11 publishes precision at byte 152 and five physical scratch format codes | Implemented; Host derives version/header from Rust; GLES rejects missing capabilities and never allocates an 8-bit substitute for a high-precision descriptor |
-| 72-S8 | High-precision authored-curve sampling/LUT, current packed LUT representation | Pending |
+| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage and pre-copy source-budget API | Model implemented and tested; native GPU LUT, aggregate scene source admission, current wire/SDK/GLES and editor key-insertion integration pending |
 | 72-S9 | Persisted project setting, native preview and explicit SDR display/PNG/movie output policy | Pending; no product UI changed in this stage |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
 
@@ -46,6 +46,8 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-working-render-regression-v2` | Complete current `cargo test -p motion-render --offline -- --test-threads=1`: 601 passed, zero failed, one unchanged external-source probe ignored; includes the five working-precision and five composition-precision tests |
 | `issue72-stage-semantic-meanings-v3` | Nine original portable tests plus four named-semantics tests: narrow storage, early precision refusal, strict metadata and same-precision padding |
 | `issue72-stage-semantic-native-v1` | Five original raw-capture tests, four original GPU format/sampling tests and one new actual numeric capture test: weight above one, relative/linear depth, negative normal at zero fourth channel, odd row width and descriptor capacity |
+| `issue72-stage-dense-model-v2` | Complete `motion-model` suite: 73 passed, zero failed/ignored; includes authored fine features, temporal sampling, immutable-source reuse, budget refusal, dense save/edit round trip and original malformed-input/cause tests |
+| `issue72-stage-dense-core-v2` | Five original color-curve and nine original effect-editing tests pass, including freeze, seek order, atomic edits, dependencies and undo |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -74,6 +76,15 @@ explicit struct syntax without weakening their assertions. The failing test and
 the preliminary unapplied-patch/no-target attempt (`semantic-meanings-v1`) remain
 recorded. Named capture tests check storage and raw values; they do not implement
 a depth producer, a normal-space transform or a 3D lighting pipeline.
+
+The preliminary dense model used 4096 uniformly spaced samples. The unchanged
+`numeric_animation_and_curve_luts_are_independent_of_seek_order` assertion in
+`dense-core-v1` caught floating interpolation drift after freezing. The current
+4081-point nested grid subdivides each of the 255 preview intervals into 16 and
+preserves all preview points exactly. The corrected current model and core
+receipts above pass without changes to those assertions. Frozen/channel tables
+accept the explicit 256- or 4081-point authored grid; this is not a project
+migration or an attempt to invent detail from a low-resolution table.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;

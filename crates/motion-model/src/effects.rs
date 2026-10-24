@@ -3,6 +3,8 @@ use motion_effects::{EffectDefinition, ParamKind, MAX_EFFECTS_PER_LAYER, MAX_PAR
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub type CurveLut = [[f32; 4]; 256];
+mod curve_sampling;
+pub use curve_sampling::{SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -34,11 +36,11 @@ impl Default for CurveObject {
 impl CurveObject {
     pub fn validate(&self) -> Result<()> {
         for lut in self.channel_luts.iter().flatten() {
-            ensure(lut.len()==256&&lut.iter().all(|v|v.is_finite()&&(0. ..=1.).contains(v)),"invalid channel curve LUT")?;
+            ensure(matches!(lut.len(), 256 | HIGH_PRECISION_CURVE_SAMPLES)&&lut.iter().all(|v|v.is_finite()&&(0. ..=1.).contains(v)),"invalid channel curve LUT")?;
         }
         if let Some(lut) = &self.sampled_lut {
             ensure(
-                lut.len() == 256
+                matches!(lut.len(), 256 | HIGH_PRECISION_CURVE_SAMPLES)
                     && lut
                         .iter()
                         .flatten()
@@ -69,7 +71,7 @@ impl CurveObject {
     pub fn lut(&self) -> Result<CurveLut> {
         self.validate()?;
         if let Some(lut) = &self.sampled_lut {
-            return Ok(std::array::from_fn(|i| lut[i]));
+            return Ok(std::array::from_fn(|i| curve_sampling::frozen_at(lut, i as f32 / 255.)));
         }
         let curves:[crate::color_curves::Transfer;5]=std::array::from_fn(|i|crate::color_curves::Transfer::new(&self.channels[i],self.interpolation[i],self.channel_luts[i].as_deref()));
         Ok(std::array::from_fn(|i| {
@@ -84,14 +86,15 @@ impl CurveObject {
         }))
     }
     /// Turn a frozen/interpolated LUT into independently editable channels.
-    /// Untouched channels retain their exact 256 values rather than being fitted.
+    /// Untouched channels retain their complete stored grid rather than being fitted.
     pub fn editable(&self)->Result<Self> {
         self.validate()?;
         let Some(lut)=&self.sampled_lut else{return Ok(self.clone());};
         let mut result=Self::default();result.interpolation=crate::color_curves::legacy_modes();
         for channel in 1..5 {
             let values:Vec<_>=lut.iter().map(|row|row[channel-1]).collect();
-            result.channels[channel]=(0..64).map(|i|{let index=if i==63{255}else{i*4};[index as f32/255.,values[index]]}).collect();
+            let last = values.len() - 1;
+            result.channels[channel]=(0..64).map(|i|{let index=if last==255 && i<63{i*4}else{i*last/63};[index as f32/last as f32,values[index]]}).collect();
             result.channel_luts[channel]=Some(values);
         }
         Ok(result)
@@ -667,7 +670,7 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                         spatial: None,
                     });
                 } else if !enabled {
-                    let frozen = c.sample(f64::from(frame))?;
+                    let frozen = c.sampled_curve(f64::from(frame))?.high_precision_lut();
                     let upper = c.keys.partition_point(|k| k.frame <= frame);
                     if !c.keys.is_empty() {
                         c.value = c.keys[upper.saturating_sub(1)].value.clone();
