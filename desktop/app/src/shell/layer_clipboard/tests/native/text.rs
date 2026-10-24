@@ -1,5 +1,6 @@
 //! Actual HWND/wgpu rename fields, component input, shared application text cache.
 use super::*;
+use crate::panels;
 
 fn enter() -> Input {
     Input {
@@ -162,5 +163,72 @@ fn native_text_clipboard_crosses_main_and_floating_fields_and_commits_once() {
         shell.state = shell.engine.history(0).unwrap();
         assert_eq!(shell.state["project"], before["project"]);
         assert_eq!(shell.state["project"]["layers"][1]["name"], "Target");
+
+        // Both legacy search fields now use the same cache and draft ownership.
+        shell.text_clipboard.store("ur").unwrap();
+        shell.panels.timeline.timeline_query = "Bl".into();
+        shell.panels.timeline.timeline_search = true;
+        assert_quiet(&mut shell, size, target_window, chord(Key::V, false));
+        assert_eq!(shell.panels.timeline.timeline_query, "Blur");
+        assert_quiet(&mut shell, size, target_window, chord(Key::A, false));
+        assert_quiet(&mut shell, size, target_window, chord(Key::X, false));
+        assert_eq!(shell.panels.timeline.timeline_query, "");
+        assert_quiet(&mut shell, size, target_window, chord(Key::Z, false));
+        assert_eq!(shell.panels.timeline.timeline_query, "Blur");
+        capture(
+            &mut events,
+            &mut shell,
+            size,
+            scale,
+            target_window,
+            root.join(format!("{name}-timeline-search.png")),
+        );
+        assert_quiet(
+            &mut shell,
+            size,
+            target_window,
+            Input {
+                keys: vec![(Key::Escape, Default::default())],
+                ..Default::default()
+            },
+        );
+        assert!(!shell.panels.timeline.timeline_search);
+        shell.panels.timeline.timeline_query.clear();
+        shell.panels.effect_search = Some(panels::EffectSearch {
+            owner: if source_window == 0 {
+                None
+            } else {
+                Some(Panel::Timeline)
+            },
+            position: [600., 300.],
+            ..Default::default()
+        });
+        assert_quiet(&mut shell, size, source_window, chord(Key::V, false));
+        assert_eq!(shell.panels.effect_search.as_ref().unwrap().query, "Blur");
+        capture(
+            &mut events,
+            &mut shell,
+            size,
+            scale,
+            source_window,
+            root.join(format!("{name}-effect-search.png")),
+        );
+        assert_quiet(&mut shell, size, source_window, chord(Key::Z, false));
+        assert_eq!(shell.panels.effect_search.as_ref().unwrap().query, "");
+        assert_quiet(&mut shell, size, source_window, chord(Key::Y, false));
+        assert_eq!(shell.panels.effect_search.as_ref().unwrap().query, "Blur");
+        assert_quiet(
+            &mut shell,
+            size,
+            source_window,
+            Input {
+                keys: vec![(Key::Escape, Default::default())],
+                ..Default::default()
+            },
+        );
+        assert!(shell.panels.effect_search.is_none());
+        let after_search = shell.engine.state().unwrap();
+        assert_eq!(after_search["project"], before["project"]);
+        assert_eq!(after_search["revision"], shell.state["revision"]);
     }
 }

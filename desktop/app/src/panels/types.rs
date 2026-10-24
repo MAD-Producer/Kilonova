@@ -375,6 +375,7 @@ pub struct EffectSearch {
     /// Explicit opt-in; a newly opened search always applies once and closes.
     pub continuous: bool,
     pub(crate) cache: super::effect_search::Cache,
+    pub(crate) query_editor: motion_ui::widgets::TextEditor,
 }
 
 pub(crate) struct Field {
@@ -561,6 +562,7 @@ pub(crate) struct TimelineState {
     pub timeline_context_menu: Option<[f32; 2]>,
     pub timeline_query: String,
     pub timeline_search: bool,
+    pub(crate) timeline_search_editor: motion_ui::widgets::TextEditor,
 }
 
 #[derive(Clone)]

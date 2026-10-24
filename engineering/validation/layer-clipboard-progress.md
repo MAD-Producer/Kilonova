@@ -371,3 +371,33 @@ DESIGN §0.7 的十二项处置如下。基线行号/旧表达式不能代替当
 本轮最终四张原图位于 `text-clipboard-ui-native-final/`：`main-to-float-en-source-undo.png`、`main-to-float-en-target-paste.png`、`float-to-main-zh-source-undo.png`、`float-to-main-zh-target-paste.png`。已实际查看两张目标粘贴图，字段可读；截图为未提交草稿，属性栏仍显示 Target 属正常状态。截图只捕获 UI，不能代表合成渲染验收。保留 native stderr 中本机 Epic EOSOverlay JSON 缺失的 Vulkan loader 报错，未吞掉或更改注册表。最终桌面测试文件 SHA-256 为 `143bdc87f12b494c302dfb6a5b60886b6328657e27d9bc87aa970110f5499ef9`。
 
 本阶段没有修改面板绘制；DESIGN §0.7 十二项逐项沿用前表的保留处置，未宣称视觉整改。未新增依赖、第三方资产、样式 token、工程格式或渲染语义。TC-05 仍为待完成范围，#204 保持开放，尚未创建完成 PR。
+
+## 文本剪贴板：时间轴与效果搜索
+
+继续落实 TC-05。实施前重新读取 #204、开放 PR 和近期本地分支；当时开放 PR 列表为空，近期其他分支集中于渲染精度与暂存资源，没有发现搜索文本剪贴板的重叠工作。未审查别人的 PR，未操作根工作树。
+
+两处原先直接 push_str/pop 的搜索改为原生 TextEditor：从已有查询的末尾继续输入，保留搜索的实时过滤；Ctrl+A 选择整个查询，Ctrl+C/X/V 与重命名字段共享应用文本缓存，Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y 只操作草稿。时间轴 Enter 退出搜索，Esc/失焦保留已生效查询并退出；效果搜索保留 Enter 应用、Tab 连续开关、上下结果选择及主窗/浮窗所有者路由。按字素删除、IME 确认与重复键规则复用既有编辑器，不再按 Unicode 标量 pop。没有改动应用内缓存与系统剪贴板的边界。
+
+TextEditor 新增 begin_at_end；原 begin 的值字段全选语义保留。TimelineState 和 EffectSearch 原有 Clone 派生要求编辑器可独立克隆，新增 Clone 连同历史快照各自持有字符串；新增 Debug 只报告活动状态和 private 标记，不输出正文/历史。无输入的活动字段提前返回，不为每个绘制帧复制草稿；查询未改变时不再同步复制字符串。此为输入/分配行为变更，不宣称已有性能基准结果。
+
+| ID | 分类 | 实现与证据边界 |
+| --- | --- | --- |
+| TS-01 | 新功能 | 时间轴和效果搜索接入应用文本缓存、原生字素编辑与本地草稿历史，替代 TC-05 中这两处待完成项。搜索不写工程历史，不触发图层/节点剪贴板命令。 |
+| TS-02 | 已有观察 | 沿用 TC-02/03 的缓存错误、既有字段 invalid 状态及默认错误信道；本阶段未新增日志站点、计数器、线程、重试或阻塞调用。普通空查询、搜索无结果、空历史、取消和失焦不是故障。 |
+| TS-03 | 视觉范围 | 两处活动搜索用原生字段绘制选择、光标与 invalid 状态；保留搜索框位置、尺寸及空查询提示。没有增加右键菜单或修改菜单。 |
+| TS-04 | 兼容边界 | 不改工程格式、渲染语义、资源预算、第三方依赖或资产；编辑器深克隆不共享可变草稿。 |
+| TS-05 | 剩余范围 | 旧属性字段、旧蒙版参数输入、旧对话框、文本 Edit 菜单所有权、路径独立剪贴板、完整系统事件/打包、当前主线组合和 CI 仍待完成；#204 保持开放。 |
+
+首轮 `text-search-desktop-first.log` 保留新测试缺少 crate::panels 导入的编译失败。补齐导入后 `text-search-desktop-second.log` 实际 41 项通过、0 失败、0 忽略、960 项过滤，用时 38.67 秒，编译用时 1 分 23 秒，保留 22 项既有警告。该轮早于无输入提前返回和最终排版整理，不代替最终树验证；未修改既有测试断言或忽略项。
+
+最终 `text-search-desktop-final.log` 使用 `cargo test -p motion-desktop --features ffmpeg --bin motion-studio search -- --test-threads=1`，41 项通过、0 失败、0 忽略、960 项过滤，用时 53.57 秒，编译用时 1 分 56 秒。涵盖既有搜索应用、连续模式、主窗/浮窗所有权、IME、节点搜索以及新增两项真实 Shell 搜索回归；新增回归在中英文分别验证剪切/粘贴单步草稿撤销、重做、字素删除、重复键、IME 确认、Enter/失焦，并比较完整工程与修订号不变，随后实际粘贴先前冻结图层确认其缓存未被搜索覆盖。
+
+同一最终桌面测试文件执行 `text-search-clipboard-final.log`：56 项通过、0 失败、0 忽略、945 项过滤，用时 77.67 秒。该范围与搜索集有重叠，不能直接相加为独立用例数量。`text-search-default-channel-final/` 保留真实默认文件日志、stderr、stdout；缺失服务和超限的原始原因同时进入文件/ stderr，Info start 仅进文件，stdout 无错误且不泄露私有正文哨兵。未新增或修改错误阈值、重试、超时或忽略属性。
+
+`text-search-ui-final.log` 的五个集成目标共 34 项通过、0 失败或忽略：借用输入 6、故障边界 4、字素编辑 9、输入所有权 9、文本剪贴板 6；新增项验证 begin_at_end 的追加语义、独立克隆的正文/undo/redo 与 Debug 正文脱敏。
+
+`text-search-native-final.log` 的真实 HWND/wgpu 图层、关键帧、文本三项通过、0 失败或忽略、998 项过滤，用时 59.42 秒。扩展文本测试，在主窗及原生时间轴浮窗分别验证两处搜索的粘贴、剪切、草稿撤销/重做和退出均不生成工程动作；原有重命名、保存重开与工程撤销断言保留。最终测试文件 SHA-256 为 `60ae78619097bdc3165ccb8c1fcd79b1cf125897ea2285a23cb9c3100bdbd53e`。
+
+`text-search-ui-native-final/` 保留八张原图；新增的 `main-to-float-en-timeline-search.png`、`main-to-float-en-effect-search.png`、`float-to-main-zh-timeline-search.png`、`float-to-main-zh-effect-search.png` 已全部实际查看，分别覆盖英语 100% 与中文 150% 的两处搜索。效果搜索的 Blur 实际匹配目录；时间轴 Blur 无匹配图层，空结果正确。光标、全选、查询文本清晰，没有新增菜单或右键菜单。捕获仅验收 UI，输入由生产 Input/组件路由，不含 OS 键鼠注入、完整 window_event 或系统剪贴板。保留本机 Epic EOSOverlay JSON 缺失的 Vulkan loader stderr 原件，未吞掉或修改注册表。
+
+DESIGN §0.7 十二项逐项沿用前表的保留处置：本轮未编辑 path_controls/effect_controls，timeline 仅改变搜索字段输入和活动绘制，既有列坐标与吸附线实现保留；不宣称已完成其他视觉整改。定向格式检查、git diff --check 与 verify_style_consumers() 通过。TS-05 中剩余工作未完成，#204 不关闭，尚未创建完成 PR。

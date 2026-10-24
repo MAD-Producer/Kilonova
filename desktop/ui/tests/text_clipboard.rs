@@ -26,6 +26,30 @@ fn begin(text: &str) -> TextEditor {
 }
 
 #[test]
+fn resumed_search_appends_at_grapheme_end_and_clones_own_their_history() {
+    let cache = Arc::new(TextClipboard::default());
+    let mut source = TextEditor::default();
+    source.begin_at_end("搜索 👩🏽‍🚀");
+    source.input(&Input {
+        text: "追加".into(),
+        ..Default::default()
+    });
+    assert_eq!(source.text, "搜索 👩🏽‍🚀追加");
+    let mut cloned = source.clone();
+    source.input(&chord(&cache, Key::Z, false));
+    assert_eq!(source.text, "搜索 👩🏽‍🚀");
+    assert_eq!(cloned.text, "搜索 👩🏽‍🚀追加");
+    cloned.input(&chord(&cache, Key::Z, false));
+    assert_eq!(cloned.text, source.text);
+    cloned.input(&chord(&cache, Key::Z, true));
+    assert_eq!(cloned.text, "搜索 👩🏽‍🚀追加");
+    assert_eq!(source.text, "搜索 👩🏽‍🚀");
+    let debug = format!("{source:?} {cloned:?}");
+    assert!(debug.contains("<private>"));
+    assert!(!debug.contains("搜索"));
+}
+
+#[test]
 fn independent_editors_share_owned_text_and_cut_paste_each_undo_once() {
     let cache = Arc::new(TextClipboard::default());
     let source_text = "e\u{301} 中文 👩🏽‍🚀";

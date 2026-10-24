@@ -20,7 +20,7 @@ pub enum TextEvent {
     Commit(String),
     Cancel,
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct TextEditor {
     pub text: String,
     pub error: Option<String>,
@@ -30,6 +30,14 @@ pub struct TextEditor {
     cursor: usize,
     dirty: bool,
     history: text_history::History,
+}
+impl std::fmt::Debug for TextEditor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextEditor")
+            .field("active", &self.active)
+            .field("contents", &"<private>")
+            .finish_non_exhaustive()
+    }
 }
 impl TextEditor {
     pub fn active(&self) -> bool {
@@ -43,6 +51,11 @@ impl TextEditor {
         self.error = None;
         self.dirty = false;
         self.history = Default::default();
+    }
+    /// Live searches resume at the end; value editors keep begin's select-all behavior.
+    pub fn begin_at_end(&mut self, value: &str) {
+        self.begin(value);
+        self.select_all = false;
     }
     pub fn cancel(&mut self) {
         self.active = false;
@@ -66,6 +79,9 @@ impl TextEditor {
         let view = input.input_view();
         let input = &view;
         if !self.active {
+            return None;
+        }
+        if !input.focus_lost && input.text.is_empty() && input.key_presses().next().is_none() {
             return None;
         }
         let mut before = self.snapshot();

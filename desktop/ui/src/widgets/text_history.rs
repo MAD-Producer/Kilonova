@@ -8,7 +8,7 @@ pub(super) struct Snapshot {
     pub cursor: usize,
     pub select_all: bool,
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Stack {
     entries: VecDeque<Snapshot>,
     bytes: usize,
@@ -29,7 +29,7 @@ impl Stack {
         Some(snapshot)
     }
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct History {
     undo: Stack,
     redo: Stack,
