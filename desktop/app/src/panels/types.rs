@@ -76,6 +76,7 @@ pub enum Action {
     /// Replace the optional timeline column visibility (view state only).
     TimelineColumnVisibility(ColumnVisibility),
     SamplingColumnVisibility(super::layer_sampling::Visibility),
+    HideShyLayers(bool),
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
@@ -323,7 +324,8 @@ impl Panels {
         if context_changed || invalid {
             self.timeline.reveal_layer = None;
         }
-        context_changed || invalid
+        let hidden_changed = super::shy_layers::reconcile_selection(self, state);
+        context_changed || invalid || hidden_changed
     }
 
     pub fn set_stylesheet(&mut self, sheet: motion_ui::style::StyleSheet) {
@@ -482,6 +484,7 @@ impl ColumnVisibility {
 
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
+    pub(crate) hide_shy: bool,
     pub(crate) reveal_layer: Option<u64>,
     pub sampling_visibility: super::layer_sampling::Visibility,
     pub(crate) column_visibility: ColumnVisibility,

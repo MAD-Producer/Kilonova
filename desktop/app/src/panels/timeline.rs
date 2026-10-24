@@ -25,6 +25,7 @@ pub(super) struct Row {
     name_lower: String,
     pub(super) visible: bool,
     pub(super) locked: bool,
+    pub(super) shy: bool,
     pub(super) clip: [i32; 2],
     pub(super) range: [f64; 2],
     pub(super) keys: Vec<f64>,
@@ -431,6 +432,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
                 visible: l["visible"].as_bool().unwrap_or(true),
                 locked: l["locked"].as_bool().unwrap_or(false),
+                shy: l["shy"] == true,
                 clip: [
                     t.and_then(|t| t["in_frame"].as_i64()).unwrap_or(0) as i32,
                     t.and_then(|t| t["out_frame"].as_i64())
@@ -478,6 +480,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 name_lower: "camera".into(),
                 visible: true,
                 locked: true,
+                shy: false,
                 clip: [0, total as i32],
                 range: [0., total as f64],
                 keys: vec![],
@@ -519,6 +522,7 @@ fn scroll_extent_signature(
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     rows_key.hash(&mut hash);
     query.hash(&mut hash);
+    timeline.hide_shy.hash(&mut hash);
     area_height.to_bits().hash(&mut hash);
     row_height.to_bits().hash(&mut hash);
     timeline.expanded.len().hash(&mut hash);
@@ -696,9 +700,11 @@ pub(super) fn render(
     let graph_mode = panels.timeline.graph_mode;
     let all_rows = row_cache::get(&mut panels.timeline.rows_cache, state, || rows(state));
     let query = panels.timeline.timeline_query.to_lowercase();
+    super::shy_layers::reconcile_selection(panels, state);
     let rows: Vec<_> = all_rows
         .iter()
-        .filter(|row| query.is_empty() || row.name_lower.contains(&query))
+        .filter(|row| (!panels.timeline.hide_shy || !row.shy)
+            && (query.is_empty() || row.name_lower.contains(&query)))
         .collect();
     panels.timeline.expression_rows.clear();
     if panels.expressions.owner == Some(Panel::Timeline) {
@@ -864,10 +870,15 @@ pub(super) fn render(
             return;
         }
     }
+    let shy_width = styles.metric("icon.slot", 20.);
+    let shy_gap = styles.metric("padding", 5.);
+    let shy_toolbar = Rect::new(track.min[0] + shy_gap, toolbar_top, shy_width, toolbar_height);
+    super::shy_layers::toolbar(list, shy_toolbar, panels, input, out);
     let search = Rect::new(
-        track.min[0] + 12.,
+        track.min[0] + styles.metric("timeline.search.inset", 12.) + shy_width + shy_gap,
         toolbar_top,
-        (track.width() - 176.).min(250.).max(1.),
+        (track.width() - styles.metric("timeline.search.reserved", 176.) - shy_width - shy_gap)
+            .min(styles.metric("timeline.search.max_width", 250.)).max(styles.metric("border", 1.)),
         toolbar_height,
     );
     paint::rect(list, search, colors.SUNKEN);
@@ -993,6 +1004,7 @@ pub(super) fn render(
         label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
     }
     super::layer_sampling::header(list, atlas, &columns, ruler, locale);
+    super::shy_layers::header(list, atlas, &columns, ruler, locale);
     label(
         list,
         atlas,
@@ -1349,6 +1361,7 @@ pub(super) fn render(
         }
         let eye = Rect::new(area.min[0] + 10.0, y, 16.0, row_height);
         let lock = Rect::new(area.min[0] + 28.0, y, 16.0, row_height);
+        super::shy_layers::row(list, atlas, &columns, row.id, row.shy, row.locked, state, y, row_height, input, out);
         if motion_ui::widgets::Checkbox::draw(
             list,
             atlas,
@@ -1700,9 +1713,9 @@ pub(super) fn render(
         } else {
             if active {
                 let (slot, _) = slot_of(input.mouse[1]);
-                let from = row_bounds.iter().position(|(id, _, _)| *id == object);
-                let len = state["project"]["layers"].as_array().map_or(0, Vec::len);
-                if let Some(index) = from.and_then(|from| reorder_storage_index(len, from, slot)) {
+                let full: Vec<_> = all_rows.iter().filter(|row| row.id != 0).map(|row| row.id).collect();
+                let shown: Vec<_> = row_bounds.iter().map(|(id, _, _)| *id).collect();
+                if let Some(index) = super::shy_layers::reorder_index(&full, &shown, object, slot) {
                     out.push(Action::Edit(Command::Reorder { object, index }));
                 }
             }
@@ -1797,6 +1810,7 @@ pub(super) fn render(
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
+    super::shy_layers::hint(list, atlas, shy_toolbar, &columns, ruler, area, input, locale, panels.timeline.hide_shy);
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);

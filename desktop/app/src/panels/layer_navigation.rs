@@ -58,13 +58,14 @@ impl Unavailable {
 }
 
 /// Metadata only: do not rebuild authored property/key trees for a key press.
-fn visible_layers(state: &Value, query: &str) -> Vec<u64> {
+fn visible_layers(state: &Value, query: &str, hide_shy: bool) -> Vec<u64> {
     let query = query.to_lowercase();
     state["project"]["layers"]
         .as_array()
         .into_iter()
         .flatten()
         .rev()
+        .filter(|layer| !hide_shy || layer["shy"] != true)
         .filter(|layer| {
             query.is_empty()
                 || layer["name"]
@@ -78,7 +79,8 @@ fn visible_layers(state: &Value, query: &str) -> Vec<u64> {
 }
 
 pub(super) fn navigate(panels: &mut Panels, state: &Value, below: bool, extend: bool) {
-    let visible = visible_layers(state, &panels.timeline.timeline_query);
+    let visible = visible_layers(state, &panels.timeline.timeline_query,
+        panels.timeline.hide_shy && panels.focused != Some(super::Panel::Composition));
     if visible.is_empty() {
         return;
     }

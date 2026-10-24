@@ -87,6 +87,7 @@ mod timeline_key_drag;
 #[cfg(test)]
 mod timeline_key_drag_tests;
 mod timeline_columns;
+mod shy_layers;
 #[cfg(test)]
 mod timeline_columns_tests;
 mod timeline_graph;

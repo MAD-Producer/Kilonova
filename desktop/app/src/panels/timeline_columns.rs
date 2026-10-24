@@ -27,6 +27,7 @@ impl Slot {
 /// Name and optional column slots for one timeline gutter width.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct ColumnRects {
+    pub shy: Option<Slot>,
     pub sampling: [Option<Slot>; 3],
     pub name: Slot,
     pub three_d: Option<Slot>,
@@ -57,6 +58,7 @@ impl ColumnRects {
             .map_or(origin + gutter - 8., |slot| slot.x - 6.);
         let name_x = origin + 112.;
         Self {
+            shy: None,
             sampling: [None; 3],
             name: Slot {
                 x: name_x,
@@ -81,11 +83,11 @@ impl ColumnRects {
         let slot = styles.metric("icon.slot", 20.);
         let minimum = styles.metric("value.min_width", 64.);
         let mut plan = Self::new(origin, gutter, visibility);
-        if plan.name.width - slot < minimum {
+        if plan.name.width - slot * 2. < minimum {
             visibility.blend = false;
             plan = Self::new(origin, gutter, visibility);
         }
-        if plan.name.width - slot < minimum {
+        if plan.name.width - slot * 2. < minimum {
             visibility.parent = false;
             plan = Self::new(origin, gutter, visibility);
         }
@@ -94,6 +96,10 @@ impl ColumnRects {
         {
             plan.name.width = (plan.name.width - slot).max(0.);
             plan.three_d = Some(Slot { x: plan.name.max_x(), width: slot });
+        }
+        if plan.name.width >= slot {
+            plan.name.width -= slot;
+            plan.shy = Some(Slot { x: plan.name.max_x(), width: slot });
         }
         plan
     }
@@ -109,9 +115,7 @@ impl ColumnRects {
         capable: bool,
     ) -> Self {
         let mut plan = Self::styled(styles, origin, gutter, visibility);
-        if !capable {
-            return plan;
-        }
+        if !capable { return plan; }
         let slot = styles.metric("icon.slot", 20.);
         let minimum = styles.metric("value.min_width", 64.);
         let desired = sampling.0.iter().filter(|v| **v).count() as f32 * slot;

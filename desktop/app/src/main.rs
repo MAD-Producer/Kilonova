@@ -472,6 +472,7 @@ impl Shell {
         shell.install_shortcut_bindings();
         if shell.smoke.is_none() { shell.restore_preview_preference()?; }
         shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
+        shell.panels.timeline.hide_shy = shell.workspace.timeline_hide_shy;
         Ok(shell)
     }
 }

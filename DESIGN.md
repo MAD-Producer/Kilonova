@@ -268,6 +268,8 @@ Targets pending source verification — report conflicts instead of guessing:
 
 ### 7.1 Tracks and columns
 
+Shy is a layer-row checkbox in a complete `icon.slot`, adjacent to the existing layer switches. Its marked state organizes the timeline list; it does not mean render visibility. A matching selected icon in the timeline toolbar toggles the hidden-row projection. Keep both controls inline, preserve row height and existing hit targets, and explain their list-only meaning in localized tooltips. Allocate the new column in the shared styled column plan, including when sampling columns are unavailable. The search field yields space using `timeline.search.inset`, `timeline.search.reserved`, and `timeline.search.max_width`; their initial values preserve the existing search layout apart from the added toggle. Shy selection/filtering behavior and project persistence are functional requirements of #256, outside the scope of visual remediation.
+
 The timeline layer gutter preserves the **11** existing columns and adds a 3D switch within the name allocation. The compact layout may hide blend mode as specified below. **Do not invent `solo` / `shy` columns.** Offsets below are from `desktop/app/src/panels/timeline.rs`:
 
 | # | Column | X offset / width |

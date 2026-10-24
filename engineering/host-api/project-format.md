@@ -1,6 +1,6 @@
 # 工程 JSON：单一当前版本
 
-工程文档必须显式包含 `version: 23`，代码以 `motion_model::CURRENT_PROJECT_VERSION` 为准。只接受当前版本；过去版本与未知未来版本均返回格式错误。`Project::migrate()` 已删除，打开工程不升级、不修复、不覆盖原 JSON。工程版本不再取决于用了哪项功能。
+工程文档必须显式包含 `version: 24`，代码以 `motion_model::CURRENT_PROJECT_VERSION` 为准。每个图层显式保存 `shy` 列表组织标记，不影响 `visible` 或渲染。只接受当前版本；过去版本与未知未来版本均返回格式错误。`Project::migrate()` 已删除，打开工程不升级、不修复、不覆盖原 JSON。工程版本不再取决于用了哪项功能。
 
 `Project::new` 写入当前版本，`Project::validate` 只做一次版本相等检查，其后仍执行现有数据、资源、引用与范围校验。加载与编辑器初始化调用 validate，错误沿原有 Result/宿主信道返回；失败不替换当前工程。命令修改摄影机、音频、矢量、采样等功能时不会重新计算版本。
 

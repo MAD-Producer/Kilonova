@@ -67,6 +67,7 @@ impl Changes {
             | Command::Ease { object, .. }
             | Command::Rename { object, .. }
             | Command::Flags { object, .. }
+            | Command::SetLayerShy { object, .. }
             | Command::Anchor { object, .. }
             | Command::AnchorAt { object, .. }
             | Command::SetAudio { object, .. }

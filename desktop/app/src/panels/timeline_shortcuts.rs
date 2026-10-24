@@ -426,7 +426,8 @@ pub(super) fn handle(
             };
             let mut times = vec![];
             for row in timeline::rows(state) {
-                if object.is_some_and(|id| id != row.id)
+                if (panels.focused == Some(Panel::Timeline) && panels.timeline.hide_shy && row.shy)
+                    || object.is_some_and(|id| id != row.id)
                     || !row
                         .name
                         .to_lowercase()

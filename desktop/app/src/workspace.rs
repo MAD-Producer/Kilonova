@@ -63,6 +63,8 @@ pub struct Workspace {
     pub timeline_column_matte: bool,
     #[serde(default)]
     pub(crate) timeline_sampling_columns: crate::panels::layer_sampling::Visibility,
+    #[serde(default)]
+    pub(crate) timeline_hide_shy: bool,
     #[serde(flatten)]
     layout: motion_ui::workspace::Workspace,
 }
@@ -85,6 +87,7 @@ impl Default for Workspace {
             timeline_column_parent: true,
             timeline_column_matte: true,
             timeline_sampling_columns: Default::default(),
+            timeline_hide_shy: false,
             style_path: None,
             preview_quality: Default::default(),
             shortcut_bindings: Default::default(),
