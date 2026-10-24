@@ -3,6 +3,8 @@
 //! executed before an encoder are outside these intervals. Never add them to
 //! overlapping root-pass timings. Hosts must explicitly attach this observer;
 //! constructing a profiler does not instrument other encoders or raw submits.
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+mod diagnostic;
 mod logging;
 mod records;
 use crate::{

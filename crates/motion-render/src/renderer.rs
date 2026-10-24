@@ -639,6 +639,18 @@ impl Renderer {
     pub fn command_observer(&self) -> Option<crate::gpu_commands::GpuCommandObserver> {
         self.command_profiler.as_ref().map(|profiler| profiler.observer())
     }
+    /// Explicit fault injection for debug GPU-test sink acceptance only.
+    /// Corrupts diagnostic readback words via a real native copy. Never called
+    /// automatically and absent from Release builds, including Release studies.
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    #[doc(hidden)]
+    pub fn debug_inject_invalid_command_words(&self)
+        -> Result<crate::gpu_commands::CommandIdentity>
+    {
+        self.command_profiler.as_ref()
+            .ok_or_else(|| RenderError::Invalid("command profiling is disabled".into()))?
+            .debug_inject_invalid_command_words(self)
+    }
     /// Captures an actual host request/poll before entering media or encoding.
     /// Guard drop restores the enclosing scope on success, error and unwind.
     /// Disabled profiling creates no scope and takes no observation lock.

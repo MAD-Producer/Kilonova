@@ -4,6 +4,9 @@ use super::*;
 use motion_render::{gpu_commands::ExposureCommandContext, Renderer};
 use std::process::{Command, Stdio};
 
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+mod native_readback;
+
 const RECORD: &str = "render GPU command observation invariant";
 
 #[test]
