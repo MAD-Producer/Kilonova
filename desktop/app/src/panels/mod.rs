@@ -41,6 +41,9 @@ mod composition;
 mod curves;
 pub(crate) mod effect_controls;
 mod effect_removal;
+mod effect_recent;
+#[cfg(test)]
+mod recent_effect_menu_tests;
 pub(crate) mod effect_drag;
 mod effects;
 mod effect_timeline;

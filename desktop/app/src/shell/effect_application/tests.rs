@@ -1,6 +1,7 @@
 use super::*;
 use motion_ui::{dock::Panel, input::Key, paint::PaintList};
 use serde_json::json;
+mod recent_menu;
 
 fn fixture(locale: Locale) -> (tempfile::TempDir, Shell, Value) {
     let folder = tempfile::tempdir().unwrap();
