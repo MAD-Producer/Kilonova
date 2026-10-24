@@ -10,7 +10,7 @@ are not yet connected.
 
 | Item | Current implementation | Status and remaining limits |
 | --- | --- | --- |
-| 72-S1 | Versioned color/alpha, coverage and scalar/vector data contracts; 13 R/RG/RGBA storage formats; four independent precisions | Implemented; named weight, depth and normal contracts still pending |
+| 72-S1 | Versioned color/alpha, coverage, normalized/unbounded weight, relative/linear depth, signed XYZ normal and scalar/vector data contracts; 13 R/RG/RGBA formats; four precisions | Implemented; unbounded and signed semantics require floating storage, and normal's padded fourth channel is ignored rather than alpha |
 | 72-S2 | Enabled-device format/usage/filter/blend snapshot and same-precision channel padding | Implemented; optional features are never inferred from adapter reports alone |
 | 72-S3 | Before-allocation capability validation, including 4-sample vector attachments and resolve | Implemented; unsupported working modes return a cause instead of reducing precision |
 | 72-S4 | Physical effect descriptors, same-frame layer snapshots, accumulation, masks, mattes, ordinary nested compositions and vector/group rasters retain working precision | Implemented; actual pixel tests cover the named paths below |
@@ -44,6 +44,8 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-composition-pixels-v1` | Five actual GPU tests: layer-input snapshots in both stack orders; float Multiply/Add/Screen and adjustment; half-coverage mask/projected matte/retained raster; budget refusal and recovery; ordinary nested texture pixels/capacity/reuse |
 | `issue72-jvm-working-v1` | Production Kotlin compilation and six JVM parser tests; no Android device/GLES rendering validation |
 | `issue72-stage-working-render-regression-v2` | Complete current `cargo test -p motion-render --offline -- --test-threads=1`: 601 passed, zero failed, one unchanged external-source probe ignored; includes the five working-precision and five composition-precision tests |
+| `issue72-stage-semantic-meanings-v3` | Nine original portable tests plus four named-semantics tests: narrow storage, early precision refusal, strict metadata and same-precision padding |
+| `issue72-stage-semantic-native-v1` | Five original raw-capture tests, four original GPU format/sampling tests and one new actual numeric capture test: weight above one, relative/linear depth, negative normal at zero fourth channel, odd row width and descriptor capacity |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -63,6 +65,15 @@ The failed receipt is retained. The focused unchanged snapshot test passes in
 also passes. Its only ignored test is `optional_local_original_image_probe`,
 which requires `MOTION_IMAGE_SOURCE` outside the repository; no test was newly
 ignored to obtain this result.
+
+The first applied named-semantics run (`semantic-meanings-v2`) exposed that
+Serde's internally tagged unit variants accepted extra alpha metadata despite
+the enum's `deny_unknown_fields`. Empty struct variants now reject these fields;
+the JSON tags are unchanged. Existing coverage call sites were adapted to the
+explicit struct syntax without weakening their assertions. The failing test and
+the preliminary unapplied-patch/no-target attempt (`semantic-meanings-v1`) remain
+recorded. Named capture tests check storage and raw values; they do not implement
+a depth producer, a normal-space transform or a 3D lighting pipeline.
 
 The current changes preserve the
 existing allocation leases, admission checks, rollback and submission ledger;

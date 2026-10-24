@@ -102,7 +102,7 @@ fn numeric_channels_never_select_srgb_storage_or_a_color_alpha_contract() {
 fn fallback_only_pads_channels_and_preserves_storage_precision() {
     for (meaning, precision, padded) in [
         (
-            ImageMeaning::Coverage,
+            ImageMeaning::Coverage {},
             ChannelPrecision::Unorm8,
             ImageStorage::Rgba8Unorm,
         ),
@@ -201,7 +201,7 @@ fn filter_blend_and_copy_failures_are_reported_separately_without_inventing_supp
 
 #[test]
 fn unsupported_versions_and_unknown_fields_cannot_silently_select_a_format() {
-    let contract = ImageContract::new(ImageMeaning::Coverage, ChannelPrecision::Unorm8);
+    let contract = ImageContract::new(ImageMeaning::Coverage {}, ChannelPrecision::Unorm8);
     assert_eq!(contract.version(), IMAGE_CONTRACT_VERSION);
     let mut value = serde_json::to_value(contract).unwrap();
     value["version"] = 2.into();
@@ -237,7 +237,7 @@ fn storage_capacity_rejects_empty_and_overflowing_extents() {
 #[test]
 fn unorm16_is_fixed_point_for_color_coverage_and_numeric_channels() {
     for (meaning, expected) in [
-        (ImageMeaning::Coverage, ImageStorage::R16Unorm),
+        (ImageMeaning::Coverage {}, ImageStorage::R16Unorm),
         (
             ImageMeaning::Data {
                 channels: DataChannels::Scalar,
@@ -346,7 +346,7 @@ fn all_four_precisions_preserve_color_alpha_and_coverage_without_fixed_pool_slot
         }
         assert_eq!(coverage_storage(precision), coverage);
         assert_eq!(
-            ImageContract::new(ImageMeaning::Coverage, precision)
+            ImageContract::new(ImageMeaning::Coverage {}, precision)
                 .preferred_storage()
                 .unwrap(),
             coverage

@@ -228,7 +228,7 @@ fn float_color_and_scalar_data_readback_preserve_hdr_sign_and_fine_detail() {
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn invalid_capture_requests_fail_before_allocation_and_png_rejects_float_explicitly() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let contract = ImageContract::new(ImageMeaning::Coverage, ChannelPrecision::Float16);
+    let contract = ImageContract::new(ImageMeaning::Coverage {}, ChannelPrecision::Float16);
     for (width, height) in [(0, 1), (1, 0), (u32::MAX, 1), (1, u32::MAX)] {
         let error = renderer
             .image_capture_target(width, height, contract)
@@ -352,7 +352,7 @@ fn raw_capture_admits_texture_and_aligned_staging_and_rolls_back_refused_growth(
 fn foreign_renderer_readback_is_refused_before_gpu_use_without_poisoning_the_target() {
     let owner = pollster::block_on(Renderer::headless()).unwrap();
     let other = pollster::block_on(Renderer::headless()).unwrap();
-    let contract = ImageContract::new(ImageMeaning::Coverage, ChannelPrecision::Float16);
+    let contract = ImageContract::new(ImageMeaning::Coverage {}, ChannelPrecision::Float16);
     let target = owner.image_capture_target(3, 2, contract).unwrap();
     clear(&owner, &target, wgpu::Color::WHITE);
     let before = other.image_readback_info();

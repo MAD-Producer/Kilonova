@@ -220,7 +220,7 @@ fn numeric_and_coverage_samples_do_not_decode_srgb_or_premultiply_alpha() {
         },
         ChannelPrecision::Unorm8,
     );
-    let coverage = ImageContract::new(ImageMeaning::Coverage, ChannelPrecision::Unorm8);
+    let coverage = ImageContract::new(ImageMeaning::Coverage {}, ChannelPrecision::Unorm8);
     let expected = 128. / 255.;
     for contract in [scalar, coverage] {
         let sample = sampled_pixel(&renderer, contract.preferred_storage().unwrap(), &[128]);

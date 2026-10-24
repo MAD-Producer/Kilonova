@@ -25,7 +25,16 @@ pub enum ImageMeaning {
         alpha: AlphaMode,
     },
     /// A scalar in [0, 1]; producers enforce that range. No color/alpha transform.
-    Coverage,
+    Coverage {},
+    /// Scalar weights. Only normalized weights are bounded to [0,1].
+    Weight { normalized: bool },
+    /// Scalar depth normalized to [0,1] by the producer's clipping range.
+    RelativeDepth {},
+    /// Scalar distance in scene units; requires floating storage.
+    LinearDepth {},
+    /// Cartesian XYZ unit direction in [-1,1], with no alpha component.
+    /// The padded fourth channel has no meaning; no automatic encoding occurs.
+    Normal {},
     /// Independent numeric channels. Extra storage channels have no meaning.
     Data { channels: DataChannels },
 }
@@ -156,6 +165,10 @@ impl ImageUsage {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ImageFormatError {
     UnsupportedVersion(u32),
+    InvalidPrecision {
+        meaning: ImageMeaning,
+        precision: ChannelPrecision,
+    },
     InvalidUsage(&'static str),
     /// At most two attempts. No unbounded shader or user payload is retained.
     Unsupported {
@@ -185,59 +198,53 @@ impl ImageContract {
         if self.version != IMAGE_CONTRACT_VERSION {
             return Err(ImageFormatError::UnsupportedVersion(self.version));
         }
+        let needs_float = matches!(
+            self.meaning,
+            ImageMeaning::LinearDepth {}
+                | ImageMeaning::Normal {}
+                | ImageMeaning::Weight { normalized: false }
+        );
+        if needs_float && !self.precision.is_float() {
+            return Err(ImageFormatError::InvalidPrecision {
+                meaning: self.meaning,
+                precision: self.precision,
+            });
+        }
+        enum StorageValue {
+            Color(WorkingSpace),
+            Numeric(DataChannels),
+        }
+        let value = match self.meaning {
+            ImageMeaning::Color { space, .. } => StorageValue::Color(space),
+            ImageMeaning::Coverage {}
+            | ImageMeaning::Weight { .. }
+            | ImageMeaning::RelativeDepth {}
+            | ImageMeaning::LinearDepth {} => StorageValue::Numeric(DataChannels::Scalar),
+            ImageMeaning::Normal {} => StorageValue::Numeric(DataChannels::Vector3),
+            ImageMeaning::Data { channels } => StorageValue::Numeric(channels),
+        };
         use ChannelPrecision::*;
         use DataChannels::*;
         use ImageStorage::*;
-        Ok(match (self.meaning, self.precision) {
-            (
-                ImageMeaning::Color {
-                    space: WorkingSpace::Linear,
-                    ..
-                },
-                Unorm8,
-            ) => Rgba8UnormSrgb,
-            (
-                ImageMeaning::Color {
-                    space: WorkingSpace::Srgb,
-                    ..
-                },
-                Unorm8,
-            ) => Rgba8Unorm,
-            (ImageMeaning::Color { .. }, Unorm16) => Rgba16Unorm,
-            (ImageMeaning::Color { .. }, Float16) => Rgba16Float,
-            (ImageMeaning::Color { .. }, Float32) => Rgba32Float,
-            (ImageMeaning::Coverage | ImageMeaning::Data { channels: Scalar }, Unorm8) => R8Unorm,
-            (ImageMeaning::Coverage | ImageMeaning::Data { channels: Scalar }, Unorm16) => R16Unorm,
-            (ImageMeaning::Coverage | ImageMeaning::Data { channels: Scalar }, Float16) => R16Float,
-            (ImageMeaning::Coverage | ImageMeaning::Data { channels: Scalar }, Float32) => R32Float,
-            (ImageMeaning::Data { channels: Vector2 }, Unorm8) => Rg8Unorm,
-            (ImageMeaning::Data { channels: Vector2 }, Unorm16) => Rg16Unorm,
-            (ImageMeaning::Data { channels: Vector2 }, Float16) => Rg16Float,
-            (ImageMeaning::Data { channels: Vector2 }, Float32) => Rg32Float,
-            (
-                ImageMeaning::Data {
-                    channels: Vector3 | Vector4,
-                },
-                Unorm8,
-            ) => Rgba8Unorm,
-            (
-                ImageMeaning::Data {
-                    channels: Vector3 | Vector4,
-                },
-                Unorm16,
-            ) => Rgba16Unorm,
-            (
-                ImageMeaning::Data {
-                    channels: Vector3 | Vector4,
-                },
-                Float16,
-            ) => Rgba16Float,
-            (
-                ImageMeaning::Data {
-                    channels: Vector3 | Vector4,
-                },
-                Float32,
-            ) => Rgba32Float,
+        use StorageValue::*;
+        Ok(match (value, self.precision) {
+            (Color(WorkingSpace::Linear), Unorm8) => Rgba8UnormSrgb,
+            (Color(WorkingSpace::Srgb), Unorm8) => Rgba8Unorm,
+            (Color(_), Unorm16) => Rgba16Unorm,
+            (Color(_), Float16) => Rgba16Float,
+            (Color(_), Float32) => Rgba32Float,
+            (Numeric(Scalar), Unorm8) => R8Unorm,
+            (Numeric(Scalar), Unorm16) => R16Unorm,
+            (Numeric(Scalar), Float16) => R16Float,
+            (Numeric(Scalar), Float32) => R32Float,
+            (Numeric(Vector2), Unorm8) => Rg8Unorm,
+            (Numeric(Vector2), Unorm16) => Rg16Unorm,
+            (Numeric(Vector2), Float16) => Rg16Float,
+            (Numeric(Vector2), Float32) => Rg32Float,
+            (Numeric(Vector3 | Vector4), Unorm8) => Rgba8Unorm,
+            (Numeric(Vector3 | Vector4), Unorm16) => Rgba16Unorm,
+            (Numeric(Vector3 | Vector4), Float16) => Rgba16Float,
+            (Numeric(Vector3 | Vector4), Float32) => Rgba32Float,
         })
     }
     /// Fallback may only add ignored channels at the same precision. Never
