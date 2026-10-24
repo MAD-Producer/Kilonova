@@ -742,3 +742,4 @@ fn effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_hi
 }
 
 mod scroll_cache_tests;
+mod zoom_tests;

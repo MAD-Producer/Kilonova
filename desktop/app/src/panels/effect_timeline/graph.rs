@@ -204,7 +204,7 @@ pub(in crate::panels) fn render(
     let max = points.iter().map(|p| p.1).fold(f32::NEG_INFINITY, f32::max);
     let margin = ((max - min) * 0.1).max(1.);
     let auto = [min - margin, max + margin];
-    let zoom = if panels.timeline.graph_y_zoom > 0. {
+    let mut zoom = if panels.timeline.graph_y_zoom > 0. {
         panels.timeline.graph_y_zoom
     } else {
         1.
@@ -216,7 +216,12 @@ pub(in crate::panels) fn render(
         && input.wheel[1] != 0.
         && !panels.effect_timeline.editing()
     {
-        panels.timeline.graph_y_zoom = (zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
+        let previous = zoom;
+        zoom = (zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
+        let fraction = (plot.max[1] - input.mouse[1]) / plot.height() - 0.5;
+        panels.timeline.graph_y_offset +=
+            fraction * (auto[1] - auto[0]) * (1. / previous - 1. / zoom);
+        panels.timeline.graph_y_zoom = zoom;
     }
     let half = (auto[1] - auto[0]) * 0.5 / zoom;
     let center = (auto[0] + auto[1]) * 0.5 + panels.timeline.graph_y_offset;
