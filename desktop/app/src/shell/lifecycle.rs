@@ -68,7 +68,9 @@ impl Shell {
                 .as_ref()
                 .is_some_and(|e| e.dirty() && e.snapshot().revision > 0)
             {
-                self.panels.node_editor = self.node_standalone.take().unwrap();
+                let mut restored = self.node_standalone.take().unwrap();
+                restored.take_clipboard_from(&mut self.panels.node_editor);
+                self.panels.node_editor = restored;
                 self.panels.node_editor.view_preferences = self.workspace.node_view;
                 self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
                 self.request_close();
