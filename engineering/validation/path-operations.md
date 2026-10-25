@@ -24,7 +24,7 @@
 | PO-05 | 来源 | 已核对 PROVENANCE.md、ATTRIBUTION.md、NOTICE。没有新增依赖、第三方资产、兼容名称、工程格式或渲染语义，几何与 UI 实现独立编写。 |
 | PO-06 | 既有观察的实际验证 | 默认 INFO 子进程实际执行缺失首顶点 node=999、复制源 path=999 的失败，文件与 Error stderr 都保留操作／对象／路径和原始原因，stdout 不泄露；随后正常复制、单步撤销验证恢复。沿用工作器既有在途／阻塞和 panic 机制，本阶段没有在每个路径函数内部另注入永久阻塞。 |
 | PO-07 | 功能修正 | 原生测试发现主窗属性缓存更新调用 Controls.cancel，取消了浮窗有效菜单。缓存重绑现在只保留身份、图层和工具均匹配的路径菜单，不改变真正的失焦／上下文取消；真实跨窗重绘与菜单点击已验证。 |
-| PO-08 | 待完成 | OS window_event／键鼠注入、打包版与 CI 验收尚未完成；实际隐藏 HWND 与生产 Input 的验证不冒充系统输入服务测试。 |
+| PO-08 | 实际验证与剩余 | b1d91f4b 的四项必需 CI 与依赖审计通过；Windows 实际键鼠通过完整 window_event 路由，在英文主窗和中文浮窗验证双向复制、独立路径剪贴板与历史。独立 Debug 运行目录验证启动与保存重开；官方发行包仍待单独验收。不以这些结果宣称所有操作系统的 IME 或文本服务已验证。 |
 
 ## 验证记录
 
@@ -47,6 +47,23 @@
 缩进整理后再次编译实际桌面程序通过（`path-context-bin-formatted.log`，1 分 07 秒），exe SHA-256 `dbd2c118c62f74a4a48c2287886e8f3048265bccf101f53f0abf30d8ab3db9d9`。带 FFmpeg 测试程序再次实际执行插件取消用例，通过（`path-context-plugin-cancel-final.log`，0.55 秒）。4facd082 的远端 Linux 与 Rust/GPU 检查通过；该记录不冒充本阶段后续提交的 CI 验证。
 
 PR #484 的首轮 Linux job 120910708116 在已有插件取消菜单测试失败：新增剪贴板项后仍点第三行。4facd082 保留原有中英文六种状态断言，在原小窗口中实际滚动到取消项再点击。本地 `path-clipboard-menu-ci-fix-second.log` 一项通过。原始 Linux 日志保留于 path-clipboard-linux-job.log；没有修改生产菜单布局或禁用测试。
+
+### Windows 系统输入与独立运行目录
+
+`E:/Dev/aem/artifacts/pr-ci-followups/path-os-input-driver.py` 从外部启动实际 `motion-studio.exe --mcp-ui`，通过进程 ID 枚举窗口，只有自有 HWND 成功取得系统前台焦点后才发送 Win32 键鼠事件。事件进入 winit／生产 window_event；没有直接构造 Input、注入 Shell 动作或通过 MCP 代替待测的编辑动作。MCP 只读取实际工程状态和保存，截图来自 ImageGrab 的实际窗口。测试工程、布局、LOCALAPPDATA 全部隔离；退出后恢复先前窗口焦点。新增首顶点与复制操作使用默认 INFO，stdout 的每行均为 JSON-RPC，常规 start 不写 stderr。本机 Vulkan loader 错误原文仍保留。
+
+最终自包含流程在 `path-os-main-en-final/`（英文主窗）和 `path-os-float-zh-final/`（中文合成浮窗）实际退出 0；两者都是系统 DPI 96／100%，不冒称修改系统 DPI。此前组件输入测试已另行覆盖中文 150%。对应步骤为 `path-os-main-final-steps.json` 与 `path-os-float-final-steps.json`，核验脚本 `verify-path-os-input.py` 已执行通过，结果为 `path-os-input-summary.json`。每个关键动作都保留独立的 reply-N.json，而非从截图猜测成功：
+
+- 设首顶点后只将节点顺序从 `[10,11,12,13]` 旋转为 `[12,13,10,11]`；完整工程其余字段不变，revision 只加一。一次实际 Ctrl+Z 恢复完整原工程。
+- 复制为蒙版后原形状原样保留，新增蒙版每个锚点增加半尺寸 `[16,16]`。从属性面板选择该蒙版的钢笔入口，再在同一顶点右击复制为形状；新增第三层的节点轨道、闭合性正确，源蒙版及源层完全不变。两次 Ctrl+Z 恢复原来的两个图层。
+- 四点追加选择、Ctrl+C、切换目标层、Ctrl+V 使用独立路径缓存，得到新路径／节点 ID 和相同几何。一次 Ctrl+Z 撤销，Ctrl+Shift+Z 重做；重新选择四点并 Ctrl+X 后只清空目标作者路径节点，保留源层，Ctrl+Z 恢复完整粘贴结果。空作者路径容器是现有剪切语义，不等同于删除图层。
+- 通过实际程序保存后正常关闭，再以独立的 `--mcp` 进程打开同一工程；完整 project 与保存前实际状态相等。
+
+独立目录 `path-os-input/local-debug-runtime/` 包含上文同一 SHA-256 的 FFmpeg Debug 程序与其已用于编译的共享 DLL；清掉 FFmpeg 的 PATH，仅保留 Windows 系统目录后完成上述窗口运行与重新打开。`runtime-manifest.json` 记录所有文件的 SHA-256。该结果证明独立 Debug 目录的原生加载，不等于官方 Release ZIP、视频解码或各平台打包验收。
+
+外部驱动探索原件均保留：第一轮缺少 MCP initialized 通知，被协议正确拒绝；人工分阶段探测的第二轮在后续操作前进程已终止，不列为通过；第三轮修改后未先保存，关闭等待超时，最终流程显式保存后实际退出 0。第一次完整英文探索未先在属性面板选中蒙版，且误把产品的 Ctrl+Y（新建纯色）当重做，状态记录如实显示这些操作，未算入最终通过。最终步骤改用真实蒙版钢笔入口与现有 Ctrl+Shift+Z，不改生产快捷键、返回值、等待期限或已有断言来通过验证。
+
+远端 run [40112038149](https://github.com/MAD-Producer/Kilonova/actions/runs/40112038149) 对 b1d91f4b 的 Linux、Windows、macOS Intel、Rust/GPU 及依赖审计全部通过。PR 事件按现有工作流跳过 FFmpeg Release 构建、打包与归档视频验证，故不能用这次全绿冒称发行包已验收；需要另行触发本分支的完整验证。
 
 ## DESIGN §0.7 基线逐项处置
 
