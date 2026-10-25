@@ -1,0 +1,532 @@
+{
+  "issue": 126,
+  "comparison_base": "ae2a4b91591812acd190629dc0dade6377095072",
+  "integrated_base": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+  "integrated_product_head": "eb1e37b303b8fd942f53becd678d902c06db1ef4",
+  "source_sha256": "b0e968b33851a84ed84c88499248d6ad92d10bf58a421681a0852a69e99c5e5c",
+  "comparison": {
+    "cases": [
+      {
+        "layers": 1,
+        "captures": 20,
+        "before_allocations": 4263,
+        "after_allocations": 4241,
+        "before_allocated_bytes": 2033492,
+        "after_allocated_bytes": 2032788,
+        "encoded_upload_bytes": 2880,
+        "destination_buffers_created_total": 1
+      },
+      {
+        "layers": 64,
+        "captures": 20,
+        "before_allocations": 103431,
+        "after_allocations": 103331,
+        "before_allocated_bytes": 25442188,
+        "after_allocated_bytes": 25421804,
+        "encoded_upload_bytes": 184320,
+        "destination_buffers_created_total": 1
+      },
+      {
+        "layers": 128,
+        "captures": 20,
+        "before_allocations": 203100,
+        "after_allocations": 202980,
+        "before_allocated_bytes": 49245628,
+        "after_allocated_bytes": 49205276,
+        "encoded_upload_bytes": 368640,
+        "destination_buffers_created_total": 1
+      }
+    ],
+    "pixels": [
+      {
+        "file": "1/00-initial.rgba",
+        "bytes": 65536,
+        "sha256": "033978a385e1b3e70cf5d711aafb061a17ccd3a47aeaf772039997287664bb3b"
+      },
+      {
+        "file": "1/01-animated.rgba",
+        "bytes": 65536,
+        "sha256": "ed9b06ab8e67565bb849f4a3e3018a1ed5303ff96f16546b0928fafabc942ee3"
+      },
+      {
+        "file": "1/02-animated.rgba",
+        "bytes": 65536,
+        "sha256": "603b758ffda4046ff89bea8d6e6bbd6652a14f4ac298df3a85a840885b44ccd6"
+      },
+      {
+        "file": "1/03-animated.rgba",
+        "bytes": 65536,
+        "sha256": "526de16a654dcfb487e3eb202af1df9d082d860006d654a9653cd3760d54c3db"
+      },
+      {
+        "file": "1/04-animated.rgba",
+        "bytes": 65536,
+        "sha256": "835131b90e872805a71fcf04c78a703d9cb4f951c8d40ee7c128a3bf21f40430"
+      },
+      {
+        "file": "1/05-animated.rgba",
+        "bytes": 65536,
+        "sha256": "c856ac73d06b90b97190d380df168293571685e71ea281a1d35362bcc3f64f2f"
+      },
+      {
+        "file": "1/06-animated.rgba",
+        "bytes": 65536,
+        "sha256": "748d4e503dbfa44b966ce68e0bc77d63fd5ce011082c744974cd790834a3b0d6"
+      },
+      {
+        "file": "1/07-animated.rgba",
+        "bytes": 65536,
+        "sha256": "df614a5884c0d44bb56f19f97742079ca0db662e4054d33c484fa1e6eb4cfe0f"
+      },
+      {
+        "file": "1/08-animated.rgba",
+        "bytes": 65536,
+        "sha256": "7a57ddf9c22ce5dacc6a6d3be689f7ae2ee3724b768b03e23135474d687d1aaa"
+      },
+      {
+        "file": "1/09-animated.rgba",
+        "bytes": 65536,
+        "sha256": "76d771509c3dd3b418045d4b71c46c6daeb30894b1cd6ea69b749d0b1ec3303e"
+      },
+      {
+        "file": "1/10-animated.rgba",
+        "bytes": 65536,
+        "sha256": "a488cc4e8ad90272254ff52ea1823f73e395c6584f013bed4cd6441820ef9242"
+      },
+      {
+        "file": "1/11-animated.rgba",
+        "bytes": 65536,
+        "sha256": "04bb909237eb4a327e677b61f6c3353a38bba2a6eb5f69620b63f396aecba7ec"
+      },
+      {
+        "file": "1/12-animated.rgba",
+        "bytes": 65536,
+        "sha256": "911a3b50153bb9cd933793940d2c087c603e7223a2a707c590cc461fcc7fc2fb"
+      },
+      {
+        "file": "1/13-animated.rgba",
+        "bytes": 65536,
+        "sha256": "903bf5cd45341eef290a4e546d10631835a62fb4f859c9c00efc04e857fd19b2"
+      },
+      {
+        "file": "1/14-animated.rgba",
+        "bytes": 65536,
+        "sha256": "ab832c4af0d2ea851555091d88170ffcf1e6d7b772ede04a6bf533ef7a875357"
+      },
+      {
+        "file": "1/15-animated.rgba",
+        "bytes": 65536,
+        "sha256": "9aed05600ee1147344ddcd728f89b7c4371ab5fb47308893973e9d6ba24558e8"
+      },
+      {
+        "file": "1/16-animated.rgba",
+        "bytes": 65536,
+        "sha256": "f5e7f829a528af6ad94bcc7ccdcf1db0f98d14c0a0f6bdeae36190d6c90a1fbc"
+      },
+      {
+        "file": "1/17-animated.rgba",
+        "bytes": 65536,
+        "sha256": "46240eab03a0c1963f027c2e524858fdd952194e95855ff20730033728f714b2"
+      },
+      {
+        "file": "1/18-animated.rgba",
+        "bytes": 65536,
+        "sha256": "b35e171db36cf62ac4d0b475e8ca07668f8a001d1bb0f851423bc12e5323a02d"
+      },
+      {
+        "file": "1/19-animated.rgba",
+        "bytes": 65536,
+        "sha256": "846e96bfa4221c46dbbd4910ecb4b9f34bb35053f7793ffb4c718889e647716f"
+      },
+      {
+        "file": "1/20-animated.rgba",
+        "bytes": 65536,
+        "sha256": "a9171c404ea58619f6aa2974adf63cd41e9c23b2127f0803b28438b340dd346d"
+      },
+      {
+        "file": "1/21-removed.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "1/22-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "1/23-recovered.rgba",
+        "bytes": 65536,
+        "sha256": "a9171c404ea58619f6aa2974adf63cd41e9c23b2127f0803b28438b340dd346d"
+      },
+      {
+        "file": "128/00-initial.rgba",
+        "bytes": 65536,
+        "sha256": "85641512c370de3db30432430e3bd77c833683a32e121a43ecd2696fcffaa327"
+      },
+      {
+        "file": "128/01-animated.rgba",
+        "bytes": 65536,
+        "sha256": "5d62c2e564b42c9770da19d0d57f2ebc9b70ad92ae1f581339951224623ab240"
+      },
+      {
+        "file": "128/02-animated.rgba",
+        "bytes": 65536,
+        "sha256": "3e61b5938ae4622f4c937b28493df586938335866fd5dc3625ad851246ec895b"
+      },
+      {
+        "file": "128/03-animated.rgba",
+        "bytes": 65536,
+        "sha256": "c04640c06b604fbb7ef0df8bcb07d8ad822e2cad6a85a0b1977a87e119d32f49"
+      },
+      {
+        "file": "128/04-animated.rgba",
+        "bytes": 65536,
+        "sha256": "34bbb309ba63cc0084a17d0b3f2fad411d2e1f8e54575563ad653c6957612b3c"
+      },
+      {
+        "file": "128/05-animated.rgba",
+        "bytes": 65536,
+        "sha256": "90ab484b8af3bb1d31ae6a1f8705f922fdb5a807ae42ff8de5473c4c2f473c8a"
+      },
+      {
+        "file": "128/06-animated.rgba",
+        "bytes": 65536,
+        "sha256": "24664177dddf8694186520f0319c29df75398b5bc11f62119b60d05c5350e98b"
+      },
+      {
+        "file": "128/07-animated.rgba",
+        "bytes": 65536,
+        "sha256": "e990d75b17322dc8de7445dab9f523713c621c6022c4534e128d96adbfc74941"
+      },
+      {
+        "file": "128/08-animated.rgba",
+        "bytes": 65536,
+        "sha256": "87e3bd532413b15626c2dd723f3d1229511239f3f70f95900fff93f58da0697e"
+      },
+      {
+        "file": "128/09-animated.rgba",
+        "bytes": 65536,
+        "sha256": "88dab6c690078791135ec1cd56ccfa73c08234e2373c0344b1fac0b90645929b"
+      },
+      {
+        "file": "128/10-animated.rgba",
+        "bytes": 65536,
+        "sha256": "a24c194cd03d9eccc6a7836b8c031a4185c9e7e9b0a4d0c4bb257a62fa49c12f"
+      },
+      {
+        "file": "128/11-animated.rgba",
+        "bytes": 65536,
+        "sha256": "c6125b29382f12724958147a3da63146896881937e831acce372348747de63ef"
+      },
+      {
+        "file": "128/12-animated.rgba",
+        "bytes": 65536,
+        "sha256": "1f1a7854e092be91766d8b69b1d22a9f2f1fa10f8f63f41e608efa766a53cdaa"
+      },
+      {
+        "file": "128/13-animated.rgba",
+        "bytes": 65536,
+        "sha256": "4fe6d339bcc399b6e576ecb26c3f80a2c33b042c038b26a29103b7564afe53ed"
+      },
+      {
+        "file": "128/14-animated.rgba",
+        "bytes": 65536,
+        "sha256": "2fb8208e3bfe6e8abcd58b7ac4b66ffd39ba1e8653b7ef7fbbea006171970b48"
+      },
+      {
+        "file": "128/15-animated.rgba",
+        "bytes": 65536,
+        "sha256": "ad73e6b931fe9c5ce89a57c1b145390cf8d74a7162a4b968d1c04db6f55fb138"
+      },
+      {
+        "file": "128/16-animated.rgba",
+        "bytes": 65536,
+        "sha256": "1898053666c31054e1cf4284b3fcf9682d9da82542a2d137a8467ca7432549b6"
+      },
+      {
+        "file": "128/17-animated.rgba",
+        "bytes": 65536,
+        "sha256": "71b31dc29f788fdcf72a0b8773fe27162eb73fca53ed3118026817ec3feec341"
+      },
+      {
+        "file": "128/18-animated.rgba",
+        "bytes": 65536,
+        "sha256": "4617b2e6abaaf005e426db62538e2b07983e17d3af2ae5a4c059e0f27dc9c914"
+      },
+      {
+        "file": "128/19-animated.rgba",
+        "bytes": 65536,
+        "sha256": "f2324a523383a12faa01a465c96f8f9a5c5d181544dded54cd50d60e9ce94957"
+      },
+      {
+        "file": "128/20-animated.rgba",
+        "bytes": 65536,
+        "sha256": "fbbdac00bfcdf17da0c1991e11d40cdbb9411c9db0bcef4557e74d1e307b4021"
+      },
+      {
+        "file": "128/21-removed.rgba",
+        "bytes": 65536,
+        "sha256": "619270d04f90199845bc2d64ff8d2ca9061e9046e345e50ac833bb8869e6d5d0"
+      },
+      {
+        "file": "128/22-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "128/23-recovered.rgba",
+        "bytes": 65536,
+        "sha256": "fbbdac00bfcdf17da0c1991e11d40cdbb9411c9db0bcef4557e74d1e307b4021"
+      },
+      {
+        "file": "64/00-initial.rgba",
+        "bytes": 65536,
+        "sha256": "f11a0d533f4cb3005f54ef1eb0bd4320bc452f676310e1803311f6f21fc6541f"
+      },
+      {
+        "file": "64/01-animated.rgba",
+        "bytes": 65536,
+        "sha256": "18cb58793fbd4385787cfcac70d9d43b3eb1bd656f7f334931e7e2b168148817"
+      },
+      {
+        "file": "64/02-animated.rgba",
+        "bytes": 65536,
+        "sha256": "1151bb1e2841043e5a592e5e7065f0ebeda8d038d29586581641b25d8c25bce7"
+      },
+      {
+        "file": "64/03-animated.rgba",
+        "bytes": 65536,
+        "sha256": "518a9eabce2721446b1211e6ccde82847d45435a1fb5de4c14e8a6b093df03a8"
+      },
+      {
+        "file": "64/04-animated.rgba",
+        "bytes": 65536,
+        "sha256": "ac4cb2da0d5121e00f116b6e92a4fb544f80998569ccd809c5a2e96eb8d5f48b"
+      },
+      {
+        "file": "64/05-animated.rgba",
+        "bytes": 65536,
+        "sha256": "4c42e82ea78d61a0ba6e78103b47e07ce56e9becfba13348b3f22279cf67215e"
+      },
+      {
+        "file": "64/06-animated.rgba",
+        "bytes": 65536,
+        "sha256": "b2a6c8e8743dac78660039ccc29a59a41c560683e63169cfb1f8c4187234272f"
+      },
+      {
+        "file": "64/07-animated.rgba",
+        "bytes": 65536,
+        "sha256": "b4147dd58e795648b575061153a2a39ad89fcb921e95d6c078e147bc20723fd7"
+      },
+      {
+        "file": "64/08-animated.rgba",
+        "bytes": 65536,
+        "sha256": "4ae28d97b02c7a82bf4084da0a334334b7380683415111e3ce2a2ac638d58251"
+      },
+      {
+        "file": "64/09-animated.rgba",
+        "bytes": 65536,
+        "sha256": "82d4c4cf111b83b1c98ce4cceab6c684bca4504f4b112454a4fd651939639979"
+      },
+      {
+        "file": "64/10-animated.rgba",
+        "bytes": 65536,
+        "sha256": "d0e70099ef87d62c26d531e5c120c38536e84dbf090b9e65564cf2a1024bc8dd"
+      },
+      {
+        "file": "64/11-animated.rgba",
+        "bytes": 65536,
+        "sha256": "b1fa4881bd5aae82ea09c7ec54ed39d3077446ad5aaa0a3455a76ff33f9d62ad"
+      },
+      {
+        "file": "64/12-animated.rgba",
+        "bytes": 65536,
+        "sha256": "8d45e4d5a5e797cbf2ad291d8e83f7a5a061b7fdfbd0cbb69aa64eb507ecfb39"
+      },
+      {
+        "file": "64/13-animated.rgba",
+        "bytes": 65536,
+        "sha256": "d7c244d09fe95ce67a25b98d8af355917f8cf7f00e622b37e3e5bac887e1edae"
+      },
+      {
+        "file": "64/14-animated.rgba",
+        "bytes": 65536,
+        "sha256": "3de76dab068b5a6acd8a5bebcaa34e2e51297e1dca252514d13a8b4b5ffff4da"
+      },
+      {
+        "file": "64/15-animated.rgba",
+        "bytes": 65536,
+        "sha256": "34e0da46e5eb4c47090161d0b9887da102ae3d9bed5563a2fdb182ff57b662f4"
+      },
+      {
+        "file": "64/16-animated.rgba",
+        "bytes": 65536,
+        "sha256": "249876c566a840c8877653b3e9b508918b1f0fdbd665d8d5399b55480ed413fd"
+      },
+      {
+        "file": "64/17-animated.rgba",
+        "bytes": 65536,
+        "sha256": "bfc3f58de846b9850e879c1240dd17bdf9708e320119649fbf5ff4b4608d0dc2"
+      },
+      {
+        "file": "64/18-animated.rgba",
+        "bytes": 65536,
+        "sha256": "a0bd38ff8bd09f93e689ba822989b5f85952310fe65930f3d077b6d7a7303a9f"
+      },
+      {
+        "file": "64/19-animated.rgba",
+        "bytes": 65536,
+        "sha256": "bd3b42998fec5ad4c9f479699dc9aa6310937cd60de2e1acc0cdf5d902795e96"
+      },
+      {
+        "file": "64/20-animated.rgba",
+        "bytes": 65536,
+        "sha256": "619270d04f90199845bc2d64ff8d2ca9061e9046e345e50ac833bb8869e6d5d0"
+      },
+      {
+        "file": "64/21-removed.rgba",
+        "bytes": 65536,
+        "sha256": "5f8c3fe018ce1942adfc2ed9b1daed2e3d422257a25819b37a4444c081f4758b"
+      },
+      {
+        "file": "64/22-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "64/23-recovered.rgba",
+        "bytes": 65536,
+        "sha256": "619270d04f90199845bc2d64ff8d2ca9061e9046e345e50ac833bb8869e6d5d0"
+      }
+    ],
+    "all_pixels_and_texture_accounting_identical": true,
+    "destination_buffers_and_encoded_bytes_identical": true,
+    "static_control_uploads_unchanged": true,
+    "counting": "current-thread Rust alloc/alloc_zeroed/realloc requests during 20 actual animated captures; Scene sampling, fixture setup, assertions and file IO outside counter; dev build, not all native allocations or an FPS claim"
+  },
+  "tests": [
+    {
+      "name": "integrated-unit-vector",
+      "targets": 1,
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "name": "integrated-regressions",
+      "targets": 7,
+      "passed": 33,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "receipts": {
+    "integrated-unit-vector": {
+      "head": "eb1e37b303b8fd942f53becd678d902c06db1ef4",
+      "source_sha256": "b0e968b33851a84ed84c88499248d6ad92d10bf58a421681a0852a69e99c5e5c",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--lib",
+        "vector",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 183.52,
+      "log_sha256": "a425154f0b4e5356ee0d33da1cd3ac8a069bf83f2e0b48375edd5a2205d1b34a",
+      "source_unchanged": true
+    },
+    "integrated-regressions": {
+      "head": "eb1e37b303b8fd942f53becd678d902c06db1ef4",
+      "source_sha256": "b0e968b33851a84ed84c88499248d6ad92d10bf58a421681a0852a69e99c5e5c",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "vector_upload_reuse",
+        "--test",
+        "vector_groups",
+        "--test",
+        "vector_adjustment",
+        "--test",
+        "vector_budget_alignment",
+        "--test",
+        "vector_error_boundaries",
+        "--test",
+        "working_precision",
+        "--test",
+        "precision_switch",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 324.19,
+      "log_sha256": "061e17fe84a6d74cfc1aeebd52f00cf4fa270808008d0354261021007edad5f3",
+      "source_unchanged": true
+    },
+    "integrated-fixture-build": {
+      "head": "eb1e37b303b8fd942f53becd678d902c06db1ef4",
+      "source_sha256": "b0e968b33851a84ed84c88499248d6ad92d10bf58a421681a0852a69e99c5e5c",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "motion-render",
+        "--example",
+        "vector_dirty_comparison",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 12.67,
+      "log_sha256": "ef70bffb69a2431408726c317fe3c6056b589168a6c34bf18af7f596d3e7fe92",
+      "source_unchanged": true
+    },
+    "integrated-fixture-run": {
+      "head": "eb1e37b303b8fd942f53becd678d902c06db1ef4",
+      "source_sha256": "b0e968b33851a84ed84c88499248d6ad92d10bf58a421681a0852a69e99c5e5c",
+      "command": [
+        "E:\\Dev\\aem\\target\\debug\\examples\\vector_dirty_comparison.exe",
+        "E:\\Dev\\aem\\.tools\\vector-dirty-list\\integrated"
+      ],
+      "exit_code": 0,
+      "seconds": 48.47,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_unchanged": true
+    }
+  },
+  "limits": [
+    "Comparison is against the frozen older base, not the later integrated main.",
+    "Current-thread Rust allocation requests only; no FPS claim; whole-frame allocations still scale with layer count.",
+    "Original GPU-buffer reuse is existing coverage, not introduced by this patch.",
+    "No new logging or failure swallowing. Error, empty scene, oversized list and release drop retained CPU storage.",
+    "First prototype compile failure is preserved; fixed by using existing motion_model dependency."
+  ],
+  "archive": {
+    "file": "vector-dirty-list-ae2a4b91.zip",
+    "bytes": 392845,
+    "sha256": "f1d01fee9c24df21133ff5fb668fa683e4cc3f2c0ba824b1ef6eaf76092414dd",
+    "files": 248
+  }
+}
