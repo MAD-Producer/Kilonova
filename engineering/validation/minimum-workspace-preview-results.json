@@ -1,0 +1,211 @@
+{
+  "status": "partial-native-validation",
+  "base": "302a15bfb0a69b52df89c69da63bd7bbd25e3e1e",
+  "product_only_head": "2911a69643945ef920066ec9a35a9b52da8ab071",
+  "source_sha256": {
+    "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+    "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+    "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+  },
+  "archive": {
+    "path": "engineering/validation/data/minimum-workspace-preview-2911a696.zip",
+    "sha256": "51adbaf52b9fecc945076d05a66f021b1a9e941baa8916cf4c938b2aa35b3136",
+    "bytes": 97513,
+    "entries": 21
+  },
+  "baseline": {
+    "head": "7b2aff0cbe04fde81569d6399373b308947dcc3c",
+    "command": [
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\baseline-native\\motion-studio.exe",
+      "--smoke",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\baseline-native\\minimum-en\\report.json",
+      "--locale",
+      "en",
+      "--project",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\baseline-native\\minimum-en\\project"
+    ],
+    "binary_sha256": "d662be050949cf1100789fab5d784591dbe82cb797c6d4243fb1452f8b68630c",
+    "logical_size": [
+      900,
+      600
+    ],
+    "harness_limit_seconds": 240,
+    "exit_code": 1,
+    "same_overlay_failure": true,
+    "seconds": 13.25
+  },
+  "geometry": {
+    "head": "302a15bfb0a69b52df89c69da63bd7bbd25e3e1e",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "workspace::maximize::tests",
+      "--",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 90.47,
+    "sources": {
+      "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+      "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+      "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+    },
+    "source_unchanged": true,
+    "log_sha256": "6dc260c0e79ffb521b57aa06b8d8b1ff50c77696d8a82613ae1a5105425f5c35"
+  },
+  "native": {
+    "name": "minimum-en-workspace",
+    "command": [
+      "E:\\Dev\\aem\\.tools\\minimum-workspace-preview\\native\\motion-studio.exe",
+      "--smoke",
+      "E:\\Dev\\aem\\.tools\\minimum-workspace-preview\\native-ui\\minimum-en-workspace\\report.json",
+      "--locale",
+      "en",
+      "--project",
+      "E:\\Dev\\aem\\.tools\\minimum-workspace-preview\\native-ui\\minimum-en-workspace\\project"
+    ],
+    "binary_sha256": "84eec55b4bf901292a33182e8fbd5e2f46594a83a25b8daea19a76488738f46c",
+    "sources": {
+      "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+      "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+      "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+    },
+    "requested_logical_size": [
+      900,
+      600
+    ],
+    "harness_limit_seconds": 240,
+    "pid": 42736,
+    "exit_code": 0,
+    "passed": true,
+    "design_screen_count": 46,
+    "primary_png_size": [
+      900,
+      600
+    ],
+    "presentations": [
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "default",
+        "roundTripUs": 60121
+      },
+      {
+        "expandedPreview": {
+          "encodedFramesAfter": 3,
+          "encodedFramesBefore": 0,
+          "layoutRestored": true,
+          "panel": "nodes",
+          "presented": true,
+          "projectAndHistoryUntouched": true,
+          "screenshot": "E:\\Dev\\aem\\.tools\\minimum-workspace-preview\\native-ui\\minimum-en-workspace\\report.workspace-nodes-1-expanded.png",
+          "viewport": [
+            658.0,
+            223.0,
+            232.0,
+            232.0
+          ]
+        },
+        "nodeOverlay": true,
+        "normalNodeOverlay": false,
+        "preset": "nodes",
+        "roundTripUs": 486835
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "drawing",
+        "roundTripUs": 30619
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "all",
+        "roundTripUs": 45162
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "animation",
+        "roundTripUs": 71006
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "default",
+        "roundTripUs": 59473
+      }
+    ],
+    "expanded_preview_cases": 1,
+    "seconds": 32.11,
+    "source_unchanged": true
+  },
+  "negative_controls": {
+    "real_native_report_accepted": true,
+    "mutated_evidence_controls": [
+      {
+        "name": "restore",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "history",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "normal",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "overlay",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "gpu_counter",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "missing_image",
+        "rejected": true,
+        "cause": "FileNotFoundError"
+      },
+      {
+        "name": "invalid_viewport",
+        "rejected": true,
+        "cause": "RuntimeError"
+      },
+      {
+        "name": "one_pixel_viewport",
+        "rejected": true,
+        "cause": "RuntimeError"
+      }
+    ],
+    "all_eight_rejected": true
+  },
+  "pending": [
+    "combined cache + acceptance full eight-case Windows matrix",
+    "five completed non-skipped CI checks",
+    "other DPI and cross-platform native presentation"
+  ]
+}
