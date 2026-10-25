@@ -768,6 +768,15 @@ impl Renderer {
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    /// CPU time spent creating and validating native effect pipelines, including
+    /// the validation wait. This is not GPU execution time or a driver-only timer.
+    pub fn effect_pipeline_build_nanos(&self) -> u64 { self.effect_gpu.state.pipeline_build_nanos }
+    pub fn set_pointwise_fusion(&mut self, enabled: bool) {
+        self.effect_gpu.builder.set_pointwise_fusion(enabled);
+    }
+    pub fn pointwise_fusion_report(&self) -> &crate::effect_plan::FusionFrameReport {
+        self.effect_gpu.builder.pointwise_fusion_report()
+    }
     /// Compositing pipeline-set construction count, not driver compilation time.
     pub fn compositing_pipeline_set_builds(&self) -> u64 { self.compositing_pipeline_set_builds }
     pub fn texture_bytes(&self) -> u64 {

@@ -66,6 +66,7 @@ pub(crate) struct GpuState {
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
     pub pipeline_builds: u64,
+    pub pipeline_build_nanos: u64,
     pub failed_program: Option<(u32, String)>,
     pub pool: Vec<Option<FxTexture>>,
     pool_width: u32,
@@ -288,6 +289,7 @@ impl EffectGpu {
                 resource_bytes: 0,
                 parameter_resource_upload_bytes: 0,
                 pipeline_builds: 0,
+                pipeline_build_nanos: 0,
                 failed_program: None,
                 pool: (0..8).map(|_| None).collect(),
                 pool_width: 0,
@@ -547,6 +549,11 @@ impl GpuState {
             let target_kind = target as u32;
             let key = (p.program, target_kind);
             if !self.pipelines.contains_key(&key) {
+                let pipeline_began = std::time::Instant::now();
+                if builder.programs[p.program as usize].key.starts_with("pointwise-v") {
+                    log::info!("start operation=pointwise_native_pipeline program={} format={target_kind}",
+                        builder.programs[p.program as usize].key);
+                }
                 let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
                 let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                     label: Some("effect WGSL"),
@@ -633,6 +640,8 @@ impl GpuState {
                 polled?;
                 self.pipelines.insert(key, pipeline);
                 self.pipeline_builds += 1;
+                self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
+                    pipeline_began.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64);
             }
             if !self.resources.contains_key(&p.program) {
                 let program = &builder.programs[p.program as usize];

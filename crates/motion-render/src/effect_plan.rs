@@ -12,6 +12,8 @@ mod error_tests;
 mod scratch_graph;
 mod scratch_lifetimes;
 mod scratch;
+mod pointwise;
+pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
 mod scratch_proposal_tests;
@@ -416,6 +418,7 @@ struct Resolved {
     programs: Vec<u32>,
     mapping: Vec<usize>,
     error: Option<Arc<RenderError>>,
+    pointwise: motion_effects::pointwise::Eligibility,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScratchRejection {
@@ -470,6 +473,7 @@ pub struct PlanBuilder {
     pass_clocks: Vec<Option<usize>>,
     pub preview_cache_hits: u64,
     pub preview_plan_builds: u64,
+    fusion: pointwise::FusionState,
 }
 
 impl PlanBuilder {
@@ -759,6 +763,7 @@ impl PlanBuilder {
             pass_clocks: Vec::new(),
             preview_cache_hits: 0,
             preview_plan_builds: 0,
+            fusion: pointwise::FusionState::default(),
         })
     }
     pub(crate) fn enable_plane_coverage(&mut self) {
@@ -772,6 +777,7 @@ impl PlanBuilder {
         self.resolved.clear();
         self.program_errors.clear();
         self.programs.truncate(3);
+        self.fusion.reset_programs();
         self.frame = EffectFramePlan::default();
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
@@ -883,12 +889,14 @@ impl PlanBuilder {
                     };
                     programs.push(id as u32);
                 }
+                let pointwise = motion_effects::pointwise::prove_builtin(&package, &definition)?;
                 Ok(Resolved {
                     signature: signature.clone(),
                     definition,
                     programs,
                     mapping,
                     error: None,
+                    pointwise,
                 })
             })();
             self.resolved[index] = Some(match result {
@@ -899,6 +907,8 @@ impl PlanBuilder {
                     programs: vec![],
                     mapping: vec![],
                     error: Some(Arc::new(err)),
+                    pointwise: motion_effects::pointwise::Eligibility::Retain(
+                        motion_effects::pointwise::RetainReason::UnsupportedBoundary),
                 },
             });
         }
@@ -1702,6 +1712,7 @@ impl PlanBuilder {
                 pass_end: self.frame.passes.len(),
             });
         }
+        self.fuse_pointwise(scene)?;
         let layout = if self.frame.passes.is_empty() { scratch::layout(&self.frame, None)? }
             else { Self::check_placed_scratch(&self.frame, None, self.frame.scratch_sizes,
                 self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)? };
