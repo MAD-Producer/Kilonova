@@ -124,7 +124,7 @@ fn file_shortcut_rejection_already_retains_the_invalid_field_and_visible_error()
     let mut editor = simple();
     editor.focus_panel();
     let before = editor.document.clone();
-    editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"not a number".into(), cursor:12, replace:false, error:None });
+    editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"not a number".into(), cursor:12, replace:false, editor:Default::default(), error:None });
     let mut actions = Vec::new();
     editor.keyboard(&Input {
         keys: vec![(Key::S, Modifiers { control:true,..Default::default() })],

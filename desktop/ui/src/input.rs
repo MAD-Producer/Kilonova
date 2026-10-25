@@ -186,6 +186,7 @@ pub enum Event {
 /// Accumulated input for one frame.
 #[derive(Default, Clone)]
 pub struct Input {
+    pub text_clipboard: Option<std::sync::Arc<crate::text_clipboard::TextClipboard>>,
     /// New events await a real interaction pass, independently of paint dirtiness.
     pub pending: bool,
     pub focus_lost: bool,
@@ -223,6 +224,7 @@ pub struct Input {
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InputView<'a> {
+    pub text_clipboard: Option<&'a std::sync::Arc<crate::text_clipboard::TextClipboard>>,
     pub pending: bool,
     pub focus_lost: bool,
     pub held: Option<MouseButton>,
@@ -250,6 +252,7 @@ pub trait InputSource {
 impl InputSource for Input {
     fn input_view(&self) -> InputView<'_> {
         InputView {
+            text_clipboard: self.text_clipboard.as_ref(),
             pending: self.pending,
             focus_lost: self.focus_lost,
             held: self.held,
@@ -279,6 +282,7 @@ impl<'a> InputView<'a> {
     /// Routing and per-control filtering should keep the borrowed view instead.
     pub fn to_owned(self) -> Input {
         Input {
+            text_clipboard: self.text_clipboard.cloned(),
             pending: self.pending,
             focus_lost: self.focus_lost,
             held: self.held,

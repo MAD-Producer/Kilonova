@@ -25,9 +25,13 @@ mod mask_keys;
 mod mask_path;
 mod source_geometry;
 mod point_selection;
+mod clipboard;
+mod context_menu;
 mod pen_tools;
 #[cfg(test)]
 mod property_focus_tests;
+#[cfg(test)]
+mod clipboard_tests;
 pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -221,6 +225,10 @@ struct Drag {
 }
 #[derive(Default)]
 pub struct Controls {
+    context_menu: Option<context_menu::Menu>,
+    context_owner: Option<motion_ui::dock::Panel>,
+    #[cfg(test)]
+    pub(crate) context_rows: Vec<(String, Rect, bool)>,
     geometry_failures: motion_render::observability::FailureCounter,
     pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
@@ -262,6 +270,7 @@ struct Parameter {
     values: Vec<f32>,
     text: String,
     replace: bool,
+    editor: motion_ui::widgets::TextEditor,
     rect: Rect,
     start: Option<f32>,
     begun: bool,
@@ -360,6 +369,11 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
     Some(g)
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = self.parameter.as_mut().filter(|field| field.start.is_none()) {
+            request.value(&mut field.editor, &mut field.text, &mut field.replace);
+        }
+    }
     pub(in crate::panels) fn reveal_masks(&mut self, object: u64) {
         self.masks_open = true;
         self.collapsed_mask_cards.retain(|(id,_)| *id != object);
@@ -376,7 +390,8 @@ impl Controls {
             || self.keys.navigate(state, selected, input, out)
     }
     pub fn editing(&self) -> bool {
-        self.draft.is_some()
+        self.context_menu.is_some()
+            || self.draft.is_some()
             || self.drag.is_some()
             || self.point_selection.editing()
             || self.pen_tools.editing()
@@ -445,6 +460,7 @@ impl Controls {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }
     pub fn cancel(&mut self) -> bool {
+        self.context_menu = None;
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let points = self.point_selection.cancel();
         let param = self.parameter.take().is_some_and(|p| p.begun);
@@ -719,6 +735,9 @@ impl Controls {
             self.selected = None;
             self.selected_item = None;
         }
+        let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
+        let context_neutral = Input { mouse: input.mouse, ..Default::default() };
+        let input = if context_owned { &context_neutral } else { input };
         let pen_owned = self.pen_tool_input(clip, &sampled, projection.as_ref(), offset,
             target.as_ref(), state, selected, input, locale, out);
         if self.focus && self.parameter.is_none() && !input.composing {
@@ -1430,6 +1449,9 @@ impl Controls {
     pub(super) fn take_mask_selection_intent(&mut self) -> bool {
         self.keys.take_selection_intent()
     }
+    pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<super::keyframe_clipboard::Selection> {
+        self.keys.clipboard_selection(state, object).or_else(|| self.groups.keys.clipboard_selection(state, object))
+    }
     pub(super) fn take_shape_selection_intent(&mut self) -> bool {
         self.groups.keys.take_selection_intent()
     }
@@ -1523,7 +1545,7 @@ impl Controls {
                 },
             })
         };
-        if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             if p.begun {
                 out.push(Action::History(4));
             }
@@ -1577,22 +1599,8 @@ impl Controls {
             }
         }
         if p.start.is_none() {
-            if !input.text.is_empty() {
-                if p.replace {
-                    p.text.clear();
-                    p.replace = false;
-                }
-                p.text.push_str(&input.text);
-            }
-            if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-                if p.replace {
-                    p.text.clear();
-                    p.replace = false;
-                } else {
-                    p.text.pop();
-                }
-            }
-            if outside || input.keys.iter().any(|(k, _)| *k == Key::Enter) {
+            let event = p.editor.input_value(&mut p.text, &mut p.replace, input);
+            if outside || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
                 if p.text.trim().is_empty() {
                     return;
                 }
@@ -1805,6 +1813,7 @@ mod numeric_tests {
                     values: vec![50.],
                     text: "50".into(),
                     replace: true,
+                    editor: Default::default(),
                     rect: Rect::new(90., 0., 120., 30.),
                     start: Some(100.),
                     begun: false,

@@ -131,6 +131,7 @@ fn view_keys_respect_text_ime_focus_popups_and_active_gestures() {
         text: "name".into(),
         cursor: 4,
         replace: false,
+        editor: Default::default(),
         error: None,
     });
     frame(&mut editor, &mut atlas, key(Key::N));

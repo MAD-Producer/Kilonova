@@ -199,6 +199,15 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::PasteLayers { clipboard, at_frame, keep_external_references } => {
+            result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);
+        }
+        Command::RemoveLayers { objects, frame } => crate::layer_clipboard::remove(project, objects, frame)?,
+        Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
+        Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
+        Command::PastePaths { clipboard, target, at_frame } => clipboard.paste(project, target, at_frame)?,
+        Command::RemovePaths { clipboard } => clipboard.remove(project)?,
+        Command::CopyPathAs { target, path } => { motion_model::path_conversion::copy_as(project, target, path)?; },
         Command::SetWorkingPrecision { precision } => project.working_precision = precision,
         Command::SetWorkArea { in_frame, out_frame } => {
             let area = crate::WorkArea { in_frame, out_frame };
@@ -638,6 +647,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             project.layers.push(layer);
         }
         Command::Vector { object, action } => {
+            let first_vertex = match &action {
+                crate::vector::VectorAction::SetFirstVertex { path, node, .. } => Some((*path, *node)),
+                _ => None,
+            };
             if let crate::vector::VectorAction::EditGroupKey { edit, .. } = &action {
                 for frame in edit.frames() { valid_frame(frame)?; }
             }
@@ -653,24 +666,46 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             if let Some(frame) = edit_frame {
                 valid_frame(frame)?;
             }
-            let layer = project.layer_mut(object)?;
-            if layer.locked {
-                return Err(Error::Locked(object));
-            }
-            let Content::Vector { vector } = &mut layer.content else {
-                return Err(Error::Invalid("not a vector layer".into()));
-            };
-            vector.edit(
-                action,
-                layer.size,
-                layer.timeline.map_or(0, |t| t.offset_frame),
-            )?;
+            let edited = (|| -> Result<()> {
+                let layer = project.layer_mut(object)?;
+                if layer.locked {
+                    return Err(Error::Locked(object));
+                }
+                let Content::Vector { vector } = &mut layer.content else {
+                    return Err(Error::Invalid("not a vector layer".into()));
+                };
+                vector.edit(
+                    action,
+                    layer.size,
+                    layer.timeline.map_or(0, |t| t.offset_frame),
+                )?;
+                Ok(())
+            })();
+            edited.map_err(|source| match first_vertex {
+                Some((path, node)) => Error::PathOperation {
+                    operation: "first_vertex", object, path, node: Some(node), source: Box::new(source),
+                },
+                None => source,
+            })?;
         }
         Command::Mask { object, action } => {
+            let first_vertex = match &action {
+                crate::masks::MaskAction::SetFirstVertex { path, node, .. } => Some((*path, *node)),
+                _ => None,
+            };
             for frame in action.frames() { valid_frame(frame)?; }
-            let layer = project.layer_mut(object)?;
-            if layer.locked { return Err(Error::Locked(object)); }
-            crate::masks::edit(&mut layer.masks, action, layer.timeline.map_or(0, |t| t.offset_frame))?;
+            let edited = (|| -> Result<()> {
+                let layer = project.layer_mut(object)?;
+                if layer.locked { return Err(Error::Locked(object)); }
+                crate::masks::edit(&mut layer.masks, action, layer.timeline.map_or(0, |t| t.offset_frame))?;
+                Ok(())
+            })();
+            edited.map_err(|source| match first_vertex {
+                Some((path, node)) => Error::PathOperation {
+                    operation: "first_vertex", object, path, node: Some(node), source: Box::new(source),
+                },
+                None => source,
+            })?;
         }
         Command::SetLayerBlend {object,mode,space}=> {
             let l=project.layer_mut(object)?;if l.locked{return Err(Error::Locked(object));}

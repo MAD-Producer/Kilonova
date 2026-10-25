@@ -42,6 +42,9 @@
 | Application | End | false | false | false | LastFrame | false |
 | Application | Comma | true | false | false | Preferences | false |
 | Animation | B | false | false | false | WorkAreaIn | false |
+| Animation | C | true | false | false | CopySelection | false |
+| Animation | V | true | false | false | PasteSelection | false |
+| Animation | V | true | true | false | PasteInPlace | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |
@@ -71,6 +74,7 @@
 | Animation | F9 | false | false | false | EaseBoth | false |
 | Animation | F9 | false | true | false | EaseIncoming | false |
 | Animation | F9 | true | true | false | EaseOutgoing | false |
+| Animation | X | true | false | false | CutSelection | false |
 | Animation | Equal | false | false | false | ZoomIn | false |
 | Animation | Equal | false | true | false | ZoomIn | false |
 | Animation | Minus | false | false | false | ZoomOut | false |

@@ -57,15 +57,14 @@ pub fn render_effect_search(
         search.continuous = !search.continuous;
     }
 
-    if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+    if !search.query_editor.active() || search.query_editor.text != search.query {
+        search.query_editor.begin_at_end(&search.query);
+    }
+    if matches!(search.query_editor.input(input), Some(motion_ui::widgets::TextEvent::Cancel)) {
         return false;
     }
-    if !input.text.is_empty() {
-        search.query.push_str(&input.text);
-        search.selected_index = 0;
-    }
-    if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-        search.query.pop();
+    if search.query != search.query_editor.text {
+        search.query.clone_from(&search.query_editor.text);
         search.selected_index = 0;
     }
     let items = search.cache.matching(catalogue, locale, &search.query, || {
@@ -116,18 +115,18 @@ pub fn render_effect_search(
     } else {
         "Search effects…"
     };
-    ui::text(
-        list,
-        atlas,
-        input_area.shrink(gap),
-        if search.query.is_empty() {
-            placeholder
-        } else {
-            &search.query
-        },
-        colors.TEXT,
-        Align::Left,
-    );
+    if !search.query.is_empty() || search.query_editor.error.is_some() {
+        search.query_editor.draw(list, atlas, input_area);
+    } else {
+        ui::text(
+            list,
+            atlas,
+            input_area.shrink(gap),
+            placeholder,
+            colors.TEXT,
+            Align::Left,
+        );
+    }
     let start = search
         .selected_index
         .saturating_sub(count.saturating_sub(1));

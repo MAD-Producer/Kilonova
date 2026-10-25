@@ -3,6 +3,10 @@ impl Command {
     pub(super) fn diagnostic_name(&self) -> &'static str {
         use Command::*;
         match self {
+            ClipboardRead { .. } => "clipboard_read",
+            KeyframeClipboardRead { .. } => "keyframe_clipboard_read",
+            PathClipboardRead { .. } => "path_clipboard_read",
+            ClipboardCommit { .. } => "clipboard_commit",
             #[cfg(test)]
             TestPanic { .. } => "test_panic",
             #[cfg(test)]
@@ -19,6 +23,7 @@ impl Command {
             NodeInstall { .. } => "node_install",
             NodeCapture { .. } => "node_capture",
             EditChecked { .. } => "edit_checked",
+            PathOperation { .. } => "path_operation",
             CaptureUi { .. } => "capture_ui",
             Attach { .. } => "attach",
             Resize { .. } => "resize",

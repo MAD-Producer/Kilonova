@@ -29,6 +29,7 @@ impl Shell {
             && self.rendering.is_empty()
             && self.exposure_presentations.is_empty()
             && self.editing.is_none()
+            && !self.layer_clipboard.committing()
             && !self.present_due
             && self.actions.is_empty()
             && self.resizing.is_none()
@@ -97,6 +98,11 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        self.input.text_clipboard = Some(self.text_clipboard.clone());
+        self.panels.clipboard_available = self.layer_clipboard.available();
+        self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
+        self.panels.path_clipboard_available = self.layer_clipboard.paths_available();
+        self.panels.clipboard_busy = self.layer_clipboard.busy();
         self.panel_maximize_shortcut(size);
         self.atlas.set_pixel_ratio(self.scale);
         let mut paint = self.engine.take_paint();
@@ -677,6 +683,10 @@ impl Shell {
         id: WindowId,
         _event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
+        self.panels.clipboard_available = self.layer_clipboard.available();
+        self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
+        self.panels.path_clipboard_available = self.layer_clipboard.paths_available();
+        self.panels.clipboard_busy = self.layer_clipboard.busy();
         if (!self.actions.is_empty() && !self.present_due)
             || self.editing.is_some()
             || !self.attached
@@ -692,6 +702,7 @@ impl Shell {
         }
         let project_modal = self.project_modal();
         let f = self.floating.get_mut(&id).ok_or("floating window closed")?;
+        f.input.text_clipboard = Some(self.text_clipboard.clone());
         if self.rendering.contains_key(&f.key) {
             return Ok(());
         }

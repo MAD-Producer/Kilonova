@@ -122,6 +122,11 @@ fn submenu_arrow(list: &mut PaintList, area: Rect, color: motion_ui::theme::Colo
 }
 
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(edit) = self.name.as_mut().filter(|edit| !edit.precompose) {
+            request.visit(&mut edit.editor);
+        }
+    }
     pub(super) fn set_selection(&mut self, objects: Vec<u64>) {
         self.selection = objects;
     }

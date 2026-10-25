@@ -134,6 +134,10 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
+    ClipboardRead { objects: Vec<u64>, reply: Sender<Result<crate::layer_clipboard::Read, String>> },
+    KeyframeClipboardRead { source: crate::layer_clipboard::KeyframeSource, selections: Vec<motion_core::KeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::KeyframeRead, String>> },
+    PathClipboardRead { source: crate::layer_clipboard::PathSource, selections: Vec<motion_core::PathSelection>, reply: Sender<Result<crate::layer_clipboard::PathRead, String>> },
+    ClipboardCommit { edit: crate::layer_clipboard::Edit, reply: Sender<Result<Value, String>> },
     #[cfg(test)]
     TestPanic {
         during_prepare: bool,
@@ -180,6 +184,11 @@ pub enum Command {
     EditChecked {
         text: String,
         revision: u64,
+        reply: Sender<Result<Value, String>>,
+    },
+    PathOperation {
+        source: crate::layer_clipboard::PathSource,
+        operation: crate::layer_clipboard::PathOperation,
         reply: Sender<Result<Value, String>>,
     },
     CaptureUi {
@@ -376,6 +385,9 @@ impl Command {
     fn panic_reply(&self) -> Option<ErrorReply> {
         use Command::*;
         let reply = match self {
+            ClipboardRead { reply, .. } => ErrorReply::Clipboard(reply.clone()),
+            KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
+            PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
             NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
@@ -385,7 +397,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | CaptureUi { reply, .. }
+            | EditChecked { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1478,6 +1490,10 @@ fn handle(
             session.root = root;
             panic!("injected panic with unavailable recovery directory");
         })),
+        Command::ClipboardRead { objects, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read(s, objects))),
+        Command::KeyframeClipboardRead { source, selections, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read_keyframes(s, source, selections))),
+        Command::PathClipboardRead { source, selections, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::read_paths(s, source, selections))),
+        Command::ClipboardCommit { edit, reply } => respond(reply, motion_host::session::with_session(id, |s| crate::layer_clipboard::commit(s, edit))),
         Command::ProjectTicket(reply) => respond(reply, guard.ticket(id)),
         Command::ChangeProject { target, ticket, save, reply } => respond(reply, (|| {
             motion_host::session::with_session(id, |s| {
@@ -1560,6 +1576,8 @@ fn handle(
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
+        Command::PathOperation { source, operation, reply } => respond(reply,
+            motion_host::session::with_session(id, |s| crate::layer_clipboard::edit_path(s, source, operation))),
         Command::CaptureUi { ui, path, reply } => {
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {

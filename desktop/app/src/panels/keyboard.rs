@@ -22,6 +22,27 @@ fn text_active(panels: &Panels) -> bool {
 
 fn editor_active(panels: &Panels) -> bool { editor_active_for(panels, true) }
 
+pub(super) fn layer_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
+    matches!(panels.focused, Some(Panel::Timeline | Panel::Composition))
+        && !layout_shortcuts_blocked(panels)
+        && !(panels.focused == Some(Panel::Timeline) && panels.timeline.graph_mode)
+        && panels.animation_controls.user_key().is_none()
+        && panels.animation_controls.track_selection(state, panels.selected)
+            == super::animation_controls::TrackSelection::Unselected
+        && state["observing"] != true
+}
+
+pub(super) fn clipboard_intent(command: Command) -> Option<crate::layer_clipboard::controller::Intent> {
+    use crate::layer_clipboard::controller::Intent;
+    Some(match command {
+        Command::CopySelection => Intent::Copy,
+        Command::CutSelection => Intent::Cut,
+        Command::PasteSelection => Intent::Paste { in_place: false },
+        Command::PasteInPlace => Intent::Paste { in_place: true },
+        _ => return None,
+    })
+}
+
 fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()
@@ -56,7 +77,10 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
 
 /// Layout shortcuts must defer to the same editors as document shortcuts.
 pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
-    editor_active(panels)
+    layout_shortcuts_blocked_for(panels, true)
+}
+fn layout_shortcuts_blocked_for(panels: &Panels, path_focus: bool) -> bool {
+    editor_active_for(panels, path_focus)
         || (panels.focused == Some(Panel::Effects) && panels.browser.library_search_editing())
         || panels.transform_controls.gesture_active()
         || panels.timeline.reorder.is_some()
@@ -73,6 +97,12 @@ pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || panels.layer_actions.text_in(None)
         || panels.layer_actions.text_in(Some(Panel::Timeline))
+}
+pub(super) fn path_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
+    matches!(panels.focused, Some(Panel::Composition | Panel::Masks | Panel::Vector))
+        && panels.path_controls.tool != super::path_controls::Tool::Select
+        && (panels.focused == Some(Panel::Composition) || panels.path_controls.wants_keyboard())
+        && !layout_shortcuts_blocked_for(panels, false) && state["observing"] != true
 }
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
@@ -182,6 +212,18 @@ fn route_inner(
         && !editor_active_for(panels, false) && !panels.transform_controls.gesture_active()
         && matches!(panels.focused, Some(Panel::Composition | Panel::Vector | Panel::Masks))
     {
+        if path_clipboard_allowed(panels, state) {
+            for (key, modifiers, repeat) in input.key_presses() {
+                if let Some(intent) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat).and_then(clipboard_intent) {
+                    if !panels.clipboard_busy {
+                        if let Some(paths) = super::path_clipboard::selection(panels, state) {
+                            if paths.enabled(state, intent, panels.path_clipboard_available) { out.push(paths.action(intent)); }
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
         if super::tools::nudge(panels,state,input,out) {return true;}
         for (key, modifiers, repeat) in input.key_presses() {
             if key == Key::Escape && !modifiers.control && !modifiers.alt && !repeat {
@@ -341,6 +383,17 @@ fn handle_context_shortcuts(
                 && panels.animation_controls.track_selection(state, panels.selected)
                     == super::animation_controls::TrackSelection::Invalid;
         if let Some(mut command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+            if let Some(intent) = clipboard_intent(command) {
+                if !input.focus_lost && !panels.clipboard_busy && !layout_shortcuts_blocked(panels) && state["observing"] != true {
+                    if let Some(keys) = super::keyframe_clipboard::selection(panels, state) {
+                        if keys.enabled(state, intent, panels.keyframe_clipboard_available) { out.push(keys.action(intent)); }
+                    } else if layer_clipboard_allowed(panels, state)
+                        && (matches!(intent, crate::layer_clipboard::controller::Intent::Copy | crate::layer_clipboard::controller::Intent::Cut) || panels.clipboard_available) {
+                        out.push(Action::LayerClipboard(intent));
+                    }
+                }
+                continue;
+            }
             if command == Command::AnimatedProperties && matches!(panels.focused,
                 Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)) {
                 use std::hash::{Hash, Hasher};

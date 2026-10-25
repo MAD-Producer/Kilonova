@@ -239,20 +239,24 @@ fn differing_frame_rates_offsets_and_duplicate_instances_sample_independently() 
 }
 #[test]
 fn nested_expression_views_preserve_time_and_dimensions_without_copying_the_graph() {
-    let mut p = project();
-    p.expressions.push(PropertyExpression {
-        target: ExpressionTarget::Property {
-            object: 1,
-            property: Property::Position,
-            axis: None,
+    let mut e = Engine::new(project()).unwrap();
+    // Use the same compile-before-sampling path as an authored expression.
+    // This checks nested sampling semantics, not cold compilation latency.
+    e.apply(Command::SetExpression {
+        expression: PropertyExpression {
+            target: ExpressionTarget::Property {
+                object: 1,
+                property: Property::Position,
+                axis: None,
+            },
+            source: "value + [time * 10 + thisComp.width / 64, 0, 0]".into(),
+            enabled: true,
+            seed: 7,
+            profile: EXPRESSION_PROFILE.into(),
         },
-        source: "value + [time * 10 + thisComp.width / 64, 0, 0]".into(),
-        enabled: true,
-        seed: 7,
-        profile: EXPRESSION_PROFILE.into(),
-    });
-    let before = p.clone();
-    let mut e = Engine::new(p).unwrap();
+        frame: 0,
+    }).unwrap();
+    let before = e.snapshot();
     edit(
         &mut e,
         MAIN_COMPOSITION,
@@ -261,6 +265,19 @@ fn nested_expression_views_preserve_time_and_dimensions_without_copying_the_grap
     for frame in [0., 40.5, 80., 4.] {
         let mut original = Scene::new(&before).unwrap();
         original.sample(&before, frame, None, &motion_core::ExpressionEvaluator).unwrap();
+        // Equal output on both sides must not hide an unevaluated expression.
+        let mut expected = project();
+        expected.layers[0].transform.position = Track::constant([33. + frame as f32 / 3., 32., 0.]);
+        let mut reference = Scene::new(&expected).unwrap();
+        reference.sample(&expected, frame, None, &motion_core::ExpressionEvaluator).unwrap();
+        for (actual, expected) in original.layers[0].model.to_cols_array().into_iter()
+            .zip(reference.layers[0].model.to_cols_array())
+        {
+            assert!(
+                (actual - expected).abs() < 0.00001,
+                "frame={frame} actual={actual} expected={expected}",
+            );
+        }
         let mut nested = Scene::new(e.project()).unwrap();
         nested.sample(e.project(), frame, None, &motion_core::ExpressionEvaluator).unwrap();
         assert_eq!(

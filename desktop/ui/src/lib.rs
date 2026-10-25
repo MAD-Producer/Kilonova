@@ -31,6 +31,7 @@ pub mod registry;
 pub mod style;
 pub mod tabs;
 pub mod text;
+pub mod text_clipboard;
 pub mod theme;
 pub mod ui;
 pub mod widgets;

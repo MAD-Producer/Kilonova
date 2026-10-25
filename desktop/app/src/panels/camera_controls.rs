@@ -67,6 +67,9 @@ fn sample<'a>(state: &'a Value, object: u64) -> &'a Value {
     }
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
+    }
     pub(super) fn field_dragging(&self) -> bool {
         self.field
             .as_ref()

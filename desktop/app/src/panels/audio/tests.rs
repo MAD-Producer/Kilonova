@@ -4,6 +4,33 @@ use motion_core::{
     AudioAsset, AudioClip, Content, Layer, LayerTimeline, Project, VideoAsset, VideoClip,
 };
 use motion_ui::input::Modifiers;
+#[test]
+fn clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership() {
+    let mut h = Harness::new(false, Locale::En);
+    h.panels.focused = Some(Panel::Timeline);
+    for frame in [20, 40] {
+        h.state = h.engine.edit(serde_json::to_string(&Command::AudioLevels { object: 7, action: AudioLevelsAction::Set { channel: AudioChannel::Left, frame, value: -6., animated: Some(true) } }).unwrap()).unwrap();
+    }
+    h.panels.audio_controls.active_object = Some(7);
+    h.panels.audio_controls.active_control = Some(Control::Left);
+    h.panels.audio_controls.context = Some((h.state["root"].as_str().unwrap().into(), h.state["composition"].as_str().unwrap().into()));
+    h.panels.audio_controls.selection_intent = true;
+    super::super::property_focus::settle(&mut h.panels);
+    let mut static_audio = h.state.clone(); static_audio["project"]["layers"][0]["audio_levels"] = Value::Null;
+    let static_keys = super::super::keyframe_clipboard::selection(&h.panels, &static_audio).unwrap();
+    assert!(static_keys.selections.is_empty() && static_keys.targets.len() == 1);
+    let keys = super::super::keyframe_clipboard::selection(&h.panels, &h.state).unwrap();
+    assert_eq!(keys.targets, [motion_core::KeyframeTarget::Audio { object: 7, channel: AudioChannel::Left }]);
+    assert!(keys.selections[0].frames.contains(&20) && keys.selections[0].frames.contains(&40));
+    h.panels.audio_controls.selection = Some(Selection { object: 7, item: Item::Key(AudioChannel::Left), frame: 40 });
+    let keys = super::super::keyframe_clipboard::selection(&h.panels, &h.state).unwrap();
+    assert_eq!(keys.selections[0].frames, [40]);
+    let project: Project = serde_json::from_value(h.state["project"].clone()).unwrap();
+    motion_core::KeyframeClipboard::capture(&project, &keys.selections).unwrap();
+    h.state["composition"] = "stale".into();
+    assert!(super::super::keyframe_clipboard::selection(&h.panels, &h.state).is_none());
+    assert!(!super::super::keyboard::layer_clipboard_allowed(&h.panels, &h.state));
+}
 mod property_focus_tests;
 
 #[test]

@@ -1,4 +1,5 @@
 mod composition;
+mod text_input;
 pub(crate) mod project_precision;
 pub(crate) mod preferences;
 use crate::i18n::Locale;
@@ -106,6 +107,8 @@ pub struct Dialog {
     fields: Vec<String>,
     focus: usize,
     replace: bool,
+    text_editor: motion_ui::widgets::TextEditor,
+    text_editor_field: Option<usize>,
     pub error: Option<String>,
     pub fonts: Vec<FontChoice>,
     font: Option<usize>,
@@ -174,6 +177,8 @@ impl Dialog {
             ],
             focus: 0,
             replace: true,
+            text_editor: Default::default(),
+            text_editor_field: None,
             error: None,
             fonts: vec![],
             font: None,
@@ -198,6 +203,8 @@ impl Dialog {
             fields: vec!["Motion Studio".into(), "64".into(), "1024".into()],
             focus: 0,
             replace: true,
+            text_editor: Default::default(),
+            text_editor_field: None,
             error: None,
             fonts,
             font,
@@ -229,7 +236,7 @@ impl Dialog {
         let styles = list.styles();
         let colors = styles.colors();
 
-        if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             return Some(Event::Cancelled);
         }
         let card = Rect::new((size[0] - 500.) / 2., (size[1] - 410.) / 2., 500., 410.);
@@ -283,49 +290,29 @@ impl Dialog {
             if self.focus == i {
                 paint::stroke(list, field, colors.ACCENT, 1.);
             }
-            ui::text(
-                list,
-                atlas,
-                field.shrink(6.),
-                value,
-                colors.TEXT,
-                Align::Left,
-            );
+            if self.focus == i && self.text_editor_field == Some(i) && self.text_editor.active() {
+                self.text_editor.draw(list, atlas, field);
+            } else {
+                ui::text(
+                    list,
+                    atlas,
+                    field.shrink(6.),
+                    value,
+                    colors.TEXT,
+                    Align::Left,
+                );
+            }
             if input
                 .pressed
                 .is_some_and(|(b, p)| b == MouseButton::Left && field.contains(p))
             {
                 self.focus = i;
                 self.replace = true;
+                self.text_editor.cancel();
             }
         }
-        if !input.text.is_empty() {
-            if self.replace {
-                self.fields[self.focus].clear();
-                self.replace = false;
-            }
-            self.fields[self.focus].push_str(&input.text);
-        }
-        for (key, modifiers) in &input.keys {
-            match key {
-                Key::Tab => {
-                    self.focus = if modifiers.shift {
-                        (self.focus + self.fields.len() - 1) % self.fields.len()
-                    } else {
-                        (self.focus + 1) % self.fields.len()
-                    };
-                    self.replace = true;
-                }
-                Key::Backspace => {
-                    if self.replace {
-                        self.fields[self.focus].clear();
-                        self.replace = false;
-                    } else {
-                        self.fields[self.focus].pop();
-                    }
-                }
-                _ => {}
-            }
+        if !self.font_open {
+            self.edit_text(input);
         }
         if matches!(self.kind, Kind::Text) {
             let y = card.min[1] + 198.;
@@ -407,7 +394,7 @@ impl Dialog {
             input,
             Rect::new(card.max[0] - 126., card.max[1] - 46., 100., 30.),
             &word(locale, "应用", "Apply"),
-        ) || input.keys.iter().any(|(k, _)| *k == Key::Enter);
+        ) || input.key_presses().any(|(k, _, repeat)| k == Key::Enter && !repeat);
         if !apply {
             return None;
         }

@@ -963,7 +963,9 @@ impl NodeEditor {
             paint::stroke(
                 list,
                 rect,
-                if self.field.as_ref().unwrap().error.is_some() {
+                if self.field.as_ref().is_some_and(|field| {
+                    field.error.is_some() || field.editor.error.is_some()
+                }) {
                     Color::rgb(230, 128, 103)
                 } else {
                     colors.ACCENT
@@ -999,110 +1001,12 @@ impl NodeEditor {
                     text: value.clone(),
                     cursor: value.len(),
                     replace: true,
+                    editor: Default::default(),
                     error: None,
                 });
                 self.search_focus = false;
             }
         }
         *y += 31.;
-    }
-    pub(super) fn field_input(&mut self, input: &Input) {
-        if input.composing
-            && self
-                .field
-                .as_ref()
-                .is_some_and(|field| matches!(field.binding, Binding::InputValue(..)))
-        {
-            return;
-        }
-        let mut commit = false;
-        let mut cancel = false;
-        if let Some(field) = &mut self.field {
-            if matches!(field.binding, Binding::InputValue(..))
-                && input.key_presses().any(|(key, modifiers, repeat)| {
-                    key == Key::A
-                        && modifiers.control
-                        && !modifiers.alt
-                        && !modifiers.shift
-                        && !repeat
-                })
-            {
-                field.replace = true;
-                field.cursor = field.text.len();
-            }
-            if !input.text.is_empty() {
-                if field.replace {
-                    field.text.clear();
-                    field.cursor = 0;
-                    field.replace = false;
-                }
-                field.text.insert_str(field.cursor, &input.text);
-                field.cursor += input.text.len();
-                field.error = None;
-            }
-            for (key, _) in &input.keys {
-                match key {
-                    Key::Enter => commit = true,
-                    Key::Escape => cancel = true,
-                    Key::Backspace => {
-                        if field.replace {
-                            field.text.clear();
-                            field.cursor = 0;
-                            field.replace = false;
-                        } else if field.cursor > 0 {
-                            let previous = field.text[..field.cursor]
-                                .char_indices()
-                                .last()
-                                .map_or(0, |(i, _)| i);
-                            field.text.drain(previous..field.cursor);
-                            field.cursor = previous;
-                        }
-                        field.error = None;
-                    }
-                    Key::Delete => {
-                        if field.cursor < field.text.len() {
-                            let next = field.cursor
-                                + field.text[field.cursor..]
-                                    .chars()
-                                    .next()
-                                    .unwrap()
-                                    .len_utf8();
-                            field.text.drain(field.cursor..next);
-                        }
-                    }
-                    Key::Left => {
-                        field.cursor = field.text[..field.cursor]
-                            .char_indices()
-                            .last()
-                            .map_or(0, |(i, _)| i);
-                        field.replace = false;
-                    }
-                    Key::Right => {
-                        if field.cursor < field.text.len() {
-                            field.cursor += field.text[field.cursor..]
-                                .chars()
-                                .next()
-                                .unwrap()
-                                .len_utf8();
-                        }
-                        field.replace = false;
-                    }
-                    Key::Home => {
-                        field.cursor = 0;
-                        field.replace = false;
-                    }
-                    Key::End => {
-                        field.cursor = field.text.len();
-                        field.replace = false;
-                    }
-                    _ => {}
-                }
-            }
-        }
-        if cancel {
-            self.field = None;
-        } else if commit {
-            let _ = self.commit_field();
-        }
     }
 }

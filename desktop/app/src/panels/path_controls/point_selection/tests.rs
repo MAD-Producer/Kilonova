@@ -176,6 +176,82 @@ fn control() -> Modifiers {
 }
 
 #[test]
+fn path_clipboard_uses_authored_selection_and_owns_shortcuts_and_menu_without_layer_fallback() {
+    use crate::layer_clipboard::controller::Intent;
+    use motion_ui::dock::Panel;
+    for mask in [false, true] {
+        for locale in [Locale::En, Locale::Zh] {
+            let mut h = Harness::new(mask, true, locale, 1.);
+            h.click([-90., -60.], Modifiers::default());
+            h.click([90., -60.], shift());
+            let state = h.state();
+            let selection = h.controls.path_clipboard_selection(&state, Some(7)).unwrap();
+            let Action::PathClipboard { selections, target, .. } = selection.action(Intent::Copy) else { panic!() };
+            assert_eq!(selections.len(), 1);
+            assert_eq!(selections[0].nodes.as_ref().unwrap(), &[11, 42]);
+            assert_eq!(selections[0].path, 3);
+            assert_eq!(selections[0].target, if mask {
+                motion_core::PathTarget::Mask { object: 7, mask: 1 }
+            } else { motion_core::PathTarget::Vector { object: 7, item: None } });
+            assert!(if mask { matches!(target, motion_core::PathDestination::NewMasks { object: 7 }) }
+                else { matches!(target, motion_core::PathDestination::Vector { object: 7, item: None }) });
+            let mut panels = crate::panels::Panels {
+                locale, focused: Some(Panel::Composition), path_controls: h.controls,
+                clipboard_available: true, keyframe_clipboard_available: true,
+                path_clipboard_available: true, ..Default::default()
+            };
+            panels.select_only(Some(7));
+            let input = Input { keys: vec![(Key::C, control())], ..Default::default() };
+            let route = |panels: &mut crate::panels::Panels, input: &Input, state: &Value| {
+                let mut out = vec![];
+                crate::panels::keyboard::route(input, panels, state, false, None, &mut out);
+                out
+            };
+            let out = route(&mut panels, &input, &state);
+            assert_eq!(out.iter().filter(|a| matches!(a, Action::PathClipboard { intent: Intent::Copy, .. })).count(), 1, "{out:?}");
+            assert!(!out.iter().any(|a| matches!(a, Action::LayerClipboard(_) | Action::KeyframeClipboard { .. })));
+            for blocked in [Input { composing: true, ..input.clone() }, Input { ime_consumed: true, ..input.clone() }, Input { focus_lost: true, ..input.clone() }, Input { key_repeats: vec![true], ..input.clone() }] {
+                assert!(!route(&mut panels, &blocked, &state).iter().any(|a| matches!(a, Action::PathClipboard { .. })));
+            }
+            let entries = crate::panels::clipboard_menu::entries(&panels, &state);
+            assert_eq!(entries.iter().map(|e|e.2).collect::<Vec<_>>(), [true, true, true, true, false]);
+            assert!(entries[..4].iter().all(|e| matches!(e.1, Action::PathClipboard { .. })));
+            panels.clipboard_menu_paths = crate::panels::path_clipboard::selection(&panels, &state);
+            panels.clipboard_menu_allowed = Some(true);
+            let mut stale = state.clone();
+            stale["document_generation"] = 1.into();
+            assert!(crate::panels::clipboard_menu::entries(&panels, &stale).iter().all(|e| !e.2));
+            panels.clipboard_menu_allowed = None;
+            panels.clipboard_menu_paths = None;
+            panels.path_controls.clipboard_cut_completed();
+            panels.path_controls.cancel();
+            assert!(!panels.path_controls.wants_keyboard());
+            assert!(crate::panels::keyboard::path_clipboard_allowed(&panels, &state));
+            assert!(!route(&mut panels, &input, &state).iter().any(|a| matches!(a, Action::LayerClipboard(_) | Action::PathClipboard { .. })));
+            let entries = crate::panels::clipboard_menu::entries(&panels, &state);
+            assert_eq!(entries.iter().map(|e|e.2).collect::<Vec<_>>(), [false, false, true, true, false]);
+            let mut locked = state.clone();
+            locked["project"]["layers"][0]["locked"] = true.into();
+            assert!(crate::panels::clipboard_menu::entries(&panels, &locked).iter().all(|e| !e.2));
+        }
+    }
+}
+
+#[test]
+fn document_replacement_with_identical_ids_clears_authored_point_selection() {
+    let mut h = Harness::new(false, true, Locale::En, 1.);
+    h.click([-90., -60.], Modifiers::default());
+    assert_eq!(h.controls.point_selection.points.len(), 1);
+    let mut replaced = h.state();
+    replaced["document_generation"] = 1.into();
+    let paths = source_geometry::paths(&h.engine.project().layers[0], 0.).unwrap();
+    let mut out = vec![];
+    assert!(h.controls.point_selection.sync(&replaced, Some(7), false, &paths, &mut out));
+    assert!(h.controls.point_selection.points.is_empty());
+    assert!(out.is_empty());
+}
+
+#[test]
 fn point_add_toggle_group_drag_release_and_one_undo_at_multiple_zooms() {
     for mask in [false, true] {
         for closed in [false, true] {

@@ -5,6 +5,9 @@ use std::io::Write;
 
 pub(super) type Failure = Arc<std::sync::Mutex<Option<String>>>;
 pub(super) enum ErrorReply {
+    Clipboard(Sender<Result<crate::layer_clipboard::Read, String>>),
+    KeyframeClipboard(Sender<Result<crate::layer_clipboard::KeyframeRead, String>>),
+    PathClipboard(Sender<Result<crate::layer_clipboard::PathRead, String>>),
     Value(Sender<Result<Value, String>>),
     Bool(Sender<Result<bool, String>>),
     Ticket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
@@ -14,6 +17,9 @@ pub(super) enum ErrorReply {
 impl ErrorReply {
     pub(super) fn send(self, error: String) {
         match self {
+            Self::Clipboard(reply) => { let _ = reply.send(Err(error)); }
+            Self::KeyframeClipboard(reply) => { let _ = reply.send(Err(error)); }
+            Self::PathClipboard(reply) => { let _ = reply.send(Err(error)); }
             Self::Value(reply) => {
                 let _ = reply.send(Err(error));
             }

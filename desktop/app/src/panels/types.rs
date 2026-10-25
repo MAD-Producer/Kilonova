@@ -25,6 +25,24 @@ pub enum Action {
     ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
     CancelImport,
+    LayerClipboard(crate::layer_clipboard::controller::Intent),
+    KeyframeClipboard {
+        intent: crate::layer_clipboard::controller::Intent,
+        source: crate::layer_clipboard::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+        targets: Vec<motion_core::KeyframeTarget>,
+    },
+    PathClipboard {
+        intent: crate::layer_clipboard::controller::Intent,
+        source: crate::layer_clipboard::PathSource,
+        selections: Vec<motion_core::PathSelection>,
+        target: motion_core::PathDestination,
+    },
+    CancelLayerClipboard,
+    PathOperation {
+        source: crate::layer_clipboard::PathSource,
+        operation: crate::layer_clipboard::PathOperation,
+    },
     AnalyzeAudio(u64),
     CancelAudioAnalysis,
     ExportPng,
@@ -158,6 +176,15 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    pub(crate) clipboard_available: bool,
+    pub(crate) keyframe_clipboard_available: bool,
+    pub(crate) path_clipboard_available: bool,
+    pub(crate) clipboard_busy: bool,
+    /// Eligibility captured before opening application chrome clears focus.
+    pub(crate) clipboard_menu_allowed: Option<bool>,
+    pub(crate) clipboard_menu_keys: Option<super::keyframe_clipboard::Selection>,
+    pub(crate) clipboard_menu_paths: Option<super::path_clipboard::Selection>,
+    pub(crate) text_menu: Option<super::text_menu::Capture>,
     /// First visible row in the application menu when the popup is taller than
     /// the available window height.
     pub(crate) menu_scroll: usize,
@@ -362,6 +389,7 @@ pub struct EffectSearch {
     /// Explicit opt-in; a newly opened search always applies once and closes.
     pub continuous: bool,
     pub(crate) cache: super::effect_search::Cache,
+    pub(crate) query_editor: motion_ui::widgets::TextEditor,
 }
 
 pub(crate) struct Field {
@@ -370,6 +398,7 @@ pub(crate) struct Field {
     pub axis: usize,
     pub text: String,
     pub replace: bool,
+    pub editor: motion_ui::widgets::TextEditor,
     pub rect: Rect,
     pub scrubbing: Option<ScrubState>,
 }
@@ -548,6 +577,7 @@ pub(crate) struct TimelineState {
     pub timeline_context_menu: Option<[f32; 2]>,
     pub timeline_query: String,
     pub timeline_search: bool,
+    pub(crate) timeline_search_editor: motion_ui::widgets::TextEditor,
 }
 
 #[derive(Clone)]

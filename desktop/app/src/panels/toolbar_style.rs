@@ -88,6 +88,12 @@ pub(super) fn end(styles: &StyleSheet, atlas: &mut TextAtlas, locale: Locale) ->
         + pad * 7.
 }
 impl Controls {
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        request.visit(&mut self.width.text);
+        if let Some(popup) = &mut self.popup {
+            for field in &mut popup.fields { request.visit(&mut field.text); }
+        }
+    }
     fn selection(&mut self, state: &Value, ids: &[u64]) -> Result<Arc<Selection>, &'static str> {
         if state["observing"] == true {
             return Err("observing");

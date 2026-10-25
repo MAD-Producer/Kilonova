@@ -304,7 +304,7 @@ impl NodeEditor {
                     paint::stroke(
                         &mut text,
                         rect,
-                        if field.error.is_some() {
+                        if field.error.is_some() || field.editor.error.is_some() {
                             styles.color("error")
                         } else {
                             colors.ACCENT
@@ -534,6 +534,7 @@ impl NodeEditor {
                         cursor: text.len(),
                         text,
                         replace: true,
+                        editor: Default::default(),
                         error: None,
                     });
                 }

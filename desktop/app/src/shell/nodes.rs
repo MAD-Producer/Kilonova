@@ -355,6 +355,9 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn poll_nodes(&mut self) -> Result<(), String> {
+        // Publish the clipboard acknowledgement before starting another node
+        // install/save that can publish a newer project snapshot.
+        if self.layer_clipboard.committing() { return Ok(()); }
         self.reconcile_node_target()?;
         let before = self.panels.node_editor.stamp();
         let (changed, ready) = self

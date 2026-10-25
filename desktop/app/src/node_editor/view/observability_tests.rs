@@ -138,7 +138,7 @@ fn malformed_ports_and_rejected_requests_log_once_per_site_without_editing() {
             editor.context_menu = Some(ContextMenu { kind: MenuKind::Node("number".into()), position: [10.;2], selected:0 });
             editor.paint_context_menu(&mut PaintList::default(),&mut atlas,area,&Input::default(),Language::English);
         }
-        editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"invalid".into(),cursor:7,replace:false,error:None });
+        editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"invalid".into(),cursor:7,replace:false,editor:Default::default(),error:None });
         for _ in 0..120 { assert!(editor.request(Request::Save).is_err()); }
         assert_eq!(editor.document,original);
         assert_eq!(editor.revision,revision);
