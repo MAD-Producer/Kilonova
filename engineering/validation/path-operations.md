@@ -65,6 +65,14 @@ PR #484 的首轮 Linux job 120910708116 在已有插件取消菜单测试失败
 
 远端 run [40112038149](https://github.com/MAD-Producer/Kilonova/actions/runs/40112038149) 对 b1d91f4b 的 Linux、Windows、macOS Intel、Rust/GPU 及依赖审计全部通过。PR 事件按现有工作流跳过 FFmpeg Release 构建、打包与归档视频验证，故不能用这次全绿冒称发行包已验收；需要另行触发本分支的完整验证。
 
+## 完整打包验证发现的原生截图夹具问题
+
+完整手动 run `40150186519` 的 Linux Release 构建、打包和视频验证已执行，随后原生窗口验收失败于 `timeline dropdown capture must open without editing the project`。保留原件 `path-package-linux-job.log`。本地以既有独立 Debug 程序复现同一失败，记录在 `path-smoke-before.log`，不是仅按 CI 日志猜测。
+
+原因是 `shell/design_acceptance.rs` 的时间轴菜单截图仍按旧的 64px 表头定位，遗漏工作范围栏；改为读取 `timeline.header.base.height`、`timeline.work_area.height` 和行高计算目标中心。不改生产布局、菜单逻辑、返回值或等待期限；保留无编辑动作且菜单必须打开的双重断言，并补充菜单名、点击位置和动作数量的失败上下文。
+
+修正后带 FFmpeg 的实际桌面程序重新编译，中英文 `--smoke` 均退出 0，每种语言生成 46 张截图；`tools/ci_desktop.py::verify_design_screens` 验证通过，`designCaptureProjectUntouched` 均为 true。证据为 `path-smoke-fixture-build.log`、`path-smoke-after-{en,zh}.json/.log` 及对应 PNG。系统 Vulkan 加载器对已移除 Epic Overlay 的错误原样保留，未通过清日志隐藏。该证据仍是本地 Debug 原生窗口验证，修复提交需要新的完整 Release 打包 run。
+
 ## DESIGN §0.7 基线逐项处置
 
 以下十二项均保留，未以新增菜单的验收结果宣称它们已整改：
