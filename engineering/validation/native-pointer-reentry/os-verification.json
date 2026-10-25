@@ -1,0 +1,30 @@
+[
+  {
+    "folder": "clipboard-pointer-entry-os-en-activated",
+    "source": "d3074562ccbb85a185bcc886a3971aa6e314fccd",
+    "realSystemInput": true,
+    "textDraftDidNotReplaceLayerCache": true,
+    "editMenuAndKeyboardPaste": true,
+    "freshIdsAndIndependentCopies": true,
+    "singleUndoForCutAndPaste": true,
+    "draftEscapePreservesProject": true,
+    "saveReopen": true,
+    "defaultInfoAndStdoutIsolation": true,
+    "dpi": 96,
+    "exit": 0
+  },
+  {
+    "folder": "clipboard-pointer-entry-new-settled-control",
+    "source": "d3074562ccbb85a185bcc886a3971aa6e314fccd",
+    "realSystemInput": true,
+    "textDraftDidNotReplaceLayerCache": true,
+    "editMenuAndKeyboardPaste": true,
+    "freshIdsAndIndependentCopies": true,
+    "singleUndoForCutAndPaste": true,
+    "draftEscapePreservesProject": true,
+    "saveReopen": true,
+    "defaultInfoAndStdoutIsolation": true,
+    "dpi": 96,
+    "exit": 0
+  }
+]
