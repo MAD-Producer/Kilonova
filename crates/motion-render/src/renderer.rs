@@ -801,6 +801,13 @@ impl Renderer {
     pub fn debug_inject_pointwise_native_failure(&mut self) {
         self.effect_gpu.state.invalid_pointwise_source_once = true;
     }
+    /// Corrupt one actual semantic draft before the next execution-IR check.
+    /// Clears preview reuse, consumes once and never fabricates an error result.
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    #[doc(hidden)]
+    pub fn debug_inject_execution_fault(&mut self, fault: crate::effect_plan::ExecutionDiagnosticFault) {
+        self.effect_gpu.builder.inject_execution_fault(fault);
+    }
     /// Compositing pipeline-set construction count, not driver compilation time.
     pub fn compositing_pipeline_set_builds(&self) -> u64 { self.compositing_pipeline_set_builds }
     pub fn texture_bytes(&self) -> u64 {

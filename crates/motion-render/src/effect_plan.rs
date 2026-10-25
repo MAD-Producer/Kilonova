@@ -17,6 +17,11 @@ pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
 mod execution;
 pub use execution::{native_execution_capabilities, native_snapshot_limits, SnapshotEncode, SnapshotExecution};
 mod effect_execution;
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+mod execution_fault;
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+#[doc(hidden)]
+pub use execution_fault::ExecutionDiagnosticFault;
 mod runtime_template;
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
@@ -488,6 +493,8 @@ pub struct PlanBuilder {
     fusion: pointwise::FusionState,
     effect_execution: Option<effect_execution::EffectExecution>,
     code_identities: effect_execution::CodeIdentities,
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    execution_fault: Option<ExecutionDiagnosticFault>,
 }
 
 impl PlanBuilder {
@@ -780,6 +787,8 @@ impl PlanBuilder {
             fusion: pointwise::FusionState::default(),
             effect_execution: None,
             code_identities: Default::default(),
+            #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+            execution_fault: None,
         })
     }
     pub(crate) fn enable_plane_coverage(&mut self) {

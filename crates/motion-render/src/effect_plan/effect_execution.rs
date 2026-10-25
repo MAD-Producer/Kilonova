@@ -299,6 +299,8 @@ impl PlanBuilder {
                 targets,
                 &mut self.code_identities,
                 self.device_dimension,
+                #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+                self.execution_fault.take(),
             )
         });
         self.effect_execution = Some(result.map_err(|error| {
@@ -343,6 +345,9 @@ fn lower(
     targets: &[u64],
     codes: &mut CodeIdentities,
     dimension: u32,
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))] fault: Option<
+        super::ExecutionDiagnosticFault,
+    >,
 ) -> Result<EffectExecution, RenderError> {
     if frame.draws.len() > motion_model::MAX_LAYERS
         || scene.effects.len() > motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER
@@ -598,11 +603,11 @@ fn lower(
             .map(|(_, &id)| ImageValueId(id as u32))
             .collect(),
     };
+    let limits = native_effect_limits(dimension);
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    let (plan, limits) = super::execution_fault::apply(fault, plan, limits);
     let checked = plan
-        .check(
-            &native_execution_capabilities(),
-            native_effect_limits(dimension),
-        )
+        .check(&native_execution_capabilities(), limits)
         .map_err(|error| {
             let ids: Vec<_> = match &error {
                 ExecutionPlanError::Cycle { members, .. } => {

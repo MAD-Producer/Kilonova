@@ -165,9 +165,9 @@ pub enum Command {
     },
     #[cfg(test)]
     TestWait {entered:Sender<()>,release:std::sync::mpsc::Receiver<()>,reply:Sender<Result<Value,String>>},
-    /// Explicit performance drivers can use existing host profiling on its
-    /// owning worker. This gateway does not exist in the application binary.
-    #[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
+    /// Explicit acceptance drivers use the actual owning worker and host guard.
+    /// This gateway does not exist in the application binary.
+    #[cfg(test)]
     TestStudy {
         operation: fn(i64) -> motion_host::Result<Value>,
         reply: Sender<Result<Value, String>>,
@@ -434,7 +434,7 @@ impl Command {
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
                 ErrorReply::Value(reply.clone())
             }
-            #[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
+            #[cfg(test)]
             TestStudy { reply, .. } => ErrorReply::Value(reply.clone()),
             Shutdown => return None,
         };
@@ -1488,7 +1488,7 @@ fn handle(
         presentation.retained = None;
     }
     match command {
-        #[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
+        #[cfg(test)]
         Command::TestStudy { operation, reply } => respond(reply, operation(id)),
         #[cfg(test)]
         Command::TestPanic { during_prepare, reply } => respond(reply, motion_host::session::with_session(id, |session| {

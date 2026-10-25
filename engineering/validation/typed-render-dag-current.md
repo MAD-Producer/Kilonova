@@ -20,7 +20,7 @@ was reviewed and no subagent was used.
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
 | 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Complete final desktop integration/CI; extending the retired Android/GLES packed ABI is excluded by user instruction |
-| 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
+| 78-R9 failures / observation | Typed cycle, precision mismatch and pass-budget failures now traverse the actual worker and default file/Error stderr channels with request/origin/timing context, stdout isolation, original GPU pixels and same-renderer recovery; earlier compiler/private-data faults remain covered | Confirm the complete final source in G integration and cross-platform desktop CI |
 | 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Measure end-to-end shader/compile/pass/frame/peak costs; hash counters are not frame timing or unique driver allocation measurements |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
 
@@ -579,3 +579,78 @@ ownership before CPU preparation and transactional preview layouts, fully typed
 external imports, bounded parallel CPU preparation, measured end-to-end costs,
 complete IR faults through production output channels and final integrated/cross-platform acceptance remain pending.
 Issue #78 remains open, followed by #74 and #87.
+
+
+## F: real execution-IR failures after aligning with main
+
+Before this checkpoint closed, `git fetch origin main` and `git rebase origin/main`
+aligned all nine owned commits with main `4afb6cfc036393d3ec02062ae7a846a26403b1df`. The rebased runtime
+checkpoint is `6adde1d60792a2a1d3d9eceb2db800c77567e944`. `range-diff` reported unchanged patches for all
+nine commits. All eight uncommitted files were backed up, restored and verified
+with normalized source hashes. The exact pre-rebase commit/stash and patch mapping
+are retained with the evidence. Earlier receipts remain historical checkpoints;
+they do not substitute for testing the current integrated source.
+
+The new desktop test runs real production `ExecutionPlan::check` failures through
+the actual owning Engine worker, real Session guard, Renderer, command error
+reply and default file logger. No `MOTION_LOG` override is set. A diagnostic-only
+one-shot injector changes the actual draft dependency, expected input precision
+or pass limit immediately before the real checker. It neither manufactures an
+error result nor bypasses validation. Injection and its selector are absent from
+release builds. The existing test-only worker function gateway is now available
+on all desktop test platforms rather than only Windows/FFmpeg; it remains absent
+from the application binary. Production `respond` and best-effort reply semantics
+are unchanged.
+
+Two failure/recovery episodes each cover cycles, type mismatches and pass-budget
+refusal. Every typed cause is checked before conversion to a reply. File and Error
+stderr each contain six actual failure records, including request, operation,
+elapsed time, composition, layer 47, effect 11 and original check details. The
+matching non-Present Info start precedes every failure. Info starts appear only
+in the file; stdout contains none of these diagnostic records. The parent test
+captures and inspects the real child process's two output channels.
+
+All six refusals occur before new native pipeline construction and preserve the
+already rendered target pixels. Healthy frames use the same Renderer and target,
+match the original raw bytes and recover without rebuilding pipelines or changing
+the worker's project. No retry/restart policy or new per-command timeout is added.
+Healthy Present behavior and UI presentation are unchanged.
+
+Retained v1 failed at compilation because diagnostic helper visibility was too
+narrow. Retained v2 completed all six fault/pixel/recovery checks but its child
+hung during teardown: a test-owned GPU target remained in TLS until worker thread
+exit. It is a failed attempt, not a pass. Explicit owner-thread fixture cleanup
+now releases the target before the Renderer and TLS destruction. Retained v3
+passed all targeted gates before rebase. This final post-rebase gate reran them
+against the aligned source, without changing existing assertions or adding skips.
+
+| Gate | Actual post-rebase result |
+| --- | --- |
+| `desktop-check` | Passed |
+| `ir-default-output` | 1 passed, zero failed/ignored |
+| `render-no-diagnostics-check` | Passed |
+| `render-ir` | 8 passed, zero failed/ignored |
+| `existing-compiler-output` | 2 passed, zero failed/ignored |
+| `existing-worker-api` | 1 passed, zero failed/ignored |
+
+The selected scopes contain 12 distinct parent tests; the
+child's six negative/recovery cases are evidence, not six additional test counts.
+All 119 Rust/Cargo snapshot hashes stayed unchanged across
+the gates and match the archived source. The no-default-feature render check
+also verifies the build without the diagnostic interface. Selected new/changed
+modules pass edition-2024 formatting. No owned panel, UI, dependency, asset or
+Android change is included. This is F's targeted checkpoint, not G's complete
+workspace regression or cross-platform desktop CI result.
+
+The [verified IR output checkpoint](data/typed-render-dag-ir-output-6adde1d6.zip) retains all attempts,
+actual file/stderr/stdout logs, adapter metadata, raw baseline pixels, recovery
+receipts, source snapshots, controllers and rebase proof. Size: 6,509,103
+bytes; 497 files plus its manifest. SHA-256:
+`a730fd9a0bc9798c7abb01c40d892b407076c6064ee76ac9fb17318d22b5780d`. All entries were read back and matched their manifest hashes.
+
+The maintained desktop still needs complete initial semantic ownership before
+CPU preparation/transactional preview layouts, fully typed external producers,
+bounded parallel CPU preparation, measured end-to-end costs and final integrated
+regression/cross-platform CI. G must run on the aligned final source. All Android
+implementation and acceptance remain excluded by explicit user instruction.
+Issue #78 stays open; the following order remains #74 then #87.

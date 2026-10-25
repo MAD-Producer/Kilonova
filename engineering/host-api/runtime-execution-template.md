@@ -106,5 +106,7 @@ The targeted runtime checkpoint includes four-precision private-instance
 acceptance: 16 raw-pixel numeric updates and eight disk reopen/isolation/undo
 cases. Complete initial semantic lowering before CPU preparation, fully typed
 external imports, bounded parallel preparation, end-to-end cost measurement,
-complete IR fault output and final integrated/cross-platform verification remain
-open in the delivery ledger.
+final integrated/cross-platform verification remain open in the delivery
+ledger. The post-rebase F checkpoint separately exercises actual cycle, input
+precision and pass-budget faults through the worker, default file/Error stderr,
+stdout isolation and same-renderer pixel preservation/recovery.
