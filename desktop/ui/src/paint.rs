@@ -227,7 +227,7 @@ impl PaintList {
                 };
                 if !all_inside {
                     let triangles = match &*shape {
-                        Shape::Quad { points } => expand_quad(*points).to_vec(),
+                        Shape::Quad { points } => expand_quad(*points),
                         _ => unreachable!(),
                     };
                     let points = clip_triangles(&triangles, area);

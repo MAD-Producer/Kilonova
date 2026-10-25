@@ -1,0 +1,259 @@
+{
+  "issue": 129,
+  "base": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+  "before": {
+    "head": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+    "source_sha256": "e0fa470138fd63547d6ce5a38c538f68e94e5cb3e50b79c152feb0a66e822d30",
+    "source_unchanged": true,
+    "commands": [
+      {
+        "command": [
+          "cargo",
+          "run",
+          "-p",
+          "motion-ui",
+          "--example",
+          "quad_clip_comparison",
+          "--no-default-features",
+          "--locked",
+          "--offline",
+          "-j1",
+          "--",
+          "E:\\Dev\\aem\\.tools\\quad-clip-array\\before.json"
+        ],
+        "exit_code": 0,
+        "seconds": 170.26,
+        "log_sha256": "2e524e1193e8f0e69028002a512b336e67c06fffbbe9ad7d2647ac70947f2ab9"
+      }
+    ]
+  },
+  "after": {
+    "head": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+    "source_sha256": "bfe341de0f3a3ed5d00a9b9e00d8b0394970da3417c9300f0634d4ad3ea16250",
+    "source_unchanged": true,
+    "commands": [
+      {
+        "command": [
+          "cargo",
+          "run",
+          "-p",
+          "motion-ui",
+          "--example",
+          "quad_clip_comparison",
+          "--no-default-features",
+          "--locked",
+          "--offline",
+          "-j1",
+          "--",
+          "E:\\Dev\\aem\\.tools\\quad-clip-array\\after.json"
+        ],
+        "exit_code": 0,
+        "seconds": 30.62,
+        "log_sha256": "15928aba0d4a0646f507ab573a9c143f8368908d2de611b2e62c4899e6de4287"
+      },
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-ui",
+          "--locked",
+          "--offline",
+          "-j1",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 246.73,
+        "log_sha256": "e6aeaa01b0f77a6e5f7f22a848464d783e9542d84788a28b0890ebc50e00659f"
+      }
+    ]
+  },
+  "comparison": {
+    "all_geometry_colors_and_order_identical": true,
+    "cases": [
+      {
+        "case": "left",
+        "quads": 64,
+        "before": 192,
+        "after": 128
+      },
+      {
+        "case": "corner",
+        "quads": 64,
+        "before": 192,
+        "after": 128
+      },
+      {
+        "case": "outside",
+        "quads": 64,
+        "before": 128,
+        "after": 64
+      },
+      {
+        "case": "rotated",
+        "quads": 64,
+        "before": 256,
+        "after": 192
+      },
+      {
+        "case": "contained",
+        "quads": 64,
+        "before": 0,
+        "after": 0
+      },
+      {
+        "case": "max_edge",
+        "quads": 64,
+        "before": 0,
+        "after": 0
+      }
+    ]
+  },
+  "targets": [
+    {
+      "target": "Running unittests src\\lib.rs (E:/Dev/aem/target\\debug\\deps\\motion_ui-08153f5f07211c2d.exe)",
+      "passed": 65,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\analytic.rs (E:/Dev/aem/target\\debug\\deps\\analytic-91204e0765cdd579.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\borrowed_input.rs (E:/Dev/aem/target\\debug\\deps\\borrowed_input-f262a90bc946ca6f.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\composites.rs (E:/Dev/aem/target\\debug\\deps\\composites-6f4b4f1eb92b7a03.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\diamond_bounds.rs (E:/Dev/aem/target\\debug\\deps\\diamond_bounds-ea6163e981730c31.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\dock_constraints.rs (E:/Dev/aem/target\\debug\\deps\\dock_constraints-2be454d8554c4164.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\failure_boundaries.rs (E:/Dev/aem/target\\debug\\deps\\failure_boundaries-d044462ee67a5396.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\framework.rs (E:/Dev/aem/target\\debug\\deps\\framework-e8430349f751f0ae.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\grapheme_editing.rs (E:/Dev/aem/target\\debug\\deps\\grapheme_editing-6f1ea1cd3190ca23.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\icon_geometry.rs (E:/Dev/aem/target\\debug\\deps\\icon_geometry-898e861de8680458.exe)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\input_ownership.rs (E:/Dev/aem/target\\debug\\deps\\input_ownership-28c4c6bd5268aa48.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\layer_visibility.rs (E:/Dev/aem/target\\debug\\deps\\layer_visibility-bcfac1724a5dd2e0.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_clip_buffers.rs (E:/Dev/aem/target\\debug\\deps\\paint_clip_buffers-09c127b5040031ba.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_observability.rs (E:/Dev/aem/target\\debug\\deps\\paint_observability-0d2b21dfb2bd6bfa.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\path_antialiasing.rs (E:/Dev/aem/target\\debug\\deps\\path_antialiasing-b152435b7b05b44d.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\retained_text.rs (E:/Dev/aem/target\\debug\\deps\\retained_text-01d3a904610a9a23.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\style.rs (E:/Dev/aem/target\\debug\\deps\\style-752971ced37c38ba.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\tabs.rs (E:/Dev/aem/target\\debug\\deps\\tabs-76184dda801c46fd.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_bounds.rs (E:/Dev/aem/target\\debug\\deps\\text_bounds-c84eca0fa44ba4dc.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_clipboard.rs (E:/Dev/aem/target\\debug\\deps\\text_clipboard-c73455b0895cf606.exe)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_commands.rs (E:/Dev/aem/target\\debug\\deps\\text_commands-b62f4314a4265e45.exe)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\workspace_observability.rs (E:/Dev/aem/target\\debug\\deps\\workspace_observability-cb256bfffe1c5a97.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Doc-tests motion_ui",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "total_passed": 179,
+  "archive": {
+    "file": "quad-clip-array-7bd4d860.zip",
+    "bytes": 33865,
+    "sha256": "b60ea8f1858028562d30878fa397cbe282e25429f2cb70a6376d625d7778f03b"
+  }
+}
