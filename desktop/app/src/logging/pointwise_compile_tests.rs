@@ -106,10 +106,17 @@ fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries(
             healthy.set_pointwise_fusion(true);
             let capture = healthy.capture_target(32, 32)?;
             healthy.draw(&scene, &capture.view, 32, 32)?;
+            let pixels = healthy.read_target(&capture)?;
+            assert!(pixels.chunks_exact(4).any(|p| p[3] != 0));
             let builds = healthy.effect_pipeline_builds();
             let compiles = healthy.pointwise_fusion_report().portable_compiles;
             for _ in 0..65 {
                 healthy.draw(&scene, &capture.view, 32, 32)?;
+                // Verify a completed healthy frame before submitting the next.
+                // Metal callbacks need device polling; queuing 66 frames without
+                // reading any output can exhaust the 64-encoder admission bound.
+                let pixels = healthy.read_target(&capture)?;
+                assert!(pixels.chunks_exact(4).any(|p| p[3] != 0));
                 assert_eq!(healthy.effect_pipeline_builds(), builds);
                 assert_eq!(
                     healthy.pointwise_fusion_report().portable_compiles,
