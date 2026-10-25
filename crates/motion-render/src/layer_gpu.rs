@@ -22,6 +22,7 @@ pub(crate) struct LayerGpu {
     pub accumulators: Vec<FxTexture>,
     size: [u32; 2],
     fingerprints: HashMap<u64, u64>,
+    dirty_vectors: Vec<usize>,
     raster_scratch: HashMap<(u32, u32), OwnedTexture>,
     raster_resolve: HashMap<(u32, u32), FxTexture>,
     groups: groups::GroupGpu,
@@ -46,6 +47,7 @@ impl LayerGpu {
         self.accumulators.clear();self.size=[0;2];self.fingerprints.clear();
         self.raster_scratch.clear();self.raster_resolve.clear();self.groups.release();
         self.uploads.release(); self.vertex_upload.clear();
+        self.dirty_vectors = Vec::new();
     }
     pub fn new(
         device: &wgpu::Device,
@@ -180,6 +182,7 @@ impl LayerGpu {
             accumulators: Vec::new(),
             size: [0; 2],
             fingerprints: HashMap::new(),
+            dirty_vectors: Vec::new(),
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
             groups: groups::GroupGpu::new(device,image,budget,precision),
@@ -372,14 +375,16 @@ impl LayerGpu {
     ) -> Result<bool, RenderError> {
         // Preserve the pre-replacement decision: an unchanged fingerprint can
         // still require drawing into a newly resized source.
-        let dirty = meshes.iter().filter(|mesh| {
+        let mut dirty = std::mem::take(&mut self.dirty_vectors);
+        dirty.extend(meshes.iter().enumerate().filter(|(_, mesh)| {
             let id = scene.layers[mesh.layer].id;
             self.fingerprints.get(&id) != Some(&mesh.fingerprint)
                 || images.get(&TextureKey::Vector(id)).is_none_or(|i| i.size != (mesh.width, mesh.height))
-        }).collect::<Vec<_>>();
+        }).map(|(index, _)| index));
         let changed = self.prepare_textures(device, image, sampler, scene, meshes,
             images, bytes, resource_bytes, source_budget)?;
-        for mesh in dirty {
+        for &index in &dirty {
+            let mesh = &meshes[index];
             let id = scene.layers[mesh.layer].id;
             let key = TextureKey::Vector(id);
             let contents = if mesh.vertices.is_empty() { &[0u8;24][..] } else { bytemuck::cast_slice(&mesh.vertices) };
@@ -443,6 +448,11 @@ impl LayerGpu {
                 pass.draw(0..3, 0..1);
             }
             self.fingerprints.insert(id, mesh.fingerprint);
+        }
+        // Keep only empty, bounded CPU storage. Errors drop the local list.
+        if !meshes.is_empty() && dirty.capacity() <= motion_model::MAX_LAYERS {
+            dirty.clear();
+            self.dirty_vectors = dirty;
         }
         Ok(changed)
     }
