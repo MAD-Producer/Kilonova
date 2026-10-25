@@ -2,8 +2,9 @@
 
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
-experiments are not delivery evidence for the current source. The issue remains
-open: the final current full regression and CI remain pending. The project-setting UI
+experiments are not delivery evidence for the current source. The final current
+FFmpeg-enabled workspace regression passed at `b90b52a1`; remote CI and merge
+remain pending. The project-setting UI
 now has native interaction and screenshot evidence. Ordinary/exposure surface previews, plugin editor
 preview, desktop UI/node screenshots and Host/frozen PNG/MP4 exports now use
 explicit SDR output.
@@ -16,12 +17,12 @@ explicit SDR output.
 | 72-S2 | Enabled-device format/usage/filter/blend snapshot and same-precision channel padding | Implemented; optional features are never inferred from adapter reports alone |
 | 72-S3 | Before-allocation capability validation, including 4-sample vector attachments and resolve | Implemented; unsupported working modes return a cause instead of reducing precision |
 | 72-S4 | Physical effect descriptors, same-frame layer snapshots, accumulation, masks, mattes, ordinary nested compositions and vector/group rasters retain working precision | Implemented; actual pixel tests cover the named paths below |
-| 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve and four-mode two-level retained/nested shutter goldens pass; full current integration remains pending |
+| 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve and four-mode two-level retained/nested shutter goldens and final full current workspace integration pass |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
-| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire, actual row/worker, frozen PNG and all-frame MP4 probes pass; the dense feature survives real export after live removal and session closure; final full integration remains pending |
-| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration; project-wide settings dialog | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; native menu/dialog, persistence, history and 60 UI captures pass; final full integration remains pending |
-| 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Twelve analytic GPU/CPU golden cases pass with explicit native/output tolerances; final full current workspace/desktop/Host integration remains pending |
+| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire, actual row/worker, frozen PNG and all-frame MP4 probes pass; the dense feature survives real export after live removal and session closure; final full current integration passes |
+| 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration; project-wide settings dialog | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; native menu/dialog, persistence, history and 60 UI captures and final full current integration pass |
+| 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Twelve analytic GPU/CPU golden cases pass with explicit native/output tolerances; final full current workspace/desktop/Host integration passes; remote CI and merge pending |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
 The native path requires actual enabled normalized-format attachment support.
@@ -89,6 +90,7 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-desktop-curve-observation-final-v1` | All 35 effect-control tests pass with current dense key storage, exact original 256-point projection, unchanged log thresholds, Error stderr and stdout isolation, plus actual worker/history regressions |
 | `issue72-stage-host-wire-final-v1` | All 11 Host failure-boundary tests pass; metadata and packed bytes use the current plan version, words 152/156 carry the default precision/LUT encoding, and original physical-table/capacity assertions remain |
 | `issue72-stage-scratch-current-final-v1` | Executed the native allocation comparison driver: eight real 512x512 renders with plan v12; planned/actual top scratch capacity agrees in every row, and original repeat-pixel and generator-contribution checks pass |
+| `issue72-stage-full-workspace-v2` | Final source-bound FFmpeg-enabled workspace command passes at `b90b52a1`, exit 0; desktop 962 passed / 0 failed / 3 pre-existing ignored, media 45 passed / 0 failed / 0 ignored; all remaining selected workspace crates, integration tests and doctests pass; completed 2026-10-25, 49m17s |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -364,7 +366,24 @@ contact sheet. The actual/expected pairs were visually inspected. These are
 analytic correctness goldens, not professional grading, HDR input/output,
 bandwidth or performance comparisons. Existing varied mask/feather, clocks,
 negative HDR and resource refusal tests remain part of the full current run.
-The issue remains open until the final current full regression and CI pass.
+The final current full regression now passes. The issue remains open until
+remote CI passes and the PR merges. The local command was
+`cargo test --workspace --exclude motion-android --features motion-desktop/ffmpeg --no-fail-fast --offline -- --test-threads=1`.
+Its started/exit/accepted receipts and complete stdout/stderr are retained under
+`artifacts/pr-queue/issue72-stage-full-workspace-v2`. Every snapshotted changed
+source stayed identical during execution. No new ignore or reduced assertion
+was used to make this gate pass. The failed v1 remains a separate failed receipt.
+
+The current four Kotlin source files also match the exact SHA-256 inputs of the
+earlier executed nine-test JVM receipt. The current-source proof is a source
+identity check, not a claim of another JVM execution or Android/GLES validation.
+Android device validation is excluded by the user's maintained-desktop scope.
+The independent dense-export inspection confirms all eight frozen PNGs byte for
+byte and all 48 externally decoded MP4 frames with maximum RGB error 3/255.
+
+Main advanced by two unrelated commits while the frozen local command ran.
+This local result describes this branch at `b90b52a1`; the PR's merged-ref CI
+must validate integration with the then-current main before merging.
 
 ## Dense-curve output and current protocol closure
 
