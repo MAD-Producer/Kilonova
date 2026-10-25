@@ -80,8 +80,9 @@ impl ShaderData {
         Ok(())
     }
 
-    /// Called only after the package's ordinary decoded-resource admission.
-    pub(crate) fn validate_texture(&self, bytes: &[u8]) -> Result<()> {
+    /// Validate private runtime bytes before a consumer decodes or uploads them.
+    /// Package callers also apply ordinary decoded-resource admission.
+    pub fn validate_texture(&self, bytes: &[u8]) -> Result<()> {
         let Some(texture) = &self.overflow else {
             return Ok(());
         };

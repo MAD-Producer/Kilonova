@@ -205,6 +205,9 @@ impl NodeTasks {
             std::thread::Builder::new()
                 .name(name.into())
                 .spawn(move || {
+                    // Owned by this worker, with a bounded canonical/preview
+                    // pair. No process-global cache or user-supplied proof.
+                    let mut compiler = motion_graph::EditableCompiler::default();
                     while let Ok(job) = receive.recv() {
                         let began = std::time::Instant::now();
                         let outcome = if job_cancelled(&job, &generation, &latest_compile) {
@@ -219,7 +222,7 @@ impl NodeTasks {
                             );
                             crate::logging::flush();
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                execute(&job, &generation, &latest_compile)
+                                execute(&job, &generation, &latest_compile, &mut compiler)
                             }))
                             .unwrap_or_else(|payload| {
                                 Outcome::Failed(format!(
@@ -449,7 +452,10 @@ impl NodeTasks {
 impl Drop for NodeTasks {
     fn drop(&mut self) {
         if !self.pending.is_empty() {
-            log::debug!("node tasks closing: cancelling {} pending job(s)", self.pending.len());
+            log::debug!(
+                "node tasks closing: cancelling {} pending job(s)",
+                self.pending.len()
+            );
         }
         self.generation.fetch_add(1, Ordering::AcqRel);
     }
@@ -496,7 +502,12 @@ fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: boo
     }
 }
 
-fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Outcome {
+fn execute(
+    job: &Job,
+    generation: &AtomicU64,
+    latest_compile: &AtomicU64,
+    compiler: &mut motion_graph::EditableCompiler,
+) -> Outcome {
     let cancelled = || job_cancelled(job, generation, latest_compile);
     let result = (|| -> Result<Outcome, String> {
         if job.kind == Kind::Validate {
@@ -505,7 +516,13 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
             ));
         }
         if job.kind == Kind::Compile {
-            let result = job.snapshot.compile_preview_runtime().map_err(|e| e.diagnostic());
+            let snapshot = &job.snapshot;
+            let result = if let Some(target) = &snapshot.preview_target {
+                compiler.compile_preview(&snapshot.document, &snapshot.options, target)
+            } else {
+                compiler.compile(&snapshot.document, &snapshot.options)
+            }
+            .map_err(|e| e.diagnostic());
             return Ok(match result {
                 Err(error) => Outcome::Compiled(Err(error)),
                 Ok(_) if cancelled() => Outcome::Cancelled,
@@ -513,7 +530,11 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
                     let canonical = if job.snapshot.layer_target.is_some()
                         && job.snapshot.preview_target.is_some()
                     {
-                        Some(job.snapshot.compile_runtime().map_err(|e| e.diagnostic())?)
+                        Some(
+                            compiler
+                                .compile(&snapshot.document, &snapshot.options)
+                                .map_err(|e| e.diagnostic())?,
+                        )
                     } else {
                         None
                     };
@@ -614,21 +635,33 @@ mod tests {
     use crate::node_editor::Request;
     #[test]
     fn live_compiler_worker_changes_private_data_without_changing_baked_compile_contract() {
-        use motion_graph::{Node, NodeOp, Connection};
+        use motion_graph::{Connection, Node, NodeOp};
         let mut graph = motion_graph::demo_graph();
         graph.public_parameters.clear();
-        graph.nodes = vec![Node::new("color", NodeOp::Color { value: [0.1,0.3,0.8,0.5] }), Node::new("output", NodeOp::ColorOutput)];
+        graph.nodes = vec![
+            Node::new(
+                "color",
+                NodeOp::Color {
+                    value: [0.1, 0.3, 0.8, 0.5],
+                },
+            ),
+            Node::new("output", NodeOp::ColorOutput),
+        ];
         graph.connections = vec![Connection::new("color", "value", "output", "color")];
         let mut editor = NodeEditor::new(graph);
         let mut tasks = NodeTasks::start().unwrap();
         fn compile(tasks: &mut NodeTasks, editor: &mut NodeEditor) -> ReadyPreview {
-            tasks.submit(editor.request(Request::Compile).unwrap(), Locale::En, false).unwrap();
+            tasks
+                .submit(editor.request(Request::Compile).unwrap(), Locale::En, false)
+                .unwrap();
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
             loop {
                 assert!(std::time::Instant::now() < deadline);
                 let (_, mut ready) = tasks.poll(editor, Locale::En);
                 if let Some(ready) = ready.pop() {
-                    assert!(editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report.clone())));
+                    assert!(
+                        editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report.clone()))
+                    );
                     return ready;
                 }
                 std::thread::sleep(std::time::Duration::from_millis(2));
@@ -636,16 +669,25 @@ mod tests {
         }
         let baked = editor.snapshot().compile().unwrap().source;
         let first = compile(&mut tasks, &mut editor);
+        assert_eq!(first.compiled.report.portable_compilations, 1);
         assert!(first.compiled.manifest.effects[0].shader_data.is_some());
         editor.set_constant("color", 0, 0.9).unwrap();
         let second = compile(&mut tasks, &mut editor);
+        assert_eq!(second.compiled.report.portable_compilations, 0);
         assert_ne!(baked, editor.snapshot().compile().unwrap().source);
         assert_eq!(first.compiled.source, second.compiled.source);
         assert_eq!(first.compiled.shader.wgsl, second.compiled.shader.wgsl);
-        assert_ne!(first.compiled.manifest.effects[0].shader_data, second.compiled.manifest.effects[0].shader_data);
+        assert_ne!(
+            first.compiled.manifest.effects[0].shader_data,
+            second.compiled.manifest.effects[0].shader_data
+        );
         assert!(editor.undo());
         let restored = compile(&mut tasks, &mut editor);
-        assert_eq!(first.compiled.manifest.effects[0].shader_data, restored.compiled.manifest.effects[0].shader_data);
+        assert_eq!(restored.compiled.report.portable_compilations, 0);
+        assert_eq!(
+            first.compiled.manifest.effects[0].shader_data,
+            restored.compiled.manifest.effects[0].shader_data
+        );
         assert_eq!(baked, editor.snapshot().compile().unwrap().source);
     }
     #[test]
@@ -768,10 +810,8 @@ mod observability_tests {
                 path: Some(root.join("blocked/failure.msgraph")),
             };
             let began = std::time::Instant::now();
-            let outcome = execute(&job, &generation, &latest);
-            assert!(
-                matches!(&outcome, Outcome::Failed(error) if error.contains("graph I/O"))
-            );
+            let outcome = execute(&job, &generation, &latest, &mut Default::default());
+            assert!(matches!(&outcome, Outcome::Failed(error) if error.contains("graph I/O")));
             // Cancel at the boundary after the real operation has failed and
             // before publishing its completion, without relying on a sleep.
             generation.store(2, Ordering::Release);
@@ -792,7 +832,7 @@ mod observability_tests {
             job.snapshot.document.connections.clear();
             latest.store(42, Ordering::Release);
             let began = std::time::Instant::now();
-            let outcome = execute(&job, &generation, &latest);
+            let outcome = execute(&job, &generation, &latest, &mut Default::default());
             assert!(
                 matches!(&outcome, Outcome::Compiled(Err(error)) if error.code == motion_graph::ErrorCode::MissingOutput)
             );
@@ -811,7 +851,7 @@ mod observability_tests {
             job.snapshot = editor.snapshot();
             latest.store(43, Ordering::Release);
             let began = std::time::Instant::now();
-            let outcome = execute(&job, &generation, &latest);
+            let outcome = execute(&job, &generation, &latest, &mut Default::default());
             assert!(matches!(&outcome, Outcome::Compiled(Ok(_))));
             latest.store(0, Ordering::Release);
             assert!(matches!(
@@ -870,15 +910,32 @@ mod observability_tests {
             let mut editor = NodeEditor::default();
             let mut tasks = NodeTasks::start().unwrap();
             std::fs::write(root.join("absent"), b"file blocks output directory").unwrap();
-            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("absent/failure.msgraph"), Locale::En).unwrap();
+            tasks
+                .submit_to(
+                    editor.request(Request::SaveAs).unwrap(),
+                    root.join("absent/failure.msgraph"),
+                    Locale::En,
+                )
+                .unwrap();
             drain(&mut tasks, &mut editor);
             let expected = editor.snapshot().document;
-            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("saved.msgraph"), Locale::En).unwrap();
+            tasks
+                .submit_to(
+                    editor.request(Request::SaveAs).unwrap(),
+                    root.join("saved.msgraph"),
+                    Locale::En,
+                )
+                .unwrap();
             editor.replace_document(motion_graph::demo_graph(), None);
             drain(&mut tasks, &mut editor);
-            assert_eq!(GraphDocument::load(&root.join("saved.msgraph")).unwrap(), expected);
+            assert_eq!(
+                GraphDocument::load(&root.join("saved.msgraph")).unwrap(),
+                expected
+            );
             assert!(editor.snapshot().source_path.is_none());
-            tasks.submit(editor.request(Request::Compile).unwrap(), Locale::En, false).unwrap();
+            tasks
+                .submit(editor.request(Request::Compile).unwrap(), Locale::En, false)
+                .unwrap();
             drain(&mut tasks, &mut editor);
             return;
         }
@@ -887,12 +944,18 @@ mod observability_tests {
             .args(["--exact", "node_tasks::observability_tests::source_side_effects_and_failures_are_logged_even_after_editor_replacement"])
             .env(CHILD,root.path()).env_remove("MOTION_LOG")
             .output().unwrap();
-        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
         assert!(text.contains("node start #1 SaveAs epoch="));
         assert!(text.contains("node error #1 SaveAs ") && text.contains("ms epoch="));
         assert!(text.contains("node saved #2 epoch=") && text.contains("saved.msgraph"));
-        assert!(text.lines().any(|line| line.contains(" INFO ") && line.contains("node start #3 Compile")));
+        assert!(text
+            .lines()
+            .any(|line| line.contains(" INFO ") && line.contains("node start #3 Compile")));
         assert!(String::from_utf8_lossy(&output.stderr).contains("node error #1 SaveAs "));
         assert!(!String::from_utf8_lossy(&output.stdout).contains("node saved #"));
     }

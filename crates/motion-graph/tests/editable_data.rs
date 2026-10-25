@@ -265,6 +265,7 @@ fn native_uniform_and_byte_texture_data_match_baked_pixels_in_four_precisions() 
             .unwrap();
         for overflow in [false, true] {
             let mut previous = None;
+            let mut compiler = EditableCompiler::default();
             for color in [
                 [0.125, 0.25, 0.75, 1.],
                 [0.75, 0.5, 0.25, 1.],
@@ -274,7 +275,7 @@ fn native_uniform_and_byte_texture_data_match_baked_pixels_in_four_precisions() 
                 let mut oracle = None;
                 for editable in [false, true] {
                     let compiled = if editable {
-                        compile_editable(&graph, &Default::default())
+                        compiler.compile(&graph, &Default::default())
                     } else {
                         compile(&graph, &Default::default())
                     }
@@ -312,6 +313,10 @@ fn native_uniform_and_byte_texture_data_match_baked_pixels_in_four_precisions() 
                     assert!(pixels.iter().any(|v| *v != 0));
                     if editable {
                         assert_eq!(
+                            compiled.report.portable_compilations,
+                            u64::from(previous.is_none())
+                        );
+                        assert_eq!(
                             &pixels,
                             oracle.as_ref().unwrap(),
                             "{precision:?} overflow={overflow} color={color:?}"
@@ -323,7 +328,7 @@ fn native_uniform_and_byte_texture_data_match_baked_pixels_in_four_precisions() 
                             );
                         }
                         previous = Some(pixels);
-                        rows.push(serde_json::json!({"precision":precision,"overflow":overflow,"color":color,"resource_bytes":compiled.report.package_resource_bytes,"shader_bytes":compiled.report.shader_bytes,"exact_baked_pixels":true}));
+                        rows.push(serde_json::json!({"precision":precision,"overflow":overflow,"color":color,"resource_bytes":compiled.report.package_resource_bytes,"shader_bytes":compiled.report.shader_bytes,"portable_compilations":compiled.report.portable_compilations,"exact_baked_pixels":true}));
                     } else {
                         oracle = Some(pixels);
                     }

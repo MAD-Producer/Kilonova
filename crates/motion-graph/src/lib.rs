@@ -3,6 +3,7 @@ mod blend;
 mod compiler;
 mod demo;
 mod document;
+mod editable_compiler;
 mod error;
 mod examples;
 mod export;
@@ -12,11 +13,14 @@ mod ports;
 mod runtime_data;
 pub use blend::ColorBlendMode;
 pub use compiler::{
-    compile, compile_editable, compile_preview, compile_preview_editable, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
-    NodePorts, ValidationReport,
+    compile, compile_editable, compile_preview, compile_preview_editable, node_ports, validate,
+    CompileOptions, CompileReport, CompiledGraph, NodePorts, ValidationReport,
 };
 pub use demo::demo_graph;
 pub use document::*;
+pub use editable_compiler::{
+    EditableCompiler, EditableCompilerStats, EDITABLE_CACHE_CODE_BYTES, EDITABLE_CACHE_ENTRIES,
+};
 pub use error::{Diagnostic, Error, ErrorCode, Result};
 pub use examples::{
     builtin_example_catalogue, builtin_examples, BuiltinExample, ExampleCollection,

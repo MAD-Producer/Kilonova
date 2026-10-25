@@ -69,6 +69,11 @@ pub struct CompileReport {
     pub package_resource_textures: usize,
     pub package_resource_bytes: u64,
     pub shader_bytes: usize,
+    /// Actual portable compiler calls for this request (zero on an exact hit).
+    pub portable_compilations: u64,
+    /// UTF-8 code bytes retained by the owning editable compiler, excluding
+    /// returned graphs, container overhead and native driver allocations.
+    pub compiler_cache_code_bytes: u64,
     pub emitted_values: usize,
     pub common_values_reused: usize,
     pub folded_math_nodes: usize,
@@ -297,20 +302,29 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
             (inputs, vec![("color", ValueType::Color)])
         }
         NodeOp::Blend { .. } => (
-            vec![("backdrop", ValueType::Color), ("source", ValueType::Color),
-                ("factor", ValueType::Float)],
+            vec![
+                ("backdrop", ValueType::Color),
+                ("source", ValueType::Color),
+                ("factor", ValueType::Float),
+            ],
             vec![("color", ValueType::Color)],
         ),
         NodeOp::Noise { octaves, .. } => {
             if !(1..=4).contains(octaves) {
                 return Err(Error::invalid(
-                    ErrorCode::InvalidValue, Some(&node.id), None,
+                    ErrorCode::InvalidValue,
+                    Some(&node.id),
+                    None,
                     "noise octaves must be in 1..=4",
                 ));
             }
             (
-                vec![("coordinate", ValueType::Vec2), ("offset", ValueType::Vec2),
-                    ("scale", ValueType::Float), ("seed", ValueType::Float)],
+                vec![
+                    ("coordinate", ValueType::Vec2),
+                    ("offset", ValueType::Vec2),
+                    ("scale", ValueType::Float),
+                    ("seed", ValueType::Float),
+                ],
                 vec![("factor", ValueType::Float), ("color", ValueType::Color)],
             )
         }
@@ -810,25 +824,33 @@ fn validate_root(
 }
 
 pub fn compile(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
-    compile_mode(document, options, false)
+    compile_mode(document, options, false, None)
 }
 
 /// Editable runtime path. Numeric literals, input defaults and CPU-folded
 /// results are private data; the ordinary compile API remains a baked oracle.
-pub fn compile_editable(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
-    compile_mode(document, options, true)
+pub fn compile_editable(
+    document: &GraphDocument,
+    options: &CompileOptions,
+) -> Result<CompiledGraph> {
+    compile_mode(document, options, true, None)
 }
 
-fn compile_mode(document: &GraphDocument, options: &CompileOptions, editable: bool) -> Result<CompiledGraph> {
+pub(crate) fn compile_mode(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    editable: bool,
+    cache: Option<&mut crate::EditableCompiler>,
+) -> Result<CompiledGraph> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
         let plan =
             validate_root(&flat.document, options, None).map_err(|error| flat.describe(error))?;
-        return compile_plan(&flat.document, options, &plan, None, editable)
+        return compile_plan(&flat.document, options, &plan, None, editable, cache)
             .map_err(|error| flat.describe(error));
     }
     let plan = validate(document, options)?;
-    compile_plan(document, options, &plan, None, editable)
+    compile_plan(document, options, &plan, None, editable, cache)
 }
 
 /// Compile a typed diagnostic view of one output and its dependencies. This does
@@ -838,18 +860,28 @@ pub fn compile_preview(
     options: &CompileOptions,
     target: &PortRef,
 ) -> Result<CompiledGraph> {
-    compile_preview_mode(document, options, target, false)
+    compile_preview_mode(document, options, target, false, None)
 }
 
-pub fn compile_preview_editable(document: &GraphDocument, options: &CompileOptions, target: &PortRef) -> Result<CompiledGraph> {
-    compile_preview_mode(document, options, target, true)
+pub fn compile_preview_editable(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    target: &PortRef,
+) -> Result<CompiledGraph> {
+    compile_preview_mode(document, options, target, true, None)
 }
 
-fn compile_preview_mode(document: &GraphDocument, options: &CompileOptions, target: &PortRef, editable: bool) -> Result<CompiledGraph> {
+pub(crate) fn compile_preview_mode(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    target: &PortRef,
+    editable: bool,
+    cache: Option<&mut crate::EditableCompiler>,
+) -> Result<CompiledGraph> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
         let target = flat.resolve(target)?;
-        return compile_preview_mode(&flat.document, options, &target, editable)
+        return compile_preview_mode(&flat.document, options, &target, editable, cache)
             .map_err(|error| flat.describe(error));
     }
     if document.nodes.len() > options.max_nodes
@@ -880,7 +912,7 @@ fn compile_preview_mode(document: &GraphDocument, options: &CompileOptions, targ
     view.connections
         .retain(|edge| keep.contains(&edge.from.node) && keep.contains(&edge.to.node));
     let plan = validate_root(&view, options, Some(target))?;
-    compile_plan(&view, options, &plan, Some(target), editable)
+    compile_plan(&view, options, &plan, Some(target), editable, cache)
 }
 
 fn compile_plan(
@@ -889,6 +921,7 @@ fn compile_plan(
     plan: &ValidationReport,
     target: Option<&PortRef>,
     editable: bool,
+    cache: Option<&mut crate::EditableCompiler>,
 ) -> Result<CompiledGraph> {
     let mut manifest = make_manifest(document, options)?;
     let mut builder = Builder::new(document, plan, editable);
@@ -916,27 +949,53 @@ fn compile_plan(
         builder.input(&plan.output_node, "color").expr
     };
     let mut support = helpers(document.alpha_mode);
-    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Blend { .. })) {
+    if plan
+        .reachable_nodes
+        .iter()
+        .any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Blend { .. }))
+    {
         support.push_str(include_str!("blend.wgsl"));
     }
-    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Noise { .. })) {
+    if plan
+        .reachable_nodes
+        .iter()
+        .any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Noise { .. }))
+    {
         support.push_str(include_str!("noise.wgsl"));
     }
-    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. })) {
+    if plan
+        .reachable_nodes
+        .iter()
+        .any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. }))
+    {
         support.push_str(include_str!("gradient.wgsl"));
     }
-    let runtime = builder.data.as_ref().map(|data| data.borrow().finish()).transpose()?;
-    if builder.data.as_ref().is_some_and(|data| data.borrow().has_overflow()) {
+    let runtime = builder
+        .data
+        .as_ref()
+        .map(|data| data.borrow().finish())
+        .transpose()?;
+    if builder
+        .data
+        .as_ref()
+        .is_some_and(|data| data.borrow().has_overflow())
+    {
         support.push_str(crate::runtime_data::HELPER);
     }
     let resources = if let Some(runtime) = runtime {
         let definition = &mut manifest.effects[0];
         definition.shader_data = Some(runtime.declaration);
         definition.resources = runtime.resources.keys().cloned().collect();
-        definition.required_capabilities.push(motion_effects::shader_data::SHADER_DATA_CAPABILITY.into());
-        manifest.validate().map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
+        definition
+            .required_capabilities
+            .push(motion_effects::shader_data::SHADER_DATA_CAPABILITY.into());
+        manifest
+            .validate()
+            .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
         runtime.resources
-    } else { BTreeMap::new() };
+    } else {
+        BTreeMap::new()
+    };
     let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",support,builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
@@ -946,8 +1005,15 @@ fn compile_plan(
             "generated shader exceeds source byte budget",
         ));
     }
-    let shader = shader::compile(&source, "graph_fx")
-        .map_err(|cause| Error::effect(ErrorCode::Shader, "", cause))?;
+    let (shader, portable_compilations, compiler_cache_code_bytes) = match cache {
+        Some(cache) => cache.shader(&source)?,
+        None => (
+            shader::compile(&source, "graph_fx")
+                .map_err(|cause| Error::effect(ErrorCode::Shader, "", cause))?,
+            1,
+            0,
+        ),
+    };
     // This exact wrapper is shared with the effect package loader, not inferred
     // from loop_work (which is a separate portable-source validation metric).
     let host_sample_sites = 1;
@@ -981,6 +1047,8 @@ fn compile_plan(
         package_resource_textures: manifest.effects[0].resources.len(),
         package_resource_bytes: resources.values().map(|bytes| bytes.len() as u64).sum(),
         shader_bytes: source.len(),
+        portable_compilations,
+        compiler_cache_code_bytes,
         emitted_values: builder.values,
         common_values_reused: builder.reused,
         folded_math_nodes: builder.folded,
@@ -1116,7 +1184,11 @@ impl<'a> Builder<'a> {
             reused: 0,
             folded: 0,
             samples: 0,
-            data: editable.then(|| std::cell::RefCell::new(crate::runtime_data::NumericData::new(document.public_parameters.len()))),
+            data: editable.then(|| {
+                std::cell::RefCell::new(crate::runtime_data::NumericData::new(
+                    document.public_parameters.len(),
+                ))
+            }),
         }
     }
     fn input(&self, node: &str, port: &str) -> Symbol {
@@ -1132,7 +1204,18 @@ impl<'a> Builder<'a> {
             .input_defaults[port];
         if let InputValue::Bool(value) = value {
             return Symbol {
-                expr: self.data.as_ref().map_or_else(|| value.to_string(), |data| data.borrow_mut().expression(node, port, true, ValueType::Bool, &[if *value { 1. } else { 0. }])),
+                expr: self.data.as_ref().map_or_else(
+                    || value.to_string(),
+                    |data| {
+                        data.borrow_mut().expression(
+                            node,
+                            port,
+                            true,
+                            ValueType::Bool,
+                            &[if *value { 1. } else { 0. }],
+                        )
+                    },
+                ),
                 constant: None,
                 image: None,
             };
@@ -1146,7 +1229,13 @@ impl<'a> Builder<'a> {
             }
         }
         Symbol {
-            expr: self.data.as_ref().map_or_else(|| literal(value.value_type(), &components), |data| data.borrow_mut().expression(node, port, true, value.value_type(), &components)),
+            expr: self.data.as_ref().map_or_else(
+                || literal(value.value_type(), &components),
+                |data| {
+                    data.borrow_mut()
+                        .expression(node, port, true, value.value_type(), &components)
+                },
+            ),
             constant: Some(components),
             image: None,
         }
@@ -1186,7 +1275,13 @@ impl<'a> Builder<'a> {
         self.symbols.insert(PortRef::new(&node.id, port), symbol);
     }
     fn literal(&mut self, node: &Node, port: &str, ty: ValueType, value: Vec<f32>) {
-        let expr = self.data.as_ref().map_or_else(|| literal(ty, &value), |data| data.borrow_mut().expression(&node.id, port, false, ty, &value));
+        let expr = self.data.as_ref().map_or_else(
+            || literal(ty, &value),
+            |data| {
+                data.borrow_mut()
+                    .expression(&node.id, port, false, ty, &value)
+            },
+        );
         self.put(node, port, ty, expr, Some(value), false);
     }
     fn emit(&mut self, node: &Node) -> Result<()> {
@@ -1247,7 +1342,12 @@ impl<'a> Builder<'a> {
                 }
                 self.literal(node, "value", ValueType::Color, value);
             }
-            Bool { value } if self.data.is_some() => self.literal(node, "value", ValueType::Bool, vec![if *value { 1. } else { 0. }]),
+            Bool { value } if self.data.is_some() => self.literal(
+                node,
+                "value",
+                ValueType::Bool,
+                vec![if *value { 1. } else { 0. }],
+            ),
             Bool { value } => self.put(
                 node,
                 "value",
@@ -1446,29 +1546,59 @@ impl<'a> Builder<'a> {
                 self.put(node, "color", ValueType::Color, expr, None, false);
             }
             Blend { mode } => {
-                self.put(node, "color", ValueType::Color,
-                    format!("ng_blend({}u,{},{},{})", *mode as u32,
-                        input("backdrop").expr, input("source").expr, input("factor").expr),
-                    None, false);
+                self.put(
+                    node,
+                    "color",
+                    ValueType::Color,
+                    format!(
+                        "ng_blend({}u,{},{},{})",
+                        *mode as u32,
+                        input("backdrop").expr,
+                        input("source").expr,
+                        input("factor").expr
+                    ),
+                    None,
+                    false,
+                );
             }
             Noise { mode, octaves } => {
                 let mode = u32::from(*mode == NoiseMode::Perlin);
-                let position = format!("(({}+{})*clamp({},0.0,4096.0))",
-                    input("coordinate").expr, input("offset").expr, input("scale").expr);
+                let position = format!(
+                    "(({}+{})*clamp({},0.0,4096.0))",
+                    input("coordinate").expr,
+                    input("offset").expr,
+                    input("scale").expr
+                );
                 let seed = format!("u32(floor(clamp({},0.0,65535.0)))", input("seed").expr);
                 // Statically bounded work: no dynamic octave loop in exported shaders.
-                let terms: Vec<_> = (0..*octaves).map(|i| {
-                    let frequency = 1u32 << i;
-                    let weight = 1. / frequency as f32;
-                    format!("ng_noise({position}*{frequency}.0,({seed}+{}u),{mode}u)*{weight:?}",
-                        u32::from(i) * 7919)
-                }).collect();
+                let terms: Vec<_> = (0..*octaves)
+                    .map(|i| {
+                        let frequency = 1u32 << i;
+                        let weight = 1. / frequency as f32;
+                        format!(
+                            "ng_noise({position}*{frequency}.0,({seed}+{}u),{mode}u)*{weight:?}",
+                            u32::from(i) * 7919
+                        )
+                    })
+                    .collect();
                 let total: f32 = (0..*octaves).map(|i| 1. / (1u32 << i) as f32).sum();
-                self.put(node, "factor", ValueType::Float,
-                    format!("(({})/{total:?})", terms.join("+")), None, false);
+                self.put(
+                    node,
+                    "factor",
+                    ValueType::Float,
+                    format!("(({})/{total:?})", terms.join("+")),
+                    None,
+                    false,
+                );
                 let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
-                self.put(node, "color", ValueType::Color,
-                    format!("vec4<f32>(vec3<f32>({factor}),1.0)"), None, false);
+                self.put(
+                    node,
+                    "color",
+                    ValueType::Color,
+                    format!("vec4<f32>(vec3<f32>({factor}),1.0)"),
+                    None,
+                    false,
+                );
             }
             Gradient { mode } => {
                 let mode = match mode {
@@ -1487,8 +1617,14 @@ impl<'a> Builder<'a> {
                 let b = input("b").expr;
                 self.put(node, "factor", ValueType::Float, factor, None, false);
                 let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
-                self.put(node, "color", ValueType::Color,
-                    format!("mix({a},{b},{factor})"), None, false);
+                self.put(
+                    node,
+                    "color",
+                    ValueType::Color,
+                    format!("mix({a},{b},{factor})"),
+                    None,
+                    false,
+                );
             }
             ApplyMask => {
                 let c = input("color").expr;

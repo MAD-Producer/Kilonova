@@ -16,17 +16,17 @@ was reviewed and no subagent was used.
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
 | 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
-| 78-R5 numeric data / code identity | Numeric effect changes keep actual shader identities; editable literals/defaults/folded results now use private data in the actual live compiler worker; actual uniform/overflow pixels match baked code | Per-instance updates, bounded compiler reuse and native/preview pipeline reuse with actual counters remain unfinished; unchanged code is not a no-recompile result |
+| 78-R5 numeric data / code identity | Actual worker-owned portable compiler cache has two entries / 8 MiB code bounds; private literal/default/folded data updates reuse actual compiler output; native preview creation calls remain zero while uniform/overflow pixels change, with actual worker/engine/capture verification | Per-instance bound-layer updates without runtime-package churn, native effect pipeline counts and affected-group structural acceptance remain unfinished |
 | 78-R6 proven grouping | #73 implementation-bound opt-in proof is present; its seven native tests and procedural alpha guard pass through the new scheduler | Connect grouping decisions to the complete IR and preserve all proven refusal boundaries |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
 | 78-R8 runtime version / capabilities | Logical graph version/capabilities validate; native snapshot consumer refuses missing ImageDagV1 and insufficient budget; actual package loader refuses invalid numeric-data versions/capabilities/capacities/payloads | Versioned packaged execution plan and real portable execution-IR consumer acceptance/refusal remain unfinished |
-| 78-R9 failures / observation | Original typed graph errors survive renderer context; cycle diagnostics identify bounded actual layer IDs; success after each refusal is checked | Exercise new graph failures through default production file/Error-stderr logging and stdout isolation |
+| 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
 | 78-R10 performance / admission | Existing physical scratch/source admission stays authoritative; logical graph caps are additional and bounded | Measure end-to-end shader/compile/pass/frame/peak costs, including per-frame code identity hashing; no performance improvement is claimed |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
 
 Android device acceptance and legacy migration are outside the user-confirmed
 scope. Runtime version and capability refusal remain required. No UI, panel,
-style, dependency or third-party asset change is included in this milestone.
+style, new dependency version or third-party asset change is included in this milestone.
 
 ## First native execution consumer
 
@@ -114,6 +114,57 @@ undo recovery. No value was injected into shader text to satisfy the assertion.
 Graph/effects results retain their pre-routing-correction source scope; their
 production graph/effects source did not change in that correction. The second
 desktop run covers the corrected worker/preview routing. None of these runs is
-a final integrated workspace or cross-platform CI result. Numeric edits still
-compile shaders and replace runtime packages/pipelines: cache and instance-data
-work remains required before claiming #78's no-recompile acceptance criterion.
+a final integrated workspace or cross-platform CI result. At this transport
+milestone, numeric edits still compiled shaders and replaced runtime packages
+and pipelines. The following milestone adds owned compiler and independent
+preview reuse; bound runtime packages and native instances still remain before
+claiming #78's complete no-recompile criterion.
+
+## Owned compiler and independent preview reuse milestone
+
+The actual node compiler thread now owns a two-entry, 8 MiB UTF-8 code cache.
+It compares complete generated source and retains private compiler results;
+returned mutable shaders cannot authorize or poison later hits. Every request
+still validates its graph, manifest, private values and current budgets. Actual
+portable compiler calls and retained code bytes are exposed in the report.
+
+The actual `NodeInstall` path creates a transactional admitted preview candidate
+and shares successful native pipelines only under the same private allocation
+owner and actual WGSL/static format. Source/data/output/uniform/presentation
+resources remain separate. A bounded current-plus-one-alternate presentation
+cache handles native swapchain / PNG format round trips. Three-format eviction
+and cross-owner refusal have actual GPU creation-call checks. This is pipeline
+reuse, not driver timing, resident-memory or universal performance evidence.
+
+Receipts, final-source hashes, selected source, actual 24-row native data results,
+four zero-build preview pixel rows and default production failure outputs are
+retained in the [verified reuse archive](data/typed-render-dag-reuse-72a521ea.zip).
+The archive has 107 verified files plus its manifest, 560,662 bytes, SHA-256
+`582e2efe245728857eb87ef8d3f1be4cbae4ff11e1330b01ee700ec3bb4c162e`.
+
+| Receipt under `artifacts/pr-queue/` | Actual result |
+| --- | --- |
+| `issue78-numeric-reuse-v1` | Desktop check passed; graph scope 79 passed / one failed / zero ignored; the new input-default fixture omitted its required graph format version |
+| `issue78-numeric-reuse-v2` | Desktop check, complete graph 80 and effects library 26 passed; desktop top-level scope 211 passed / one failed / zero ignored; a child zero-build assertion exposed actual swapchain/PNG presentation-format churn, not a second independent failed test |
+| `issue78-numeric-reuse-v3` | Corrected desktop check and node scope 212 passed / zero failed / zero ignored across six targets, including actual compiler -> engine -> capture and default fault/recovery output acceptance |
+
+No previous assertion was weakened. The fixture now declares the format it
+uses. The actual engine zero-build assertion remains zero; the implementation
+retains the two owner-local presentation formats instead. The corrected desktop
+gate covers both the default file/Error-stderr/stdout test and real allocation
+refusal, malformed shader/data, old-candidate pixel preservation, paused output
+invalidation, new-code rebuild, format eviction and cross-owner checks.
+
+The v2 graph/effects source hashes match the corrected final source in those
+crates. The v3 desktop gate covers the changed display implementation and its
+round-trip tests. The archive verifies both scopes explicitly; neither is a final
+integrated workspace or cross-platform CI result. A source-bound archive helper
+initially used the Windows default GBK decoder; its UTF-8 correction changed no
+tested source or assertion, and the completed archive was read back and hashed.
+
+Bound-layer application still installs value-dependent packages and can clear
+native effect pipelines. Diagnostic bound canonical validation also still builds
+a separate preview. Instance data, complete pre-placement effect IR, packaged
+execution-IR consumer negotiation, complete costs/peaks and final integration/CI
+remain pending. Issue #78 stays open, followed by #74 and #87. No panel file was
+changed, no other agent's PR was reviewed and no subagent was used.

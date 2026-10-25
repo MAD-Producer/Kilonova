@@ -46,6 +46,8 @@ mod scope_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod node_admission_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod numeric_reuse_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
@@ -1562,7 +1564,7 @@ fn handle(
                 };
                 if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical)
                     .map_err(|error|motion_host::Error::with_context(format!("node canonical graph {} {:?}",snapshot.document.id,snapshot.preview_stamp()),error))?;}
-                crate::node_preview::NodePreview::build(&context, &snapshot, &compiled)
+                crate::node_preview::NodePreview::build_reusing(&context, &snapshot, &compiled, node_preview.active.as_ref())
                     .map_err(|error| motion_host::Error::with_context(format!("node graph {} {:?}", snapshot.document.id, snapshot.preview_stamp()),error))
             })?;
             if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
@@ -1853,7 +1855,7 @@ fn handle(
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
                 "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
-                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
+                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
         Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project_with_choice(id, &text, project::PreviousProject::Save))),
