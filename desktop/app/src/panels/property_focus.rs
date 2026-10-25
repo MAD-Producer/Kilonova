@@ -51,6 +51,7 @@ enum Domain {
 /// Called before keyboard dispatch and after each panel consumes input. Only
 /// actual selection commands publish an intent; passive rendering publishes none.
 pub(super) fn settle(panels: &mut Panels) {
+    let keys_intent = panels.selected_keys.take_intent();
     let intents = [
         (
             Domain::Transform,
@@ -78,6 +79,7 @@ pub(super) fn settle(panels: &mut Panels) {
         mirror_effect_selection(panels);
         return;
     };
+    if !keys_intent { panels.selected_keys.release(); }
     if owner != Domain::Transform {
         panels.animation_controls.yield_track();
     }

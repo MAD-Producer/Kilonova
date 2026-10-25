@@ -98,6 +98,13 @@ fn command(c: &Channel, edit: KeyEdit) -> Action {
     })
 }
 impl Controls {
+    pub(in crate::panels) fn project_key(&mut self, state: &Value, object: u64, item: u64, parameter: &str, frame: u32) {
+        self.context=Some((state["root"].as_str().unwrap_or("").into(),state["composition"].as_str().unwrap_or("").into()));
+        let channel=Channel {object,item,parameter:parameter.into()};
+        self.active=Some(channel.clone());
+        self.selected=Some((channel,frame));
+        self.selection_intent=true;
+    }
     pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<crate::panels::keyframe_clipboard::Selection> {
         use crate::panels::keyframe_clipboard as clipboard;
         let c = self.active.as_ref().filter(|c| c.object == object)?;
@@ -509,6 +516,7 @@ impl Controls {
             if let Some(f) = target {
                 at = f;
                 self.selected = Some((c.clone(), f as u32));
+                self.selection_intent = true;
                 out.push(Action::Seek(at));
             }
         }

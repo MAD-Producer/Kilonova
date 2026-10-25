@@ -228,7 +228,11 @@ pub(in crate::panels) fn render(
                 )
             });
             let lane = Rect::new(track.min[0], py, track.width(), height);
-            let key_hit = input.pressed.is_some_and(|(_, p)| lane.contains(p));
+            let key_hit = input.pressed.is_some_and(|(button, p)| lane.contains(p) && (button != MouseButton::Left ||
+                key_frames(mask,index).iter().any(|local| {
+                    let x=lane.min[0]+((i64::from(*local)+i64::from(owner.offset)) as f32-offset)*ppf;
+                    (p[0]-x).hypot(p[1]-(py+height*0.5)) <= styles.metric("timeline.key.radius",4.)+styles.metric("motion.drag_threshold",3.)
+                })));
             let row_area = Rect::new(area.min[0], py, area.width(), height);
             panels.path_controls.selection_probe.record(fields.caption,
                 Rect::new(area.min[0], body.min[1], area.width(), body.height()));
@@ -309,9 +313,12 @@ pub(in crate::panels) fn render(
                 }
             }
             if !panels.timeline.graph_mode {
+                let neutral = Input::default();
+                let lane_input = if input.pressed.is_some_and(|(b,p)|b==MouseButton::Left && lane.contains(p)) && !key_hit { &neutral } else { input };
                 panels.path_controls.keys.lane(
-                    list, lane, ppf, offset, state, owner, mask, index, input, out,
+                    list, lane, ppf, offset, state, owner, mask, index, lane_input, out,
                 );
+                crate::panels::key_selection::ui::mask_lane(list,panels,state,row.id,mask,index,owner.offset,lane,ppf,offset);
             }
         }
     }

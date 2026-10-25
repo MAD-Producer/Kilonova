@@ -1,0 +1,1320 @@
+{
+  "issue": 216,
+  "sourceCommit": "608381a4",
+  "initialScreenshotCommit": "322182b9",
+  "platform": "Windows x86_64; ordinary FFmpeg debug desktop build, native Vulkan, 96 DPI",
+  "tests": {
+    "panelFinal": {
+      "passed": 531,
+      "failed": 0,
+      "seconds": 306.4
+    },
+    "panelFirst": {
+      "passed": 519,
+      "failed": 11,
+      "seconds": 462.43,
+      "retained": true
+    },
+    "panelSecond": {
+      "passed": 530,
+      "failed": 1,
+      "seconds": 425.71,
+      "retained": true
+    },
+    "navigationFocusFix": {
+      "passed": 9,
+      "seconds": 8.27,
+      "includedInPanelFinal": true
+    },
+    "keySelectionFinalTargeted": {
+      "passed": 24,
+      "seconds": 9.5,
+      "includedInPanelFinal": true
+    },
+    "coreFoundation": {
+      "passed": 26,
+      "reference": "keyframe-selection-foundation-results.json"
+    },
+    "noSummedUniquePassClaim": true
+  },
+  "ordinaryOSInput": {
+    "zhMain": {
+      "f9Changed": true,
+      "f9UndoExact": true,
+      "summaryDeleteAllKeys": true,
+      "summaryUndoExact": true,
+      "graphEscapeAndLateReleaseUnchanged": true,
+      "graphDeleteSelectedChannel": true,
+      "graphKeepsUnselectedLayer": true,
+      "graphUndoExact": true,
+      "oneUndoItem": true
+    },
+    "enNativeFloating": {
+      "f9Changed": true,
+      "f9UndoExact": true,
+      "toggleDeletesExactlyFirstKey": true,
+      "toggleKeepsOtherLayer": true,
+      "toggleUndoExact": true,
+      "summaryDeleteAllKeys": true,
+      "summaryUndoExact": true,
+      "graphDeleteSelectedChannel": true,
+      "graphKeepsUnselectedLayer": true,
+      "graphUndoExact": true,
+      "graphRedoExact": true,
+      "saveSnapshotExact": true,
+      "oneUndoItem": true,
+      "redoOneItem": true
+    },
+    "freshProcessReopenZh": {
+      "fullProjectExact": true,
+      "freshHistoryEmpty": true,
+      "differentOSProcess": true
+    },
+    "finalBuildMainEn": {
+      "f9Changed": true,
+      "f9UndoExact": true,
+      "escapeAndLateReleaseExact": true,
+      "deleteExactFirstKey": true,
+      "deleteExactSeparatedKeys": true,
+      "deleteUndoExact": true,
+      "deleteRedoExact": true,
+      "saveSnapshotExact": true,
+      "oneUndoItem": true,
+      "cleanExit": true,
+      "stdoutIsolated": true
+    },
+    "finalBuildFloatZh": {
+      "f9Changed": true,
+      "f9UndoExact": true,
+      "escapeAndLateReleaseExact": true,
+      "deleteExactFirstKey": true,
+      "deleteExactSeparatedKeys": true,
+      "deleteUndoExact": true,
+      "deleteRedoExact": true,
+      "saveSnapshotExact": true,
+      "oneUndoItem": true,
+      "cleanExit": true,
+      "stdoutIsolated": true
+    },
+    "inputMechanism": "OS mouse and keyboard events with HWND ownership assertions; MCP only reads state; no editor input hooks",
+    "screenshotMechanism": "ImageGrab of actual owning native window, original pixels; geometry JSON retained",
+    "fullFourLocaleHostMatrix": "ordinary OS processes exercise selection, F9, Delete, cancellation, undo/redo in all four combinations; native graph exercised in zh main and en float; actual chrome tests cover the full graph/host/locale matrix"
+  },
+  "defaultFailureChannels": {
+    "actualEditorActionFailures": "See foundation results: six actual typed edit failures; unchanged project/revision and successful recovery.",
+    "actualUICaptureFailure": "Original authored key array missing cause, localized UI message, file and Error stderr; unchanged selection.",
+    "scopeMissing": "120 actual chrome presses; old controllers blocked; first Warn, Error at 60, later suppression; healthy selection recovers.",
+    "stdoutIsolated": true,
+    "normalCancellationAndMissNotFaults": true,
+    "counterScope": "process lifetime per static site, no one-second or consecutive-reset claim"
+  },
+  "limitsAndRetainedFailures": [
+    "First OS fixture had axes plus coupled value/keys; strict TrackRepresentation rejected it. Fixture fixed; original logs retained.",
+    "The first zh plan used Ctrl+Y for redo, which creates a null layer by current defaults. Correct Ctrl+Shift+Z verified in en float; initial failed receipts retained.",
+    "Raw saved JSON serializes f32 shortest decimal forms while snapshot JSON expands f32 to f64. Full authoritative project equality verified after actual independent-process reopen, not raw text equality.",
+    "First toggle verifier incorrectly expected both original keys deleted although one was toggled off; exact remaining frame/value assertion replaces that artifact-script mistake.",
+    "A physical Shift+F3 attempt did not toggle the view. The actual toolbar button was used; no native keyboard graph-toggle acceptance claim.",
+    "Floating window initially showed an unpainted surface until real click; original startup/probe captures retained. Initial floating exposure is outside this selection change.",
+    "Existing Epic Vulkan layer registration errors, platform memory probe warning, and synthetic-atlas missing glyph records retained; no clean global log claim.",
+    "No multi-key dragging (#217), interpolation dialog (#218), new right-click actions, asset, dependency, or native cross-platform acceptance added."
+  ],
+  "captures": {
+    "zh-summary-selection.png": {
+      "origin": "keyframe-selection-os-main-zh-fixed/main-zh-selected-summary-keys.png",
+      "sha256": "ab8f9c574497725f68c52df63287ffe2589ac4b9343e936fb1ff272ed48693eb"
+    },
+    "zh-summary-marquee.png": {
+      "origin": "keyframe-selection-os-main-zh-fixed/main-zh-marquee.png",
+      "sha256": "e925940a612a14ebf31621259386d8482fd1af0cb472cab2c662f334803a07e4"
+    },
+    "zh-graph-selection.png": {
+      "origin": "keyframe-selection-os-main-zh-fixed/main-zh-graph-selected.png",
+      "sha256": "2a558f5d1efb7f9bc1c052938eed4f330b9f6c9f042ebb1388495dfd8efcf9bd"
+    },
+    "en-float-cross-layer-selection.png": {
+      "origin": "keyframe-selection-os-float-en/float-en-cross-layer-selection.png",
+      "sha256": "3a26d1f9abc3f64575cfbf01113637232480b6c7902ff736177257fef6977ccb"
+    },
+    "en-float-summary-marquee.png": {
+      "origin": "keyframe-selection-os-float-en/float-en-marquee.png",
+      "sha256": "d992acb338a9e4178c43367de9fe4c6da52bb9aad71a5ffe5828e57262938ad6"
+    },
+    "en-float-graph-selection.png": {
+      "origin": "keyframe-selection-os-float-en/float-en-graph-selected.png",
+      "sha256": "cb59de1da7c3041d56c4c99552a3b954aaec58ee8036293abe1ec40d29a0f768"
+    }
+  },
+  "archive": {
+    "path": "data/keyframe-selection-ui-608381a4.zip",
+    "bytes": 1821438,
+    "sha256": "05764a9045ce86a6dc9e9c45d79bd1430302dbfa497076c2e70c5774bdd99708",
+    "members": 291,
+    "crcVerified": true
+  },
+  "rawFiles": {
+    "drive-keyframe-os-actions.py": {
+      "bytes": 727,
+      "sha256": "bfacc9e3f5c8aea2a6eeb8a865db74604719fe78d5fefb727ae8112c5fbd0e65"
+    },
+    "keyframe-selection-core-first.log": {
+      "bytes": 4010,
+      "sha256": "8af4342edcb92c862eee6561c69c9de26196e4146da11689eaa1f7b03f0c995d"
+    },
+    "keyframe-selection-final.log": {
+      "bytes": 12494,
+      "sha256": "5ab474c2c9ad04ea8e80ef134b124ccc80cea0a34d1ba1b7455383e0dd1b4827"
+    },
+    "keyframe-selection-fixed-key_selection.log": {
+      "bytes": 13481,
+      "sha256": "ae29d2ba567f66f086d40a4eadc0247a8fe4b22df6a7c9995b8ad3e0d915e814"
+    },
+    "keyframe-selection-fixed-panels__audio__tests.log": {
+      "bytes": 12303,
+      "sha256": "78943cd3ccd2d45060c6c684d285a138deaa74a5fe691f2745106944a69d50da"
+    },
+    "keyframe-selection-fixed-panels__effect_timeline__tests.log": {
+      "bytes": 11999,
+      "sha256": "6759123b4e47c348d0ac20acf99b87fe815297c9f50bdc96eec08d59ea23fb03"
+    },
+    "keyframe-selection-fixed-panels__path_controls__mask_keys__tests__delete_shortcut.log": {
+      "bytes": 10539,
+      "sha256": "34f3357a9c749f291dcc69edf6f8c334311e05636f11f8e62355afc81d224327"
+    },
+    "keyframe-selection-fixed-panels__timeline_key_drag_tests.log": {
+      "bytes": 11163,
+      "sha256": "971f801d3023b54d4a654a9b476a983fcdd63171898471d9bcae05dda5d692af"
+    },
+    "keyframe-selection-fixed-panels__timeline_shortcuts_tests.log": {
+      "bytes": 16385,
+      "sha256": "ae9e4aaa5ad3c1766a854f91c624140328e0c8901d683d36cb6e7e875a5e826b"
+    },
+    "keyframe-selection-float-en-actions.json": {
+      "bytes": 2330,
+      "sha256": "dd90809d6a462bcfba74b4aee1a38a7922cbb1cafe8ea497d6a5e6e10ac6f5dc"
+    },
+    "keyframe-selection-float-en-focus-actions.json": {
+      "bytes": 165,
+      "sha256": "7431aeb40f51cde8c1c9bfecb3f1ae37053b6ce1340c6050bb26664b878a1973"
+    },
+    "keyframe-selection-float-en-graph-actions.json": {
+      "bytes": 1240,
+      "sha256": "3aaba567b3f8050e909b887075332c3d46672617fe45ec3481ead0a3402cf89c"
+    },
+    "keyframe-selection-float-en-probe-actions.json": {
+      "bytes": 164,
+      "sha256": "07711d3a765493d35e3fc418e84529409a0d4578fe64e11f5b1a72ac1a15caa1"
+    },
+    "keyframe-selection-float-en-start-actions.json": {
+      "bytes": 73,
+      "sha256": "ba8149bdbcfd9a0beda2ada85dec491bef56c9e1c7b1fdcccf2a49c940088fce"
+    },
+    "keyframe-selection-float-zh-final-actions.json": {
+      "bytes": 2324,
+      "sha256": "faa28279412866b02402aaf07b646a2203d16f0b79c710f2e7742783e5c2c661"
+    },
+    "keyframe-selection-focus-regression.log": {
+      "bytes": 11813,
+      "sha256": "6845157ea09e1c291454a408d58f6a2e0b53226462a0ebd96bda8527bd2afce5"
+    },
+    "keyframe-selection-foundation.log": {
+      "bytes": 12825,
+      "sha256": "e8eb654771e27a70df67a5216ef15b92b8399e3d128e20020fb0b70e15f28d32"
+    },
+    "keyframe-selection-main-en-final-actions.json": {
+      "bytes": 1770,
+      "sha256": "597613aac9d4efe5228bc97a0b1d58891ad55bc6ea69b0277d4336043c6c88a3"
+    },
+    "keyframe-selection-main-zh-actions.json": {
+      "bytes": 796,
+      "sha256": "97b7d85b679337d002741e1ef4c66d7a4fb8788ce8124052389ac0f5d59668ad"
+    },
+    "keyframe-selection-main-zh-graph-actions.json": {
+      "bytes": 124,
+      "sha256": "ad83d2729efbf58febf05b3b23c22a8e713e27bb57d47848203b5144dd1e03ef"
+    },
+    "keyframe-selection-main-zh-graph-verify-actions.json": {
+      "bytes": 726,
+      "sha256": "ed42cb337d414e0777339c8af219facf8a79446b189ccc6ed6f6509db049d500"
+    },
+    "keyframe-selection-navigation-focus-fix.log": {
+      "bytes": 11738,
+      "sha256": "fadca92d2819bec6fc77c00aba2a1396fe2c41c61a07dbfeda60fd48f378805b"
+    },
+    "keyframe-selection-os-driver.py": {
+      "bytes": 13351,
+      "sha256": "47ffe24c80139f87653cc95d6f5f917cb621886062d451aa8e2eb4297a5ff951"
+    },
+    "keyframe-selection-os-float-en/float-en-cross-layer-selection-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-cross-layer-selection.png": {
+      "bytes": 26265,
+      "sha256": "3a26d1f9abc3f64575cfbf01113637232480b6c7902ff736177257fef6977ccb"
+    },
+    "keyframe-selection-os-float-en/float-en-focus-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-focus.png": {
+      "bytes": 25832,
+      "sha256": "d6fc59f2b3aa16778d73018eac4abca55442e42594906357ff5620abd12fbcf7"
+    },
+    "keyframe-selection-os-float-en/float-en-graph-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-graph-marquee-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-graph-marquee.png": {
+      "bytes": 34721,
+      "sha256": "89aeb8b11ac83a6894f8e5d15464c808986fd70674a1ba5a356f11ed4940efa7"
+    },
+    "keyframe-selection-os-float-en/float-en-graph-selected-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-graph-selected.png": {
+      "bytes": 34605,
+      "sha256": "cb59de1da7c3041d56c4c99552a3b954aaec58ee8036293abe1ec40d29a0f768"
+    },
+    "keyframe-selection-os-float-en/float-en-graph.png": {
+      "bytes": 34635,
+      "sha256": "02bf3c451231ba72e4f09739d291725ac6767a78252f87ecf5cc9b4eeb3c3037"
+    },
+    "keyframe-selection-os-float-en/float-en-marquee-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-marquee.png": {
+      "bytes": 26654,
+      "sha256": "d992acb338a9e4178c43367de9fe4c6da52bb9aad71a5ffe5828e57262938ad6"
+    },
+    "keyframe-selection-os-float-en/float-en-probe-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-probe.png": {
+      "bytes": 15999,
+      "sha256": "ab6eb217539c642acb2653606c6183e9a5940340f6926991b23ca06a2289eb4f"
+    },
+    "keyframe-selection-os-float-en/float-en-start-geometry.json": {
+      "bytes": 711,
+      "sha256": "7e512c5ca2f665267ede9a40ddba8f7a7e182354f42c64d918e2eacaabc60d86"
+    },
+    "keyframe-selection-os-float-en/float-en-start.png": {
+      "bytes": 16157,
+      "sha256": "692143f4ec1b2a029da588370946f463d9e16a14ce06df5cfec60a0e1c92427c"
+    },
+    "keyframe-selection-os-float-en/initial-state.json": {
+      "bytes": 47239,
+      "sha256": "03c874fb138cd027cd004d065b89b4ddf301af6a6d147e3dd48ff735889683a3"
+    },
+    "keyframe-selection-os-float-en/native-project-results.json": {
+      "bytes": 423,
+      "sha256": "74d53ada86ef6d2a6d9cfc9fac6e7a6a32817362d0ee8398bb789ef4aadb433f"
+    },
+    "keyframe-selection-os-float-en/native-ready-state.json": {
+      "bytes": 50381,
+      "sha256": "95a376e5d39ab939c76c65d2f80f95a3e12537f27fd344fae92371f6c19bad32"
+    },
+    "keyframe-selection-os-float-en/native-results-first.json": {
+      "bytes": 179,
+      "sha256": "330fc64fd8aaebdf0f6639aba01457c9008a46c820d298cdcd3cc30279966b3a"
+    },
+    "keyframe-selection-os-float-en/project/project.json": {
+      "bytes": 4700,
+      "sha256": "4dcf7a1822882a575f2e290be26f115b002f0157619a2c62391145f8ce982927"
+    },
+    "keyframe-selection-os-float-en/ready.json": {
+      "bytes": 325,
+      "sha256": "c617dd6a2a4739b5315a378ea8f7d0962cae0d4316b0feb6aa5dcad6a38f8b23"
+    },
+    "keyframe-selection-os-float-en/reply-1.json": {
+      "bytes": 15,
+      "sha256": "d687b7ac086a47b557d993952d696dc3d56fe28f49e016c95f938fa60f59126e"
+    },
+    "keyframe-selection-os-float-en/reply-10.json": {
+      "bytes": 16,
+      "sha256": "919ff3b47d64db54f515ab6724974bcbc438aa254346292be67298d50a7a7480"
+    },
+    "keyframe-selection-os-float-en/reply-11.json": {
+      "bytes": 56487,
+      "sha256": "da5e75a3953e764c2bb4cf3f05bed246ef984a972435928780c93c461a9b7576"
+    },
+    "keyframe-selection-os-float-en/reply-12.json": {
+      "bytes": 16,
+      "sha256": "d95bba43448183cfcd72e3a2c423c66ac23c342e09a05ee09413c1142fb03c73"
+    },
+    "keyframe-selection-os-float-en/reply-13.json": {
+      "bytes": 61140,
+      "sha256": "9d0ff4474b3d432ba0b178d65782495c2bb5d483107d4757023fd162cd74f5fb"
+    },
+    "keyframe-selection-os-float-en/reply-14.json": {
+      "bytes": 16,
+      "sha256": "a0143c998eba8c36105e6b0847582fadc0da20957e64d8bd162f15c418d5a211"
+    },
+    "keyframe-selection-os-float-en/reply-15.json": {
+      "bytes": 56494,
+      "sha256": "d8861248c8ea48b8fa6c76487985a00e5c0da026c61e27ced72d4fabce8f1938"
+    },
+    "keyframe-selection-os-float-en/reply-16.json": {
+      "bytes": 16,
+      "sha256": "d06753d31967ed0712daa0c1f3d9a698d31566e960e91ab092872f85373aaafd"
+    },
+    "keyframe-selection-os-float-en/reply-17.json": {
+      "bytes": 16,
+      "sha256": "7fb1e10a52e3dd042fc23e8dd0a376ba1a84bbeeb49cb4dd9a3c81a7ca010c65"
+    },
+    "keyframe-selection-os-float-en/reply-18.json": {
+      "bytes": 56002,
+      "sha256": "f00513237700c0e3a19453dfc7d4fafa5f2ddb31337b5a1055e4f24e15f548f4"
+    },
+    "keyframe-selection-os-float-en/reply-19.json": {
+      "bytes": 16,
+      "sha256": "0f05f699492fef7fca58529aa7e5476daa55d1ef97a36e896a145cc5e76af5dd"
+    },
+    "keyframe-selection-os-float-en/reply-2.json": {
+      "bytes": 15,
+      "sha256": "90ac61056a1abe9bffb8e96a4ba7a3f942aa1524dfda2396716af6a6c35eb8f6"
+    },
+    "keyframe-selection-os-float-en/reply-20.json": {
+      "bytes": 56494,
+      "sha256": "316cf5239eed394a944ce3ac35370f94da3f6b9f4abaf3aaec112d8d1d9a8999"
+    },
+    "keyframe-selection-os-float-en/reply-21.json": {
+      "bytes": 16,
+      "sha256": "c4c0cddc574dfd21749e9f7eee3ae88b3f923c1eb6001abd2144fb6a1bf2e217"
+    },
+    "keyframe-selection-os-float-en/reply-22.json": {
+      "bytes": 16,
+      "sha256": "5d16e946dcd963803af10e04d4a2dc35780f2aea44b853d16b0ef46d62a6f303"
+    },
+    "keyframe-selection-os-float-en/reply-23.json": {
+      "bytes": 16,
+      "sha256": "0c205426c6d7d848c0ed8d9b6aa68c3b4ec6c4992b937a45354832565134c503"
+    },
+    "keyframe-selection-os-float-en/reply-24.json": {
+      "bytes": 16,
+      "sha256": "c1bdc48d86b19de2bca614a4c75fe5eaf66b1574d427e43b4481fbecc73aaef0"
+    },
+    "keyframe-selection-os-float-en/reply-25.json": {
+      "bytes": 16,
+      "sha256": "9888e56faaf4f50ceccedc92fb58cb5068fc6cb2f4eacf8b425e88959ff009b3"
+    },
+    "keyframe-selection-os-float-en/reply-26.json": {
+      "bytes": 53284,
+      "sha256": "9382a321e8c33fbd3d7eb116238d6a94e296079a3d937b9d2dbee3fc34b45dcd"
+    },
+    "keyframe-selection-os-float-en/reply-27.json": {
+      "bytes": 16,
+      "sha256": "8a7c9609bd7dff0db0365ad11b5e7390c576c6dc634ea8ab3021c95d5f890fd3"
+    },
+    "keyframe-selection-os-float-en/reply-28.json": {
+      "bytes": 56502,
+      "sha256": "61369556a57fb7802a33ad07edd2bcf277a3f0efa0d1cec692371ae0092aaeac"
+    },
+    "keyframe-selection-os-float-en/reply-29.json": {
+      "bytes": 16,
+      "sha256": "561b01613154544a26812d3c2921cdfe757a0f1f5907c9b0839e0aa31d0d596a"
+    },
+    "keyframe-selection-os-float-en/reply-3.json": {
+      "bytes": 15,
+      "sha256": "459b1dda1b55cdbdd261d55afcea2cd45fa21519e2bea343f7157e1b8a198331"
+    },
+    "keyframe-selection-os-float-en/reply-30.json": {
+      "bytes": 16,
+      "sha256": "18d18f8dde44ccf6fe852d084f389d0522b08a1b2e07435e8b7bce8c0537e4d3"
+    },
+    "keyframe-selection-os-float-en/reply-31.json": {
+      "bytes": 16,
+      "sha256": "cd06266926c0dc97ae504b997c3747e8ef908fea1aca1f76663e3815c4ed7460"
+    },
+    "keyframe-selection-os-float-en/reply-32.json": {
+      "bytes": 16,
+      "sha256": "62b35d55667b811a380b142e207401b7cf09b32ed61415cca14a4414f0296889"
+    },
+    "keyframe-selection-os-float-en/reply-33.json": {
+      "bytes": 16,
+      "sha256": "d74b54e655733ac654cbbc98ba5c6dc11c8bc38aed10ba4d058d218b26d6a813"
+    },
+    "keyframe-selection-os-float-en/reply-34.json": {
+      "bytes": 16,
+      "sha256": "1fc90144b202c13b780211a49a5dbaf5317fd8a8090de7650079e7a054ab78ac"
+    },
+    "keyframe-selection-os-float-en/reply-35.json": {
+      "bytes": 16,
+      "sha256": "524f4ac524eac2a582c2ceb1b0e89325672c6a93b8c9db793c25b92200ede010"
+    },
+    "keyframe-selection-os-float-en/reply-36.json": {
+      "bytes": 16,
+      "sha256": "0e7e375038b6e9c36debfc8a0fc52679255ff49036445098fabe0f574d56a21f"
+    },
+    "keyframe-selection-os-float-en/reply-37.json": {
+      "bytes": 55496,
+      "sha256": "14dcd91fdb75bb08c145b70bda6e7abaceb780e3995b26a1e9b5055a8f4daefc"
+    },
+    "keyframe-selection-os-float-en/reply-38.json": {
+      "bytes": 16,
+      "sha256": "05cf80ab4ea4dd79b9b6886b613843a0d735d3ca93f951acd05f83de17d6f944"
+    },
+    "keyframe-selection-os-float-en/reply-39.json": {
+      "bytes": 56504,
+      "sha256": "5829d7ff707c1df53de360e47c68bfe149bcd544d0bf315b9db319743c22b186"
+    },
+    "keyframe-selection-os-float-en/reply-4.json": {
+      "bytes": 54209,
+      "sha256": "011e1a9056c309e682057e244b739b4fe0bdcd0e410ba871e969b698c2ecf10d"
+    },
+    "keyframe-selection-os-float-en/reply-40.json": {
+      "bytes": 16,
+      "sha256": "020b205cf96590dac61c89591eabfa4339e4a89bfe4c63d0f1e5fbd3a80b8510"
+    },
+    "keyframe-selection-os-float-en/reply-41.json": {
+      "bytes": 55496,
+      "sha256": "a9779f9be2f8d2d64407744cd12263b14e00a04244e0c44e34d1197f5dcc3f8b"
+    },
+    "keyframe-selection-os-float-en/reply-42.json": {
+      "bytes": 16,
+      "sha256": "813674a3745064d7060dc3e92d1f7d2a1363d3eda54985f1f8c8abf846725024"
+    },
+    "keyframe-selection-os-float-en/reply-43.json": {
+      "bytes": 55496,
+      "sha256": "ea631df830df50f27b6bba1d3c2fe9d1cc496667265e58090a7b5e61cb14ea16"
+    },
+    "keyframe-selection-os-float-en/reply-44.json": {
+      "bytes": 30,
+      "sha256": "91b3d1cbdee9ab4ffd436fb33d8c8a613d2658fa091ac553b66e96b314b8e9cb"
+    },
+    "keyframe-selection-os-float-en/reply-5.json": {
+      "bytes": 15,
+      "sha256": "4fc486fe7b701f3598ef57b983f93dab3248e635da2383919de3df8a4e36edc6"
+    },
+    "keyframe-selection-os-float-en/reply-6.json": {
+      "bytes": 15,
+      "sha256": "1e97acea641144279ac261619e12e8342ac6e7ea5fae87b0f721a8a7482cfede"
+    },
+    "keyframe-selection-os-float-en/reply-7.json": {
+      "bytes": 54210,
+      "sha256": "923ea01fe066dcde8fd4dc6f7b35964a667ebf6532c660cf056c2d2a9c5c43ab"
+    },
+    "keyframe-selection-os-float-en/reply-8.json": {
+      "bytes": 15,
+      "sha256": "eb6ecbb85aaf796ce7fcfd928ea69986456a0168a470b32f9684c5ea903a9ac6"
+    },
+    "keyframe-selection-os-float-en/reply-9.json": {
+      "bytes": 15,
+      "sha256": "61c909f4f9bc105108b2a55d41e034221b66be0c1f30b7e794c3fe39555b182d"
+    },
+    "keyframe-selection-os-float-en/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "5090a89030b7cff51dd430f3356c14ed1eed51573e3ec1a212f6d857bd8fb6aa"
+    },
+    "keyframe-selection-os-float-en/startup-geometry.json": {
+      "bytes": 708,
+      "sha256": "5535461122c647282631de11630a8858552b56ebdabd4f3775c56d3436fc71f6"
+    },
+    "keyframe-selection-os-float-en/startup.png": {
+      "bytes": 4717,
+      "sha256": "58a1080750dd01e2a57765b22730e5c949864a53ccbc25a1b19f2d15845dbcdf"
+    },
+    "keyframe-selection-os-float-en/stderr.log": {
+      "bytes": 586,
+      "sha256": "814975d62ab25ff1bca0afeb687ff593cbbe4d33affec8535139d0ed67a134b6"
+    },
+    "keyframe-selection-os-float-en/stdout.jsonl": {
+      "bytes": 878736,
+      "sha256": "6b5bbbbf47b8e4a5915a242b6b7908bc590b6ce57c5a9d1f57c7141f7be88365"
+    },
+    "keyframe-selection-os-float-en/userdata/MotionStudio/diagnostics/last-stalls.json": {
+      "bytes": 62833,
+      "sha256": "2d1d5766dba59ab103203ecbc4195350d089488a8bfbe86af13447c1b9bab8a6"
+    },
+    "keyframe-selection-os-float-en/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 6090,
+      "sha256": "1bbee80d232c2cf37efe0bb0d0dd3f045b6414523370fdabe03d4d95ed30fdab"
+    },
+    "keyframe-selection-os-float-en/workspace.json": {
+      "bytes": 1054,
+      "sha256": "a8cdd123a6d255aea99819ff88cb9e51f46ef3a7273798c9ff4e2151a59eba45"
+    },
+    "keyframe-selection-os-float-zh-final/float-zh-final-cross-layer-selection-geometry.json": {
+      "bytes": 715,
+      "sha256": "ee1a3ff826ef7550efa58a66b1c451a785f5db4c7b60d35301276f0b6a57544e"
+    },
+    "keyframe-selection-os-float-zh-final/float-zh-final-cross-layer-selection.png": {
+      "bytes": 26070,
+      "sha256": "010e6603383aeccfd9ee9b179c1bbc8ee550f049356e2665c37d02235e456d7b"
+    },
+    "keyframe-selection-os-float-zh-final/float-zh-final-marquee-cancel-geometry.json": {
+      "bytes": 715,
+      "sha256": "ee1a3ff826ef7550efa58a66b1c451a785f5db4c7b60d35301276f0b6a57544e"
+    },
+    "keyframe-selection-os-float-zh-final/float-zh-final-marquee-cancel.png": {
+      "bytes": 26507,
+      "sha256": "c368e2814d5897be025b860d6af4a95118ab21ca95544905450afc63fdc2ee50"
+    },
+    "keyframe-selection-os-float-zh-final/initial-state.json": {
+      "bytes": 47245,
+      "sha256": "086231972e95cb27c4f5d4715a65530fe37259395ab9e03b6d353875e591884a"
+    },
+    "keyframe-selection-os-float-zh-final/native-project-results.json": {
+      "bytes": 315,
+      "sha256": "eb5cbf66c2ddea3ddb8c31778bfd42733e627cd0b71f206b61b7d73c7d09cb5d"
+    },
+    "keyframe-selection-os-float-zh-final/native-ready-state.json": {
+      "bytes": 50391,
+      "sha256": "5edd07df96ed7d24c6b8bb27604ac3046e5635dc95683ecb1f381db719bcd610"
+    },
+    "keyframe-selection-os-float-zh-final/project/project.json": {
+      "bytes": 4498,
+      "sha256": "5d9410476afb4b2cfe960c263b84eee5aa71aa332b76cc1e40541246494c9a33"
+    },
+    "keyframe-selection-os-float-zh-final/ready.json": {
+      "bytes": 331,
+      "sha256": "2f93c474776bc259d310c185f31e415a59fb674308aabc5c02541aa8b1f462df"
+    },
+    "keyframe-selection-os-float-zh-final/reply-1.json": {
+      "bytes": 15,
+      "sha256": "d687b7ac086a47b557d993952d696dc3d56fe28f49e016c95f938fa60f59126e"
+    },
+    "keyframe-selection-os-float-zh-final/reply-10.json": {
+      "bytes": 16,
+      "sha256": "919ff3b47d64db54f515ab6724974bcbc438aa254346292be67298d50a7a7480"
+    },
+    "keyframe-selection-os-float-zh-final/reply-11.json": {
+      "bytes": 16,
+      "sha256": "49f1b51c29772925f3953234d17ee1f069da6a8bd2c2e9a451d40a7486341baf"
+    },
+    "keyframe-selection-os-float-zh-final/reply-12.json": {
+      "bytes": 16,
+      "sha256": "d95bba43448183cfcd72e3a2c423c66ac23c342e09a05ee09413c1142fb03c73"
+    },
+    "keyframe-selection-os-float-zh-final/reply-13.json": {
+      "bytes": 16,
+      "sha256": "b52c5ae3b0639f3c77cf015f35545769c6a70bfc1e22145e09cf9bfa437c0389"
+    },
+    "keyframe-selection-os-float-zh-final/reply-14.json": {
+      "bytes": 16,
+      "sha256": "a0143c998eba8c36105e6b0847582fadc0da20957e64d8bd162f15c418d5a211"
+    },
+    "keyframe-selection-os-float-zh-final/reply-15.json": {
+      "bytes": 56497,
+      "sha256": "f1b4992f1a361ff38f357413a6c2fe9e2570a3b59a8a7a1e886967b2f95ae748"
+    },
+    "keyframe-selection-os-float-zh-final/reply-16.json": {
+      "bytes": 16,
+      "sha256": "d06753d31967ed0712daa0c1f3d9a698d31566e960e91ab092872f85373aaafd"
+    },
+    "keyframe-selection-os-float-zh-final/reply-17.json": {
+      "bytes": 54965,
+      "sha256": "032becae6003348b81bce81a3024cf649770b77e33156a7c9d3417e29f9acf95"
+    },
+    "keyframe-selection-os-float-zh-final/reply-18.json": {
+      "bytes": 16,
+      "sha256": "43449c5bd474a0a005a3fe0a8adbe31608e5bbea46a8744ba787c8c3aed2ea8b"
+    },
+    "keyframe-selection-os-float-zh-final/reply-19.json": {
+      "bytes": 56498,
+      "sha256": "35c102546caf57f621b53e3bc1e3e794b690a829ce0e77f2077293fdc13d61ef"
+    },
+    "keyframe-selection-os-float-zh-final/reply-2.json": {
+      "bytes": 15,
+      "sha256": "90ac61056a1abe9bffb8e96a4ba7a3f942aa1524dfda2396716af6a6c35eb8f6"
+    },
+    "keyframe-selection-os-float-zh-final/reply-20.json": {
+      "bytes": 16,
+      "sha256": "119492bc08722ee98b3fe778928bb5a7506ee8fd1059449ca66d3237c5fb5af5"
+    },
+    "keyframe-selection-os-float-zh-final/reply-21.json": {
+      "bytes": 54965,
+      "sha256": "6c729840a50375a554abab676b6d64716c694d832952d39ed8d62f5c7e2f5f48"
+    },
+    "keyframe-selection-os-float-zh-final/reply-22.json": {
+      "bytes": 16,
+      "sha256": "5d16e946dcd963803af10e04d4a2dc35780f2aea44b853d16b0ef46d62a6f303"
+    },
+    "keyframe-selection-os-float-zh-final/reply-23.json": {
+      "bytes": 54972,
+      "sha256": "26768e96b3ea0eb35c578d15879dc6a0bc834ee6f88a17e90ba71bbbc7e08e0d"
+    },
+    "keyframe-selection-os-float-zh-final/reply-24.json": {
+      "bytes": 30,
+      "sha256": "409968d74ed9c6670cf02c8c00a17387152ca68a120cf226207b7429157e0a0e"
+    },
+    "keyframe-selection-os-float-zh-final/reply-3.json": {
+      "bytes": 15,
+      "sha256": "459b1dda1b55cdbdd261d55afcea2cd45fa21519e2bea343f7157e1b8a198331"
+    },
+    "keyframe-selection-os-float-zh-final/reply-4.json": {
+      "bytes": 15,
+      "sha256": "9e0bd81e280b72d33f50af9471a3e6df78491d40cf41595d43471986e9297491"
+    },
+    "keyframe-selection-os-float-zh-final/reply-5.json": {
+      "bytes": 56496,
+      "sha256": "e8e55c8c03ba7436ffd58c74a6e56a13649117f97092d2078ebb0b81e263bb6e"
+    },
+    "keyframe-selection-os-float-zh-final/reply-6.json": {
+      "bytes": 15,
+      "sha256": "1e97acea641144279ac261619e12e8342ac6e7ea5fae87b0f721a8a7482cfede"
+    },
+    "keyframe-selection-os-float-zh-final/reply-7.json": {
+      "bytes": 61147,
+      "sha256": "01c67f7e51e1f76895fd4748c9d55a4ba666d506d4f4bb7fb4e04d56f8898386"
+    },
+    "keyframe-selection-os-float-zh-final/reply-8.json": {
+      "bytes": 15,
+      "sha256": "eb6ecbb85aaf796ce7fcfd928ea69986456a0168a470b32f9684c5ea903a9ac6"
+    },
+    "keyframe-selection-os-float-zh-final/reply-9.json": {
+      "bytes": 56499,
+      "sha256": "8e9bd24f6138dde30aebe514af1fb3c2056d0bc61207c216d4b3bf227bf0bdc7"
+    },
+    "keyframe-selection-os-float-zh-final/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "7654aeb264cf9969e2e7703b83898cf3b21c2eab37fa8b159610020a420670b4"
+    },
+    "keyframe-selection-os-float-zh-final/startup-geometry.json": {
+      "bytes": 714,
+      "sha256": "01d4a1ff7a1ae167e98ea4cb776b9b469ff463166a61bc541bc1f648ffaac096"
+    },
+    "keyframe-selection-os-float-zh-final/startup.png": {
+      "bytes": 20270,
+      "sha256": "5846c3cd924283ebdc31f6bcfcec79ad9e5042e23069feb0edd57db72d138647"
+    },
+    "keyframe-selection-os-float-zh-final/stderr.log": {
+      "bytes": 586,
+      "sha256": "0bbb9bc789046668b102fca62bb9eab84cbe883beaae4a64c8116fd3e2769e55"
+    },
+    "keyframe-selection-os-float-zh-final/stdout.jsonl": {
+      "bytes": 586445,
+      "sha256": "06234ff140feb9e22f171ca6788946034f4409c858b315d08cffa2463fd45e77"
+    },
+    "keyframe-selection-os-float-zh-final/userdata/MotionStudio/diagnostics/last-stalls.json": {
+      "bytes": 61762,
+      "sha256": "9fc1db33ab7ae63532efc0e62ca6231966b51bd5c8707753a3879f315ecc625e"
+    },
+    "keyframe-selection-os-float-zh-final/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 4898,
+      "sha256": "0165cf56562f43d1bebdb724a423e5f6095ea5310394be018e18460967c17f29"
+    },
+    "keyframe-selection-os-float-zh-final/workspace.json": {
+      "bytes": 1054,
+      "sha256": "507c8cdfd416afc57654f8e4fa4b4bcdf7be7062811d746db8b8708bb78695a2"
+    },
+    "keyframe-selection-os-main-en-final/initial-state.json": {
+      "bytes": 47244,
+      "sha256": "da9b5805233d2b8cfcafb867657f817d0eb41c6db7970a3aab34275a241b4a1e"
+    },
+    "keyframe-selection-os-main-en-final/main-en-final-cross-layer-selection-geometry.json": {
+      "bytes": 489,
+      "sha256": "b59be4058661a937b58b1838b6003ac7ab27801b9a6ad6074422304d8eefdf77"
+    },
+    "keyframe-selection-os-main-en-final/main-en-final-cross-layer-selection.png": {
+      "bytes": 34352,
+      "sha256": "cd667bc025335705586e5de0032ec0fcec24b67fc243574022a0b09369c9a02b"
+    },
+    "keyframe-selection-os-main-en-final/main-en-final-marquee-cancel-geometry.json": {
+      "bytes": 489,
+      "sha256": "b59be4058661a937b58b1838b6003ac7ab27801b9a6ad6074422304d8eefdf77"
+    },
+    "keyframe-selection-os-main-en-final/main-en-final-marquee-cancel.png": {
+      "bytes": 34709,
+      "sha256": "3b7539026a012c1aec681dba380742fe93ec363c438b53c91849bbe7db46ff9b"
+    },
+    "keyframe-selection-os-main-en-final/native-project-results.json": {
+      "bytes": 315,
+      "sha256": "eb5cbf66c2ddea3ddb8c31778bfd42733e627cd0b71f206b61b7d73c7d09cb5d"
+    },
+    "keyframe-selection-os-main-en-final/native-ready-state.json": {
+      "bytes": 50385,
+      "sha256": "c46046b8e8949cfd631b3e6b6a01b491ddcdc9a9192882854a4e1e5ccb23eaf5"
+    },
+    "keyframe-selection-os-main-en-final/project/project.json": {
+      "bytes": 4498,
+      "sha256": "5d9410476afb4b2cfe960c263b84eee5aa71aa332b76cc1e40541246494c9a33"
+    },
+    "keyframe-selection-os-main-en-final/ready.json": {
+      "bytes": 206,
+      "sha256": "2752905bd07bc11c12f866d8cf18a51ca0de5ebaaceb707bfb13c49cb8fa7df7"
+    },
+    "keyframe-selection-os-main-en-final/reply-1.json": {
+      "bytes": 15,
+      "sha256": "d687b7ac086a47b557d993952d696dc3d56fe28f49e016c95f938fa60f59126e"
+    },
+    "keyframe-selection-os-main-en-final/reply-10.json": {
+      "bytes": 16,
+      "sha256": "919ff3b47d64db54f515ab6724974bcbc438aa254346292be67298d50a7a7480"
+    },
+    "keyframe-selection-os-main-en-final/reply-11.json": {
+      "bytes": 16,
+      "sha256": "49f1b51c29772925f3953234d17ee1f069da6a8bd2c2e9a451d40a7486341baf"
+    },
+    "keyframe-selection-os-main-en-final/reply-12.json": {
+      "bytes": 16,
+      "sha256": "d95bba43448183cfcd72e3a2c423c66ac23c342e09a05ee09413c1142fb03c73"
+    },
+    "keyframe-selection-os-main-en-final/reply-13.json": {
+      "bytes": 16,
+      "sha256": "b52c5ae3b0639f3c77cf015f35545769c6a70bfc1e22145e09cf9bfa437c0389"
+    },
+    "keyframe-selection-os-main-en-final/reply-14.json": {
+      "bytes": 16,
+      "sha256": "a0143c998eba8c36105e6b0847582fadc0da20957e64d8bd162f15c418d5a211"
+    },
+    "keyframe-selection-os-main-en-final/reply-15.json": {
+      "bytes": 56497,
+      "sha256": "8f5985e75af99300b0fa1a729973500f7e99665af0a0ffe759cc95d22aa6918a"
+    },
+    "keyframe-selection-os-main-en-final/reply-16.json": {
+      "bytes": 16,
+      "sha256": "d06753d31967ed0712daa0c1f3d9a698d31566e960e91ab092872f85373aaafd"
+    },
+    "keyframe-selection-os-main-en-final/reply-17.json": {
+      "bytes": 54965,
+      "sha256": "339fbe78110407da902ca984244ce8594ca4bb48da70e1bbf0707f578fd30e98"
+    },
+    "keyframe-selection-os-main-en-final/reply-18.json": {
+      "bytes": 16,
+      "sha256": "43449c5bd474a0a005a3fe0a8adbe31608e5bbea46a8744ba787c8c3aed2ea8b"
+    },
+    "keyframe-selection-os-main-en-final/reply-19.json": {
+      "bytes": 56499,
+      "sha256": "a9064f5aaed0c32d3648f30321e116fbddc7af5d63dfc903749bc1a8c39a884a"
+    },
+    "keyframe-selection-os-main-en-final/reply-2.json": {
+      "bytes": 15,
+      "sha256": "90ac61056a1abe9bffb8e96a4ba7a3f942aa1524dfda2396716af6a6c35eb8f6"
+    },
+    "keyframe-selection-os-main-en-final/reply-20.json": {
+      "bytes": 16,
+      "sha256": "119492bc08722ee98b3fe778928bb5a7506ee8fd1059449ca66d3237c5fb5af5"
+    },
+    "keyframe-selection-os-main-en-final/reply-21.json": {
+      "bytes": 54965,
+      "sha256": "a725ef691f85cfc3ade672b3022205260c4e14353b16ab6d02ca95147dea1a5e"
+    },
+    "keyframe-selection-os-main-en-final/reply-22.json": {
+      "bytes": 16,
+      "sha256": "5d16e946dcd963803af10e04d4a2dc35780f2aea44b853d16b0ef46d62a6f303"
+    },
+    "keyframe-selection-os-main-en-final/reply-23.json": {
+      "bytes": 54973,
+      "sha256": "566f1307496386554ed908405bf91c67bd55ea72a59e97d56f3f02dedf668b03"
+    },
+    "keyframe-selection-os-main-en-final/reply-24.json": {
+      "bytes": 30,
+      "sha256": "409968d74ed9c6670cf02c8c00a17387152ca68a120cf226207b7429157e0a0e"
+    },
+    "keyframe-selection-os-main-en-final/reply-3.json": {
+      "bytes": 15,
+      "sha256": "459b1dda1b55cdbdd261d55afcea2cd45fa21519e2bea343f7157e1b8a198331"
+    },
+    "keyframe-selection-os-main-en-final/reply-4.json": {
+      "bytes": 15,
+      "sha256": "9e0bd81e280b72d33f50af9471a3e6df78491d40cf41595d43471986e9297491"
+    },
+    "keyframe-selection-os-main-en-final/reply-5.json": {
+      "bytes": 56495,
+      "sha256": "8dcde22a1ffd21de104b8928b65ad7832b7f4fa0c9ef8781882963f1d907e269"
+    },
+    "keyframe-selection-os-main-en-final/reply-6.json": {
+      "bytes": 15,
+      "sha256": "1e97acea641144279ac261619e12e8342ac6e7ea5fae87b0f721a8a7482cfede"
+    },
+    "keyframe-selection-os-main-en-final/reply-7.json": {
+      "bytes": 61146,
+      "sha256": "fc13233c27a6cdb5dad87fa56362d3337ee5235e898a5803b3c1fa711cb053e6"
+    },
+    "keyframe-selection-os-main-en-final/reply-8.json": {
+      "bytes": 15,
+      "sha256": "eb6ecbb85aaf796ce7fcfd928ea69986456a0168a470b32f9684c5ea903a9ac6"
+    },
+    "keyframe-selection-os-main-en-final/reply-9.json": {
+      "bytes": 56498,
+      "sha256": "b9631a17abd87ea31dfb5438221b983424cbaffffb684ad132c5a13718b30686"
+    },
+    "keyframe-selection-os-main-en-final/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "7654aeb264cf9969e2e7703b83898cf3b21c2eab37fa8b159610020a420670b4"
+    },
+    "keyframe-selection-os-main-en-final/startup-geometry.json": {
+      "bytes": 489,
+      "sha256": "b59be4058661a937b58b1838b6003ac7ab27801b9a6ad6074422304d8eefdf77"
+    },
+    "keyframe-selection-os-main-en-final/startup.png": {
+      "bytes": 4880,
+      "sha256": "6d59f967c3f487c3b503de435901a1f75d3d278f6f6400c22424538d45e4cafb"
+    },
+    "keyframe-selection-os-main-en-final/stderr.log": {
+      "bytes": 586,
+      "sha256": "1854cc9499373d526a1b6fd7cc5fcd7003c46836d51d6aa3410a6de5afad600c"
+    },
+    "keyframe-selection-os-main-en-final/stdout.jsonl": {
+      "bytes": 586429,
+      "sha256": "c3bd4a78c56d5d68d35a7ae1960688426ec0741d29cf2aa8d7b51f3064ef232d"
+    },
+    "keyframe-selection-os-main-en-final/userdata/MotionStudio/diagnostics/last-stalls.json": {
+      "bytes": 63429,
+      "sha256": "fb10605f637af756605a9424a340801a151d942c1fff378e74c59df1ae804c7b"
+    },
+    "keyframe-selection-os-main-en-final/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 4803,
+      "sha256": "26a78fbe9f5b501b71d296e11b0fcfea51e19612fdce2d8fa93951d1a21ac1e5"
+    },
+    "keyframe-selection-os-main-en-final/workspace.json": {
+      "bytes": 724,
+      "sha256": "1f592ebc16760236a5737f06c89b4605c6bf89f0e3ba4a371170ca932dd87b0f"
+    },
+    "keyframe-selection-os-main-zh/project/project.json": {
+      "bytes": 2618,
+      "sha256": "3beccc3027e46ddeac0a06fdcd192215dc3e0797edaff3ebb8a1fd1e8facf576"
+    },
+    "keyframe-selection-os-main-zh/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "5090a89030b7cff51dd430f3356c14ed1eed51573e3ec1a212f6d857bd8fb6aa"
+    },
+    "keyframe-selection-os-main-zh/stderr.log": {
+      "bytes": 623,
+      "sha256": "5ea31b03a0a069190c69c53c8746bee50528fcc150aa7306be0338f6e2986951"
+    },
+    "keyframe-selection-os-main-zh/stdout.jsonl": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "keyframe-selection-os-main-zh/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 1516,
+      "sha256": "53ee0f63e08e5f598407e98d379879dccf6f5bfed5a4e8b865472e012f540e9d"
+    },
+    "keyframe-selection-os-main-zh/workspace.json": {
+      "bytes": 724,
+      "sha256": "1f592ebc16760236a5737f06c89b4605c6bf89f0e3ba4a371170ca932dd87b0f"
+    },
+    "keyframe-selection-os-main-zh-fixed/initial-state.json": {
+      "bytes": 47244,
+      "sha256": "d57346fbe95022a7a4603d6e1ac4c1274fdc66e7ed5d2a10dcbfbeba84850252"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-cross-layer-selection-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-cross-layer-selection.png": {
+      "bytes": 38008,
+      "sha256": "922c0bbbeef774e77185897d56b98f60d04920c93f867f810ac832005fb59fe9"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-marquee-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-marquee.png": {
+      "bytes": 45755,
+      "sha256": "e66b41c55e80e35f9213b14f594da8e523c1e805fdba47b14c7a6540e82a2e1d"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-selected-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-selected.png": {
+      "bytes": 45596,
+      "sha256": "2a558f5d1efb7f9bc1c052938eed4f330b9f6c9f042ebb1388495dfd8efcf9bd"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-start-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph-start.png": {
+      "bytes": 38178,
+      "sha256": "51d16aa56e18c4e357319f9adb114a42bd772ec28e14c41c93bef97c88f97021"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-graph.png": {
+      "bytes": 45622,
+      "sha256": "9adff69a5a410733900e0c55d5249daca08e9ac5f22e3249519bc5f26abede65"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-marquee-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-marquee.png": {
+      "bytes": 38363,
+      "sha256": "e925940a612a14ebf31621259386d8482fd1af0cb472cab2c662f334803a07e4"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-selected-summary-keys-geometry.json": {
+      "bytes": 493,
+      "sha256": "d6c91b7d068ebda8129629f9c3676f72666087520c30fab4eb206262e4edc20b"
+    },
+    "keyframe-selection-os-main-zh-fixed/main-zh-selected-summary-keys.png": {
+      "bytes": 38134,
+      "sha256": "ab8f9c574497725f68c52df63287ffe2589ac4b9343e936fb1ff272ed48693eb"
+    },
+    "keyframe-selection-os-main-zh-fixed/native-project-results.json": {
+      "bytes": 286,
+      "sha256": "ee188341b5958c6c79626d2eba90c44415e7c7e4e7fd3227bcb78b3b19dd44eb"
+    },
+    "keyframe-selection-os-main-zh-fixed/native-ready-state.json": {
+      "bytes": 50387,
+      "sha256": "facb31ffc5bf6994ab3856ccc0ce95fd65fea3f9a2377bdd3b5aeab31902f09b"
+    },
+    "keyframe-selection-os-main-zh-fixed/project/project.json": {
+      "bytes": 6436,
+      "sha256": "c91c8d3605efa8d8b50e5980f71368741684a140874bbffee8ef7bfbcfa83b7e"
+    },
+    "keyframe-selection-os-main-zh-fixed/ready.json": {
+      "bytes": 208,
+      "sha256": "cabbd0847932c266b067c98afec4c11de22123e35c268463e6c0cdab512516d4"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-1.json": {
+      "bytes": 15,
+      "sha256": "d687b7ac086a47b557d993952d696dc3d56fe28f49e016c95f938fa60f59126e"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-10.json": {
+      "bytes": 16,
+      "sha256": "919ff3b47d64db54f515ab6724974bcbc438aa254346292be67298d50a7a7480"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-11.json": {
+      "bytes": 16,
+      "sha256": "49f1b51c29772925f3953234d17ee1f069da6a8bd2c2e9a451d40a7486341baf"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-12.json": {
+      "bytes": 16,
+      "sha256": "d95bba43448183cfcd72e3a2c423c66ac23c342e09a05ee09413c1142fb03c73"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-13.json": {
+      "bytes": 16,
+      "sha256": "b52c5ae3b0639f3c77cf015f35545769c6a70bfc1e22145e09cf9bfa437c0389"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-14.json": {
+      "bytes": 16,
+      "sha256": "a0143c998eba8c36105e6b0847582fadc0da20957e64d8bd162f15c418d5a211"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-15.json": {
+      "bytes": 53293,
+      "sha256": "a394e00025e5c13d27caafc4ca99ee78103652928e7d0a6031a6c19ee04cec82"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-16.json": {
+      "bytes": 16,
+      "sha256": "d06753d31967ed0712daa0c1f3d9a698d31566e960e91ab092872f85373aaafd"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-17.json": {
+      "bytes": 56501,
+      "sha256": "8e93bdba31a11c7f1fbc148d1eb91118f450c8960a213c2c4a44084a592f266d"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-18.json": {
+      "bytes": 16,
+      "sha256": "43449c5bd474a0a005a3fe0a8adbe31608e5bbea46a8744ba787c8c3aed2ea8b"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-19.json": {
+      "bytes": 16,
+      "sha256": "0f05f699492fef7fca58529aa7e5476daa55d1ef97a36e896a145cc5e76af5dd"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-2.json": {
+      "bytes": 15,
+      "sha256": "90ac61056a1abe9bffb8e96a4ba7a3f942aa1524dfda2396716af6a6c35eb8f6"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-20.json": {
+      "bytes": 16,
+      "sha256": "119492bc08722ee98b3fe778928bb5a7506ee8fd1059449ca66d3237c5fb5af5"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-21.json": {
+      "bytes": 16,
+      "sha256": "c4c0cddc574dfd21749e9f7eee3ae88b3f923c1eb6001abd2144fb6a1bf2e217"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-22.json": {
+      "bytes": 56499,
+      "sha256": "5189ed3616794855ce9bb6f4cf7fe9cf36cace6dd2f271c00fc6811f9ac218ee"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-23.json": {
+      "bytes": 16,
+      "sha256": "0c205426c6d7d848c0ed8d9b6aa68c3b4ec6c4992b937a45354832565134c503"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-24.json": {
+      "bytes": 16,
+      "sha256": "c1bdc48d86b19de2bca614a4c75fe5eaf66b1574d427e43b4481fbecc73aaef0"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-25.json": {
+      "bytes": 16,
+      "sha256": "9888e56faaf4f50ceccedc92fb58cb5068fc6cb2f4eacf8b425e88959ff009b3"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-26.json": {
+      "bytes": 16,
+      "sha256": "bba20292cd0353f0beca5ed5440ba754d9e338d0839d4f6984666e5eb859b16e"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-27.json": {
+      "bytes": 16,
+      "sha256": "8a7c9609bd7dff0db0365ad11b5e7390c576c6dc634ea8ab3021c95d5f890fd3"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-28.json": {
+      "bytes": 16,
+      "sha256": "8c35589f0e16c06a1e9b085717ef104b81eecb7abc02aa26f8f32372ffeae0a9"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-29.json": {
+      "bytes": 16,
+      "sha256": "561b01613154544a26812d3c2921cdfe757a0f1f5907c9b0839e0aa31d0d596a"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-3.json": {
+      "bytes": 15,
+      "sha256": "459b1dda1b55cdbdd261d55afcea2cd45fa21519e2bea343f7157e1b8a198331"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-30.json": {
+      "bytes": 16,
+      "sha256": "18d18f8dde44ccf6fe852d084f389d0522b08a1b2e07435e8b7bce8c0537e4d3"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-31.json": {
+      "bytes": 16,
+      "sha256": "cd06266926c0dc97ae504b997c3747e8ef908fea1aca1f76663e3815c4ed7460"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-32.json": {
+      "bytes": 56499,
+      "sha256": "66342022d3c15e5e361ca0cc896deda4e7acb9a2d8fe5ad486c8a8ed8f4cb578"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-33.json": {
+      "bytes": 16,
+      "sha256": "d74b54e655733ac654cbbc98ba5c6dc11c8bc38aed10ba4d058d218b26d6a813"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-34.json": {
+      "bytes": 55493,
+      "sha256": "f4f3b3a439fd5fb6dd0404d02cbbb2c919f12d93c3ea8a4963a8e0d9f4de6cd6"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-35.json": {
+      "bytes": 16,
+      "sha256": "524f4ac524eac2a582c2ceb1b0e89325672c6a93b8c9db793c25b92200ede010"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-36.json": {
+      "bytes": 56501,
+      "sha256": "ab6c0b122d9e41e71fb927b0f89e4ce55b25b42cfc9771140e7ad608eafaa242"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-37.json": {
+      "bytes": 16,
+      "sha256": "1da0e0a3163c7e5b4f724a0e557ceaade72fbea329e2d7437ef420e672d5a902"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-38.json": {
+      "bytes": 61031,
+      "sha256": "cc4e22d12530f531c5b9b2f8c02b88f44fe9be6cddb2530ac878cc6309436572"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-39.json": {
+      "bytes": 16,
+      "sha256": "4f4c08956cfb35b31b819da9fa95fff922f5e82403e7129cb620342e74a8a2f0"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-4.json": {
+      "bytes": 56493,
+      "sha256": "d0474007b9398e607302cf0f3edfd1b532c2fcc8b5f4edf7c5c16547911868c6"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-40.json": {
+      "bytes": 61033,
+      "sha256": "04342b0ffbefc384c7dd814a8357a8d57683cf4d2bb0130d22f3fbf16e16839f"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-41.json": {
+      "bytes": 30,
+      "sha256": "5996b0b6b7657d23e4d13460c2bedd57a84e5e52f11f7fe7809f31c2d60e46a7"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-5.json": {
+      "bytes": 15,
+      "sha256": "4fc486fe7b701f3598ef57b983f93dab3248e635da2383919de3df8a4e36edc6"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-6.json": {
+      "bytes": 61146,
+      "sha256": "53fa5043d9471834247c0178a03b840da8c7fe04709d4f3499dbe2c01abb45dc"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-7.json": {
+      "bytes": 15,
+      "sha256": "102b092d92142ea6f669f6cf949e174e1cfeec2d50ea27f2c2d62bf457d1e98b"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-8.json": {
+      "bytes": 56500,
+      "sha256": "c88b466bf9e7821fbaf45cf91ebcdc00017edebc0672e78d47e0f579c0958d91"
+    },
+    "keyframe-selection-os-main-zh-fixed/reply-9.json": {
+      "bytes": 15,
+      "sha256": "61c909f4f9bc105108b2a55d41e034221b66be0c1f30b7e794c3fe39555b182d"
+    },
+    "keyframe-selection-os-main-zh-fixed/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "5090a89030b7cff51dd430f3356c14ed1eed51573e3ec1a212f6d857bd8fb6aa"
+    },
+    "keyframe-selection-os-main-zh-fixed/startup-geometry.json": {
+      "bytes": 491,
+      "sha256": "e0d3898a9f0e9a71bfa3409061bc6f1758384243ef750ee80f941af148d5ef34"
+    },
+    "keyframe-selection-os-main-zh-fixed/startup.png": {
+      "bytes": 34334,
+      "sha256": "77efaad08a08e709eeeff467ea2778d15d5a76e871508c67e7eaa715178b779f"
+    },
+    "keyframe-selection-os-main-zh-fixed/stderr.log": {
+      "bytes": 586,
+      "sha256": "a94f33eb59e716a4d4c259d07b9557608fbbd37eb0e11520d0d88d29305e3af5"
+    },
+    "keyframe-selection-os-main-zh-fixed/stdout.jsonl": {
+      "bytes": 772544,
+      "sha256": "99b8363d692c62da4db1e876d219e4bf88fbe910a86123577702be8acf8fb199"
+    },
+    "keyframe-selection-os-main-zh-fixed/userdata/MotionStudio/diagnostics/last-stalls.json": {
+      "bytes": 65067,
+      "sha256": "cd1112a8f7cebdac7c36bb99b90b1ad7833266295132bc58088912d5805ea55f"
+    },
+    "keyframe-selection-os-main-zh-fixed/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 5586,
+      "sha256": "2ade5407044906300cde5c3a2effb45225acb02538daa43b5664619789deb085"
+    },
+    "keyframe-selection-os-main-zh-fixed/workspace.json": {
+      "bytes": 724,
+      "sha256": "1f592ebc16760236a5737f06c89b4605c6bf89f0e3ba4a371170ca932dd87b0f"
+    },
+    "keyframe-selection-os-reopen-zh/initial-state.json": {
+      "bytes": 46312,
+      "sha256": "119450fb309e5c9dfdcd37cb5c758dbd918f4c16a2c91cdb7d1b241e275ccae0"
+    },
+    "keyframe-selection-os-reopen-zh/native-ready-state.json": {
+      "bytes": 49458,
+      "sha256": "2461c98855689fd6fb92e958ca39b9dd51ab489da7198bd97f125e70a2b0ce36"
+    },
+    "keyframe-selection-os-reopen-zh/ready.json": {
+      "bytes": 208,
+      "sha256": "2509c29e11fa9f2e86854cbefc930dc73da2d0057d7953cc9f164d3f9cf810ac"
+    },
+    "keyframe-selection-os-reopen-zh/reopen-results.json": {
+      "bytes": 93,
+      "sha256": "df81ead1ef1edea1a172b1a3267147d31a3bd640b7b297578c93fc096fd19f5d"
+    },
+    "keyframe-selection-os-reopen-zh/reply-1.json": {
+      "bytes": 53206,
+      "sha256": "faf467af0d25246b883ad319e82c9b1d1472c1f53910e5c212494567533b53cc"
+    },
+    "keyframe-selection-os-reopen-zh/reply-2.json": {
+      "bytes": 29,
+      "sha256": "15e9fa06c8a0f0c29239a0962f42e4239aa2af63d5a2f2f9cc5a1f327fa90e7e"
+    },
+    "keyframe-selection-os-reopen-zh/runtime-manifest.json": {
+      "bytes": 893,
+      "sha256": "5090a89030b7cff51dd430f3356c14ed1eed51573e3ec1a212f6d857bd8fb6aa"
+    },
+    "keyframe-selection-os-reopen-zh/startup-geometry.json": {
+      "bytes": 491,
+      "sha256": "c8ddefad1c1bf1d87724cf3ac47e52fd7f6a1a999a3a16d91a2bde21dfe8124d"
+    },
+    "keyframe-selection-os-reopen-zh/startup.png": {
+      "bytes": 34172,
+      "sha256": "7a8b564c0cdcdeb2aad907ed24283beb1413981f70f3a2d64ebca03bf0ec60c5"
+    },
+    "keyframe-selection-os-reopen-zh/stderr.log": {
+      "bytes": 586,
+      "sha256": "c407a0d716276c286a1a42720f2e51b62a0b8007b76ee2e4f6c0021b0d6a80ce"
+    },
+    "keyframe-selection-os-reopen-zh/stdout.jsonl": {
+      "bytes": 166903,
+      "sha256": "5aaefaa98abb8f5a89c73b8424e0f1ae04aa7500ea8fa49f41a828793e4bb397"
+    },
+    "keyframe-selection-os-reopen-zh/userdata/MotionStudio/diagnostics/last-stalls.json": {
+      "bytes": 15590,
+      "sha256": "3f3d4e90336bb16a53cc0fcd1b2dc08d1e85ea770764b742d84afdb1db92b81b"
+    },
+    "keyframe-selection-os-reopen-zh/userdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 3553,
+      "sha256": "46055a373430c9f5709c95c864f1e135e861dbca4d29bd4ab0c4ce5338562fd1"
+    },
+    "keyframe-selection-os-reopen-zh/workspace.json": {
+      "bytes": 724,
+      "sha256": "1f592ebc16760236a5737f06c89b4605c6bf89f0e3ba4a371170ca932dd87b0f"
+    },
+    "keyframe-selection-panel-regressions-final.log": {
+      "bytes": 73111,
+      "sha256": "14107254c09627ea131821328039fa8ed95eda4db10b9574afcb9561231f7d5a"
+    },
+    "keyframe-selection-panel-regressions-first.log": {
+      "bytes": 78430,
+      "sha256": "0cd4715be916cd0c05ee6402537cc3fa21ad70f03689c95030dac73dfe03dcb3"
+    },
+    "keyframe-selection-panel-regressions-second.log": {
+      "bytes": 73739,
+      "sha256": "e8565397001e6b4c83e560dc4a53f5e800f701d0d560dc91f42d04011881888c"
+    },
+    "keyframe-selection-reopen-actions.json": {
+      "bytes": 52,
+      "sha256": "19f51460d7f4b5618dfbd1f9908b5cd8056cf216bdd09b4b32184d847024c373"
+    },
+    "keyframe-selection-routing-regressions.log": {
+      "bytes": 61270,
+      "sha256": "cef77731cca5884db0bea9ae1231c3b124749e80ef9319844ae8a62f9c3a8356"
+    },
+    "keyframe-selection-set-first.log": {
+      "bytes": 15450,
+      "sha256": "49701bdb062048efe432992e4f70e5bf0462e907f7464f16885df950f1ad0834"
+    },
+    "keyframe-selection-set-fixed.log": {
+      "bytes": 16032,
+      "sha256": "e81f34f05ffe8eb06bbc4fb6f4dd3e9cb4032dc1f9ae18e95f4d58b1ff09e479"
+    },
+    "keyframe-selection-source-first.log": {
+      "bytes": 12494,
+      "sha256": "89e7cf8692b0bcaf9b75a17b8505ecf0608166f303c38f2df777a9f119c14376"
+    },
+    "keyframe-selection-ui-build-final.log": {
+      "bytes": 9765,
+      "sha256": "79d7f0df29896829dee5b152d8d62496177a78a72041d47ec91d3e0bd1f6c972"
+    },
+    "keyframe-selection-ui-build-first.log": {
+      "bytes": 9765,
+      "sha256": "24fc0aad4ffe9b3afe33858efc9cadb29145398c1c5f623afd38ea54c1852265"
+    },
+    "keyframe-selection-ui-cancellation-fixed.log": {
+      "bytes": 11640,
+      "sha256": "1214dc3cc271ae7162d9e249747292362381d90d4ac70e1daa4504722598ff2a"
+    },
+    "keyframe-selection-ui-compile-first.log": {
+      "bytes": 4945,
+      "sha256": "c5e858843d7a609d1bb589fdf5758e9d7ec59b57f6544518d492b3d27a462568"
+    },
+    "keyframe-selection-ui-complete-first.log": {
+      "bytes": 13055,
+      "sha256": "c2fb2e7bad1849b6473b50e506ad7c38fb9ec2278867c2e2671105281eda850c"
+    },
+    "keyframe-selection-ui-expanded-first.log": {
+      "bytes": 11207,
+      "sha256": "8b962324c8c4992a180d5dc5000b68d39fadaf2bfba9b047b835d1912d51e674"
+    },
+    "keyframe-selection-ui-faults-first/motion-studio.log": {
+      "bytes": 50596,
+      "sha256": "f7e3d80a5e098efc2c47030b2baa15905bfb6676aa42aaf603901b9980cdea40"
+    },
+    "keyframe-selection-ui-faults-first/stderr.log": {
+      "bytes": 15432,
+      "sha256": "994b09346cfe0df3e98e3b35e064c1beda4d62c441473cba132c57e7b45d3157"
+    },
+    "keyframe-selection-ui-faults-first/stdout.log": {
+      "bytes": 240,
+      "sha256": "04ef4723f6de36ec7b019bd914e45be6c93277e13750e642a74b1f8ca1cd6995"
+    },
+    "keyframe-selection-ui-faults-first.log": {
+      "bytes": 13304,
+      "sha256": "730f9e149308676b5938099bd10db3cb2447aebb4aa9832926f4549728eaadef"
+    },
+    "keyframe-selection-ui-first.log": {
+      "bytes": 10737,
+      "sha256": "bb79857f1acfc4b0108e1473a755592c31c30000e3ff1c34061b5bb3a38f4c60"
+    },
+    "keyframe-selection-ui-graph-first.log": {
+      "bytes": 11775,
+      "sha256": "2bc6b5f6a4c4f80df8a9ca1a6a1e711fb253631260a316306c88fe5d61b8d3c1"
+    },
+    "keyframe-selection-ui-typed-first.log": {
+      "bytes": 13178,
+      "sha256": "00c07463cdcdf81cbc9b87aae9228f4fd51ba20281f199eebbccf8035f4ab6ae"
+    },
+    "package-keyframe-ui-evidence.py": {
+      "bytes": 7259,
+      "sha256": "b50c70d44f19292f95445e88a55d4f9d57ce57ad3c69514f466e7c829b8683d9"
+    },
+    "prepare-keyframe-selection-os-driver.py": {
+      "bytes": 2544,
+      "sha256": "d1fa3fff05fea1256f0b3d41fefecbc56f6172f7d921b26eaa1335d53749bb10"
+    },
+    "verify-keyframe-native-results.py": {
+      "bytes": 4995,
+      "sha256": "5fbbd7373927e2052a1d32662a447b1e2d466eaebd751ae9013aad722cdf76b3"
+    }
+  }
+}

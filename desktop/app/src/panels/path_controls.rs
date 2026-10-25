@@ -1446,6 +1446,19 @@ impl Controls {
         self.keys.clear_selection();
         self.groups.keys.clear_selection();
     }
+    pub(super) fn project_key(&mut self, state: &Value, target: &motion_core::KeyframeTarget, frame: u32) {
+        match target {
+            motion_core::KeyframeTarget::Mask {object,mask,property} => {
+                let index=match property {MaskProperty::Opacity=>0,MaskProperty::Feather=>1,MaskProperty::Expansion=>2,MaskProperty::Node(_)=>mask_path::CHANNEL};
+                self.keys.project_key(state,*object,*mask,index,frame);
+            }
+            motion_core::KeyframeTarget::Vector {object,item,parameter} => {
+                // Flat source geometry is displayed as the existing virtual item 2.
+                self.groups.keys.project_key(state,*object,item.unwrap_or(2),parameter,frame);
+            }
+            _=>{}
+        }
+    }
     pub(super) fn take_mask_selection_intent(&mut self) -> bool {
         self.keys.take_selection_intent()
     }

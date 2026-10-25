@@ -17,6 +17,8 @@ enum Target {
     Mask(u64, u8),
     MaskNode(u64, u64),
     Shape(u64, String),
+    Effect(u64, String),
+    Audio(motion_core::AudioChannel),
 }
 impl Hash for Target {
     fn hash<H: Hasher>(&self, h: &mut H) {
@@ -38,6 +40,11 @@ impl Hash for Target {
                 item.hash(h);
                 parameter.hash(h);
             }
+            Self::Effect(effect, parameter) => {
+                effect.hash(h);
+                parameter.hash(h);
+            }
+            Self::Audio(channel) => (*channel as u8).hash(h),
         }
     }
 }
@@ -64,7 +71,10 @@ impl Drag {
     }
 }
 
-fn channels(state: &Value, row: &timeline::Row) -> motion_core::Result<HashMap<Target, BTreeSet<i64>>> {
+fn channels(
+    state: &Value,
+    row: &timeline::Row,
+) -> motion_core::Result<HashMap<Target, BTreeSet<i64>>> {
     let mut out = HashMap::new();
     let mut record = |target, frames: &mut dyn Iterator<Item = i64>| {
         out.insert(target, frames.collect());
@@ -156,7 +166,117 @@ fn channels(state: &Value, row: &timeline::Row) -> motion_core::Result<HashMap<T
             &mut record,
         );
     }
+    let json_frames = |source: &Value| -> motion_core::Result<Vec<i64>> {
+        source["keys"]
+            .as_array()
+            .ok_or_else(|| motion_core::Error::Invalid("authored key array missing".into()))?
+            .iter()
+            .map(|key| {
+                key["frame"]
+                    .as_i64()
+                    .and_then(|f| f.checked_add(offset))
+                    .ok_or_else(|| motion_core::Error::Invalid("invalid authored key time".into()))
+            })
+            .collect()
+    };
+    for effect in &row.effects {
+        for (name, parameter) in effect["params"].as_object().into_iter().flatten() {
+            if parameter["animatable"] != true || parameter["implemented"] != true {
+                continue;
+            }
+            let track = if parameter["curve"].is_object() {
+                &parameter["curve"]
+            } else {
+                &parameter["track"]
+            };
+            record(
+                Target::Effect(effect["id"].as_u64().unwrap_or(0), name.clone()),
+                &mut json_frames(track)?.into_iter(),
+            );
+        }
+    }
+    if let Some(layer) = super::keyframe_clipboard::layer(state, row.id) {
+        if layer["audio_levels"].is_object() {
+            for (name, channel) in [
+                ("left", motion_core::AudioChannel::Left),
+                ("right", motion_core::AudioChannel::Right),
+            ] {
+                record(
+                    Target::Audio(channel),
+                    &mut json_frames(&layer["audio_levels"][name])?.into_iter(),
+                );
+            }
+        }
+    }
     Ok(out)
+}
+
+fn target_key(row: &timeline::Row, target: &Target) -> motion_core::KeyframeTarget {
+    use motion_core::KeyframeTarget as K;
+    match target {
+        Target::Transform(property, axis) => K::Property {
+            object: row.id,
+            property: *property,
+            axis: *axis,
+        },
+        Target::Mask(mask, p) => K::Mask {
+            object: row.id,
+            mask: *mask,
+            property: match p {
+                0 => MaskProperty::Opacity,
+                1 => MaskProperty::Feather,
+                _ => MaskProperty::Expansion,
+            },
+        },
+        Target::MaskNode(mask, node) => K::Mask {
+            object: row.id,
+            mask: *mask,
+            property: MaskProperty::Node(*node),
+        },
+        Target::Shape(item, parameter) => K::Vector {
+            object: row.id,
+            item: row.vector.as_ref().and_then(|v| {
+                matches!(&v.source, motion_core::vector::VectorSource::Group { .. })
+                    .then_some(*item)
+            }),
+            parameter: parameter.clone(),
+        },
+        Target::Effect(effect, param) => K::Effect {
+            object: row.id,
+            effect: *effect,
+            param: param.clone(),
+        },
+        Target::Audio(channel) => K::Audio {
+            object: row.id,
+            channel: *channel,
+        },
+    }
+}
+pub(super) fn selection_keys(
+    state: &Value,
+    row: &timeline::Row,
+) -> motion_core::Result<std::collections::BTreeMap<u32, Vec<super::key_selection::Key>>> {
+    let mut selected = std::collections::BTreeMap::<u32, Vec<super::key_selection::Key>>::new();
+    let mut channels: Vec<_> = channels(state, row)?
+        .into_iter()
+        .map(|(t, frames)| (target_key(row, &t), frames))
+        .collect();
+    channels.sort_by_key(|(target, _)| format!("{target:?}"));
+    for (target, frames) in channels {
+        for frame in frames
+            .into_iter()
+            .filter(|f| *f >= 0 && (*f as f64) <= last_frame(state))
+        {
+            selected
+                .entry(frame as u32)
+                .or_default()
+                .push(super::key_selection::Key {
+                    target: target.clone(),
+                    frame: frame as u32,
+                });
+        }
+    }
+    Ok(selected)
 }
 
 pub(super) fn begin(
@@ -176,8 +296,14 @@ pub(super) fn begin(
     let Some((MouseButton::Left, point)) = input.pressed else {
         return;
     };
-    let Ok(all) = observe!("timeline.key_drag_channels", channels(state, row),
-        "object={} frame={frame}", row.id) else { return; };
+    let Ok(all) = observe!(
+        "timeline.key_drag_channels",
+        channels(state, row),
+        "object={} frame={frame}",
+        row.id
+    ) else {
+        return;
+    };
     let mut targets: Vec<_> = all
         .iter()
         .filter_map(|(target, frames)| {
@@ -192,6 +318,8 @@ pub(super) fn begin(
         Target::Mask(m, p) => (1, *m, *p as u64, String::new()),
         Target::MaskNode(m, n) => (2, *m, *n, String::new()),
         Target::Shape(i, p) => (3, *i, 0, p.clone()),
+        Target::Effect(id, p) => (4, *id, 0, p.clone()),
+        Target::Audio(channel) => (5, *channel as u64, 0, String::new()),
     });
     static MISSING: motion_render::observability::FailureCounter =
         motion_render::observability::FailureCounter::new();
@@ -317,6 +445,40 @@ fn command(target: &Target, object: u64, from: u32, to: u32, copy: bool) -> Comm
                 },
             },
         },
+        Target::Effect(effect, param) => Command::Effect {
+            object,
+            action: if copy {
+                motion_core::EffectAction::CopyKey {
+                    effect: *effect,
+                    param: param.clone(),
+                    from,
+                    to,
+                }
+            } else {
+                motion_core::EffectAction::MoveKey {
+                    effect: *effect,
+                    param: param.clone(),
+                    from,
+                    to,
+                }
+            },
+        },
+        Target::Audio(channel) => Command::AudioLevels {
+            object,
+            action: if copy {
+                motion_core::AudioLevelsAction::CopyKey {
+                    channel: *channel,
+                    from,
+                    to,
+                }
+            } else {
+                motion_core::AudioLevelsAction::MoveKey {
+                    channel: *channel,
+                    from,
+                    to,
+                }
+            },
+        },
     }
 }
 
@@ -370,9 +532,16 @@ pub(super) fn update(
         // Input can arrive before the serial engine acknowledges our last batch.
         // Until then, use the bounded set of authored times maintained below.
         if state["revision"].as_u64().unwrap_or(0) >= drag.expected_revision {
-            let Ok(snapshot) = observe!("timeline.key_drag_snapshot", channels(state, row),
-                "object={} frame={}", row.id, drag.current) else {
-                if drag.begun { out.push(Action::History(4)); }
+            let Ok(snapshot) = observe!(
+                "timeline.key_drag_snapshot",
+                channels(state, row),
+                "object={} frame={}",
+                row.id,
+                drag.current
+            ) else {
+                if drag.begun {
+                    out.push(Action::History(4));
+                }
                 return;
             };
             if drag.targets.iter().any(|target| {

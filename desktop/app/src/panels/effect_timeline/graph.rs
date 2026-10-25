@@ -271,6 +271,15 @@ pub(in crate::panels) fn render(
         .map(|(_, f)| *f);
     let locked = !target.editable(state) || !parameter.implemented;
     let mut hit_key = false;
+    key_selection::ui::plot(panels, plot, bounds[0], bounds[1]);
+    if key_selection::ui::selecting_all(panels) {
+        key_selection::ui::all(panels,parameter.track.keys.iter().filter_map(|key| {
+            let time=f64::from(key.frame)+layer_offset;
+            (time>=0.&&time<=last_frame(state)).then(||key_selection::Key {
+                target:motion_core::KeyframeTarget::Effect {object:target.object,effect:target.effect,param:target.param.clone()},frame:time as u32,
+            })
+        }));
+    }
     for key in &parameter.track.keys {
         let time = key.frame as f64 + layer_offset;
         if time < offset || time > end {
@@ -289,6 +298,11 @@ pub(in crate::panels) fn render(
         );
         let hit = styles.metric("timeline.key.hit_radius", 5.);
         let rect = Rect::new(point[0] - hit, point[1] - hit, hit * 2., hit * 2.);
+        if let Some(frame) = composition_frame(time, state) {
+            key_selection::ui::mark(&mut lines, panels, key_selection::Key {
+                target: motion_core::KeyframeTarget::Effect { object: target.object, effect: target.effect, param: target.param.clone() }, frame,
+            }, point, styles.metric("graph.handle_radius", 4.), rect);
+        }
         #[cfg(test)]
         panels
             .effect_timeline

@@ -390,6 +390,9 @@ pub(super) fn render(
         layer["locked"] == true || state["observing"] == true,
         out,
     );
+    super::key_selection::ui::plot(panels, plot, low, high);
+    super::key_selection::ui::all_channel(panels,state,motion_core::KeyframeTarget::Property {object,property,axis},source);
+    if box_owned { super::key_selection::ui::block_background(panels); }
     let neutral_curve = Input::default();
     let curve_input = if box_owned { &neutral_curve } else { input };
     let mut lines = list.child();
@@ -435,6 +438,13 @@ pub(super) fn render(
                 styles.metric("graph.key_radius", 5.) + if chosen { 0.5 } else { 0. },
                 colors.KEYFRAME,
             );
+            super::key_selection::ui::mark(&mut lines, panels, super::key_selection::Key {
+                target: motion_core::KeyframeTarget::Property { object, property, axis }, frame: frame as u32,
+            }, point, styles.metric("graph.key_radius", 5.),
+                Rect::new(point[0] - styles.metric("graph.selection.hit_radius", 6.) - styles.metric("motion.drag_threshold", 3.),
+                    point[1] - styles.metric("graph.selection.hit_radius", 6.) - styles.metric("motion.drag_threshold", 3.),
+                    (styles.metric("graph.selection.hit_radius", 6.) + styles.metric("motion.drag_threshold", 3.)) * 2.,
+                    (styles.metric("graph.selection.hit_radius", 6.) + styles.metric("motion.drag_threshold", 3.)) * 2.));
             if clicked(
                 curve_input,
                 Rect::new(point[0] - 9., point[1] - 9., 18., 18.),
@@ -502,6 +512,7 @@ pub(super) fn render(
         false
     };
     if box_selected {
+        super::key_selection::ui::curve(panels,state,motion_core::KeyframeTarget::Property {object,property,axis},source);
         panels.audio_controls.clear_selection();
         panels.animation_controls.clear_key();
     }

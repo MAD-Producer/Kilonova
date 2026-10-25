@@ -228,6 +228,11 @@ fn choose(panels: &mut Panels, state: &Value, target: &Target, frame: Option<u32
     panels.effect_timeline.key = frame.map(|f| (target.clone(), f));
     property_focus::settle(panels);
 }
+pub(super) fn project_key(panels: &mut Panels, state: &Value, object: u64, effect: u64, param: &str, frame: u32) {
+    panels.effect_controls.choose_parameter(state, object, effect, param);
+    panels.effect_timeline.key = Some((Target::new(state, object, effect, param), frame));
+}
+pub(super) fn clear_projected_key(panels: &mut Panels) {panels.effect_timeline.key=None;}
 fn frames(parameter: &EffectParam, offset: f64) -> Vec<f64> {
     if let Some(curve) = &parameter.curve {
         curve.keys.iter().map(|k| k.frame as f64 + offset).collect()
@@ -607,6 +612,11 @@ pub(super) fn render(
             );
             let hit = styles.metric("timeline.key.hit_radius", 5.);
             let rect = Rect::new(x - hit, py, hit * 2., height);
+            if let Some(frame) = composition_frame(time, state) {
+                key_selection::ui::mark(list, panels, key_selection::Key {
+                    target: motion_core::KeyframeTarget::Effect { object: row.id, effect: id, param: param.into() }, frame,
+                }, point, styles.metric("timeline.key.radius", 4.), rect);
+            }
             if clicked(&input, rect) {
                 if let Some(frame) = composition_frame(time, state) {
                     begin_key(

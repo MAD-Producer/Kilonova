@@ -37,7 +37,7 @@ fn engine() -> Engine {
     engine
 }
 fn state(engine: &Engine, frame: f64) -> Value {
-    serde_json::json!({"frame":frame,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(frame).unwrap()})
+    serde_json::json!({"root":"shortcuts-fixture","composition":motion_core::MAIN_COMPOSITION,"document_generation":1,"revision":engine.revision(),"frame":frame,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(frame).unwrap()})
 }
 fn panels() -> Panels {
     Panels {

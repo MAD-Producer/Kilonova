@@ -114,6 +114,18 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
     if !super::property_focus::navigation_scope(panels.focused) {
         return None;
     }
+    if panels.selected_keys.owns_keys() {
+        let selections = panels.selected_keys.selections();
+        let status = panels.selected_keys.status(state);
+        let mut selected = Selection::new(state,
+            selections.iter().map(|s| s.target.clone()).collect(),
+            selections.iter().map(|s| s.frames.clone()).collect(),
+            panels.selected_keys.writable(state));
+        // Even an empty or invalid owned set returns Some: clipboard shortcuts
+        // must never reinterpret it as a request to copy/cut whole layers.
+        if status == super::key_selection::Status::Stale { selected.selections.clear(); }
+        return Some(selected);
+    }
     let object = panels.selected?;
     if let Some(keys) = panels.path_controls.clipboard_selection(state, object) {
         return Some(keys);
