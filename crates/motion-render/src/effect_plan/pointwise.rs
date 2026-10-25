@@ -18,9 +18,11 @@ pub enum FusionRetainReason {
     SingleStage,
     ParameterOrStageLimit,
     CacheLimit,
-    QuantizedAlphaBoundary,
+    AlphaBoundary,
     QuantizedTransferBoundary,
     DownstreamBoundary,
+    ExternalConsumerBoundary,
+    CompositingBoundary,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -301,6 +303,37 @@ impl PlanBuilder {
             self.fusion.report = report;
             return Ok(());
         }
+        // A proved tail is local to one atomic draw. An arbitrary image-input
+        // consumer or track matte can amplify its tolerated rounding error.
+        // Source-stage readers bypass these effected outputs entirely.
+        let mut externally_read = vec![false; self.frame.draws.len()];
+        for pass in &self.frame.passes {
+            if pass.resource_input > 0 && pass.uniform.params[30][1] > 0.5 {
+                if let Some(read) = externally_read.get_mut((pass.resource_input - 1) as usize) {
+                    *read = true;
+                }
+            }
+        }
+        for composite in &self.frame.compositing {
+            if composite.matte >= 0 {
+                if let Some(read) = externally_read.get_mut(composite.matte as usize) {
+                    *read = true;
+                }
+            }
+        }
+        // Transfer blends may amplify source or backdrop errors. Adjustment
+        // effects consume the accumulated backdrop without an explicit resource
+        // edge. Neither consumer is covered by the initial pointwise proof.
+        let compositing_boundary = self
+            .frame
+            .compositing
+            .iter()
+            .any(|c| c.visible && (c.blend != 0 || c.space != 0))
+            || self
+                .frame
+                .draws
+                .iter()
+                .any(|d| d.words[31] == 2. && d.pass_start < d.pass_end);
         let mut passes = Vec::with_capacity(self.frame.passes.len());
         let mut clocks = Vec::with_capacity(self.pass_clocks.len());
         for (index, _) in scene.effects.iter().enumerate().filter(|(_, e)| e.enabled) {
@@ -317,13 +350,22 @@ impl PlanBuilder {
         for draw_index in 0..self.frame.draws.len() {
             let draw = self.frame.draws[draw_index];
             self.frame.draws[draw_index].pass_start = passes.len();
-            // An integer storage rounding difference can be magnified when tiny alpha
-            // is lifted later. Retain the whole draw until this is proved,
-            // including any groups preceding the alpha-changing operation.
-            let quantized_alpha = matches!(
-                self.precision,
-                ChannelPrecision::Unorm8 | ChannelPrecision::Unorm16
-            ) && self.pass_clocks[draw.pass_start..draw.pass_end]
+            if externally_read[draw_index] || compositing_boundary {
+                let reason = if externally_read[draw_index] {
+                    FusionRetainReason::ExternalConsumerBoundary
+                } else {
+                    FusionRetainReason::CompositingBoundary
+                };
+                *report.retained.entry(reason).or_default() += 1;
+                passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
+                clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
+                self.frame.draws[draw_index].pass_end = passes.len();
+                continue;
+            }
+            // Native subnormal-alpha probes exceed the declared pixel bounds
+            // in float modes too. Until the full alpha-lifting path is proved,
+            // preserve every real store, including groups before that operation.
+            let changes_alpha = self.pass_clocks[draw.pass_start..draw.pass_end]
                 .iter()
                 .flatten()
                 .any(|&i| {
@@ -334,10 +376,10 @@ impl PlanBuilder {
                             .position(|p| p == "channel")
                             .is_some_and(|slot| e.values[slot][0] == 5.)
                 });
-            if quantized_alpha {
+            if changes_alpha {
                 *report
                     .retained
-                    .entry(FusionRetainReason::QuantizedAlphaBoundary)
+                    .entry(FusionRetainReason::AlphaBoundary)
                     .or_default() += 1;
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);

@@ -219,11 +219,7 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
             let (expected, unfused_ns) = raw(&mut unfused, &p);
             let (actual, fused_ns) = raw(&mut fused, &p);
             let report = fused.pointwise_fusion_report();
-            let integer_precision = matches!(
-                precision,
-                ChannelPrecision::Unorm8 | ChannelPrecision::Unorm16
-            );
-            let retained_alpha = integer_precision && channel == 5. && opacity != 0.;
+            let retained_alpha = channel == 5. && opacity != 0.;
             let retained_transfer = precision == ChannelPrecision::Unorm16
                 && !reverse
                 && opacity != 0.
@@ -238,9 +234,7 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
                 assert!(report.groups.is_empty());
                 assert_eq!((report.original_passes, report.final_passes), (7, 7));
                 assert_eq!(
-                    report
-                        .retained
-                        .get(&FusionRetainReason::QuantizedAlphaBoundary),
+                    report.retained.get(&FusionRetainReason::AlphaBoundary),
                     Some(&1)
                 );
             } else if retained_transfer {
@@ -299,7 +293,7 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
                 // The first retained chain can create the original native
                 // pipelines that the fused path had not needed yet. Eligible
                 // updates keep their execution policy and reuse native pipelines.
-                if case <= 3 || !integer_precision {
+                if case <= 3 {
                     assert_eq!(
                         Some(counters),
                         steady_compiles,
@@ -528,6 +522,171 @@ fn hdr_neighbor_input_is_prepared_once_and_only_the_following_pointwise_chain_is
             assert!(
                 actual.iter().any(|p| p[0] > 1.1),
                 "HDR must remain extended: {precision:?}"
+            );
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn effected_resource_and_matte_consumers_keep_the_producers_real_stores() {
+    for precision in MODES {
+        for matte in [false, true] {
+            let (mut project, pixels) = fixture(precision);
+            // Use an otherwise eligible producer even in UNORM16.
+            if precision == ChannelPrecision::Unorm16 {
+                project.layers[0].effects.reverse();
+            }
+            project.layers[0].visible = false;
+            let mut receiver = Layer::solid(
+                2,
+                "Cross-layer receiver",
+                [W as f32, H as f32],
+                [W as f32 / 2., H as f32 / 2., 0.],
+                [1.; 4],
+            );
+            receiver.content = Content::Image { asset: 1 };
+            if matte {
+                receiver.track_matte = Some(motion_core::compositing::TrackMatte {
+                    source: 1,
+                    mode: motion_core::compositing::MatteMode::Luma,
+                    hide_source: true,
+                });
+            } else {
+                let mut displacement = effect(21, "displacement_map");
+                displacement.image_input = Some(motion_core::EffectImageInput::Layer {
+                    layer: 1,
+                    stage: motion_core::EffectImageStage::Effects,
+                });
+                receiver.effects.push(displacement);
+            }
+            project.layers.push(receiver);
+            project.rebuild_plugin_dependencies();
+            let mut original = renderer(precision);
+            let mut optimized = renderer(precision);
+            for r in [&mut original, &mut optimized] {
+                r.upload_image(1, W, H, &pixels).unwrap();
+            }
+            optimized.set_pointwise_fusion(true);
+            let (expected, _) = raw(&mut original, &project);
+            let (actual, _) = raw(&mut optimized, &project);
+            assert!(
+                expected.iter().any(|p| p[3] > 0.1),
+                "fixture rendered no receiver"
+            );
+            let report = optimized.pointwise_fusion_report();
+            assert!(
+                report.groups.is_empty(),
+                "unproved cross-layer consumer must retain producer: {precision:?} matte={matte} {report:?}"
+            );
+            assert_eq!(report.original_passes, report.final_passes);
+            assert_eq!(report.portable_compiles, 0);
+            assert_eq!(
+                report
+                    .retained
+                    .get(&FusionRetainReason::ExternalConsumerBoundary),
+                Some(&1)
+            );
+            assert_eq!(
+                actual, expected,
+                "producer stores retained exactly: {precision:?} matte={matte}"
+            );
+            if !matte {
+                project.layers[0].visible = true;
+                project.layers[1].effects[0].image_input =
+                    Some(motion_core::EffectImageInput::Layer {
+                        layer: 1,
+                        stage: motion_core::EffectImageStage::Source,
+                    });
+                let sampled = scene(&project);
+                let mut builder =
+                    PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap())
+                        .unwrap();
+                builder.set_precision(precision);
+                builder.set_pointwise_fusion(true);
+                builder.build(&sampled, &[1], W, H, true).unwrap();
+                assert_eq!(
+                    builder.pointwise_fusion_report().groups.len(),
+                    1,
+                    "raw-source readers do not consume the producer's effected output"
+                );
+                assert_eq!(builder.pointwise_fusion_report().groups[0].object, 1);
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn transfer_blends_and_adjustment_backdrops_retain_unproved_compositing_boundaries() {
+    use motion_core::compositing::{BlendMode, BlendSpace, LayerBlend};
+    for precision in MODES {
+        for boundary in ["blend", "space", "adjustment"] {
+            let (mut project, pixels) = fixture(precision);
+            if precision == ChannelPrecision::Unorm16 {
+                project.layers[0].effects.reverse();
+            }
+            let mut consumer = Layer::solid(
+                2,
+                "Compositing consumer",
+                [W as f32, H as f32],
+                [W as f32 / 2., H as f32 / 2., 0.],
+                [0.4, 0.2, 0.3, 0.8],
+            );
+            match boundary {
+                "blend" => {
+                    consumer.blend = LayerBlend {
+                        mode: BlendMode::ColorDodge,
+                        space: BlendSpace::Linear,
+                    }
+                }
+                "space" => {
+                    consumer.blend = LayerBlend {
+                        mode: BlendMode::Normal,
+                        space: BlendSpace::Srgb,
+                    }
+                }
+                _ => {
+                    consumer.content = Content::Adjustment;
+                    consumer.effects.push(effect(21, "invert"));
+                }
+            }
+            project.layers.push(consumer);
+            project.rebuild_plugin_dependencies();
+            let mut original = renderer(precision);
+            let mut optimized = renderer(precision);
+            for r in [&mut original, &mut optimized] {
+                r.upload_image(1, W, H, &pixels).unwrap();
+            }
+            optimized.set_pointwise_fusion(true);
+            let (expected, _) = raw(&mut original, &project);
+            let (actual, _) = raw(&mut optimized, &project);
+            assert!(
+                expected
+                    .iter()
+                    .chain(&actual)
+                    .flatten()
+                    .all(|v| v.is_finite())
+            );
+            assert!(expected.iter().any(|p| p[3] > 0.1));
+            let report = optimized.pointwise_fusion_report();
+            assert!(
+                report.groups.is_empty(),
+                "{precision:?} {boundary} {report:?}"
+            );
+            assert_eq!(report.original_passes, report.final_passes);
+            assert_eq!(report.portable_compiles, 0);
+            assert!(
+                report
+                    .retained
+                    .get(&FusionRetainReason::CompositingBoundary)
+                    .copied()
+                    .unwrap_or(0)
+                    >= 1
+            );
+            assert_eq!(
+                actual, expected,
+                "retained compositing: {precision:?} {boundary}"
             );
         }
     }

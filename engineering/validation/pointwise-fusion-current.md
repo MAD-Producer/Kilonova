@@ -2,11 +2,13 @@
 
 Issue #73 depends on #60 and #72. PR #489 merged as `40efcd35` after all
 platform, Rust/GPU and audit checks passed; issue #72 is closed. This prototype
-has targeted native, failure-output and representative-cost acceptance. The
-updated source still needs integration/full regression and remote CI before
-issue #73 can be closed. An earlier full effects/render run at `ebd0380c` passed
-716 tests across 119 targets, with zero failures and one existing optional
-external-image probe ignored. That result does not cover the subsequent changes.
+has native, failure-output and representative-cost acceptance. Integrated full
+regression at `bcbe367b` passed 1,859 tests across 142 targets, with zero failures
+and four pre-existing ignores. Subsequent conservative alpha/consumer guards
+have targeted native and failure-output acceptance, not a second full-run claim.
+Remote CI of the final submitted source remains required before closing #73.
+An earlier full effects/render run at `ebd0380c` passed 716 tests across 119
+targets, with zero failures and one existing optional external-image ignore.
 
 The dependent branch started at `b90b52a1` on #72. Metadata checks on 2026-10-25
 found no competing fusion/Render DAG branch or open PR. Other PR diffs were not
@@ -18,14 +20,15 @@ reviewed. No subagents or overlapping owned compilers were used.
 | --- | --- | --- |
 | 73-P1 | Implementation-bound eligibility for current invert/tint: frozen normalized source hashes, exact definition and both compiled backends, SDK/boundary restrictions | Seven IR/backend tests pass, including forged source, compiled-backend and semantic changes |
 | 73-P2 | Bounded typed stage/parameter namespaces, distinct uniform slots, 16-stage/32-cell caps, values excluded from structure keys | IR aliasing/numeric-update/bound tests and actual eligible native numeric-update reuse checks pass; operation-order change creates exactly one new portable group |
-| 73-P3 | Explicit canonical linear/premultiplied and working sRGB/straight contracts for four precisions; generated quantization at the original storage boundaries | WGSL and GLSL compile; eligible native pixel comparisons pass in all four modes; integer alpha-changing draws remain an explicit unproved boundary |
+| 73-P3 | Explicit canonical linear/premultiplied and working sRGB/straight contracts for four precisions; generated quantization at the original storage boundaries | WGSL and GLSL compile; eligible native pixel comparisons pass in all four modes; alpha-changing draws in every precision remain an explicit unproved boundary |
 | 73-P4 | Opt-in native tail grouping with coordinate/bounds/identity/lifetime guards, bounded retained-reason counts and a 64-entry compiler cache | Actual grouping, allocation anti-aliasing and registry-replacement checks pass; resources, alternate inputs and later unproved consumers retain original passes |
-| 73-P5 | Fused/unfused actual GPU comparisons, including alpha, spaces, quantization, HDR, boundaries, blur/warp retention and forged implementations | Five tests pass: 32 parameter/order variants (17 fused, eight normal zero-opacity bypasses, seven exact retained paths), four HDR producer cases (three fused, one retained exactly), plus physical lifetime/registry, neighborhood and UNORM16 transfer-order cases |
+| 73-P5 | Fused/unfused actual GPU comparisons, including alpha, spaces, quantization, HDR, boundaries, blur/warp retention and forged implementations | Seven native tests and one procedural-alpha test pass: 32 parameter/order variants (13 fused, eight normal zero-opacity bypasses, 11 exact retained paths), four HDR cases (three fused, one exact retained), 32 tiny-alpha exact retained cases, resource/matte and compositing boundaries, lifetimes/registry, neighborhood and transfer-order cases |
 | 73-P6 | Pass/loop/sample counts, portable/native pipeline compile counters/timers, logical traffic estimates and opt-in native command observations | Eight actual 1920x1080 mode/order studies pass with adapter metadata, separate cold/native/portable costs, command traces and logical traffic; physical bus counters unavailable, no general speedup claim |
-| 73-P7 | Default-level fault observation, bounded caches/reasons, current regression, CI and completion record | Real portable/native failures pass default production file/Error-stderr/stdout-isolation acceptance; bounded scope/lock/unwind tests pass; current integrated full regression and remote CI pending |
+| 73-P7 | Default-level fault observation, bounded caches/reasons, current regression, CI and completion record | Real portable/native failures pass default production file/Error-stderr/stdout-isolation acceptance; bounded scope/lock/unwind tests pass; integrated full regression passed at `bcbe367b`; final-source native/fault-output guards pass, remote CI pending |
 
 Only one owned compiler/gate runs at a time. Issue #72's completed results are
-not attributed to this new source. A full regression of the integrated follow-up remains required before a delivery claim.
+not attributed to this new source. Receipt scopes below distinguish the integrated
+full run from the subsequent focused guard regressions.
 
 ## Execution semantics to preserve
 
@@ -85,7 +88,7 @@ per-frame warning.
 
 The native comparison declares absolute linear-premultiplied bounds before
 execution: UNORM8 0.012, UNORM16 8/65535, binary16 0.005, binary32 0.00002. The HDR
-producer case uses 0.008 for binary16 and 0.00004 for binary32. Observed ordinary
+producer case uses 0.008 for binary16 and 0.00004 for binary32. The original PNG-based ordinary probes observed
 maximum errors are 0.0070993127 (UNORM8), 0.0000610361 (UNORM16), 0.0034179688
 (binary16), and 0.0000021979 (binary32). These are bounded probe results, not
 evidence of exact byte identity for fused paths. A
@@ -118,7 +121,9 @@ opaque before its analytic producer so both original and optimized paths must
 actually retain red above 1.1; this is a fixture correction, not a lower HDR
 assertion. Integer alpha failures led to an execution guard, not a wider bound.
 
-The integer guard retains the **whole draw**, including earlier candidate groups.
+The alpha guard now retains the **whole draw** in every precision, including
+earlier candidate groups. Initial integer-only acceptance was insufficient: the
+procedural subnormal-alpha follow-up below supplies actual float counterexamples.
 A later unproved consumer also prevents replacing an upstream partial group:
 permitted local rounding errors cannot be assumed safe across an arbitrary
 threshold or gain. Only a proved tail can currently fuse. Native eligible two-
@@ -129,8 +134,10 @@ The 32-row JSON is under the successful native receipt's `output-artifacts`.
 The original v6 receipt had four fused UNORM16 variants. The current follow-up
 retains its three forward non-alpha variants as well: UNORM16 now has one fused,
 two zero-opacity and five retained variants. UNORM8 retains four fused, two
-zero-opacity and two retained-alpha variants; floating modes each have six fused
-and two zero-opacity variants. Historical receipts retain their original counts.
+zero-opacity and two retained-alpha variants; floating modes each now have four
+fused, two zero-opacity and two exact retained-alpha variants. The current matrix
+therefore has 13 fused, eight bypass and 11 retained cases. Historical receipts
+retain their original counts.
 Eligible numeric updates add no native or portable compilation. Entering the
 retained path for the first time can create the original native pipelines that
 the optimized path had not needed; the portable group counter does not change.
@@ -162,8 +169,8 @@ inversion; the precise driver arithmetic that first creates that difference is
 not isolated. This is not a proof that a smaller passing image or an arbitrary
 numeric parameter range is safe. The native planner now conservatively retains
 the **whole draw** whenever a proved Tint precedes a proved Invert in UNORM16,
-reporting `quantized_transfer_boundary`. Alpha-changing integer draws retain their
-existing, earlier guard. No pixel bound was raised. Reversed UNORM16 chains and
+reporting `quantized_transfer_boundary`. Alpha-changing draws in all four modes
+retain their original stores with `alpha_boundary` after the procedural follow-up. No pixel bound was raised. Reversed UNORM16 chains and
 all three other precisions still have native fused acceptance. The portable IR
 remains able to compile all four storage modes; native eligibility adds the
 conservative guard. This is an execution-safety change to the opt-in prototype,
@@ -201,6 +208,52 @@ Vulkan, driver 591.86. The retained forward UNORM16 case uses seven passes; the
 other seven cases use three instead of seven. Physical bus bandwidth counters
 are unavailable; logical bytes and command intervals are reported separately.
 Android device acceptance remains outside the maintained desktop scope.
+
+## Final consumer and subnormal-alpha guards
+
+| Receipt under `artifacts/pr-queue/` | Actual result and scope |
+| --- | --- |
+| `issue73-followup-integrated-full-v1` | At `bcbe367b`: 1,859 passed, zero failed, four pre-existing ignores, 142 targets; source unchanged; desktop 963 passed/three ignores; full command includes effects/render/host/desktop with desktop FFmpeg |
+| `issue73-followup-boundary-red-v1` | Expected pre-fix failure: an externally consumed producer still fused; establishes a missing eligibility boundary, not a measured pixel error |
+| `issue73-followup-extreme-v1` | Failed fixture: procedural package shader path was outside the loader's shader directory; no numerical conclusion |
+| `issue73-followup-extreme-v2` | Failed native pixel bounds; all 32 rows retained before assertion, with actual positive float alpha below 1e-6 |
+| `issue73-followup-extreme-v3` | One test/32 cases pass after all-mode alpha guard; every native pixel matches exactly, no portable fusion compile; original bounds unchanged |
+| `issue73-followup-native-v2` | Seven actual GPU tests pass; 13 fused/eight bypass/11 exact retained ordinary cases; four HDR modes and external/compositing guards pass |
+| `issue73-followup-file-v2` | Final guard source passes the real production logger portable/native failure, suppression, recovery and stdout-isolation test with `MOTION_LOG` absent |
+
+The independent procedural producer has alpha values below the PNG grid, zero,
+1/255 and one, plus an HDR channel. Its alpha-changing Invert consumer exposed
+maximum error 0.03515625 in Float16 (bound 0.005) and 0.03093111515045166 in
+Float32 (bound 0.00002). The first arithmetic/filtering divergence has not been
+isolated; these results do not establish a particular driver or FMA cause.
+Retaining the full draw in all four precisions addresses the demonstrated unsafe
+optimization. All 32 retained cases now have zero error; RGB-only fusion remains
+covered in all four precisions, including reverse UNORM16 and HDR float cases.
+The original per-mode bounds and exact retained-pixel assertions were not relaxed.
+
+An effected image-input or matte consumer now retains its producer's original
+stores and reports `external_consumer_boundary`. A raw-source reader does not
+consume the effected output and does not inhibit otherwise eligible fusion.
+Visible non-normal/transfer-space blends and effect-bearing adjustment backdrops
+conservatively retain the frame's candidate draws with `compositing_boundary`.
+The initial local proof does not establish their end-to-end error amplification.
+Native tests verify finite nonempty output, unchanged pass counts, zero fusion
+compilation and exact pixels for each retained path in all four precisions.
+These are normal optimization refusals with bounded counts, not render faults.
+
+The 68m49s integrated full run preceded these opt-in guards. Its four ignores
+are the existing actual audio-device clock probe, two explicit Release real-
+media pressure/native-window studies, and the optional external-image probe.
+The later guards return after the unchanged disabled-prototype early exit; all
+new enabled-path branches are exercised by the native/procedural tests, and real
+fault output is rechecked. No second full integrated run is claimed. Remote CI
+still gates the final PR source. No UI, panel, dependencies or assets changed.
+
+The [source-bound evidence bundle](data/pointwise-fusion-acceptance-bcbe367b.zip)
+contains 19 stage receipts, logs, matrices and selected pre/post-guard source
+snapshots, with an entry SHA-256 manifest verified after archive creation. Receipt source
+hashes and retained failed runs distinguish observations from proof and keep the
+historical runs' original eligibility/counts visible.
 
 ## Provenance
 
