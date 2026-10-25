@@ -139,6 +139,15 @@ pub enum Error {
         #[source]
         source: Box<Error>,
     },
+    #[error("parent edit object={object} parent={parent:?} frame={frame} mode={mode:?}: {source}")]
+    ParentOperation {
+        object: u64,
+        parent: Option<u64>,
+        frame: u32,
+        mode: hierarchy::ParentMode,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("edit gesture already active or history unavailable during a gesture")]
     Gesture,
     #[error(transparent)]

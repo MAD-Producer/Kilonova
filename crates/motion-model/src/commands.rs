@@ -142,6 +142,12 @@ pub enum Command {
         parent: Option<u64>,
         frame: u32,
     },
+    ParentWithMode {
+        object: u64,
+        parent: Option<u64>,
+        frame: u32,
+        mode: crate::hierarchy::ParentMode,
+    },
     CopyKey {
         object: u64,
         property: Property,

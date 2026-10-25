@@ -84,6 +84,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
             }
             "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
             "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
+            "ParentMode" => json!({"type":"string","enum":["preserve_world","preserve_local"]}),
             "crate::compositing::BlendMode" => {
                 json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
             }
@@ -160,6 +161,7 @@ registry! {
     Command::CreateCamera => "create_camera" [];
     Command::Remove { .. } => "remove" [("object","u64",true), ("frame","u32",true)];
     Command::Parent { .. } => "parent" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true)];
+    Command::ParentWithMode { .. } => "parent_with_mode" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true), ("mode","ParentMode",true)];
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
     Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];

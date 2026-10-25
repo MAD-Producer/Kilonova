@@ -47,6 +47,8 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()
         || panels.timeline_columns.editing()
+        || panels.parent_controls.open
+        || panels.parent_controls.picking()
         || panels.properties.field.is_some()
         || panels.project.search
         || panels.timeline.timeline_search

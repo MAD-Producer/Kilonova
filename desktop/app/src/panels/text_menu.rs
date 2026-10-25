@@ -91,6 +91,8 @@ impl Request<'_> {
     }
 }
 fn visit(panels: &mut Panels, request: &mut Request<'_>) {
+    panels.parent_controls.text_menu(request);
+    panels.timeline_columns.text_menu(request);
     panels.layer_actions.text_menu(request);
     panels.toolbar_style.text_menu(request);
     match panels.focused {

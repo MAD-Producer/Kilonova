@@ -237,7 +237,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.layer_actions.cancel();
     panels.expressions.cancel();
     panels.timeline.timeline_context_menu = None;
-    panels.parent_controls.open = false;
+    panels.parent_controls.cancel();
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
@@ -339,6 +339,9 @@ pub fn chrome(
     let colors = styles.colors();
 
     tools::prepare(panels,None,input);
+    let parent_pick_owned = panels.parent_controls.prepare_window(None, input);
+    let parent_neutral = Input::default();
+    let input = if parent_pick_owned { &parent_neutral } else { input };
     let drag_owned = panels.effect_drag.prepare(None, state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
@@ -370,6 +373,8 @@ pub fn chrome(
         panels.locale,
         panels.selected,
         panels.focused == Some(Panel::Timeline)
+            && !panels.timeline_columns.editing()
+            && !panels.parent_controls.open
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
@@ -394,6 +399,7 @@ pub fn chrome(
         !panels.effect_search_in(None)
             && !node_modal
             && !timeline_dropdown
+            && !panels.parent_controls.open
             && !mask_header_modal
             && !layer_modal
             && !path_context_owned
@@ -501,6 +507,7 @@ pub fn chrome(
         || panels.effect_search_in(None)
         || panels.timeline.timeline_context_menu.is_some()
         || timeline_dropdown
+        || panels.parent_controls.open
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
     let effect_owner = if panels.effect_timeline.editing() {
@@ -876,6 +883,8 @@ pub fn chrome(
             paint::rect(list, handle.area, colors.ACCENT.with_alpha(amount * 0.5));
         }
     }
+    let parent_selection = panels.selection_ids();
+    let parent_suspended = panels.menu.is_some() || panels.text_menu.is_some();
     panels.timeline_columns.finish_window(
         list,
         atlas,
@@ -888,8 +897,13 @@ pub fn chrome(
         state,
         input,
         panels.locale,
+        &parent_selection,
+        &mut panels.parent_controls,
+        parent_suspended,
         &mut out,
     );
+    panels.parent_controls.finish_window(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, &parent_selection, input, panels.locale, parent_suspended, &mut out);
     panels.layer_actions.set_selection(panels.selection_ids());
     panels.layer_actions.finish_window(
         list,
@@ -990,6 +1004,9 @@ pub fn floating_chrome(
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
     tools::prepare(panels,Some(panel),input);
+    let parent_pick_owned = panels.parent_controls.prepare_window(Some(panel), input);
+    let parent_neutral = Input::default();
+    let input = if parent_pick_owned { &parent_neutral } else { input };
     let path_context_owned = panels.path_controls.prepare_context_menu(Some(panel), state, panels.selected, input);
     let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
@@ -1028,6 +1045,8 @@ pub fn floating_chrome(
         panels.locale,
         panels.selected,
         panel == Panel::Timeline
+            && !panels.timeline_columns.editing()
+            && !panels.parent_controls.open
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
@@ -1091,6 +1110,7 @@ pub fn floating_chrome(
         || panels.layer_actions.modal_in(Some(panel))
         || shortcut_modal
         || timeline_dropdown && !dropdown_owned
+        || panels.parent_controls.open
     {
         &neutral
     } else {
@@ -1122,7 +1142,7 @@ pub fn floating_chrome(
         atlas,
         Rect::new(size[0] - 78.0, 4.0, 72.0, 22.0),
         panels.locale.t(T::Dock),
-        if timeline_dropdown || mask_header_modal {
+        if timeline_dropdown || mask_header_modal || panels.parent_controls.open {
             &neutral
         } else {
             body_input
@@ -1179,6 +1199,8 @@ pub fn floating_chrome(
             }
         }
     }
+    let parent_selection = panels.selection_ids();
+    let parent_suspended = panels.menu.is_some() || panels.text_menu.is_some();
     panels.timeline_columns.finish_window(
         list,
         atlas,
@@ -1186,8 +1208,13 @@ pub fn floating_chrome(
         state,
         input,
         panels.locale,
+        &parent_selection,
+        &mut panels.parent_controls,
+        parent_suspended,
         &mut out,
     );
+    panels.parent_controls.finish_window(list, atlas, Rect::new(0., 0., size[0], size[1]),
+        state, &parent_selection, input, panels.locale, parent_suspended, &mut out);
     panels.layer_actions.set_selection(panels.selection_ids());
     panels.layer_actions.finish_window(
         list,

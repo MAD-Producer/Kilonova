@@ -1,6 +1,16 @@
 use crate::{ensure, Error, Project, Result};
 use glam::Mat4;
 
+/// Reparenting changes the inherited basis; authored tracks are never baked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParentMode {
+    /// Preserve the sampled world transform at the command's composition frame.
+    PreserveWorld,
+    /// Retain authored local values, inheriting the new parent's full transform.
+    PreserveLocal,
+}
+
 pub fn validate(p: &Project) -> Result<()> {
     for object in std::iter::once(0).chain(p.layers.iter().map(|l| l.id)) {
         let mut current = object;
