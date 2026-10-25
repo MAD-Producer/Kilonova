@@ -1,0 +1,152 @@
+{
+  "source_commit": "cf3a7dbb77d8886c074b55010633bed630be965f",
+  "issue": 216,
+  "phase": "typed_selection_and_atomic_batch_commands",
+  "issue_complete": false,
+  "platform": "Windows x86_64, Rust 1.97.1, FFmpeg enabled",
+  "tests": {
+    "core_keyframe_clipboard": {
+      "passed": 26,
+      "seconds": 3.31
+    },
+    "desktop_key_selection_final": {
+      "passed": 15,
+      "seconds": 18.2
+    },
+    "existing_keyframe_clipboard": {
+      "passed": 6
+    },
+    "existing_timeline_shortcuts": {
+      "passed": 48
+    },
+    "existing_animation_menu": {
+      "passed": 7
+    },
+    "existing_keyboard": {
+      "passed": 9
+    },
+    "property_focus": {
+      "passed": 9,
+      "seconds": 11.36
+    },
+    "overlap_note": "Filters overlap; no summed unique-pass claim. The first zero-match property_focus filter is excluded."
+  },
+  "default_channels": {
+    "actual_batch_edit_error_records": 6,
+    "error_file_and_stderr": true,
+    "stdout_isolated": true,
+    "non_present_info_start_verified": true,
+    "failed_edit_project_and_revision_unchanged": true,
+    "stale_action_is_normal_cancellation": true,
+    "success_and_undo_after_failures": true,
+    "malformed_snapshot_sites": {
+      "selection.authored_keys": {
+        "scope": "process_lifetime_per_static_site",
+        "warn_count": 1,
+        "error_count": 1,
+        "error_occurrence": 60,
+        "attempts": 120,
+        "healthy_neighbors_reset": false
+      },
+      "selection.authored_key_frame": {
+        "scope": "process_lifetime_per_static_site",
+        "warn_count": 1,
+        "error_count": 1,
+        "error_occurrence": 60,
+        "attempts": 120,
+        "healthy_neighbors_reset": false
+      }
+    }
+  },
+  "checks": {
+    "diff_check": "passed",
+    "verify_style_consumers": "passed"
+  },
+  "pending": [
+    "mouse_add_toggle_and_marquee_in_timeline_and_graph",
+    "selection_paint_and_select_all",
+    "primary_property_projection",
+    "native_main_and_floating_zh_en_actual_os_input_and_screenshots",
+    "actual_ui_preflight_failure_notification",
+    "cross_platform_CI"
+  ],
+  "files": [
+    {
+      "path": "keyframe-selection-core-first.log",
+      "bytes": 4010,
+      "sha256": "8af4342edcb92c862eee6561c69c9de26196e4146da11689eaa1f7b03f0c995d"
+    },
+    {
+      "path": "keyframe-selection-set-first.log",
+      "bytes": 15450,
+      "sha256": "49701bdb062048efe432992e4f70e5bf0462e907f7464f16885df950f1ad0834"
+    },
+    {
+      "path": "keyframe-selection-set-fixed.log",
+      "bytes": 16032,
+      "sha256": "e81f34f05ffe8eb06bbc4fb6f4dd3e9cb4032dc1f9ae18e95f4d58b1ff09e479"
+    },
+    {
+      "path": "keyframe-selection-foundation.log",
+      "bytes": 12825,
+      "sha256": "e8eb654771e27a70df67a5216ef15b92b8399e3d128e20020fb0b70e15f28d32"
+    },
+    {
+      "path": "keyframe-selection-routing-regressions.log",
+      "bytes": 61270,
+      "sha256": "cef77731cca5884db0bea9ae1231c3b124749e80ef9319844ae8a62f9c3a8356"
+    },
+    {
+      "path": "keyframe-selection-source-first.log",
+      "bytes": 12494,
+      "sha256": "89e7cf8692b0bcaf9b75a17b8505ecf0608166f303c38f2df777a9f119c14376"
+    },
+    {
+      "path": "keyframe-selection-final.log",
+      "bytes": 12494,
+      "sha256": "5ab474c2c9ad04ea8e80ef134b124ccc80cea0a34d1ba1b7455383e0dd1b4827"
+    },
+    {
+      "path": "keyframe-selection-focus-regression.log",
+      "bytes": 11813,
+      "sha256": "6845157ea09e1c291454a408d58f6a2e0b53226462a0ebd96bda8527bd2afce5"
+    },
+    {
+      "path": "keyframe-selection-actions-final/logs/motion-studio.log",
+      "bytes": 4728,
+      "sha256": "50d0cd2d2cede0684c58e08368ba1b40d82b3be064c23767ff7f321a73cc5b17"
+    },
+    {
+      "path": "keyframe-selection-actions-final/stderr.log",
+      "bytes": 1261,
+      "sha256": "a89bfb373153bfa91eff926515d33554918d50e72979ac005e7c967ccde7bb8e"
+    },
+    {
+      "path": "keyframe-selection-actions-final/stdout.log",
+      "bytes": 246,
+      "sha256": "0a23a4359bfa5a9e789d5768a25e440dac2302ea4860394e9ed8a60f8d1892c9"
+    },
+    {
+      "path": "keyframe-selection-source-final/motion-studio.log",
+      "bytes": 1551,
+      "sha256": "a31610a12dc868324c3ed77c211f616da4a827d3e0aff963c6a222cb1e3f6e60"
+    },
+    {
+      "path": "keyframe-selection-source-final/stderr.log",
+      "bytes": 386,
+      "sha256": "76f236afde735987b22c2d78282a21f313731c9e4769a8eb0f2201cba90e4ed7"
+    },
+    {
+      "path": "keyframe-selection-source-final/stdout.log",
+      "bytes": 259,
+      "sha256": "f613ca1ccccac837049635cb62874afb2b2df5e025f971958730151137febb27"
+    }
+  ],
+  "archive": {
+    "path": "data/keyframe-selection-foundation-cf3a7dbb.zip",
+    "bytes": 34683,
+    "sha256": "a654f01b20053d38b4ad0bd7a2d85045300f99e266317adc1e7777d5ca586c27",
+    "crc": "passed",
+    "members": 15
+  }
+}

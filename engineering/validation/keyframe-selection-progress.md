@@ -37,6 +37,8 @@
 
 原始日志位于本地 `artifacts/pr-ci-followups/`：`keyframe-selection-core-first.log`、`keyframe-selection-foundation.log`、`keyframe-selection-routing-regressions.log`、`keyframe-selection-source-first.log`、`keyframe-selection-final.log`、`keyframe-selection-focus-regression.log`。最终故障子进程原件在 `keyframe-selection-actions-final/` 和 `keyframe-selection-source-final/`。首次私有类型导致的编译失败保存在 `keyframe-selection-set-first.log`，修正可见性后的日志为 `keyframe-selection-set-fixed.log`；没有删除失败原件。第一次回归启动使用 PowerShell `Tee-Object -LiteralPath ... -Append` 参数组合失败，没有执行测试，不计入结果。
 
+基础代码提交为 `cf3a7dbb77d8886c074b55010633bed630be965f`。[机器可读结果](keyframe-selection-foundation-results.json) 记录每份原件的 SHA-256 与边界；[日志压缩包](data/keyframe-selection-foundation-cf3a7dbb.zip) 包含 15 个成员、34,683 字节，SHA-256 为 `a654f01b20053d38b4ad0bd7a2d85045300f99e266317adc1e7777d5ca586c27`，已逐成员校验 CRC。不包含运行时复制的效果包。
+
 ## DESIGN.md §0.7 与截图边界
 
 此阶段没有修改任何绘制、行布局、颜色、尺寸、控件或右键菜单，因此没有新增样式截图。不能以本阶段编译或单元测试宣称 §12 视觉验收通过。
