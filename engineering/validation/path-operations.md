@@ -73,6 +73,12 @@ PR #484 的首轮 Linux job 120910708116 在已有插件取消菜单测试失败
 
 修正后带 FFmpeg 的实际桌面程序重新编译，中英文 `--smoke` 均退出 0，每种语言生成 46 张截图；`tools/ci_desktop.py::verify_design_screens` 验证通过，`designCaptureProjectUntouched` 均为 true。证据为 `path-smoke-fixture-build.log`、`path-smoke-after-{en,zh}.json/.log` 及对应 PNG。系统 Vulkan 加载器对已移除 Epic Overlay 的错误原样保留，未通过清日志隐藏。该证据仍是本地 Debug 原生窗口验证，修复提交需要新的完整 Release 打包 run。
 
+第二轮完整 run `40153937486` 的 Linux 已通过前面的普通原生验收，随后样式覆盖阶段暴露 `shell/acceptance.rs` 的浮动时间轴音频菜单仍右击旧坐标 y=105。32px 行高时该点落在工作范围栏，后续方向键没有菜单所有权；原件见 `path-package-linux-second.log`。同样改为按表头、工作范围栏和行高定位第一行中心；保留无编辑断言，并加强为每一步必须继续持有实际菜单，失败包含 step／point／动作数量。
+
+`path-float-menu-build.log` 编译修正后的 FFmpeg 桌面程序。`path-style-manual/` 的中英文 `--panels-smoke` 均在原有 90 秒限制内退出 0，各验证 19 个原生浮窗，实际覆盖 32px 行高、12px 拖动阈值和 linear easing；`verify_design_screens` 均通过，完整工程保持不变。`styled-en.panel-4-audio-menu.png` 复核实际音频子菜单。未改生产逻辑、既有超时或重试。
+
+本地整套 `ci_desktop.py` 另有未通过记录：Debug 的首个 `--smoke` 在持续生成 capture_ui 截图时触及既有 40 秒总限制，见 `path-full-desktop-validation.log` 和 `path-full-desktop-user/` 的默认日志。没有延长期限、删除步骤或把后续定向验证当成整脚本通过；完整 Release CI 仍待新提交验证。
+
 ## DESIGN §0.7 基线逐项处置
 
 以下十二项均保留，未以新增菜单的验收结果宣称它们已整改：

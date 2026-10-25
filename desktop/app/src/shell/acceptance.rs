@@ -112,16 +112,21 @@ impl Shell {
                 let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
                 let physical = f.window.inner_size();
                 let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
-                let point = [140., 105.];
-                for input in [
+                let styles = self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+                let point = [140., 30. + styles.metric("timeline.header.base.height", 64.)
+                    + styles.metric("timeline.work_area.height", 14.) + styles.metric("row.height", 22.) * 0.5];
+                for (step, input) in [
                     Input { mouse:point, pressed:Some((MouseButton::Right, point)), ..Default::default() },
                     Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
                     Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
                     Input { keys:vec![(Key::Right,Default::default())], ..Default::default() },
-                ] {
+                ].into_iter().enumerate() {
                     let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
                         panel, size, &mut self.panels, &self.state, &input);
-                    if !actions.is_empty() { return Err("menu navigation edited the project".into()); }
+                    if !actions.is_empty() || !self.panels.layer_actions.modal_in(Some(panel)) {
+                        return Err(format!("audio menu navigation must retain the popup without edits: step={step} point={point:?} actions={} open={}",
+                            actions.len(),self.panels.layer_actions.modal_in(Some(panel))));
+                    }
                 }
                 let screenshot = self.capture_panel_float_named(panel, "-audio-menu")?;
                 self.panels.layer_actions.cancel();
