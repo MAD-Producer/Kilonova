@@ -1,0 +1,362 @@
+{
+  "issue": 129,
+  "base": "bbb1ad09b7389220d48f9c4ea40f4f38fb7c7f14",
+  "code_revision": "0c0b23b63b5a15b8360b7df3a3e74dbf03177c18",
+  "before": {
+    "head": "bbb1ad09b7389220d48f9c4ea40f4f38fb7c7f14",
+    "command": [
+      "cargo",
+      "run",
+      "-p",
+      "motion-ui",
+      "--example",
+      "empty_clip_comparison",
+      "--no-default-features",
+      "--locked",
+      "--offline",
+      "-j1",
+      "--",
+      "E:\\Dev\\aem\\.tools\\clip-empty-output\\before.json"
+    ],
+    "exit_code": 0,
+    "seconds": 69.0,
+    "source_sha256": "bfe341de0f3a3ed5d00a9b9e00d8b0394970da3417c9300f0634d4ad3ea16250",
+    "source_unchanged": true,
+    "probe_sha256": "c0f3c0fb88c8ddac77ceb337fb28308f18a57b9f5644f25007eb8536d7acd70b",
+    "log_sha256": "5be49e13e7ed1120c279e611c3d79624cc834aaeb262c4fb8a06e1f60761b5b0"
+  },
+  "after": {
+    "head": "bbb1ad09b7389220d48f9c4ea40f4f38fb7c7f14",
+    "command": [
+      "cargo",
+      "run",
+      "-p",
+      "motion-ui",
+      "--example",
+      "empty_clip_comparison",
+      "--no-default-features",
+      "--locked",
+      "--offline",
+      "-j1",
+      "--",
+      "E:\\Dev\\aem\\.tools\\clip-empty-output\\after.json"
+    ],
+    "exit_code": 0,
+    "seconds": 12.69,
+    "source_sha256": "ace371984eb2dd96b0d5b6fd9beda540e23a0ec03670545bcbb6f9440b6e26ee",
+    "source_unchanged": true,
+    "probe_sha256": "c0f3c0fb88c8ddac77ceb337fb28308f18a57b9f5644f25007eb8536d7acd70b",
+    "log_sha256": "737cdf600a9e886edace07d7c20854fe77e8ccb50b2ecdca88426f4afa56a90f"
+  },
+  "regressions": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-ui",
+      "--locked",
+      "--offline",
+      "-j1",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 64.3,
+    "source_sha256": "ace371984eb2dd96b0d5b6fd9beda540e23a0ec03670545bcbb6f9440b6e26ee",
+    "source_unchanged": true,
+    "log_sha256": "d5fdce024fa607023d96133478ed20aac2575f4b726a1d586a89deaec325620b"
+  },
+  "comparison": {
+    "cases": [
+      {
+        "case": "quad_left",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 9216,
+        "bytes_after": 9216
+      },
+      {
+        "case": "triangles_left",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 9216,
+        "bytes_after": 9216
+      },
+      {
+        "case": "quad_corner",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 9216,
+        "bytes_after": 9216
+      },
+      {
+        "case": "triangles_corner",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 9216,
+        "bytes_after": 9216
+      },
+      {
+        "case": "quad_outside",
+        "before": 64,
+        "after": 0,
+        "bytes_before": 3072,
+        "bytes_after": 0
+      },
+      {
+        "case": "triangles_outside",
+        "before": 64,
+        "after": 0,
+        "bytes_before": 3072,
+        "bytes_after": 0
+      },
+      {
+        "case": "quad_rotated",
+        "before": 192,
+        "after": 192,
+        "bytes_before": 21504,
+        "bytes_after": 21504
+      },
+      {
+        "case": "triangles_rotated",
+        "before": 192,
+        "after": 192,
+        "bytes_before": 21504,
+        "bytes_after": 21504
+      },
+      {
+        "case": "quad_contained",
+        "before": 0,
+        "after": 0,
+        "bytes_before": 0,
+        "bytes_after": 0
+      },
+      {
+        "case": "triangles_contained",
+        "before": 0,
+        "after": 0,
+        "bytes_before": 0,
+        "bytes_after": 0
+      },
+      {
+        "case": "quad_max_edge",
+        "before": 0,
+        "after": 0,
+        "bytes_before": 0,
+        "bytes_after": 0
+      },
+      {
+        "case": "triangles_max_edge",
+        "before": 64,
+        "after": 64,
+        "bytes_before": 3072,
+        "bytes_after": 3072
+      },
+      {
+        "case": "empty_input",
+        "before": 0,
+        "after": 0,
+        "bytes_before": 0,
+        "bytes_after": 0
+      },
+      {
+        "case": "incomplete_inside",
+        "before": 64,
+        "after": 0,
+        "bytes_before": 512,
+        "bytes_after": 0
+      },
+      {
+        "case": "incomplete_tail",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 6144,
+        "bytes_after": 6144
+      },
+      {
+        "case": "zero_width",
+        "before": 64,
+        "after": 0,
+        "bytes_before": 1536,
+        "bytes_after": 0
+      },
+      {
+        "case": "zero_height",
+        "before": 64,
+        "after": 0,
+        "bytes_before": 1536,
+        "bytes_after": 0
+      },
+      {
+        "case": "nonfinite",
+        "before": 128,
+        "after": 128,
+        "bytes_before": 4608,
+        "bytes_after": 4608
+      },
+      {
+        "case": "mixed_kept_removed",
+        "before": 33,
+        "after": 1,
+        "bytes_before": 1792,
+        "bytes_after": 1024
+      }
+    ],
+    "complete_geometry_colors_order_and_retained_capacities_equal": true,
+    "allocation_requests_removed": 352,
+    "requested_bytes_removed": 10496
+  },
+  "targets": [
+    {
+      "target": "Running unittests src\\lib.rs (E:/Dev/aem/target\\debug\\deps\\motion_ui-08153f5f07211c2d.exe)",
+      "passed": 65,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\analytic.rs (E:/Dev/aem/target\\debug\\deps\\analytic-91204e0765cdd579.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\borrowed_input.rs (E:/Dev/aem/target\\debug\\deps\\borrowed_input-f262a90bc946ca6f.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\composites.rs (E:/Dev/aem/target\\debug\\deps\\composites-6f4b4f1eb92b7a03.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\diamond_bounds.rs (E:/Dev/aem/target\\debug\\deps\\diamond_bounds-ea6163e981730c31.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\dock_constraints.rs (E:/Dev/aem/target\\debug\\deps\\dock_constraints-2be454d8554c4164.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\failure_boundaries.rs (E:/Dev/aem/target\\debug\\deps\\failure_boundaries-d044462ee67a5396.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\framework.rs (E:/Dev/aem/target\\debug\\deps\\framework-e8430349f751f0ae.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\grapheme_editing.rs (E:/Dev/aem/target\\debug\\deps\\grapheme_editing-6f1ea1cd3190ca23.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\icon_geometry.rs (E:/Dev/aem/target\\debug\\deps\\icon_geometry-898e861de8680458.exe)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\input_ownership.rs (E:/Dev/aem/target\\debug\\deps\\input_ownership-28c4c6bd5268aa48.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\layer_visibility.rs (E:/Dev/aem/target\\debug\\deps\\layer_visibility-bcfac1724a5dd2e0.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_clip_buffers.rs (E:/Dev/aem/target\\debug\\deps\\paint_clip_buffers-09c127b5040031ba.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_observability.rs (E:/Dev/aem/target\\debug\\deps\\paint_observability-0d2b21dfb2bd6bfa.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\path_antialiasing.rs (E:/Dev/aem/target\\debug\\deps\\path_antialiasing-b152435b7b05b44d.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\retained_text.rs (E:/Dev/aem/target\\debug\\deps\\retained_text-01d3a904610a9a23.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\style.rs (E:/Dev/aem/target\\debug\\deps\\style-752971ced37c38ba.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\tabs.rs (E:/Dev/aem/target\\debug\\deps\\tabs-76184dda801c46fd.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_bounds.rs (E:/Dev/aem/target\\debug\\deps\\text_bounds-c84eca0fa44ba4dc.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_clipboard.rs (E:/Dev/aem/target\\debug\\deps\\text_clipboard-c73455b0895cf606.exe)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_commands.rs (E:/Dev/aem/target\\debug\\deps\\text_commands-b62f4314a4265e45.exe)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\workspace_observability.rs (E:/Dev/aem/target\\debug\\deps\\workspace_observability-cb256bfffe1c5a97.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Doc-tests motion_ui",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "total_passed": 179,
+  "archive": {
+    "path": "engineering/validation/data/empty-clip-output-bbb1ad09.zip",
+    "bytes": 83760,
+    "sha256": "b048f4f7efd79f3554bc318558f672afde4648c5efa66ff821659806cc3adb56",
+    "entries": 20
+  },
+  "limits": [
+    "CPU clip-operation allocation requests in dev/no-default-features build, not whole-frame FPS or RSS",
+    "bounded 19 workloads; not proof that every UI allocation has been removed",
+    "not full completion of #129 or DESIGN section 12",
+    "five latest-head non-skipped CI checks still required before merge"
+  ]
+}
