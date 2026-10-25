@@ -194,6 +194,7 @@ fn effect_drag_native_windows_capture_targets_and_preserve_release_coordinates()
             panel: Panel::Effects,
             input: Input::default(),
             paint_input: Input::default(),
+            pointer_position: Default::default(),
             scale: 1.,
         },
     );

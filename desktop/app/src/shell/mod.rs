@@ -13,6 +13,7 @@ mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;
+pub(crate) mod pointer_position;
 #[cfg(all(test, target_os = "windows"))]
 mod native_input_tests;
 #[cfg(all(test, target_os = "windows"))]

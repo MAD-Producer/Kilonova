@@ -83,6 +83,7 @@ impl ApplicationHandler for Host {
                 panel: dock::Panel::Composition,
                 input: Input::default(),
                 paint_input: Input::default(),
+                pointer_position: Default::default(),
                 scale: 2.,
             },
         );
@@ -236,6 +237,69 @@ impl ApplicationHandler for Host {
             assert!(input(&shell, id).text.is_empty());
         }
 
+        // Windows suppresses CursorMoved when entry returns to the exact last
+        // client coordinate. A menu/floating-window round trip must still allow
+        // selection; restoring hover must not resurrect the cancelled drag.
+        for id in [main_id, float_id] {
+            for scale in [1., 1.5, 2.] {
+                shell.scale = scale;
+                shell.floating.get_mut(&float_id).unwrap().scale = scale;
+                pointer(&mut shell, event_loop, id, [240., 180.]);
+                button(&mut shell, event_loop, id, ElementState::Pressed);
+                shell.window_event(
+                    event_loop,
+                    id,
+                    WindowEvent::CursorLeft {
+                        device_id: DeviceId::dummy(),
+                    },
+                );
+                // A late release outside remains outside; it must not be
+                // mistaken for a click at the retained native coordinate.
+                button(&mut shell, event_loop, id, ElementState::Released);
+                assert!(input(&shell, id)
+                    .mouse
+                    .iter()
+                    .all(|v| *v == f32::NEG_INFINITY));
+                shell.input.begin_frame();
+                shell
+                    .floating
+                    .get_mut(&float_id)
+                    .unwrap()
+                    .input
+                    .begin_frame();
+                shell.window_event(
+                    event_loop,
+                    id,
+                    WindowEvent::CursorEntered {
+                        device_id: DeviceId::dummy(),
+                    },
+                );
+                let position = [240. / scale, 180. / scale];
+                assert_eq!(input(&shell, id).mouse, position);
+                assert_eq!(input(&shell, id).held, None);
+                assert_eq!(input(&shell, id).pressed, None);
+                assert_eq!(input(&shell, id).released, None);
+                assert_eq!(input(&shell, id).pointer_origin, None);
+                let other = if id == main_id { float_id } else { main_id };
+                assert!(
+                    !input(&shell, other).pending,
+                    "entry leaked to another window"
+                );
+                button(&mut shell, event_loop, id, ElementState::Pressed);
+                assert_eq!(
+                    input(&shell, id).pressed,
+                    Some((MouseButton::Left, position))
+                );
+                button(&mut shell, event_loop, id, ElementState::Released);
+                // Entry followed by a different coordinate uses the new event.
+                pointer(&mut shell, event_loop, id, [280., 200.]);
+                assert_eq!(input(&shell, id).mouse, [280. / scale, 200. / scale]);
+            }
+        }
+        assert!(shell::pointer_position::PointerPosition::default()
+            .entered(1.)
+            .is_none());
+
         // Late events from an already redocked window must not enter the main
         // window path, resize its surface or enqueue another import.
         shell.floating.insert(
@@ -246,6 +310,7 @@ impl ApplicationHandler for Host {
                 panel: dock::Panel::Composition,
                 input: Input::default(),
                 paint_input: Input::default(),
+                pointer_position: Default::default(),
                 scale: 1.,
             },
         );

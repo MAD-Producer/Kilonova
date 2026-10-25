@@ -286,6 +286,7 @@ struct Shell {
     system_fonts: Option<Vec<dialogs::FontChoice>>,
     input: Input,
     paint_input: Input,
+    pointer_position: shell::pointer_position::PointerPosition,
     text_clipboard: Arc<motion_ui::text_clipboard::TextClipboard>,
     state: Value,
     scale: f32,
@@ -348,6 +349,7 @@ struct FloatWindow {
     panel: dock::Panel,
     input: Input,
     paint_input: Input,
+    pointer_position: shell::pointer_position::PointerPosition,
     scale: f32,
 }
 
@@ -412,6 +414,7 @@ impl Shell {
             system_fonts: None,
             input: Default::default(),
             paint_input: Default::default(),
+            pointer_position: Default::default(),
             text_clipboard: Default::default(),
             state,
             scale: 1.0,
@@ -576,12 +579,16 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.input.pending = true;
                 self.dirty = true;
             }
-            WindowEvent::CursorMoved { position, .. } => self.translate(Event::MouseMoved {
-                position: [
-                    position.x as f32 / self.scale,
-                    position.y as f32 / self.scale,
-                ],
-            }),
+            WindowEvent::CursorMoved { position, .. } => {
+                let event = self.pointer_position.moved(position, self.scale);
+                self.translate(event);
+            }
+            #[cfg(target_os = "windows")]
+            WindowEvent::CursorEntered { .. } => {
+                if let Some(event) = self.pointer_position.entered(self.scale) {
+                    self.translate(event);
+                }
+            }
             WindowEvent::CursorLeft { .. } => self.pointer_left(),
             WindowEvent::MouseInput { state, button, .. } => {
                 let button = match button {

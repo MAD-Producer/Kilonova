@@ -1,0 +1,20 @@
+[
+  {
+    "file": "en-edit-menu.png",
+    "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\clipboard-pointer-entry-os-en-activated\\edit-layer-copy.png",
+    "sha256": "d2d06f89625bbdc0fa4f128857dd5b3b145e1ec3a9118b4c2ea3ed393873cb27",
+    "sourceCommit": "d3074562ccbb85a185bcc886a3971aa6e314fccd",
+    "actualSystemInput": true,
+    "dpi": 96,
+    "edited": false
+  },
+  {
+    "file": "zh-float-reselected.png",
+    "source": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\clipboard-pointer-entry-os-zh-activated\\cut-observation-27.png",
+    "sha256": "2a5199847ae9bc29b72f709c1b80f1a22b163764276bf717e48effdb40bb0399",
+    "sourceCommit": "d3074562ccbb85a185bcc886a3971aa6e314fccd",
+    "actualSystemInput": true,
+    "dpi": 96,
+    "edited": false
+  }
+]
