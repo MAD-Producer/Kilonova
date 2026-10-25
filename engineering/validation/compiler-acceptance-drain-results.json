@@ -1,0 +1,26 @@
+{
+  "source_commit": "b395bf6c25c2c62eb7564f633f8ef6550ff7d5e4",
+  "original_main": "302a15bfb0a69b52df89c69da63bd7bbd25e3e1e",
+  "original_run": 40175526135,
+  "local_platform": "Windows x86_64 / Vulkan",
+  "diagnostic_modes": [
+    "portable",
+    "native"
+  ],
+  "completed_pixel_verified_frames_per_mode": 66,
+  "default_sinks": "verified by original assertions and raw log inspection",
+  "encoder_admission_tests_passed": 4,
+  "macos_arm64_verification": "pending GitHub main run",
+  "macos_intel_upload_failure": "ENOTFOUND; no production or retry-policy change",
+  "files": {
+    "main-animation-release-failed.log": "abd27141750e101ace4c81506631817b2580550769c85da154ac8d57c33c19b0",
+    "compiler-acceptance-drain-first.log": "8a6daee831dab71d4039f59e20794b57b744484db2b30003a650e531a916f7fb",
+    "compiler-acceptance-drain-allocation.log": "f3cf3fa5e5361bbcb45fe5dc1bcd2af1d3d5290d4bd9143e38b4f37b265c1aef",
+    "compiler-acceptance-drain-first\\portable\\stdout.txt": "cd36a89ce6a281968cdee4b4f50b41247503555c246bcf1c49472ae4b2d24e46",
+    "compiler-acceptance-drain-first\\portable\\stderr.txt": "e6908598eb6c60d94acbc8325073251ef81d7cf5eadb7f58c4a170e8b4c42017",
+    "compiler-acceptance-drain-first\\portable\\logs\\motion-studio.log": "e62e4d8c1fb41b9546f72746f384e22cf0811ad35f7f4c9c6a05651d68013eb1",
+    "compiler-acceptance-drain-first\\native\\stdout.txt": "ee90aa6a12391e64eea61acdf1c06647af1a22df58f6b04158dd2e711d52f843",
+    "compiler-acceptance-drain-first\\native\\stderr.txt": "32ec2dea39da5ad6decd03f774d8e315399ff0ffe84062b3ef9c4b8292905b43",
+    "compiler-acceptance-drain-first\\native\\logs\\motion-studio.log": "3a5dbd0a2f869dfd3cf088976915ced69b2a912e38ad9ca9a823c1ccd2286087"
+  }
+}
