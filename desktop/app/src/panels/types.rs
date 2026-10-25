@@ -136,6 +136,10 @@ pub enum Action {
         revision: u64,
     },
     EditBatch(Vec<Command>),
+    EditorAction {
+        source: crate::layer_clipboard::KeyframeSource,
+        commands: Vec<Command>,
+    },
     OrderLayers {
         objects: Vec<u64>,
         order: super::layer_navigation::Order,
@@ -176,6 +180,7 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    pub(crate) animation_menu_scope: Option<super::animation_menu::MenuScope>,
     pub(crate) clipboard_available: bool,
     pub(crate) keyframe_clipboard_available: bool,
     pub(crate) path_clipboard_available: bool,

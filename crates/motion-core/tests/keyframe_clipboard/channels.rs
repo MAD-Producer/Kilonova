@@ -1,4 +1,6 @@
 use super::*;
+#[path = "interpolation.rs"]
+mod interpolation;
 use motion_core::{
     masks::{LayerMask, MaskProperty},
     vector::{groups::*, *},

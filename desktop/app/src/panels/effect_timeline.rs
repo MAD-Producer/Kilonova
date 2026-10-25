@@ -997,21 +997,18 @@ fn open_menu(panels: &mut Panels, state: &Value, target: Target, frame: u32, poi
         opened: true,
     });
 }
-pub(super) fn ease(
-    panels: &mut Panels,
+pub(super) fn ease_plan(
+    panels: &Panels,
     state: &Value,
     command: crate::shortcuts::Command,
-    out: &mut Vec<Action>,
-) -> bool {
+) -> Option<Vec<Command>> {
     use crate::shortcuts::Command as Shortcut;
-    let Some(target) = selected(panels, state) else {
-        return false;
-    };
+    let target = selected(panels, state)?;
     let Some(parameter) = target.parameter(state) else {
-        return true;
+        return Some(Vec::new());
     };
     if !target.editable(state) || !parameter.implemented || parameter.kind.discrete() {
-        return true;
+        return Some(Vec::new());
     }
     let at = panels
         .effect_timeline
@@ -1021,7 +1018,7 @@ pub(super) fn ease(
         .map(|(_, f)| *f)
         .or_else(|| composition_frame(state["frame"].as_f64().unwrap_or(0.), state));
     let Some(frame) = at else {
-        return true;
+        return Some(Vec::new());
     };
     let offset = target.source(state).unwrap().0["timeline"]["offset_frame"]
         .as_f64()
@@ -1037,7 +1034,7 @@ pub(super) fn ease(
             .as_f64()
             .is_some_and(|f| f + offset == frame as f64)
     }) else {
-        return true;
+        return Some(Vec::new());
     };
     let mut edits = vec![];
     for (i, incoming, outgoing) in [
@@ -1080,9 +1077,11 @@ pub(super) fn ease(
             easing,
         }));
     }
-    if !edits.is_empty() {
-        out.push(Action::EditBatch(edits));
-    }
+    Some(edits)
+}
+fn ease(panels: &mut Panels, state: &Value, command: crate::shortcuts::Command, out: &mut Vec<Action>) -> bool {
+    let Some(edits) = ease_plan(panels, state, command) else { return false; };
+    if !edits.is_empty() { out.push(Action::EditBatch(edits)); }
     true
 }
 pub(super) fn delete(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) -> bool {
@@ -1105,6 +1104,10 @@ pub(super) fn delete(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) 
         panels.effect_timeline.key = None;
     }
     true
+}
+pub(super) fn delete_available(panels: &Panels, state: &Value) -> bool {
+    selected(panels, state).is_some_and(|target| target.editable(state)
+        && panels.effect_timeline.key.as_ref().is_some_and(|(key, _)| *key == target))
 }
 pub(super) fn overlay(
     list: &mut PaintList,

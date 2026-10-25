@@ -23,6 +23,7 @@ impl Command {
             NodeInstall { .. } => "node_install",
             NodeCapture { .. } => "node_capture",
             EditChecked { .. } => "edit_checked",
+            EditorAction { .. } => "editor_action",
             PathOperation { .. } => "path_operation",
             CaptureUi { .. } => "capture_ui",
             Attach { .. } => "attach",

@@ -20,7 +20,7 @@ fn keys(source: &Value) -> &[Value] {
     source["keys"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 /// Exact layer interval from the same timeline snapshot the context menu reads.
-fn layer_range(state: &Value, object: u64) -> Option<[f64; 2]> {
+pub(super) fn layer_range(state: &Value, object: u64) -> Option<[f64; 2]> {
     let timeline = state["timeline_layers"]
         .as_array()?
         .iter()
@@ -228,22 +228,24 @@ pub(super) fn ease_sides(easing: Easing, incoming: bool, outgoing: bool) -> Easi
     }
 }
 
-fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut Vec<Action>) {
-    if super::effect_timeline::ease(panels, state, command, out) {
-        return;
+pub(super) enum EaseUnavailable { Context, BeforeComposition }
+pub(super) fn ease_plan(panels: &Panels, state: &Value, command: Shortcut) -> Result<Vec<Command>, EaseUnavailable> {
+    if state["observing"] == true {
+        return Err(EaseUnavailable::Context);
     }
-    let Some(key) = selection(panels, state) else {
-        return;
-    };
+    if let Some(edits) = super::effect_timeline::ease_plan(panels, state, command) {
+        return Ok(edits);
+    }
+    let key = panels.animation_controls.user_key_in(state, panels.selected).ok_or(EaseUnavailable::Context)?;
     if visual_layer(state, key.object).is_none_or(|l| l["locked"].as_bool() == Some(true)) {
-        return;
+        return Err(EaseUnavailable::Context);
     }
-    let source = data::channel(state, key.object, key.property, key.axis).unwrap();
+    let source = data::channel(state, key.object, key.property, key.axis).ok_or(EaseUnavailable::Context)?;
     let entries = keys(source);
     let selected = entries
         .iter()
         .position(|k| k["frame"].as_u64() == Some(key.frame as u64))
-        .unwrap();
+        .ok_or(EaseUnavailable::Context)?;
     let mut edits = vec![];
     for (index, incoming, outgoing) in [
         (
@@ -264,15 +266,7 @@ fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut V
             .as_u64()
             .and_then(|f| u32::try_from(f).ok())
         else {
-            panels.message = Some(
-                if panels.locale == Locale::Zh {
-                    "区间起点在合成之前，无法编辑该段"
-                } else {
-                    "Interval starts before the composition; cannot edit this segment"
-                }
-                .into(),
-            );
-            return;
+            return Err(EaseUnavailable::BeforeComposition);
         };
         let easing = cubic_ease(
             &entries[index],
@@ -282,7 +276,7 @@ fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut V
             key.property,
         );
         if easing.validate().is_err() {
-            return;
+            return Err(EaseUnavailable::Context);
         }
         edits.push(Command::Curve {
             object: key.object,
@@ -292,24 +286,33 @@ fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut V
             easing,
         });
     }
-    if !edits.is_empty() {
-        out.push(Action::EditBatch(edits));
+    Ok(edits)
+}
+
+fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut Vec<Action>) {
+    match ease_plan(panels, state, command) {
+        Ok(edits) if !edits.is_empty() => out.push(Action::EditBatch(edits)),
+        Ok(_) => {},
+        Err(EaseUnavailable::BeforeComposition) => panels.message = Some(
+            if panels.locale == Locale::Zh { "区间起点在合成之前，无法编辑该段" }
+            else { "Interval starts before the composition; cannot edit this segment" }.into()),
+        Err(EaseUnavailable::Context) => report_stale_key(panels),
     }
 }
 
-fn toggle_key(
-    panels: &mut Panels,
+pub(super) fn toggle_key_plan(
+    panels: &Panels,
     state: &Value,
     object: u64,
     property: Property,
     frame: u32,
-    out: &mut Vec<Action>,
-) {
+) -> Option<(Vec<Command>, bool)> {
+    if state["observing"] == true { return None; }
     if visual_layer(state, object).is_none_or(|l| l["locked"].as_bool() == Some(true)) {
-        return;
+        return None;
     }
     let Some(timeline) = data::timeline(state, object) else {
-        return;
+        return None;
     };
     let root = &timeline["properties"][data::name(property)];
     let axes: Vec<_> = if root["separated"].as_bool() == Some(true) {
@@ -341,11 +344,22 @@ fn toggle_key(
     let mut edits = vec![];
     for axis in axes {
         let Some(commands) = data::key_commands(state, object, property, axis, frame, all_present) else {
-            return;
+            return None;
         };
         edits.extend(commands);
     }
-    if !edits.is_empty() {
+    (!edits.is_empty()).then_some((edits, all_present))
+}
+
+fn toggle_key(
+    panels: &mut Panels,
+    state: &Value,
+    object: u64,
+    property: Property,
+    frame: u32,
+    out: &mut Vec<Action>,
+) {
+    if let Some((edits, all_present)) = toggle_key_plan(panels, state, object, property, frame) {
         out.push(Action::EditBatch(edits));
         if all_present {
             panels.animation_controls.clear_key();

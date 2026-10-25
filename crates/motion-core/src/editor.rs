@@ -205,6 +205,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::RemoveLayers { objects, frame } => crate::layer_clipboard::remove(project, objects, frame)?,
         Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
+        Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
         Command::PastePaths { clipboard, target, at_frame } => clipboard.paste(project, target, at_frame)?,
         Command::RemovePaths { clipboard } => clipboard.remove(project)?,
         Command::CopyPathAs { target, path } => { motion_model::path_conversion::copy_as(project, target, path)?; },

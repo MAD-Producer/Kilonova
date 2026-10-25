@@ -4,6 +4,7 @@ enum Choice {
     Direct(Action),
     RecentEffect(usize),
     Text(motion_ui::widgets::TextCommand),
+    Animation(super::animation_menu::Operation),
 }
 
 // Reuse the existing menu geometry for hit testing before fields process outside clicks.
@@ -29,6 +30,7 @@ pub(super) fn render(
 ) {
     if input.focus_lost {
         panels.menu = None;
+        panels.animation_menu_scope = None;
         panels.menu_scroll = 0;
         return;
     }
@@ -73,6 +75,18 @@ pub(super) fn render(
             }
             panels.menu = next;
         }
+    }
+    if panels.menu == Some(5) {
+        let current = super::animation_menu::MenuScope::of(panels, state);
+        if panels.animation_menu_scope.as_ref().is_some_and(|scope| *scope != current) {
+            panels.menu = None;
+            panels.menu_scroll = 0;
+            panels.animation_menu_scope = None;
+            return;
+        }
+        panels.animation_menu_scope = Some(current);
+    } else {
+        panels.animation_menu_scope = None;
     }
     if let Some(menu) = panels.menu {
         let selected = panels.selected.filter(|id| *id != 0);
@@ -231,17 +245,7 @@ pub(super) fn render(
                 (locale.t(T::ShowEffects).into(), Action::ShowPanel(dock::DockId(2)), true),
                 super::effect_removal::menu_entry(state, panels),
             ],
-            5 => vec![(
-                locale.t(T::AddPositionKey).into(),
-                Action::Edit(Command::Animate {
-                    object: selected.unwrap_or(0),
-                    property: Property::Position,
-                    axis: None,
-                    frame,
-                    enabled: true,
-                }),
-                editable,
-            )],
+            5 => Vec::new(),
             6 => {
                 let columns = panels.timeline.column_visibility;
                 let mut entries = vec![
@@ -319,6 +323,9 @@ pub(super) fn render(
         let entries: Vec<_> = if menu == 1 && panels.text_menu.is_some() {
             super::text_menu::entries(panels, state).into_iter()
                 .map(|(text, command, enabled)| (text, Choice::Text(command), enabled)).collect()
+        } else if menu == 5 {
+            super::animation_menu::entries(panels, state).into_iter()
+                .map(|(text, command, enabled)| (text, Choice::Animation(command), enabled)).collect()
         } else {
             entries.into_iter().map(|(text, action, enabled)| (text, Choice::Direct(action), enabled)).collect()
         };
@@ -341,7 +348,7 @@ pub(super) fn render(
         }
         let popup_height = desired_height.min(max_height);
         let minimum_width = styles.metric("menu.popup.min_width", styles.metric("context.menu.width", f32::default()));
-        let popup_width = if menu == 1 {
+        let popup_width = if menu == 1 || menu == 5 {
             entries.iter().map(|(text,_,_)| atlas.measure(text))
                 .fold(minimum_width, |width, text| width.max(text + styles.metric("padding.panel", f32::default()) * 4.))
                 .min(size[0])
@@ -395,7 +402,7 @@ pub(super) fn render(
             }
             let action = match &choice {
                 Choice::Direct(action) => Some(action),
-                Choice::RecentEffect(_) | Choice::Text(_) => None,
+                Choice::RecentEffect(_) | Choice::Text(_) | Choice::Animation(_) => None,
             };
             let checked = match action {
                 Some(Action::TimelineColumnVisibility(next)) => {
@@ -426,14 +433,19 @@ pub(super) fn render(
                 !enabled,
             );
             if clicked(input, r) && enabled {
-                out.extend(match choice {
+                let action = match choice {
                     Choice::Text(command) => {
                         super::text_menu::apply(panels, state, command, input.text_clipboard.as_ref());
                         None
                     }
+                    Choice::Animation(command) => {
+                        super::animation_menu::apply(panels, state, command, out);
+                        None
+                    }
                     Choice::Direct(action) => Some(action),
                     Choice::RecentEffect(index) => super::effect_recent::apply(index, panels, state),
-                });
+                };
+                out.extend(action);
                 panels.menu = None;
                 panels.menu_scroll = 0;
             }

@@ -79,6 +79,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
             }
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
             "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
+            "Vec<KeyframeSelection>" => json!({"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["target","frames"],"properties":{"target":{"type":"object","description":"Typed KeyframeTarget channel address"},"frames":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}}}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
@@ -165,6 +166,7 @@ registry! {
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
     Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
+    Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::PastePaths { .. } => "paste_paths" [("clipboard","PathClipboard",true), ("target","PathDestination",true), ("at_frame","Option<u32>",false)];
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];

@@ -122,6 +122,14 @@ pub enum Error {
         #[source]
         source: Box<Error>,
     },
+    #[error("keyframe edit operation={operation} object={object} channel={channel}: {source}")]
+    KeyframeEdit {
+        operation: &'static str,
+        object: u64,
+        channel: String,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("path clipboard phase={phase} object={object} path={path}: {source}")]
     PathClipboard {
         phase: &'static str,
