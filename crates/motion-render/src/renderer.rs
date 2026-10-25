@@ -2097,8 +2097,7 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
-            let input_order = self.effect_gpu.builder.snapshot_execution(scene, &targets)?.draw_order().to_vec();
+            let input_order = self.effect_gpu.builder.effect_snapshot_order().to_vec();
             self.prepare_input_snapshots(&input_order).map_err(|error| RenderError::Context {
                 message: format!("effects frame={} phase=input_snapshots: {error}", scene.frame),
                 cause: Box::new(error),
@@ -2301,7 +2300,7 @@ impl Renderer {
         // This is GPU-only and independent of the composition's stacking order.
         for i in image_input_order {
             let draw=&frame.draws[i];
-            for p in draw.pass_start..draw.pass_end {
+            for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
                     Some(texture_key(&scene.layers[i])),None,&self.images,&self.device,&self.queue,encoder)?;
                 executed_passes+=1;
@@ -2347,7 +2346,7 @@ impl Renderer {
                     materialized=Some(i);
                 }
             }
-            for p in draw.pass_start..draw.pass_end {
+            for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 if materialized == Some(i) {
                     break;
                 }

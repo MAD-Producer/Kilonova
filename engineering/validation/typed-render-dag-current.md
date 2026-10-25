@@ -14,14 +14,14 @@ was reviewed and no subagent was used.
 | --- | --- | --- |
 | 78-R1 authoring / execution / frame ownership | Existing Project relationships serialize/reopen through the actual model; new tests lower a saved authoring diamond into snapshot IR | Complete effect-level lowering before physical placement and disk/package acceptance; a JSON round trip is not full persistence acceptance |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
-| 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
+| 78-R3 checked topology and lifetime | Checked effect-level image operations now control actual snapshot order and native task/pass coverage; iterative topology/cycle checks retain typed values, terminal consumers, lifetimes and cost limits | Complete initial semantic lowering and typed external-import coverage; current lowering follows native drafts and CPU preparation |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; bounded native/fusion success caches now survive registry-local ID replacement; four native precisions verify that a structural edit rebuilds one affected program while the other graph and utility code reuse pipelines | Complete IR-level affected-group scheduling and all-precision private numeric-instance acceptance remain unfinished; cache eviction can require recompilation |
-| 78-R6 proven grouping | #73 implementation-bound opt-in proof remains; local logical def/use checks now also gate actual grouping before final physical placement | Connect grouping decisions to the complete effect-level IR and preserve all proven refusal boundaries |
+| 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
 | 78-R8 runtime version / capabilities | Logical graph/capability checks and package numeric-data admission remain; project format 27 persists typed instance payloads; packed v12 explicitly refuses instance overflow rather than using stale package defaults | Versioned packaged execution plan, portable instance-overflow transport and real execution-IR consumer acceptance/refusal remain unfinished |
 | 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
-| 78-R10 performance / admission | Existing physical scratch/source admission stays authoritative; logical graph caps are additional and bounded | Measure end-to-end shader/compile/pass/frame/peak costs, including per-frame code identity hashing; no performance improvement is claimed |
+| 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Measure end-to-end shader/compile/pass/frame/peak costs; hash counters are not frame timing or unique driver allocation measurements |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
 
 Android device acceptance and legacy migration are outside the user-confirmed
@@ -375,3 +375,100 @@ uses the existing atomic-draw IR. Full semantic front-end ownership, packaged
 IR consumers, bounded parallel preparation, four-precision private instances,
 new IR failures through production output channels and final integrated CI
 remain pending. Issue #78 is not ready to close.
+
+
+## Effect-level image IR and actual native tasks
+
+The current native consumer lowers one logical source import per draw and one
+operation per accepted effect or host materialization. Layer and effect IDs,
+canonical color/alpha/precision, integer texel grids, exact output view regions,
+input roles, code identities, costs and conservative time/halo declarations are
+separate from physical texture identities. A source import is a requested
+canonical logical view, not an assertion about the original asset's stored
+precision or physical extent. Its raster/conversion work is charged to the
+native task that materializes it. Physical pass dimensions and allocations
+retain their independent device and budget checks.
+
+The graph is checked before fusion and final physical layout. Actual fusion
+admission reads its primary chain and unique consuming operations, as well as
+local SSA def/use closure and the existing implementation-bound shader proofs.
+Raw layer readers attach to the source import; effected readers attach to the
+final operation. Matte and explicit materialization requests retain terminal
+snapshot roots. Blur/warp, format/ROI changes, external producers, alpha,
+quantization and compositing boundaries keep their original proof requirements.
+
+Fusion records a complete operational mapping from original drafts to current
+native pass ranges. It does not read the 128-entry diagnostic report to execute
+groups. Overlapping ranges form tasks with all member node IDs, including any
+initial raster prefix. Checked graph order determines task completion order;
+complete native pass coverage must agree with each atomic draw's admitted
+scratch lifetime order. The renderer consumes these task/pass orders and the
+graph's selected snapshot order, with the same GPU owner and command encoder.
+The earlier coarse snapshot API remains available for diagnostic inspection.
+
+Code identity work is bounded by a 1024-entry cache of weak shader references.
+Actual WGSL/GLSL, reflection names/bindings, sprite/blend flags and loop metrics
+form the digest. Sampled numbers and origins do not. Public shader Arc mutation
+or replacement invalidates a hit; registry resets clear entries. Hash and text
+byte counters accumulate for the PlanBuilder lifetime. Weak entries do not keep
+shader payloads or GPU resources alive. `hashed_text_bytes` counts UTF-8 source
+and reflection names, not hash framing or binary binding words. Logical costs
+retain unfused work; current native task ranges describe lowered pass counts.
+Neither is a driver-memory or measured frame-time claim.
+
+New acceptance covers operation/task ownership, numeric hash reuse, a real code
+change affecting one digest, bounded weak ownership, canonical boundary refusal,
+cycle origins/recovery, capability/type/budget negotiation, virtual source views
+and early bounded origin rejection. The virtual-view test first failed against
+the device rectangle limit, then passed with the logical/physical limits split;
+a genuinely oversized materialized pass must still fail. The origin test first
+failed because code preparation preceded rejection; it now requires rejection
+before new hashing, bounded single-line context and healthy recovery.
+
+Retained attempts: v1 passed desktop check and five new tests; the new cycle
+fixture's transparent-error traversal was corrected without weakening its cycle
+or recovery assertions. v2 passed check, focused six and render library 236,
+then all-native compilation exposed one old allocation-test initializer missing
+`instance_data`; its value is now explicitly zero. The boundary-red run passed
+six tests and failed both new regressions for the intended reasons. Final v3
+acceptance kept all 52 Rust/Cargo source hashes unchanged throughout:
+
+| Gate | Actual final result |
+| --- | --- |
+| Desktop check with FFmpeg | Passed |
+| Focused effect IR | 8 passed; a subset of the render library below |
+| Complete render library | 238 passed, zero failed/ignored |
+| All 101 render integration targets | 418 passed, zero failed, one existing optional probe ignored |
+| Default compiler failure output | 2 parent tests passed, zero failed/ignored; four cold/warm portable/native child cases |
+| Desktop node scope | 219 passed, zero failed/ignored, including one integration test |
+
+There are 877 distinct passed tests in these final scopes; the focused eight
+and passes from earlier attempts are not added again. The existing ignored
+`optional_local_original_image_probe` needs an external `MOTION_IMAGE_SOURCE`.
+No new skip or weaker assertion was introduced. This is not a final full
+workspace or cross-platform CI result.
+
+The four actual compiler child cases retain default Info starts, exactly one
+Error in the file and matching stderr output, without compiler diagnostics on
+stdout. Repeated failures do not retry compilation; healthy recovery renders
+real pixels. These retain existing compiler fault coverage, not complete new
+IR cycle/type/budget failures through production output channels.
+
+The [verified effect IR checkpoint](data/typed-render-dag-effect-ir-714f4668.zip)
+retains 302 files plus its manifest, including all four attempts, source
+snapshots, controllers, native outputs and default-channel logs. Size:
+2,932,635 bytes; SHA-256:
+`05398722d0dd76c3649ff908500ce9fed1a0b5b3857e519510a99ee7f7841c60`.
+Every entry was read back and verified; accepted hashes still match all 52
+source files. The two new modules, pointwise planner and corrected allocation
+fixture pass edition-2024 formatting checks. No panels changed.
+
+This is an effect-level image consumer built from accepted native drafts. CPU
+generators, vector/mask preparation and transactional preview layout proposals
+still precede this lowering. Package image/LUT/mask/ShaderData imports retain
+native admission rather than becoming fully typed generic producer nodes.
+Complete initial semantic ownership and portable runtime template consumption
+remain unfinished. This checkpoint does not establish parallel CPU preparation,
+all-precision private numeric instances, complete IR failures through production
+output channels, final integrated regression or cross-platform CI. Issue #78
+remains open, followed by #74 and #87.

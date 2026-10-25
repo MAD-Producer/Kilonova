@@ -133,6 +133,17 @@ fn code_bytes(shader: &shader::CompiledShader) -> usize {
 struct Candidate {
     stage: PointwiseStage,
     namespace: StageNamespace,
+    scene_effect: usize,
+}
+
+fn copy_mapping(
+    mapping: &mut [std::ops::Range<usize>],
+    original: std::ops::Range<usize>,
+    start: usize,
+) {
+    for (offset, value) in mapping[original].iter_mut().enumerate() {
+        *value = start + offset..start + offset + 1;
+    }
 }
 
 fn traffic(passes: &[EffectPass], precision: ChannelPrecision) -> u64 {
@@ -261,6 +272,7 @@ impl PlanBuilder {
                 &b.uniform.params[..proof.parameters().len()],
             )?,
             namespace,
+            scene_effect: effect_index,
         }))
     }
 
@@ -403,21 +415,11 @@ impl PlanBuilder {
         // A proved tail is local to one atomic draw. An arbitrary image-input
         // consumer or track matte can amplify its tolerated rounding error.
         // Source-stage readers bypass these effected outputs entirely.
-        let mut externally_read = vec![false; self.frame.draws.len()];
-        for pass in &self.frame.passes {
-            if pass.resource_input > 0 && pass.uniform.params[30][1] > 0.5 {
-                if let Some(read) = externally_read.get_mut((pass.resource_input - 1) as usize) {
-                    *read = true;
-                }
-            }
-        }
-        for composite in &self.frame.compositing {
-            if composite.matte >= 0 {
-                if let Some(read) = externally_read.get_mut(composite.matte as usize) {
-                    *read = true;
-                }
-            }
-        }
+        let externally_read = self
+            .effect_execution
+            .as_ref()
+            .map(|e| e.externally_read().to_vec())
+            .unwrap_or_else(|| vec![false; self.frame.draws.len()]);
         // Transfer blends may amplify source or backdrop errors. Adjustment
         // effects consume the accumulated backdrop without an explicit resource
         // edge. Neither consumer is covered by the initial pointwise proof.
@@ -433,6 +435,7 @@ impl PlanBuilder {
                 .any(|d| d.words[31] == 2. && d.pass_start < d.pass_end);
         let mut passes = Vec::with_capacity(self.frame.passes.len());
         let mut clocks = Vec::with_capacity(self.pass_clocks.len());
+        let mut mapping = vec![0..0; self.frame.passes.len()];
         for (index, _) in scene.effects.iter().enumerate().filter(|(_, e)| e.enabled) {
             if self.resolved[index]
                 .as_ref()
@@ -454,6 +457,7 @@ impl PlanBuilder {
                     FusionRetainReason::CompositingBoundary
                 };
                 *report.retained.entry(reason).or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -478,6 +482,7 @@ impl PlanBuilder {
                     .retained
                     .entry(FusionRetainReason::AlphaBoundary)
                     .or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -513,6 +518,7 @@ impl PlanBuilder {
                     .retained
                     .entry(FusionRetainReason::QuantizedTransferBoundary)
                     .or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -536,6 +542,7 @@ impl PlanBuilder {
                             .entry(FusionRetainReason::RuntimeBoundary)
                             .or_default() += 1;
                     }
+                    copy_mapping(&mut mapping, at..at + 1, passes.len());
                     passes.push(self.frame.passes[at]);
                     clocks.push(self.pass_clocks[at]);
                     at += 1;
@@ -555,7 +562,17 @@ impl PlanBuilder {
                     {
                         break;
                     }
-                    if !dependencies.is_closed_group(at..end + 3) {
+                    let members: Vec<_> = candidates
+                        .iter()
+                        .map(|c| c.scene_effect)
+                        .chain(std::iter::once(next.scene_effect))
+                        .collect();
+                    if !dependencies.is_closed_group(at..end + 3)
+                        || !self
+                            .effect_execution
+                            .as_ref()
+                            .is_some_and(|e| e.allows_group(&members))
+                    {
                         *report
                             .retained
                             .entry(FusionRetainReason::ExternalConsumerBoundary)
@@ -584,6 +601,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::SingleStage)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..at + 3, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..at + 3]);
                     clocks.extend_from_slice(&self.pass_clocks[at..at + 3]);
                     at += 3;
@@ -597,6 +615,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::DownstreamBoundary)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..end, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..end]);
                     clocks.extend_from_slice(&self.pass_clocks[at..end]);
                     at = end;
@@ -607,6 +626,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::CacheLimit)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..end, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..end]);
                     clocks.extend_from_slice(&self.pass_clocks[at..end]);
                     at = end;
@@ -628,6 +648,7 @@ impl PlanBuilder {
                 fused.source = 4;
                 fused.output = 0;
                 fused.uniform.params = *chain.uniforms();
+                mapping[at..end].fill(passes.len()..passes.len() + 2);
                 passes.extend([copy, fused]);
                 clocks.extend([None, None]);
                 reserve_scratch(&mut self.frame.scratch_sizes, 4, copy.width, copy.height);
@@ -654,6 +675,9 @@ impl PlanBuilder {
         self.fusion.cache_report(&mut report);
         self.frame.passes = passes;
         self.pass_clocks = clocks;
+        if let Some(execution) = &mut self.effect_execution {
+            execution.lower_tasks(&mapping, &self.frame.draws)?;
+        }
         self.fusion.report = report;
         Ok(())
     }

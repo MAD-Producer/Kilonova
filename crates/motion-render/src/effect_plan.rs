@@ -16,6 +16,8 @@ mod pointwise;
 pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
 mod execution;
 pub use execution::{native_execution_capabilities, native_snapshot_limits, SnapshotEncode, SnapshotExecution};
+mod effect_execution;
+pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
 mod scratch_proposal_tests;
@@ -483,6 +485,8 @@ pub struct PlanBuilder {
     pub preview_cache_hits: u64,
     pub preview_plan_builds: u64,
     fusion: pointwise::FusionState,
+    effect_execution: Option<effect_execution::EffectExecution>,
+    code_identities: effect_execution::CodeIdentities,
 }
 
 impl PlanBuilder {
@@ -773,6 +777,8 @@ impl PlanBuilder {
             preview_cache_hits: 0,
             preview_plan_builds: 0,
             fusion: pointwise::FusionState::default(),
+            effect_execution: None,
+            code_identities: Default::default(),
         })
     }
     pub(crate) fn enable_plane_coverage(&mut self) {
@@ -787,6 +793,8 @@ impl PlanBuilder {
         self.program_errors.clear();
         self.programs.truncate(3);
         self.fusion.reset_programs();
+        self.effect_execution = None;
+        self.code_identities.clear();
         self.frame = EffectFramePlan::default();
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
@@ -1048,6 +1056,7 @@ impl PlanBuilder {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         self.synchronize(scene)?;
+        self.effect_execution = None;
         self.frame.precision = self.precision;
         self.frame.scratch_budget = self.scratch_budget;
         self.frame.sprites.clear();
@@ -1739,6 +1748,7 @@ impl PlanBuilder {
                 pass_end: self.frame.passes.len(),
             });
         }
+        self.lower_effect_execution(scene, materialize)?;
         self.fuse_pointwise(scene)?;
         let layout = if self.frame.passes.is_empty() { scratch::layout(&self.frame, None)? }
             else { Self::check_placed_scratch(&self.frame, None, self.frame.scratch_sizes,

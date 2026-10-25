@@ -170,9 +170,9 @@ compares unaffected bytes and cold-renderer output exactly, and verifies one
 changed pipeline with no unrelated builds. Private numeric/overflow instance
 acceptance remains Unorm8; structural acceptance does not replace that matrix.
 
-Complete pre-placement effect IR, structural affected-group reuse, bounded
-parallel CPU preparation, versioned execution-plan consumers, final cost/peak
-measurements and integrated/cross-platform checks remain pending. The current
+Initial semantic lowering, fully typed external imports, bounded parallel CPU
+preparation, versioned execution-plan consumers, final cost/peak measurements
+and integrated/cross-platform checks remain pending. The current
 bound pixel matrix is Unorm8; earlier independent transport precision tests do
 not substitute for all-precision per-instance acceptance.
 Android device acceptance is excluded by the user; no device result is claimed.
@@ -183,3 +183,41 @@ Private PNG data is generated from numeric values by independently authored code
 
 Source-bound results and retained failures are recorded in
 [the current delivery ledger](../validation/typed-render-dag-current.md).
+
+## Native effect-level image execution
+
+`PlanBuilder::effect_execution` exposes a read-only planning receipt containing
+the unfused typed image graph, its checked order, original operation bindings,
+lowered native tasks and selected snapshot order. An operation can implement
+several native passes; one fused task can implement several operations. The
+renderer reads the checked graph's snapshot and pass order. Task coverage must
+match the scratch-admitted atomic draw order; this API does not authorize
+interleaving temporary storage from separate draws.
+
+Grouping requires a primary-input chain whose removed values have no consumers
+outside the group. Duplicate ports of one operation are one consumer for this
+decision. Existing code-bound pointwise proofs, alpha/quantization, ROI/format,
+external-reader and compositing boundaries remain independently authoritative.
+The complete task mapping is operational data, separate from bounded diagnostic
+group reports. Snapshot preparation still uses the existing GPU owner/encoder.
+
+Source nodes describe virtual canonical views. Their logical extent may exceed
+device texture limits; actual materialized pass extents and storage admission
+must still satisfy those limits. Exact output regions remain separate from
+integer texel grids. Invalid composition identities are rejected before node
+origin copies and code preparation; diagnostic context is bounded and single
+line, while typed graph causes and available layer/effect IDs are retained.
+
+`execution_code_cache_info` reports at most 1024 weak shader-reference entries
+and lifetime hash/text-byte work. The digest uses actual source/reflection and
+static flags rather than numeric values or origins. A public Arc mutation or
+replacement invalidates its pointer proof. Registry changes clear entries but
+retain lifetime counters. Weak entries do not retain shader payloads or GPU
+owners. `hashed_text_bytes` excludes binary hash framing. Unfused graph costs,
+lowered task pass counts and driver/frame cost measurements are distinct.
+
+This image consumer currently follows CPU preparation and native draft creation,
+then precedes fusion and final physical layout. Preview budget proposals and
+package image/LUT/mask/ShaderData binding admission remain native responsibilities.
+It is not yet a packaged runtime execution-template consumer, a parallel CPU
+scheduler or final all-precision private-instance acceptance.
