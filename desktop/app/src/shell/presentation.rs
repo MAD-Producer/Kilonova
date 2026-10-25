@@ -627,6 +627,7 @@ impl Shell {
                 panel,
                 input: Default::default(),
                 paint_input: Default::default(),
+                pointer_position: Default::default(),
                 scale,
             },
         );
@@ -884,9 +885,11 @@ impl Shell {
                 };
                 return;
             }
-            WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
-                position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
-            }),
+            WindowEvent::CursorMoved { position, .. } => {
+                Some(f.pointer_position.moved(position, f.scale))
+            }
+            #[cfg(target_os = "windows")]
+            WindowEvent::CursorEntered { .. } => f.pointer_position.entered(f.scale),
             WindowEvent::DroppedFile(path)
                 if path
                     .extension()
