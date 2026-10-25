@@ -91,6 +91,8 @@ pub enum RenderError {
     Image(#[from] image::ImageError),
     #[error("{0}")]
     Effects(#[from] motion_effects::Error),
+    #[error(transparent)]
+    ExecutionPlan(#[from] motion_effects::execution_plan::ExecutionPlanError),
     #[error("{0}")]
     ImageFormat(#[from] crate::image_formats::UnsupportedStorage),
     #[error("{0}")]
@@ -305,6 +307,7 @@ pub struct Renderer {
     pub image_memory_cache_hits: u64,
     pub image_prefetches: u64,
     pub effect_diagnostics: Vec<String>,
+    snapshot_encodes: Vec<crate::effect_plan::SnapshotEncode>,
     composition_images: std::collections::HashSet<u64>,
     // Drop last: finish unsubmitted destination lifetimes after cache handles.
     allocation_uploads: Arc<crate::allocation_uploads::AllocationUploads>,
@@ -576,6 +579,7 @@ impl Renderer {
             image_memory_cache_hits: 0,
             image_prefetches: 0,
             effect_diagnostics: Vec::new(),
+            snapshot_encodes: Vec::new(),
             compositing_gpu: None,
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
@@ -605,6 +609,11 @@ impl Renderer {
         Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
+    /// Successfully encoded snapshot draws in the latest local composition
+    /// attempt. This counts native encode/copy calls, not predicted graph work.
+    pub fn snapshot_encodes(&self) -> &[crate::effect_plan::SnapshotEncode] {
+        &self.snapshot_encodes
+    }
     pub(crate) fn allocation_uploads(&self) -> Arc<crate::allocation_uploads::AllocationUploads> {
         self.allocation_uploads.clone()
     }
@@ -1792,6 +1801,7 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
+        self.snapshot_encodes.clear();
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
         let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
@@ -1850,6 +1860,7 @@ impl Renderer {
         Ok((child_stats, child_diagnostics))
     }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
+        self.snapshot_encodes.clear();
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
             return Err(RenderError::Invalid(
                 "invalid render target or layer count".into(),
@@ -2070,6 +2081,7 @@ impl Renderer {
     ) -> Result<RenderStats> {
         let started = Instant::now();
         self.effect_gpu.builder.enable_plane_coverage();
+        self.snapshot_encodes.clear();
         let image_input_order = loop {
             if let Some((receiver, _)) = &materialize {
                 self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
@@ -2085,7 +2097,7 @@ impl Renderer {
             ?;
             self.prepare_effect_images();
             let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
-            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)?;
+            let input_order = self.effect_gpu.builder.snapshot_execution(scene, &targets)?.draw_order().to_vec();
             self.prepare_input_snapshots(&input_order).map_err(|error| RenderError::Context {
                 message: format!("effects frame={} phase=input_snapshots: {error}", scene.frame),
                 cause: Box::new(error),
@@ -2298,6 +2310,10 @@ impl Renderer {
                 wgpu::TexelCopyTextureInfo{texture:&self.effect_gpu.state.output(frame,i)?.texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::TexelCopyTextureInfo{texture:&self.images[&TextureKey::EffectInput(draw.layer)]._texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
+            self.snapshot_encodes.push(crate::effect_plan::SnapshotEncode {
+                layer: draw.layer,
+                encoded_passes: draw.pass_end - draw.pass_start,
+            });
         }
         composition_draws += self.encode_track_mattes(encoder,composition_size)?;
         if materialize.is_some() || prepare_only {

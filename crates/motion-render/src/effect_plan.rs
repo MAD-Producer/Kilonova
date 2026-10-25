@@ -14,6 +14,8 @@ mod scratch_lifetimes;
 mod scratch;
 mod pointwise;
 pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
+mod execution;
+pub use execution::{native_execution_capabilities, native_snapshot_limits, SnapshotEncode, SnapshotExecution};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
 mod scratch_proposal_tests;

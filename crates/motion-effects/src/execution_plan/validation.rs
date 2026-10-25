@@ -26,6 +26,11 @@ pub enum ExecutionPlanError {
         node: ExecutionNodeId,
         resource: &'static str,
     },
+    #[error("phase=admission: node={node:?} requires a proved {resource} bound")]
+    UnknownCost {
+        node: ExecutionNodeId,
+        resource: &'static str,
+    },
     #[error("phase=identity: duplicate node={node:?}")]
     DuplicateNode { node: ExecutionNodeId },
     #[error("phase=identity: value={value:?} has producers {first:?} and {second:?}")]
@@ -169,6 +174,7 @@ impl ExecutionPlan {
         let mut ids = BTreeMap::new();
         let mut producers = BTreeMap::new();
         let mut totals = [0_u64; 4];
+        let mut sample_bound_known = true;
         for (index, node) in self.nodes.iter().enumerate() {
             if ids.insert(node.id, index).is_some() {
                 return Err(ExecutionPlanError::DuplicateNode { node: node.id });
@@ -225,6 +231,15 @@ impl ExecutionPlan {
                     u64::from(limits.history_samples),
                 )?;
             }
+            if node.cost.samples_per_fragment.is_none() {
+                if limits.require_sample_bounds {
+                    return Err(ExecutionPlanError::UnknownCost {
+                        node: node.id,
+                        resource: "samples_per_fragment",
+                    });
+                }
+                sample_bound_known = false;
+            }
             for (slot, (value, maximum, name)) in [
                 (node.cost.shader_bytes, limits.shader_bytes, "shader_bytes"),
                 (
@@ -233,7 +248,7 @@ impl ExecutionPlan {
                     "static_loop_work",
                 ),
                 (
-                    node.cost.samples_per_fragment,
+                    node.cost.samples_per_fragment.unwrap_or(0),
                     limits.samples_per_fragment,
                     "samples_per_fragment",
                 ),
@@ -360,7 +375,7 @@ impl ExecutionPlan {
             total_cost: OperationCost {
                 shader_bytes: totals[0],
                 static_loop_work: totals[1],
-                samples_per_fragment: totals[2],
+                samples_per_fragment: sample_bound_known.then_some(totals[2]),
                 passes: totals[3] as u32,
             },
         })

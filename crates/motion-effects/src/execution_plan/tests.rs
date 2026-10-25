@@ -53,7 +53,7 @@ fn node(id: u32, inputs: &[u32]) -> ExecutionNode {
         cost: OperationCost {
             shader_bytes: 32,
             static_loop_work: 1,
-            samples_per_fragment: 2,
+            samples_per_fragment: Some(2),
             passes: 1,
         },
         code_identity: [id as u8; 32],
@@ -79,12 +79,50 @@ fn limits() -> ExecutionLimits {
         shader_bytes: 64 << 20,
         static_loop_work: 1 << 24,
         samples_per_fragment: 1 << 24,
+        require_sample_bounds: true,
         uniform_cells_per_node: 32,
         resource_inputs_per_node: 8,
         rectangle_side: 16384,
         halo_pixels: 4096,
         history_samples: 64,
     }
+}
+
+#[test]
+fn unknown_sampling_cost_is_neither_zero_nor_a_proof_for_budgeted_execution() {
+    let mut plan = diamond();
+    assert_eq!(
+        plan.check(&available(), limits())
+            .unwrap()
+            .total_cost()
+            .samples_per_fragment,
+        Some(8)
+    );
+    plan.nodes[0].cost.samples_per_fragment = None;
+    assert!(matches!(
+        plan.check(&available(), limits()),
+        Err(ExecutionPlanError::UnknownCost {
+            node: ExecutionNodeId(4),
+            resource: "samples_per_fragment"
+        })
+    ));
+    let mut cap = limits();
+    cap.require_sample_bounds = false;
+    assert_eq!(
+        plan.check(&available(), cap)
+            .unwrap()
+            .total_cost()
+            .samples_per_fragment,
+        None
+    );
+    plan.nodes[0].cost.samples_per_fragment = Some(0);
+    assert_eq!(
+        plan.check(&available(), limits())
+            .unwrap()
+            .total_cost()
+            .samples_per_fragment,
+        Some(6)
+    );
 }
 
 #[test]

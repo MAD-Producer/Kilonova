@@ -178,7 +178,8 @@ pub struct OperationSemantics {
 pub struct OperationCost {
     pub shader_bytes: u64,
     pub static_loop_work: u64,
-    pub samples_per_fragment: u64,
+    /// None means unproved, never zero. An admission policy may require a bound.
+    pub samples_per_fragment: Option<u64>,
     pub passes: u32,
 }
 
@@ -218,6 +219,7 @@ pub struct ExecutionLimits {
     pub shader_bytes: u64,
     pub static_loop_work: u64,
     pub samples_per_fragment: u64,
+    pub require_sample_bounds: bool,
     pub uniform_cells_per_node: u16,
     pub resource_inputs_per_node: u16,
     pub rectangle_side: u32,
