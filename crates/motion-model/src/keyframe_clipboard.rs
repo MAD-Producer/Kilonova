@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 mod channels;
+mod interpolation;
+pub use interpolation::set_interpolation;
 use channels::{read, write, ReadChannel, WriteChannel};
 
 pub const MAX_KEYFRAME_CLIPBOARD_BYTES: usize = 16 * 1024 * 1024;

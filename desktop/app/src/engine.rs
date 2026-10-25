@@ -36,6 +36,8 @@ mod fallback_tests;
 #[cfg(test)]
 mod parent_policy_tests;
 #[cfg(test)]
+mod animation_action_tests;
+#[cfg(test)]
 mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
@@ -186,6 +188,11 @@ pub enum Command {
     EditChecked {
         text: String,
         revision: u64,
+        reply: Sender<Result<Value, String>>,
+    },
+    EditorAction {
+        source: crate::layer_clipboard::KeyframeSource,
+        commands: Vec<motion_core::Command>,
         reply: Sender<Result<Value, String>>,
     },
     PathOperation {
@@ -399,7 +406,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | EditorAction { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1577,6 +1584,19 @@ fn handle(
             if s.engine.gesture_active() { return Err("finish the active editor gesture before an agent edit".into()); }
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
+        })),
+        Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
+            if !source.current(s) {
+                // Superseded UI work is an explicit normal cancellation. Return
+                // the current complete snapshot, never apply IDs to another document.
+                let mut state = s.snapshot()?;
+                state["editorAction"] = serde_json::json!({"cancelled":true,"reason":"context_changed"});
+                return Ok(state);
+            }
+            if motion_core::serialized_bytes(&commands) > motion_core::MAX_KEYFRAME_CLIPBOARD_BYTES {
+                return Err("editor action exceeds typed metadata limit".into());
+            }
+            s.apply_command_batch(commands)
         })),
         Command::PathOperation { source, operation, reply } => respond(reply,
             motion_host::session::with_session(id, |s| crate::layer_clipboard::edit_path(s, source, operation))),

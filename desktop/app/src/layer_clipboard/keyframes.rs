@@ -15,6 +15,9 @@ pub(crate) struct KeyframeSource {
     revision: Option<u64>,
 }
 impl KeyframeSource {
+    pub(crate) fn current(&self, session: &Session) -> bool {
+        self.matches(&Stamp::of(session))
+    }
     pub(crate) fn of(state: &serde_json::Value) -> Self {
         Self {
             root: state["root"].as_str().unwrap_or("").into(),

@@ -1,0 +1,57 @@
+{
+  "source": "78b43ff0f39ffa7a50c00651de42ad34be7ee167",
+  "base": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+  "runtime": "local FFmpeg debug build; not official archive",
+  "dpi": 96,
+  "captures": [
+    {
+      "file": "en-property-menu.png",
+      "sha256": "6c3d78a1158135547ae9da7911fd5af7b7aed14c6610e1600e8233734c8c4c56",
+      "sourceFile": "animation-current-main-os-en/animation-property-menu.png"
+    },
+    {
+      "file": "zh-key-menu.png",
+      "sha256": "2aa6df1a4e054817f515923ca0e2ac38cdee80776106ae74484eb29e2e5f6746",
+      "sourceFile": "animation-current-main-os-zh-float/animation-key-menu.png"
+    },
+    {
+      "file": "zh-timeline-float.png",
+      "sha256": "a1144035ddd52d0866d28e476eebf444a45e10198c8a022829f749d88068af82",
+      "sourceFile": "animation-current-main-os-zh-float/native-position-property.png"
+    }
+  ],
+  "verification": [
+    {
+      "folder": "animation-current-main-os-en",
+      "source": "78b43ff0",
+      "realSystemInput": true,
+      "menuAndToggleShortcutEquivalent": true,
+      "staleMenuCancelled": true,
+      "holdPropertyOnly": true,
+      "easeMenuEqualsF9": true,
+      "adjoiningSegmentMetadataOnly": true,
+      "singleUndo": true,
+      "escapeAndOutsideCancel": true,
+      "saveReopen": true,
+      "defaultInfoAndStdoutIsolation": true,
+      "dpi": 96,
+      "exit": 0
+    },
+    {
+      "folder": "animation-current-main-os-zh-float",
+      "source": "78b43ff0",
+      "realSystemInput": true,
+      "menuAndToggleShortcutEquivalent": true,
+      "staleMenuCancelled": true,
+      "holdPropertyOnly": true,
+      "easeMenuEqualsF9": true,
+      "adjoiningSegmentMetadataOnly": true,
+      "singleUndo": true,
+      "escapeAndOutsideCancel": true,
+      "saveReopen": true,
+      "defaultInfoAndStdoutIsolation": true,
+      "dpi": 96,
+      "exit": 0
+    }
+  ]
+}

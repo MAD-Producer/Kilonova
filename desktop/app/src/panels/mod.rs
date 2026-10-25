@@ -61,6 +61,7 @@ mod keyboard;
 mod modified_properties;
 mod key_navigation;
 mod layer_actions;
+mod animation_menu;
 mod layer_locks;
 pub(crate) mod layer_navigation;
 #[cfg(test)]
