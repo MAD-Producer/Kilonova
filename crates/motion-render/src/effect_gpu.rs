@@ -69,7 +69,8 @@ pub(crate) struct GpuState {
     white: FxTexture,
     identity: Lut,
     luts: Vec<Lut>,
-    pipelines: HashMap<(u32, u32), wgpu::RenderPipeline>,
+    pipelines: HashMap<(u32, u32), pipeline_cache::Pipeline>,
+    previous_pipelines: pipeline_cache::PreviousPipelines,
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
@@ -94,6 +95,8 @@ const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 mod fixed_admission_tests;
 mod curve_lut;
 mod instance_data;
+mod pipeline_cache;
+pub use pipeline_cache::EffectPipelineCacheInfo;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -295,6 +298,7 @@ impl EffectGpu {
                 identity,
                 luts: Vec::new(),
                 pipelines: HashMap::new(),
+                previous_pipelines: Default::default(),
                 resources: HashMap::new(),
                 resource_textures: HashMap::new(),
                 resource_bytes: 0,
@@ -326,7 +330,7 @@ impl EffectGpu {
             return;
         }
         self.builder.set_registry(r);
-        self.state.pipelines.clear();
+        self.state.retire_pipelines();
         self.state.resources.clear();
         self.state.resource_textures.clear();
         self.state.resource_bytes = 0;
@@ -573,6 +577,12 @@ impl GpuState {
                 .ok_or("missing effect scratch descriptor")?.class.format;
             let target_kind = target as u32;
             let key = (p.program, target_kind);
+            let program = &builder.programs[p.program as usize];
+            #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+            let force_compile = program.key.starts_with("pointwise-v") && self.invalid_pointwise_source_once;
+            #[cfg(not(all(debug_assertions, feature = "gpu-tests")))]
+            let force_compile = false;
+            self.reuse_pipeline(key, &program.shader, force_compile);
             if !self.pipelines.contains_key(&key) {
                 let pipeline_began = std::time::Instant::now();
                 let program = &builder.programs[p.program as usize];
@@ -672,7 +682,7 @@ impl GpuState {
                     return Err(error);
                 }
                 if let Some(observation) = observation { observation.done(program.shader.wgsl.len()); }
-                self.pipelines.insert(key, pipeline);
+                self.insert_pipeline(key, &program.shader, pipeline);
                 self.pipeline_builds += 1;
                 self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
                     pipeline_began.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64);
@@ -1026,7 +1036,7 @@ impl GpuState {
             occlusion_query_set: None,
         });
         pass.set_viewport(0.0, 0.0, p.width as f32, p.height as f32, 0.0, 1.0);
-        pass.set_pipeline(pipeline);
+        pass.set_pipeline(&pipeline.pipeline);
         pass.set_bind_group(0, &self.buffers[index].group, &[]);
         let binding = self
             .bindings

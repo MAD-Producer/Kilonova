@@ -120,8 +120,9 @@ Bound application compares the full static manifest, actual source/WGSL/GLSL,
 reflection, specialization flags and companion resource bytes before retaining
 the existing package Arc and embedded archive. Public defaults and private
 numbers initialize the instance separately. Actual code/layout changes keep the
-ordinary package validation/install path. This does not yet preserve unrelated
-native programs across structural package changes.
+ordinary package validation/install path. Successful unrelated native code can
+now reuse owner-local pipeline proof across those structural package changes,
+under the limits below.
 
 Uniform overrides use the declared tail. Native overflow uses a frame-local
 token and an admitted resource-zero texture. Companion resources remain intact.
@@ -140,6 +141,34 @@ textures, buffers and groups retire after validation; failed candidates cannot
 replace the active preview or canonical proof. Desktop state exposes separate
 canonical candidate build and code gauges. These local gauges are not total
 driver memory or completed GPU compilation counts.
+
+Structural package updates still invalidate registry-local program IDs and all
+ordinary resource/binding caches. Successful native pipeline proof is separate:
+complete actual WGSL, sprite vertex layout, additive blend state and target
+format must match within the same GPU owner and fixed SDK pipeline layout.
+Private compiled-shader Arcs make healthy-frame checks constant-time and prevent
+mutation of a live proof. The retired last-prepared-generation cache holds at
+most 128 entries and 8 MiB WGSL text, with no package/resource/admission owner.
+Intervening registry changes without preparation preserve that generation;
+later prepared generations replace it. Eviction permits ordinary recompilation.
+Disabled/capability/layout/data/budget checks remain authoritative on cache hits.
+
+Portable pointwise groups retain successful private shader code independently
+of program IDs and rebind it after a registry reset. The 64-group bound remains;
+inactive code is additionally limited to 8 MiB WGSL/GLSL/reflection text, and
+inactive groups yield capacity to new live groups. Failed compilation remains
+cached within a generation; only explicit registry invalidation permits it to
+be reconsidered. Acceptance fault injection bypasses successful proof caches.
+
+`Renderer::effect_pipeline_cache_info` reports entry/code gauges, limits and
+lifetime retired-pipeline reuses. Fusion reports expose portable rebinds and
+inactive code gauges. Handles may alias current/retired entries; these values
+are not unique driver allocations, frame peaks or completed GPU work. Retained
+portable compile metrics describe the original compilation, not rebind time.
+Four-precision structural acceptance uses format-preserving raw readback,
+compares unaffected bytes and cold-renderer output exactly, and verifies one
+changed pipeline with no unrelated builds. Private numeric/overflow instance
+acceptance remains Unorm8; structural acceptance does not replace that matrix.
 
 Complete pre-placement effect IR, structural affected-group reuse, bounded
 parallel CPU preparation, versioned execution-plan consumers, final cost/peak

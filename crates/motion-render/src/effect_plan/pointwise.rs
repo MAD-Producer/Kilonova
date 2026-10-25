@@ -9,6 +9,10 @@ use std::collections::BTreeMap;
 
 const MAX_COMPILED_GROUPS: usize = 64;
 const MAX_REPORTED_GROUPS: usize = 128;
+const MAX_RETIRED_CODE_BYTES: usize = 8 << 20;
+
+#[cfg(test)]
+mod cache_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -48,12 +52,20 @@ pub struct FusionFrameReport {
     pub omitted_groups: usize,
     pub retained: BTreeMap<FusionRetainReason, u64>,
     pub portable_compiles: u64,
+    /// Successful portable-code reuse after program IDs were invalidated.
+    pub portable_reuses: u64,
     pub cache_entries: usize,
+    pub retired_cache_entries: usize,
+    /// Retained WGSL/GLSL/reflection UTF-8 bytes, excluding container overhead.
+    pub retired_code_bytes: usize,
+    pub retired_code_byte_limit: usize,
 }
 
 enum Compilation {
     Ready {
-        program: u32,
+        program: Option<u32>,
+        // Successful private compilation proof; a public program cannot mutate it.
+        shader: Arc<shader::CompiledShader>,
         metrics: PortableFusionMetrics,
     },
     Failed(Arc<RenderError>),
@@ -64,17 +76,58 @@ pub(super) struct FusionState {
     enabled: bool,
     compiled: BTreeMap<String, Compilation>,
     compiles: u64,
+    reuses: u64,
     report: FusionFrameReport,
     #[cfg(all(debug_assertions, feature = "gpu-tests"))]
     pub(super) invalid_source_once: bool,
 }
 impl FusionState {
     pub(super) fn reset_programs(&mut self) {
-        // Native program IDs are invalid after a registry replacement.
-        // Lifetime compile counters stay monotonic, just like native counters.
-        self.compiled.clear();
+        // IDs are registry-local; immutable successful code remains reusable.
+        // Failed compilations are retried only after this explicit invalidation.
+        let mut retained = 0;
+        self.compiled.retain(|_, entry| match entry {
+            Compilation::Ready {
+                program, shader, ..
+            } => {
+                let bytes = code_bytes(shader);
+                if bytes > MAX_RETIRED_CODE_BYTES - retained {
+                    return false;
+                }
+                retained += bytes;
+                *program = None;
+                true
+            }
+            Compilation::Failed(_) => false,
+        });
         self.report = FusionFrameReport::default();
     }
+
+    fn cache_report(&self, report: &mut FusionFrameReport) {
+        report.portable_compiles = self.compiles;
+        report.portable_reuses = self.reuses;
+        report.cache_entries = self.compiled.len();
+        report.retired_code_byte_limit = MAX_RETIRED_CODE_BYTES;
+        for entry in self.compiled.values() {
+            if let Compilation::Ready {
+                program: None,
+                shader,
+                ..
+            } = entry
+            {
+                report.retired_cache_entries += 1;
+                report.retired_code_bytes += code_bytes(shader);
+            }
+        }
+    }
+}
+
+fn code_bytes(shader: &shader::CompiledShader) -> usize {
+    shader.wgsl.len()
+        + shader.glsl.vertex.len()
+        + shader.glsl.fragment.len()
+        + shader.glsl.blocks.keys().map(String::len).sum::<usize>()
+        + shader.glsl.textures.keys().map(String::len).sum::<usize>()
 }
 
 struct Candidate {
@@ -216,19 +269,58 @@ impl PlanBuilder {
         chain: &PointwiseChain,
     ) -> Result<Option<(u32, PortableFusionMetrics)>, RenderError> {
         let key = chain.structure_key();
-        if let Some(cached) = self.fusion.compiled.get(&key) {
+        #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+        if self.fusion.invalid_source_once {
+            // Acceptance faults must reach the actual parser even on a hit.
+            self.fusion.compiled.remove(&key);
+        }
+        if let Some(cached) = self.fusion.compiled.get_mut(&key) {
             return match cached {
-                Compilation::Ready { program, metrics } => {
-                    if let Some(cause) = self.program_errors.get(program) {
+                Compilation::Ready {
+                    program,
+                    shader,
+                    metrics,
+                } => {
+                    let id = *program.get_or_insert_with(|| {
+                        let id = self.programs.len() as u32;
+                        self.programs.push(EffectProgram {
+                            key: key.clone(),
+                            shader: shader.clone(),
+                            package: None,
+                            resources: vec![],
+                        });
+                        self.fusion.reuses = self.fusion.reuses.saturating_add(1);
+                        id
+                    });
+                    // The successful private proof, rather than a caller's
+                    // replacement of the public program, authorizes this hit.
+                    let slot = &mut self.programs[id as usize];
+                    if !Arc::ptr_eq(&slot.shader, shader) {
+                        *slot = EffectProgram {
+                            key: key.clone(),
+                            shader: shader.clone(),
+                            package: None,
+                            resources: vec![],
+                        };
+                    }
+                    if let Some(cause) = self.program_errors.get(&id) {
                         return Err(RenderError::Invalid(cause.clone()));
                     }
-                    Ok(Some((*program, metrics.clone())))
+                    Ok(Some((id, metrics.clone())))
                 }
                 Compilation::Failed(error) => Err(RenderError::Shared(error.clone())),
             };
         }
         if self.fusion.compiled.len() >= MAX_COMPILED_GROUPS {
-            return Ok(None);
+            // Retired groups must not permanently exhaust the live-group limit.
+            let retired = self.fusion.compiled.iter().find_map(|(key, entry)| {
+                matches!(entry, Compilation::Ready { program: None, .. }).then(|| key.clone())
+            });
+            if let Some(retired) = retired {
+                self.fusion.compiled.remove(&retired);
+            } else {
+                return Ok(None);
+            }
         }
         let observation = crate::pointwise_observation::CompilePhase::start(
             "pointwise_compile",
@@ -243,16 +335,18 @@ impl PlanBuilder {
             Ok(fused) => {
                 let id = self.programs.len() as u32;
                 observation.done(fused.metrics.compiled_wgsl_bytes);
+                let shader = Arc::new(fused.compiled);
                 self.programs.push(EffectProgram {
                     key: key.clone(),
-                    shader: Arc::new(fused.compiled),
+                    shader: shader.clone(),
                     package: None,
                     resources: vec![],
                 });
                 self.fusion.compiled.insert(
                     key,
                     Compilation::Ready {
-                        program: id,
+                        program: Some(id),
+                        shader,
                         metrics: fused.metrics.clone(),
                     },
                 );
@@ -293,13 +387,12 @@ impl PlanBuilder {
             enabled: self.fusion.enabled,
             original_passes: self.frame.passes.len(),
             original_texture_traffic_bytes: traffic(&self.frame.passes, self.precision),
-            portable_compiles: self.fusion.compiles,
-            cache_entries: self.fusion.compiled.len(),
             ..Default::default()
         };
         if !self.fusion.enabled {
             report.final_passes = report.original_passes;
             report.final_texture_traffic_bytes = report.original_texture_traffic_bytes;
+            self.fusion.cache_report(&mut report);
             self.fusion.report = report;
             return Ok(());
         }
@@ -547,8 +640,7 @@ impl PlanBuilder {
         }
         report.final_passes = passes.len();
         report.final_texture_traffic_bytes = traffic(&passes, self.precision);
-        report.portable_compiles = self.fusion.compiles;
-        report.cache_entries = self.fusion.compiled.len();
+        self.fusion.cache_report(&mut report);
         self.frame.passes = passes;
         self.pass_clocks = clocks;
         self.fusion.report = report;

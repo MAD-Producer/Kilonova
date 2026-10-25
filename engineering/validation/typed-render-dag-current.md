@@ -16,7 +16,7 @@ was reviewed and no subagent was used.
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
 | 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
-| 78-R5 numeric data / code identity | Worker-owned portable compiler cache has two entries / 8 MiB code bounds; bound private uniform/overflow updates preserve the validated package Arc and actual native pipelines while pixels change; canonical diagnostic proof retains pipelines only | Structural changes still clear unrelated native programs; complete affected-group and all-precision bound-instance acceptance remains unfinished |
+| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; bounded native/fusion success caches now survive registry-local ID replacement; four native precisions verify that a structural edit rebuilds one affected program while the other graph and utility code reuse pipelines | Complete IR-level affected-group scheduling and all-precision private numeric-instance acceptance remain unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound opt-in proof is present; its seven native tests and procedural alpha guard pass through the new scheduler | Connect grouping decisions to the complete IR and preserve all proven refusal boundaries |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
 | 78-R8 runtime version / capabilities | Logical graph/capability checks and package numeric-data admission remain; project format 27 persists typed instance payloads; packed v12 explicitly refuses instance overflow rather than using stale package defaults | Versioned packaged execution plan, portable instance-overflow transport and real execution-IR consumer acceptance/refusal remain unfinished |
@@ -233,8 +233,95 @@ These byte/upload counters are not total RAM, physical VRAM or frame peaks.
 Packed v12 explicitly refuses overflow tokens; uniform-only data fits its
 existing block. Full versioned portable transport remains pending 78-R8.
 
-This is a partial milestone. Structural package changes still clear unrelated
-native programs. Full pre-placement effect IR and grouping, bounded parallel CPU
+At this instance-only milestone, structural changes still cleared unrelated
+native programs; the next milestone below addresses that cache invalidation.
+Full pre-placement effect IR and grouping, bounded parallel CPU
 preparation, runtime-plan consumer negotiation, all-precision bound instances,
 end-to-end costs/peaks, final integration and cross-platform CI remain required.
 No #78 PR or issue-closure claim is made by these local targeted gates.
+
+## Structural program reuse across registry replacement
+
+The native renderer now retains successful pipeline proof independently of
+registry-local program IDs. Active entries keep a private compiled-shader Arc;
+healthy frames compare its identity. A new Arc is compared by complete actual
+WGSL, sprite vertex layout and additive blend specialization. The target
+scratch format is part of the key, and each cache belongs to one GPU owner.
+Fixed SDK bindings, entry points and the other fixed native pipeline states
+remain prerequisites. Package hashes and author IDs do not authorize reuse.
+
+Registry replacement retires the last prepared generation into at most 128
+pipeline entries and 8 MiB of WGSL comparison text. Empty intervening generations
+do not erase that proof. Replacing a prepared generation replaces its retired
+cache; this is not an unbounded history. It retains no packages, textures,
+bind groups or admission leases. Resource invalidation and original package,
+disabled-state, layout, capability and allocation admission still run. Evicted
+code takes the ordinary compilation path. Current-generation entries retain
+their existing working-set policy; the retired limits are not a new global
+limit on live programs or on driver pipeline memory.
+
+Successful portable fusion code also survives registry resets. Its program ID
+becomes unbound and is assigned again on first use. Private successful code,
+rather than a mutable public program copy, authorizes this rebind. The existing
+64-group limit remains; at most 8 MiB of WGSL/GLSL/reflection text is retained as
+inactive groups. Inactive entries yield capacity to new live groups. Failed
+compilations remain suppressed within a generation and are reconsidered only
+after explicit registry invalidation. Explicit portable/native fault injection
+bypasses success proofs and reaches the real parser or device validation.
+
+`Renderer::effect_pipeline_cache_info` publishes current/retired entry gauges,
+retired WGSL bytes, limits and lifetime successful reuses. Fusion reports publish
+portable rebinds, inactive entries and retained code bytes. These are cache
+entries and retained UTF-8 bytes, not unique GPU objects, heap/VRAM peaks or GPU
+completion counts. Cached portable metrics describe the original successful
+compilation; rebinds are counted separately. Healthy cache misses and eviction
+do not produce fault logs or change rendering policy.
+
+| Source-bound receipt | Actual result |
+| --- | --- |
+| `issue78-numeric-structural-v1` | Desktop check and 226 render library tests passed; related render tests had 13 passes and one superseded assertion requiring redundant compilation after identical registry replacement |
+| `issue78-numeric-structural-v2` | Desktop check, render library 226, related render 14 and default-output two passed; desktop node scope had 218 passes and only the new four-precision fixture failed because it called the PNG API for a high-precision target |
+| `issue78-numeric-structural-v3` | Desktop check and corrected structural fixture passed; all production source and every other test source exactly match v2, verified by SHA-256; the only changed file appends the new fixture and preserves all pre-existing numeric tests |
+
+The original lifetime test's exact compile expectation is deliberately updated
+from two compilations to one compilation plus one successful rebind. Its scratch
+feedback, format and lifetime assertions remain intact. The registry test now
+requires zero extra native builds for independently revalidated identical code;
+disabled-package refusal, bypass pixels and recovery are still checked. These
+changes establish the requested new performance contract, rather than relaxing
+correctness assertions. No test is ignored or removed.
+
+The new structural fixture applies two independent editable graphs through real
+Session/package paths. Across Unorm8, Unorm16, Float16 and Float32, changing the
+left graph builds exactly one native program; every right-side raw pixel byte
+is unchanged. The complete result equals an independently built cold renderer,
+and a later warm frame adds no builds. Readback preserves native 4/8/8/16-byte
+pixels; the production PNG precision refusal remains intact. This matrix does
+not extend the previous private numeric/overflow matrix beyond its documented
+Unorm8 scope.
+
+Another four-precision native matrix reparses successful packages independently,
+performs multiple registry changes before preparation and confirms identical
+pixels with zero new native or portable fusion compilations. Unit tests cover
+private proof integrity, inactive capacity eviction, metadata byte/entry limits
+and exact WGSL/vertex/blend/format refusal. Capacity fixtures alias an actual
+successful native handle; they do not claim to compile oversized shader text.
+
+Actual cold and warm portable-parser/native-validation failures reach the
+production sink at default Info: one Error in file and stderr, no diagnostic on
+stdout, no logger call under the Session guard, stable primary causes on repeated
+calls, and real recovery pixels. Their four child receipts and failure logs are
+retained. The combined accepted scopes contain 461 distinct passing tests, zero
+ignored; filtered empty targets and child-process counts are not extra passes.
+This is targeted acceptance, not the full workspace or cross-platform gate.
+
+The [verified structural archive](data/typed-render-dag-structural-385b530b.zip)
+contains 223 files plus its manifest, 2,558,204 bytes, SHA-256
+`6251e598ed5e56d2326a750d6bf403e1e0dfd0ea3e32e2f9acb7e3ed44e050c6`.
+Every archived file and final Rust/Cargo source hash was read back and checked.
+
+Full pre-placement effect-level IR and grouping, versioned packaged execution
+and portable overflow consumption, bounded parallel CPU preparation,
+all-precision private instances, complete IR fault channels, end-to-end
+costs/peaks, final integrated regression and cross-platform CI remain pending.
+Issue #78 stays open, followed by #74 and #87 in the user-required order.

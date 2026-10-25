@@ -777,6 +777,7 @@ impl Renderer {
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    pub fn effect_pipeline_cache_info(&self) -> crate::EffectPipelineCacheInfo { self.effect_gpu.state.pipeline_cache_info() }
     /// CPU time spent creating and validating native effect pipelines, including
     /// the validation wait. This is not GPU execution time or a driver-only timer.
     pub fn effect_pipeline_build_nanos(&self) -> u64 { self.effect_gpu.state.pipeline_build_nanos }

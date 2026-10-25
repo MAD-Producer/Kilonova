@@ -208,3 +208,193 @@ fn node_bound_numeric_data_reuses_package_and_native_pipeline_with_independent_i
 fn package_bytes(compiled: &CompiledGraph, target: &Target) -> Vec<u8> {
     super::super::package(compiled, target).unwrap()
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn node_structural_edit_rebuilds_only_its_native_program_in_four_precisions() {
+    use motion_effects::image_contract::ChannelPrecision;
+    let mut rows = vec![];
+    for precision in [
+        ChannelPrecision::Unorm8,
+        ChannelPrecision::Unorm16,
+        ChannelPrecision::Float16,
+        ChannelPrecision::Float32,
+    ] {
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path().join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        project.working_precision = precision;
+        for (id, x) in [(1, 16.), (2, 48.)] {
+            project.layers.push(motion_core::Layer::solid(
+                id,
+                "Independent graph",
+                [32., 64.],
+                [x, 32., 0.],
+                [0.2, 0.35, 0.6, 1.],
+            ));
+        }
+        let mut session =
+            motion_host::Session::new(project, root.clone(), motion_desktop_media::platform())
+                .unwrap();
+        let mut editors = vec![];
+        let mut compiler = motion_graph::EditableCompiler::default();
+        for id in [1, 2] {
+            let mut graph = identity();
+            if id == 2 {
+                append_color_operation(&mut graph, motion_graph::ColorOp::Invert);
+            }
+            let mut editor = node_editor::NodeEditor::new(graph);
+            editor.layer_target = Some(Target {
+                root: root.clone(),
+                composition: session.engine.project().composition_id.clone(),
+                object: id,
+                effect: id,
+                key: format!("independent-{id}"),
+                label: format!("Layer {id}"),
+                creating: true,
+            });
+            let snapshot = editor.snapshot();
+            let compiled = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            apply(&mut session, &snapshot, &compiled).unwrap();
+            editor.layer_target.as_mut().unwrap().creating = false;
+            editors.push(editor);
+        }
+        let before = session.engine.project().clone();
+        let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(
+            precision,
+            Default::default(),
+        ))
+        .unwrap();
+        let old = native_pixels(&mut renderer, &session);
+        let builds = renderer.effect_pipeline_builds();
+        let mut graph = editors[0].snapshot().document;
+        append_color_operation(&mut graph, motion_graph::ColorOp::SrgbEncode);
+        let target = editors[0].layer_target.clone();
+        editors[0].replace_document(graph, None);
+        editors[0].layer_target = target;
+        let snapshot = editors[0].snapshot();
+        let compiled = compiler
+            .compile(&snapshot.document, &snapshot.options)
+            .unwrap();
+        assert_eq!(compiled.report.portable_compilations, 1);
+        apply(&mut session, &snapshot, &compiled).unwrap();
+        assert_eq!(session.engine.project().layers[1], before.layers[1]);
+        assert_ne!(
+            session.engine.project().layers[0].effects[0].hash,
+            before.layers[0].effects[0].hash
+        );
+        let actual = native_pixels(&mut renderer, &session);
+        assert_eq!(
+            renderer.effect_pipeline_builds(),
+            builds + 1,
+            "only the changed graph may build a native pipeline: {precision:?}"
+        );
+        let mut left_changed = false;
+        let pixel_bytes =
+            motion_render::image_formats::color_storage(precision).bytes_per_pixel() as usize;
+        assert_eq!(actual.len(), 64 * 64 * pixel_bytes);
+        for y in 0..64 {
+            for x in 0..64 {
+                let at = (y * 64 + x) * pixel_bytes;
+                if x < 32 {
+                    left_changed |= actual[at..at + pixel_bytes] != old[at..at + pixel_bytes];
+                } else {
+                    assert_eq!(actual[at..at + pixel_bytes], old[at..at + pixel_bytes]);
+                }
+            }
+        }
+        assert!(left_changed);
+        let cache = renderer.effect_pipeline_cache_info();
+        assert!(
+            cache.reuses >= 2,
+            "unrelated graph and conversions must reuse proof"
+        );
+        assert!(cache.previous_entries <= cache.previous_entry_limit);
+        assert!(cache.previous_wgsl_bytes <= cache.previous_wgsl_byte_limit);
+        let mut oracle = pollster::block_on(Renderer::headless_with_working_precision(
+            precision,
+            Default::default(),
+        ))
+        .unwrap();
+        assert_eq!(
+            actual,
+            native_pixels(&mut oracle, &session),
+            "reused and cold native pipelines must produce identical output"
+        );
+        assert!(
+            oracle.effect_pipeline_builds() > 0,
+            "another owner must build its own pipelines"
+        );
+        assert_eq!(oracle.effect_pipeline_cache_info().reuses, 0);
+        assert_eq!(actual, native_pixels(&mut renderer, &session));
+        assert_eq!(renderer.effect_pipeline_builds(), builds + 1);
+        rows.push(
+            serde_json::json!({"precision":precision,"changed_native_builds":1,
+            "unaffected_pixels_equal":true,"cold_pixels_equal":true,
+            "format_preserving":true,"pixel_bytes":pixel_bytes,"cache":cache}),
+        );
+    }
+    if let Some(out) = std::env::var_os("MOTION_EXECUTION_ARTIFACTS") {
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(
+            PathBuf::from(out).join("structural-native-reuse.json"),
+            serde_json::to_vec_pretty(&rows).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
+fn native_pixels(renderer: &mut Renderer, session: &motion_host::Session) -> Vec<u8> {
+    use motion_effects::{
+        AlphaMode, WorkingSpace,
+        image_contract::{ImageContract, ImageMeaning},
+    };
+    let project = session.engine.project();
+    renderer.set_effect_registry(session.effects.registry.clone());
+    let mut scene = Scene::new(project).unwrap();
+    scene
+        .sample(project, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    let target = renderer
+        .image_capture_target(
+            64,
+            64,
+            ImageContract::new(
+                ImageMeaning::Color {
+                    space: WorkingSpace::Linear,
+                    alpha: AlphaMode::Premultiplied,
+                },
+                project.working_precision,
+            ),
+        )
+        .unwrap();
+    renderer.preflight_effects(&scene, 64, 64).unwrap();
+    renderer.draw(&scene, target.view(), 64, 64).unwrap();
+    let captured = renderer.read_image_target(&target).unwrap();
+    assert_eq!(
+        captured.storage,
+        motion_render::image_formats::color_storage(project.working_precision)
+    );
+    captured.pixels
+}
+
+fn append_color_operation(graph: &mut GraphDocument, operation: motion_graph::ColorOp) {
+    let input = graph
+        .connections
+        .iter()
+        .find(|c| c.to.node == "output")
+        .unwrap()
+        .from
+        .clone();
+    graph
+        .nodes
+        .push(Node::new("operation", NodeOp::ColorMath { operation }));
+    graph.connections.retain(|c| c.to.node != "output");
+    graph.connections.extend([
+        Connection::new(&input.node, &input.port, "operation", "color"),
+        Connection::new("operation", "color", "output", "color"),
+    ]);
+}

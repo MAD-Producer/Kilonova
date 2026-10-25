@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn repeated_registry_clone_keeps_preflighted_pipelines_but_replacements_and_disable_refresh() {
+fn registry_revalidation_reuses_exact_code_but_disable_still_refuses_and_refreshes() {
     let package = motion_effects::builtin::package().unwrap();
     let def = package
         .manifest
@@ -54,7 +54,12 @@ fn repeated_registry_clone_keeps_preflighted_pipelines_but_replacements_and_disa
     registry.packages.insert(key.clone(), replacement);
     renderer.set_effect_registry(registry.clone());
     assert_eq!(first, renderer.capture(&scene, &target).unwrap().0);
-    assert!(renderer.effect_pipeline_builds() > built);
+    assert_eq!(
+        renderer.effect_pipeline_builds(),
+        built,
+        "a freshly validated package with identical native code must reuse pipelines"
+    );
+    assert!(renderer.effect_pipeline_cache_info().reuses > 0);
     let replacement_builds = renderer.effect_pipeline_builds();
     registry.disabled.insert(key.clone());
     renderer.set_effect_registry(registry.clone());
@@ -69,5 +74,9 @@ fn repeated_registry_clone_keeps_preflighted_pipelines_but_replacements_and_disa
     registry.disabled.remove(&key);
     renderer.set_effect_registry(registry);
     assert_eq!(first, renderer.capture(&scene, &target).unwrap().0);
-    assert!(renderer.effect_pipeline_builds() > replacement_builds);
+    assert_eq!(
+        renderer.effect_pipeline_builds(),
+        replacement_builds,
+        "re-enabling identical successful code must preserve native pipelines"
+    );
 }
