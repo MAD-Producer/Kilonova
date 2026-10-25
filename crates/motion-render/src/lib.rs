@@ -1,6 +1,8 @@
 //! Native GPU rendering. Image decoding/upload happens on resource changes;
 //! playback uploads only fixed-size layer uniforms.
 mod effect_gpu;
+mod pointwise_observation;
+pub use pointwise_observation::PointwiseLogScope;
 pub mod effect_plan;
 pub mod image_formats;
 mod image_capture;

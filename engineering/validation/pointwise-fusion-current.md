@@ -1,13 +1,16 @@
 # Pointwise fusion prototype: current delivery ledger
 
-Issue #73 depends on #60 and #72. This prototype now has native acceptance
-evidence, but full regression, fault-output verification, integration and remote
-CI are unfinished. The dependent branch started at `b90b52a1` on the issue #72
-branch while that branch's final full regression ran. Issue #72 now has a green
-full workspace receipt and PR #489. This dependent branch must be
-integrated against merged main before its own PR. Main was freshly fetched as
-`6bdb692a` on 2026-10-25. Open-PR and local-branch metadata showed no overlapping
-fusion or Render DAG work; unrelated PR diffs were not reviewed.
+Issue #73 depends on #60 and #72. PR #489 merged as `40efcd35` after all
+platform, Rust/GPU and audit checks passed; issue #72 is closed. This prototype
+has targeted native, failure-output and representative-cost acceptance. The
+updated source still needs integration/full regression and remote CI before
+issue #73 can be closed. An earlier full effects/render run at `ebd0380c` passed
+716 tests across 119 targets, with zero failures and one existing optional
+external-image probe ignored. That result does not cover the subsequent changes.
+
+The dependent branch started at `b90b52a1` on #72. Metadata checks on 2026-10-25
+found no competing fusion/Render DAG branch or open PR. Other PR diffs were not
+reviewed. No subagents or overlapping owned compilers were used.
 
 ## Scope and status
 
@@ -17,13 +20,12 @@ fusion or Render DAG work; unrelated PR diffs were not reviewed.
 | 73-P2 | Bounded typed stage/parameter namespaces, distinct uniform slots, 16-stage/32-cell caps, values excluded from structure keys | IR aliasing/numeric-update/bound tests and actual eligible native numeric-update reuse checks pass; operation-order change creates exactly one new portable group |
 | 73-P3 | Explicit canonical linear/premultiplied and working sRGB/straight contracts for four precisions; generated quantization at the original storage boundaries | WGSL and GLSL compile; eligible native pixel comparisons pass in all four modes; integer alpha-changing draws remain an explicit unproved boundary |
 | 73-P4 | Opt-in native tail grouping with coordinate/bounds/identity/lifetime guards, bounded retained-reason counts and a 64-entry compiler cache | Actual grouping, allocation anti-aliasing and registry-replacement checks pass; resources, alternate inputs and later unproved consumers retain original passes |
-| 73-P5 | Fused/unfused actual GPU comparisons, including alpha, spaces, quantization, HDR, boundaries, blur/warp retention and forged implementations | Four tests pass: 32 parameter/order variants (20 fused, eight normal zero-opacity bypasses, four exact retained integer-alpha paths), four HDR producer cases, plus physical lifetime/registry and neighborhood boundary cases |
-| 73-P6 | Pass/loop/sample counts, portable/native pipeline compile counters/timers, logical traffic estimates and opt-in native command observations | Actual 65x33 microprobe measurements retained for all four modes; physical bus counters unavailable; larger representative studies remain pending, no speedup claim |
-| 73-P7 | Default-level fault observation, bounded caches/reasons, current regression, CI and completion record | Pending; unsupported optimization boundaries are normal, not render failures |
+| 73-P5 | Fused/unfused actual GPU comparisons, including alpha, spaces, quantization, HDR, boundaries, blur/warp retention and forged implementations | Five tests pass: 32 parameter/order variants (17 fused, eight normal zero-opacity bypasses, seven exact retained paths), four HDR producer cases (three fused, one retained exactly), plus physical lifetime/registry, neighborhood and UNORM16 transfer-order cases |
+| 73-P6 | Pass/loop/sample counts, portable/native pipeline compile counters/timers, logical traffic estimates and opt-in native command observations | Eight actual 1920x1080 mode/order studies pass with adapter metadata, separate cold/native/portable costs, command traces and logical traffic; physical bus counters unavailable, no general speedup claim |
+| 73-P7 | Default-level fault observation, bounded caches/reasons, current regression, CI and completion record | Real portable/native failures pass default production file/Error-stderr/stdout-isolation acceptance; bounded scope/lock/unwind tests pass; current integrated full regression and remote CI pending |
 
 Only one owned compiler/gate runs at a time. Issue #72's completed results are
-not attributed to this new source. Current full effects/render regression is
-still required before a delivery claim.
+not attributed to this new source. A full regression of the integrated follow-up remains required before a delivery claim.
 
 ## Execution semantics to preserve
 
@@ -124,8 +126,11 @@ effect draws use three passes rather than seven, including materialization; the
 effect group itself uses two rather than six. This is not a whole-frame speedup.
 
 The 32-row JSON is under the successful native receipt's `output-artifacts`.
-UNORM8/UNORM16 each have four fused, two zero-opacity and two retained-alpha
-variants; floating modes each have six fused and two zero-opacity variants.
+The original v6 receipt had four fused UNORM16 variants. The current follow-up
+retains its three forward non-alpha variants as well: UNORM16 now has one fused,
+two zero-opacity and five retained variants. UNORM8 retains four fused, two
+zero-opacity and two retained-alpha variants; floating modes each have six fused
+and two zero-opacity variants. Historical receipts retain their original counts.
 Eligible numeric updates add no native or portable compilation. Entering the
 retained path for the first time can create the original native pipelines that
 the optimized path had not needed; the portable group counter does not change.
@@ -136,6 +141,66 @@ reported unavailable rather than zero. The explicit v6 setup requests supported
 features and records actual native intervals. These include markers/scheduling;
 65x33 probes are not representative performance benchmarks. No physical GPU
 bandwidth counter or Android device measurement is claimed.
+
+## Follow-up acceptance and conservative quantization boundary
+
+| Receipt under `artifacts/pr-queue/` | Actual result |
+| --- | --- |
+| `issue73-stage-effects-render-full-v1` | Original committed prototype: 716 passed, zero failed, one existing optional external-input ignore; source unchanged |
+| `issue73-followup-scope-v1` | One test with isolated Info/Debug, nested guard, unwind and overflow child modes; logger can acquire business state and TLS observation borrows |
+| `issue73-followup-file-v1` | Real generated-source parser fault and actual native shader validation fault, under the real Session and production logger, with `MOTION_LOG` absent; both files and Error stderr receive one failure; stdout receives none |
+| `issue73-followup-cost-v1` | Failed: dense UNORM16 forward chain exceeds the unchanged 8/65535 bound; later modes were not executed |
+| `issue73-followup-cost-v2` | Failed: all four forward cases retained before assertion; UNORM16 error 9/65535 |
+| `issue73-followup-cost-v3` | Failed: eight mode/order studies retained; UNORM16 Tint-before-Invert exceeds its bound; reverse order remains within it |
+| `issue73-followup-cost-v4` | Eight studies pass after retaining the forward UNORM16 draw; retained pixels match exactly, every other original tolerance remains unchanged |
+| `issue73-followup-native-v1` | Five native tests pass, including the retained-order regression and reverse-order fusion; all prior pixel tolerances unchanged |
+
+At 1920x1080, UNORM16 Tint followed by Invert produced a maximum linear error of
+`0.0001373311970702673` (9/65535), above the original 8/65535 bound. A dark
+intermediate rounding difference can be amplified by subsequent transfer and
+inversion; the precise driver arithmetic that first creates that difference is
+not isolated. This is not a proof that a smaller passing image or an arbitrary
+numeric parameter range is safe. The native planner now conservatively retains
+the **whole draw** whenever a proved Tint precedes a proved Invert in UNORM16,
+reporting `quantized_transfer_boundary`. Alpha-changing integer draws retain their
+existing, earlier guard. No pixel bound was raised. Reversed UNORM16 chains and
+all three other precisions still have native fused acceptance. The portable IR
+remains able to compile all four storage modes; native eligibility adds the
+conservative guard. This is an execution-safety change to the opt-in prototype,
+separate from the observation changes.
+
+The new production file test repeats each actual failed operation 70 times and
+checks identical causes with no native rebuild. Replacing the renderer permits
+real rendering/readback again, and 65 healthy draws reuse both caches without
+additional start records. Debug-only, `gpu-tests`-gated diagnostics corrupt one
+generated shader before a real parser/device validation call. Release builds
+contain no injection API and no automatic corruption path. Device-poll errors
+keep their existing return behavior; this test does not claim device-loss or
+GPU-hang fault injection.
+
+Cold compiler events use a dedicated bounded scope: 64 normal events plus one
+first overflow Error, an omitted count, 128-character structure keys, 16 effect
+IDs and 2048-character causes. Debug events are filtered before retaining data.
+The host enters the scope before acquiring Session; scope exit invokes loggers
+after guard release, including unwind, without a TLS borrow. Direct renderer
+callers observe Info start before compilation. Host-scoped compiler phase starts
+are explicitly `deferred=true`; they are **not** a pre-handler hang signal. The
+existing engine pre-handler Info start and public in-flight state remain the
+worker signal, with healthy Present calls filtered. A compile cache miss can
+produce cold Info events; healthy cached draws do not add per-frame IO.
+
+The explicit `pointwise_fusion_cost` example is not a performance test executed
+by the ordinary unit-test harness. It measures two operation orders in all four
+modes at 1920x1080: one image, two effects, three warmup draws and twelve numeric
+updates, alternating execution order. It retains per-sample CPU submit+completion
+waits, separate cold CPU pipeline costs, native timestamp traces, shader/loop/
+sample metrics and logical traffic. Full image readback/comparison is outside the
+frame timer. This is an exploratory adapter-specific study, not a cross-platform
+performance guarantee. The adapter was NVIDIA GeForce RTX 4070 Laptop GPU,
+Vulkan, driver 591.86. The retained forward UNORM16 case uses seven passes; the
+other seven cases use three instead of seven. Physical bus bandwidth counters
+are unavailable; logical bytes and command intervals are reported separately.
+Android device acceptance remains outside the maintained desktop scope.
 
 ## Provenance
 

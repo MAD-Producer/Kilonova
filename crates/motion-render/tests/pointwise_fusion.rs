@@ -110,6 +110,51 @@ fn scene(p: &Project) -> Scene {
     scene.sample(p, 0., None, &ExpressionEvaluator).unwrap();
     scene
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn unorm16_transfer_order_retains_native_stores_and_reverse_order_still_fuses() {
+    let (mut project, mut pixels) = fixture(ChannelPrecision::Unorm16);
+    // The color of the worst 1080p counterexample. Keep this fast native guard
+    // test in the ordinary gate; the explicit cost example retains the complete
+    // dense pattern and the failed pre-guard receipts retain its actual error.
+    for pixel in pixels.chunks_exact_mut(4) {
+        pixel.copy_from_slice(&[0, 3, 15, 255]);
+    }
+    scalar(&mut project.layers[0].effects[0], "p0003", 71.);
+    let mut original = renderer(ChannelPrecision::Unorm16);
+    let mut optimized = renderer(ChannelPrecision::Unorm16);
+    for r in [&mut original, &mut optimized] {
+        r.upload_image(1, W, H, &pixels).unwrap();
+    }
+    optimized.set_pointwise_fusion(true);
+    let (expected, _) = raw(&mut original, &project);
+    let (actual, _) = raw(&mut optimized, &project);
+    assert_eq!(actual, expected);
+    let report = optimized.pointwise_fusion_report();
+    assert_eq!((report.original_passes, report.final_passes), (7, 7));
+    assert!(report.groups.is_empty());
+    assert_eq!(report.portable_compiles, 0);
+    assert_eq!(
+        report
+            .retained
+            .get(&FusionRetainReason::QuantizedTransferBoundary),
+        Some(&1)
+    );
+    project.layers[0].effects.reverse();
+    let (expected, _) = raw(&mut original, &project);
+    let (actual, _) = raw(&mut optimized, &project);
+    let report = optimized.pointwise_fusion_report();
+    assert_eq!((report.original_passes, report.final_passes), (7, 3));
+    assert_eq!(report.groups.len(), 1);
+    assert_eq!(report.portable_compiles, 1);
+    let worst = expected
+        .iter()
+        .zip(&actual)
+        .flat_map(|(a, b)| (0..4).map(move |i| (a[i] - b[i]).abs()))
+        .fold(0_f64, f64::max);
+    assert!(worst <= 8. / 65535., "reverse UNORM16 error={worst}");
+}
 fn raw(r: &mut Renderer, p: &Project) -> (Vec<[f64; 4]>, u64) {
     let scene = scene(p);
     let t = r
@@ -179,6 +224,10 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
                 ChannelPrecision::Unorm8 | ChannelPrecision::Unorm16
             );
             let retained_alpha = integer_precision && channel == 5. && opacity != 0.;
+            let retained_transfer = precision == ChannelPrecision::Unorm16
+                && !reverse
+                && opacity != 0.
+                && !retained_alpha;
             if opacity == 0. {
                 // Existing planning omits zero-opacity effects entirely.
                 // Keep this normal bypass quiet instead of forcing work to fuse.
@@ -192,6 +241,15 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
                     report
                         .retained
                         .get(&FusionRetainReason::QuantizedAlphaBoundary),
+                    Some(&1)
+                );
+            } else if retained_transfer {
+                assert!(report.groups.is_empty());
+                assert_eq!((report.original_passes, report.final_passes), (7, 7));
+                assert_eq!(
+                    report
+                        .retained
+                        .get(&FusionRetainReason::QuantizedTransferBoundary),
                     Some(&1)
                 );
             } else {
@@ -222,7 +280,7 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
                 "{precision:?} case={case} worst={worst} bound={tolerance}"
             );
             assert!(actual.iter().flatten().all(|v| v.is_finite()));
-            if retained_alpha {
+            if retained_alpha || retained_transfer {
                 assert_eq!(
                     actual, expected,
                     "retained alpha path must preserve every native pixel"
@@ -251,7 +309,12 @@ fn native_fusion_preserves_four_storage_modes_alpha_channels_opacity_and_numeric
             }
             if case >= 6 {
                 assert_eq!(
-                    report.portable_compiles, 2,
+                    report.portable_compiles,
+                    if precision == ChannelPrecision::Unorm16 {
+                        1
+                    } else {
+                        2
+                    },
                     "only changed operation order specializes"
                 );
             }
@@ -330,7 +393,12 @@ fn neighborhood_and_unknown_implementations_keep_original_passes_with_a_reason()
 #[test]
 fn actual_lifetimes_avoid_attachment_feedback_and_registry_replacement_retires_program_ids() {
     for precision in MODES {
-        let (p, _) = fixture(precision);
+        let (mut p, _) = fixture(precision);
+        // Keep a fused lifetime case in every mode; the forward UNORM16
+        // transfer boundary is separately required to retain exact pixels.
+        if precision == ChannelPrecision::Unorm16 {
+            p.layers[0].effects.reverse();
+        }
         let scene = scene(&p);
         let registry = motion_effects::Registry::new_with_builtins().unwrap();
         let mut builder = PlanBuilder::new(registry.clone()).unwrap();
@@ -406,13 +474,28 @@ fn hdr_neighbor_input_is_prepared_once_and_only_the_following_pointwise_chain_is
         let (expected, _) = raw(&mut original, &p);
         let (actual, _) = raw(&mut optimized, &p);
         let report = optimized.pointwise_fusion_report();
-        assert_eq!(report.groups.len(), 1);
-        assert_eq!(report.groups[0].effects, [11, 12]);
-        assert_eq!(report.original_passes - report.final_passes, 4);
-        assert_eq!(
-            report.groups[0].portable.shader_texture_samples_upper_bound, 2,
-            "upstream neighborhood sampling must not be expanded into the group"
-        );
+        if precision == ChannelPrecision::Unorm16 {
+            assert!(report.groups.is_empty());
+            assert_eq!(report.original_passes, report.final_passes);
+            assert_eq!(
+                report
+                    .retained
+                    .get(&FusionRetainReason::QuantizedTransferBoundary),
+                Some(&1)
+            );
+            assert_eq!(
+                actual, expected,
+                "retained transfer stores preserve every native pixel"
+            );
+        } else {
+            assert_eq!(report.groups.len(), 1);
+            assert_eq!(report.groups[0].effects, [11, 12]);
+            assert_eq!(report.original_passes - report.final_passes, 4);
+            assert_eq!(
+                report.groups[0].portable.shader_texture_samples_upper_bound, 2,
+                "upstream neighborhood sampling must not be expanded into the group"
+            );
+        }
         assert_eq!(
             report
                 .retained

@@ -19,6 +19,7 @@ pub enum FusionRetainReason {
     ParameterOrStageLimit,
     CacheLimit,
     QuantizedAlphaBoundary,
+    QuantizedTransferBoundary,
     DownstreamBoundary,
 }
 
@@ -62,6 +63,8 @@ pub(super) struct FusionState {
     compiled: BTreeMap<String, Compilation>,
     compiles: u64,
     report: FusionFrameReport,
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    pub(super) invalid_source_once: bool,
 }
 impl FusionState {
     pub(super) fn reset_programs(&mut self) {
@@ -225,22 +228,19 @@ impl PlanBuilder {
         if self.fusion.compiled.len() >= MAX_COMPILED_GROUPS {
             return Ok(None);
         }
-        log::info!(
-            "start operation=pointwise_compile structure={} stages={} cells={}",
-            key,
-            chain.instructions().len(),
-            chain.bindings().len()
+        let observation = crate::pointwise_observation::CompilePhase::start(
+            "pointwise_compile",
+            &key,
+            chain.instructions().first().map(|i| i.namespace.object),
+            chain.instructions().iter().map(|i| i.namespace.effect),
+            None,
+            None,
         );
         self.fusion.compiles = self.fusion.compiles.saturating_add(1);
-        match chain.compile() {
+        match self.compile_pointwise(chain) {
             Ok(fused) => {
                 let id = self.programs.len() as u32;
-                log::debug!(
-                    "done operation=pointwise_compile structure={} elapsed_ns={} wgsl_bytes={}",
-                    key,
-                    fused.metrics.portable_compile_nanos,
-                    fused.metrics.compiled_wgsl_bytes
-                );
+                observation.done(fused.metrics.compiled_wgsl_bytes);
                 self.programs.push(EffectProgram {
                     key: key.clone(),
                     shader: Arc::new(fused.compiled),
@@ -257,10 +257,7 @@ impl PlanBuilder {
                 Ok(Some((id, fused.metrics)))
             }
             Err(error) => {
-                log::error!(
-                    "operation=pointwise_compile structure={} cause={error}",
-                    key
-                );
+                observation.failed(&error.to_string());
                 let error = Arc::new(RenderError::from(error));
                 self.fusion
                     .compiled
@@ -268,6 +265,25 @@ impl PlanBuilder {
                 Err(RenderError::Shared(error))
             }
         }
+    }
+
+    fn compile_pointwise(
+        &mut self,
+        chain: &PointwiseChain,
+    ) -> motion_effects::Result<motion_effects::pointwise::FusedShader> {
+        #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+        if std::mem::take(&mut self.fusion.invalid_source_once) {
+            // Explicit acceptance fault: execute the real portable parser with
+            // corrupted generated source, rather than returning a mocked error.
+            let source = chain.generated_source()? + "\nfn pointwise_diagnostic_invalid( {";
+            motion_effects::shader::compile(&source, "main_fx")?;
+        }
+        chain.compile()
+    }
+
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    pub(crate) fn debug_inject_pointwise_portable_failure(&mut self) {
+        self.fusion.invalid_source_once = true;
     }
 
     pub(super) fn fuse_pointwise(&mut self, scene: &Scene) -> Result<(), RenderError> {
@@ -322,6 +338,41 @@ impl PlanBuilder {
                 *report
                     .retained
                     .entry(FusionRetainReason::QuantizedAlphaBoundary)
+                    .or_default() += 1;
+                passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
+                clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
+                self.frame.draws[draw_index].pass_end = passes.len();
+                continue;
+            }
+            // A one-code difference at a dark UNORM16 canonical store can be
+            // amplified by a following inversion and transfer conversion. The
+            // dense native counterexample exceeds the unchanged 8/65535 bound.
+            // Preserve the whole draw's real stores for this operation order;
+            // a smaller passing fixture does not prove a safe numeric domain.
+            let mut saw_tint = false;
+            let quantized_transfer = self.precision == ChannelPrecision::Unorm16
+                && self.pass_clocks[draw.pass_start..draw.pass_end]
+                    .iter()
+                    .flatten()
+                    .any(|&i| {
+                        let Some(resolved) = self.resolved[i].as_ref() else {
+                            return false;
+                        };
+                        let Eligibility::Proven(proof) = &resolved.pointwise else {
+                            return false;
+                        };
+                        match proof.op() {
+                            motion_effects::pointwise::PointwiseOp::Tint => {
+                                saw_tint = true;
+                                false
+                            }
+                            motion_effects::pointwise::PointwiseOp::Invert => saw_tint,
+                        }
+                    });
+            if quantized_transfer {
+                *report
+                    .retained
+                    .entry(FusionRetainReason::QuantizedTransferBoundary)
                     .or_default() += 1;
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);

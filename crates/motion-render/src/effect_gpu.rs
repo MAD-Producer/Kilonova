@@ -68,6 +68,8 @@ pub(crate) struct GpuState {
     pub pipeline_builds: u64,
     pub pipeline_build_nanos: u64,
     pub failed_program: Option<(u32, String)>,
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    pub invalid_pointwise_source_once: bool,
     pub pool: Vec<Option<FxTexture>>,
     pool_width: u32,
     pool_height: u32,
@@ -291,6 +293,8 @@ impl EffectGpu {
                 pipeline_builds: 0,
                 pipeline_build_nanos: 0,
                 failed_program: None,
+                #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+                invalid_pointwise_source_once: false,
                 pool: (0..8).map(|_| None).collect(),
                 pool_width: 0,
                 pool_height: 0,
@@ -550,19 +554,22 @@ impl GpuState {
             let key = (p.program, target_kind);
             if !self.pipelines.contains_key(&key) {
                 let pipeline_began = std::time::Instant::now();
-                if builder.programs[p.program as usize].key.starts_with("pointwise-v") {
-                    log::info!("start operation=pointwise_native_pipeline program={} format={target_kind}",
-                        builder.programs[p.program as usize].key);
-                }
+                let program = &builder.programs[p.program as usize];
+                let pointwise = program.key.starts_with("pointwise-v");
+                let group = builder.pointwise_fusion_report().groups.iter().find(|g| g.program == p.program);
+                let observation = pointwise.then(|| crate::pointwise_observation::CompilePhase::start(
+                    "pointwise_native_pipeline", &program.key, group.map(|g| g.object),
+                    group.into_iter().flat_map(|g| g.effects.iter().copied()), Some(p.program), Some(target_kind)));
+                let source = program.shader.wgsl.clone();
+                #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+                let source = if pointwise && std::mem::take(&mut self.invalid_pointwise_source_once) {
+                    source + "\nfn pointwise_diagnostic_invalid( {"
+                } else { source };
                 let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
                 let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                     label: Some("effect WGSL"),
                     source: wgpu::ShaderSource::Wgsl(
-                        builder.programs[p.program as usize]
-                            .shader
-                            .wgsl
-                            .clone()
-                            .into(),
+                        source.into(),
                     ),
                 });
                 let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -635,9 +642,15 @@ impl GpuState {
                         Ok(_) => message,
                     };
                     self.failed_program = Some((p.program, message.clone()));
+                    if let Some(observation) = observation { observation.failed(&message); }
                     return Err(RenderError::Invalid(message));
                 }
-                polled?;
+                if let Err(error) = polled {
+                    let error = RenderError::from(error);
+                    if let Some(observation) = observation { observation.failed(&error.to_string()); }
+                    return Err(error);
+                }
+                if let Some(observation) = observation { observation.done(program.shader.wgsl.len()); }
                 self.pipelines.insert(key, pipeline);
                 self.pipeline_builds += 1;
                 self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
