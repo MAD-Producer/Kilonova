@@ -9,6 +9,9 @@ use std::collections::{HashMap, HashSet};
 #[cfg(test)]
 mod reuse_tests;
 
+// Retain bounded, empty CPU membership storage between preparations.
+const MAX_RETAINED_MEMBERSHIP_CAPACITY: usize = 4096;
+
 struct Uniform {
     group: wgpu::BindGroup,
     inputs: Option<InputBinding>,
@@ -32,6 +35,8 @@ pub(crate) struct MaskGpu {
     scratch_size: (u32, u32),
     fingerprints: HashMap<u64, u64>,
     meshes: HashMap<(u64,u64),(u64,crate::allocation_buffer::AllocationBuffer)>,
+    active_layers_scratch: HashSet<u64>,
+    active_meshes_scratch: HashSet<(u64, u64)>,
     pub uploads: u64,
     #[cfg(test)]
     input_binding_observations: Vec<wgpu::BindGroup>,
@@ -204,6 +209,8 @@ impl MaskGpu {
             scratch_size: (0, 0),
             fingerprints: HashMap::new(),
             meshes: HashMap::new(),
+            active_layers_scratch: HashSet::new(),
+            active_meshes_scratch: HashSet::new(),
             uploads: 0,
             #[cfg(test)]
             input_binding_observations: Vec::new(),
@@ -220,6 +227,8 @@ impl MaskGpu {
         self.scratch_size = (0, 0);
         self.fingerprints.clear();
         self.meshes.clear();
+        self.active_layers_scratch = HashSet::new();
+        self.active_meshes_scratch = HashSet::new();
     }
     fn clear_inputs(&mut self) {
         // Cached views refer to the current scratch pool. Release them before
@@ -418,8 +427,10 @@ impl MaskGpu {
     ) -> Result<bool, RenderError> {
         #[cfg(test)]
         self.input_binding_observations.clear();
-        let active: HashSet<_> = masks.iter().map(|m| scene.layers[m.layer].id).collect();
-        let active_meshes:HashSet<_>=masks.iter().map(|m|(scene.layers[m.layer].id,m.id)).collect();
+        let mut active = std::mem::take(&mut self.active_layers_scratch);
+        let mut active_meshes = std::mem::take(&mut self.active_meshes_scratch);
+        active.extend(masks.iter().map(|m| scene.layers[m.layer].id));
+        active_meshes.extend(masks.iter().map(|m| (scene.layers[m.layer].id, m.id)));
         self.meshes.retain(|key,_|active_meshes.contains(key));
         let mut changed = false;
         let stale: Vec<_> = images
@@ -434,6 +445,14 @@ impl MaskGpu {
             }
         }
         self.fingerprints.retain(|id, _| active.contains(id));
+        if active.capacity() <= MAX_RETAINED_MEMBERSHIP_CAPACITY {
+            active.clear();
+            self.active_layers_scratch = active;
+        }
+        if active_meshes.capacity() <= MAX_RETAINED_MEMBERSHIP_CAPACITY {
+            active_meshes.clear();
+            self.active_meshes_scratch = active_meshes;
+        }
         if masks.is_empty() {
             self.clear();
             return Ok(changed);
