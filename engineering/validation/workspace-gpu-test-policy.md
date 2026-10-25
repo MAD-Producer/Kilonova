@@ -49,3 +49,7 @@ cargo test --workspace --no-default-features --features gpu-tests,motion-desktop
 本批没有新增产品日志点。GPU 测试失败直接保留原始错误；未更改 Present 热路径、错误信道、降级阈值或主次原因协议。对应已有错误信道用例的运行只能算既有覆盖，不算新增可观测性修复。
 
 本地原始证据位于 `artifacts/pr-ci-followups/`：`workspace-gpu-final-source-review.json`、`workspace-gpu-explicit-feature-graph.json`、`workspace-gpu-workflow-controlled-failure.json`、`render-gpu-policy-controlled-failure.json` 与各阶段日志。分支协调检查只读取工作树路径和修改元数据，没有审阅他人的 PR；无活跃分支文件占用冲突。历史暂停工作树的既有改动保持。
+
+## 完整验收补充
+
+后续计时用例的一项遗漏属性及完整 CPU 目标并集、不可用适配器对照、原生 GPU 恢复、失败/中断保留，见 [最终验收](workspace-gpu-acceptance-completed.md) 与 [阶段回执](workspace-gpu-acceptance-results.json)。本页旧阶段记录保持；当前 PR 的五项必需 CI 通过后才合并并关闭 #135。

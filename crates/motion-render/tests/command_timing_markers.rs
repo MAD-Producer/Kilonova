@@ -17,6 +17,7 @@ fn boundary(encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, index:
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn pass_timestamp_boundaries_enclose_real_commands_without_encoder_timestamp_feature() {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
