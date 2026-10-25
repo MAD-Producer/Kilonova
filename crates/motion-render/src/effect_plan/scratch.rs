@@ -1,7 +1,7 @@
 //! Explicit physical scratch descriptors shared by admission, native allocation
 //! and the packed plan. Semantic slots remain local names while constructing
 //! effects; they are never physical allocation identities.
-use super::{scratch_graph as graph, scratch_lifetimes as placement, EffectFramePlan};
+use super::{EffectFramePlan, scratch_graph as graph, scratch_lifetimes as placement};
 use crate::RenderError;
 use serde::Serialize;
 use std::ops::Range;
@@ -51,7 +51,7 @@ pub struct ScratchClass {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct LogicalClass {
+pub(super) struct LogicalClass {
     format: ScratchFormat,
     working_space: u32,
     alpha: u32,
@@ -117,6 +117,17 @@ pub(super) fn layout(
     frame: &EffectFramePlan,
     current: Option<Range<usize>>,
 ) -> Result<Layout, RenderError> {
+    let graph = logical_graph(frame, current)?;
+    place_graph(&graph)
+}
+
+/// Checked logical values, before any physical allocation identities exist.
+/// Optimizers must use these def/use edges instead of semantic slot equality:
+/// a later clear of the same slot creates a different image value.
+pub(super) fn logical_graph(
+    frame: &EffectFramePlan,
+    current: Option<Range<usize>>,
+) -> Result<graph::Graph<LogicalClass>, RenderError> {
     if frame.passes.len() > MAX_SCRATCH_PASSES {
         return Err(format!("effect scratch pass limit exceeded ({MAX_SCRATCH_PASSES})").into());
     }
@@ -129,7 +140,7 @@ pub(super) fn layout(
             other => {
                 return Err(
                     format!("effect pass {index} semantic output {other} is invalid").into(),
-                )
+                );
             }
         };
         let format = match frame.precision {
@@ -186,8 +197,12 @@ pub(super) fn layout(
     if let Some(current) = current {
         draws.push(current);
     }
-    let graph = graph::build(&passes, &draws, 8, MAX_SCRATCH_PASSES)
-        .map_err(|error| RenderError::Invalid(error.to_string()))?;
+    graph::build(&passes, &draws, 8, MAX_SCRATCH_PASSES)
+        .map_err(|error| RenderError::Invalid(error.to_string()))
+}
+
+/// Physical storage allocation consumes the already checked logical graph.
+fn place_graph(graph: &graph::Graph<LogicalClass>) -> Result<Layout, RenderError> {
     // Logical colors/alpha are immutable per value, including attachment loads.
     // All production writes clear the whole attachment. Once the last consumer
     // ends, that clear ends the old semantic lifetime, so identical storage can

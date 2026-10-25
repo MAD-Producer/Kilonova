@@ -17,7 +17,7 @@ was reviewed and no subagent was used.
 | 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; bounded native/fusion success caches now survive registry-local ID replacement; four native precisions verify that a structural edit rebuilds one affected program while the other graph and utility code reuse pipelines | Complete IR-level affected-group scheduling and all-precision private numeric-instance acceptance remain unfinished; cache eviction can require recompilation |
-| 78-R6 proven grouping | #73 implementation-bound opt-in proof is present; its seven native tests and procedural alpha guard pass through the new scheduler | Connect grouping decisions to the complete IR and preserve all proven refusal boundaries |
+| 78-R6 proven grouping | #73 implementation-bound opt-in proof remains; local logical def/use checks now also gate actual grouping before final physical placement | Connect grouping decisions to the complete effect-level IR and preserve all proven refusal boundaries |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
 | 78-R8 runtime version / capabilities | Logical graph/capability checks and package numeric-data admission remain; project format 27 persists typed instance payloads; packed v12 explicitly refuses instance overflow rather than using stale package defaults | Versioned packaged execution plan, portable instance-overflow transport and real execution-IR consumer acceptance/refusal remain unfinished |
 | 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
@@ -325,3 +325,53 @@ and portable overflow consumption, bounded parallel CPU preparation,
 all-precision private instances, complete IR fault channels, end-to-end
 costs/peaks, final integrated regression and cross-platform CI remain pending.
 Issue #78 stays open, followed by #74 and #87 in the user-required order.
+
+## Local logical dependency admission for grouping
+
+This checkpoint separates `scratch::logical_graph` from physical placement.
+The placement wrapper still consumes the same checked graph and retains the
+same storage-class, inclusive lifetime and terminal-copy rules. Opt-in
+pointwise grouping now builds logical values before rewriting passes, then
+requires every removed intermediate value to have no reader outside the group.
+Terminal snapshot/composition consumers and preserved attachments remain
+boundaries. A clear of the same semantic slot creates a distinct value; two
+ports of one operation reading a value are not two independent consumers.
+
+The dependency summary is bounded by the existing native pass/resource limit
+and discarded after planning. Healthy fusion-disabled and cached-preview
+paths add no such summary. Enabled uncached planning adds a logical graph
+construction and use summary; no CPU or frame-time improvement is claimed.
+Shader equivalence, quantization, alpha, external layer readers and compositing
+proofs remain independently required. A closed dependency region alone is
+never a proof that shaders can be fused.
+
+Three new graph tests cover later source-port readers, repeated slot writes,
+duplicate input ports, terminal snapshots, preserved attachments and invalid
+group ranges. A fourth test uses real built-in stages and the actual portable
+compiler: an invalid preceding raster import must prevent compiling an
+otherwise admissible replacement, preserve existing placement metadata and
+recover when rebuilt from healthy authoring input.
+
+Source-bound validation `issue78-numeric-logical-grouping-v1` passed desktop
+check, 230 render library tests and 14 related native tests across four test
+targets, with zero ignored tests. The native scope retains four-precision
+fusion/raw-pixel comparisons, extreme-alpha guards, registry replacement,
+actual shared-diamond encoding and typed snapshot errors/recovery. Final
+Rust/Cargo hashes match the accepted source snapshot and all four edited Rust
+files pass the repository's edition-2024 formatting check. No panels changed.
+
+The [verified checkpoint archive](data/typed-render-dag-logical-grouping-be0c4b38.zip)
+retains 63 files plus its manifest, including source snapshots, the sequential
+controller, test logs and native metrics. Size: 290,638 bytes; SHA-256:
+`8201ec93ff8456ca482b4ed4d02d54e090dd5cf68deea8550330f059ea826d7d`.
+Every archived file was read back and checked; all 49 accepted source hashes
+were verified against the working tree. These are targeted gates, not final
+workspace or cross-platform acceptance.
+
+This remains a pass-draft def/use checkpoint. It is not complete effect-level
+IR lowering: transactional preview admission still proposes physical layouts
+while constructing individual effects, and final snapshot scheduling still
+uses the existing atomic-draw IR. Full semantic front-end ownership, packaged
+IR consumers, bounded parallel preparation, four-precision private instances,
+new IR failures through production output channels and final integrated CI
+remain pending. Issue #78 is not ready to close.

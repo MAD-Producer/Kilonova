@@ -36,6 +36,51 @@ fn fixture() -> (PlanBuilder, Scene) {
 }
 
 #[test]
+fn grouping_checks_complete_logical_dependencies_before_compiling_a_replacement() {
+    let (mut builder, scene) = fixture();
+    builder.set_pointwise_fusion(false);
+    builder.build(&scene, &[0], 32, 32, true).unwrap();
+    let original_passes = builder.frame.passes.len();
+    assert_eq!(original_passes, 7);
+    let original_programs = builder.programs.len();
+    let original_compiles = builder.fusion.compiles;
+    let placement: Vec<_> = builder
+        .frame
+        .scratch_allocations
+        .iter()
+        .map(|a| a.words())
+        .collect();
+    builder.fusion.compiled.clear();
+    // Both proved stages remain intact. An invalid import in the preceding
+    // raster must still prevent optimizing the otherwise admissible tail.
+    builder.frame.passes[0].input = 0;
+    builder.set_pointwise_fusion(true);
+    let error = builder.fuse_pointwise(&scene).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("pass 0 reads uninitialized slot 0")
+    );
+    assert_eq!(builder.fusion.compiles, original_compiles);
+    assert_eq!(builder.programs.len(), original_programs);
+    assert_eq!(builder.frame.passes.len(), original_passes);
+    assert_eq!(
+        builder
+            .frame
+            .scratch_allocations
+            .iter()
+            .map(|a| a.words())
+            .collect::<Vec<_>>(),
+        placement
+    );
+    // The rejected operation preserves the preceding placement metadata.
+    // Rebuild from the healthy authoring input to prove normal recovery.
+    builder.build(&scene, &[0], 32, 32, true).unwrap();
+    assert_eq!(builder.pointwise_fusion_report().groups.len(), 1);
+    assert_eq!(builder.fusion.compiles, original_compiles + 1);
+}
+
+#[test]
 fn fusion_private_success_proof_survives_public_program_mutation_and_registry_reset() {
     let (mut builder, scene) = fixture();
     let id = builder.pointwise_fusion_report().groups[0].program as usize;

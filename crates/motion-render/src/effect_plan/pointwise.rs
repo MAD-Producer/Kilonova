@@ -396,6 +396,10 @@ impl PlanBuilder {
             self.fusion.report = report;
             return Ok(());
         }
+        // Complete local def/use validation precedes optimization and final
+        // physical placement. Semantic slot names alone cannot establish that
+        // eliminating intermediate images preserves all of their consumers.
+        let dependencies = scratch::logical_graph(&self.frame, None)?.grouping_dependencies();
         // A proved tail is local to one atomic draw. An arbitrary image-input
         // consumer or track matte can amplify its tolerated rounding error.
         // Source-stage readers bypass these effected outputs entirely.
@@ -549,6 +553,13 @@ impl PlanBuilder {
                         || self.frame.passes[end].uniform.output_mode[3]
                             != self.frame.passes[at].uniform.output_mode[3]
                     {
+                        break;
+                    }
+                    if !dependencies.is_closed_group(at..end + 3) {
+                        *report
+                            .retained
+                            .entry(FusionRetainReason::ExternalConsumerBoundary)
+                            .or_default() += 1;
                         break;
                     }
                     candidates.push(next);
