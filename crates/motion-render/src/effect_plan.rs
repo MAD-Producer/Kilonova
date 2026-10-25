@@ -25,6 +25,7 @@ pub use execution_fault::ExecutionDiagnosticFault;
 mod runtime_template;
 mod cpu_prepare;
 pub use cpu_prepare::CpuPreparationInfo;
+mod preparation;
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
@@ -1069,8 +1070,10 @@ impl PlanBuilder {
     ) -> Result<&EffectFramePlan, RenderError> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
-        self.synchronize(scene)?;
         self.effect_execution = None;
+        self.cpu_preparation = CpuPreparationInfo { worker_limit: self.cpu_preparation.worker_limit, ..Default::default() };
+        preparation::validate_scene(scene)?;
+        self.synchronize(scene)?;
         self.frame.precision = self.precision;
         self.frame.scratch_budget = self.scratch_budget;
         self.frame.sprites.clear();
@@ -1085,7 +1088,6 @@ impl PlanBuilder {
         self.frame.scratch_outputs.clear();
         self.frame.draws.clear();
         self.frame.vectors.clear();
-        self.cpu_preparation = CpuPreparationInfo { worker_limit: self.cpu_preparation.worker_limit, ..Default::default() };
         self.vector_cache.retain(|id, _| {
             scene
                 .layers
@@ -1158,6 +1160,7 @@ impl PlanBuilder {
             .min(1.0)
             .max(0.001);
         let layer_scales = self.layer_scales(scene, [width, height], scale, preview);
+        let mut preparation = self.prepare_effect_inputs(scene, assets)?;
         let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
             [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.frame.masks=self.mask_cache.build(scene,scale,preview)?;
@@ -1209,12 +1212,8 @@ impl PlanBuilder {
                 self.pass_clocks.push(None);
                 self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
             }
-            for (index, e) in scene
-                .effects
-                .iter()
-                .enumerate()
-                .filter(|(_, e)| e.layer == layer.id && e.enabled)
-            {
+            for &index in &preparation.effects_by_layer[layer_index] {
+                let e = &scene.effects[index];
                 let clock_start = self.frame.passes.len();
                 let data_start = self.frame.instance_data.len();
                 let sprite_start = self.frame.sprites.len();
@@ -1223,56 +1222,10 @@ impl PlanBuilder {
                 self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
                 let result = (|| -> Result<(), RenderError> {
-                    if let Some(err) = &resolved.error {
-                        return Err(RenderError::Shared(err.clone()));
-                    }
-                    for id in &resolved.programs {
-                        if let Some(error) = self.program_errors.get(id) {
-                            return Err(RenderError::Invalid(error.clone()));
-                        }
-                    }
+                    let prepared = preparation.inputs[index].take()
+                        .ok_or("effect preparation input is absent")??;
+                    let (params, resource_input) = prepared.native_uniforms();
                     let def = &resolved.definition;
-                    if layer.adjustment && def.renderer != motion_effects::RendererKind::Image {
-                        return Err("adjustment layers support image effects only".into());
-                    }
-                    let mut params = [[0.0; 4]; 32];
-                    for (i, p) in def.params.iter().enumerate() {
-                        let v = e.values[resolved.mapping[i]];
-                        if !p.kind.valid_value(&v, p.min, p.max) {
-                            return Err(format!("parameter {} exceeds plugin range", p.id).into());
-                        }
-                        if !p.implemented && v != p.default {
-                            return Err(format!("AE parameter {} is not implemented", p.id).into());
-                        }
-                        params[i] = v;
-                    }
-                    match (&e.shader_data, &def.shader_data) {
-                        (Some(values), Some(data)) => values.write_uniforms(data, def.params.len(), &mut params)?,
-                        (None, Some(data)) => data.write_uniforms(def.params.len(), &mut params)?,
-                        (Some(_), None) => return Err("instance shader data requires a declared code-package layout".into()),
-                        (None, None) => {},
-                    }
-                    let mut resource_input=0;
-                    if let Some(input)=e.image_input {
-                        if !def.required_capabilities.iter().any(|c|c=="image_input") {
-                            return Err("effect does not accept an image input".into());
-                        }
-                        match input {
-                            motion_model::EffectImageInput::Asset { asset } => {
-                                let slot=assets.iter().position(|id|*id==asset).ok_or("effect image asset is not loaded")?;
-                                resource_input=-(slot as i32)-1;params[30][0]=3.;
-                            }
-                            motion_model::EffectImageInput::Layer { layer: source, stage } => {
-                                if let Some((index,l))=scene.layers.iter().enumerate().find(|(_,l)|l.id==source) {
-                                    resource_input=index as i32+1;
-                                    params[30]=[1.,0.,0.,if l.vector.is_some()||l.composition {1.}else{0.}];
-                                    params[31]=[linear(l.color[0]),linear(l.color[1]),linear(l.color[2]),l.color[3]];
-                                    if stage==motion_model::EffectImageStage::Effects {params[30][1]=1.;params[30][3]=1.;params[31]=[1.;4];}
-                                } else {params[30][0]=2.;}
-                            }
-                            motion_model::EffectImageInput::Empty => params[30][0]=2.,
-                        }
-                    }
                     // The SDK wrapper mixes the final result with the original input.
                     // Zero opacity is an exact identity: avoid all conversions, padding,
                     // and shader passes while retaining dependency/parameter validation.

@@ -12,9 +12,9 @@ was reviewed and no subagent was used.
 
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
-| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Complete initial semantic ownership before CPU preparation and transactional layout proposals; package templates do not reconstruct authoring graphs |
+| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Sampled parameters and typed raw/effected/asset inputs now precede CPU preparation and are consumed by native lowering; complete producer/value/ROI ownership before transactional layout proposals remains open |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
-| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Complete initial semantic lowering and typed external-import coverage; outer effect lowering still follows CPU preparation and native drafts |
+| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology now refuses cycles before CPU work; full typed outer image lowering still follows native proposals and external-import coverage remains incomplete |
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
@@ -719,3 +719,92 @@ This is a targeted checkpoint, not G. Initial semantic ownership before all CPU
 work, typed external imports, full end-to-end shader/compile/pass/frame/physical
 peak measurements and final integrated cross-platform desktop CI remain open.
 All Android implementation and acceptance remain excluded.
+
+
+## Initial sampled parameter and image-input ownership before CPU preparation
+
+The planner now owns enabled effects per layer, validated numeric/uniform and
+private-data-layout values, and distinct absent/empty/asset/raw-layer/effected-
+layer image inputs before mask rasterization, vector tessellation, scene-generator
+CPU work or transactional per-effect scratch proposals. Native lowering consumes
+these prepared records once; it no longer re-derives the same sampled inputs from
+integer resource tokens. ABI uniform flags and integer bindings are generated
+from the typed source selection at the native boundary. Ordinary missing layer
+inputs still mean empty input, and zero opacity still validates parameters before
+becoming an identity. Scene operation counts and bounded composition identity are
+validated before effect synchronization; stale checked receipts are cleared on
+these early failures.
+
+A bounded dependency projection checks same-frame effected-layer references
+before expensive CPU preparation. It follows the actual primary effect chains,
+distinguishes raw from effected sources, omits zero-opacity identities and
+invalid candidates, and adds image-input edges only for native image consumers.
+It reports an actual cycle without downstream tails, retaining the existing typed
+cycle cause, bounded operation members and layer/effect/composition context. Raw
+sources and chains without effected-source references avoid this second graph
+walk. GPU owners, composition draw order and final checked native task ordering
+are unchanged.
+
+This deliberately changes structural refusal timing: a malformed cycle is now
+an error before CPU work, including in legacy preview, even if a later physical
+refusal might previously have bypassed one member. Parameter, shader-layout,
+package and program errors remain owned results until the existing per-effect
+refusal policy consumes them, preserving ordinary preview bypass and strict/
+guarded refusal. The accepted-region calculation, downstream ROI and scratch
+proposals still follow actual previous effect admission; no prospective output
+rectangle is reused after a bypass. This is a functional early validation change,
+not merely a logging edit.
+
+The projection does not invent image rectangles, storage formats or precision
+for preparation tasks. The final full typed image IR remains authoritative after
+accepted native proposals. Complete producer/value/ROI ownership ahead of those
+proposals and typed package PNG, curve LUT, mask coverage and encoded private
+imports remain unfinished. In particular, data/LUT bytes are not relabeled as
+working color to claim coverage.
+
+Six new tests exercise real cyclic sampled input before deliberately malformed
+vector geometry (zero geometry jobs/cache admission), recovery, exact native
+input flags and snapshot selection for all input families, original ordinary
+preview cause/bypass, zero-opacity/raw-input cycle exclusion, bounded early
+origin refusal that clears a prior checked receipt, and exclusion of residual
+downstream tails from cycle diagnostics. Existing assertions were not modified.
+The initial focused five-test checkpoint and the final six-test source are both
+retained; the companion precision gate uses the identical final source hashes.
+
+| Targeted gate | Actual result |
+| --- | --- |
+| `render-preparation` | 6 passed; zero failed/ignored |
+| `render-ir` | 8 passed; zero failed/ignored |
+| `desktop-check` | Passed |
+| `render-library` | 249 passed; zero failed/ignored |
+| `render-native` | 69 passed; zero failed/ignored |
+| `ir-default-output` | 1 passed; zero failed/ignored |
+| `private-numeric` | 1 passed; zero failed/ignored |
+| `private-precision` | 1 passed; zero failed/ignored |
+
+These scopes contain 321 distinct parent tests. The focused
+preparation and older IR tests also belong to the complete library scope and are
+not counted twice. The companion private-instance test includes 16 real numeric
+updates and eight reopen/independent-instance/undo cases across all four native
+precisions, with raw pixel/analytic comparisons. These are cases within one test,
+not extra parent-test counts. The existing real worker default-output gate also
+passes on this source: six actual typed fault/recovery episodes, file and Error
+stderr output, non-Present starts, stdout isolation, preserved pixels and no new
+pipeline construction. Its diagnostic injection still targets the final image
+IR; the new early-cycle cases are independently checked through the planner.
+
+All 123 Rust/Cargo source hashes match across these gates.
+No panels, styles, product interactions, dependencies, assets, or Android files
+were changed. This is targeted current-source acceptance, not G's complete
+workspace or cross-platform desktop CI.
+
+The [verified initial preparation checkpoint](data/typed-render-dag-preparation-f8a889f3.zip)
+retains all attempts, actual logs, source snapshots, controllers, default-fault
+pixels/receipts, the four-precision receipt and patch. Size: 2,491,841
+bytes; 419 files plus manifest. SHA-256:
+`e1c43f7cc0500cba1f92fb7132ee5cfe0a1135d2474b605f0e2c9efacf4f03f6`. Every archive entry was read back and hash-verified.
+
+Remaining work includes full semantic producer/value/ROI ownership and external
+imports, measured end-to-end shader/compile/pass/frame/physical peak costs, and G
+full integrated regression/cross-platform desktop CI on the aligned final tree.
+Android implementation and acceptance remain excluded.
