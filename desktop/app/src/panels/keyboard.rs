@@ -276,6 +276,9 @@ fn route_inner(
         .path_controls
         .mask_key_shortcuts(state, panels.selected, property_input, out)
     {
+        // Consume this navigation's intent before a later property click can
+        // publish a newer owner. Otherwise the old path can win that draw.
+        super::property_focus::settle(panels);
         return true;
     }
     if node_context && !panels.node_editor.editing() {
