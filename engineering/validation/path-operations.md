@@ -79,6 +79,16 @@ PR #484 的首轮 Linux job 120910708116 在已有插件取消菜单测试失败
 
 本地整套 `ci_desktop.py` 另有未通过记录：Debug 的首个 `--smoke` 在持续生成 capture_ui 截图时触及既有 40 秒总限制，见 `path-full-desktop-validation.log` 和 `path-full-desktop-user/` 的默认日志。没有延长期限、删除步骤或把后续定向验证当成整脚本通过；完整 Release CI 仍待新提交验证。
 
+## 嵌套表达式夹具的独立 CI 修正
+
+`612f5754` 的 PR run `40157397456` / Rust and GPU job `121061597727` 在既有 `nested_expression_views_preserve_time_and_dimensions_without_copying_the_graph` 首帧原工程采样失败：对象 1 的 position 返回 `expression cancelled or execution budget exceeded`，尚未进入本批路径测试。原始输出保留在 `path-rust-gpu-third.log`。该消息没有区分编译、上下文准备和用户执行的耗时，因此不能据此断言平台根因。
+
+夹具原来直接向 `Project.expressions` 插入源码，首次采样才编译。现在沿真实 `SetExpression` 命令建立输入；既有命令先编译、再启用原有采样预算。原来的四个帧、原／嵌套矩阵逐项相等和无图拷贝断言全部保留，另用不含表达式的独立几何参考检查 `x = 33 + frame / 3`，防止两侧同时忽略表达式时虚假通过。没有修改生产 JS、20ms 执行期限、100ms 整帧期限、取消、重试或 CI 配置。
+
+本地诊断 `path-expression-fixture-probe.rs/.log` 的两条路径均成功，直接插入的首帧为 12ms，经命令编译／验证为 5ms、后续首帧为 2ms；**本地没有复现远端超时**，这只是输入准备的对照，不是根因或性能结论。`path-expression-compositions-fixed.log` 的合成组 10 项通过。两个真实负面对照分别把表达式改成 `value` 和移除 `time * 10`，均以 101 退出并在新增矩阵断言失败，原件为 `path-expression-negative-unevaluated.log`、`path-expression-negative-wrong-time.log`；未修改生产文件。
+
+恢复源码后，`path-expression-regression-final.log` 的合成 10、表达式沙箱 7、表达式专项 9 项全部通过，包含真实无限循环预算拒绝、取消、原轨道不变和失败后健康恢复。诊断探针不纳入提交。新提交仍需远端完整门禁；冷导入工程的编译时延与全平台高负载期限不在本次夹具修正的证明范围内。
+
 ## DESIGN §0.7 基线逐项处置
 
 以下十二项均保留，未以新增菜单的验收结果宣称它们已整改：
