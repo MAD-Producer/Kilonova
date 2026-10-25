@@ -213,6 +213,15 @@ impl EffectPackage {
                 .map_err(|e| Error::Invalid(format!("effect {}, pass {i}: {e}", effect.id)))?;
                 shaders.insert((effect.id.clone(), i), compiled);
             }
+            if let Some(execution) = &effect.execution {
+                let identities: Vec<_> = (0..effect.passes.len())
+                    .map(|i| shader::compiled_code_identity(&shaders[&(effect.id.clone(), i)]))
+                    .collect();
+                execution.check(effect, &identities,
+                    &crate::execution_template::TemplateContext::package(),
+                    &crate::execution_template::image_template_capabilities(),
+                    crate::execution_template::image_template_limits())?;
+            }
             for name in &effect.resources {
                 referenced.insert(name.clone());
                 let data = files

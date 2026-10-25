@@ -1,6 +1,7 @@
 //! N1 effect graphs: typed documents, checked DAGs, one image pass and real .msfx.
 mod blend;
 mod compiler;
+mod compiler_order;
 mod demo;
 mod document;
 mod editable_compiler;

@@ -328,6 +328,8 @@ pub struct EffectDefinition {
     pub params: Vec<ParamDefinition>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shader_data: Option<crate::shader_data::ShaderData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<crate::execution_template::ExecutionTemplate>,
     pub passes: Vec<PassDefinition>,
     #[serde(default)]
     pub resources: Vec<String>,
@@ -446,6 +448,13 @@ impl PluginManifest {
             ensure(!has_shader_data || self.sdk_version >= 6,
                 "shader data requires SDK 6 binding semantics")?;
             if let Some(data) = &e.shader_data { data.validate(e)?; }
+            let has_execution = e.required_capabilities.iter()
+                .any(|c| c == crate::execution_template::EXECUTION_TEMPLATE_CAPABILITY);
+            ensure(has_execution == e.execution.is_some(),
+                "image_execution_v1 capability and execution template must agree")?;
+            ensure(!has_execution || self.sdk_version >= 6,
+                "image execution templates require SDK 6 binding semantics")?;
+            if let Some(execution) = &e.execution { execution.validate_structure(e)?; }
             if let Some(editor) = &e.editor {
                 ensure(self.sdk_version >= 2, "plugin editors require SDK 2")?;
                 editor.validate()?;
@@ -633,6 +642,7 @@ impl PluginManifest {
                         "native_plugin_editor",
                         "image_input",
                         crate::shader_data::SHADER_DATA_CAPABILITY,
+                        crate::execution_template::EXECUTION_TEMPLATE_CAPABILITY,
                     ]
                     .contains(&cap.as_str()),
                     format!("unsupported host capability: {cap}"),

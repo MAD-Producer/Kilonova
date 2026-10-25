@@ -17,6 +17,7 @@ pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
 mod execution;
 pub use execution::{native_execution_capabilities, native_snapshot_limits, SnapshotEncode, SnapshotExecution};
 mod effect_execution;
+mod runtime_template;
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
@@ -1470,13 +1471,17 @@ impl PlanBuilder {
                     // SDK 3 rectangle shaders convert their final output directly into slot 0.
                     // Preserve the published SDK 1/2 execution paths and quantization.
                     let direct_output = def.output_bounds.is_some();
+                    let runtime = runtime_template::schedule(def, &resolved.programs, &self.programs,
+                        &mut self.code_identities, &scene.composition_id, layer.id, e.instance, self.precision,
+                        [(region[2] * scale).ceil() as u32, (region[3] * scale).ceil() as u32],
+                        [(next[2] * scale).ceil() as u32, (next[3] * scale).ceil() as u32], work, direct_output)?;
                     let intermediate_passes = resolved.programs.len() - usize::from(direct_output);
                     let work_slots = match intermediate_passes {
                         0 => 1,
                         1 => 3,
                         _ => 7,
                     };
-                    let slots = self.frame.slots | 1 | (work_slots << work);
+                    let slots = self.frame.slots | 1 | runtime.as_ref().map_or(work_slots << work, |r| r.slots);
                     let w = ((next[2] * scale).ceil() as u32).max(self.frame.width);
                     let h = ((next[3] * scale).ceil() as u32).max(self.frame.height);
                     let mut sizes = self.frame.scratch_sizes;
@@ -1492,6 +1497,12 @@ impl PlanBuilder {
                         (region[2] * scale).ceil() as u32,
                         (region[3] * scale).ceil() as u32,
                     );
+                    if let Some(runtime) = &runtime {
+                        for pass in &runtime.passes {
+                            reserve_scratch(&mut sizes, pass.output as usize,
+                                (next[2] * scale).ceil() as u32, (next[3] * scale).ceil() as u32);
+                        }
+                    } else {
                     for i in 0..intermediate_passes {
                         reserve_scratch(
                             &mut sizes,
@@ -1499,6 +1510,7 @@ impl PlanBuilder {
                             (next[2] * scale).ceil() as u32,
                             (next[3] * scale).ceil() as u32,
                         );
+                    }
                     }
                     Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                     let working = [
@@ -1603,6 +1615,24 @@ impl PlanBuilder {
                         self.frame.instance_data.push(values.clone());
                         self.frame.instance_data.len() as u32
                     } else { 0 };
+                    if let Some(runtime) = &runtime {
+                        for (i, pass) in runtime.passes.iter().enumerate() {
+                            let mut u = uniform(next,
+                                if pass.input_import { region } else { next },
+                                if pass.source_import { region } else { next }, pass.pass as f32);
+                            if pass.output == 0 { u.output_mode[0] = 0.; u.output_mode[1] = 0.; }
+                            if i + 1 == runtime.passes.len() {
+                                u.output_mode[2] = def.params.iter().position(|p| p.id == "effect_opacity")
+                                    .map_or(1., |i| params[i][0] / 100.);
+                            }
+                            push(&mut self.frame, pass.program, pass.input, pass.source, pass.output,
+                                u, e.lut.map_or(-1, |v| v as i32));
+                            let native = self.frame.passes.last_mut().unwrap();
+                            native.resource_input = resource_input;
+                            native.instance_data = instance_data;
+                            input = pass.output as i32;
+                        }
+                    } else {
                     for (i, program) in resolved.programs.iter().enumerate() {
                         let final_direct = direct_output && i + 1 == resolved.programs.len();
                         let output = if final_direct {
@@ -1637,6 +1667,7 @@ impl PlanBuilder {
                         input = output as i32;
                         input_region = next;
                     }
+                    }
                     if !direct_output {
                         let mut u = uniform(next, next, source_region, 0.0);
                         u.output_mode = [0.0, 0.0, 1.0, scale];
@@ -1662,7 +1693,7 @@ impl PlanBuilder {
                         "layer {}, effect {} ({}): {}",
                         layer.id, e.instance, e.effect, err.planning_message()
                     );
-                    if strict || guarded {
+                    if strict || guarded || runtime_template::requires_refusal(&err) {
                         return Err(err.with_diagnostic(message));
                     }
                     self.frame.diagnostics.push(message);

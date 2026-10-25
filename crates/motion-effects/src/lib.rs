@@ -2,6 +2,7 @@
 pub mod builtin;
 pub mod image_contract;
 pub mod execution_plan;
+pub mod execution_template;
 pub mod pointwise;
 mod package;
 pub mod memory;
@@ -19,6 +20,8 @@ pub use schema::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    ExecutionTemplate(#[from] execution_template::TemplateError),
     #[error("image resource phase={phase} path={path}: {cause}")]
     ImageResource {
         phase: &'static str,

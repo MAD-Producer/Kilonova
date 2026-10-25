@@ -132,8 +132,9 @@ bytes are accounted; every encoded use retains its reservation through GPU
 submission completion. Package-default textures can remain cached too and are
 included in the total. Packed plan v12 explicitly refuses per-instance overflow
 instead of silently using package defaults. Uniform-only overrides already fit
-its ordinary uniform block. A versioned portable overflow/execution-plan
-consumer remains unfinished.
+its ordinary uniform block. Extending the frozen Android/GLES overflow adapter
+is excluded by explicit user instruction because Android is no longer maintained.
+Package-local desktop image execution templates have a separate contract below.
 
 Canonical diagnostic validation now retains only successful owner-local
 pipelines, bounded WGSL and the two presentation variants. Its candidate data,
@@ -167,15 +168,23 @@ are not unique driver allocations, frame peaks or completed GPU work. Retained
 portable compile metrics describe the original compilation, not rebind time.
 Four-precision structural acceptance uses format-preserving raw readback,
 compares unaffected bytes and cold-renderer output exactly, and verifies one
-changed pipeline with no unrelated builds. Private numeric/overflow instance
-acceptance remains Unorm8; structural acceptance does not replace that matrix.
+changed pipeline with no unrelated builds. At that checkpoint private
+numeric/overflow acceptance covered Unorm8; the later instance matrix below
+extends acceptance to all four maintained-desktop precisions.
 
 Initial semantic lowering, fully typed external imports, bounded parallel CPU
-preparation, versioned execution-plan consumers, final cost/peak measurements
-and integrated/cross-platform checks remain pending. The current
-bound pixel matrix is Unorm8; earlier independent transport precision tests do
-not substitute for all-precision per-instance acceptance.
-Android device acceptance is excluded by the user; no device result is claimed.
+preparation, final cost/peak measurements
+and integrated/cross-platform checks remain pending. The source-bound runtime
+checkpoint now exercises Unorm8, Unorm16, Float16 and Float32 through actual
+bound uniform and overflow instances. Two updates per precision/carrier give
+16 raw typed pixel comparisons with both independent analytic values and baked
+GPU packages. Eight cases also verify real disk reopen, independent-instance
+isolation and undo. Numeric edits preserve package Arcs and pipelines; unchanged
+values upload zero overflow bytes. These tests preserve raw storage precision
+and do not compare downconverted PNGs. Earlier transport and structural tests
+remain separate evidence rather than substitutes for this instance matrix.
+All Android implementation and acceptance are excluded by the user; no Android
+result is claimed and the retired packed adapter is not a desktop completion gate.
 
 No new dependency version or third-party asset is introduced. `motion-graph`
 uses its existing workspace `image` dependency in production as well as tests.
@@ -219,5 +228,9 @@ lowered task pass counts and driver/frame cost measurements are distinct.
 This image consumer currently follows CPU preparation and native draft creation,
 then precedes fusion and final physical layout. Preview budget proposals and
 package image/LUT/mask/ShaderData binding admission remain native responsibilities.
-It is not yet a packaged runtime execution-template consumer, a parallel CPU
-scheduler or final all-precision private-instance acceptance.
+Package-local image programs additionally use the
+[versioned runtime template](runtime-execution-template.md), whose checked
+DAG order, image bindings and lifetimes drive actual native passes. This does
+not complete initial semantic ownership before preparation, bounded parallel CPU
+scheduling or final integrated acceptance. The private-instance precision matrix
+is recorded separately in the current ledger.

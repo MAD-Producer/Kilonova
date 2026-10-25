@@ -1,4 +1,6 @@
 //! SDK 1: host-owned fullscreen vertex, resource bindings and 16-byte parameter slots.
+mod identity;
+pub use identity::{CompiledCodeIdentity, compiled_code_identity};
 use crate::{ensure, Error, Result};
 use naga::{
     back::glsl,

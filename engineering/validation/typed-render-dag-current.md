@@ -12,20 +12,23 @@ was reviewed and no subagent was used.
 
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
-| 78-R1 authoring / execution / frame ownership | Existing Project relationships serialize/reopen through the actual model; new tests lower a saved authoring diamond into snapshot IR | Complete effect-level lowering before physical placement and disk/package acceptance; a JSON round trip is not full persistence acceptance |
+| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Complete initial semantic ownership before CPU preparation and transactional layout proposals; package templates do not reconstruct authoring graphs |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
-| 78-R3 checked topology and lifetime | Checked effect-level image operations now control actual snapshot order and native task/pass coverage; iterative topology/cycle checks retain typed values, terminal consumers, lifetimes and cost limits | Complete initial semantic lowering and typed external-import coverage; current lowering follows native drafts and CPU preparation |
-| 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
-| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; bounded native/fusion success caches now survive registry-local ID replacement; four native precisions verify that a structural edit rebuilds one affected program while the other graph and utility code reuse pipelines | Complete IR-level affected-group scheduling and all-precision private numeric-instance acceptance remain unfinished; cache eviction can require recompilation |
+| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Complete initial semantic lowering and typed external-import coverage; outer effect lowering still follows CPU preparation and native drafts |
+| 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
+| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
-| 78-R8 runtime version / capabilities | Logical graph/capability checks and package numeric-data admission remain; project format 27 persists typed instance payloads; packed v12 explicitly refuses instance overflow rather than using stale package defaults | Versioned packaged execution plan, portable instance-overflow transport and real execution-IR consumer acceptance/refusal remain unfinished |
+| 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Complete final desktop integration/CI; extending the retired Android/GLES packed ABI is excluded by user instruction |
 | 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
 | 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Measure end-to-end shader/compile/pass/frame/peak costs; hash counters are not frame timing or unique driver allocation measurements |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
 
-Android device acceptance and legacy migration are outside the user-confirmed
-scope. Runtime version and capability refusal remain required. No UI, panel,
+All Android implementation and acceptance, plus legacy migration, are outside
+the user-confirmed scope. The user explicitly reconfirmed on 2026-10-25 that
+Android is no longer maintained. Runtime version and capability refusal for
+maintained desktop consumers remain required. Frozen packed-v12 limitations are
+recorded boundaries, not desktop completion blockers. No UI, panel,
 style, new dependency version or third-party asset change is included in this milestone.
 
 ## First native execution consumer
@@ -472,3 +475,107 @@ remain unfinished. This checkpoint does not establish parallel CPU preparation,
 all-precision private numeric instances, complete IR failures through production
 output channels, final integrated regression or cross-platform CI. Issue #78
 remains open, followed by #74 and #87.
+
+
+## Persisted package image execution and real native branch scheduling
+
+The [versioned image-template contract](../host-api/runtime-execution-template.md)
+is now emitted by actual graph export, validated by the real `.msfx` loader and
+instantiated by the native planner. Manifest and graph capabilities, exact
+version, complete pass ownership, typed dependencies, terminal closure and
+actual compiled-code identities are checked. Current origin, channel precision
+and input/output extents are bound at instantiation rather than persisted as
+texture handles or sampled values. Ordered package resources retain their
+existing native admission; they are not yet fully typed external producers.
+
+Shared code-identity construction moved into `motion-effects::shader`; native
+weak-cache ownership, actual code/reflection inputs and lifetime work counters
+retain their previous semantics. Numeric data and origins do not enter the
+digest. The digest is neither a publisher signature nor an equivalence proof.
+
+The actual native consumer uses checked topology and lifetimes before proposing
+physical working storage. Both sampled image ports follow declared edges; the
+SDK clock keeps each original shader-pass index. Three existing working images
+remain the current capacity. Sampled inputs cannot be attachment outputs on the
+same pass, even at their final use. Exceeding that capacity returns a typed
+`TemplateError::Storage` with the refusing node and required/available counts.
+
+The real four-precision package test deliberately stores shaders as B/D/A/C and
+template nodes out of order. Actual execution is A/B/C/D, with one preparation
+of shared A, seven native passes and eight draw calls including composition.
+Raw typed pixels agree with an independently authored storage-aware numeric
+reference. The control that removes the execution template produces different
+pixels; the test would fail if the consumer merely ignored the template.
+Warm rendering adds zero native pipeline builds. This image DAG matrix is
+separate from the actual bound-instance matrix described below.
+
+The new storage-refusal regression first failed in retained v2: the old preview
+policy dropped the failed effect and returned `Ok` with one plain draw. The
+implementation now returns template/structural execution errors even during a
+non-strict preview. This is an explicit functional refusal rule, separate from
+observability. Ordinary effects retain their existing preview error policy.
+The unchanged test now verifies the original typed cause, layer/effect context,
+no new pipeline builds, preservation of prior GPU pixels and healthy recovery.
+Actual ZIP loader tests additionally cover version/capability refusal before
+shader parsing, changed compiled code, typed cycles, contract faults and recovery.
+
+Retained v1 passed only desktop check and four focused tests. Retained v2 passed
+effects 100, graph 80 and render library 238, then exposed the real refusal bug.
+Retained v3 then passed all lower-layer gates and found an existing desktop
+contract violation: grouping changed the newly visible code identity in the
+manifest. Its 217 successful desktop unit tests and one failure are retained.
+A new exact-code regression failed in v4. Iterative emission now follows
+output dependencies in input-port order rather than authoring node IDs, and
+generated temporary source omits authoring-ID comments. Authoring diagnostics
+and reports retain their IDs; explicit preview source retains its inspected
+port. Validation still rejects cycles/types/budgets before emission. Four-level
+wrapping now preserves actual source, WGSL, GLSL and complete template manifests
+in both baked/editable compilation, without weakening the old equality test.
+Retained v5 proved that focused correction.
+
+A separate bound-instance test uses four native precisions, uniform/overflow
+carriers and two numeric updates each: 16 actual raw-pixel comparisons against
+both independent analytic values and separately baked GPU implementations.
+Eight precision/carrier cases additionally save and reopen the actual project
+from disk, restore its embedded package without recompiling the authoring graph, verify two
+independent instances and restore original pixels by undo. Package Arcs and
+native pipelines are retained across numeric updates; unchanged values cause
+zero overflow upload bytes. Raw 16/32-bit images are never reduced to PNG for
+these comparisons. These are real maintained-desktop consumers. All Android work is excluded by
+explicit user instruction; no Android execution or device result is claimed.
+
+Earlier focused/subset results are not added to final counts. Final source-bound runtime gate:
+
+| Gate | Actual final result |
+| --- | --- |
+| Desktop check with FFmpeg | Passed |
+| Focused template unit scope | 4 passed, zero failed/ignored; 1 result targets |
+| Complete effects crate | 100 passed, zero failed/ignored; 18 result targets |
+| Complete graph crate | 81 passed, zero failed/ignored; 20 result targets |
+| Complete render library | 238 passed, zero failed/ignored; 1 result targets |
+| Template, fusion and typed-snapshot native targets | 14 passed, zero failed/ignored; 3 result targets |
+| Desktop node scope | 220 passed, zero failed/ignored; 6 result targets |
+
+There are 653 distinct passed tests in these selected final
+scopes. The focused four are already included in effects-all. No assertion was
+weakened and no test was newly skipped. These are targeted gates, not the final
+full workspace or cross-platform CI result. All 62 changed
+Rust/Cargo source hashes stayed unchanged throughout and still match the accepted
+snapshot. Selected changed Rust modules/tests pass edition-2024 formatting checks.
+No panel files, UI, dependencies or third-party assets changed.
+
+The [verified runtime checkpoint](data/typed-render-dag-runtime-fe523a2b.zip)
+retains all attempts, including actual red refusal and grouping cases, sources,
+controllers, test logs and raw numeric metrics. Size: 2,325,955 bytes;
+548 files plus its manifest. SHA-256:
+`3c049b68ebddf7c03a09d4f6b3f51703c2e7f29e22b21c9446d3805e5816ec31`.
+Every archive entry was read back and verified against its manifest.
+
+Packed v12 remains the frozen Android/GLES adapter and explicitly refuses
+private instance overflow. The user excluded all Android implementation and
+acceptance on 2026-10-25 because Android is no longer maintained; extending that
+adapter is not a desktop completion blocker. Complete initial desktop semantic
+ownership before CPU preparation and transactional preview layouts, fully typed
+external imports, bounded parallel CPU preparation, measured end-to-end costs,
+complete IR faults through production output channels and final integrated/cross-platform acceptance remain pending.
+Issue #78 remains open, followed by #74 and #87.

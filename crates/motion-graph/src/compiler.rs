@@ -926,7 +926,12 @@ fn compile_plan(
     let mut manifest = make_manifest(document, options)?;
     let mut builder = Builder::new(document, plan, editable);
     let nodes: BTreeMap<_, _> = document.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
-    for id in &plan.reachable_nodes {
+    if let Some(target) = target {
+        builder.code.push_str(&format!("    // preview {}.{}\n", target.node, target.port));
+    }
+    let emission = crate::compiler_order::emission_order(document,
+        target.map_or(plan.output_node.as_str(), |target| target.node.as_str()));
+    for id in &emission {
         builder.emit(nodes[id.as_str()])?;
     }
     let output = if let Some(target) = target {
@@ -1032,6 +1037,10 @@ fn compile_plan(
             ),
         ));
     }
+    let definition = &mut manifest.effects[0];
+    definition.execution = Some(motion_effects::execution_template::ExecutionTemplate::single_pass(definition, &shader));
+    definition.required_capabilities.push(motion_effects::execution_template::EXECUTION_TEMPLATE_CAPABILITY.into());
+    manifest.validate().map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
     let bindings: BTreeSet<_> = shader.glsl.textures.values().copied().collect();
     let report = CompileReport {
         target_sdk: 6,
@@ -1257,8 +1266,7 @@ impl<'a> Builder<'a> {
             let variable = format!("ng{}", self.values);
             self.values += 1;
             self.code.push_str(&format!(
-                "    // {}.{port}\n    let {variable}:{}={expr};\n",
-                node.id,
+                "    let {variable}:{}={expr};\n",
                 ty.wgsl()
             ));
             if sample {

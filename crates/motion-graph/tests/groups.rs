@@ -3,6 +3,48 @@ use motion_graph::*;
 mod fixture;
 
 #[test]
+fn pure_group_wrapping_preserves_actual_compiled_code_and_runtime_template() {
+    let options = CompileOptions::default();
+    let plain = demo_graph();
+    let wrapped = fixture::nested_demo(4);
+    for editable in [false, true] {
+        let build = |document: &GraphDocument| {
+            if editable {
+                EditableCompiler::default()
+                    .compile(document, &options)
+                    .unwrap()
+            } else {
+                compile(document, &options).unwrap()
+            }
+        };
+        let normal = build(&plain);
+        let grouped = build(&wrapped);
+        if let Some(out) = std::env::var_os("MOTION_EXECUTION_ARTIFACTS") {
+            let out = std::path::PathBuf::from(out);
+            std::fs::create_dir_all(&out).unwrap();
+            for (name, graph) in [("plain", &normal), ("wrapped", &grouped)] {
+                std::fs::write(
+                    out.join(format!("group-code-{editable}-{name}.wgsl")),
+                    &graph.source,
+                )
+                .unwrap();
+            }
+        }
+        assert!(
+            normal.source == grouped.source,
+            "group wrapping changed generated source; editable={editable}"
+        );
+        assert_eq!(normal.shader.wgsl, grouped.shader.wgsl);
+        assert_eq!(normal.shader.glsl.vertex, grouped.shader.glsl.vertex);
+        assert_eq!(normal.shader.glsl.fragment, grouped.shader.glsl.fragment);
+        assert_eq!(
+            serde_json::to_value(normal.manifest).unwrap(),
+            serde_json::to_value(grouped.manifest).unwrap()
+        );
+    }
+}
+
+#[test]
 fn group_interfaces_lower_and_preview_resolves_outer_dependencies() {
     let document = fixture::grouped_math();
     let original = document.clone();

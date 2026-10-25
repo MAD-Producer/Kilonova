@@ -283,6 +283,7 @@ pub fn apply(
 mod tests {
     use super::*;
     mod numeric;
+    mod numeric_precision;
     fn setup() -> (
         tempfile::TempDir,
         motion_host::Session,

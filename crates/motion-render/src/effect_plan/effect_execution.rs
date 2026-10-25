@@ -24,12 +24,7 @@ pub struct ExecutionCodeCacheInfo {
     pub entry_limit: usize,
 }
 
-#[derive(Clone, Copy)]
-struct Code {
-    digest: [u8; 32],
-    bytes: u64,
-    loops: u64,
-}
+type Code = shader::CompiledCodeIdentity;
 struct CodeEntry {
     shader: Weak<shader::CompiledShader>,
     code: Code,
@@ -46,7 +41,7 @@ impl CodeIdentities {
     pub fn clear(&mut self) {
         self.entries.clear();
     }
-    fn get(&mut self, id: u32, program: &EffectProgram) -> Code {
+    pub(super) fn get(&mut self, id: u32, program: &EffectProgram) -> Code {
         self.clock = self.clock.saturating_add(1);
         if let Some(entry) = self.entries.get_mut(&id) {
             if entry
@@ -59,35 +54,9 @@ impl CodeIdentities {
             }
         }
         let s = &program.shader;
-        let mut hash = Sha256::new();
-        hash.update(b"motion-execution-code-v1");
-        let mut bytes = 0_u64;
-        for text in [&s.wgsl, &s.glsl.vertex, &s.glsl.fragment] {
-            hash.update((text.len() as u64).to_le_bytes());
-            hash.update(text.as_bytes());
-            bytes = bytes.saturating_add(text.len() as u64);
-        }
-        for (tag, bindings) in [(0_u8, &s.glsl.blocks), (1, &s.glsl.textures)] {
-            hash.update([tag]);
-            hash.update((bindings.len() as u64).to_le_bytes());
-            for (name, binding) in bindings {
-                hash.update((name.len() as u64).to_le_bytes());
-                hash.update(name.as_bytes());
-                for word in binding {
-                    hash.update(word.to_le_bytes());
-                }
-                bytes = bytes.saturating_add(name.len() as u64);
-            }
-        }
-        hash.update([u8::from(s.sprite), u8::from(s.additive)]);
-        hash.update(s.loop_work.to_le_bytes());
-        let code = Code {
-            digest: hash.finalize().into(),
-            bytes,
-            loops: s.loop_work,
-        };
+        let code = shader::compiled_code_identity(s);
         self.hashes = self.hashes.saturating_add(1);
-        self.hashed_bytes = self.hashed_bytes.saturating_add(bytes);
+        self.hashed_bytes = self.hashed_bytes.saturating_add(code.text_bytes);
         if !self.entries.contains_key(&id) && self.entries.len() == MAX_CODE_IDENTITIES {
             if let Some((&oldest, _)) = self.entries.iter().min_by_key(|(_, e)| e.used) {
                 self.entries.remove(&oldest);
@@ -527,10 +496,10 @@ fn lower(
             let identity = codes.get(pass.program, program);
             code.update(identity.digest);
             shader_bytes = shader_bytes
-                .checked_add(identity.bytes)
+                .checked_add(identity.text_bytes)
                 .ok_or("effect IR shader cost overflow")?;
             loops = loops
-                .checked_add(identity.loops)
+                .checked_add(identity.loop_work)
                 .ok_or("effect IR loop cost overflow")?;
             if pass.resource_input > 0 {
                 let draw = (pass.resource_input - 1) as usize;
