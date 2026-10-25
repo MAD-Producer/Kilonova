@@ -107,13 +107,45 @@ report's resource byte field counts encoded PNG bytes, not GPU allocation or
 resident memory. Ordinary resource/allocation accounting remains authoritative.
 No frame-rate improvement or hardware bus-traffic reduction is established.
 
-Per-instance private data updates without code-package churn remain pending.
-Bound layer application still installs value-dependent packages and invalidates
-native effect pipelines; diagnostic bound canonical validation also still
-constructs a separate preview. The owned portable compiler and independent
-preview reuse alone do not satisfy the full no-recompile acceptance criterion.
-Complete pre-placement effect IR, versioned execution-plan consumers, final
-cost/peak measurements and integrated/cross-platform checks also remain pending.
+Bound instances now hold immutable, typed `ShaderDataValues` separately from the
+validated code package. Project format 27 deliberately refuses older consumers
+that could ignore these values. The existing serde `rc` feature serializes the
+payload; no dependency version changes. Deserialization bounds sequences before
+allocation (32 vec4 cells and a combined 16,384-scalar budget). Values must be
+finite, bounded and match the package's exact declaration. Equality preserves
+floating-point bits, including signed zero. Sampled scenes share the payload
+Arc; Present does not parse JSON or decode its PNG representation.
+
+Bound application compares the full static manifest, actual source/WGSL/GLSL,
+reflection, specialization flags and companion resource bytes before retaining
+the existing package Arc and embedded archive. Public defaults and private
+numbers initialize the instance separately. Actual code/layout changes keep the
+ordinary package validation/install path. This does not yet preserve unrelated
+native programs across structural package changes.
+
+Uniform overrides use the declared tail. Native overflow uses a frame-local
+token and an admitted resource-zero texture. Companion resources remain intact.
+The cache retains current passes only, uploads changed values, and includes old
+plus candidate texture capacity during admission. Logical GPU bytes and upload
+bytes are accounted; every encoded use retains its reservation through GPU
+submission completion. Package-default textures can remain cached too and are
+included in the total. Packed plan v12 explicitly refuses per-instance overflow
+instead of silently using package defaults. Uniform-only overrides already fit
+its ordinary uniform block. A versioned portable overflow/execution-plan
+consumer remains unfinished.
+
+Canonical diagnostic validation now retains only successful owner-local
+pipelines, bounded WGSL and the two presentation variants. Its candidate data,
+textures, buffers and groups retire after validation; failed candidates cannot
+replace the active preview or canonical proof. Desktop state exposes separate
+canonical candidate build and code gauges. These local gauges are not total
+driver memory or completed GPU compilation counts.
+
+Complete pre-placement effect IR, structural affected-group reuse, bounded
+parallel CPU preparation, versioned execution-plan consumers, final cost/peak
+measurements and integrated/cross-platform checks remain pending. The current
+bound pixel matrix is Unorm8; earlier independent transport precision tests do
+not substitute for all-precision per-instance acceptance.
 Android device acceptance is excluded by the user; no device result is claimed.
 
 No new dependency version or third-party asset is introduced. `motion-graph`

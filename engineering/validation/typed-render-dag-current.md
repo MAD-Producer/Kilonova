@@ -16,10 +16,10 @@ was reviewed and no subagent was used.
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
 | 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
-| 78-R5 numeric data / code identity | Actual worker-owned portable compiler cache has two entries / 8 MiB code bounds; private literal/default/folded data updates reuse actual compiler output; native preview creation calls remain zero while uniform/overflow pixels change, with actual worker/engine/capture verification | Per-instance bound-layer updates without runtime-package churn, native effect pipeline counts and affected-group structural acceptance remain unfinished |
+| 78-R5 numeric data / code identity | Worker-owned portable compiler cache has two entries / 8 MiB code bounds; bound private uniform/overflow updates preserve the validated package Arc and actual native pipelines while pixels change; canonical diagnostic proof retains pipelines only | Structural changes still clear unrelated native programs; complete affected-group and all-precision bound-instance acceptance remains unfinished |
 | 78-R6 proven grouping | #73 implementation-bound opt-in proof is present; its seven native tests and procedural alpha guard pass through the new scheduler | Connect grouping decisions to the complete IR and preserve all proven refusal boundaries |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
-| 78-R8 runtime version / capabilities | Logical graph version/capabilities validate; native snapshot consumer refuses missing ImageDagV1 and insufficient budget; actual package loader refuses invalid numeric-data versions/capabilities/capacities/payloads | Versioned packaged execution plan and real portable execution-IR consumer acceptance/refusal remain unfinished |
+| 78-R8 runtime version / capabilities | Logical graph/capability checks and package numeric-data admission remain; project format 27 persists typed instance payloads; packed v12 explicitly refuses instance overflow rather than using stale package defaults | Versioned packaged execution plan, portable instance-overflow transport and real execution-IR consumer acceptance/refusal remain unfinished |
 | 78-R9 failures / observation | Original typed graph errors survive renderer context; bounded cycle layer IDs; actual malformed cached WGSL and invalid private data reach default Info start / Error file+stderr without stdout, retaining old preview pixels and recovering; candidate budget refusal is tested on GPU | Exercise complete execution-IR cycle/type/budget failures through the same production output channels |
 | 78-R10 performance / admission | Existing physical scratch/source admission stays authoritative; logical graph caps are additional and bounded | Measure end-to-end shader/compile/pass/frame/peak costs, including per-frame code identity hashing; no performance improvement is claimed |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
@@ -162,9 +162,79 @@ integrated workspace or cross-platform CI result. A source-bound archive helper
 initially used the Windows default GBK decoder; its UTF-8 correction changed no
 tested source or assertion, and the completed archive was read back and hashed.
 
-Bound-layer application still installs value-dependent packages and can clear
-native effect pipelines. Diagnostic bound canonical validation also still builds
-a separate preview. Instance data, complete pre-placement effect IR, packaged
-execution-IR consumer negotiation, complete costs/peaks and final integration/CI
-remain pending. Issue #78 stays open, followed by #74 and #87. No panel file was
-changed, no other agent's PR was reviewed and no subagent was used.
+At that milestone, bound-layer application still installed value-dependent
+packages and diagnostic canonical validation built a throwaway preview. The
+following instance-data milestone addresses those two paths. Complete
+pre-placement effect IR, structural affected-group preservation, packaged
+execution-IR consumer negotiation, bounded parallel preparation, complete
+costs/peaks and final integration/CI remain pending. Issue #78 stays open,
+followed by #74 and #87. No panel file was changed, no other agent's PR was
+reviewed and no subagent was used.
+
+## Bound instance-data and canonical proof milestone
+
+Numeric bound updates now retain the same validated package Arc, archive and
+native effect pipeline. The model and sampled scene share bounded, immutable
+typed payloads; native overflow has a current-plan-only admitted binding cache.
+Project format 27 persists the override explicitly. Old-project migration is
+outside the agreed scope. The existing serde `rc` feature was enabled without
+changing a dependency version; provenance files were checked and no asset added.
+
+Canonical diagnostic validation retains only successful owner-local pipelines
+and bounded code/display variants. Candidate textures/groups/buffers retire
+after validation. A real GPU test keeps that proof alive, waits for submission
+completion, checks admitted allocations return to baseline and then checks zero
+pipeline creation calls when building from the proof. This excludes driver
+pipeline storage from its allocation claim.
+
+The [verified instance archive](data/typed-render-dag-instances-16642c71.zip)
+contains 250 files plus its manifest, 1,214,955 bytes, SHA-256
+`2f7d98070af4e5463d6926f077c564e3204a95fe95e63b87dc255c4f927fc807`.
+Every archived entry and final Rust/Cargo source hash was read back and checked.
+
+| Receipt under `artifacts/pr-queue/` | Actual result |
+| --- | --- |
+| `issue78-numeric-instance-v1` | Failed compilation: new preparation helper omitted the effects Error conversion |
+| `issue78-numeric-instance-v2` | Failed compilation: new scene comparison omitted Arc qualification |
+| `issue78-numeric-instance-v3` | Desktop check and three payload-related tests passed; bound GPU test passed with four numeric rows and two same-package-instance isolation cases |
+| `issue78-numeric-instance-v4` | Desktop check, payload scope three and complete model scope 74 passed; desktop unit scope 216 passed / one failed plus one integration pass; new packed-plan fixture omitted reserved white resource zero |
+| `issue78-numeric-instance-v5` | Final minimized source: desktop check, payload scope three, model scope 74 and desktop node scope 218 passed, zero failed/ignored; six desktop test targets include filtered empty targets, which are not additional passes |
+
+The packed fixture now supplies reserved resource zero; its explicit refusal
+and success assertions are unchanged. Unrelated model formatting was removed
+under exact canonical-rustfmt equality, recorded in the archive. No previous
+assertion was weakened, no test ignored and source remained unchanged during
+each gate. New payload tests cover bounded deserialization, combined capacity,
+invalid version/NaN/layout rejection, uniform tail isolation and signed-zero
+bit preservation.
+
+The bound matrix compares actual native output against separately validated
+baked packages for private uniform and overflow data. Four numeric changes keep
+package pointer/hash, portable compile count and native pipeline count stable;
+an unchanged next frame uploads zero private texture bytes. Two same-package
+layers retain independent data and bindings, and undo restores original pixels.
+This matrix is Unorm8. Earlier four-precision transport rows remain separate
+evidence, not all-precision per-instance acceptance.
+
+A separate actual background compiler -> Engine install -> canonical/preview
+validation -> bound instance -> native renderer test verifies stable package
+identity and four actual native pipelines across four changed pixel results.
+Warm canonical/preview candidate build deltas are zero. Corrupt canonical WGSL
+and layout reach default Info starts and two Error records with operation,
+request, elapsed time and causes in both file and stderr; stdout remains clear.
+The live instance, native output and build count survive each failure and a
+later valid edit recovers. Actual storage save/load restores the embedded
+package plus updated instance payload and reproduces the saved native pixels.
+
+Native GPU accounting includes private textures and any retained package
+defaults; source admission includes old plus candidate capacity. Every encoded
+use retains admission through submission completion, including replaced caches.
+These byte/upload counters are not total RAM, physical VRAM or frame peaks.
+Packed v12 explicitly refuses overflow tokens; uniform-only data fits its
+existing block. Full versioned portable transport remains pending 78-R8.
+
+This is a partial milestone. Structural package changes still clear unrelated
+native programs. Full pre-placement effect IR and grouping, bounded parallel CPU
+preparation, runtime-plan consumer negotiation, all-precision bound instances,
+end-to-end costs/peaks, final integration and cross-platform CI remain required.
+No #78 PR or issue-closure claim is made by these local targeted gates.

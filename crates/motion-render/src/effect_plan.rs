@@ -100,6 +100,9 @@ pub struct EffectProgram {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct EffectPass {
+    /// Native per-instance resource override, index + 1 into the frame sidecar.
+    /// Zero uses immutable package defaults. Never serialized as packed v12.
+    pub instance_data: u32,
     /// v7 reuses non-sprite word 8: 0=package, >0=draw+1, <0=asset slot.
     pub resource_input: i32,
     pub program: u32,
@@ -123,6 +126,7 @@ pub struct PlannedDraw {
 }
 #[derive(Default, Debug)]
 pub struct EffectFramePlan {
+    pub instance_data: Vec<Arc<motion_effects::shader_data::ShaderDataValues>>,
     pub precision: ChannelPrecision,
     /// Canonical UV-to-clip homographies for native drawing. CPU-only metadata;
     /// deliberately excluded from the portable packed-plan ABI.
@@ -253,6 +257,9 @@ impl EffectFramePlan {
             + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
+        if self.passes.iter().any(|pass| pass.instance_data != 0) {
+            return Err("packed plan v12 cannot transport instance_shader_data textures; use a native consumer with instance_shader_data_v1".into());
+        }
         if self.precision != ChannelPrecision::Unorm8 && scene.curve_sources.len() != scene.curve_luts.len() {
             return Err(RenderError::Invalid(format!(
                 "packed high-precision curve sources={} do not match LUTs={}",
@@ -1064,6 +1071,7 @@ impl PlanBuilder {
         });
         self.overlays.clear();
         self.frame.passes.clear();
+        self.frame.instance_data.clear();
         self.pass_clocks.clear();
         self.frame.diagnostics.clear();
         if !scene.effects.iter().any(|e| e.enabled) {
@@ -1244,7 +1252,7 @@ impl PlanBuilder {
                 u.size=[region[2],region[3],w as f32,h as f32];u.region=region;u.input_region=region;u.source_region=region;
                 u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
-                self.frame.passes.push(EffectPass {resource_input:0,program:2,input:-(asset as i32)-1,source:crate::mask_plan::SOURCE_TOKEN-layer_index as i32,
+                self.frame.passes.push(EffectPass {instance_data:0,resource_input:0,program:2,input:-(asset as i32)-1,source:crate::mask_plan::SOURCE_TOKEN-layer_index as i32,
                     output:0,width:w,height:h,lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
                 self.pass_clocks.push(None);
                 self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
@@ -1256,6 +1264,7 @@ impl PlanBuilder {
                 .filter(|(_, e)| e.layer == layer.id && e.enabled)
             {
                 let clock_start = self.frame.passes.len();
+                let data_start = self.frame.instance_data.len();
                 let sprite_start = self.frame.sprites.len();
                 let generator_stats = self.frame.generator_stats;
                 let original_region = region;
@@ -1285,8 +1294,11 @@ impl PlanBuilder {
                         }
                         params[i] = v;
                     }
-                    if let Some(data) = &def.shader_data {
-                        data.write_uniforms(def.params.len(), &mut params)?;
+                    match (&e.shader_data, &def.shader_data) {
+                        (Some(values), Some(data)) => values.write_uniforms(data, def.params.len(), &mut params)?,
+                        (None, Some(data)) => data.write_uniforms(def.params.len(), &mut params)?,
+                        (Some(_), None) => return Err("instance shader data requires a declared code-package layout".into()),
+                        (None, None) => {},
                     }
                     let mut resource_input=0;
                     if let Some(input)=e.image_input {
@@ -1358,6 +1370,7 @@ impl PlanBuilder {
                             assets.iter().position(|id| *id == image).ok_or_else(||format!("particle sprite image {image} is not loaded"))?
                         } else {asset};
                         self.frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program: resolved.programs[0],
                             input: -(sprite_asset as i32) - 1,
@@ -1393,6 +1406,7 @@ impl PlanBuilder {
                         let mut conversion = self.frame.passes.last().unwrap().uniform;
                         conversion.output_mode = [0., 0., 1., scale];
                         self.frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program: 1,
                             input: 7,
@@ -1536,6 +1550,7 @@ impl PlanBuilder {
                                 u: EffectUniform,
                                 lut: i32| {
                         frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program,
                             input,
@@ -1575,6 +1590,10 @@ impl PlanBuilder {
                     let source_region = region;
                     let mut input = work as i32;
                     let mut input_region = region;
+                    let instance_data = if let Some(values) = e.shader_data.as_ref().filter(|v| !v.texture.is_empty()) {
+                        self.frame.instance_data.push(values.clone());
+                        self.frame.instance_data.len() as u32
+                    } else { 0 };
                     for (i, program) in resolved.programs.iter().enumerate() {
                         let final_direct = direct_output && i + 1 == resolved.programs.len();
                         let output = if final_direct {
@@ -1603,7 +1622,9 @@ impl PlanBuilder {
                             u,
                             e.lut.map_or(-1, |v| v as i32),
                         );
-                        self.frame.passes.last_mut().unwrap().resource_input=resource_input;
+                        let pass = self.frame.passes.last_mut().unwrap();
+                        pass.resource_input = resource_input;
+                        pass.instance_data = instance_data;
                         input = output as i32;
                         input_region = next;
                     }
@@ -1624,6 +1645,7 @@ impl PlanBuilder {
                 })();
                 if let Err(err) = result {
                     self.frame.passes.truncate(clock_start);
+                    self.frame.instance_data.truncate(data_start);
                     self.frame.sprites.truncate(sprite_start);
                     self.frame.generator_stats = generator_stats;
                     region = original_region;
@@ -1654,7 +1676,7 @@ impl PlanBuilder {
                 u.region=region;u.input_region=region;u.source_region=region;u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,local_scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
                 let masked=!layer.masks.is_empty();
-                self.frame.passes.push(EffectPass {resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
+                self.frame.passes.push(EffectPass {instance_data:0,resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
                     source:if masked{crate::mask_plan::SOURCE_TOKEN-layer_index as i32}else{-(asset as i32)-1},output:0,width:w,height:h,
                     lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
                 Self::check_placed_scratch(&self.frame, Some(pass_start..self.frame.passes.len()),

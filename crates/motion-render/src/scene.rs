@@ -272,6 +272,9 @@ impl Scene {
                 sampled.enabled = e.enabled;
                 sampled.seed = e.seed;
                 sampled.image_input = e.image_input;
+                if !match (&sampled.shader_data, &e.shader_data) {
+                    (Some(a),Some(b)) => std::sync::Arc::ptr_eq(a,b), (None,None) => true, _ => false,
+                } { sampled.shader_data = e.shader_data.clone(); }
                 sampled.scene = e.scene.clone();
                 sampled.lut = None;
                 sampled.particle_history_error = None;

@@ -6,7 +6,7 @@ use crate::node_editor::{NodeEditor, Request};
 use crate::node_tasks::{NodeTasks, ReadyPreview};
 use std::time::{Duration, Instant};
 
-fn compile(tasks: &mut NodeTasks, editor: &mut NodeEditor) -> ReadyPreview {
+pub(super) fn compile(tasks: &mut NodeTasks, editor: &mut NodeEditor) -> ReadyPreview {
     tasks
         .submit(editor.request(Request::Compile).unwrap(), Locale::En, false)
         .unwrap();

@@ -47,6 +47,8 @@ mod scope_tests;
 mod node_admission_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod numeric_reuse_tests;
+#[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
+mod bound_numeric_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
@@ -1457,6 +1459,7 @@ pub struct FloatingSurface {
 struct NodePreviewState {
     desired: (u64, u64),
     active: Option<crate::node_preview::NodePreview>,
+    canonical: Option<crate::node_preview::PipelineCache>,
     installs: u64,
 }
 
@@ -1556,19 +1559,27 @@ fn handle(
                 log::debug!("node install superseded received={:?} desired={:?} revision={}", snapshot.preview_stamp(), node_preview.desired, snapshot.revision);
                 return Ok(false);
             }
-            let preview = motion_host::session::with_session(id, |session| {
+            let (preview, canonical_preview) = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
                     allocations: graphics.renderer.allocation_context(),
                     format: graphics.config.format,
                 };
-                if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical)
-                    .map_err(|error|motion_host::Error::with_context(format!("node canonical graph {} {:?}",snapshot.document.id,snapshot.preview_stamp()),error))?;}
-                crate::node_preview::NodePreview::build_reusing(&context, &snapshot, &compiled, node_preview.active.as_ref())
-                    .map_err(|error| motion_host::Error::with_context(format!("node graph {} {:?}", snapshot.document.id, snapshot.preview_stamp()),error))
+                let active_cache = node_preview.active.as_ref().map(crate::node_preview::NodePreview::pipeline_cache);
+                let canonical_preview = canonical.as_ref().map(|canonical|
+                    crate::node_preview::NodePreview::build_with_cache(&context, &snapshot, canonical,
+                        node_preview.canonical.as_ref().or(active_cache.as_ref()))
+                        .map(|candidate| candidate.pipeline_cache())
+                        .map_err(|error|motion_host::Error::with_context(format!("node canonical graph {} {:?}",snapshot.document.id,snapshot.preview_stamp()),error)))
+                    .transpose()?;
+                let preview = crate::node_preview::NodePreview::build_with_cache(&context, &snapshot, &compiled,
+                    active_cache.as_ref().or(canonical_preview.as_ref()))
+                    .map_err(|error| motion_host::Error::with_context(format!("node graph {} {:?}", snapshot.document.id, snapshot.preview_stamp()),error))?;
+                Ok((preview, canonical_preview))
             })?;
             if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
             node_preview.active = Some(preview);
+            node_preview.canonical = canonical_preview;
             node_preview.installs += 1;
             Ok(true)
         })()),
@@ -1855,7 +1866,7 @@ fn handle(
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
                 "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
-                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
+                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
         Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project_with_choice(id, &text, project::PreviousProject::Save))),

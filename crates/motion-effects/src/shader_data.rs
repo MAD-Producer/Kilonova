@@ -2,6 +2,8 @@
 //! separate. Overflow uses an unfiltered RGBA8 byte container, not UNORM values.
 use crate::{EffectDefinition, Result, ensure};
 use serde::{Deserialize, Serialize};
+mod values;
+pub use values::ShaderDataValues;
 
 pub const SHADER_DATA_VERSION: u32 = 1;
 pub const SHADER_DATA_CAPABILITY: &str = "shader_data_v1";
@@ -56,7 +58,9 @@ impl ShaderData {
         )?;
         if let Some(texture) = &self.overflow {
             ensure(
-                texture.scalars > 0 && texture.scalars as usize <= MAX_SHADER_DATA_SCALARS,
+                texture.scalars > 0
+                    && texture.scalars as usize + self.uniforms.len() * 4
+                        <= MAX_SHADER_DATA_SCALARS,
                 "shader data texture exceeds scalar budget",
             )?;
             ensure(
@@ -121,5 +125,36 @@ impl ShaderData {
             )?;
         }
         Ok(())
+    }
+    /// Decode package defaults or a newly compiled payload on the preparation
+    /// path. Rendering consumes the resulting typed values directly.
+    pub fn values(&self, bytes: Option<&[u8]>) -> Result<ShaderDataValues> {
+        let texture = if let Some(declaration) = &self.overflow {
+            let bytes = bytes
+                .ok_or_else(|| crate::Error::Invalid("shader data resource is missing".into()))?;
+            self.validate_texture(bytes)?;
+            let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+                .map_err(|cause| crate::Error::ImageResource {
+                    phase: "instance_shader_data_decode",
+                    path: declaration.path.clone(),
+                    cause: Box::new(cause),
+                })?
+                .into_rgba8();
+            image
+                .as_raw()
+                .chunks_exact(4)
+                .take(declaration.scalars as usize)
+                .map(|p| f32::from_le_bytes([p[0], p[1], p[2], p[3]]))
+                .collect()
+        } else {
+            vec![]
+        };
+        let values = ShaderDataValues {
+            version: self.version,
+            uniforms: self.uniforms.clone(),
+            texture,
+        };
+        values.validate_layout(self)?;
+        Ok(values)
     }
 }

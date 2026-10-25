@@ -36,6 +36,13 @@ struct InputResource {
     group: wgpu::BindGroup,
     _allocation: Option<crate::allocation_budget::AllocationLease>,
 }
+struct InstanceResource {
+    program: u32,
+    values: std::sync::Arc<motion_effects::shader_data::ShaderDataValues>,
+    // Bindings retire before the admitted backing texture.
+    group: wgpu::BindGroup,
+    texture: FxTexture,
+}
 struct Lut {
     view: wgpu::TextureView,
     texture: OwnedTexture,
@@ -58,6 +65,7 @@ pub(crate) struct GpuState {
     resources: HashMap<u32, wgpu::BindGroup>,
     bindings: Vec<Option<Binding>>,
     input_resources: Vec<Option<InputResource>>,
+    instance_resources: Vec<Option<InstanceResource>>,
     white: FxTexture,
     identity: Lut,
     luts: Vec<Lut>,
@@ -85,6 +93,7 @@ const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 #[cfg(test)]
 mod fixed_admission_tests;
 mod curve_lut;
+mod instance_data;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -305,6 +314,7 @@ impl EffectGpu {
                 sprite_buffer: None,
                 bindings: Vec::new(),
                 input_resources: Vec::new(),
+                instance_resources: Vec::new(),
             },
         })
     }
@@ -356,10 +366,12 @@ impl GpuState {
         self.epoch += 1;
         self.bindings.clear();
         self.input_resources.clear();
+        self.instance_resources.clear();
     }
     pub fn release_scratch(&mut self) {
         self.sprite_buffer = None;
         let has_resources = !self.pool_allocations.is_empty()
+            || !self.instance_resources.is_empty()
             || self.pool.iter().any(Option::is_some)
             || !self.luts.is_empty()
             || !self.buffers.is_empty();
@@ -384,6 +396,11 @@ impl GpuState {
         for ((package, resource), texture) in &self.resource_textures {
             ledger.retained(&texture.texture, PluginResources, format!("effects/resource/{package}/{resource}"));
         }
+        for (index, resource) in self.instance_resources.iter().enumerate() {
+            if let Some(resource) = resource {
+                ledger.retained(&resource.texture.texture, PluginResources, format!("effects/instance-data/{index}"));
+            }
+        }
         for (i, texture) in self.pool.iter().enumerate() {
             if let Some(texture) = texture {
                 ledger.retained(&texture.texture, EffectScratch, format!("effects/pool/{i}"));
@@ -392,7 +409,7 @@ impl GpuState {
     }
     pub fn bytes(&self) -> u64 {
         self.scratch_bytes()
-            + self.resource_bytes
+            + self.resource_bytes()
             + self.luts.len() as u64 * 1024
     }
     pub fn scratch_bytes(&self) -> u64 {
@@ -429,7 +446,7 @@ impl GpuState {
                 }
             }
         }
-        bytes
+        bytes + self.pending_instance_bytes(&builder.frame)
     }
     pub fn prepare(
         &mut self,
@@ -543,6 +560,10 @@ impl GpuState {
         }
         self.bindings.resize_with(frame.passes.len(), || None);
         self.input_resources.resize_with(frame.passes.len(), || None);
+        self.instance_resources.resize_with(frame.passes.len(), || None);
+        for (index, pass) in frame.passes.iter().enumerate() {
+            if pass.instance_data == 0 { self.instance_resources[index] = None; }
+        }
         if !frame.sprites.is_empty() {
             self.upload_instances(device, queue, &frame.sprites)?;
         }
@@ -682,9 +703,9 @@ impl GpuState {
                                     message,
                                 });
                             }
-                            if asset_bytes + self.resource_bytes + bytes > source_budget {
+                            if asset_bytes + self.resource_bytes() + bytes > source_budget {
                                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                                    asset_bytes + self.resource_bytes + bytes, source_budget,
+                                    asset_bytes + self.resource_bytes() + bytes, source_budget,
                                     "images and effect resources exceed configured source texture budget"));
                             }
                             let t = admitted_texture(
@@ -739,6 +760,7 @@ impl GpuState {
                 });
                 self.resources.insert(p.program, group);
             }
+            self.prepare_instance_data(index, builder, device, queue, composite, asset_bytes, source_budget)?;
         }
         Ok(())
     }
@@ -759,6 +781,13 @@ impl GpuState {
             .get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} is out of range")))?;
         let source_key = if p.sprite {None} else {source_key};
+        if p.instance_data != 0 {
+            let resource = self.instance_resources.get(index).and_then(Option::as_ref)
+                .ok_or("instance shader data binding is missing")?;
+            // A later composition may replace this cache before submission.
+            // Keep every encoded use admitted until its GPU work completes.
+            self.allocation_uploads.track(resource.texture.texture.allocation())?;
+        }
         let physical = frame.scratch_bindings.get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} scratch binding is missing")))?;
         let external = if p.sprite {None} else {external};
@@ -1005,7 +1034,10 @@ impl GpuState {
             .and_then(|binding| binding.as_ref())
             .ok_or_else(|| RenderError::Invalid(format!("effect binding {index} is missing")))?;
         pass.set_bind_group(1, &binding.group, &[]);
-        let resources = if p.resource_input != 0 {
+        let resources = if p.instance_data != 0 {
+            &self.instance_resources.get(index).and_then(Option::as_ref)
+                .ok_or("instance shader data binding is missing")?.group
+        } else if p.resource_input != 0 {
             &self
                 .input_resources
                 .get(index)

@@ -5,6 +5,7 @@ use motion_graph::{
     CompiledGraph, Connection, GraphDocument, ImageSource, Node, NodeOp, SampleCoordinates,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
+mod runtime_reuse;
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Target {
     pub root: PathBuf,
@@ -70,7 +71,19 @@ pub fn source(snapshot: &node_editor::EditorSnapshot, target: &Target) -> Result
 }
 pub fn package(compiled: &CompiledGraph, target: &Target) -> Result<Vec<u8>, String> {
     let mut manifest = compiled.manifest.clone();
-    manifest.id = format!(
+    manifest.id = bound_id(target);
+    manifest.version = "0.0.0".into();
+    let neutral = compiled
+        .package_bytes(&manifest)
+        .map_err(|e| e.to_string())?;
+    let fingerprint = motion_effects::EffectPackage::from_bytes(neutral)
+        .map_err(|e| e.to_string())?
+        .hash;
+    manifest.version = format!("0.0.0+{}", &fingerprint[..16]);
+    compiled.package_bytes(&manifest).map_err(|e| e.to_string())
+}
+fn bound_id(target: &Target) -> String {
+    format!(
         "local.motionstudio.bound.{:016x}",
         hash(
             format!(
@@ -79,15 +92,7 @@ pub fn package(compiled: &CompiledGraph, target: &Target) -> Result<Vec<u8>, Str
             )
             .as_bytes()
         )
-    );
-    manifest.version = "0.0.0".into();
-    let neutral = compiled.package_bytes(&manifest)
-        .map_err(|e| e.to_string())?;
-    let fingerprint = motion_effects::EffectPackage::from_bytes(neutral)
-        .map_err(|e| e.to_string())?
-        .hash;
-    manifest.version = format!("0.0.0+{}", &fingerprint[..16]);
-    compiled.package_bytes(&manifest).map_err(|e| e.to_string())
+    )
 }
 fn check<'a>(
     s: &'a motion_host::Session,
@@ -108,7 +113,9 @@ fn check<'a>(
     }
     if matches!(
         layer.content,
-        motion_core::Content::Null | motion_core::Content::Camera { .. } | motion_core::Content::Audio { .. }
+        motion_core::Content::Null
+            | motion_core::Content::Camera { .. }
+            | motion_core::Content::Audio { .. }
     ) {
         return Err("select a visual layer for a node effect".into());
     }
@@ -169,10 +176,19 @@ pub fn apply(
         .find(|e| e.id == target.effect)
         .cloned();
     let size = layer.size;
-    let bytes = package(compiled, target)?;
-    let packaged =
-        motion_effects::EffectPackage::from_bytes(bytes.clone()).map_err(|e| e.to_string())?;
-    let definition = packaged
+    compiled.manifest.validate().map_err(|e| e.to_string())?;
+    let data = runtime_reuse::values(compiled)?;
+    let reused = runtime_reuse::package(&s.effects.registry, compiled, target, old.as_ref())?;
+    let (packaged, bytes) = if let Some(package) = reused {
+        (package, None)
+    } else {
+        let bytes = package(compiled, target)?;
+        let package = Arc::new(
+            motion_effects::EffectPackage::from_bytes(bytes.clone()).map_err(|e| e.to_string())?,
+        );
+        (package, Some(bytes))
+    };
+    let definition = compiled
         .manifest
         .effects
         .first()
@@ -185,6 +201,13 @@ pub fn apply(
         definition,
         size,
     );
+    instance.shader_data = data.map(|values| {
+        old.as_ref()
+            .and_then(|old| old.shader_data.as_ref())
+            .filter(|old| old.as_ref() == &values)
+            .cloned()
+            .unwrap_or_else(|| Arc::new(values))
+    });
     let mut source_value = source(snapshot, target)?;
     if let Some(old) = &old {
         instance.enabled = old.enabled;
@@ -213,7 +236,15 @@ pub fn apply(
             }
         }
     }
-    source_value["runtime"] = serde_json::json!({"package_hex":bytes.iter().map(|byte|format!("{byte:02x}")).collect::<String>()});
+    source_value["runtime"] = if bytes.is_none() {
+        old.as_ref()
+            .and_then(|old| old.node_graph.as_ref())
+            .and_then(|source| source.get("runtime"))
+            .cloned()
+            .unwrap_or_else(|| runtime_reuse::source(&packaged.bytes))
+    } else {
+        runtime_reuse::source(bytes.as_ref().unwrap())
+    };
     instance.node_graph = Some(source_value);
     instance
         .validate(s.engine.project().frames)
@@ -221,19 +252,23 @@ pub fn apply(
     if old.as_ref() == Some(&instance) {
         return s.snapshot();
     }
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_nanos();
-    let staged = s.root.join(format!(".node-runtime-{stamp}.msfx"));
-    let mut file = crate::owned_file::OwnedFile::create(&staged)
-        .map_err(|e| e.to_string())?;
-    use std::io::Write;
-    file.file().write_all(&bytes).map_err(|error| error.to_string())?;
-    file.close();
-    let install = s.plugin_request(&serde_json::json!({"op":"install","path":staged}).to_string());
-    drop(file);
-    install?;
+    if let Some(bytes) = bytes {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos();
+        let staged = s.root.join(format!(".node-runtime-{stamp}.msfx"));
+        let mut file = crate::owned_file::OwnedFile::create(&staged).map_err(|e| e.to_string())?;
+        use std::io::Write;
+        file.file()
+            .write_all(&bytes)
+            .map_err(|error| error.to_string())?;
+        file.close();
+        let install =
+            s.plugin_request(&serde_json::json!({"op":"install","path":staged}).to_string());
+        drop(file);
+        install?;
+    }
     s.apply_command_batch(vec![Command::Effect {
         object: target.object,
         action: if old.is_some() {
@@ -247,6 +282,7 @@ pub fn apply(
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod numeric;
     fn setup() -> (
         tempfile::TempDir,
         motion_host::Session,
@@ -429,11 +465,13 @@ mod tests {
         )
         .unwrap();
         let e = &reopened.engine.project().layers[0].effects[0];
-        assert!(reopened
-            .effects
-            .registry
-            .resolve(&e.plugin, &e.version, &e.hash)
-            .is_ok());
+        assert!(
+            reopened
+                .effects
+                .registry
+                .resolve(&e.plugin, &e.version, &e.hash)
+                .is_ok()
+        );
     }
     #[test]
     fn removed_existing_target_cannot_be_recreated_by_stale_compile() {

@@ -6,9 +6,8 @@ use motion_render::{
     AdmittedBuffer, AdmittedTexture, AdmittedTextureView, AllocationContext, RenderError,
 };
 use motion_ui::{
-    paint,
+    Input, PaintList, Rect, TextAtlas, paint,
     ui::{self, Align},
-    Input, PaintList, Rect, TextAtlas,
 };
 use std::time::Instant;
 
@@ -109,17 +108,9 @@ impl Controls {
             atlas,
             play,
             if self.playing {
-                if zh {
-                    "暂停"
-                } else {
-                    "Pause"
-                }
+                if zh { "暂停" } else { "Pause" }
             } else {
-                if zh {
-                    "播放"
-                } else {
-                    "Play"
-                }
+                if zh { "播放" } else { "Play" }
             },
             input,
             true,
@@ -302,6 +293,36 @@ struct PreviewPipeline {
     // Immutable successful build; compare mutable public output in full.
     wgsl: String,
 }
+/// Immutable successful pipelines only. Canonical validation must not keep
+/// candidate textures, bind groups or upload buffers alive between requests.
+pub struct PipelineCache {
+    allocations: AllocationContext,
+    pipeline: std::sync::Arc<PreviewPipeline>,
+    display: DisplayPipelines,
+    pub pipeline_builds: u64,
+}
+impl PipelineCache {
+    pub fn shader_code_bytes(&self) -> usize {
+        self.pipeline.wgsl.len()
+    }
+}
+struct DisplayPipelines {
+    pipeline: wgpu::RenderPipeline,
+    alternate: Option<(wgpu::TextureFormat, wgpu::RenderPipeline)>,
+    format: wgpu::TextureFormat,
+}
+impl DisplayPipelines {
+    fn pipeline_for(&self, format: wgpu::TextureFormat) -> Option<&wgpu::RenderPipeline> {
+        if self.format == format {
+            Some(&self.pipeline)
+        } else {
+            self.alternate
+                .as_ref()
+                .filter(|(key, _)| *key == format)
+                .map(|(_, pipeline)| pipeline)
+        }
+    }
+}
 struct Display {
     pipeline: wgpu::RenderPipeline,
     // Current format plus one alternate (normally swapchain and PNG capture).
@@ -398,6 +419,23 @@ impl NodePreview {
         snapshot: &EditorSnapshot,
         compiled: &motion_graph::CompiledGraph,
         previous: Option<&Self>,
+    ) -> Result<Self, RenderError> {
+        let previous = previous.map(Self::pipeline_cache);
+        Self::build_with_cache(context, snapshot, compiled, previous.as_ref())
+    }
+    pub fn pipeline_cache(&self) -> PipelineCache {
+        PipelineCache {
+            allocations: self.allocations.clone(),
+            pipeline: self.pipeline.clone(),
+            display: self.display.pipeline_cache(),
+            pipeline_builds: self.pipeline_builds,
+        }
+    }
+    pub fn build_with_cache(
+        context: &GpuContext,
+        snapshot: &EditorSnapshot,
+        compiled: &motion_graph::CompiledGraph,
+        previous: Option<&PipelineCache>,
     ) -> Result<Self, RenderError> {
         if compiled.shader.wgsl.len() > 2 << 20 {
             return Err(RenderError::Invalid(
@@ -682,7 +720,7 @@ impl NodePreview {
                 format,
                 self.display_mode,
                 Some(self.display.buffer.clone()),
-                Some(&self.display),
+                Some(&self.display.pipeline_cache()),
             )?;
             self.pipeline_builds = self.pipeline_builds.saturating_add(u64::from(rebuild));
         }
@@ -787,6 +825,13 @@ fn pipeline(
     })
 }
 impl Display {
+    fn pipeline_cache(&self) -> DisplayPipelines {
+        DisplayPipelines {
+            pipeline: self.pipeline.clone(),
+            alternate: self.alternate.clone(),
+            format: self.format,
+        }
+    }
     fn pipeline_for(&self, format: wgpu::TextureFormat) -> Option<&wgpu::RenderPipeline> {
         if self.format == format {
             Some(&self.pipeline)
@@ -803,7 +848,7 @@ impl Display {
         format: wgpu::TextureFormat,
         mode: [u32; 4],
         existing: Option<AdmittedBuffer>,
-        previous: Option<&Self>,
+        previous: Option<&DisplayPipelines>,
     ) -> Result<Self, RenderError> {
         let device = allocations.device();
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -913,6 +958,43 @@ mod tests {
     use super::*;
     #[test]
     #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+    fn node_canonical_cache_retains_pipelines_without_candidate_allocations() {
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let snapshot = crate::node_editor::NodeEditor::default().snapshot();
+        let compiled = snapshot.compile_runtime().unwrap();
+        let budget = context.allocations.budget();
+        let baseline = budget.info().unwrap().admitted_bytes;
+        let candidate = NodePreview::build(&context, &snapshot, &compiled).unwrap();
+        let cache = candidate.pipeline_cache();
+        assert!(budget.info().unwrap().admitted_bytes > baseline);
+        drop(candidate);
+        let encoder = renderer
+            .allocation_command_encoder(&Default::default())
+            .unwrap();
+        renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
+        context
+            .allocations
+            .device()
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        assert_eq!(
+            budget.info().unwrap().admitted_bytes,
+            baseline,
+            "pipeline-only canonical cache must release admitted data/output/buffers after submission"
+        );
+        let calls = PIPELINE_CREATIONS.with(|calls| calls.get());
+        let candidate =
+            NodePreview::build_with_cache(&context, &snapshot, &compiled, Some(&cache)).unwrap();
+        assert_eq!(PIPELINE_CREATIONS.with(|counter| counter.get()) - calls, 0);
+        assert_eq!(candidate.pipeline_builds, 0);
+        assert!(std::sync::Arc::ptr_eq(&cache.pipeline, &candidate.pipeline));
+    }
+    #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn node_preview_respects_occupied_session_admission() {
         let budget = motion_render::AllocationBudget::default();
         let renderer = pollster::block_on(
@@ -929,8 +1011,11 @@ mod tests {
         let occupied = budget.info().unwrap().admitted_bytes;
         budget.set_limit(occupied + 1).unwrap();
         let result = NodePreview::build(&context, &snapshot, &compiled);
-        assert!(result.is_err(),
-            "independent N1 preview bypassed the live shared allowance: occupied={occupied} budget={}", occupied + 1);
+        assert!(
+            result.is_err(),
+            "independent N1 preview bypassed the live shared allowance: occupied={occupied} budget={}",
+            occupied + 1
+        );
     }
 
     fn pixels(
