@@ -59,6 +59,7 @@ cargo test -p motion-desktop --features ffmpeg --bin motion-studio native_key_dr
 4. UI 错误信道夹具最初损坏选中键本身，先被既有来源校验正确取消；追加损坏的未选尾键，使被测动作实际到达占用准备失败分支，保留 Current 状态和完整失败信道断言。
 5. 原生 GPU 首轮八格绘制、编辑、保存和撤销都完成；第二进程读取证据 JSON 时，宽化 f32 的十进制经 f64 JSON 解析出现末位差异。重开比较改为完整 `Project` 类型的精确相等，不引入容差或字段投影；原始失败目录保留。
 6. 外部 OS 输入的窗口焦点失败、位置变化、意外退出和关闭超时均保留；没有据此重试生产命令或将它们计为交互通过。
+7. 首轮远端 Linux 桌面测试 1050 过／1 失败：`default_binding_reference_matches_live_resolver` 发现四个新增 Alt 方向键绑定未同步到默认键位参考表。按 `CONTRIBUTING.md` 使用真实解析器重新生成目录，保留完整 CI 失败日志，未改解析器或测试断言；本地重新生成及关闭更新开关后的精确核对均通过。后续 CI 仍须验证新提交。
 
 ## DESIGN.md §0.7／§12 的处置
 
