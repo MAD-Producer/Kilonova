@@ -70,6 +70,7 @@ mod menus;
 mod clipboard_menu;
 pub(crate) mod text_menu;
 mod keyframe_clipboard;
+mod key_selection;
 mod path_clipboard;
 pub(crate) mod numeric;
 mod observation;

@@ -8,6 +8,8 @@ use std::collections::BTreeSet;
 
 mod channels;
 mod interpolation;
+mod easing;
+pub use easing::{delete_keys, ease_keys};
 pub use interpolation::set_interpolation;
 use channels::{read, write, ReadChannel, WriteChannel};
 

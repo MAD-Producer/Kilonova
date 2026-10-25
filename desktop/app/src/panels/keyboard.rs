@@ -27,6 +27,7 @@ pub(super) fn layer_clipboard_allowed(panels: &Panels, state: &Value) -> bool {
         && !layout_shortcuts_blocked(panels)
         && !(panels.focused == Some(Panel::Timeline) && panels.timeline.graph_mode)
         && panels.animation_controls.user_key().is_none()
+        && !panels.selected_keys.owns_keys()
         && panels.animation_controls.track_selection(state, panels.selected)
             == super::animation_controls::TrackSelection::Unselected
         && state["observing"] != true
@@ -240,6 +241,17 @@ fn route_inner(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
+    if !node_context && panels.menu.is_none() && panels.panel_menu.is_none()
+        && panels.timeline.timeline_context_menu.is_none() && !layout_shortcuts_blocked(panels)
+    {
+        for (key, modifiers, repeat) in input.key_presses() {
+            if let Some(command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat)
+                .or_else(|| panels.shortcut_bindings.resolve(Scope::Application, key, modifiers, repeat))
+            {
+                if super::key_selection::shortcut(panels, state, command, out) { return true; }
+            }
+        }
+    }
     // Legacy property handlers still consume J/K/Delete-shaped commands; adapt only
     // their input, after focus/IME ownership, using the effective user mapping.
     let adapted = panels.shortcut_bindings.property_input(input);
@@ -379,7 +391,7 @@ fn handle_context_shortcuts(
             continue;
         }
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
-            && panels.animation_controls.user_key().is_some()
+            && (panels.animation_controls.user_key().is_some() || panels.selected_keys.owns_keys())
             || matches!(panels.focused, Some(Panel::Timeline | Panel::Curves | Panel::Properties
                 | Panel::EffectControls | Panel::Masks | Panel::Vector | Panel::Audio))
                 && panels.animation_controls.track_selection(state, panels.selected)

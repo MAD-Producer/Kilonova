@@ -175,6 +175,7 @@ pub struct Panels {
     /// kept as the primary layer for panels whose controls still need one
     /// active object.
     pub(crate) selected_layers: Vec<u64>,
+    pub(crate) selected_keys: super::key_selection::Set,
     pub(crate) selection_anchor: Option<u64>,
     pub(crate) selection_context: Option<(String, String)>,
     pub playing: bool,
@@ -226,6 +227,7 @@ pub(crate) struct CompositionState {
 
 impl Panels {
     pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.selected_keys.release();
         self.property_reveal.interrupt();
         self.path_controls.clear_mask_selection();
         self.audio_controls.clear_selection();
@@ -287,6 +289,7 @@ impl Panels {
     }
 
     pub(crate) fn toggle_selection(&mut self, object: u64) {
+        self.selected_keys.release();
         if object == 0 {
             self.select_only(Some(object));
             return;
@@ -306,6 +309,7 @@ impl Panels {
     }
 
     pub(crate) fn add_selection(&mut self, object: u64) {
+        self.selected_keys.release();
         if object != 0 && !self.selected_layers.contains(&object) {
             self.selected_layers.push(object);
         }

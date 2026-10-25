@@ -1,10 +1,14 @@
 //! Edit existing key metadata through the same typed channel addresses as transfer.
 use super::*;
 
-fn failure(selection: &KeyframeSelection, source: Error) -> Error {
+pub(super) fn failure(
+    operation: &'static str,
+    selection: &KeyframeSelection,
+    source: Error,
+) -> Error {
     let target = &selection.target;
     Error::KeyframeEdit {
-        operation: "interpolation",
+        operation,
         object: target.object(),
         channel: format!(
             "{} frames={:?} count={}",
@@ -23,6 +27,49 @@ pub fn set_interpolation(
     selections: &[KeyframeSelection],
     ease: crate::Ease,
 ) -> Result<()> {
+    let local_frames = preflight(project, selections, "interpolation")?;
+    for (selected, frames) in selections.iter().zip(local_frames) {
+        let result = (|| -> Result<()> {
+            macro_rules! edit {
+                ($track:expr) => {
+                    for frame in &frames {
+                        $track.set_ease(*frame, ease)?;
+                    }
+                };
+            }
+            match write(project, &selected.target)? {
+                WriteChannel::Scalar(t) => edit!(t),
+                WriteChannel::Vec2(t) => edit!(t),
+                WriteChannel::Vec3(t) => edit!(t),
+                WriteChannel::Vec4(t) => edit!(t),
+                WriteChannel::Geometry(t) => edit!(t),
+                WriteChannel::ColorCurve(t) => {
+                    for frame in frames {
+                        let index = t
+                            .keys
+                            .binary_search_by_key(&frame, |key| key.frame)
+                            .map_err(|_| {
+                                Error::Invalid("keyframe not found after preflight".into())
+                            })?;
+                        t.keys[index].ease = ease;
+                        t.keys[index].curve = None;
+                    }
+                }
+            }
+            Ok(())
+        })();
+        result.map_err(|cause| failure("interpolation", selected, cause))?;
+    }
+    Ok(())
+}
+
+/// Validate the complete selection before callers mutate any channel. Reuse
+/// identical alias, lock, separated-axis, offset and metadata rules for edits.
+pub(super) fn preflight(
+    project: &Project,
+    selections: &[KeyframeSelection],
+    operation: &'static str,
+) -> Result<Vec<Vec<i32>>> {
     ensure(!selections.is_empty(), "no keyframes selected")?;
     ensure(
         crate::serialized_bytes(&selections) <= MAX_KEYFRAME_CLIPBOARD_BYTES,
@@ -70,42 +117,10 @@ pub fn set_interpolation(
             }
             Ok(frames)
         })()
-        .map_err(|cause| failure(selected, cause))?;
+        .map_err(|cause| failure(operation, selected, cause))?;
         local_frames.push(local);
     }
-    for (selected, frames) in selections.iter().zip(local_frames) {
-        let result = (|| -> Result<()> {
-            macro_rules! edit {
-                ($track:expr) => {
-                    for frame in &frames {
-                        $track.set_ease(*frame, ease)?;
-                    }
-                };
-            }
-            match write(project, &selected.target)? {
-                WriteChannel::Scalar(t) => edit!(t),
-                WriteChannel::Vec2(t) => edit!(t),
-                WriteChannel::Vec3(t) => edit!(t),
-                WriteChannel::Vec4(t) => edit!(t),
-                WriteChannel::Geometry(t) => edit!(t),
-                WriteChannel::ColorCurve(t) => {
-                    for frame in frames {
-                        let index = t
-                            .keys
-                            .binary_search_by_key(&frame, |key| key.frame)
-                            .map_err(|_| {
-                                Error::Invalid("keyframe not found after preflight".into())
-                            })?;
-                        t.keys[index].ease = ease;
-                        t.keys[index].curve = None;
-                    }
-                }
-            }
-            Ok(())
-        })();
-        result.map_err(|cause| failure(selected, cause))?;
-    }
-    Ok(())
+    Ok(local_frames)
 }
 
 fn check_keys<T>(keys: &[Keyframe<T>], frames: &[i32]) -> Result<()> {

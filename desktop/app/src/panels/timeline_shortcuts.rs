@@ -6,7 +6,7 @@ use super::{
     types::{property_bit, ColumnGroup, KeySelection, PropertyFilter},
 };
 use crate::shortcuts::Command as Shortcut;
-use motion_core::{Axis, Curve, CurveShape, CurveSpace, Ease, Easing};
+use motion_core::{Axis, Easing};
 
 fn axis(index: usize) -> Axis {
     [Axis::X, Axis::Y, Axis::Z][index]
@@ -42,6 +42,10 @@ pub(super) fn refresh_key_notice(panels: &mut Panels, state: &Value) {
         .into_iter()
         .any(|locale| message == locale.t(T::KeySelectionUnavailable))
     {
+        return;
+    }
+    if panels.selected_keys.owns_keys() {
+        if panels.selected_keys.writable(state) { panels.message = None; }
         return;
     }
     if panels.animation_controls.user_key().is_none()
@@ -164,74 +168,16 @@ fn cubic_ease(
     ease_sides(easing, incoming, outgoing)
 }
 pub(super) fn ease_sides(easing: Easing, incoming: bool, outgoing: bool) -> Easing {
-    let (mut a, mut b, start, end) = match easing.curve {
-        Some(Curve {
-            space: CurveSpace::Progress,
-            shape:
-                CurveShape::Cubic {
-                    control1,
-                    control2,
-                    start,
-                    end,
-                },
-        }) => (control1, control2, start, end),
-        Some(Curve {
-            space: CurveSpace::Progress,
-            shape:
-                CurveShape::Quadratic {
-                    control,
-                    start,
-                    end,
-                },
-        }) => (
-            [control[0] * 2. / 3., start / 3. + control[1] * 2. / 3.],
-            [
-                1. / 3. + control[0] * 2. / 3.,
-                end / 3. + control[1] * 2. / 3.,
-            ],
-            start,
-            end,
-        ),
-        _ => (
-            [1. / 3., easing.sample(0.).velocity.clamp(-12., 12.) / 3.],
-            [
-                2. / 3.,
-                1. - easing.sample(1.).velocity.clamp(-12., 12.) / 3.,
-            ],
-            0.,
-            1.,
-        ),
-    };
-    if outgoing {
-        a[1] = start;
-        if a[0] < 1e-6 {
-            a[0] = 1. / 3.;
-        }
-    }
-    if incoming {
-        b[1] = end;
-        if b[0] > 1. - 1e-6 {
-            b[0] = 2. / 3.;
-        }
-    }
-    Easing {
-        ease: Ease::Linear,
-        curve: Some(Curve {
-            space: CurveSpace::Progress,
-            shape: CurveShape::Cubic {
-                control1: a,
-                control2: b,
-                start,
-                end,
-            },
-        }),
-    }
+    easing.ease_sides(incoming, outgoing)
 }
 
 pub(super) enum EaseUnavailable { Context, BeforeComposition }
 pub(super) fn ease_plan(panels: &Panels, state: &Value, command: Shortcut) -> Result<Vec<Command>, EaseUnavailable> {
     if state["observing"] == true {
         return Err(EaseUnavailable::Context);
+    }
+    if panels.selected_keys.owns_keys() {
+        return super::key_selection::ease_command(panels, state, command).map(|edit| vec![edit]).ok_or(EaseUnavailable::Context);
     }
     if let Some(edits) = super::effect_timeline::ease_plan(panels, state, command) {
         return Ok(edits);
@@ -391,6 +337,7 @@ pub(super) fn handle(
         return true;
     }
     if super::work_area::shortcut(command, state, frame, out) { return true; }
+    if super::key_selection::shortcut(panels, state, command, out) { return true; }
     let object = panels
         .selected
         .filter(|id| visual_layer(state, *id).is_some());

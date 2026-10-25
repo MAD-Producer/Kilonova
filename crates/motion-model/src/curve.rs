@@ -61,6 +61,41 @@ enum CurveDefinition {
 }
 
 impl Easing {
+    /// Flatten only the requested temporal endpoint tangents. Progress Beziers
+    /// retain their authored opposite handle; other curve forms use their real
+    /// endpoint derivatives, matching the editor's existing quick-ease policy.
+    pub fn ease_sides(self, incoming: bool, outgoing: bool) -> Self {
+        let (mut a, mut b, start, end) = match self.curve {
+            Some(Curve { space: CurveSpace::Progress, shape: CurveShape::Cubic {
+                control1, control2, start, end,
+            } }) => (control1, control2, start, end),
+            Some(Curve { space: CurveSpace::Progress, shape: CurveShape::Quadratic {
+                control, start, end,
+            } }) => (
+                [control[0] * 2. / 3., start / 3. + control[1] * 2. / 3.],
+                [1. / 3. + control[0] * 2. / 3., end / 3. + control[1] * 2. / 3.],
+                start, end,
+            ),
+            _ => (
+                [1. / 3., self.sample(0.).velocity.clamp(-12., 12.) / 3.],
+                [2. / 3., 1. - self.sample(1.).velocity.clamp(-12., 12.) / 3.],
+                0., 1.,
+            ),
+        };
+        if outgoing {
+            a[1] = start;
+            if a[0] < 1e-6 { a[0] = 1. / 3.; }
+        }
+        if incoming {
+            b[1] = end;
+            if b[0] > 1. - 1e-6 { b[0] = 2. / 3.; }
+        }
+        Self { ease: Ease::Linear, curve: Some(Curve {
+            space: CurveSpace::Progress,
+            shape: CurveShape::Cubic { control1: a, control2: b, start, end },
+        }) }
+    }
+
     pub fn validate(self) -> Result<()> {
         if let Some(curve) = self.curve {
             curve.validate()?;

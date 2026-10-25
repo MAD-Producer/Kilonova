@@ -89,6 +89,9 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                 .is_ok_and(|edits| !edits.is_empty())
         }
         Operation::Shortcut(Shortcut::Delete) => {
+            if panels.selected_keys.owns_keys() {
+                return matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) && panels.selected_keys.writable(state);
+            }
             matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
                 && (super::effect_timeline::delete_available(panels, state)
                     || panels
