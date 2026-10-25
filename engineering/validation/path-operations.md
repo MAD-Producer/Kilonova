@@ -89,6 +89,16 @@ PR #484 的首轮 Linux job 120910708116 在已有插件取消菜单测试失败
 
 恢复源码后，`path-expression-regression-final.log` 的合成 10、表达式沙箱 7、表达式专项 9 项全部通过，包含真实无限循环预算拒绝、取消、原轨道不变和失败后健康恢复。诊断探针不纳入提交。新提交仍需远端完整门禁；冷导入工程的编译时延与全平台高负载期限不在本次夹具修正的证明范围内。
 
+## 正式 Windows 验证包的实际输入与运行时闭包
+
+下载 `40157395727` 的 `desktop-release-windows-x86_64` 工件并校验 `build-info-windows-x86_64.json`：来源提交为 `612f57540a990db9f22ccb86e780f2cbd0339a04`，FFmpeg 能力为 true。ZIP 的 SHA-256 为 `2511032da8da21aa152160bc07a471e660655f862a0299804e087d5f5035dada`，清单列出的 12 个运行时／许可文件全部与包内哈希一致。该包没有宣称启用独立 videoEncoder 能力。
+
+安全解压后只从包内启动程序，子进程 PATH 限定为 Windows 系统目录。实际 Win32 鼠标、键盘驱动验证英文主窗口和中文原生合成浮窗；独立进程重开工程也使用同一包内程序。两处均验证首顶点与撤销、双向“复制为…”保留源路径、独立路径复制／剪切／粘贴、撤销重做、保存重开，默认 Info 日志与 stdout JSON-RPC 隔离也通过。证据为 `path-official-archive-verification.json`、`path-official-os-input-summary.json` 和 `path-official-os-verification-final.log`。
+
+首次英文主窗口驱动遗漏 `MOTION_PATH_OS_PROPERTIES=1`，旧坐标因此落在另一顶点，验证器拒绝了节点 ID 断言；原件保留在 `path-official-os-main-en/` 及 `path-official-os-verification.log`。正确打开既有属性栏后，复用不变的输入步骤和原断言，结果保留在 `path-official-os-main-en-final/`；中文浮窗为 `path-official-os-float-zh/`。此为驱动布局准备错误，没有修改产品、节点 ID 期望或断言。
+
+该证据覆盖下载的 `612f5754` 正式验证包；其与 `02a63876` 的差异仅为合成测试和验收文档，不能将此包标成其他提交或新 main 的发行包。DPI 为 100%，系统 150% DPI 与真实 IME 服务仍不在本条证明范围内。
+
 ## DESIGN §0.7 基线逐项处置
 
 以下十二项均保留，未以新增菜单的验收结果宣称它们已整改：
