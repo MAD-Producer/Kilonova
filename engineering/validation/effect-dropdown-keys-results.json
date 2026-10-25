@@ -1,0 +1,427 @@
+{
+  "issue": 134,
+  "comparison": {
+    "base": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+    "cases": [
+      {
+        "effects": 1,
+        "locale": "en",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 10940,
+        "after_allocations": 10900,
+        "before_bytes": 2304300,
+        "after_bytes": 2304140
+      },
+      {
+        "effects": 1,
+        "locale": "en",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 11640,
+        "after_allocations": 11600,
+        "before_bytes": 2304180,
+        "after_bytes": 2304020
+      },
+      {
+        "effects": 1,
+        "locale": "zh",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 11460,
+        "after_allocations": 11420,
+        "before_bytes": 2190180,
+        "after_bytes": 2190020
+      },
+      {
+        "effects": 1,
+        "locale": "zh",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 12200,
+        "after_allocations": 12160,
+        "before_bytes": 2307820,
+        "after_bytes": 2307660
+      },
+      {
+        "effects": 8,
+        "locale": "en",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 84280,
+        "after_allocations": 83960,
+        "before_bytes": 17840560,
+        "after_bytes": 17839280
+      },
+      {
+        "effects": 8,
+        "locale": "en",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 89980,
+        "after_allocations": 89660,
+        "before_bytes": 17853360,
+        "after_bytes": 17852080
+      },
+      {
+        "effects": 8,
+        "locale": "zh",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 85920,
+        "after_allocations": 85600,
+        "before_bytes": 16909400,
+        "after_bytes": 16908120
+      },
+      {
+        "effects": 8,
+        "locale": "zh",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 91660,
+        "after_allocations": 91340,
+        "before_bytes": 17864280,
+        "after_bytes": 17863000
+      },
+      {
+        "effects": 16,
+        "locale": "en",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 167800,
+        "after_allocations": 167160,
+        "before_bytes": 35612560,
+        "after_bytes": 35610000
+      },
+      {
+        "effects": 16,
+        "locale": "en",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 179240,
+        "after_allocations": 178600,
+        "before_bytes": 35633360,
+        "after_bytes": 35630800
+      },
+      {
+        "effects": 16,
+        "locale": "zh",
+        "width": 220.0,
+        "frames": 20,
+        "before_allocations": 170720,
+        "after_allocations": 170080,
+        "before_bytes": 33747640,
+        "after_bytes": 33745080
+      },
+      {
+        "effects": 16,
+        "locale": "zh",
+        "width": 360.0,
+        "frames": 20,
+        "before_allocations": 182200,
+        "after_allocations": 181560,
+        "before_bytes": 35652600,
+        "after_bytes": 35650040
+      }
+    ],
+    "paints": [
+      {
+        "file": "1-en-220.paint.txt",
+        "bytes": 150230,
+        "sha256": "594b3a693e87b858e515dd9113992220ddec8eebbc8e0a8307d63a15a9723d57"
+      },
+      {
+        "file": "1-en-360.paint.txt",
+        "bytes": 151780,
+        "sha256": "184e0d5f3d16556bcdc07a6cd41d06a18670414b4a2c5a686bd21da843ab836a"
+      },
+      {
+        "file": "1-zh-220.paint.txt",
+        "bytes": 146258,
+        "sha256": "3b608213502def2f5cf03abe8e7d046715af41870965a9b3088f46ff60cc3358"
+      },
+      {
+        "file": "1-zh-360.paint.txt",
+        "bytes": 147777,
+        "sha256": "a5d3cc62312e5d44f5aa9a73e11f1e3a819e04ef903793322060e1c63ed78dbc"
+      },
+      {
+        "file": "8-en-220.paint.txt",
+        "bytes": 1090208,
+        "sha256": "082311617b61321221b6d8641cfe8f4f9199b66083c85b8e972c7bb5cda14ce4"
+      },
+      {
+        "file": "8-en-360.paint.txt",
+        "bytes": 1103481,
+        "sha256": "ef1760f9a8adc132f45e751aa5864dd6bda2f6e881c78bd0d321c15f817b2f6c"
+      },
+      {
+        "file": "8-zh-220.paint.txt",
+        "bytes": 1072161,
+        "sha256": "a52cb6e19c2897ec35d8b0246c1085cdd0976b72244eebf525782c878f7cdfa3"
+      },
+      {
+        "file": "8-zh-360.paint.txt",
+        "bytes": 1085221,
+        "sha256": "6cee6ae22388c07ebde29881075a6f7d5911f00486fe20497a8833feb8dd37ae"
+      },
+      {
+        "file": "16-en-220.paint.txt",
+        "bytes": 2168732,
+        "sha256": "242bb33aaac2c59025fe040ef1cbb74f6507f4ddbd2d76ae310196585e71caca"
+      },
+      {
+        "file": "16-en-360.paint.txt",
+        "bytes": 2195445,
+        "sha256": "8c1ef247a547423c999ea24d61f6668d29377c3039e5e31013e81ce64f75e78c"
+      },
+      {
+        "file": "16-zh-220.paint.txt",
+        "bytes": 2134565,
+        "sha256": "08eaf3cd2bb479a2fb226d6ce84591bc0c316d67620a51e60360f4f457745544"
+      },
+      {
+        "file": "16-zh-360.paint.txt",
+        "bytes": 2160857,
+        "sha256": "507301a5decc13a3cce729b3d31e02b0489191504deccdb79877aa8a9102c125"
+      }
+    ],
+    "all_paint_streams_identical": true,
+    "removed_requests": 4000,
+    "removed_request_bytes": 16000,
+    "counting": "current-thread Rust allocation requests during actual Controls::render; test build includes unchanged test_rects observations, not a production FPS or whole-frame constant-allocation claim",
+    "before_receipt": {
+      "head": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--config",
+        "profile.dev.package.motion-desktop.debug=0",
+        "--config",
+        "profile.dev.package.motion-desktop.codegen-units=256",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--",
+        "--exact",
+        "panels::effect_controls::dropdown_key_probe::actual_closed_enum_frames",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "seconds": 593.5,
+      "source_sha256": "e20031bfd5d418163acba74b72762546c16925db1376f160718f664a87a6423a",
+      "source_unchanged": true,
+      "log_sha256": "d697ba64be36fe5a86a93447d5df786df6be9387e0c1eac31501ea459cdf4bb0"
+    },
+    "after_receipt": {
+      "head": "7bd4d86003b21dd02483e73cbccac730df7036a7",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--config",
+        "profile.dev.package.motion-desktop.debug=0",
+        "--config",
+        "profile.dev.package.motion-desktop.codegen-units=256",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--",
+        "--exact",
+        "panels::effect_controls::dropdown_key_probe::actual_closed_enum_frames",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "seconds": 251.19,
+      "source_sha256": "ef9e0d3e3d193cdce33d6e7da5339dee96ab4a7f153407890f85e0475466f9fe",
+      "source_unchanged": true,
+      "log_sha256": "783ba27badc4b78290f96a8054cf221235dde39280dbe357f86f2b564ccb8ddf"
+    }
+  },
+  "tests": [
+    {
+      "name": "controls-regressions",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "receipt": {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--config",
+          "profile.dev.package.motion-desktop.debug=0",
+          "--config",
+          "profile.dev.package.motion-desktop.codegen-units=256",
+          "--locked",
+          "--offline",
+          "-j1",
+          "panels::effect_controls",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 169.95,
+        "source_unchanged": true,
+        "log_sha256": "57765d17404019415d6c22af6f3c39f5ae3c46f95e76e09d781386bc650e11a6"
+      }
+    },
+    {
+      "name": "property-regressions",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "receipt": {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--config",
+          "profile.dev.package.motion-desktop.debug=0",
+          "--config",
+          "profile.dev.package.motion-desktop.codegen-units=256",
+          "--locked",
+          "--offline",
+          "-j1",
+          "panels::property_followup_tests",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 30.06,
+        "source_unchanged": true,
+        "log_sha256": "837d2d3ab6b1f50a26821d09aadcb5ccb8c4ea4e8b4a16cb1a6c48bf02621d2d"
+      }
+    },
+    {
+      "name": "timeline-regressions",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "receipt": {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--config",
+          "profile.dev.package.motion-desktop.debug=0",
+          "--config",
+          "profile.dev.package.motion-desktop.codegen-units=256",
+          "--locked",
+          "--offline",
+          "-j1",
+          "panels::effect_timeline",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 33.09,
+        "source_unchanged": true,
+        "log_sha256": "03d51e3c22123593ab7acf5e929db4a6eb0bff3e728cfab5db397f1f9aebf462"
+      }
+    }
+  ],
+  "integration_product_head": "6fa4dcf5be7eaa459f65de87d911a06cfce11a96",
+  "integration_base": "7b2aff0cbe04fde81569d6399373b308947dcc3c",
+  "native_build": {
+    "head": "6fa4dcf5be7eaa459f65de87d911a06cfce11a96",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1"
+    ],
+    "exit_code": 0,
+    "seconds": 260.06,
+    "sources": {
+      "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+      "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6"
+    },
+    "source_unchanged": true,
+    "log_sha256": "29d073fc37698825a7afbaec8b473edfab8c7397103e3f509cd9bf21e9f5e908",
+    "binary_sha256": "6a7023c9c764dae10b5dfec3766646df20ad819eb49fe183fa80908b87de4b46"
+  },
+  "native_first_attempt": {
+    "name": "default-en-workspace",
+    "head": "6fa4dcf5be7eaa459f65de87d911a06cfce11a96",
+    "command": [
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native\\motion-studio.exe",
+      "--smoke",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native-ui\\default-en-workspace\\report.json",
+      "--locale",
+      "en",
+      "--project",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native-ui\\default-en-workspace\\project"
+    ],
+    "requested_logical_size": [
+      1600,
+      1000
+    ],
+    "binary_sha256": "6a7023c9c764dae10b5dfec3766646df20ad819eb49fe183fa80908b87de4b46",
+    "passed": false,
+    "cause": "Command '['E:\\\\Dev\\\\aem\\\\.tools\\\\effect-dropdown-keys\\\\native\\\\motion-studio.exe', '--smoke', 'E:\\\\Dev\\\\aem\\\\.tools\\\\effect-dropdown-keys\\\\native-ui\\\\default-en-workspace\\\\report.json', '--locale', 'en', '--project', 'E:\\\\Dev\\\\aem\\\\.tools\\\\effect-dropdown-keys\\\\native-ui\\\\default-en-workspace\\\\project']' timed out after 90.0 seconds",
+    "seconds": 93.28,
+    "source_unchanged": true
+  },
+  "native_first_completed_case": {
+    "name": "default-en-workspace",
+    "head": "6fa4dcf5be7eaa459f65de87d911a06cfce11a96",
+    "binary_sha256": "6a7023c9c764dae10b5dfec3766646df20ad819eb49fe183fa80908b87de4b46",
+    "command": [
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native\\motion-studio.exe",
+      "--smoke",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native-ui-budgeted\\default-en-workspace\\report.json",
+      "--locale",
+      "en",
+      "--project",
+      "E:\\Dev\\aem\\.tools\\effect-dropdown-keys\\native-ui-budgeted\\default-en-workspace\\project"
+    ],
+    "harness_limit_seconds": 240,
+    "reason": "Original 90-second debug harness deadline expired while new screenshots were still being written; same product binary and original verification assertions retained",
+    "requested_logical_size": [
+      1600,
+      1000
+    ],
+    "pid": 47620,
+    "exit_code": 0,
+    "passed": true,
+    "design_screens_verified": true,
+    "design_screen_count": 46,
+    "primary_png_size": [
+      1600,
+      1000
+    ],
+    "seconds": 87.94,
+    "source_unchanged": true
+  },
+  "native_status": "frozen at completion of the first extended-budget case; keep PR draft until the full eight-case matrix completes; final results will be appended to PR body without changing tested product code",
+  "archive": {
+    "file": "effect-dropdown-keys-7bd4d860.zip",
+    "bytes": 3658529,
+    "sha256": "cc9ff4630d1b420ccdb9208d7ee83ca4a1733350131fc4281169bd7355824985",
+    "files": 64
+  }
+}
