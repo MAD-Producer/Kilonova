@@ -170,6 +170,7 @@ pub(crate) struct Controls {
     pub(super) rects: std::collections::HashMap<(u64, String, i32), Rect>,
 }
 impl Controls {
+    pub(super) fn handle_active(&self) -> bool { self.handle.is_some() }
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
         if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
     }
@@ -937,7 +938,9 @@ pub(super) fn update(
             out.push(Action::History(2));
         }
         if drag.begun {
-            let next = (drag.origin as f64 + (point[0] - drag.point[0]) as f64 / ppf as f64)
+            let dx=point[0]-drag.point[0];let dy=point[1]-drag.point[1];
+            let value_only=drag.value_per_pixel!=0. && input.modifiers.shift && dy.abs()>dx.abs() && !input.modifiers.alt;
+            let next = (drag.origin as f64 + if value_only {0.} else {dx as f64 / ppf as f64})
                 .round()
                 .clamp(0., last_frame(state)) as u32;
             if next == drag.current || !drag.occupied.contains(&next) {
@@ -965,7 +968,7 @@ pub(super) fn update(
                     drag.current = next;
                     drag.copied = true;
                 }
-                if drag.value_per_pixel != 0. && !input.modifiers.alt && (!drag.copy || drag.copied)
+                if drag.value_per_pixel != 0. && !input.modifiers.alt && (!input.modifiers.shift || value_only) && (!drag.copy || drag.copied)
                 {
                     if let Some(parameter) = drag.target.parameter(state) {
                         let mut value = drag.value;

@@ -8,6 +8,8 @@ use motion_ui::{
     paint::{PaintList, Pattern, Shape},
     text::TextAtlas,
 };
+#[path = "drag_tests.rs"]
+mod dragging;
 
 fn view(engine: &Engine) -> Value {
     let mut value = state(engine);

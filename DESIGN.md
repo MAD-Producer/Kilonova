@@ -335,6 +335,8 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
 - **Frame values are `f64`, not integers.** Integer frames are the default snapping/rounding unit. `Alt` while trimming disables rounding and allows subframe trimming. `Alt` during segment move disables snapping only, not rounding.
 - Trimming already clamps to `±motion_core::MAX_FRAMES` and enforces a positive segment width; ruler dragging clamps to `[0, total-1]`. **Preserve this behavior.** Readouts must display the actual clamped result, including boundary values, rather than an unapplied input.
 - Snap tolerance comes from `desktop/ui/src/snap.rs`: **8 logical pixels, independent of zoom**. Do not claim universal snapping.
+- Key-body dragging uses `timeline.key.snap_tolerance` (8 logical pixels) for integer-frame targets from the timeline's layer edges, authored keys/references, work area and playhead. The pressed source and current single-key time are excluded; collisions remain subject to the channel's edit rules. The same horizontal input adapter serves ordinary property, mask, vector, effect and audio key lanes. Bézier handles keep their own input path.
+- Dragging an existing member keeps a multi-key selection. The selection previews painted marks locally and submits one guarded atomic command on release; cancellation or stale document/view identity discards the preview. Every selected key shares one time delta; graph value changes affect only the active channel component, preserving other properties' units and relationships. Drag feedback identifies the constrained axis and time/value delta. Single-key lanes retain their existing gesture history.
 - Snap guides appear **only** in three existing timeline drag contexts:
   1. **segment trim** — targets: `0`/`total`, playhead, other layers' in/out/keyframe/reference, work-area bounds; excludes the dragged layer
   2. **segment move** — excludes the moved layer; either edge can snap while the opposite edge preserves `duration`
@@ -359,9 +361,12 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
 | `Alt` | Segment trim | Disable rounding; allow subframes |
 | `Alt` | Segment move | Disable snapping; preserve integer rounding |
 | `Alt` | Keyframe drag | Lock value axis, adjust time only |
+| `Alt` | Key-body snapping | Disable snapping while retaining integer-frame movement |
+| `Shift` | Graph key body | Constrain to the dominant time/value displacement; `Alt` takes precedence |
 | `Alt` | Bézier handle | Unlink opposite handle |
 | `Alt` | Mask/path point | Disable automatic opposing mirroring |
 | `Ctrl` | Keyframe drag | Duplicate rather than move |
+| `Alt+Left/Right` | Selected authored keys | Move the complete selection by one frame; `Shift` changes the step to ten frames. Effective user bindings, text/IME ownership and panel focus still apply. |
 | `Ctrl` | Bézier handle | Lock time component (X unchanged) |
 | `Alt` | Corner/edge scale | Release the uniform constraint; scale the controlled axes independently |
 | `Shift` | Edge scale | Scale uniformly; `Alt` takes precedence |
