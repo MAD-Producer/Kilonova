@@ -1,0 +1,420 @@
+{
+  "base": "6bdb692a7f6878dc8c78742a80561ee28937d145",
+  "product_change": "PaintList::clip_to mapping storage only",
+  "source_before_sha256": "69b6a5cef84b84e4872644d0474450816f5e4b4407441900e46dd7d491a0d806",
+  "source_after_sha256": "e0fa470138fd63547d6ce5a38c538f68e94e5cb3e50b79c152feb0a66e822d30",
+  "shape_clipping_geometry_unchanged_sha256": "a9f2bbddbebdf57b5ccd94591bf73090696ca916df7b23c334bc85300398cf8f",
+  "glyph_clipping_implementation_unchanged": true,
+  "allocation_metrics": [
+    {
+      "case": "256 retained quads",
+      "clips": 20,
+      "before": 20,
+      "after": 0
+    },
+    {
+      "case": "54 contained icons",
+      "clips": 20,
+      "before": 20,
+      "after": 0
+    },
+    {
+      "case": "retained shape and cropped glyph",
+      "clips": 20,
+      "before": 40,
+      "after": 0
+    }
+  ],
+  "new_tests": 2,
+  "raw_buffer_visibility_scenarios": 4096,
+  "negative_control": {
+    "head": "6bdb692a7f6878dc8c78742a80561ee28937d145",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-ui",
+      "--no-default-features",
+      "--test",
+      "paint_clip_buffers",
+      "--locked",
+      "--offline",
+      "-j1",
+      "--",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "seconds": 1.8,
+    "source_unchanged": true,
+    "sha256": "7684a55cf92636969556f9fd5cfaf43a0d8a2d7d359bde93ab9450e440a5d258"
+  },
+  "initial_fixture_failure": {
+    "receipt": {
+      "head": "6bdb692a7f6878dc8c78742a80561ee28937d145",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-ui",
+        "--no-default-features",
+        "--test",
+        "paint_clip_buffers",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 101,
+      "seconds": 66.66,
+      "source_unchanged": true,
+      "sha256": "30ac0704fd5cb62d2aa9b51efdf04d3504197e29720abdc4f1c4db69abb56668"
+    },
+    "classification": "new fixture wrongly assumed a one-pixel rectangle was Quad; production rect uses Procedural at that size; corrected to a two-pixel quad without changing existing assertions",
+    "result": "6 passed; 2 failed; original log and exact initial test source preserved"
+  },
+  "checks": [
+    {
+      "name": "optimized-clip-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-ui",
+        "--no-default-features",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "paint_clip_buffers",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 11.89,
+      "exit_code": 0,
+      "source_unchanged": true,
+      "sha256": "6c5c74ccf2089eb266bc73ff3edf20e24130b75ce3c844c5de3ee067a01adbc4",
+      "results": [
+        [
+          "ok",
+          "8",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "ui-native-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-ui",
+        "--no-default-features",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--features",
+        "gpu-tests",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 96.97,
+      "exit_code": 0,
+      "source_unchanged": true,
+      "sha256": "67f89b1a3b471b4a24dd9547567e619a8aa9cbe44479c5acb27fd102e58714b2",
+      "results": [
+        [
+          "ok",
+          "62",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "10",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "10",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  ],
+  "distinct_native_package_passed": 167,
+  "native_targets": [
+    {
+      "target": "Running unittests src\\lib.rs (E:/Dev/aem/target\\debug\\deps\\motion_ui-c6870f7bd58e43b1.exe)",
+      "passed": 62,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\analytic.rs (E:/Dev/aem/target\\debug\\deps\\analytic-90db7783ed02843a.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\borrowed_input.rs (E:/Dev/aem/target\\debug\\deps\\borrowed_input-ff7df836d5ae495c.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\composites.rs (E:/Dev/aem/target\\debug\\deps\\composites-6dce0e80fe2d0260.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\diamond_bounds.rs (E:/Dev/aem/target\\debug\\deps\\diamond_bounds-88aca82ebc337865.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\dock_constraints.rs (E:/Dev/aem/target\\debug\\deps\\dock_constraints-3816d6bf291d6d51.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\failure_boundaries.rs (E:/Dev/aem/target\\debug\\deps\\failure_boundaries-8e5d4feecf57dc1f.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\framework.rs (E:/Dev/aem/target\\debug\\deps\\framework-f387ad36997b51f8.exe)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\grapheme_editing.rs (E:/Dev/aem/target\\debug\\deps\\grapheme_editing-737b32ccccfbda33.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\icon_geometry.rs (E:/Dev/aem/target\\debug\\deps\\icon_geometry-114e451282d0ec25.exe)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\input_ownership.rs (E:/Dev/aem/target\\debug\\deps\\input_ownership-ffc3e8a2a1002665.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\layer_visibility.rs (E:/Dev/aem/target\\debug\\deps\\layer_visibility-b460ad47b2ae0710.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_clip_buffers.rs (E:/Dev/aem/target\\debug\\deps\\paint_clip_buffers-ccc9a99203bf1ef2.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\paint_observability.rs (E:/Dev/aem/target\\debug\\deps\\paint_observability-7ea78299c892b3a9.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\path_antialiasing.rs (E:/Dev/aem/target\\debug\\deps\\path_antialiasing-3a2437567be628cd.exe)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\retained_text.rs (E:/Dev/aem/target\\debug\\deps\\retained_text-05ba579e6d339174.exe)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\style.rs (E:/Dev/aem/target\\debug\\deps\\style-2b4284240ec84b61.exe)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\tabs.rs (E:/Dev/aem/target\\debug\\deps\\tabs-042ad0b9f9c4e712.exe)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\text_bounds.rs (E:/Dev/aem/target\\debug\\deps\\text_bounds-d937e2ffba8f6b28.exe)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Running tests\\workspace_observability.rs (E:/Dev/aem/target\\debug\\deps\\workspace_observability-471aa3b16c010bbb.exe)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "Doc-tests motion_ui",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "counting": "167 includes the 8 focused cases, 4096 scenarios count as one test, expected negative failures and repeated focused runs are not added; one existing compile_fail doctest is a successful type-boundary check",
+  "branch_audit": {
+    "refs": 404,
+    "worktrees": 112,
+    "paint_variants": 23,
+    "clip_variants": 9,
+    "dirty_overlap": [
+      {
+        "worktree": "E:/Dev/aem/.worktrees/egui-desktop-shell",
+        "status": "M desktop/ui/src/paint.rs",
+        "clip_body_changed": false
+      },
+      {
+        "worktree": "E:/Dev/aem/artifacts/pr-ci-followups/pr475-review",
+        "status": "M  desktop/ui/src/paint.rs",
+        "clip_body_changed": true
+      }
+    ],
+    "disposition": "no lazy index-map implementation found; pr475-review contains already-merged triangle geometry fast path, egui changes are outside clip_to, open PR 484 does not edit either changed file"
+  },
+  "evidence_archive": {
+    "file": "data/paint-clip-index-maps-6bdb692a.zip",
+    "sha256": "2ac6f903b1c0757155025812b46bb9993a946b8d15adb41b8c27d19aa4a4d7c0",
+    "bytes": 360454,
+    "files": 18
+  },
+  "limits": [
+    "only index maps avoided when retained indices are unchanged; geometric clipping and other drawing paths can still allocate",
+    "no new presentation, style, interaction, log point, dependency or asset",
+    "no full-frame allocation or FPS claim; #129 remains open"
+  ]
+}
