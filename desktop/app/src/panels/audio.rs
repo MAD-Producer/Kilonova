@@ -77,6 +77,13 @@ pub(crate) struct Controls {
     drag: Option<Drag>,
 }
 impl Controls {
+    pub(super) fn project_key(&mut self, state: &Value, object: u64, channel: AudioChannel, frame: u32) {
+        self.context=Some((state["root"].as_str().unwrap_or("").into(),state["composition"].as_str().unwrap_or("").into()));
+        self.active_object=Some(object);
+        self.active_control=Some(if channel==AudioChannel::Left {Control::Left}else{Control::Right});
+        self.selection=Some(Selection {object,item:Item::Key(channel),frame});
+        self.selection_intent=true;
+    }
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
         if let Some(field) = &mut self.field { request.visit(&mut field.number.editor.text); }
     }
@@ -840,6 +847,13 @@ fn draw_reference(
         },
         color,
     );
+    if let Item::Key(channel) = selection.item {
+        let styles = list.styles();
+        let hit = styles.metric("graph.selection.hit_radius", 6.);
+        key_selection::ui::mark(list, panels, key_selection::Key {
+            target: motion_core::KeyframeTarget::Audio { object: selection.object, channel }, frame: selection.frame,
+        }, [x, y + height * 0.5], styles.metric("timeline.key.radius", 4.), Rect::new(x-hit,y,hit*2.,height));
+    }
     if clicked(input, Rect::new(x - 6., y, 12., height)) {
         select_reference(selection, enabled, panels, input, out);
     }

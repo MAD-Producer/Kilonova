@@ -282,6 +282,7 @@ impl Harness {
                     .edit(serde_json::to_string(&commands).unwrap())
                     .unwrap(),
                 Action::History(op) => self.engine.history(op).unwrap(),
+                Action::EditorAction {source,commands}=>self.engine.call(|reply|crate::engine::Command::EditorAction {source,commands,reply}).unwrap(),
                 Action::Seek(frame) => self.engine.seek(frame).unwrap(),
                 _ => panic!("unexpected audio action"),
             };

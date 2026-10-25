@@ -30,7 +30,7 @@ fn fixture() -> Engine {
     Engine::new(project).unwrap()
 }
 fn state(engine: &Engine) -> Value {
-    serde_json::json!({"root":"timing-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),
+    serde_json::json!({"root":"timing-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":1,"revision":engine.revision(),
         "project":engine.project(),"timeline_layers":engine.project().timeline_layers(0.).unwrap(),"frame":0})
 }
 fn draw(

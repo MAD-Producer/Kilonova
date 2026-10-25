@@ -4,7 +4,9 @@ use motion_core::{Error, KeyframeSelection, KeyframeTarget, MAX_KEYFRAME_CLIPBOA
 use serde_json::Value;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+mod movement;
 mod source;
+pub(super) mod ui;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Key {
@@ -46,7 +48,7 @@ impl Scope {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Channel {
     target: Option<KeyframeTarget>,
     frames: BTreeSet<u32>,
@@ -62,7 +64,7 @@ impl Channel {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct Set {
     claimed: bool,
     intent: bool,
@@ -330,6 +332,48 @@ pub(super) fn shortcut(
 ) -> bool {
     use crate::shortcuts::Command as Shortcut;
     use motion_ui::dock::Panel;
+    if command == Shortcut::SelectAll
+        && panels.focused == Some(Panel::Timeline)
+        && (panels.selected_keys.owns_keys() || panels.timeline.graph_mode)
+    {
+        if panels.timeline.graph_mode
+            && !panels.animation_controls.foreign_track_selected()
+            && super::graph_box::select_all(panels, state)
+        {
+            if let Some(object) = panels.selected {
+                let property = panels
+                    .animation_controls
+                    .property
+                    .unwrap_or(motion_core::Property::Position);
+                let axis = panels.animation_controls.axis;
+                if let Some(source) = super::animation_data::channel(state, object, property, axis)
+                {
+                    choose(
+                        panels,
+                        state,
+                        source["keys"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|k| k["frame"].as_u64())
+                            .filter(|f| *f as f64 <= super::last_frame(state))
+                            .map(|frame| Key {
+                                target: KeyframeTarget::Property {
+                                    object,
+                                    property,
+                                    axis,
+                                },
+                                frame: frame as u32,
+                            }),
+                        Mode::Replace,
+                    );
+                }
+            }
+            return true;
+        }
+        panels.key_gestures.select_all = true;
+        return true;
+    }
     if !panels.selected_keys.owns_keys() || !super::property_focus::navigation_scope(panels.focused)
     {
         return false;
@@ -338,7 +382,7 @@ pub(super) fn shortcut(
         && matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
     {
         panels.selected_keys.clear(state);
-        panels.animation_controls.clear_key();
+        ui::project_primary(panels, state);
         return true;
     }
     let delete = command == Shortcut::Delete

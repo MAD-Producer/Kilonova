@@ -51,7 +51,7 @@ fn fixture() -> (Engine, Value) {
     (Engine::new(project).unwrap(), catalogue)
 }
 fn state(engine: &Engine) -> Value {
-    serde_json::json!({"root":"effect-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()})
+    serde_json::json!({"root":"effect-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":1,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()})
 }
 fn setup(catalogue: &Value, locale: Locale) -> Panels {
     let mut p = Panels {
@@ -133,6 +133,10 @@ fn run(e: &mut Engine, actions: Vec<Action>) {
             Action::Edit(c) => e.apply(c).unwrap(),
             Action::EditBatch(cs) => {
                 e.apply_batch(cs).unwrap();
+            }
+            Action::EditorAction {source,commands}=>{
+                assert_eq!(source,crate::layer_clipboard::KeyframeSource::of(&state(e)));
+                e.apply_batch(commands).unwrap();
             }
             Action::History(2) => e.begin_gesture().unwrap(),
             Action::History(3) => e.end_gesture(true).unwrap(),
@@ -304,7 +308,10 @@ fn effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform() {
                 &mut atlas,
             );
             assert!(
-                actions.iter().any(|a| matches!(a, Action::EditBatch(_))),
+                actions.iter().any(|a| matches!(a, Action::EditorAction {source,commands}
+                    if *source==crate::layer_clipboard::KeyframeSource::of(&s)
+                        && matches!(commands.as_slice(),[Command::EaseKeyframes {selections,incoming:true,outgoing:true}]
+                            if selections.len()==1&&selections[0].frames==[20]))),
                 "{actions:?}"
             );
             run(&mut e, actions);

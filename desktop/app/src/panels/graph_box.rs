@@ -31,6 +31,7 @@ struct Drag {
     begun: bool,
 }
 impl Controls {
+    pub(super) fn clear_selection(&mut self) {self.selected=false;}
     pub fn has_selection(&self) -> bool {
         self.selected
     }

@@ -286,10 +286,15 @@ pub(in crate::panels) fn render(
                     let fields = layout(styles.as_ref(), area, y, *depth, 0, p.values.len(), host);
                     let navigation = crate::panels::key_navigation::rail(&styles, Rect::new(area.min[0], y, area.width(), height));
                     let lane = Rect::new(track.min[0], y, track.width(), height);
+                    let key_hit = normal.pressed.is_some_and(|(button,point)| lane.contains(point) && (button!=MouseButton::Left ||
+                        p.keys.iter().any(|(f,_)| {
+                            let x=lane.min[0]+((i64::from(*f)+i64::from(row.mask_offset)) as f32-offset)*ppf;
+                            (point[0]-x).hypot(point[1]-(y+height*0.5)) <= styles.metric("graph.handle_radius",4.)+styles.metric("motion.drag_threshold",3.)
+                        })));
                     let hit = normal.pressed.is_some_and(|(_, point)| {
                         navigation.contains(point) || fields.caption.contains(point)
                             || fields.watch.contains(point)
-                            || lane.contains(point)
+                            || key_hit
                             || (0..p.values.len()).any(|a| {
                                 layout(styles.as_ref(), area, y, *depth, a, p.values.len(), host)
                                     .number
@@ -308,6 +313,7 @@ pub(in crate::panels) fn render(
                         *depth, out,
                     );
                     if !panels.timeline.graph_mode {
+                        let lane_input=if normal.pressed.is_some_and(|(b,p)|b==MouseButton::Left && lane.contains(p)) && !key_hit { &neutral } else { normal };
                         panels.path_controls.groups.keys.lane(
                             list,
                             lane,
@@ -319,9 +325,11 @@ pub(in crate::panels) fn render(
                             p,
                             row.mask_offset,
                             locked,
-                            normal,
+                            lane_input,
                             out,
                         );
+                        let target_item=row.vector.as_ref().and_then(|v|matches!(&v.source,VectorSource::Group {..}).then_some(*item));
+                        crate::panels::key_selection::ui::vector_lane(list,panels,state,row.id,target_item,p,row.mask_offset,lane,ppf,offset);
                     }
                 }
                 Entry::Setting(item, s, depth) => {

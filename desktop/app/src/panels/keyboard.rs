@@ -60,6 +60,7 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
         || panels.timeline.work_area_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
+        || panels.key_gestures.active()
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()

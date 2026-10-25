@@ -172,6 +172,13 @@ fn emit(
     }
 }
 impl Controls {
+    pub(in crate::panels) fn project_key(&mut self, state: &Value, object: u64, mask: u64, property: u8, frame: u32) {
+        self.context = Some((state["root"].as_str().unwrap_or("").into(), state["composition"].as_str().unwrap_or("").into(), object));
+        let channel=Channel {object,mask,property};
+        self.active=Some(channel.clone());
+        self.selected=Some((channel,frame));
+        self.selection_intent=true;
+    }
     pub(in crate::panels) fn clipboard_selection(&self, state: &Value, object: u64) -> Option<crate::panels::keyframe_clipboard::Selection> {
         use crate::panels::keyframe_clipboard as clipboard;
         let c = self.active.as_ref().filter(|c| c.object == object)?;
@@ -657,6 +664,7 @@ impl Controls {
             if let Some(frame) = target {
                 at = frame;
                 self.selected = Some((channel.clone(), frame as u32));
+                self.selection_intent = true;
                 out.push(Action::Seek(at));
             }
         }
@@ -1513,7 +1521,7 @@ mod tests {
             panels.timeline.expanded.insert(7);
             panels.timeline.collapsed_transforms.insert(7);
             let mut atlas = TextAtlas::from_system(12.).unwrap();
-            let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"frame":21,"revision":engine.revision(),"project":engine.project()});
+            let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":1,"frame":21,"revision":engine.revision(),"project":engine.project()});
             let layout = Node::dock(Panel::Timeline.dock());
             let top = if floating {
                 30.

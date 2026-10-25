@@ -380,6 +380,23 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 }
                 }
             }
+            let mut channel_times=|source:&Value, domain:&'static str| {
+                let Ok(frames)=observe!("timeline.summary_channel_keys",source["keys"].as_array().ok_or("authored key array missing"),"object={id} domain={domain} phase=summary") else {return;};
+                for (index,key) in frames.iter().enumerate() {
+                    let Ok(time)=observe!("timeline.summary_channel_time",key["frame"].as_i64().and_then(|f|f.checked_add(i64::from(mask_offset))).ok_or("invalid authored key time"),"object={id} domain={domain} index={index} phase=summary") else {continue;};
+                    keys.push(time as f64);
+                }
+            };
+            for effect in l["effects"].as_array().into_iter().flatten() {
+                for parameter in effect["params"].as_object().into_iter().flatten().map(|(_,p)|p) {
+                    if parameter["animatable"]==true && parameter["implemented"]==true {
+                        channel_times(if parameter["curve"].is_object() {&parameter["curve"]} else {&parameter["track"]},"effect");
+                    }
+                }
+            }
+            if l["audio_levels"].is_object() {
+                for channel in ["left","right"] {channel_times(&l["audio_levels"][channel],"audio");}
+            }
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
             let offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0);
@@ -1108,6 +1125,19 @@ pub(super) fn render(
         area.width(),
         (area.max[1] - footer_height - ruler.max[1]).max(0.0),
     );
+    let selection_input=super::key_selection::ui::begin(panels, state, input,
+        Rect::new(track.min[0], body.min[1], track.width(), body.height()),
+        [ppf, offset, panels.timeline.scroll, panels.timeline.graph_y_zoom, panels.timeline.graph_y_offset], out.len());
+    let selection_neutral=Input::default();
+    let input=if selection_input {input} else {out.extend(cancel_interaction(panels)); &selection_neutral};
+    if !graph_mode && super::key_selection::ui::selecting_all(panels) {
+        for row in &rows {
+            match observe!("timeline.selection_all",super::timeline_key_drag::selection_keys(state,row),"object={} phase=select_all",row.id) {
+                Ok(keys)=>super::key_selection::ui::all(panels,keys.into_values().flatten()),
+                Err(error)=>super::key_selection::ui::failed(panels,error),
+            }
+        }
+    }
     if let Some(target) = panels.timeline.reveal_layer.take() {
         if let Some(index) = rows.iter().position(|row| row.id == target) {
             let top = layouts[..index].iter().map(|row| row.len()).sum::<usize>() as f32 * row_height;
@@ -1557,11 +1587,24 @@ pub(super) fn render(
                 }
             }
         }
+        let summary_keys = if !expanded && panels.key_gestures.recording() {
+            observe!("timeline.summary_selection", super::timeline_key_drag::selection_keys(state, row), "object={} phase=capture", row.id).ok()
+        } else if !expanded && panels.selected_keys.owns_keys() {
+            let mut selected = std::collections::BTreeMap::<u32, Vec<super::key_selection::Key>>::new();
+            for selection in panels.selected_keys.selections().into_iter().filter(|s|s.target.object()==row.id) {
+                for frame in selection.frames { selected.entry(frame).or_default().push(super::key_selection::Key { target: selection.target.clone(), frame }); }
+            }
+            Some(selected)
+        } else { None };
         for f in row.keys.iter().filter(|_| !expanded) {
             let x = x_of(*f);
             let radius = styles.metric("timeline.key.radius", 4.);
             if x >= track.min[0] + radius && x < track.max[0] - radius {
                 paint::diamond(list, [x, y + row_height * 0.5], radius, colors.KEYFRAME);
+                if let Some(keys) = summary_keys.as_ref().and_then(|keys|keys.get(&(*f as u32))) {
+                    let hit = styles.metric("timeline.key.hit_radius", 5.);
+                    for key in keys { super::key_selection::ui::mark(list, panels, key.clone(), [x, y + row_height * 0.5], radius, Rect::new(x-hit,y,hit*2.,row_height)); }
+                }
             }
         }
     }
@@ -1576,7 +1619,7 @@ pub(super) fn render(
     super::path_controls::groups::timeline::process(
         list, panels, state, body, ppf, offset, input, out,
     );
-    if !graph_mode && clicked(input, body) && !timeline_hit {
+    if !graph_mode && clicked(input, body) && !timeline_hit && input.mouse[0] < track.min[0] {
         panels.select_only(None);
         panels.properties.field = None;
     }
@@ -1843,6 +1886,7 @@ pub(super) fn render(
         );
     }
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
+    super::key_selection::ui::finish(list, panels, state, input, out);
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
     super::shy_layers::hint(list, atlas, shy_toolbar, &columns, ruler, area, input, locale, panels.timeline.hide_shy);
@@ -2335,6 +2379,11 @@ pub(super) fn render_layer_properties(
                         },
                     );
                     let hit = list.styles().metric("timeline.key.hit_radius", 5.);
+                    super::key_selection::ui::mark(list, panels, super::key_selection::Key {
+                        target: motion_core::KeyframeTarget::Property { object: row.id, property: property.property, axis },
+                        frame: *frame as u32,
+                    }, [x, py + row_height * 0.5], list.styles().metric("timeline.key.radius", 4.),
+                        Rect::new(x - hit, py, hit * 2., row_height));
                     if clicked(input, Rect::new(x - hit, py, hit * 2., row_height)) {
                         super::timeline_key_drag::begin(
                             panels, state, row, frame.clamp(0., total - 1.) as u32,

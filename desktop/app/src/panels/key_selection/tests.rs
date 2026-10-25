@@ -6,6 +6,8 @@ use motion_core::{
 use serde_json::json;
 #[path = "source_tests.rs"]
 mod sources;
+#[path = "ui_tests.rs"]
+mod ui;
 
 fn fixture() -> Engine {
     let mut project = Project::new(640, 360, 30, 120).unwrap();

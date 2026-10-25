@@ -230,6 +230,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.key_gestures.cancel();
     panels.tools.cancel();
     panels.effect_drag.cancel();
     panels.browser.cancel_library_click();
@@ -436,7 +437,9 @@ pub fn chrome(
                 .as_array()
                 .is_some_and(|ls| ls.iter().any(|l| l["id"].as_u64() == Some(id)))
         {
+            let keys = std::mem::take(&mut panels.selected_keys);
             panels.select_only(None);
+            panels.selected_keys = keys;
             out.extend(cancel_interaction(panels));
         }
     }

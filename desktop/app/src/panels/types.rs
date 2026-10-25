@@ -176,6 +176,7 @@ pub struct Panels {
     /// active object.
     pub(crate) selected_layers: Vec<u64>,
     pub(crate) selected_keys: super::key_selection::Set,
+    pub(crate) key_gestures: super::key_selection::ui::Controls,
     pub(crate) selection_anchor: Option<u64>,
     pub(crate) selection_context: Option<(String, String)>,
     pub playing: bool,
@@ -324,7 +325,11 @@ impl Panels {
             if self.selection_context.as_ref().is_some_and(|old|
                 old.0 != root || old.1 != composition) {
                 context_changed = true;
+                // Automatic context changes invalidate authored key identities;
+                // only an explicit layer choice may relinquish their ownership.
+                let keys = std::mem::take(&mut self.selected_keys);
                 self.select_only(None);
+                self.selected_keys = keys;
             }
             if self.selection_context.as_ref().is_none_or(|old|
                 old.0 != root || old.1 != composition) {
