@@ -180,8 +180,10 @@ impl PaintList {
     }
     /// Bound flat UI geometry and adjust cropped glyph UVs to a panel rectangle.
     pub fn clip_to(&mut self, area: Rect) {
-        let mut shape_map = vec![None; self.shapes.len()];
-        let mut glyph_map = vec![None; self.glyphs.len()];
+        let shape_len = self.shapes.len();
+        let glyph_len = self.glyphs.len();
+        let mut shape_map: Option<Vec<Option<usize>>> = None;
+        let mut glyph_map: Option<Vec<Option<usize>>> = None;
         // Keep the old zip truncation for callers that fill the public buffers
         // directly, while retaining their allocations through compaction.
         self.shapes.truncate(self.colors.len());
@@ -237,17 +239,28 @@ impl PaintList {
                 true
             };
             if keep {
-                shape_map[old] = Some(new_shape);
+                // A trailing removal leaves surviving indices unchanged. Build
+                // the identity prefix only when a surviving shape actually moves.
+                if old != new_shape {
+                    let mapping = shape_map.get_or_insert_with(|| {
+                        (0..shape_len).map(|i| (i < new_shape).then_some(i)).collect()
+                    });
+                    mapping[old] = Some(new_shape);
+                }
                 new_shape += 1;
             }
             keep
         });
-        let mut old_color = 0;
-        self.colors.retain(|_| {
-            let keep = shape_map[old_color].is_some();
-            old_color += 1;
-            keep
-        });
+        if let Some(mapping) = &shape_map {
+            let mut old_color = 0;
+            self.colors.retain(|_| {
+                let keep = mapping[old_color].is_some();
+                old_color += 1;
+                keep
+            });
+        } else {
+            self.colors.truncate(self.shapes.len());
+        }
         let mut old_glyph = 0;
         let mut new_glyph = 0;
         self.glyphs.retain_mut(|glyph| {
@@ -257,20 +270,31 @@ impl PaintList {
                 return false;
             };
             *glyph = clipped;
-            glyph_map[old] = Some(new_glyph);
+            if old != new_glyph {
+                let mapping = glyph_map.get_or_insert_with(|| {
+                    (0..glyph_len).map(|i| (i < new_glyph).then_some(i)).collect()
+                });
+                mapping[old] = Some(new_glyph);
+            }
             new_glyph += 1;
             true
         });
+        let shapes = self.shapes.len();
+        let glyphs = self.glyphs.len();
         self.order.retain_mut(|op| {
-            let (index, mapping) = match op {
-                PaintOp::Shape(index) => (index, &shape_map),
-                PaintOp::Glyph(index) => (index, &glyph_map),
+            let (index, mapping, len) = match op {
+                PaintOp::Shape(index) => (index, &shape_map, shapes),
+                PaintOp::Glyph(index) => (index, &glyph_map, glyphs),
             };
-            if let Some(Some(new)) = mapping.get(*index) {
-                *index = *new;
-                true
+            if let Some(mapping) = mapping {
+                if let Some(Some(new)) = mapping.get(*index) {
+                    *index = *new;
+                    true
+                } else {
+                    false
+                }
             } else {
-                false
+                *index < len
             }
         });
     }

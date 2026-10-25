@@ -308,3 +308,77 @@ fn unchanged_glyph_retention_does_not_allocate_an_index_map() {
     assert_eq!(format!("{:?}", list.glyphs), glyphs);
     assert_eq!((list.glyphs.as_ptr(), list.glyphs.capacity()), storage);
 }
+
+#[test]
+fn clips_without_removal_keep_mixed_order_and_crop_uvs_without_allocating() {
+    assert!(allocations(|| { black_box(Box::new(7u64)); }) > 0);
+    let color = Color::rgb(20, 30, 40);
+    let mut list = PaintList::default();
+    paint::rect(&mut list, Rect::new(1., 1., 2., 2.), color);
+    list.push_glyph(Glyph {
+        uv: [0., 0., 1., 1.], atlas_size: Some([64, 64]),
+        position: [-2., 2.], size: [8., 4.], color,
+    });
+    list.colors.push(Color::grey(99));
+    list.order = vec![PaintOp::Glyph(0), PaintOp::Shape(0),
+        PaintOp::Glyph(usize::MAX), PaintOp::Shape(1), PaintOp::Glyph(0)];
+    let pointers = (list.shapes.as_ptr(), list.colors.as_ptr(), list.glyphs.as_ptr(), list.order.as_ptr());
+    let count = allocations(|| {
+        for _ in 0..20 {
+            black_box(&mut list).clip_to(Rect::new(0., 0., 10., 10.));
+        }
+    });
+    println!("20 clips / retained shape and cropped glyph: {count} allocation requests");
+    assert_eq!(count, 0, "unchanged paint indices need no temporary maps");
+    assert_eq!(list.colors, vec![color]);
+    assert_eq!(list.order, vec![PaintOp::Glyph(0), PaintOp::Shape(0), PaintOp::Glyph(0)]);
+    assert_eq!(list.glyphs[0].position, [0., 2.]);
+    assert_eq!(list.glyphs[0].size, [6., 4.]);
+    assert_eq!(list.glyphs[0].uv, [0.25, 0., 1., 1.]);
+    assert_eq!(list.glyphs[0].atlas_size, Some([64, 64]));
+    assert_eq!((list.shapes.as_ptr(), list.colors.as_ptr(), list.glyphs.as_ptr(), list.order.as_ptr()), pointers);
+}
+
+#[test]
+fn every_removal_position_preserves_visible_command_identity_with_raw_buffers() {
+    let color = |glyph: bool, index: usize| Color::rgb(if glyph { 101 + index as u8 } else { 1 + index as u8 }, 0, 0);
+    let order = vec![PaintOp::Glyph(4), PaintOp::Shape(3), PaintOp::Shape(0),
+        PaintOp::Glyph(1), PaintOp::Shape(4), PaintOp::Glyph(0), PaintOp::Shape(1),
+        PaintOp::Glyph(3), PaintOp::Shape(2), PaintOp::Glyph(2), PaintOp::Shape(0),
+        PaintOp::Glyph(4), PaintOp::Shape(5), PaintOp::Glyph(5),
+        PaintOp::Shape(usize::MAX), PaintOp::Glyph(usize::MAX)];
+    for shape_bits in 0..32 {
+        for glyph_bits in 0..32 {
+            for color_count in [0, 2, 5, 7] {
+                let mut list = PaintList::default();
+                for i in 0..5 {
+                    let x = if shape_bits & (1 << i) != 0 { 1. + i as f32 } else { 20. + i as f32 };
+                    paint::rect(&mut list, Rect::new(x, 1., 2., 2.), color(false, i));
+                    let x = if glyph_bits & (1 << i) != 0 { 1. + i as f32 } else { 20. + i as f32 };
+                    list.push_glyph(Glyph { uv: [0., 0., 1., 1.], atlas_size: None,
+                        position: [x, 4.], size: [1.; 2], color: color(true, i) });
+                }
+                list.colors = (0..color_count).map(|i| color(false, i)).collect();
+                list.order = order.clone();
+                let expected: Vec<_> = order.iter().filter_map(|op| {
+                    let (glyph, i, y) = match *op {
+                        PaintOp::Shape(i) if i < 5 && i < color_count && shape_bits & (1 << i) != 0 => (false, i, 1.),
+                        PaintOp::Glyph(i) if i < 5 && glyph_bits & (1 << i) != 0 => (true, i, 4.),
+                        _ => return None,
+                    };
+                    Some((color(glyph, i), [1. + i as f32, y]))
+                }).collect();
+                list.clip_to(Rect::new(0., 0., 10., 10.));
+                let actual: Vec<_> = list.order.iter().map(|op| match *op {
+                    PaintOp::Shape(i) => {
+                        let Shape::Quad { points } = &list.shapes[i] else { panic!("visible unit quad changed representation") };
+                        (list.colors[i], points[0])
+                    }
+                    PaintOp::Glyph(i) => (list.glyphs[i].color, list.glyphs[i].position),
+                }).collect();
+                assert_eq!(actual, expected, "shape_bits={shape_bits} glyph_bits={glyph_bits} colors={color_count}");
+                assert_eq!(list.shapes.len(), list.colors.len());
+            }
+        }
+    }
+}
