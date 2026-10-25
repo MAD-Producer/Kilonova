@@ -18,7 +18,7 @@ was reviewed and no subagent was used.
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
-| 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
+| 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial; end-to-end costs and final integrated scheduling acceptance remain unfinished |
 | 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Complete final desktop integration/CI; extending the retired Android/GLES packed ABI is excluded by user instruction |
 | 78-R9 failures / observation | Typed cycle, precision mismatch and pass-budget failures now traverse the actual worker and default file/Error stderr channels with request/origin/timing context, stdout isolation, original GPU pixels and same-renderer recovery; earlier compiler/private-data faults remain covered | Confirm the complete final source in G integration and cross-platform desktop CI |
 | 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Measure end-to-end shader/compile/pass/frame/peak costs; hash counters are not frame timing or unique driver allocation measurements |
@@ -654,3 +654,68 @@ bounded parallel CPU preparation, measured end-to-end costs and final integrated
 regression/cross-platform CI. G must run on the aligned final source. All Android
 implementation and acceptance remain excluded by explicit user instruction.
 Issue #78 stays open; the following order remains #74 then #87.
+
+
+## Bounded parallel vector CPU preparation after the main rebase
+
+Pure vector tessellation is now separated from the native effect/draw loop.
+Per-layer sampling density is calculated once and consumed by both preparation
+and effect planning. At most four jobs execute in a scoped batch, including the
+calling thread; the default limit is capped by available parallelism. Only pure
+CPU geometry runs on these threads. Device, queue, command encoder, physical
+placement and GPU submission keep their existing owner.
+
+Each job uses the batch's remaining vertex limit, which is never greater than
+262,144. Both pending jobs and completed results are bounded before cache
+admission. The owner drains prepared geometry and cache hits in scene order and
+charges the existing frame-wide vertex limit before inserting a new mesh. A
+rejected result and later speculative results never enter the cache. Earlier
+valid meshes remain admitted when a later geometry or setup operation fails.
+All workers are joined before resuming an original panic payload; panics are not
+converted into successful geometry. Worker launch failures retain their IO cause
+and frame context. No retry, worker restart or hot-path file logging was added.
+
+`PlanBuilder::cpu_preparation_info()` reports per-build job/cache counts, the
+largest batch and logical pending vertex bytes. The last field explicitly
+excludes cached geometry, Lyon temporary buffers, allocator overhead and GPU
+memory; it is not a process or driver peak measurement. Cache-only builds launch
+no workers and reuse the existing vertex Arcs. Mask and scene-generator state
+remain serial. Moving vector preparation ahead of effect lowering can change
+which malformed operation fails first across different preparation categories;
+valid composition order and per-vector cache/budget admission stay unchanged.
+
+New controlled tests prove actual overlapping entry before release, ordered
+results, a four-job cap, joining on panic with the original payload, exact
+serial/parallel geometry/paint/fingerprint equivalence, zero warm tessellations,
+ordered global-budget refusal without speculative cache insertion, and recovery
+from real setup/geometry failures. Existing assertions were not modified.
+Retained v1 failed compilation because viewport dimensions still used by later
+budget checks were accidentally removed during extraction. Restoring those
+variables produced the accepted source; the failed attempt remains archived.
+
+| Targeted gate | Actual result |
+| --- | --- |
+| `render-cpu` | 5 passed; zero failed/ignored |
+| `render-vector-budget` | 1 passed; zero failed/ignored |
+| `desktop-check` | Passed |
+| `render-library` | 243 passed; zero failed/ignored |
+| `render-native` | 36 passed; zero failed/ignored |
+
+There are 279 distinct tests in the complete render-library
+and selected native scopes. The first six focused tests are also in the library
+scope and are not counted twice. All 121 Rust/Cargo hashes
+stayed unchanged during the gates. The native scope covers prepared resources,
+preview memory, runtime execution templates, typed snapshots, vector adjustment,
+budget alignment, actual error boundaries, groups and upload reuse. The desktop
+FFmpeg check also passed. No panels, styles, UI behavior, dependencies, assets or
+Android source were changed.
+
+The [verified preparation checkpoint](data/typed-render-dag-cpu-prepare-50291554.zip) retains
+both attempts, actual stdout/stderr, source snapshots, controllers and the patch.
+Size: 1,355,299 bytes; 265 files plus manifest. SHA-256:
+`f8d70f39288bb323daa5ba9886f5436d475b1025e8d1fde00f390c4c37475cfb`. Every entry was read back and checked against its hash.
+
+This is a targeted checkpoint, not G. Initial semantic ownership before all CPU
+work, typed external imports, full end-to-end shader/compile/pass/frame/physical
+peak measurements and final integrated cross-platform desktop CI remain open.
+All Android implementation and acceptance remain excluded.

@@ -23,6 +23,8 @@ mod execution_fault;
 #[doc(hidden)]
 pub use execution_fault::ExecutionDiagnosticFault;
 mod runtime_template;
+mod cpu_prepare;
+pub use cpu_prepare::CpuPreparationInfo;
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
@@ -486,6 +488,7 @@ pub struct PlanBuilder {
         ),
     >,
     mask_cache: crate::mask_plan::MaskCache,
+    cpu_preparation: CpuPreparationInfo,
     preview_inputs: Option<crate::effect_plan_cache::PreviewInputs>,
     pass_clocks: Vec<Option<usize>>,
     pub preview_cache_hits: u64,
@@ -775,6 +778,7 @@ impl PlanBuilder {
             generator_scratch: Default::default(),
             vector_cache: Default::default(),
             mask_cache: Default::default(),
+            cpu_preparation: CpuPreparationInfo { worker_limit: cpu_prepare::default_worker_limit(), ..Default::default() },
             scratch_budget: motion_effects::SCRATCH_BUDGET_FLOOR,
             source_texture_budget: crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET,
             decoded_image_budget: crate::resource_policy::DEFAULT_DECODED_IMAGE_BUDGET,
@@ -1081,7 +1085,7 @@ impl PlanBuilder {
         self.frame.scratch_outputs.clear();
         self.frame.draws.clear();
         self.frame.vectors.clear();
-        let mut vector_remaining = crate::vector_mesh::MAX_TRIANGLE_VERTICES;
+        self.cpu_preparation = CpuPreparationInfo { worker_limit: self.cpu_preparation.worker_limit, ..Default::default() };
         self.vector_cache.retain(|id, _| {
             scene
                 .layers
@@ -1153,6 +1157,7 @@ impl PlanBuilder {
             .min(height as f32 / scene.height as f32)
             .min(1.0)
             .max(0.001);
+        let layer_scales = self.layer_scales(scene, [width, height], scale, preview);
         let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
             [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.frame.masks=self.mask_cache.build(scene,scale,preview)?;
@@ -1168,81 +1173,9 @@ impl PlanBuilder {
             .filter_map(|e| match e.image_input {Some(motion_model::EffectImageInput::Layer{layer,stage:motion_model::EffectImageStage::Effects})=>Some(layer),_=>None})
             .chain(scene.layers.iter().filter_map(|l|l.track_matte.map(|m|m.source)))
             .chain(materialize.iter().copied()).collect();
-        let image_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled)
-            .filter_map(|e|e.image_input.and_then(motion_model::EffectImageInput::layer)).collect();
+        self.prepare_vectors(scene, [width, height], &layer_scales)?;
         for (layer_index, layer) in scene.layers.iter().enumerate() {
-            let scale = if preview && !layer.adjustment && !layer.composition && !image_sources.contains(&layer.id)
-                && !scene.effects.iter().enumerate().any(|(i, e)| {
-                    e.layer == layer.id && e.enabled && self.resolved[i].as_ref().is_some_and(|r| {
-                        r.definition.renderer != motion_effects::RendererKind::Image
-                    })
-                })
-            {
-                crate::quality::preview_layer_scale(layer, scene.width, scene.height, scale)
-            } else {
-                scale
-            };
-            let image_effects_only = !layer.adjustment && !layer.composition
-                && scene.effects.iter().enumerate().filter(|(_, e)| e.layer == layer.id && e.enabled)
-                    .all(|(i, _)| self.resolved[i].as_ref().is_some_and(|r|
-                        r.definition.renderer == motion_effects::RendererKind::Image));
-            let scale = if image_effects_only && scene.effects.iter().any(|e|e.layer==layer.id&&e.enabled) {
-                crate::quality::magnified_effect_scale(layer, [viewport_width, viewport_height], scale)
-            } else { scale };
-            if let Some(vector) = &layer.vector {
-                let scale = crate::raster_density::vector_scale(layer, width, height, scale)?;
-                let dirty = self
-                    .vector_cache
-                    .get(&layer.id)
-                    .is_none_or(|(v, s, r, mesh)| v != vector || *s != layer.size || *r != scale
-                        || mesh.origin != [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
-                            layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5]);
-                if dirty {
-                    let origin = [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
-                        layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5];
-                    let (w, h) = (
-                        (layer.size[0] * scale).ceil() as u32,
-                        (layer.size[1] * scale).ceil() as u32,
-                    );
-                    if w > self.device_dimension || h > self.device_dimension {
-                        let rejection = ResourceRejection::TextureDimensions { width: w, height: h, max_dimension: self.device_dimension };
-                        self.last_resource_rejection = Some(rejection);
-                        return Err(RenderError::Resource { rejection, message: format!(
-                            "layer {}: vector raster exceeds device dimensions",
-                            layer.id
-                        ) });
-                    }
-                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|cause| {
-                            let message = format!("layer {}, vector rasterize at frame {}: {cause}", layer.id, scene.frame);
-                            RenderError::from(cause).with_diagnostic(message)
-                        })?;
-                    use std::hash::{Hash, Hasher};
-                    let mut hash = std::collections::hash_map::DefaultHasher::new();
-                    bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);
-                    bytemuck::cast_slice::<_, u8>(&geometry.commands).hash(&mut hash);
-                    geometry.root_opacity.to_bits().hash(&mut hash);
-                    w.hash(&mut hash);
-                    h.hash(&mut hash);
-                    let mesh = crate::vector_mesh::VectorMesh {
-                        layer: layer_index,
-                        width: w,
-                        height: h,
-                        fingerprint: hash.finish(),
-                        vertices: Arc::new(geometry.vertices),
-                        commands: Arc::new(geometry.commands),
-                        root_opacity: geometry.root_opacity,
-                        origin,
-                    };
-                    self.vector_cache
-                        .insert(layer.id, (vector.clone(), layer.size, scale, mesh));
-                }
-                let mut mesh = self.vector_cache[&layer.id].3.clone();
-                vector_remaining = vector_remaining.checked_sub(mesh.vertices.len())
-                    .ok_or("frame vector vertex limit exceeded (262144)")?;
-                mesh.layer = layer_index;
-                self.frame.vectors.push(mesh);
-            }
+            let scale = layer_scales[layer_index];
             let asset = assets
                 .iter()
                 .position(|id| *id == layer.asset.unwrap_or(0))
