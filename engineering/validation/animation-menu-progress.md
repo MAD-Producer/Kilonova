@@ -1,17 +1,17 @@
 # #250 动画菜单：实现与验收进度
 
-本工作独立保存在 `feat/animation-actions`，现已同步包含主线精度设置的父级提交 `dcabd524`，功能提交为 `416ce406`。不包含于已合并的 #484／#488，也未创建本功能 PR；下述新证据明确对应 `416ce406`，不冒称新 main 的发行包验收。
+本工作独立保存在 `feat/animation-actions`，当前基于 main `7bd4d860`，功能补丁重接为 `929f2ce4`，本轮普通构建来源为 `78b43ff0`。不包含于已合并的 #484／#488；下文区分旧提交与当前组合证据，程序均为本地 FFmpeg 构建，不冒称官方发行包验收。
 
 ## 实现与边界
 
 | 项目 | 当前处置 | 证据／限制 |
 |---|---|---|
 | AM-01 插值编辑 | 新增类型化 `KeyframeInterpolation`；完整预检所选通道／帧后修改 ease 与自定义曲线元数据，保留时间、值和空间手柄 | 核心实际事务、保存重开、撤销重做和拒绝不变性测试；不等于已实现 #216 的新多选交互 |
-| AM-02 菜单与快捷键 | 复用既有加减 key、删除及 F9 三类缓动的规划；线性／保持使用当前属性选区，行文显示关键帧数量 | 命令级比较中英文／主窗与浮窗路由；英文主窗与中文原生浮窗的实际属性选择、插值和 F9 已验证；加减 key 的完整键盘回归仍未通过 |
+| AM-02 菜单与快捷键 | 复用既有加减 key、删除及 F9 三类缓动的规划；线性／保持使用当前属性选区，行文显示关键帧数量 | 命令级比较中英文／主窗与浮窗路由；当前组合的英文主窗与中文原生浮窗均验证菜单与加减 key 快捷键、插值及 F9；完整工程与单步历史一致 |
 | AM-03 图层序列 | 按可见堆叠顺序拼接选中图层，保留第一层起点及源偏移关系，整批一个撤销项 | 仅支持既有模型的整帧位移；锁定、缺失或分数位移整批禁用。反向时间因缺少重映射能力明确禁用 |
 | AM-04 过期提交 | 菜单冻结工程、合成、代际、修订、选层、属性／关键帧及焦点；类型化 `EditorAction` 在工作线程再次检查身份 | 新内部协议：过期返回当前快照及 `editorAction.cancelled/context_changed`，归类正常取消；不修改原 Edit/respond 语义 |
 | AM-05 错误信道 | `KeyframeEdit` 保留操作、对象、通道与原始错误；通道上下文有长度限制，帧只列前八个及总数。新动作复用既有 worker 在途、Info start 和错误处理 | 无新增降级计数器、重试、重启或 Present 热路径日志；实际错误仍通过已有回复信道显示 |
-| AM-06 原生输入 | 英文主窗的序列菜单及 Ctrl+Z、两种语言窗口的插值／缓动和取消矩阵已实际通过 | 加减 key 探针的快捷键／撤销仍未通过，不能关闭 #250 |
+| AM-06 原生输入 | 英文主窗的序列菜单及 Ctrl+Z、两种语言窗口的插值／缓动和取消矩阵已实际通过 | 当前普通构建的加减 key、撤销、后台修订取消与独立进程重开已验证；PR 组合 CI 尚待通过 |
 
 ## 已完成验证
 
@@ -38,7 +38,30 @@
 - 第一轮交互探针中窗口发生最小化／恢复，出现 `invalid composition viewport`，仍缺少该独立问题的受控复现和修复证明。后续使用新测试场景验证常规输入，未在产品中添加重启；不将这些场景冒充最小化恢复通过。
 - `animation-os-main-en-fresh.log` 的探针步骤未提供关闭动作，驱动因 `StopIteration` 退出；后续完整步骤均明确关闭。`animation-os-main-en-final/` 虽退出 0，但输入没有选择到期望属性，插值／缓动没有产生工程修改，**不记为这些功能的成功证据**。需根据实际行几何修正驱动并保留原状态断言。
 - `animation-main-sync-toggle-en/` 的加减 key 探针发生非预期图层重排；带逐步截图的 `animation-main-sync-toggle-en-observed/` 中，菜单删除位置 key 和添加缩放 key 符合预期，但随后 Ctrl+Z 与 Alt+Shift 组合没有改变工程，仍需受控定位输入／焦点原因。保留全部状态、截图和日志，不将第二轮记为完整成功，也不据此改生产返回值或断言。
-- 待完成：加减 key 快捷键／撤销的原生焦点问题、中文对应验证、实际过期菜单场景和本功能组合 CI；完成后再提交 PR。#250 仍开放。
+- 上述旧探针的未响应现象未受控复现，不宣称实施过时序或焦点修复。临时诊断与移除诊断后的当前普通构建结果见下节。剩余交付门禁为本功能 PR 的完整 CI；#250 在合入前保持开放。
+
+## 当前 main 组合：普通构建与完整原生矩阵
+
+基于 `7bd4d860` 重接两个本分支提交，没有修改渲染主线或其他工作树。`animation-current-main-build.log` 的带 FFmpeg 编译通过；`animation-current-main-desktop.log` 的 16 项动画测试通过（43.72s），`animation-current-main-core.log` 的关键帧剪贴板 21 项通过（9.01s）。默认 INFO 真实故障输出保存在 `animation-current-main-error-output/`，仍覆盖三种原始错误、两类旧身份取消和健康恢复。测试组存在重叠，不相加声称独立总数。
+
+临时诊断只在本地加入原生键与面板路由记录，原始补丁为 `animation-shortcut-probe.patch`。首个编译命令误将二进制名当成包名而失败，保留 `animation-shortcut-probe-build.log`；正确包名 `motion-desktop` 的构建通过。在 `animation-shortcut-probe-en/` 中按键、修饰键与路由均正常，菜单和快捷键、单步撤销均通过。随后完整移除两处临时记录，再从最新主线重建并运行以下验收；临时日志不进入产品提交，也不作为普通构建通过的替代证据。
+
+`animation-current-main-os-en/` 与 `animation-current-main-os-zh-float/` 来源都是 `78b43ff0`，均使用真实 Win32 鼠标／键盘与只含系统目录的 PATH，窗口及输入焦点归属均校验。中英文各完成：
+
+| 场景 | 完整工程／修订断言 |
+|---|---|
+| 属性保持插值、菜单缓动、F9 | 保持只修改位置属性的三个 key；菜单缓动与 F9 工程完全相同，仅相邻曲线元数据变化；每次一次撤销还原 |
+| 加减 key | 菜单删除第 10 帧位置 key 与真实 Alt+Shift+P 结果相同；菜单添加第 10 帧缩放 key 与真实 Alt+Shift+S 结果相同；每次一次撤销，其他字段不变 |
+| 取消 | Esc 和外部点击不改变工程和修订 |
+| 后台修订 | 菜单打开后通过真实 MCP 修订检查命令重命名图层 9；旧菜单随修订失效，点击旧入口不添加插值编辑，工程只保留重命名 |
+| 保存重开 | 实际 Ctrl+S 后退出 0；同一程序在独立进程重开，完整工程与保存时相同 |
+| 默认输出 | EditorAction 的四次 Info start 入文件；stdout 全为 JSON-RPC，无编辑器 Error，原 Epic Overlay loader 错误保留；普通构建日志不含临时探针 |
+
+完整验证器为 `verify-animation-current-main-os.py`，输出为 `animation-current-main-os-verification.log` 与 `animation-current-main-os-summary.json`。当前两次验证均通过。场景固定为 100% DPI、英文主窗 1280×850、中文主窗 1280×850 加 1100×450 原生时间轴浮窗；不覆盖真实 IME、系统 150% DPI 或先前最小化恢复异常。原生探针在选择步骤增加逐步截图以确认实际输入上下文，未修改产品逻辑、既有断言、超时、重试或重启策略。
+
+可复现步骤：将 [fixture.json](animation-menu/fixture.json) 复制为临时工程目录下的 `project.json`，使用 `motion-studio --project <临时目录> --locale en` 启动；展开 Position study → Transform，选择 Position 属性，依次验证表中保持／缓动、撤销以及第 10 帧的加减 key。切换 `--locale zh` 并浮出时间轴后重复。MCP 修订场景使用 `--mcp-ui`，菜单打开后通过 `motion_edit` 的 `expectedRevision` 提交 `[{"op":"rename","object":9,"name":"Concurrent revision check"}]`，再点击旧菜单位置，工程只应保留重命名。默认输出与强制故障的自动复现命令为 `cargo test -p motion-desktop --features ffmpeg animation_ -- --test-threads=1`；核心事务为 `cargo test -p motion-core --test keyframe_clipboard -- --test-threads=1`。
+
+实际截图及来源哈希见 [captures.json](animation-menu/captures.json)：[英文属性菜单](animation-menu/en-property-menu.png)、[中文关键帧菜单](animation-menu/zh-key-menu.png)、[中文原生时间轴浮窗](animation-menu/zh-timeline-float.png)。本 PR 不修改右键菜单，也未实现 #216 的新多选交互。
 
 ## 设计与观测核对
 
