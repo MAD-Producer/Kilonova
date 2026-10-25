@@ -505,7 +505,7 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
             ));
         }
         if job.kind == Kind::Compile {
-            let result = job.snapshot.compile_preview().map_err(|e| e.diagnostic());
+            let result = job.snapshot.compile_preview_runtime().map_err(|e| e.diagnostic());
             return Ok(match result {
                 Err(error) => Outcome::Compiled(Err(error)),
                 Ok(_) if cancelled() => Outcome::Cancelled,
@@ -513,7 +513,7 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
                     let canonical = if job.snapshot.layer_target.is_some()
                         && job.snapshot.preview_target.is_some()
                     {
-                        Some(job.snapshot.compile().map_err(|e| e.diagnostic())?)
+                        Some(job.snapshot.compile_runtime().map_err(|e| e.diagnostic())?)
                     } else {
                         None
                     };
@@ -612,6 +612,42 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
 mod tests {
     use super::*;
     use crate::node_editor::Request;
+    #[test]
+    fn live_compiler_worker_changes_private_data_without_changing_baked_compile_contract() {
+        use motion_graph::{Node, NodeOp, Connection};
+        let mut graph = motion_graph::demo_graph();
+        graph.public_parameters.clear();
+        graph.nodes = vec![Node::new("color", NodeOp::Color { value: [0.1,0.3,0.8,0.5] }), Node::new("output", NodeOp::ColorOutput)];
+        graph.connections = vec![Connection::new("color", "value", "output", "color")];
+        let mut editor = NodeEditor::new(graph);
+        let mut tasks = NodeTasks::start().unwrap();
+        fn compile(tasks: &mut NodeTasks, editor: &mut NodeEditor) -> ReadyPreview {
+            tasks.submit(editor.request(Request::Compile).unwrap(), Locale::En, false).unwrap();
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+            loop {
+                assert!(std::time::Instant::now() < deadline);
+                let (_, mut ready) = tasks.poll(editor, Locale::En);
+                if let Some(ready) = ready.pop() {
+                    assert!(editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report.clone())));
+                    return ready;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+        let baked = editor.snapshot().compile().unwrap().source;
+        let first = compile(&mut tasks, &mut editor);
+        assert!(first.compiled.manifest.effects[0].shader_data.is_some());
+        editor.set_constant("color", 0, 0.9).unwrap();
+        let second = compile(&mut tasks, &mut editor);
+        assert_ne!(baked, editor.snapshot().compile().unwrap().source);
+        assert_eq!(first.compiled.source, second.compiled.source);
+        assert_eq!(first.compiled.shader.wgsl, second.compiled.shader.wgsl);
+        assert_ne!(first.compiled.manifest.effects[0].shader_data, second.compiled.manifest.effects[0].shader_data);
+        assert!(editor.undo());
+        let restored = compile(&mut tasks, &mut editor);
+        assert_eq!(first.compiled.manifest.effects[0].shader_data, restored.compiled.manifest.effects[0].shader_data);
+        assert_eq!(baked, editor.snapshot().compile().unwrap().source);
+    }
     #[test]
     fn background_compile_returns_owned_cpu_work_for_renderer_validation() {
         let mut editor = NodeEditor::default();

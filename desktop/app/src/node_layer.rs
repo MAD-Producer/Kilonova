@@ -81,13 +81,13 @@ pub fn package(compiled: &CompiledGraph, target: &Target) -> Result<Vec<u8>, Str
         )
     );
     manifest.version = "0.0.0".into();
-    let neutral = motion_graph::compiled_package_bytes(&manifest, &compiled.source)
+    let neutral = compiled.package_bytes(&manifest)
         .map_err(|e| e.to_string())?;
     let fingerprint = motion_effects::EffectPackage::from_bytes(neutral)
         .map_err(|e| e.to_string())?
         .hash;
     manifest.version = format!("0.0.0+{}", &fingerprint[..16]);
-    motion_graph::compiled_package_bytes(&manifest, &compiled.source).map_err(|e| e.to_string())
+    compiled.package_bytes(&manifest).map_err(|e| e.to_string())
 }
 fn check<'a>(
     s: &'a motion_host::Session,

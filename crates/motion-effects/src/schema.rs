@@ -326,6 +326,8 @@ pub struct EffectDefinition {
     pub english_name: String,
     pub category: String,
     pub params: Vec<ParamDefinition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shader_data: Option<crate::shader_data::ShaderData>,
     pub passes: Vec<PassDefinition>,
     #[serde(default)]
     pub resources: Vec<String>,
@@ -437,6 +439,13 @@ impl PluginManifest {
                     && e.params.len() <= 30 && e.resources.len() == 1,
                     "image inputs require SDK 6, an image effect, a resource texture and two reserved parameter slots")?;
             }
+            let has_shader_data = e.required_capabilities.iter()
+                .any(|c| c == crate::shader_data::SHADER_DATA_CAPABILITY);
+            ensure(has_shader_data == e.shader_data.is_some(),
+                "shader_data_v1 capability and shader data declaration must agree")?;
+            ensure(!has_shader_data || self.sdk_version >= 6,
+                "shader data requires SDK 6 binding semantics")?;
+            if let Some(data) = &e.shader_data { data.validate(e)?; }
             if let Some(editor) = &e.editor {
                 ensure(self.sdk_version >= 2, "plugin editors require SDK 2")?;
                 editor.validate()?;
@@ -623,6 +632,7 @@ impl PluginManifest {
                         "particle_birth_history",
                         "native_plugin_editor",
                         "image_input",
+                        crate::shader_data::SHADER_DATA_CAPABILITY,
                     ]
                     .contains(&cap.as_str()),
                     format!("unsupported host capability: {cap}"),

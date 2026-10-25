@@ -9,9 +9,10 @@ mod export;
 mod groups;
 mod input_defaults;
 mod ports;
+mod runtime_data;
 pub use blend::ColorBlendMode;
 pub use compiler::{
-    compile, compile_preview, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
+    compile, compile_editable, compile_preview, compile_preview_editable, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
     NodePorts, ValidationReport,
 };
 pub use demo::demo_graph;

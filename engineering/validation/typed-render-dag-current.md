@@ -3,8 +3,10 @@
 Issue #78 is **in progress**, followed by #74 and #87. This is a partial
 implementation record, not an issue-closure claim. The initial foundation was
 based on `40efcd35`, then integrated with #73 at `ebb983c0`; the foundation
-commit is `6fdc5f1d`. PR #491 still needs its final Windows check at the time
-of this record. No other agent's PR diff was reviewed and no subagent was used.
+commit is `6fdc5f1d`; the native snapshot milestone is `7fe37354`. PR #491
+passed all required checks and merged as `7bd4d860`, with its actual merge
+subject/body verified in Chinese and issue #73 closed. No other agent's PR diff
+was reviewed and no subagent was used.
 
 ## Requirements and actual coverage
 
@@ -14,10 +16,10 @@ of this record. No other agent's PR diff was reviewed and no subagent was used.
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
 | 78-R3 checked topology and lifetime | Iterative bounded topology/cycle checks, unique producers, exact edge types, explicit terminal consumers, lifetimes and cost limits | Use the complete execution IR for all operation scheduling and grouping; current native use is atomic effected snapshots |
 | 78-R4 actual shared upstream work | Four native precisions times two stack orders: actual encoded/copy trace has exactly one entry for each of three snapshots, including their shared upstream; exact pixels across stack orders | Extend to complete effect-level branch/merge scheduling and retained boundary cases |
-| 78-R5 numeric data / code identity | Numeric effect changes keep actual shader code identities; adding a pass changes only the affected atomic draw's identity | Editable `.msgraph` literals are still embedded in WGSL; no end-to-end no-recompile claim for graph edits yet |
+| 78-R5 numeric data / code identity | Numeric effect changes keep actual shader identities; editable literals/defaults/folded results now use private data in the actual live compiler worker; actual uniform/overflow pixels match baked code | Per-instance updates, bounded compiler reuse and native/preview pipeline reuse with actual counters remain unfinished; unchanged code is not a no-recompile result |
 | 78-R6 proven grouping | #73 implementation-bound opt-in proof is present; its seven native tests and procedural alpha guard pass through the new scheduler | Connect grouping decisions to the complete IR and preserve all proven refusal boundaries |
 | 78-R7 CPU / GPU scheduling | Native snapshots keep the same GPU owner, command encoder and atomic scratch allocator; no new per-node device or submit | Bounded parallel CPU preparation and measurements remain unfinished |
-| 78-R8 runtime version / capabilities | Logical graph version/capabilities validate; actual native snapshot consumer refuses missing ImageDagV1 and insufficient node budget with typed causes | Versioned packaged execution plan and real portable consumer acceptance/refusal remain unfinished |
+| 78-R8 runtime version / capabilities | Logical graph version/capabilities validate; native snapshot consumer refuses missing ImageDagV1 and insufficient budget; actual package loader refuses invalid numeric-data versions/capabilities/capacities/payloads | Versioned packaged execution plan and real portable execution-IR consumer acceptance/refusal remain unfinished |
 | 78-R9 failures / observation | Original typed graph errors survive renderer context; cycle diagnostics identify bounded actual layer IDs; success after each refusal is checked | Exercise new graph failures through default production file/Error-stderr logging and stdout isolation |
 | 78-R10 performance / admission | Existing physical scratch/source admission stays authoritative; logical graph caps are additional and bounded | Measure end-to-end shader/compile/pass/frame/peak costs, including per-frame code identity hashing; no performance improvement is claimed |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
@@ -81,3 +83,37 @@ historical source scope; subsequent implementation is not attributed to them.
 All acceptance runs kept their source unchanged. No existing assertion or pixel
 bound was weakened. This is targeted affected-path evidence, not a full desktop,
 workspace, portable-runtime, cross-adapter or issue-completion result.
+
+## Editable numeric data milestone
+
+The [numeric data contract](../host-api/editable-graph-data.md) documents the
+actual live worker routing, separate baked compilation API, uniform tail and
+bounded f32 byte-container overflow. Independent preview and native effects
+consume those values; private data adds no public controls. The package loader
+checks capability/version consistency, capacity, dimensions and numeric values.
+The compile report counts encoded resource bytes, not GPU resident memory.
+
+Receipts, selected source snapshots and actual 24-row GPU results are retained
+in the [numeric evidence archive](data/typed-render-dag-numeric-7fe37354.zip).
+
+| Receipt under `artifacts/pr-queue/` | Actual result |
+| --- | --- |
+| `issue78-numeric-transport-v1` | Failed test compilation from a moved Option in the new oracle fixture; no test pass claim |
+| `issue78-numeric-transport-v2` | Four new tests passed; 24 exact native/baked pixel rows across four precisions, both data carriers and three colors |
+| `issue78-numeric-transport-v3` | Four tests and the same 24 GPU rows passed after cause-preserving image errors and corrupt dimension/NaN rejection coverage |
+| `issue78-numeric-integration-v1` | Desktop check passed; complete graph tests 77 passed and effects library 26 passed, zero failed/ignored in those scopes; desktop unit scope 207 passed/one failed plus one integration pass |
+| `issue78-numeric-integration-v2` | Corrected desktop check passed; desktop node scope 210 passed, zero failed/ignored, including the real background-worker data/undo test and independent preview pixel/allocation tests |
+
+The first desktop failure was an existing onboarding assertion that a changed
+Color changes baked shader source. Routing ordinary `compile()` to editable
+compilation had violated that API contract. The assertion is unchanged. The
+correction preserves baked compilation and gives the actual live worker
+explicit runtime entry points. The new worker test checks both contracts and
+undo recovery. No value was injected into shader text to satisfy the assertion.
+
+Graph/effects results retain their pre-routing-correction source scope; their
+production graph/effects source did not change in that correction. The second
+desktop run covers the corrected worker/preview routing. None of these runs is
+a final integrated workspace or cross-platform CI result. Numeric edits still
+compile shaders and replace runtime packages/pipelines: cache and instance-data
+work remains required before claiming #78's no-recompile acceptance criterion.

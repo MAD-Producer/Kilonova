@@ -222,6 +222,12 @@ impl EffectPackage {
                     validate_png_resource(data, &manifest.id, name, &mut decoded_bytes, limits)?;
                 }
             }
+            if let Some(data) = &effect.shader_data {
+                if let Some(texture) = &data.overflow {
+                    data.validate_texture(files.get(&texture.path).ok_or_else(||
+                        Error::Invalid("shader data texture is missing".into()))?)?;
+                }
+            }
         }
         ensure(
             referenced == files.keys().cloned().collect(),

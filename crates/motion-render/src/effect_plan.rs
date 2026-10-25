@@ -1285,6 +1285,9 @@ impl PlanBuilder {
                         }
                         params[i] = v;
                     }
+                    if let Some(data) = &def.shader_data {
+                        data.write_uniforms(def.params.len(), &mut params)?;
+                    }
                     let mut resource_input=0;
                     if let Some(input)=e.image_input {
                         if !def.required_capabilities.iter().any(|c|c=="image_input") {

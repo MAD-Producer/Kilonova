@@ -292,6 +292,7 @@ pub struct NodePreview {
     buffer: AdmittedBuffer,
     _source: AdmittedTexture,
     _lut: AdmittedTexture,
+    _data: Option<AdmittedTexture>,
     _texture: AdmittedTexture,
     allocations: AllocationContext,
 }
@@ -462,7 +463,15 @@ impl NodePreview {
                 })
             };
             let input_group = bind(&input, &[&source_view, &source_view, &lut_view]);
-            let resource_group = bind(&resources, &[&*source_view; 4]);
+            let data = if let Some(data) = compiled.manifest.effects[0].shader_data.as_ref().and_then(|data| data.overflow.as_ref()) {
+                let bytes = compiled.resource(&data.path).ok_or("node shader data resource is missing")?;
+                let pixels = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?.into_rgba8();
+                let texture = texture(allocations, pixels.width(), pixels.height(), wgpu::TextureFormat::Rgba8Unorm)?;
+                upload(allocations, &texture, pixels.width(), pixels.height(), pixels.as_raw())?;
+                Some(texture)
+            } else { None };
+            let data_view = data.as_ref().map(AdmittedTexture::view).transpose()?;
+            let resource_group = bind(&resources, &[data_view.as_deref().unwrap_or(&source_view), &source_view, &source_view, &source_view]);
             let size = LOGICAL_SIZE as f32;
             let region = [0., 0., size, size];
             let mut uniform = EffectUniform {
@@ -487,6 +496,9 @@ impl NodePreview {
             };
             for (index, p) in snapshot.document.public_parameters.iter().enumerate() {
                 uniform.params[index] = p.default;
+            }
+            if let Some(data) = &compiled.manifest.effects[0].shader_data {
+                data.write_uniforms(snapshot.document.public_parameters.len(), &mut uniform.params)?;
             }
             let buffer = allocations.buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("SDK node clock and parameters"),
@@ -542,6 +554,7 @@ impl NodePreview {
                 buffer,
                 _source: source,
                 _lut: lut,
+                _data: data,
                 _texture: texture,
                 view,
                 display,
@@ -822,6 +835,36 @@ mod tests {
             })
             .unwrap();
         renderer.read_target(&target).unwrap()
+    }
+    #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+    fn editable_uniform_and_byte_data_match_baked_preview_and_remain_admitted() {
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let mut snapshot = crate::node_editor::NodeEditor::default().snapshot();
+        let parameter = snapshot.document.public_parameters[0].clone();
+        snapshot.document.nodes = vec![
+            motion_graph::Node::new("color", motion_graph::NodeOp::Color { value: [0.1, 0.3, 0.8, 0.5] }),
+            motion_graph::Node::new("output", motion_graph::NodeOp::ColorOutput),
+        ];
+        snapshot.document.connections = vec![motion_graph::Connection::new("color", "value", "output", "color")];
+        for overflow in [false, true] {
+            snapshot.document.public_parameters = if overflow {
+                (0..32).map(|i| { let mut p = parameter.clone(); p.id = format!("p{i}"); p }).collect()
+            } else { vec![] };
+            let compiled = snapshot.compile_runtime().unwrap();
+            let baked = motion_graph::compile(&snapshot.document, &snapshot.options).unwrap();
+            let mut actual = NodePreview::build(&context, &snapshot, &compiled).unwrap();
+            assert_eq!(actual._data.is_some(), overflow);
+            if let Some(texture) = &actual._data {
+                assert_eq!(texture.width(), motion_effects::shader_data::SHADER_DATA_TEXTURE_WIDTH);
+            }
+            let mut expected = NodePreview::build(&context, &snapshot, &baked).unwrap();
+            assert_eq!(pixels(&renderer, &mut actual, 0.), pixels(&renderer, &mut expected, 0.));
+        }
     }
     #[test]
     #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]

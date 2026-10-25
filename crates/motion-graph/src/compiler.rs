@@ -81,6 +81,7 @@ pub struct CompiledGraph {
     pub shader: shader::CompiledShader,
     pub manifest: PluginManifest,
     pub report: CompileReport,
+    pub(crate) resources: BTreeMap<String, Vec<u8>>,
 }
 
 pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePorts> {
@@ -809,15 +810,25 @@ fn validate_root(
 }
 
 pub fn compile(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
+    compile_mode(document, options, false)
+}
+
+/// Editable runtime path. Numeric literals, input defaults and CPU-folded
+/// results are private data; the ordinary compile API remains a baked oracle.
+pub fn compile_editable(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
+    compile_mode(document, options, true)
+}
+
+fn compile_mode(document: &GraphDocument, options: &CompileOptions, editable: bool) -> Result<CompiledGraph> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
         let plan =
             validate_root(&flat.document, options, None).map_err(|error| flat.describe(error))?;
-        return compile_plan(&flat.document, options, &plan, None)
+        return compile_plan(&flat.document, options, &plan, None, editable)
             .map_err(|error| flat.describe(error));
     }
     let plan = validate(document, options)?;
-    compile_plan(document, options, &plan, None)
+    compile_plan(document, options, &plan, None, editable)
 }
 
 /// Compile a typed diagnostic view of one output and its dependencies. This does
@@ -827,10 +838,18 @@ pub fn compile_preview(
     options: &CompileOptions,
     target: &PortRef,
 ) -> Result<CompiledGraph> {
+    compile_preview_mode(document, options, target, false)
+}
+
+pub fn compile_preview_editable(document: &GraphDocument, options: &CompileOptions, target: &PortRef) -> Result<CompiledGraph> {
+    compile_preview_mode(document, options, target, true)
+}
+
+fn compile_preview_mode(document: &GraphDocument, options: &CompileOptions, target: &PortRef, editable: bool) -> Result<CompiledGraph> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
         let target = flat.resolve(target)?;
-        return compile_preview(&flat.document, options, &target)
+        return compile_preview_mode(&flat.document, options, &target, editable)
             .map_err(|error| flat.describe(error));
     }
     if document.nodes.len() > options.max_nodes
@@ -861,7 +880,7 @@ pub fn compile_preview(
     view.connections
         .retain(|edge| keep.contains(&edge.from.node) && keep.contains(&edge.to.node));
     let plan = validate_root(&view, options, Some(target))?;
-    compile_plan(&view, options, &plan, Some(target))
+    compile_plan(&view, options, &plan, Some(target), editable)
 }
 
 fn compile_plan(
@@ -869,9 +888,10 @@ fn compile_plan(
     options: &CompileOptions,
     plan: &ValidationReport,
     target: Option<&PortRef>,
+    editable: bool,
 ) -> Result<CompiledGraph> {
-    let manifest = make_manifest(document, options)?;
-    let mut builder = Builder::new(document, plan);
+    let mut manifest = make_manifest(document, options)?;
+    let mut builder = Builder::new(document, plan, editable);
     let nodes: BTreeMap<_, _> = document.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     for id in &plan.reachable_nodes {
         builder.emit(nodes[id.as_str()])?;
@@ -905,6 +925,18 @@ fn compile_plan(
     if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. })) {
         support.push_str(include_str!("gradient.wgsl"));
     }
+    let runtime = builder.data.as_ref().map(|data| data.borrow().finish()).transpose()?;
+    if builder.data.as_ref().is_some_and(|data| data.borrow().has_overflow()) {
+        support.push_str(crate::runtime_data::HELPER);
+    }
+    let resources = if let Some(runtime) = runtime {
+        let definition = &mut manifest.effects[0];
+        definition.shader_data = Some(runtime.declaration);
+        definition.resources = runtime.resources.keys().cloned().collect();
+        definition.required_capabilities.push(motion_effects::shader_data::SHADER_DATA_CAPABILITY.into());
+        manifest.validate().map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
+        runtime.resources
+    } else { BTreeMap::new() };
     let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",support,builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
@@ -919,7 +951,8 @@ fn compile_plan(
     // This exact wrapper is shared with the effect package loader, not inferred
     // from loop_work (which is a separate portable-source validation metric).
     let host_sample_sites = 1;
-    let total_sample_sites = builder.samples + host_sample_sites;
+    let data_samples = source.matches("ng_literal_f32(").count().saturating_sub(1) as u64;
+    let total_sample_sites = builder.samples + data_samples + host_sample_sites;
     if shader.loop_work > options.max_loop_work
         || total_sample_sites > options.max_samples_per_fragment
     {
@@ -941,12 +974,12 @@ fn compile_plan(
         unused_nodes: plan.unused_nodes.clone(),
         passes: manifest.effects[0].passes.len(),
         loop_work: shader.loop_work,
-        graph_sample_sites: builder.samples,
+        graph_sample_sites: builder.samples + data_samples,
         host_sample_sites,
         total_sample_sites,
         reflected_texture_bindings: bindings.len(),
         package_resource_textures: manifest.effects[0].resources.len(),
-        package_resource_bytes: 0,
+        package_resource_bytes: resources.values().map(|bytes| bytes.len() as u64).sum(),
         shader_bytes: source.len(),
         emitted_values: builder.values,
         common_values_reused: builder.reused,
@@ -959,6 +992,7 @@ fn compile_plan(
         shader,
         manifest,
         report,
+        resources,
     })
 }
 fn param_kind(ty: ValueType) -> Option<ParamKind> {
@@ -1063,9 +1097,10 @@ struct Builder<'a> {
     reused: usize,
     folded: usize,
     samples: u64,
+    data: Option<std::cell::RefCell<crate::runtime_data::NumericData>>,
 }
 impl<'a> Builder<'a> {
-    fn new(document: &'a GraphDocument, plan: &'a ValidationReport) -> Self {
+    fn new(document: &'a GraphDocument, plan: &'a ValidationReport, editable: bool) -> Self {
         Self {
             document,
             slots: &plan.parameter_slots,
@@ -1081,6 +1116,7 @@ impl<'a> Builder<'a> {
             reused: 0,
             folded: 0,
             samples: 0,
+            data: editable.then(|| std::cell::RefCell::new(crate::runtime_data::NumericData::new(document.public_parameters.len()))),
         }
     }
     fn input(&self, node: &str, port: &str) -> Symbol {
@@ -1096,7 +1132,7 @@ impl<'a> Builder<'a> {
             .input_defaults[port];
         if let InputValue::Bool(value) = value {
             return Symbol {
-                expr: value.to_string(),
+                expr: self.data.as_ref().map_or_else(|| value.to_string(), |data| data.borrow_mut().expression(node, port, true, ValueType::Bool, &[if *value { 1. } else { 0. }])),
                 constant: None,
                 image: None,
             };
@@ -1110,7 +1146,7 @@ impl<'a> Builder<'a> {
             }
         }
         Symbol {
-            expr: literal(value.value_type(), &components),
+            expr: self.data.as_ref().map_or_else(|| literal(value.value_type(), &components), |data| data.borrow_mut().expression(node, port, true, value.value_type(), &components)),
             constant: Some(components),
             image: None,
         }
@@ -1150,7 +1186,7 @@ impl<'a> Builder<'a> {
         self.symbols.insert(PortRef::new(&node.id, port), symbol);
     }
     fn literal(&mut self, node: &Node, port: &str, ty: ValueType, value: Vec<f32>) {
-        let expr = literal(ty, &value);
+        let expr = self.data.as_ref().map_or_else(|| literal(ty, &value), |data| data.borrow_mut().expression(&node.id, port, false, ty, &value));
         self.put(node, port, ty, expr, Some(value), false);
     }
     fn emit(&mut self, node: &Node) -> Result<()> {
@@ -1211,6 +1247,7 @@ impl<'a> Builder<'a> {
                 }
                 self.literal(node, "value", ValueType::Color, value);
             }
+            Bool { value } if self.data.is_some() => self.literal(node, "value", ValueType::Bool, vec![if *value { 1. } else { 0. }]),
             Bool { value } => self.put(
                 node,
                 "value",
