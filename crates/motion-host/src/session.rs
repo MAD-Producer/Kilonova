@@ -1000,6 +1000,7 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 /// Run `operation` against a live session on its owning thread.
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let began = Instant::now();
+    let _pointwise_scope = motion_render::PointwiseLogScope::enter(id);
     let _allocation_scope = motion_render::AllocationLogScope::enter(id);
     let _preview_pressure_scope = preview_pressure::Scope::enter(id);
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);

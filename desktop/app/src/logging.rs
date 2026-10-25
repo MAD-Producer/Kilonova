@@ -17,6 +17,8 @@ mod composition_bundle_tests;
 mod command_error_tests;
 #[cfg(test)]
 mod gpu_command_tests;
+#[cfg(all(test, debug_assertions, feature = "gpu-tests"))]
+mod pointwise_compile_tests;
 #[cfg(test)]
 mod media_task_bounds_tests;
 
