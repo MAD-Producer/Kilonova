@@ -16,12 +16,12 @@ explicit SDR output.
 | 72-S2 | Enabled-device format/usage/filter/blend snapshot and same-precision channel padding | Implemented; optional features are never inferred from adapter reports alone |
 | 72-S3 | Before-allocation capability validation, including 4-sample vector attachments and resolve | Implemented; unsupported working modes return a cause instead of reducing precision |
 | 72-S4 | Physical effect descriptors, same-frame layer snapshots, accumulation, masks, mattes, ordinary nested compositions and vector/group rasters retain working precision | Implemented; actual pixel tests cover the named paths below |
-| 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve tested; a comprehensive retained/nested temporal precision golden remains pending |
+| 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve and four-mode two-level retained/nested shutter goldens pass; full current integration remains pending |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
 | 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire probes, resource/scene regressions and actual row/worker key-insertion tests pass; final end-to-end goldens pending |
 | 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration; project-wide settings dialog | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; native menu/dialog, persistence, history and 60 UI captures pass; final full integration remains pending |
-| 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Pending; the stage probes below do not close the issue |
+| 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Twelve analytic GPU/CPU golden cases pass with explicit native/output tolerances; final full current workspace/desktop/Host integration remains pending |
 
 UNORM16 is a normalized integer format, distinct from binary16 floating point.
 The native path requires actual enabled normalized-format attachment support.
@@ -83,6 +83,7 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-project-precision-ui-controls-v1` | Three native-control tests pass: four distinct modes in both locales; saved state and draft-only selection; popup input ownership; repeat, IME and focus-loss guards; missing/invalid metadata refusal |
 | `issue72-stage-project-precision-ui-native-v1` | Actual desktop worker/window test passes across English/Chinese, 900x600/1600x1000 logical sizes and 1/1.5/2 renderer pixel ratios; real File menu route, Cancel, Apply, save/reopen metadata, actual Rgba32Float resource, single-step undo/redo; 60 actual GPU PNGs and report retained |
 | `issue72-stage-project-precision-ui-style-v1`, `issue72-stage-project-precision-ui-check-v1` | Style-consumer guard and FFmpeg-enabled desktop application/all-test-target checks pass; these checks alone are not UI acceptance |
+| `issue72-stage-precision-goldens-v5` | Three actual GPU tests, each in four modes: transparent gradient and two-pass five-tap HDR glow; a 50% source mask plus Add/Screen/Multiply; two retained nested composition levels and a four-tap triangular-opacity shutter; independent f64 native/storage/output reference, 24 PNGs and 12 full linear/metric arrays retained |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -318,8 +319,46 @@ their independent visual re-audit remains pending. Existing flat-menu dimensions
 are also retained; the new row adds no literal dimension/color to panel code.
 
 These four passing UI tests and selected checks do not replace the final full
-render/Host/desktop run or the remaining gradient/glow, transparent-edge,
-multiblend/mask and retained/nested temporal golden acceptance.
+render/Host/desktop run. The following stage covers the combined golden cases.
+
+## Combined precision goldens
+
+`tests/support/precision_golden.rs` independently defines an analytic spatial
+field, five-tap filter, f64 format storage and explicit Reinhard/sRGB output.
+Expected images never read GPU output or call the production shader/compositor.
+The fixture is 65x33, so native row padding is also exercised. All four modes
+run a transparent gradient with HDR glow, a full 50% source mask followed by
+Add/Screen/Multiply, and a two-level nested retained shutter. Four midpoint taps
+of triangular authored opacity average to 0.5 while the center is 1.0. Completed
+frame polling must not restart preparation or change admitted capacity; dropping
+the frame retires its exposure owners. Floating glow peaks must exceed 1.4;
+integer peaks remain bounded. No product behavior was changed by this stage.
+
+Native absolute channel bounds are 0.035/0.00025/0.015/0.00005 for
+UNORM8/UNORM16/Float16/Float32. Actual maxima across these fixtures are
+0.011129/0.00001526/0.001954/0.00000084, respectively. The output oracle compares
+decoded premultiplied linear RGB with bounds 4/255 for UNORM8 and 2/255 for the
+other modes, plus independent alpha bounds of two/one bytes. Raw straight RGB
+differences are retained as diagnostics: nearly transparent pixels can have
+large straight RGB changes after one alpha-byte difference without a comparable
+visible difference. Every nonzero coverage still contributes to the linear
+output comparison; alpha is always checked separately.
+
+Failed v1-v4 receipts are retained. They caught invalid normalized opacity and
+composition-ID fixtures, a procedural shader discarding its masked input, and
+an oracle missing integer bounded-Add/UNORM8 child-resolve semantics. The output
+oracle was corrected from raw straight-byte comparison to the compositing
+contract described above after inspecting actual zero/near-zero-alpha data.
+Native thresholds were not raised, no existing repository assertion was
+changed, and no renderer return value or retry behavior was changed to pass.
+
+`artifacts/pr-queue/issue72-precision-goldens-manifest.json` binds the successful
+receipt, 24 actual/expected PNGs, 12 metric/full-linear files and a derived
+contact sheet. The actual/expected pairs were visually inspected. These are
+analytic correctness goldens, not professional grading, HDR input/output,
+bandwidth or performance comparisons. Existing varied mask/feather, clocks,
+negative HDR and resource refusal tests remain part of the full current run.
+The issue remains open until that final integration and portable check pass.
 
 ## Sources and provenance
 
