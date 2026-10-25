@@ -1,4 +1,7 @@
 use super::*;
+#[cfg(target_os = "windows")]
+#[path = "drag_native_tests.rs"]
+mod native;
 
 fn pointer(at: [f32; 2], press: bool, release: bool, modifiers: Modifiers) -> Input {
     Input {
