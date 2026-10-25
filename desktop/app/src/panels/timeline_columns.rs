@@ -149,6 +149,7 @@ struct Popup {
     rect: Rect,
     dropdown: Dropdown,
     window: Option<Panel>,
+    parent: Option<super::parent_controls::Chooser>,
 }
 #[derive(Default)]
 pub(crate) struct Controls {
@@ -166,6 +167,12 @@ impl Controls {
     }
     pub fn editing_in(&self, window: Option<Panel>) -> bool {
         self.popup.as_ref().is_some_and(|p| p.window == window)
+    }
+    #[cfg(test)]
+    pub(super) fn parent_row(&self, parent: Option<u64>) -> Rect {
+        self.popup.as_ref().and_then(|popup| popup.parent.as_ref())
+            .and_then(|chooser| chooser.rows.iter().find(|(id, _)| *id == parent))
+            .expect("parent choice must be visible").1
     }
     pub(super) fn prepare_window(&mut self, window: Option<Panel>, input: &Input) {
         if self.editing() && !self.editing_in(window) && input.pressed.is_some() {
@@ -185,16 +192,24 @@ impl Controls {
         state: &Value,
         input: &Input,
         locale: Locale,
+        selected: &[u64],
+        parent_controls: &mut super::parent_controls::Controls,
+        suspended: bool,
         out: &mut Vec<Action>,
     ) {
         self.deferred = false;
         if self.editing_in(self.window) {
-            self.overlay(list, atlas, bounds, state, input, locale, out);
+            self.overlay(list, atlas, bounds, state, input, locale, selected, parent_controls, suspended, out);
         }
     }
     pub fn cancel(&mut self) {
         self.popup = None;
         self.focused = None;
+    }
+    pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(chooser) = self.popup.as_mut().and_then(|popup| popup.parent.as_mut()) {
+            chooser.text_menu(request);
+        }
     }
     pub(super) fn begin(&mut self, state: &Value) {
         let context = (
@@ -277,6 +292,7 @@ impl Controls {
                 rect,
                 dropdown: Dropdown::default(),
                 window: self.window,
+                parent: None,
             });
             self.seen = true;
             self.opened = true;
@@ -292,6 +308,9 @@ impl Controls {
         state: &Value,
         input: &Input,
         locale: Locale,
+        selected: &[u64],
+        parent_controls: &mut super::parent_controls::Controls,
+        suspended: bool,
         out: &mut Vec<Action>,
     ) {
         if self.deferred || self.popup.as_ref().is_some_and(|p| p.window != self.window) {
@@ -308,6 +327,19 @@ impl Controls {
             self.cancel();
             return;
         };
+        if popup.column == Column::Parent {
+            use super::parent_controls::{Chooser, Decision};
+            if popup.parent.is_none() { popup.parent = Chooser::new(state, popup.object, selected); }
+            let decision = popup.parent.as_mut().map_or(Decision::Close, |chooser|
+                chooser.draw(list, atlas, popup.rect, bounds, state, selected,
+                    &mut parent_controls.mode, input, locale, suspended));
+            match decision {
+                Decision::Open => {},
+                Decision::Close => self.cancel(),
+                Decision::Apply(commands) => { super::parent_controls::dispatch(commands, out); self.cancel(); },
+            }
+            return;
+        }
         let mattes =
             (popup.column == Column::Matte).then(|| matte_choices(state, popup.object, locale));
         let (labels, selected, parents) = match popup.column {
@@ -821,6 +853,9 @@ mod tests {
                 &snapshot,
                 &Input::default(),
                 locale,
+                &[7],
+                &mut super::parent_controls::Controls::default(),
+                false,
                 &mut actions,
             );
             assert!(actions.is_empty());
@@ -846,6 +881,9 @@ mod tests {
                         ..Default::default()
                     },
                     locale,
+                    &[7],
+                    &mut super::parent_controls::Controls::default(),
+                    false,
                     &mut actions,
                 );
             }

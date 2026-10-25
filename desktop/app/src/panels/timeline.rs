@@ -677,6 +677,7 @@ pub(super) fn render(
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.parent_controls.begin_timeline(context_input);
     panels.path_controls.begin_timeline_mask_headers();
     panels.path_controls.groups.begin_frame(list, context_input);
     panels
@@ -686,6 +687,7 @@ pub(super) fn render(
     let neutral = Input::default();
     let input = if panels.timeline.timeline_context_menu.is_some()
         || panels.timeline_columns.editing()
+        || panels.parent_controls.picking()
         || panels.layer_actions.editing()
         || panels.path_controls.mask_menu()
         || panels.effect_timeline.menu_open()
@@ -1137,6 +1139,9 @@ pub(super) fn render(
     if !graph_mode {
         super::timeline_layout::paint_track_boundary(list, track, body);
     }
+    let parent_selection = panels.selection_ids();
+    let parent_scope_editable = parent_selection.first().is_none_or(|object|
+        super::parent_controls::targets(state, *object, &parent_selection).is_some());
     for (index, (row, layout)) in rows.iter().zip(&layouts).enumerate() {
         let expandable = row.id != 0 && (row.spatial || row.audio > 0);
         let expanded = layout.expanded;
@@ -1317,7 +1322,9 @@ pub(super) fn render(
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
             let matte_enabled = blend_enabled && matte.is_some();
-            let parent_enabled = row.id == 0 || !row.locked && row.spatial;
+            let parent_enabled = (row.id == 0 || !row.locked && row.spatial)
+                && state["observing"] != true && (!selected || parent_scope_editable);
+            panels.parent_controls.pick_row(row.id, Rect::new(area.min[0], y, gutter, row_height), link);
             if (blend_enabled && blend.is_some_and(|rect| clicked(input, rect)))
                 || (matte_enabled && matte.is_some_and(|rect| clicked(input, rect)))
                 || (parent_enabled
@@ -1325,6 +1332,11 @@ pub(super) fn render(
                         || link.is_some_and(|rect| clicked(input, rect))))
             {
                 out.extend(super::cancel_interaction(panels));
+            }
+            if parent_enabled && link.is_some_and(|rect|clicked(input,rect)) {
+                if !panels.selection_contains(row.id) {panels.select_only(Some(row.id));}
+                let selected = panels.selection_ids();
+                if let Some(rect)=link {panels.parent_controls.begin_pick(state,row.id,&selected,rect,input);}
             }
             if let Some(link) = link {
                 motion_ui::icons::draw(
@@ -1338,13 +1350,6 @@ pub(super) fn render(
                         colors.TEXT_MUTED.with_alpha(0.4)
                     },
                 );
-            }
-            let mut link_input = input.clone();
-            if parent_enabled && link.is_some_and(|rect| clicked(input, rect)) {
-                if let Some(parent) = parent {
-                    link_input.pressed =
-                        Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
-                }
             }
             let opened_matte = match matte {
                 Some(rect) => panels.timeline_columns.cell(
@@ -1380,12 +1385,12 @@ pub(super) fn render(
                     row.id,
                     super::timeline_columns::Column::Parent,
                     &super::timeline_columns::parent_name(owner, state, locale),
-                    &link_input,
+                    input,
                     parent_enabled,
                 ),
                 None => false,
             };
-            if opened_blend || opened_parent || opened_matte {
+            if opened_blend || opened_matte || opened_parent && !panels.selection_ids().contains(&row.id) {
                 panels.select_only(Some(row.id));
             }
         }
@@ -1841,9 +1846,11 @@ pub(super) fn render(
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
     super::shy_layers::hint(list, atlas, shy_toolbar, &columns, ruler, area, input, locale, panels.timeline.hide_shy);
-    panels
-        .timeline_columns
-        .overlay(list, atlas, area, state, context_input, locale, out);
+    let parent_selection = panels.selection_ids();
+    let parent_suspended = panels.menu.is_some() || panels.text_menu.is_some();
+    panels.timeline_columns.overlay(list, atlas, area, state, context_input, locale,
+        &parent_selection, &mut panels.parent_controls, parent_suspended, out);
+    panels.parent_controls.finish_timeline(list,atlas,area,state,&parent_selection,context_input,locale,parent_suspended,out);
     if right_clicked(input, body)
         && !panels.layer_actions.editing()
         && !panels.path_controls.mask_menu()

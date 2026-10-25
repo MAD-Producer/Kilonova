@@ -572,6 +572,8 @@ pub(super) fn render(
         (area.width() - indent).max(0.),
         area.height(),
     );
+    let parent_selection = panels.selection_ids();
+    let parent_suspended = panels.menu.is_some() || panels.text_menu.is_some();
     panels.parent_controls.render(
         list,
         atlas,
@@ -580,6 +582,8 @@ pub(super) fn render(
         object,
         layer,
         state,
+        &parent_selection,
+        parent_suspended,
         if mask_modal || effect_modal {
             &neutral
         } else {

@@ -60,14 +60,14 @@ fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() 
         assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
         assert!(panels.timeline_columns.editing());
         assert_eq!(panels.selected, Some(7));
-        let actions = draw(&mut panels, &state, row_click(560., 190.));
+        let rect = panels.timeline_columns.parent_row(Some(42));
+        let actions = draw(&mut panels, &state, click(rect.min[0]+rect.width()*0.5, rect.min[1]+rect.height()*0.5));
         assert!(matches!(
             actions.as_slice(),
-            [Action::Edit(Command::Parent {
-                object: 7,
-                parent: Some(42),
-                frame: 21
-            })]
+            [Action::Edit(Command::InComposition { composition, command })]
+            if composition == &engine.project().composition_id && matches!(command.as_ref(),
+                Command::ParentWithMode { object: 7, parent: Some(42), frame: 21,
+                    mode: motion_core::ParentMode::PreserveWorld })
         ));
         let mut old = motion_render::Scene::new(&before).unwrap();
         old.sample(&before, 21., None, &motion_core::ExpressionEvaluator)
@@ -96,6 +96,39 @@ fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() 
         assert!(!panels.timeline_columns.editing());
         engine.undo().unwrap();
         assert_eq!(engine.project(), &before);
+    }
+}
+
+#[test]
+fn parent_search_enter_never_starts_rename_and_releases_undo_in_both_windows() {
+    for floating in [false,true] {
+        let engine=fixture();
+        let state=snapshot(&engine);
+        let mut panels=Panels {focused:Some(Panel::Timeline),..Default::default()};
+        panels.select_only(Some(7));
+        let size=[1200.,500.];
+        let layout=Node::dock(Panel::Timeline.dock());
+        let content=if floating {Rect::new(0.,30.,size[0],size[1]-50.)}
+            else {frames(&layout,size).into_iter().find(|frame|frame.panel==Panel::Timeline).unwrap().content};
+        let styles=PaintList::default().styles();
+        let column=timeline_columns::ColumnRects::styled(&styles,content.min[0],640f32.min(content.width()*0.52),
+            panels.timeline.column_visibility).parent.unwrap();
+        let point=[column.x+column.width*0.5,content.min[1]+timeline::header_height(&styles)+styles.metric("row.height",22.)*2.5];
+        let draw=|panels:&mut Panels,input:Input| {
+            let mut paint=PaintList::default();
+            let mut atlas=TextAtlas::from_system(12.).unwrap();
+            if floating {floating_chrome(&mut paint,&mut atlas,Panel::Timeline,size,panels,&state,&input)}
+            else {chrome(&mut paint,&mut atlas,size,&layout,panels,&state,&input)}
+        };
+        assert!(draw(&mut panels,click(point[0],point[1])).is_empty());
+        assert!(panels.timeline_columns.editing());
+        assert!(draw(&mut panels,Input {text:"42".into(),..Default::default()}).is_empty());
+        let actions=draw(&mut panels,Input {keys:vec![(Key::Enter,Default::default())],..Default::default()});
+        assert!(matches!(actions.as_slice(),[Action::Edit(Command::InComposition {command,..})]
+            if matches!(command.as_ref(),Command::ParentWithMode {object:7,parent:Some(42),..})),"{actions:?}");
+        assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+        let actions=draw(&mut panels,Input {keys:vec![(Key::Z,motion_ui::input::Modifiers {control:true,..Default::default()})],..Default::default()});
+        assert!(matches!(actions.as_slice(),[Action::History(0)]),"floating={floating} {actions:?}");
     }
 }
 #[test]
@@ -165,7 +198,8 @@ fn popup_owns_keyboard_and_outside_click_and_reselecting_current_is_noop() {
     assert!(!panels.timeline_columns.editing());
     assert!(panels.timeline.moving.is_none());
     assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
-    assert!(draw(&mut panels, &state, row_click(560., 139.)).is_empty());
+    let rect = panels.timeline_columns.parent_row(None);
+    assert!(draw(&mut panels, &state, click(rect.min[0]+rect.width()*0.5, rect.min[1]+rect.height()*0.5)).is_empty());
     assert!(!panels.timeline_columns.editing());
     assert!(draw(&mut panels, &state, row_click(560., 118.)).is_empty());
     assert!(draw(
@@ -238,11 +272,10 @@ fn parent_menu_keeps_disabled_self_and_descendants_and_keyboard_skips_them() {
     );
     assert!(matches!(
         actions.as_slice(),
-        [Action::Edit(Command::Parent {
-            object: 7,
-            parent: Some(42),
-            ..
-        })]
+        [Action::Edit(Command::InComposition { composition, command })]
+        if composition == &engine.project().composition_id && matches!(command.as_ref(),
+            Command::ParentWithMode { object: 7, parent: Some(42), frame: 21,
+                mode: motion_core::ParentMode::PreserveWorld })
     ));
 }
 
@@ -369,7 +402,7 @@ fn composite_and_hierarchy_groups_toggle_together() {
 }
 
 #[test]
-fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() {
+fn link_icon_starts_parent_pick_and_blend_popup_can_overlay_the_preview_safely() {
     let engine = fixture();
     let state = snapshot(&engine);
     let mut panels = Panels {
@@ -377,8 +410,10 @@ fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() 
         ..Default::default()
     };
     assert!(draw(&mut panels, &state, row_click(517., 118.)).is_empty());
-    assert!(panels.timeline_columns.editing());
-    panels.timeline_columns.cancel();
+    assert!(panels.parent_controls.picking());
+    assert!(!panels.timeline_columns.editing());
+    assert_eq!(panels.selected,Some(7));
+    panels.parent_controls.cancel();
     let layout = Node::Split {
         edge: motion_ui::dock::Edge::Bottom,
         split: 0.3,

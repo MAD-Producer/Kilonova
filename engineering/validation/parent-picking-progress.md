@@ -27,6 +27,39 @@
 | PP-01 功能 | 两种显式绑定策略、原有动画与历史边界已有实现和核心证据。 |
 | PP-02 新观察 | 新错误携带对象／父级／帧／策略及原始 cause；不另建日志基础设施。 |
 | PP-03 既有观察 | 串行 edit 的 Info start、在途状态、完成清理和默认错误信道由现有工作器提供；默认级别下真实失败与恢复已验证。 |
-| PP-04 正常分支 | 取消拾取、无合法目标与过期 UI 快照后续应按正常取消处理，不记作故障；本阶段尚未接线。 |
-| PP-05 待完成 | 时间轴拾取连线／目标高亮、父级搜索、策略控件、多选范围、主窗与浮窗输入以及中英文实际截图。#246 保持开放，不把后端通过当作 UI 完成。 |
-| PP-06 来源／视觉 | 没有新增依赖、第三方资产、产品渲染语义或基线；本阶段未修改 panel，DESIGN §0.7 原十二项均保留，后续 UI 改动另作逐项处置。 |
+| PP-04 正常分支 | 取消拾取、无合法目标与过期 UI 快照按正常取消处理，不记作故障；松开丢失时也结束手势，防止后续光标运动提交。 |
+| PP-05 待完成 | 当前实现已有下述组件与系统输入证据；远端 CI、官方包和 Windows 150% 系统 DPI 尚待验证。#246 保持开放。 |
+| PP-06 来源／视觉 | 无新增依赖、第三方资产、产品渲染语义或基线；复用现有 Link、Checkbox、TextEditor、popup、row、field.number。新增 token 仅保存父级字段已有 26px 命中和 32px 行高，先写 dark.json 再使用。 |
+
+## 搜索、策略与拾取界面
+
+时间轴已有父级单元格位置不变，扩展为带查询框与 Checkbox 的覆盖层；属性面板使用同一 Chooser 与策略。按名称／ID 搜索，过滤多选源、其后代、音频及循环目标；查询最多 128 字符，列表显示至多八行并可滚动。候选层级按冻结的 root／合成／generation／revision／选区缓存；状态改变即取消，不沿用旧目标。属性行数和原命中尺寸不变，关闭时字段透明。
+
+原 Link 图标改为真正拖线：冻结输入窗口和选区，只高亮合法可见目标，释放才发送 ParentWithMode，多选发送一次 EditBatch；取消和跨窗口输入消费关闭帧。没有增加正常 Present 日志或文件 IO。
+
+`parent-chooser-columns-first.log` 保留三项旧夹具失败：新搜索／策略占据菜单头部，旧点击坐标及旧 Parent 命令断言不再符合新入口。夹具改用实际可见行矩形，并严格断言 InComposition、对象、目标、帧和 PreserveWorld；原有世界矩阵／完整工程单步撤销断言未变。Link 的既有“打开菜单”断言按需求升级为“启动拾取且不打开菜单”，混合菜单其余断言保留。
+
+`parent-pick-controls-first.log` 六项通过；随后补属性入口，最终 `parent-picking-regression-final.log` 的 parent_ 定向集 18 项通过，含默认真实错误子进程、属性主窗／浮窗、短窗口、多选和取消。`parent-search-rename-tests.log` 时间轴列 18 项通过，包含主窗／浮窗 Enter 后不启动重命名且立即释放 Ctrl+Z。两集有重叠，不相加计数。带 FFmpeg 的实际程序最终编译见 `parent-picking-bin-final.log`，既有 warning 原样保留。
+
+Windows 外部键鼠原件为 `parent-os-input-driver.py`、对应 steps JSON 和各目录回复；程序只用 MCP 读取状态，绑定、搜索、模式 Checkbox、撤销和保存由 Win32 实际输入进入 winit。英文主窗 `parent-os-main-final/` 验证默认世界策略、立即撤销、多选一次事务／撤销、非法释放不改工程；中文原生时间轴浮窗 `parent-os-float-final/` 验证取消勾选后的单位绑定、多选局部策略、立即撤销和 Esc 后释放不产生编辑。`parent-os-float-persist/` 保存局部绑定后正常退出，独立 --mcp 进程重开完整 project 相等。`verify-parent-os-input.py` 已执行通过，汇总为 `parent-os-input-summary.json`，stdout 全部为协议 JSON。独立运行目录及哈希为 `parent-os-runtime/` 和各 runtime-manifest.json；PATH 仅含 Windows 系统目录和随程序打包 DLL。
+
+首次实际探索 `parent-os-main-first/` 揭示 Enter 同时启动图层重命名，使后续快捷键被名称编辑器消费。只修功能入口：父级覆盖层持有键盘时禁止进入时间轴重命名；没有重试用户命令、改快捷键或放宽断言。初始现象、日志及截图保留，最终两窗系统输入均验证立即撤销。
+
+实际 OS 窗口 DPI 为 96（100%）；主窗 1280×850、浮窗 1100×450。88px 短窗口为组件命中／裁剪证据，不能冒称系统最小窗验收。Windows 150% 系统 DPI、系统 IME 候选提交、Info 面板纹理／呈现基线对比和官方发行包仍待验证；独立 Debug 加载不等于 Release 包验收。
+
+## DESIGN §0.7 基线逐项处置
+
+| 基线项 | 处置／原因 |
+| --- | --- |
+| path 六个纵向步进 | retained：未改路径属性行。 |
+| path 两列拆分 | retained：未改路径字段分栏。 |
+| path 混合按钮高度 | retained：未缩小路径命中范围。 |
+| path 自绘数字字段 | retained：未改数字编辑。 |
+| path 全宽布尔按钮 | retained：本次新选项使用 Checkbox，旧路径开关保持原样。 |
+| effect 行步进 | retained：未改效果行。 |
+| effect 布尔文本按钮 | retained：未改效果控件。 |
+| effect 全宽枚举按钮 | retained：未改效果枚举。 |
+| effect 手工 hover alpha | retained：未改效果悬停。 |
+| effect 缺层级缩进 | retained：未改效果树。 |
+| timeline 既有列坐标 | retained：原列与 Link 命中范围不变，只扩展父级动作；既有布局与列冲突测试继续通过。 |
+| timeline 黄色吸附线 | retained：未改吸附反馈；新拾取线只使用既有 focus 色与 border 尺寸。 |
