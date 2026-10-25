@@ -34,6 +34,8 @@ mod native_test_evidence;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
+mod parent_policy_tests;
+#[cfg(test)]
 mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;

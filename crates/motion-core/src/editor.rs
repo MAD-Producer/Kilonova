@@ -780,6 +780,12 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             valid_frame(frame)?;
             crate::hierarchy::reparent(project, object, parent, frame)?;
         }
+        Command::ParentWithMode { object, parent, frame, mode } => {
+            valid_frame(frame).map_err(|source| Error::ParentOperation {
+                object, parent, frame, mode, source: Box::new(source),
+            })?;
+            crate::hierarchy::reparent_with_mode(project, object, parent, frame, mode)?;
+        }
         Command::Delete { object } => {
             if project.layer_mut(object)?.locked {
                 return Err(Error::Locked(object));
