@@ -3,7 +3,7 @@
 This is the active acceptance ledger for issue #72 on top of the merged #61
 resource-admission and #67 physical scratch-lifetime implementations. Historical
 experiments are not delivery evidence for the current source. The issue remains
-open: final comprehensive acceptance remains pending. The project-setting UI
+open: the final current full regression and CI remain pending. The project-setting UI
 now has native interaction and screenshot evidence. Ordinary/exposure surface previews, plugin editor
 preview, desktop UI/node screenshots and Host/frozen PNG/MP4 exports now use
 explicit SDR output.
@@ -19,7 +19,7 @@ explicit SDR output.
 | 72-S5 | Exposure sample/mean/resolve and retained/nested exposure capacity use actual working storage | Implemented; floating sample/mean/resolve and four-mode two-level retained/nested shutter goldens pass; full current integration remains pending |
 | 72-S6 | Format-preserving, admitted raw image capture and exposure capture | Implemented for canonical RGBA working formats; output contains native premultiplied storage bytes; this is not a display or PNG conversion |
 | 72-S7 | Current packed plan v12 publishes precision at byte 152, numeric LUT encoding at 156 and five physical scratch format codes | Implemented; Kotlin production compiles and nine parser tests pass; earlier v11 receipts remain evidence for their own source stage |
-| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire probes, resource/scene regressions and actual row/worker key-insertion tests pass; final end-to-end goldens pending |
+| 72-S8 | Immutable two-key authored snapshots, 4081-point floating samples, dense frozen/editable storage, native admitted sample-only F32 tables, bounded scene source payload and editor key insertion | GPU/wire, actual row/worker, frozen PNG and all-frame MP4 probes pass; the dense feature survives real export after live removal and session closure; final full integration remains pending |
 | 72-S9 | Admitted working-to-SDR targets, clip/Reinhard and exposure policy, linear premultiplied interpolation, straight-alpha PNG and opaque linear-black MP4 bytes; required project precision and history; surface/plugin preview, frozen export and desktop display capture integration; project-wide settings dialog | Native output, project/history/surface probes, actual four-mode PNG/MP4 exports and worker UI/node captures pass; native menu/dialog, persistence, history and 60 UI captures pass; final full integration remains pending |
 | 72-S10 | Final transparent-edge, gradient, HDR/glow, multiblend and mask goldens, full desktop/Host integration | Twelve analytic GPU/CPU golden cases pass with explicit native/output tolerances; final full current workspace/desktop/Host integration remains pending |
 
@@ -84,6 +84,11 @@ source stages; counts must not be added as if they were one full-suite run.
 | `issue72-stage-project-precision-ui-native-v1` | Actual desktop worker/window test passes across English/Chinese, 900x600/1600x1000 logical sizes and 1/1.5/2 renderer pixel ratios; real File menu route, Cancel, Apply, save/reopen metadata, actual Rgba32Float resource, single-step undo/redo; 60 actual GPU PNGs and report retained |
 | `issue72-stage-project-precision-ui-style-v1`, `issue72-stage-project-precision-ui-check-v1` | Style-consumer guard and FFmpeg-enabled desktop application/all-test-target checks pass; these checks alone are not UI acceptance |
 | `issue72-stage-precision-goldens-v5` | Three actual GPU tests, each in four modes: transparent gradient and two-pass five-tap HDR glow; a 50% source mask plus Add/Screen/Multiply; two retained nested composition levels and a four-tap triangular-opacity shutter; independent f64 native/storage/output reference, 24 PNGs and 12 full linear/metric arrays retained |
+| `issue72-stage-full-workspace-v1` | Completed the FFmpeg-enabled workspace command at `963d5490`; exit 101 with exactly two failed targets: the curve-key test compared dense storage with a 256-point view, and the Host physical-table test fixed version 10; this is retained failed evidence, not a green full run |
+| `issue72-stage-dense-final-output-v1` | All 45 FFmpeg-enabled media tests pass, including two new actual dense-curve exports: eight frozen PNGs and eight six-frame MP4s; all four modes and ordinary/exposure paths after live effect removal, precision edits and session closure; no ignored tests |
+| `issue72-stage-desktop-curve-observation-final-v1` | All 35 effect-control tests pass with current dense key storage, exact original 256-point projection, unchanged log thresholds, Error stderr and stdout isolation, plus actual worker/history regressions |
+| `issue72-stage-host-wire-final-v1` | All 11 Host failure-boundary tests pass; metadata and packed bytes use the current plan version, words 152/156 carry the default precision/LUT encoding, and original physical-table/capacity assertions remain |
+| `issue72-stage-scratch-current-final-v1` | Executed the native allocation comparison driver: eight real 512x512 renders with plan v12; planned/actual top scratch capacity agrees in every row, and original repeat-pixel and generator-contribution checks pass |
 
 The failed `working-native-check-v1` receipt is retained. The first version of
 the new vector-group test required one exact UNORM8 alpha byte; its `127` result
@@ -349,8 +354,9 @@ composition-ID fixtures, a procedural shader discarding its masked input, and
 an oracle missing integer bounded-Add/UNORM8 child-resolve semantics. The output
 oracle was corrected from raw straight-byte comparison to the compositing
 contract described above after inspecting actual zero/near-zero-alpha data.
-Native thresholds were not raised, no existing repository assertion was
-changed, and no renderer return value or retry behavior was changed to pass.
+During those golden iterations, native thresholds were not raised, no existing
+repository assertion was changed, and no renderer return value or retry behavior
+was changed to pass. Later representation-contract updates are recorded below.
 
 `artifacts/pr-queue/issue72-precision-goldens-manifest.json` binds the successful
 receipt, 24 actual/expected PNGs, 12 metric/full-linear files and a derived
@@ -358,7 +364,54 @@ contact sheet. The actual/expected pairs were visually inspected. These are
 analytic correctness goldens, not professional grading, HDR input/output,
 bandwidth or performance comparisons. Existing varied mask/feather, clocks,
 negative HDR and resource refusal tests remain part of the full current run.
-The issue remains open until that final integration and portable check pass.
+The issue remains open until the final current full regression and CI pass.
+
+## Dense-curve output and current protocol closure
+
+The authored red transfer has a narrow peak at `2049/4080`. It is deliberately
+absent from the 256-point control grid and present in the 4081-point numeric
+table. Two keys change its height from one at frame zero to one half at frame
+four. A packaged test shader reads that exact coordinate: this isolates retained
+curve detail from input-image storage quantization. It does not claim resolution
+of arbitrary features between dense taps. UNORM8 intentionally keeps its original
+256-point control; the other three modes must retain the peak.
+
+The real PNG freeze captures fractional frame 2.25. Movie freeze captures the
+entire six-frame project. Both then change the live precision, remove the effect
+and close the session before exporting. Tests check every output pixel, both
+ordinary and four-tap exposure sampling. A separate CLI FFmpeg decode checks all
+48 MP4 frames against a scalar CPU oracle, including the two transparent samples
+in the first centered shutter and the key boundary. PNG tolerance remains two
+bytes and actual error is zero. The lossy movie tolerance remains ten bytes and
+actual maximum error is three. H.264/AAC, 32x32 dimensions, 30 fps, six frames,
+BT.709 primaries/matrix, sRGB transfer and limited YUV range are checked on the
+actual output files. These are SDR outputs, not HDR file-export acceptance.
+
+`artifacts/pr-queue/issue72-dense-output-manifest.json` binds the executed receipt,
+source and output SHA-256 values, the independent inspector and external tool
+versions. It retains eight PNGs, eight MP4s, 48 decoded frame PNGs and reports,
+alongside the older constant-HDR probe outputs. The derived contact sheet was
+visually inspected; UNORM8 visibly loses the peak while all three high-precision
+modes preserve it. This is a controlled precision comparison, not a grading or
+performance claim.
+
+The first full regression caught two old representation assumptions. The key
+test now verifies the complete 4081-point snapshot and its length, while retaining
+exact equality of the projected 256-point values with the original curve. Its
+failure, suppression and file/stderr/stdout assertions are unchanged. The Host
+test now compares metadata and wire versions with `PLAN_VERSION`, additionally
+checks the new precision/encoding words, and preserves the original more-than-
+eight allocations, record stride, buffer bound and actual-capacity checks. The
+comparison example's current-version guard follows the same constant; its v9
+branch remains solely for the source-identical historical allocation comparison.
+No render behavior or pixel/error/budget tolerance was changed to satisfy these
+contract updates.
+
+The nine executed JVM parser tests remain valid for the current four Kotlin
+production/test files: their SHA-256 values are byte-identical to that executed
+stage. `issue72-jvm-current-source-proof.json` records this comparison rather
+than claiming a new compilation or device run. Android device/GLES validation
+remains excluded by the agreed maintained-desktop delivery scope.
 
 ## Sources and provenance
 

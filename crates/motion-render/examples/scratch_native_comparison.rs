@@ -81,7 +81,7 @@ fn record(
             json!({"semanticSizes": plan.scratch_sizes}),
         )
     } else {
-        assert_eq!(version, 10);
+        assert_eq!(version, motion_render::effect_plan::PLAN_VERSION);
         let offset = word(140) as usize;
         let count = word(144) as usize;
         assert_eq!(word(148), 32);
