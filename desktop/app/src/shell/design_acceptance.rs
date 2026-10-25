@@ -238,9 +238,10 @@ impl Shell {
                             - paint.styles().metric("padding.panel", 8.)
                             - paint.styles().metric("icon.slot", 20.),
                         frame.content.min[1]
-                            + 64.
+                            + paint.styles().metric("timeline.header.base.height", 64.)
+                            + paint.styles().metric("timeline.work_area.height", 14.)
                             + ordinal as f32 * paint.styles().metric("row.height", 22.)
-                            + 11.,
+                            + paint.styles().metric("row.height", 22.) * 0.5,
                     ];
                     let input = Input {
                         mouse: point,
@@ -257,10 +258,10 @@ impl Shell {
                         &input,
                     );
                     if !actions.is_empty() || !self.panels.timeline_columns.editing() {
-                        return Err(
-                            "timeline dropdown capture must open without editing the project"
-                                .into(),
-                        );
+                        return Err(format!(
+                            "{screen} capture must open without editing the project: point={point:?} actions={} opened={}",
+                            actions.len(), self.panels.timeline_columns.editing(),
+                        ));
                     }
                     self.panels.timeline = old;
                     self.panels.timeline_columns = columns;
