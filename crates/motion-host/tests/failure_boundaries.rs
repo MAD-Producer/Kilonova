@@ -358,7 +358,7 @@ fn portable_buffer_hint_and_physical_table_cover_more_than_eight_scratch_allocat
     let directory = tempfile::tempdir().unwrap();
     let id = motion_host::session::open(directory.path().into(), project, Arc::new(Stub)).unwrap();
     let info = motion_host::ops::export::render_plan_info(id).unwrap();
-    assert_eq!(info["version"], 10);
+    assert_eq!(info["version"], motion_render::effect_plan::PLAN_VERSION);
     assert_eq!(info["headerBytes"], 160);
     assert_eq!(info["scratchRecordBytes"], 32);
     assert_eq!(info["maxScratchPasses"], motion_render::effect_plan::MAX_SCRATCH_PASSES);
@@ -368,7 +368,9 @@ fn portable_buffer_hint_and_physical_table_cover_more_than_eight_scratch_allocat
     let written = motion_host::ops::export::sample_render_plan_into(id, 17, &mut bytes).unwrap();
     let bytes = &bytes[..written];
     let word = |offset| u32::from_ne_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
-    assert_eq!(word(4), 10);
+    assert_eq!(word(4), motion_render::effect_plan::PLAN_VERSION as usize);
+    assert_eq!(word(152), 0, "default project precision must encode UNORM8");
+    assert_eq!(word(156), 0, "UNORM8 must encode its byte LUT representation");
     assert_eq!(word(28), written);
     let table = word(140); let count = word(144); let stride = word(148);
     assert!(count > 8, "fixture must exceed the old fixed pool");

@@ -149,9 +149,10 @@ impl Renderer {
                 let message = format!("{context}: {error}");
                 error.with_diagnostic(message)
             })?;
-            let reservation = self.reserve_exposure_bytes(4, &context)?;
+            let storage = crate::image_formats::color_storage(self.effect_gpu.builder.precision());
+            let reservation = self.reserve_exposure_bytes(storage.bytes_per_pixel(), &context)?;
             let image = self.allocate_layer_raster_image(scene, receiver,
-                [1, 1], TARGET_FORMAT, "local_constant_allocate")?;
+                [1, 1], crate::image_formats::native_format(storage), "local_constant_allocate")?;
             let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::RetainedLayer, &wgpu::CommandEncoderDescriptor {
                     label: Some("constant receiver image"),
                 })?;
@@ -297,9 +298,11 @@ impl Renderer {
         } else {
             None
         };
-        let bytes = u64::from(source.size.0) * u64::from(source.size.1) * 4
+        let storage = crate::image_formats::color_storage(frame.precision);
+        let coverage = motion_effects::image_contract::coverage_storage(frame.precision);
+        let bytes = u64::from(source.size.0) * u64::from(source.size.1) * storage.bytes_per_pixel()
             + if matte_source.is_some() {
-                u64::from(matte_size[0]) * u64::from(matte_size[1])
+                u64::from(matte_size[0]) * u64::from(matte_size[1]) * coverage.bytes_per_pixel()
             } else {
                 0
             };
@@ -308,7 +311,7 @@ impl Renderer {
             &format!("exposure object={receiver} phase=local_allocate"),
         )?;
         let image = self.allocate_layer_raster_image(scene, receiver,
-            [source.size.0, source.size.1], TARGET_FORMAT, "local_image_allocate")?;
+            [source.size.0, source.size.1], crate::image_formats::native_format(storage), "local_image_allocate")?;
         let copy = |encoder: &mut wgpu::CommandEncoder,
                     src: &wgpu::Texture,
                     dst: &wgpu::Texture,
@@ -335,7 +338,7 @@ impl Renderer {
         }
         let matte = matte_source.map(|source| {
             let target = self.allocate_layer_raster_image(scene, receiver,
-                matte_size, wgpu::TextureFormat::R8Unorm, "local_matte_allocate")?;
+                matte_size, crate::image_formats::native_format(coverage), "local_matte_allocate")?;
             copy(encoder, &source.texture, &target.texture, matte_size);
             Ok::<_, RenderError>(target)
         }).transpose()?;

@@ -2,6 +2,11 @@
 //! playback uploads only fixed-size layer uniforms.
 mod effect_gpu;
 pub mod effect_plan;
+pub mod image_formats;
+mod image_capture;
+pub use image_capture::{CapturedImage, ImageCaptureTarget};
+mod color_output;
+pub use color_output::{ColorOutput, ColorOutputDescriptor, OutputTransform, SdrCaptureTarget, ToneMap};
 pub mod observability;
 pub mod resource_policy;
 mod resource_error;
@@ -9,6 +14,7 @@ pub use resource_error::{ResourceBudgetScope, ResourceRejection};
 pub mod preview_memory;
 mod preview_targets;
 pub use preview_targets::PreviewFrameTargets;
+pub use preview_targets::SdrPreviewFrameTargets;
 mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
@@ -69,6 +75,7 @@ pub use renderer::premultiply_pixels;
 pub use renderer::{CaptureTarget, ExposureTarget, LayerRaster, RenderError, RenderStats, RenderTarget, Renderer};
 pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
+pub use renderer::WorkingPrecisionChange;
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;

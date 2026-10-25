@@ -40,6 +40,8 @@ mod scope_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod node_admission_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod precision_capture_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
@@ -1557,11 +1559,11 @@ fn handle(
             let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
             let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;
             let dimension=crate::node_preview::RASTER_SIZE;
-            let target=g.renderer.capture_target(dimension,dimension)?;
-            let mut encoder=g.renderer.allocation_command_encoder(&Default::default())?;clear_target(&mut encoder,&target.view);
-            preview.encode(&mut encoder,&target.view,crate::node_preview::Viewport{rect:[0.,0.,dimension as f32,dimension as f32],seconds},wgpu::TextureFormat::Rgba8UnormSrgb)?;
+            let target=ui_paint::display_capture_target(&g.renderer,dimension,dimension)?;
+            let mut encoder=g.renderer.allocation_command_encoder(&Default::default())?;clear_target(&mut encoder,target.view());
+            preview.encode(&mut encoder,target.view(),crate::node_preview::Viewport{rect:[0.,0.,dimension as f32,dimension as f32],seconds},wgpu::TextureFormat::Rgba8UnormSrgb)?;
             g.renderer.submit_allocated(encoder.finish(),|ledger|ledger.merge(target.texture_resource_ledger()))?;
-            let pixels=g.renderer.read_target(&target)?;
+            let pixels=g.renderer.read_image_target(&target)?.pixels;
             let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
             image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
             Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
@@ -1583,7 +1585,7 @@ fn handle(
             diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
             let (width,height)=if ui.window==0{(g.config.width,g.config.height)}else{let window=windows.get(&ui.window).ok_or("floating screenshot window closed")?;(window.config.width,window.config.height)};
-            let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
+            let target = ui_paint::display_capture_target(&g.renderer, width, height).map_err(|e| e.to_string())?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
             let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
@@ -1601,17 +1603,17 @@ fn handle(
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
-                presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
+                presenter.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
                     .map_err(|e| format!("phase=capture.presenter: {e}"))?;
-            } else {clear_target(&mut encoder,&target.view);}
+            } else {clear_target(&mut encoder,target.view());}
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
-            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.node");
 
-            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
+            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
             #[cfg(test)]
             diagnostics.native_test_phase("capture.submit");
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
@@ -1620,7 +1622,7 @@ fn handle(
             }).map_err(|e|e.to_string())?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.readback");
-            let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
+            let pixels = g.renderer.read_image_target(&target).map_err(|e| e.to_string())?.pixels;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.save");
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;

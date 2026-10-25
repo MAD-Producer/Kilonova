@@ -1,0 +1,725 @@
+{
+  "issue": 135,
+  "tested_head": "ec10c1d772980b8a5e2fe9520966000c6afc7b79",
+  "new_test_attribute_only": true,
+  "original_test_body_unchanged": true,
+  "cpu": {
+    "passed": 2081,
+    "failed": 0,
+    "ignored": 477,
+    "target_count": 263,
+    "coverage": "disjoint union of complete package targets; not one uninterrupted command"
+  },
+  "stages": [
+    {
+      "name": "marker-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--test",
+        "command_timing_markers",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 56.95,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "backend": "noop",
+      "source_unchanged": true,
+      "sha256": "d60fefcf373e56a06071ef4c5e0d4c08139013f1cc5b456ff0df659cfa05fac1"
+    },
+    {
+      "name": "marker-missing-adapter",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--test",
+        "command_timing_markers",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--features",
+        "gpu-tests",
+        "pass_timestamp_boundaries_enclose_real_commands_without_encoder_timestamp_feature",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 45.83,
+      "exit_code": 101,
+      "expected_exit": 101,
+      "backend": "noop",
+      "source_unchanged": true,
+      "sha256": "8b6edcd0773efe0a4e784fde016e2b62fc7d1cd6300e3ac3205a72af501e742c"
+    },
+    {
+      "name": "marker-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--test",
+        "command_timing_markers",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--features",
+        "gpu-tests",
+        "pass_timestamp_boundaries_enclose_real_commands_without_encoder_timestamp_feature",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 16.44,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "backend": null,
+      "source_unchanged": true,
+      "sha256": "9b9bcea7a0d4012ff8dc8a2d3ea5a75e01b0cbe94e333f5e26eaf05e83fde193"
+    },
+    {
+      "name": "workspace-cpu-remainder",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--exclude",
+        "motion-core",
+        "--exclude",
+        "motion-android",
+        "--no-default-features",
+        "--features",
+        "motion-desktop/ffmpeg,motion-host/diagnostics",
+        "--config",
+        "profile.dev.package.motion-desktop.debug=0",
+        "--config",
+        "profile.dev.package.motion-desktop.codegen-units=256",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "seconds": 1540.53,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "backend": "noop",
+      "source_unchanged": true,
+      "sha256": "2d6a1edc962d8599f1c7f5ab5d48dee4ca49cc21e5d90ebe66e58b0ba6e011be"
+    },
+    {
+      "name": "missing-adapter",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-ui",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--test",
+        "analytic",
+        "--locked",
+        "--offline",
+        "-j1",
+        "procedural_patterns_and_fractional_dpi_borders_render_actual_pixels",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 77.19,
+      "exit_code": 101,
+      "expected_exit": 101,
+      "backend": "noop",
+      "source_unchanged": true,
+      "sha256": "552aa7a23a3ae26049ccf9ad3bea205536a8245e8ee96295861ea1569450f8ab"
+    },
+    {
+      "name": "gpu-recovery",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-ui",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--test",
+        "analytic",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "seconds": 4.31,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "backend": null,
+      "source_unchanged": true,
+      "sha256": "d3e29eadbcf68608182615776a0f0470dfc33890885ad994b9ba3e14cb3f9476"
+    }
+  ],
+  "feature_graphs": {
+    "cpu": {
+      "gpu": {
+        "motion-desktop": [
+          "ffmpeg"
+        ],
+        "motion-desktop-media": [
+          "ffmpeg"
+        ],
+        "motion-graph": [],
+        "motion-host": [
+          "diagnostics"
+        ],
+        "motion-render": [],
+        "motion-ui": []
+      },
+      "wgpu": [
+        "dx12",
+        "metal",
+        "parking_lot",
+        "std",
+        "vulkan",
+        "wgsl"
+      ]
+    },
+    "gpu": {
+      "gpu": {
+        "motion-desktop": [
+          "ffmpeg",
+          "gpu-tests"
+        ],
+        "motion-desktop-media": [
+          "ffmpeg",
+          "gpu-tests"
+        ],
+        "motion-graph": [
+          "gpu-tests"
+        ],
+        "motion-host": [
+          "diagnostics",
+          "gpu-tests"
+        ],
+        "motion-render": [
+          "gpu-tests"
+        ],
+        "motion-ui": [
+          "gpu-tests"
+        ]
+      },
+      "wgpu": [
+        "dx12",
+        "metal",
+        "parking_lot",
+        "std",
+        "vulkan",
+        "wgsl"
+      ]
+    }
+  },
+  "marker_native_capability": {
+    "actualNativeTimestamps": [
+      1792837942975318016,
+      1792837942975322112
+    ],
+    "actualPixelsChecked": 64,
+    "adapter": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "available": true,
+    "backend": "Vulkan",
+    "driver": "NVIDIA",
+    "driverInfo": "591.86",
+    "elapsedUs": 4.096,
+    "mappedBytes": 16,
+    "optionalEncoderTimestampFeatureEnabled": false,
+    "scope": "native marker feasibility only; no full profiler or other-platform coverage claim"
+  },
+  "workflow_checks": 12,
+  "controlled_invalid_configurations": [
+    {
+      "defect": "missing CI feature motion-render",
+      "rejected": true,
+      "cause": "{'motion-render/gpu-tests', 'motion-graph/gpu-tests'} not less than or equal to {'motion-graph/gpu-tests'}"
+    },
+    {
+      "defect": "missing CI feature motion-graph",
+      "rejected": true,
+      "cause": "{'motion-render/gpu-tests', 'motion-graph/gpu-tests'} not less than or equal to {'motion-render/gpu-tests'}"
+    },
+    {
+      "defect": "missing CI feature motion-host",
+      "rejected": true,
+      "cause": "{'motion-desktop-media/gpu-tests', 'motion-ui/gpu-tests', 'motion-desktop/gpu-tests', 'motion-host/gpu-tests'} not less than or equal to {'motion-desktop-media/gpu-tests', 'motion-host/diagnostics', 'motion-desktop/gpu-tests', 'motion-ui/gpu-tests'}"
+    },
+    {
+      "defect": "missing CI feature motion-ui",
+      "rejected": true,
+      "cause": "'motion-ui/gpu-tests' not found in ['motion-host/diagnostics', 'motion-host/gpu-tests', 'motion-desktop/gpu-tests', 'motion-desktop-media/gpu-tests']"
+    },
+    {
+      "defect": "missing CI feature motion-desktop",
+      "rejected": true,
+      "cause": "{'motion-desktop-media/gpu-tests', 'motion-ui/gpu-tests', 'motion-desktop/gpu-tests', 'motion-host/gpu-tests'} not less than or equal to {'motion-desktop-media/gpu-tests', 'motion-host/diagnostics', 'motion-host/gpu-tests', 'motion-ui/gpu-tests'}"
+    },
+    {
+      "defect": "missing CI feature motion-desktop-media",
+      "rejected": true,
+      "cause": "{'motion-desktop-media/gpu-tests', 'motion-ui/gpu-tests', 'motion-desktop/gpu-tests', 'motion-host/gpu-tests'} not less than or equal to {'motion-host/diagnostics', 'motion-desktop/gpu-tests', 'motion-host/gpu-tests', 'motion-ui/gpu-tests'}"
+    },
+    {
+      "defect": "disabled GPU default",
+      "rejected": true,
+      "cause": "'gpu-tests' not found in [] : motion-ui"
+    },
+    {
+      "defect": "reenabled internal GPU default",
+      "rejected": true,
+      "cause": "True is not False : motion-desktop: dependencies.motion-render"
+    }
+  ],
+  "requirements": {
+    "issue": 135,
+    "head": "ec10c1d772980b8a5e2fe9520966000c6afc7b79",
+    "requirements": [
+      {
+        "id": "T1",
+        "previously_checked": true,
+        "requirement": "`dependency_boundaries` 改用能返回完整依赖图的方式（如 `cargo metadata` 不带 `--no-deps`，或解析各 `Cargo.toml`），使第三方断言真正生效；覆盖 `motion-ui` 与 `motion-desktop`；补 `motion-media → motion-render` 禁令",
+        "current_runtime": "existing relevant package targets included in complete CPU target union; see suite identity records",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T2",
+        "previously_checked": true,
+        "requirement": "为 `presentation.rs` 建立测试宿主，覆盖事件翻译与「一次输入事件不导致重复副作用」两类不变量",
+        "current_runtime": "test shell::native_input_tests::native_main_and_floating_input_remain_isolated_and_consume_each_event_once ... ok",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T3",
+        "previously_checked": true,
+        "requirement": "移除该测试对 `cargo metadata` 输出的 `unwrap`，失败时给出可诊断信息",
+        "current_runtime": "existing relevant package targets included in complete CPU target union; see suite identity records",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T4",
+        "previously_checked": true,
+        "requirement": "`motion-model` 与 `motion-android` 补测试，优先覆盖本批 issue 涉及的路径（采样、关键帧移动、合成引用、像素拷贝、缓冲转换）",
+        "current_runtime": "existing relevant package targets included in complete CPU target union; see suite identity records",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T5",
+        "previously_checked": false,
+        "requirement": "为需要真实 GPU 的 130 个测试提供统一开关（环境变量或 feature），使本地无 GPU 时可跳过、CI 仍强制执行",
+        "current_runtime": "complete CPU target union, six feature graphs, expected adapter failures, actual native GPU recovery and workflow controls",
+        "disposition": "new missing GPU selection attribute"
+      },
+      {
+        "id": "T6",
+        "previously_checked": true,
+        "requirement": "`presentation.rs:4` 补实际断言；`resource_rejections.rs:43-48` 改为针对变体的独立断言",
+        "current_runtime": "CPU cases ran; GPU cases explicitly ignored here; existing native acceptance retained, current PR GPU CI required before merge",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T7",
+        "previously_checked": true,
+        "requirement": "断言沙箱不可达性（`Date` / `Promise` / `Atomics` / `SharedArrayBuffer` / `performance` / `eval` / `Function`），并断言跨工程隔离",
+        "current_runtime": "existing relevant package targets included in complete CPU target union; see suite identity records",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T8",
+        "previously_checked": true,
+        "requirement": "`Shell::new` 在测试构造中强制使用临时布局路径，不读取用户配置目录",
+        "current_runtime": "test configuration_tests::shell_preferences_ignore_external_configuration ... ok",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T9",
+        "previously_checked": true,
+        "requirement": "`path_controls.rs`（1,301 行，零测试）、`session.rs`（796 行，无测试文件）、`renderer.rs` 的 `set_device_lost_callback` / `on_uncaptured_error` / `check_health` 补测试",
+        "current_runtime": "CPU cases ran; GPU cases explicitly ignored here; existing native acceptance retained, current PR GPU CI required before merge",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T10",
+        "previously_checked": true,
+        "requirement": "人为在 `motion-core` 的 `Cargo.toml` 中加入 `wgpu` 依赖，边界测试失败（实际 metadata/一致锁文件下命中 core depends on wgpu；恢复后通过，证据见 #390）",
+        "current_runtime": "existing real temporary wgpu dependency negative control retained; current complete dependency guard ran in CPU suite",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T11",
+        "previously_checked": true,
+        "requirement": "一条鼠标按下／拖拽／松开序列在渲染层只产生一次副作用",
+        "current_runtime": "test shell::presentation::curve_playback_tests::native_gesture_tests::native_property_gesture_commits_once_across_dpi_and_acknowledged_redraws ... ok",
+        "disposition": "existing coverage reviewed; no new product fix"
+      },
+      {
+        "id": "T12",
+        "previously_checked": false,
+        "requirement": "无 GPU 环境下测试套件可跳过而非失败；CI 仍强制执行",
+        "current_runtime": "complete CPU target union, six feature graphs, expected adapter failures, actual native GPU recovery and workflow controls",
+        "disposition": "new missing GPU selection attribute"
+      },
+      {
+        "id": "T13",
+        "previously_checked": true,
+        "requirement": "沙箱不可达性由断言守护",
+        "current_runtime": "existing relevant package targets included in complete CPU target union; see suite identity records",
+        "disposition": "existing coverage reviewed; no new product fix"
+      }
+    ],
+    "source_evidence": {
+      "crates/motion-model/tests/dependency_boundaries.rs": {
+        "sha256": "b0d560370d051f2abc87f2128ce4099fb9c9cfd09e2abd5b662f7c07cfd26ba7",
+        "last_changed": "bf9a6652f8e634cb4add475d80083230466dc149",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "desktop/app/src/shell/native_input_tests.rs": {
+        "sha256": "428c091fdeb3b09a1849451743b4a64695d70e80e069a812132e5ed891459a71",
+        "last_changed": "f84c77d4031159a7e8f18316372e864ee496f0e4",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "desktop/app/src/shell/native_gesture_tests.rs": {
+        "sha256": "40b17175d769a3b2ed52da1ab2c1bad1a4ad484346a4f818779a6c15cc1f6634",
+        "last_changed": "38e716c624b21b1aec7d4c9cacf9684d2bf74f2f",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-model/tests/key_collisions.rs": {
+        "sha256": "66019091235f75f663aadc212830cdab26b1343b0c2525382fb4315c87f32a8a",
+        "last_changed": "af314eeec5bd4e326091cb21e44bc92bee0da27a",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-model/tests/composition_candidate_oracle.rs": {
+        "sha256": "796783aa54c6537a1ff8af21938e9cfd47c47ea715a79365d3810561597701bc",
+        "last_changed": "1d1f284245fcd50391f672ef79653d09d432e219",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-model/tests/sample_time.rs": {
+        "sha256": "6afd047abc292afff82731b9615232081e253ac0c2a4deb3a50e3f9bb2dcf70d",
+        "last_changed": "ff397cc67c6360cf1dec2ad9d17dd425b97ba683",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-android/src/video_pixels.rs": {
+        "sha256": "990c4c4a09b7a5db0b7003118c6ec76afa7cca0a7f8b2a39cc2e78863524fe6e",
+        "last_changed": "adbe160244262128217069291b05e5d224a9d0e2",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-render/tests/presentation.rs": {
+        "sha256": "de0630555449119a0d52fbfc8bb830496b08d5c301205f2946395cbf5a417d53",
+        "last_changed": "ed233bc41155f5c00caec2d75cb3cf0570863d65",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-render/tests/resource_rejections.rs": {
+        "sha256": "98bfd55c4503fd31999d4dbc4c59a5233b7922571bbb5757ba9635983195f361",
+        "last_changed": "ed233bc41155f5c00caec2d75cb3cf0570863d65",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-core/tests/expression_sandbox.rs": {
+        "sha256": "34be4b8a7506fcfee915bd2ef9cd127a0ebcb2362f797c69fc7a356e818e7bf4",
+        "last_changed": "f04ad7caad919eca19a0471bfe28c1dce23a2774",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "desktop/app/src/configuration_tests.rs": {
+        "sha256": "5ab617fb51ec63156aff9b2b437869899a32fe32548137ce5488071732d581f0",
+        "last_changed": "e2bc1301bc6543cb67ba31c4e2c894a981891b08",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "crates/motion-render/tests/gpu_failure_observation.rs": {
+        "sha256": "b91d7d4d1283f17799ea8466fc2f7ce3d6a1fc57724ecf9c32cfe70f38674dfa",
+        "last_changed": "ed233bc41155f5c00caec2d75cb3cf0570863d65",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "engineering/validation/workspace-gpu-test-policy.md": {
+        "sha256": "8ba342191608ffe87da4c000e66c76c885435372c0c18b399b8ddc8a0b853e46",
+        "last_changed": "24d06f1566a20210f9dcf829686c5beb1026cf0f",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "engineering/validation/ui-gpu-test-policy.md": {
+        "sha256": "d5b95fb8d96d26236015eda74db72dc5e5394cce8af611a934f833cf704758ec",
+        "last_changed": "23cba327d59ccbc4de19cdb28c74bded2600abae",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      "tools/test_ci_workflow.py": {
+        "sha256": "15c8a14d61834a06a91346a029ecb2335dc7f2182f7d489ba5407110b1e530ea",
+        "last_changed": "ed233bc41155f5c00caec2d75cb3cf0570863d65",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      },
+      ".github/workflows/ci.yml": {
+        "sha256": "485de0d5935dd49cdf80445c980749af1a87b4204a7c63b0ca381c49796be22b",
+        "last_changed": "ed233bc41155f5c00caec2d75cb3cf0570863d65",
+        "review": "existing assertions and scope reviewed; runtime conclusions require logs"
+      }
+    },
+    "limits": [
+      "Windows hidden-window event injection is not physical input or a platform IME service",
+      "Desktop Android Rust pixel tests do not establish JNI/NDK/MediaCodec or device coverage",
+      "Explicit CPU test selection is not automatic fallback on adapter failure",
+      "GPU callback validation/destroy tests do not establish unexpected physical device removal coverage"
+    ]
+  },
+  "reused_completed_targets": {
+    "file": "resume-reused-results.json in evidence archive",
+    "complete_test_targets": 58,
+    "unchanged_empty_doc_harnesses": 2,
+    "passed": 291,
+    "ignored": 1,
+    "interrupted_desktop_target_not_counted": true
+  },
+  "initial_failed_run": {
+    "head": "7c0cd60b493d35690ac5b5579efe21f78439a2a3",
+    "stages": [
+      {
+        "name": "workspace-cpu",
+        "command": [
+          "cargo",
+          "test",
+          "--workspace",
+          "--no-default-features",
+          "--features",
+          "motion-desktop/ffmpeg,motion-host/diagnostics",
+          "--config",
+          "profile.dev.package.motion-desktop.debug=0",
+          "--config",
+          "profile.dev.package.motion-desktop.codegen-units=256",
+          "--locked",
+          "--offline",
+          "-j1",
+          "--no-fail-fast",
+          "--",
+          "--test-threads=1"
+        ],
+        "seconds": 3289.59,
+        "exit_code": 101,
+        "expected_exit": 0,
+        "backend": "noop",
+        "log_sha256": "dbe1f7a41a71ea77c159d1ead38c21d4f6261148458fae5162d3a4c60b7addb3",
+        "source_unchanged": true
+      }
+    ]
+  },
+  "local_runtime_staging": {
+    "at": "2026-10-24T10:30:19.816547+00:00",
+    "version": "ffmpeg version n8.1.3-16-ge0a878dd70-20261009 Copyright (c) 2000-2026 the FFmpeg developers",
+    "scope": "Existing local development runtime copied unchanged only into ignored test artifacts; no product asset or dependency added",
+    "files": [
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avutil-60.dll",
+        "destination": "E:\\Dev\\aem\\target\\debug\\deps\\avutil-60.dll",
+        "sha256": "b6c508c38d82c5b7866ccd35b9ada912ff33da92f7ec5d0d22c103aa9eea8bc9"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\swresample-6.dll",
+        "destination": "E:\\Dev\\aem\\target\\debug\\deps\\swresample-6.dll",
+        "sha256": "131aa0b9c1be3b4e40fecf26f336e1a0cdda16aced1d93c326504e59b9f03fc8"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avcodec-62.dll",
+        "destination": "E:\\Dev\\aem\\target\\debug\\deps\\avcodec-62.dll",
+        "sha256": "e382d899f08c836dd642de7750c1bf3e6175095ecdecb5ceebae3941faa8773f"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\avformat-62.dll",
+        "destination": "E:\\Dev\\aem\\target\\debug\\deps\\avformat-62.dll",
+        "sha256": "5cebb6d78bd863f48faa4ade77e7bac535b44f921c46d7a15f64f8e932ed381b"
+      },
+      {
+        "source": "E:\\Dev\\aem\\.tools\\ffmpeg-dev\\ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\bin\\swscale-9.dll",
+        "destination": "E:\\Dev\\aem\\target\\debug\\deps\\swscale-9.dll",
+        "sha256": "b279b677869dd191345afbed87f8a318f4dddb97fe1869dc871ae5eeac781fae"
+      }
+    ]
+  },
+  "logs": [
+    {
+      "file": "workspace-cpu.log",
+      "sha256": "dbe1f7a41a71ea77c159d1ead38c21d4f6261148458fae5162d3a4c60b7addb3",
+      "bytes": 225812
+    },
+    {
+      "file": "workspace-cpu-corrected.log",
+      "sha256": "8a719ea8faf0eccb05710ee7ebdadeaa837c61050459e3a6694975875501d878",
+      "bytes": 56959
+    },
+    {
+      "file": "workspace-cpu-remainder.log",
+      "sha256": "2d6a1edc962d8599f1c7f5ab5d48dee4ca49cc21e5d90ebe66e58b0ba6e011be",
+      "bytes": 301791
+    },
+    {
+      "file": "interrupted-case-check.log",
+      "sha256": "a6ef0ee1be590cd7a202f93ad4207245f776237da1badfaba6cff8445160cba0",
+      "bytes": 284
+    },
+    {
+      "file": "workflow-tests.log",
+      "sha256": "16209fcaa0a48085baabaedb976f2e03a2d0db05d95c754b2b9476032ea41da1",
+      "bytes": 2190
+    },
+    {
+      "file": "ci-controls.log",
+      "sha256": "d37ef2aa1859afd0c5f0a0849c8f5b8f60ae624ba14e6c675de0043709b7c8c6",
+      "bytes": 78
+    },
+    {
+      "file": "cpu-metadata.log",
+      "sha256": "b8e78cbc352e1779f5e652fc05c8a83d05b87a3f4bb2947b0c7d34dc97816c95",
+      "bytes": 2963434
+    },
+    {
+      "file": "gpu-metadata.log",
+      "sha256": "fe100a513b828a9161f326a5da46fbe923906ee46132aa0d545edc07ff23c254",
+      "bytes": 2963503
+    },
+    {
+      "file": "marker-cpu.log",
+      "sha256": "d60fefcf373e56a06071ef4c5e0d4c08139013f1cc5b456ff0df659cfa05fac1",
+      "bytes": 1212
+    },
+    {
+      "file": "marker-missing-adapter.log",
+      "sha256": "8b6edcd0773efe0a4e784fde016e2b62fc7d1cd6300e3ac3205a72af501e742c",
+      "bytes": 1727
+    },
+    {
+      "file": "marker-native.log",
+      "sha256": "9b9bcea7a0d4012ff8dc8a2d3ea5a75e01b0cbe94e333f5e26eaf05e83fde193",
+      "bytes": 1293
+    },
+    {
+      "file": "missing-adapter.log",
+      "sha256": "552aa7a23a3ae26049ccf9ad3bea205536a8245e8ee96295861ea1569450f8ab",
+      "bytes": 1943
+    },
+    {
+      "file": "gpu-recovery.log",
+      "sha256": "d3e29eadbcf68608182615776a0f0470dfc33890885ad994b9ba3e14cb3f9476",
+      "bytes": 1016
+    }
+  ],
+  "source_freeze_sha256": "678115494d440b1f7ecbdcd254f432cc9f1978ddd8a3eb1f14cec69f71322a6c",
+  "original_failures_and_interruption_preserved": true,
+  "remote_ci": "pending on current PR; require five successful checks before merge",
+  "counting": "one final summary per Cargo target; exclude nested child summaries, diagnostic reruns and expected failures",
+  "metadata_summary_correction": "initial helper reused a summary filename; canonical cpu/gpu feature summaries regenerated from unchanged full metadata logs, not a repeated test run",
+  "historical_dependency_control": {
+    "scope": "previously completed #390, not executed again in this run",
+    "sha256": "20bd1fbaa2600e3a8ae44da9e84d29c6ff130c935ce6c68db7fb521fb420d1cf",
+    "receipt": {
+      "control": {
+        "exit_code": 101,
+        "failure": [
+          "core depends on wgpu",
+          "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s"
+        ]
+      },
+      "restored": {
+        "exit_code": 0,
+        "results": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s"
+        ]
+      }
+    }
+  },
+  "evidence_archive": {
+    "file": "data/workspace-gpu-acceptance-ec10c1d7.zip",
+    "sha256": "c7a0b40adf3a4f50200f0848bb441b0e9d0f9f2b6e1a4880b33334e9152c2491",
+    "bytes": 874948,
+    "files": 38,
+    "scope": "independently generated test logs, receipts and runners; no DLLs or third-party assets"
+  },
+  "cpu_packages": {
+    "motion-android": {
+      "targets": 2,
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    "motion-core": {
+      "targets": 58,
+      "passed": 284,
+      "failed": 0,
+      "ignored": 1
+    },
+    "motion-desktop": {
+      "targets": 6,
+      "passed": 906,
+      "failed": 0,
+      "ignored": 61
+    },
+    "motion-desktop-media": {
+      "targets": 4,
+      "passed": 30,
+      "failed": 0,
+      "ignored": 23
+    },
+    "motion-effects": {
+      "targets": 15,
+      "passed": 63,
+      "failed": 0,
+      "ignored": 0
+    },
+    "motion-graph": {
+      "targets": 18,
+      "passed": 49,
+      "failed": 0,
+      "ignored": 24
+    },
+    "motion-host": {
+      "targets": 17,
+      "passed": 133,
+      "failed": 0,
+      "ignored": 27
+    },
+    "motion-media": {
+      "targets": 15,
+      "passed": 165,
+      "failed": 0,
+      "ignored": 2
+    },
+    "motion-model": {
+      "targets": 18,
+      "passed": 68,
+      "failed": 0,
+      "ignored": 0
+    },
+    "motion-render": {
+      "targets": 89,
+      "passed": 236,
+      "failed": 0,
+      "ignored": 314
+    },
+    "motion-ui": {
+      "targets": 21,
+      "passed": 140,
+      "failed": 0,
+      "ignored": 25
+    }
+  },
+  "full_target_index": {
+    "file": "cpu-suites.json in evidence archive",
+    "sha256": "bb0fdb607f407d14c08ce9caaeef5818ced3b8f38e4ce8e3449aa6b5001b312c"
+  }
+}

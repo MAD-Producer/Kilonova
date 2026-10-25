@@ -9,6 +9,9 @@ use std::collections::{HashMap, HashSet};
 #[cfg(test)]
 mod reuse_tests;
 
+// Retain bounded, empty CPU membership storage between preparations.
+const MAX_RETAINED_MEMBERSHIP_CAPACITY: usize = 4096;
+
 struct Uniform {
     group: wgpu::BindGroup,
     inputs: Option<InputBinding>,
@@ -21,6 +24,8 @@ struct InputBinding {
     _allocations: [Option<crate::allocation_budget::AllocationLease>; 2],
 }
 pub(crate) struct MaskGpu {
+    format: wgpu::TextureFormat,
+    pixel_bytes: u64,
     raster: wgpu::RenderPipeline,
     filters: Vec<wgpu::RenderPipeline>,
     uniform_layout: wgpu::BindGroupLayout,
@@ -32,6 +37,8 @@ pub(crate) struct MaskGpu {
     scratch_size: (u32, u32),
     fingerprints: HashMap<u64, u64>,
     meshes: HashMap<(u64,u64),(u64,crate::allocation_buffer::AllocationBuffer)>,
+    active_layers_scratch: HashSet<u64>,
+    active_meshes_scratch: HashSet<(u64, u64)>,
     pub uploads: u64,
     #[cfg(test)]
     input_binding_observations: Vec<wgpu::BindGroup>,
@@ -49,11 +56,12 @@ fn texture(
     sampler: &wgpu::Sampler,
     w: u32,
     h: u32,
+    format: wgpu::TextureFormat,
     budget: &crate::AllocationBudget,
 ) -> Result<FxTexture, RenderError> {
     crate::effect_gpu::admitted_texture(device, layout, sampler, w, h,
-        wgpu::TextureFormat::R8Unorm, budget, crate::TextureCategory::MaskScratch).map_err(|error| {
-            let message = format!("mask texture size={w}x{h} format=R8Unorm phase=allocate: {error}");
+        format, budget, crate::TextureCategory::MaskScratch).map_err(|error| {
+            let message = format!("mask texture size={w}x{h} format={format:?} phase=allocate: {error}");
             error.with_diagnostic(message)
         })
 }
@@ -63,12 +71,22 @@ impl MaskGpu {
             ledger.retained(&t.texture, crate::TextureCategory::MaskScratch, format!("masks/scratch/{i}"));
         }
     }
-    pub fn new(
+    #[cfg(test)]
+    pub fn new(device: &wgpu::Device, image_layout: &wgpu::BindGroupLayout,
+        allocation_budget: crate::AllocationBudget,
+        allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>) -> Result<Self, RenderError> {
+        Self::with_precision(device, image_layout, allocation_budget, allocation_uploads,
+            motion_effects::image_contract::ChannelPrecision::Unorm8)
+    }
+    pub fn with_precision(
         device: &wgpu::Device,
         image_layout: &wgpu::BindGroupLayout,
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+        precision: motion_effects::image_contract::ChannelPrecision,
     ) -> Result<Self, RenderError> {
+        let storage = motion_effects::image_contract::coverage_storage(precision);
+        let format = crate::image_formats::native_format(storage);
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("mask coverage"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -139,7 +157,7 @@ impl MaskGpu {
                         entry_point: Some("sdk_fragment"),
                         compilation_options: Default::default(),
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::R8Unorm,
+                            format,
                             blend: None,
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
@@ -180,7 +198,7 @@ impl MaskGpu {
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::R8Unorm,
+                    format,
                     blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -193,6 +211,7 @@ impl MaskGpu {
         });
         let _ = image_layout;
         Ok(Self {
+            format, pixel_bytes: storage.bytes_per_pixel(),
             raster,
             filters,
             uniform_layout,
@@ -204,6 +223,8 @@ impl MaskGpu {
             scratch_size: (0, 0),
             fingerprints: HashMap::new(),
             meshes: HashMap::new(),
+            active_layers_scratch: HashSet::new(),
+            active_meshes_scratch: HashSet::new(),
             uploads: 0,
             #[cfg(test)]
             input_binding_observations: Vec::new(),
@@ -212,7 +233,7 @@ impl MaskGpu {
         })
     }
     pub fn scratch_bytes(&self) -> u64 {
-        u64::from(self.scratch_size.0) * u64::from(self.scratch_size.1) * self.scratch.len() as u64
+        self.scratch.iter().map(|t| crate::resource_ledger::logical_bytes(&t.texture).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)
     }
     pub fn clear(&mut self) {
         self.clear_inputs();
@@ -220,6 +241,8 @@ impl MaskGpu {
         self.scratch_size = (0, 0);
         self.fingerprints.clear();
         self.meshes.clear();
+        self.active_layers_scratch = HashSet::new();
+        self.active_meshes_scratch = HashSet::new();
     }
     fn clear_inputs(&mut self) {
         // Cached views refer to the current scratch pool. Release them before
@@ -355,7 +378,7 @@ impl MaskGpu {
                 "mask target preparation requires a nonempty mask list".into()))?;
             let owner = scene.layers[first.layer].id;
             Some((0..slots).map(|slot| {
-                texture(device, image_layout, &self.sampler, w, h, &self.allocation_budget)
+                texture(device, image_layout, &self.sampler, w, h, self.format, &self.allocation_budget)
                     .map_err(|error| mask_context(error, owner, first.id, scene.frame,
                         &format!("scratch_allocate slot={slot}")))
             }).collect::<Result<Vec<_>, _>>()?)
@@ -372,7 +395,7 @@ impl MaskGpu {
             if self.fingerprints.get(&owner) == Some(&signature) && images.contains_key(&key) {
                 continue;
             }
-            let cost = u64::from(first.width) * u64::from(first.height);
+            let cost = u64::from(first.width) * u64::from(first.height) * self.pixel_bytes;
             let previous = images.get(&key).map_or(0, |image| image.bytes);
             if next_bytes - previous + cost + other > source_budget {
                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
@@ -381,7 +404,7 @@ impl MaskGpu {
             }
             if images.get(&key).is_none_or(|image| image.size != (first.width, first.height)) {
                 let target = texture(device, image_layout, &self.sampler, first.width,
-                    first.height, &self.allocation_budget).map_err(|error|
+                    first.height, self.format, &self.allocation_budget).map_err(|error|
                         mask_context(error, owner, first.id, scene.frame, "output_allocate"))?;
                 next.push((key, target, cost, (first.width, first.height)));
                 next_bytes = next_bytes - previous + cost;
@@ -418,8 +441,10 @@ impl MaskGpu {
     ) -> Result<bool, RenderError> {
         #[cfg(test)]
         self.input_binding_observations.clear();
-        let active: HashSet<_> = masks.iter().map(|m| scene.layers[m.layer].id).collect();
-        let active_meshes:HashSet<_>=masks.iter().map(|m|(scene.layers[m.layer].id,m.id)).collect();
+        let mut active = std::mem::take(&mut self.active_layers_scratch);
+        let mut active_meshes = std::mem::take(&mut self.active_meshes_scratch);
+        active.extend(masks.iter().map(|m| scene.layers[m.layer].id));
+        active_meshes.extend(masks.iter().map(|m| (scene.layers[m.layer].id, m.id)));
         self.meshes.retain(|key,_|active_meshes.contains(key));
         let mut changed = false;
         let stale: Vec<_> = images
@@ -434,6 +459,14 @@ impl MaskGpu {
             }
         }
         self.fingerprints.retain(|id, _| active.contains(id));
+        if active.capacity() <= MAX_RETAINED_MEMBERSHIP_CAPACITY {
+            active.clear();
+            self.active_layers_scratch = active;
+        }
+        if active_meshes.capacity() <= MAX_RETAINED_MEMBERSHIP_CAPACITY {
+            active_meshes.clear();
+            self.active_meshes_scratch = active_meshes;
+        }
         if masks.is_empty() {
             self.clear();
             return Ok(changed);

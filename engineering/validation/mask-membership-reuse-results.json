@@ -1,0 +1,194 @@
+{
+  "base": "6bdb692a7f6878dc8c78742a80561ee28937d145",
+  "source": "crates/motion-render/src/mask_gpu.rs",
+  "source_before_sha256": "a5483ffb5a6e1e6ddd2b648523733ac2460df02a3c9916b1c2166cb2b4d6954b",
+  "source_after_sha256": "71d1504132b54d8cd3f0236b69fcecaae7ac3de43b42d856e6d6673267b8ed6b",
+  "benchmark_sha256": "bea362376fde7b632398284524ff1124b3e394f68b7ce10dbb4caf0f071f5426",
+  "checks": [
+    {
+      "name": "mask-unit-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--lib",
+        "mask_gpu::reuse_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "seconds": 52.92,
+      "exit_code": 0,
+      "source_unchanged": true,
+      "sha256": "3420d679ed31a2e8b5e31ddd27d2ddd046d02763b22ae416002635a96da74c69",
+      "results": [
+        [
+          "ok",
+          "13",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "mask-integration-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--no-default-features",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "layer_masks",
+        "--test",
+        "mask_error_boundaries",
+        "--",
+        "--test-threads=1"
+      ],
+      "seconds": 18.8,
+      "exit_code": 0,
+      "source_unchanged": true,
+      "sha256": "96ab3bcf34a0976dacb46dbc176461760e0cf10b5360e8c70d259d524057eb9a",
+      "results": [
+        [
+          "ok",
+          "3",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  ],
+  "comparison": {
+    "cases": [
+      {
+        "layers": 1,
+        "masks_per_layer": 1,
+        "captures": 20,
+        "before_allocations": 3018,
+        "after_allocations": 2979,
+        "before_allocated_bytes": 1758596,
+        "after_allocated_bytes": 1755908
+      },
+      {
+        "layers": 64,
+        "masks_per_layer": 1,
+        "captures": 20,
+        "before_allocations": 30284,
+        "after_allocations": 30259,
+        "before_allocated_bytes": 6673988,
+        "after_allocated_bytes": 6607268
+      },
+      {
+        "layers": 128,
+        "masks_per_layer": 16,
+        "captures": 20,
+        "before_allocations": 159980,
+        "after_allocations": 159939,
+        "before_allocated_bytes": 42016260,
+        "after_allocated_bytes": 39885668
+      }
+    ],
+    "pixels": [
+      {
+        "file": "1-1-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "1-1-original.rgba",
+        "bytes": 65536,
+        "sha256": "e3ef57b8589ed54a287a2380f321263371fed8c9577fa09f54e57c87ade0d43c"
+      },
+      {
+        "file": "1-1-removed.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "128-16-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "128-16-original.rgba",
+        "bytes": 65536,
+        "sha256": "41bac2fc42a175ed5c10c932dbedd46679e5b48440a0a6ff72ff79dc3aabad0a"
+      },
+      {
+        "file": "128-16-removed.rgba",
+        "bytes": 65536,
+        "sha256": "53a39c6fb6494c75feafb1eb06137f2e06606bf849f07f4b0b243060401eb485"
+      },
+      {
+        "file": "64-1-empty.rgba",
+        "bytes": 65536,
+        "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      },
+      {
+        "file": "64-1-original.rgba",
+        "bytes": 65536,
+        "sha256": "1150518cf8806d891c2f482df8f5d3ee317ec73391a2fbd5054a7a1ab091258a"
+      },
+      {
+        "file": "64-1-removed.rgba",
+        "bytes": 65536,
+        "sha256": "0187a291190ba4ac015367d6090b56d53f67ccaed5254bb263a4473d061cf73d"
+      }
+    ],
+    "all_pixels_and_texture_accounting_identical": true,
+    "counting": "current-thread Rust alloc/alloc_zeroed/realloc requests during 20 actual captures after 3 warm captures; not all process/native allocations or a timing claim"
+  },
+  "pixel_bytes": 589824,
+  "pixels_concatenated_sha256": "23162c692e922e83491e1c7c940efd47411275b82e96c7536c29ab9c598355bc",
+  "cpu_storage": {
+    "per_set_capacity_limit": 4096,
+    "only_empty_storage_retained": true,
+    "explicit_clear_and_empty_masks_release_storage": true,
+    "over_limit_storage_discarded": true,
+    "tradeoff": "bounded CPU table capacity retained between calls; no claim of zero extra resident CPU memory"
+  },
+  "branch_audit": {
+    "refs": 401,
+    "worktrees": 110,
+    "source_variants": 14,
+    "all_variants_still_collect_local_sets": true,
+    "dirty_overlap": [
+      {
+        "worktree": "E:/Dev/aem/.worktrees/egui-desktop-shell",
+        "status": "M crates/motion-render/src/mask_gpu.rs"
+      }
+    ],
+    "disposition": "egui-desktop-shell changes only older wgpu API calls; no membership reuse and no overlap with the edited regions; open PR 484 does not edit mask_gpu.rs"
+  },
+  "evidence_archive": {
+    "file": "data/mask-membership-reuse-6bdb692a.zip",
+    "bytes": 225096,
+    "sha256": "34011a9e8ca53afc81bea9629c0f64158d1ce73f3667c6c3eb0e466a62df63b4",
+    "files": 39
+  },
+  "scope": "Refs #126; partial allocation improvement; new independent actual-Renderer allocation/pixel comparison; 17 regression tests are existing coverage; no new product log points",
+  "limits": [
+    "dev build on one Windows development machine; no throughput or FPS claim",
+    "allocation counters cover current-thread Rust allocator requests during capture; other allocations vary",
+    "maximum legal fixture has 128 layers and 16 masks each; no fabricated beyond-model GPU scene",
+    "no new dependency, asset, style, log point, GPU budget or error protocol changes"
+  ]
+}

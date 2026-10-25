@@ -47,7 +47,8 @@ pub use camera::{
 pub use composition::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use curve::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
 pub use effects::{
-    CurveLut, CurveObject, CurveTrack, EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,
+    CurveLut, CurveObject, CurveTrack, SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES,
+    EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,
     SampledEffect,
 };
 pub use expressions::{

@@ -64,13 +64,14 @@ impl<'a> Transfer<'a> {
     }
     pub fn at(&self, x: f32) -> f32 {
         if let Some(lut) = self.lookup {
-            let position = x.clamp(0., 1.) * 255.;
-            let nearest = position.round().clamp(0., 255.) as usize;
-            if x == nearest as f32 / 255. {
+            let last = (lut.len() - 1) as f32;
+            let position = x.clamp(0., 1.) * last;
+            let nearest = position.round().clamp(0., last) as usize;
+            if x == nearest as f32 / last {
                 return lut[nearest];
             }
-            let lower = position.floor().clamp(0., 255.) as usize;
-            let upper = (lower + 1).min(255);
+            let lower = position.floor().clamp(0., last) as usize;
+            let upper = (lower + 1).min(lut.len() - 1);
             return (lut[lower] + (lut[upper] - lut[lower]) * (position - lower as f32))
                 .clamp(0., 1.);
         }

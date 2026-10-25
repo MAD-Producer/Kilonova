@@ -54,6 +54,8 @@ mod camera_tests;
 mod session_budget_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod work_area_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod precision_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
@@ -317,7 +319,7 @@ mod tests {
         read(&mut decoder);
         (count, (power / count as f64).sqrt())
     }
-    fn decoded_pixels(path: &Path) -> (Vec<u8>, Vec<u8>) {
+    pub(super) fn decoded_pixels(path: &Path) -> (Vec<u8>, Vec<u8>) {
         let probe = crate::av::probe(path, None, None, &|| Ok(())).unwrap();
         assert_eq!(probe.asset.frame_count, 6);
         assert_eq!(probe.asset.video_end_us, 200_000, "six 30 fps frames must include the final sample duration");
@@ -694,6 +696,7 @@ impl MovieFreezePlan {
         // render errors until this existing, explicitly text-only boundary.
         let mut plans = motion_render::effect_plan::PlanBuilder::new(registry.clone())
             .map_err(|error| error.to_string())?;
+        plans.set_precision(project.working_precision);
         plans.set_memory_policy(memory_policy).map_err(|error| error.to_string())?;
         let allocation_budget = motion_render::AllocationBudget::new(memory_policy.session_allocation_budget_bytes)
             .map_err(|error| error.to_string())?;
@@ -994,7 +997,7 @@ impl FrozenMovie {
             crate::encode::Mp4Encoder::new(temporary.path(), p.width, p.height, p.fps)?;
         let encoder_name = encoder.video_encoder.clone();
         let mut renderer =
-            pollster::block_on(Renderer::headless_with_allocation_budget(self.allocation_budget.clone())).map_err(|e| format!("export GPU: {e}"))?;
+            pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, self.allocation_budget.clone())).map_err(|e| format!("export GPU: {e}"))?;
         renderer.set_effect_registry(self.registry.clone());
         renderer
             .set_memory_policy(self.memory_policy)
@@ -1007,9 +1010,8 @@ impl FrozenMovie {
             Some(motion_render::exposure_scene::ExposureDocument::new(Arc::new(p.clone()))
                 .map_err(|error| error.to_string())?)
         } else { None };
-        let target = if document.is_none() {
-            Some(renderer.capture_target(p.width, p.height).map_err(|error| error.to_string())?)
-        } else { None };
+        let target = renderer.sdr_video_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
+            .map_err(|error| error.to_string())?;
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
         let mut videos = motion_host::video_frames::VideoFrames::new(crate::platform());
         let mut mixer = motion_media::AudioMixer::new(p.clone(), self.assets.path())?;
@@ -1034,7 +1036,7 @@ impl FrozenMovie {
                     control.check()?;
                     let pixels = if let Some(document) = &document {
                         render_exposure_frame(&mut renderer, &mut videos, &mut proxies, p,
-                            document.clone(), self.assets.path(), f64::from(frame), control)?
+                            document.clone(), self.assets.path(), f64::from(frame), control, &target)?
                     } else {
                         // Scene::sample performs the same animated, expression and recursive
                         // composition evaluation used by the editing host.
@@ -1067,8 +1069,8 @@ impl FrozenMovie {
                             decoded.upload(&mut renderer, object, source)?;
                         }
                         renderer
-                            .capture(&scene, target.as_ref().ok_or("ordinary capture target missing")?)
-                            .map_err(|e| format!("render export frame {frame}: {e}"))?.0
+                            .capture_sdr(&scene, &target)
+                            .map_err(|e| format!("render export frame {frame}: {e}"))?.0.pixels
                     };
                     control.check()?;
                     encoder.video_frame(&pixels, frame - self.range.in_frame)?;
@@ -1156,7 +1158,8 @@ fn render_exposure_frame(renderer: &mut motion_render::Renderer,
     videos: &mut motion_host::video_frames::VideoFrames,
     proxies: &mut motion_host::preview_video::PreviewVideoCache,
     project: &Project, document: motion_render::exposure_scene::ExposureDocument,
-    root: &Path, frame: f64, control: &ExportControl) -> Result<Vec<u8>> {
+    root: &Path, frame: f64, control: &ExportControl,
+    output: &motion_render::SdrCaptureTarget) -> Result<Vec<u8>> {
     use motion_host::render_sampling::{ExposureMedia, ExposureMediaPolicy};
     use motion_render::{exposure_scene::ExposureScenes, ExposureFrame, ExposurePoll};
     use std::time::{Duration, Instant};
@@ -1171,7 +1174,8 @@ fn render_exposure_frame(renderer: &mut motion_render::Renderer,
         control.check()?;
         match task.poll(renderer, Duration::from_millis(8), |renderer, scene| media.prepare(renderer, scene))
             .map_err(|error| format!("export frame={frame} phase=exposure_poll: {error}"))? {
-            ExposurePoll::Ready(_) => return renderer.capture_exposure(task.target())
+            ExposurePoll::Ready(_) => return renderer.capture_exposure_sdr(task.target(), output)
+                .map(|image| image.pixels)
                 .map_err(|error| format!("export frame={frame} phase=exposure_capture: {error}")),
             ExposurePoll::Pending(current) => {
                 if current != progress { progress = current; stage_started = Instant::now(); }

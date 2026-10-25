@@ -470,9 +470,11 @@ impl Session {
             return Err("editor preview must be 1..512 pixels per dimension".into());
         }
         self.sample()?;
+        let precision = self.engine.project().working_precision;
         if self.editor_renderer.is_none() {
-            let mut renderer =
-                pollster::block_on(Renderer::headless_with_allocation_budget(self.allocation_budget().clone())).map_err(crate::Error::from)?;
+            let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(
+                precision, self.allocation_budget().clone(),
+            )).map_err(crate::Error::from)?;
             renderer.set_effect_registry(self.effects.registry.clone());
             renderer
                 .set_memory_policy(self.effects.memory_policy())
@@ -484,6 +486,9 @@ impl Session {
             self.editor_renderer = Some(renderer);
         }
         let renderer = self.editor_renderer.as_mut().unwrap();
+        if let Some(change) = renderer.prepare_working_precision(precision).map_err(crate::Error::from)? {
+            renderer.commit_working_precision(change).map_err(crate::Error::from)?;
+        }
         renderer
             .prepare_scene_assets(
                 &self.scene,
@@ -497,21 +502,22 @@ impl Session {
         if self
             .editor_target
             .as_ref()
-            .is_none_or(|t| t.width != width as u32 || t.height != height as u32)
+            .is_none_or(|t| t.width() != width as u32 || t.height() != height as u32
+                || t.working_format() != renderer.target_format)
         {
             self.editor_target = Some(
                 renderer
-                    .capture_target(width as u32, height as u32)
+                    .sdr_capture_target(width as u32, height as u32, motion_render::OutputTransform::SDR_CLIP)
                     .map_err(crate::Error::from)?,
             );
         }
-        let (pixels, stats) = renderer
-            .capture(&self.scene, self.editor_target.as_ref().unwrap())
+        let (image, stats) = renderer
+            .capture_sdr(&self.scene, self.editor_target.as_ref().unwrap())
             .map_err(crate::Error::from)?;
         let mut png = Vec::new();
         image::ImageEncoder::write_image(
             image::codecs::png::PngEncoder::new(&mut png),
-            &pixels,
+            &image.pixels,
             width as u32,
             height as u32,
             image::ExtendedColorType::Rgba8,

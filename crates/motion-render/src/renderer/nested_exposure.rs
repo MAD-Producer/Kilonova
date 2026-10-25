@@ -103,7 +103,9 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                         if !budget.take() {
                             return Ok(false);
                         }
-                        let bytes = u64::from(child.size[0]) * u64::from(child.size[1]) * 4;
+                        let pixel_bytes = crate::image_formats::color_storage(
+                            renderer.effect_gpu.builder.precision()).bytes_per_pixel();
+                        let bytes = u64::from(child.size[0]) * u64::from(child.size[1]) * pixel_bytes;
                         let reservation = renderer.reserve_exposure_bytes(bytes, &context)?;
                         let target = renderer.render_target_in(child.size[0], child.size[1], crate::TextureCategory::NestedCompositions)?;
                         renderer.resolve_exposure_view(task.target(), &target.view, |ledger| {
@@ -128,7 +130,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                     }
                 }
                 // Only one child task is live; completed siblings keep only
-                // their 4WH resolved image, not another 12WH accumulation.
+                // their working-format resolved image, not another sample/mean pair.
                 self.active = None;
                 self.next += 1;
                 progress.work_units = progress.work_units.saturating_add(1);

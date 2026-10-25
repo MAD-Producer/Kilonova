@@ -26,6 +26,7 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
     /// Zero edits the active composition background. Visual layer source
     /// colors remain static; animated color uses a color effect or vector paint.
     SetColor { object:u64, value:[f32;4] },

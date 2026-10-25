@@ -1,5 +1,6 @@
 mod composition;
 mod text_input;
+pub(crate) mod project_precision;
 pub(crate) mod preferences;
 use crate::i18n::Locale;
 use motion_ui::{
@@ -78,6 +79,7 @@ pub enum Event {
     PreferencesImportKeys,
     PreferencesExportKeys,
     Settings(Value),
+    ProjectPrecision(motion_effects::image_contract::ChannelPrecision),
     CreateComposition(Value),
     Text {
         text: String,
@@ -95,6 +97,7 @@ enum Kind {
 }
 pub struct Dialog {
     pub(crate) preferences: Option<preferences::Editor>,
+    project_precision: Option<project_precision::Editor>,
     kind: Kind,
     settings_tab: usize,
     preset_dropdown: motion_ui::widgets::Dropdown,
@@ -159,6 +162,7 @@ impl Dialog {
         Self {
             kind: Kind::Settings,
             preferences: None,
+            project_precision: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -190,6 +194,7 @@ impl Dialog {
         Self {
             kind: Kind::Text,
             preferences: None,
+            project_precision: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -221,6 +226,9 @@ impl Dialog {
     ) -> Option<Event> {
         if let Some(preferences) = &mut self.preferences {
             return preferences.draw(list, atlas, size, input, locale, self.error.as_deref());
+        }
+        if let Some(precision) = &mut self.project_precision {
+            return precision.draw(list, atlas, size, input, locale, self.error.as_deref());
         }
         if !matches!(self.kind, Kind::Text) {
             return self.composition_ui(list, atlas, size, input, locale);

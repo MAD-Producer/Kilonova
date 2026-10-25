@@ -336,6 +336,13 @@ impl DerefMut for AllocationEncoder {
     }
 }
 impl AllocationEncoder {
+    pub(crate) fn check_owner(&self, owner: &Arc<()>) -> Result<(), RenderError> {
+        if Arc::ptr_eq(&self.owner, owner) {
+            Ok(())
+        } else {
+            Err(invalid("render encoder belongs to another renderer"))
+        }
+    }
     /// Read-only identity of this actual encoder's observation. None means
     /// disabled/unavailable/omitted, never a fabricated zero-duration sample.
     pub fn command_identity(&self) -> Option<crate::gpu_commands::CommandIdentity> {

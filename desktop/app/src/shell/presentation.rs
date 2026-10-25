@@ -241,6 +241,12 @@ impl Shell {
                             )?;
                             self.dialog = None;
                         }
+                        dialogs::Event::ProjectPrecision(precision) => {
+                            let command = serde_json::to_string(&Command::SetWorkingPrecision { precision })
+                                .map_err(|e| e.to_string())?;
+                            self.state = self.engine.edit(command)?;
+                            self.dialog = None;
+                        }
                         dialogs::Event::Text {
                             text,
                             size,

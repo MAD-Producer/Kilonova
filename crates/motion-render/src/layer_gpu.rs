@@ -28,6 +28,10 @@ pub(crate) struct LayerGpu {
     uploads: crate::vector_upload::UploadPool,
     vertex_upload: crate::vector_upload::ReusableBuffer,
     allocation_budget: crate::AllocationBudget,
+    color_format: wgpu::TextureFormat,
+    raster_format: wgpu::TextureFormat,
+    color_pixel_bytes: u64,
+    raster_pixel_bytes: u64,
 }
 impl LayerGpu {
     pub fn upload_info(&self) -> Result<crate::VectorUploadInfo, RenderError> {
@@ -50,6 +54,10 @@ impl LayerGpu {
         format: wgpu::TextureFormat,
         budget: &crate::AllocationBudget,
     ) -> Result<Self, RenderError> {
+        let precision = crate::image_formats::color_precision(format)
+            .ok_or_else(|| RenderError::Invalid(format!("unsupported layer working format {format:?}")))?;
+        let color_format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
+        let raster_format = crate::image_formats::native_format(crate::image_formats::raster_storage(precision));
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("vector paints"),
             source: wgpu::ShaderSource::Wgsl(include_str!("vector.wgsl").into()),
@@ -78,7 +86,7 @@ impl LayerGpu {
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    format: raster_format,
                     blend,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -105,7 +113,7 @@ impl LayerGpu {
             })),
             vertex: wgpu::VertexState { module: &copy_shader, entry_point: Some("vs"), compilation_options: Default::default(), buffers: &[] },
             fragment: Some(wgpu::FragmentState { module: &copy_shader, entry_point: Some("fs"), compilation_options: Default::default(), targets: &[Some(wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::Rgba8UnormSrgb, blend: None, write_mask: wgpu::ColorWrites::ALL,
+                format: color_format, blend: None, write_mask: wgpu::ColorWrites::ALL,
             })] }),
             primitive: Default::default(), depth_stencil: None, multisample: Default::default(), multiview_mask: None, cache: None,
         });
@@ -174,10 +182,13 @@ impl LayerGpu {
             fingerprints: HashMap::new(),
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
-            groups: groups::GroupGpu::new(device,image,budget),
+            groups: groups::GroupGpu::new(device,image,budget,precision),
             uploads: crate::vector_upload::UploadPool::new(budget.clone()),
             vertex_upload: crate::vector_upload::ReusableBuffer::new(budget.clone()),
             allocation_budget: budget.clone(),
+            color_format, raster_format,
+            color_pixel_bytes: crate::image_formats::color_storage(precision).bytes_per_pixel(),
+            raster_pixel_bytes: crate::image_formats::raster_storage(precision).bytes_per_pixel(),
         })
     }
     pub fn prepare_accumulators(
@@ -188,13 +199,14 @@ impl LayerGpu {
         format: wgpu::TextureFormat,
         size: Option<[u32; 2]>,
     ) -> Result<bool, RenderError> {
-        let changed = self.size != size.unwrap_or([0; 2]);
+        let changed = self.size != size.unwrap_or([0; 2])
+            || self.accumulators.iter().any(|t| t.texture.format() != format);
         match size {
             None => {
                 self.accumulators.clear();
                 self.size = [0; 2];
             }
-            Some(size) if self.size != size => {
+            Some(size) if changed => {
                 // Reserve both replacement targets before retiring the old pair.
                 let next = (0..2)
                     .map(|slot| {
@@ -228,33 +240,29 @@ impl LayerGpu {
         self.groups.collect_textures(ledger);
     }
     pub fn bytes(&self) -> u64 {
-        self.accumulators.len() as u64 * u64::from(self.size[0]) * u64::from(self.size[1]) * 4 + self.groups.bytes()
-            + self
-                .raster_scratch
-                .iter()
-                .map(|((w, h), _)| u64::from(*w) * u64::from(*h) * 20)
-                .sum::<u64>()
+        self.accumulator_bytes() + self.groups.bytes() + self.raster_scratch_bytes()
     }
     pub fn accumulator_bytes(&self) -> u64 {
-        self.accumulators.len() as u64 * u64::from(self.size[0]) * u64::from(self.size[1]) * 4
+        self.accumulators.iter().map(|t| crate::resource_ledger::logical_bytes(&t.texture).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)
     }
     pub fn raster_scratch_bytes(&self) -> u64 {
-        // One shared size owns 16-byte MSAA plus a 4-byte resolve. The separate
-        // 4-byte vector source belongs to images/VectorSources, not this pool.
-        self.raster_scratch.keys().map(|(w,h)| u64::from(*w)*u64::from(*h)*20).sum()
+        self.raster_scratch.values().chain(self.raster_resolve.values().map(|t| &t.texture))
+            .map(|t| crate::resource_ledger::logical_bytes(t).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)
     }
+    fn color_pixel_bytes(&self) -> u64 { self.color_pixel_bytes }
+    fn raster_pixel_bytes(&self) -> u64 { self.raster_pixel_bytes }
     pub fn group_scratch_bytes(&self) -> u64 { self.groups.bytes() }
     pub fn pending_vector_bytes(&self, scene: &crate::Scene, meshes: &[crate::vector_mesh::VectorMesh], images: &HashMap<TextureKey, GpuImage>) -> u64 {
         let mut scratch: std::collections::HashSet<_> = self.raster_scratch.keys().copied()
             .filter(|size| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height))).collect();
-        let mut bytes = scratch.iter().map(|(w, h)| u64::from(*w) * u64::from(*h) * 20).sum::<u64>() + groups::GroupGpu::required_bytes(meshes);
+        let mut bytes = scratch.iter().map(|(w, h)| u64::from(*w) * u64::from(*h) * self.raster_pixel_bytes() * 5).sum::<u64>() + self.groups.required_bytes(meshes);
         for mesh in meshes {
             let id = scene.layers[mesh.layer].id;
             let old = images.get(&TextureKey::Vector(id));
             if self.fingerprints.get(&id) == Some(&mesh.fingerprint) && old.is_some_and(|i| i.size == (mesh.width, mesh.height)) { continue; }
-            let cost = u64::from(mesh.width) * u64::from(mesh.height) * 4;
+            let cost = u64::from(mesh.width) * u64::from(mesh.height) * self.color_pixel_bytes();
             if old.is_none_or(|i| i.size != (mesh.width, mesh.height)) { bytes += cost; }
-            if !groups::GroupGpu::grouped(mesh) && scratch.insert((mesh.width, mesh.height)) { bytes += cost * 5; }
+            if !groups::GroupGpu::grouped(mesh) && scratch.insert((mesh.width, mesh.height)) { bytes += u64::from(mesh.width) * u64::from(mesh.height) * self.raster_pixel_bytes() * 5; }
         }
         bytes
     }
@@ -296,17 +304,17 @@ impl LayerGpu {
             let key = TextureKey::Vector(id);
             let size = (mesh.width, mesh.height);
             if images.get(&key).is_none_or(|i| i.size != size) {
-                let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                let format = self.color_format;
                 let target = crate::effect_gpu::admitted_texture(device, image, sampler,
                     size.0, size.1, format, &self.allocation_budget, crate::TextureCategory::VectorRasterScratch)
                     .map_err(|error| vector_texture_error(error, id, scene.frame, size, format, "source_allocate"))?;
                 sources.push((key, GpuImage {
                     _texture: target.texture, view: target.view, bind_group: target.composite,
-                    bytes: u64::from(size.0) * u64::from(size.1) * 4, size, video_stamp: None,
+                    bytes: u64::from(size.0) * u64::from(size.1) * self.color_pixel_bytes(), size, video_stamp: None,
                 }));
             }
             if groups::GroupGpu::grouped(mesh) { continue; }
-            let format = wgpu::TextureFormat::Rgba8Unorm;
+            let format = self.raster_format;
             if !self.raster_scratch.contains_key(&size) && !multisamples.contains_key(&size) {
                 let target = device.create_admitted_texture(&wgpu::TextureDescriptor {
                     label: Some("shared vector MSAA scratch"),

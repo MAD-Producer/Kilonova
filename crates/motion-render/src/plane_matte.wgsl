@@ -29,6 +29,6 @@ fn pixel(o:Out,uv_dx:vec2<f32>,uv_dy:vec2<f32>)->vec4<f32> {
     return vec4(c.rgb*draw.color.rgb*opacity,c.a*opacity);
 }
 @fragment fn fragment_main(o:Out)->@location(0) vec4<f32>{return pixel(o,dpdx(o.uv),dpdy(o.uv));}
-@fragment fn alpha_matte(o:Out)->@location(0) vec4<f32>{let c=pixel(o,dpdx(o.uv),dpdy(o.uv));return vec4(c.a,c.a,c.a,1.0);}
+@fragment fn alpha_matte(o:Out)->@location(0) vec4<f32>{let c=pixel(o,dpdx(o.uv),dpdy(o.uv));let value=clamp(c.a,0.0,1.0);return vec4(value,value,value,1.0);}
 fn encode(c:vec3<f32>)->vec3<f32>{return select(1.055*pow(max(c,vec3(0.0)),vec3(1.0/2.4))-0.055,c*12.92,c<=vec3(0.0031308));}
-@fragment fn luma_matte(o:Out)->@location(0) vec4<f32>{let c=pixel(o,dpdx(o.uv),dpdy(o.uv));let straight=select(vec3(0.0),c.rgb/max(c.a,0.000001),c.a>0.0);let value=dot(encode(straight),vec3(0.2126,0.7152,0.0722))*c.a;return vec4(value,value,value,1.0);}
+@fragment fn luma_matte(o:Out)->@location(0) vec4<f32>{let c=pixel(o,dpdx(o.uv),dpdy(o.uv));let straight=select(vec3(0.0),c.rgb/max(c.a,0.000001),c.a>0.0);let value=clamp(dot(encode(straight),vec3(0.2126,0.7152,0.0722))*c.a,0.0,1.0);return vec4(value,value,value,1.0);}

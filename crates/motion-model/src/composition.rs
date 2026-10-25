@@ -260,6 +260,7 @@ impl Project {
     pub fn composition_frame_view(&self, id: &str) -> Result<Self> {
         let body = self.composition_view(id)?;
         Ok(Self {
+            working_precision: self.working_precision,
             version: self.version,
             composition_id: body.id.into(),
             compositions: Vec::new(),

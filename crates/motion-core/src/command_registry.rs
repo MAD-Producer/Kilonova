@@ -83,6 +83,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
             "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
+            "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
             "crate::compositing::BlendMode" => {
                 json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
             }
@@ -182,6 +183,7 @@ registry! {
     Command::Flags { .. } => "flags" [("object","u64",true), ("visible","bool",true), ("locked","bool",true)];
     Command::SetLayerShy { .. } => "set_layer_shy" [("object","u64",true), ("shy","bool",true)];
     Command::SetWorkArea { .. } => "set_work_area" [("in_frame","u32",true), ("out_frame","u32",true)];
+    Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];

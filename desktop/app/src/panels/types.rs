@@ -59,6 +59,7 @@ pub enum Action {
     },
     NewText,
     CompositionSettings,
+    ProjectPrecisionSettings,
     Preferences,
     NewComposition,
     CompositionPreset(u32, u32),

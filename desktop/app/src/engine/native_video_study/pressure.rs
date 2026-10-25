@@ -21,14 +21,14 @@ fn front_bytes(id: i64) -> motion_host::Result<Vec<u8>> {
             .as_ref()
             .ok_or("no attached native renderer")?;
         let renderer = &graphics.renderer;
-        let target = renderer.capture_target(graphics.scratch.width, graphics.scratch.height)?;
+        let target = crate::engine::ui_paint::display_capture_target(renderer, graphics.scratch.width, graphics.scratch.height)?;
         motion_render::Presenter::new_admitted(
             renderer,
             &graphics.scratch.view,
             wgpu::TextureFormat::Rgba8UnormSrgb,
         )?
-        .draw(renderer, &target.view)?;
-        Ok(renderer.read_target(&target)?)
+        .draw(renderer, target.view())?;
+        Ok(renderer.read_image_target(&target)?.pixels)
     })
 }
 

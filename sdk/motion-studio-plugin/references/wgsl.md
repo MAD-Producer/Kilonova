@@ -27,3 +27,27 @@ fn main_fx(p: vec2<f32>) -> vec4<f32> {
 空间效果声明完整输出矩形，并检查反向映射是否仍在有限输入平面中。外扩不改锚点、空间属性或关键帧；后续效果保留矩形原点。设备资源超限时宿主明确报错。
 
 粒子和镜头生成器需要对应宿主 renderer/scene 能力。普通图像 pass 不提供任意图层引用、跨时间取帧或可执行原生 UI 代码，先核对能力再实现依赖这些输入的效果。
+
+## Numeric curve LUT contract (ABI 2)
+
+`curve_lookup(v)` clamps each input component to the authored unit interval and
+linearly interpolates numeric taps explicitly. It does not apply a color transfer
+or premultiply LUT values. Its fourth component is the independent alpha transfer.
+This function does not provide HDR extrapolation or general color management.
+
+UNORM8 execution uses 256 RGBA8 taps (1024 bytes per table). UNORM16, Float16
+and Float32 execution use 4081 RGBA32Float taps (65296 bytes). Each of the 255
+preview intervals has sixteen subdivisions, preserving every preview point when
+freezing a curve. Dense values come directly from authored transfers or the
+explicit stored grid; upsampling a 256-value frozen grid cannot restore detail.
+
+Native tables require sampled/copy usage without F32 filtering or blending.
+GLES uses nearest numeric texels with the same shader interpolation; attachment
+extensions required by floating scratch outputs do not apply to sample-only LUTs.
+Unsupported dimensions or allocation budgets are errors, never 8-bit substitutes.
+
+Packed frame-plan version 12 keeps the 160-byte header. Word 152 is working
+precision; word 156 is LUT encoding (0 = RGBA8/256, 1 = RGBA32Float/4081).
+LUT offsets use that encoding's stride. The Host SDK metadata publishes
+`curveLutAbi`, `curveLutEncodings` and `sourceTextureBudgetBytes`. Consumers must
+validate encoding, precision, ranges and version together before reading data.

@@ -80,6 +80,7 @@ pub enum Text {
     NewEllipse,
     NewText,
     CompositionSettings,
+    ProjectPrecision,
     ExportPng,
     ExportMovie,
     ExportUnavailable,
@@ -270,6 +271,7 @@ impl Locale {
             NewEllipse => ("新建椭圆", "New Ellipse"),
             NewText => ("新建文字", "New Text Layer"),
             CompositionSettings => ("合成设置", "Composition Settings"),
+            ProjectPrecision => ("工程精度…", "Project Precision…"),
             ExportPng => ("导出当前帧 PNG", "Export Current Frame PNG"),
             ExportMovie => ("导出 MP4 视频", "Export MP4 Movie"),
             ExportUnavailable => (

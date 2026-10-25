@@ -199,7 +199,9 @@ impl TextureResourceLedger {
     }
 }
 
-fn logical_bytes(texture: &wgpu::Texture) -> Option<u64> {
+/// Logical capacity of the actual descriptor, including samples and mip levels.
+/// Shared by retained-cache accounting so storage precision is never assumed.
+pub(crate) fn logical_bytes(texture: &wgpu::Texture) -> Option<u64> {
     let format = texture.format();
     let block_bytes = u64::from(format.block_copy_size(None)?);
     let (bw, bh) = format.block_dimensions();

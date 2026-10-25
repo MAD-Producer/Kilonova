@@ -208,6 +208,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::PastePaths { clipboard, target, at_frame } => clipboard.paste(project, target, at_frame)?,
         Command::RemovePaths { clipboard } => clipboard.remove(project)?,
         Command::CopyPathAs { target, path } => { motion_model::path_conversion::copy_as(project, target, path)?; },
+        Command::SetWorkingPrecision { precision } => project.working_precision = precision,
         Command::SetWorkArea { in_frame, out_frame } => {
             let area = crate::WorkArea { in_frame, out_frame };
             area.validate(project.frames)?;

@@ -231,6 +231,10 @@ impl Shell {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::settings(&self.state));
             }
+            Action::ProjectPrecisionSettings => {
+                self.stop();
+                self.dialog = Some(dialogs::Dialog::project_precision(&self.state)?);
+            }
             Action::ExportMovie => {
                 if self.freezing_movie.is_some()
                     || self.exporting_frame.is_some()

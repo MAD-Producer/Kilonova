@@ -229,10 +229,18 @@ fn refused_key_toggle_emits_no_edits_and_preserves_default_failure_channels_then
         else {
             panic!("healthy toggle did not retain the actual curve value: {commands:?}");
         };
+        // Keys now freeze the authoritative dense table. Its editor view
+        // must still exactly preserve the original 256-point sample.
+        let curve = healthy.curve.as_ref().unwrap();
+        assert_eq!(
+            value.sampled_lut.as_ref().unwrap().len(),
+            motion_core::HIGH_PRECISION_CURVE_SAMPLES
+        );
         assert_eq!(
             value.sampled_lut.as_ref().unwrap().as_slice(),
-            healthy.curve.as_ref().unwrap().sample(5.).unwrap()
+            curve.sampled_curve(5.).unwrap().high_precision_lut()
         );
+        assert_eq!(value.lut().unwrap(), curve.sample(5.).unwrap());
         return;
     }
     let root = tempfile::tempdir().unwrap();

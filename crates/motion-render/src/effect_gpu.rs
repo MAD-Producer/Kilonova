@@ -40,6 +40,7 @@ struct Lut {
     view: wgpu::TextureView,
     texture: OwnedTexture,
     last: [u8; 1024],
+    source: Option<motion_model::SampledColorCurve>,
 }
 pub(crate) struct EffectGpu {
     pub builder: PlanBuilder,
@@ -47,10 +48,12 @@ pub(crate) struct EffectGpu {
 }
 pub(crate) struct GpuState {
     allocation_budget: crate::AllocationBudget,
+    format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     uniform_layout: wgpu::BindGroupLayout,
     input_layout: wgpu::BindGroupLayout,
     resource_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
+    curve_sampler: wgpu::Sampler,
     // Cached raw bindings must retire before their admitted backing resources.
     resources: HashMap<u32, wgpu::BindGroup>,
     bindings: Vec<Option<Binding>>,
@@ -78,6 +81,7 @@ pub(crate) struct GpuState {
 const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 #[cfg(test)]
 mod fixed_admission_tests;
+mod curve_lut;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -159,13 +163,16 @@ fn upload(queue: &wgpu::Queue, texture: &wgpu::Texture, w: u32, h: u32, bytes: &
     );
 }
 fn bindings(device: &wgpu::Device, name: &str, texture_count: u32) -> wgpu::BindGroupLayout {
+    bindings_with_numeric_lut(device, name, texture_count, false)
+}
+fn bindings_with_numeric_lut(device: &wgpu::Device, name: &str, texture_count: u32, numeric_lut: bool) -> wgpu::BindGroupLayout {
     let mut entries = Vec::new();
     for i in 0..texture_count {
         entries.push(wgpu::BindGroupLayoutEntry {
             binding: i * 2,
             visibility: wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Texture {
-                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                sample_type: wgpu::TextureSampleType::Float { filterable: !(numeric_lut && i == 2) },
                 view_dimension: wgpu::TextureViewDimension::D2,
                 multisampled: false,
             },
@@ -174,7 +181,9 @@ fn bindings(device: &wgpu::Device, name: &str, texture_count: u32) -> wgpu::Bind
         entries.push(wgpu::BindGroupLayoutEntry {
             binding: i * 2 + 1,
             visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            ty: wgpu::BindingType::Sampler(if numeric_lut && i == 2 {
+                wgpu::SamplerBindingType::NonFiltering
+            } else { wgpu::SamplerBindingType::Filtering }),
             count: None,
         });
     }
@@ -190,6 +199,7 @@ impl EffectGpu {
         composite: &wgpu::BindGroupLayout,
         allocation_budget: crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+        format_capabilities: std::sync::Arc<crate::image_formats::ImageCapabilities>,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),
@@ -206,8 +216,11 @@ impl EffectGpu {
                 count: None,
             }],
         });
-        let input_layout = bindings(device, "effect input/source/LUT", 3);
+        let input_layout = bindings_with_numeric_lut(device, "effect input/source/LUT", 3, true);
         let resource_layout = bindings(device, "effect resource textures", 4);
+        let curve_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("unfiltered numeric curve taps"), ..Default::default()
+        });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("effect sampler"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -253,16 +266,19 @@ impl EffectGpu {
             texture: identity_texture.texture,
             view: identity_texture.view,
             last: identity_bytes,
+            source: None,
         };
         Ok(Self {
             builder,
             state: GpuState {
                 allocation_budget,
+                format_capabilities,
                 allocation_uploads,
                 uniform_layout,
                 input_layout,
                 resource_layout,
                 sampler,
+                curve_sampler,
                 white,
                 identity,
                 luts: Vec::new(),
@@ -381,7 +397,10 @@ impl GpuState {
         self.pool.get(id).and_then(Option::as_ref)
             .ok_or_else(|| RenderError::Invalid(format!("effect draw {draw} output allocation {id} is unavailable")))
     }
-    pub fn curve_lut_bytes(&self) -> u64 { self.luts.len() as u64 * 1024 }
+    pub fn curve_lut_bytes(&self) -> u64 {
+        self.luts.iter().fold(0, |bytes, lut|
+            bytes.saturating_add(crate::resource_ledger::logical_bytes(&lut.texture).unwrap_or(u64::MAX)))
+    }
     /// Permanent white fallback and identity curve, omitted by the legacy sum.
     pub fn system_texture_bytes(&self) -> u64 { 4 + 1024 }
     /// Reserve validated package PNGs before uploading, so idle preview images
@@ -440,6 +459,21 @@ impl GpuState {
             });
         }
         if self.pool_allocations != frame.scratch_allocations || self.pool.len() != frame.scratch_allocations.len() {
+            // Validate every replacement before admitting any allocation. An
+            // unsupported format must preserve the previous pool and bindings,
+            // just like a budget refusal. Capabilities are cached per device.
+            for (index, allocation) in frame.scratch_allocations.iter().enumerate() {
+                self.format_capabilities.require(
+                    allocation.class.format.storage(),
+                    motion_effects::image_contract::ImageUsage::EFFECT_TARGET,
+                ).map_err(|cause| {
+                    let message = format!(
+                        "effect scratch slot={index} extent={}x{} phase=format-capabilities: {cause}",
+                        allocation.width, allocation.height,
+                    );
+                    RenderError::from(cause).with_diagnostic(message)
+                })?;
+            }
             // Allocate replacements before moving any live slot. A refusal in a
             // later slot must leave the previous pool and bindings intact.
             let mut next_pool = Vec::with_capacity(frame.scratch_allocations.len());
@@ -479,44 +513,7 @@ impl GpuState {
         // change when every slot can still be reused.
         self.pool_width = frame.width;
         self.pool_height = frame.height;
-        if self.luts.len() != scene.curve_luts.len() {
-            // A reused LUT index may name a different allocation after shrink
-            // and growth, including preflights without an intervening draw.
-            self.invalidate();
-        }
-        self.luts.truncate(scene.curve_luts.len());
-        for (index, lut) in scene.curve_luts.iter().enumerate() {
-            let bytes: [u8; 1024] =
-                std::array::from_fn(|i| (lut[i / 4][i % 4].clamp(0.0, 1.0) * 255.0).round() as u8);
-            if index >= self.luts.len() {
-                let t = admitted_texture(
-                    device,
-                    composite,
-                    &self.sampler,
-                    256,
-                    1,
-                    wgpu::TextureFormat::Rgba8Unorm,
-                    &self.allocation_budget,
-                    crate::TextureCategory::CurveLuts,
-                ).map_err(|error| {
-                    let message = format!("effect curve index={index} phase=allocate: {error}");
-                    error.with_diagnostic(message)
-                })?;
-                self.allocation_uploads.track(t.texture.allocation())?;
-                upload(queue, &t.texture, 256, 1, &bytes);
-                self.parameter_resource_upload_bytes += 1024;
-                self.luts.push(Lut {
-                    texture: t.texture,
-                    view: t.view,
-                    last: bytes,
-                });
-            } else if self.luts[index].last != bytes {
-                self.allocation_uploads.track(self.luts[index].texture.allocation())?;
-                upload(queue, &self.luts[index].texture, 256, 1, &bytes);
-                self.parameter_resource_upload_bytes += 1024;
-                self.luts[index].last = bytes;
-            }
-        }
+        self.prepare_curves(device, queue, composite, frame.precision, scene)?;
         while self.buffers.len() < frame.passes.len() {
             let index = self.buffers.len();
             let buffer = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
@@ -872,7 +869,7 @@ impl GpuState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    resource: wgpu::BindingResource::Sampler(&self.curve_sampler),
                 },
             ];
             let binding_slot = self

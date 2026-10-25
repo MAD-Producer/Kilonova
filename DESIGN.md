@@ -143,6 +143,23 @@ There are exactly **five** existing workspace presets. Preserve IDs, behavior, a
 
 ---
 
+### 4.1 Project working precision
+
+File → Project Precision opens a compact project-wide settings dialog. Its one
+inline enum distinguishes 8-bit integer (UNORM8), 16-bit integer (UNORM16),
+16-bit float (Float16) and 32-bit float (Float32). It applies to every composition
+in the project and must not appear as a per-composition setting or an application
+preference. State that preview and PNG/video output use SDR; floating working
+precision does not imply HDR output.
+
+Reuse native dropdown, popup, button and text styles with existing notice,
+preferences, spacing and row tokens. Choosing an item changes only the draft;
+Apply sends the existing project command as one history edit, and Cancel/Escape
+has no project effect. An open dropdown owns input until closed; its Enter,
+Escape and outside click must not activate the dialog's footer. Respect IME,
+repeat and focus-loss guards. Verify English/Chinese, minimum/default window
+sizes and controlled 1/1.5/2 pixel ratios with actual GPU screenshots.
+
 ## 5. Consistent panel visual grammar
 
 ### 5.1 Visual hierarchy

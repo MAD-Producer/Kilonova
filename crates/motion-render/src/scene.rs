@@ -2,6 +2,8 @@ use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Proje
 use glam::{Mat4, Vec3};
 use serde::Serialize;
 pub(crate) mod instance_ids;
+// Bounded authored payload per scene; old/new samples may coexist during refresh.
+const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 
 /// Add the reference site while preserving the model's original error code,
 /// target composition, message and time/rate details.
@@ -90,6 +92,7 @@ pub struct Scene {
     pub height: u32,
     pub effects: Vec<motion_model::SampledEffect>,
     pub curve_luts: Vec<motion_model::CurveLut>,
+    pub(crate) curve_sources: Vec<motion_model::SampledColorCurve>,
     pub frame: f64,
     pub fps: u32,
     pub sprite_assets: std::collections::HashMap<u64, [u32;2]>,
@@ -148,6 +151,7 @@ impl Scene {
         let mut context = self.plane_context(self.layers.clone());
         context.effects = self.effects.clone();
         context.curve_luts = self.curve_luts.clone();
+        context.curve_sources = self.curve_sources.clone();
         context.sprite_assets = self.sprite_assets.clone();
         context.node_world = self.node_world.clone();
         context.node_ids = self.node_ids.clone();
@@ -165,6 +169,7 @@ impl Scene {
             height,
             effects: Vec::with_capacity(motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER),
             curve_luts: Vec::new(),
+            curve_sources: Vec::new(),
             frame: 0.0,
             fps,
             sprite_assets: Default::default(),
@@ -252,6 +257,8 @@ impl Scene {
         self.nested = std::mem::take(&mut self.nested_spare);
         self.source_objects.clear();
         self.curve_luts.clear();
+        let previous_curve_sources = std::mem::take(&mut self.curve_sources);
+        let mut curve_source_bytes = 0;
         let mut effect_index = 0;
         for layer in &project.layers {
             for e in &layer.effects {
@@ -302,9 +309,16 @@ impl Scene {
                 for (i, p) in e.params.values().enumerate() {
                     sampled.values[i] = p.sample(sampled.local_frame)?;
                     if let Some(c) = p.curve.as_ref().filter(|_| e.enabled) {
-                        let lut = c.sample(sampled.local_frame)?;
+                        let source = c.sampled_curve_with_budget(
+                            sampled.local_frame,
+                            previous_curve_sources.get(self.curve_sources.len()),
+                            MAX_CURVE_SOURCE_BYTES.saturating_sub(curve_source_bytes),
+                        )?;
+                        curve_source_bytes += source.source_bytes();
+                        let lut = source.preview_lut();
                         sampled.lut = Some(self.curve_luts.len());
                         self.curve_luts.push(lut);
+                        self.curve_sources.push(source);
                     }
                 }
                 effect_index += 1;
