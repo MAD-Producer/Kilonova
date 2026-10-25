@@ -186,6 +186,34 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
             raise RuntimeError(f"{locale} style override did not change rendered pixels")
 
 
+def verify_expanded_workspace_previews(snapshot: dict, locale: str) -> None:
+    for record in snapshot["workspacePresentationProbe"]["presentations"]:
+        expanded = record.get("expandedPreview")
+        if expanded is None:
+            continue
+        if (record["preset"] != "nodes" or record.get("normalNodeOverlay") is not False
+                or record["nodeOverlay"] is not True or expanded.get("panel") != "nodes"
+                or any(expanded.get(key) is not True for key in
+                       ("presented", "layoutRestored", "projectAndHistoryUntouched"))):
+            raise RuntimeError(f"{locale} expanded workspace preview did not restore its state")
+        before, after = expanded.get("encodedFramesBefore"), expanded.get("encodedFramesAfter")
+        if type(before) is not int or type(after) is not int or after <= before:
+            raise RuntimeError(f"{locale} expanded workspace preview did not encode GPU frames")
+        data = Path(expanded["screenshot"]).read_bytes()
+        if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"{locale} expanded workspace preview screenshot is invalid")
+        width, height = struct.unpack(">II", data[16:24])
+        viewport = expanded.get("viewport")
+        if not isinstance(viewport, list) or len(viewport) != 4:
+            raise RuntimeError(f"{locale} expanded workspace preview viewport is missing")
+        if any(type(v) not in (int, float) for v in viewport):
+            raise RuntimeError(f"{locale} expanded workspace preview viewport is invalid")
+        x, y, w, h = viewport
+        if not (x >= 0 and y >= 0 and w > 1 and h > 1
+                and x + w <= width + 1 and y + h <= height + 1):
+            raise RuntimeError(f"{locale} expanded workspace preview is outside the screenshot")
+
+
 def verify_mcp(binary: Path, output: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="motion-mcp-") as folder:
         root = Path(folder) / "default"
@@ -301,6 +329,7 @@ def main() -> None:
                 != {"default", "nodes", "drawing", "all", "animation"}
                 or not any(record["nodeOverlay"] for record in presentations)):
             raise RuntimeError(f"{locale} did not present workspace changes with a live node overlay")
+        verify_expanded_workspace_previews(snapshot, locale)
         if snapshot["locale"] != locale or snapshot["floatingFrames"].get("3", 0) < 2:
             raise RuntimeError(f"{locale} did not validate the floating composition")
         layer_menu = Path(snapshot["layerContextMenuScreenshot"])
