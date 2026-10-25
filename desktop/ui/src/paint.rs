@@ -316,12 +316,15 @@ impl PaintList {
 
 /// Sutherland-Hodgman clipping preserves an icon's silhouette at panel edges.
 fn clip_triangles(points: &[[f32; 2]], area: Rect) -> Vec<[f32; 2]> {
-    let mut result = Vec::with_capacity(points.len());
+    let mut result = Vec::new();
     if area.width() <= 0. || area.height() <= 0. {
         return result;
     }
     for triangle in points.chunks_exact(3) {
         clip_triangle([triangle[0], triangle[1], triangle[2]], area, |triangle| {
+            if result.is_empty() {
+                result.reserve_exact(points.len());
+            }
             result.extend_from_slice(&triangle);
         });
     }
