@@ -9,6 +9,8 @@ mod layer_raster;
 mod phase_adjustment;
 mod exposure_frame;
 mod nested_exposure;
+mod working_precision;
+pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;
@@ -24,7 +26,7 @@ use std::{
 
 #[cfg(test)]
 pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
-const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
+pub(crate) const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 // Retain at most 16 KiB of CPU eviction scratch between trims.
 const MAX_IMAGE_TRIM_CANDIDATES: usize = 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
@@ -89,6 +91,12 @@ pub enum RenderError {
     Image(#[from] image::ImageError),
     #[error("{0}")]
     Effects(#[from] motion_effects::Error),
+    #[error("{0}")]
+    ImageFormat(#[from] crate::image_formats::UnsupportedStorage),
+    #[error("{0}")]
+    ImageContract(#[from] motion_effects::image_contract::ImageFormatError),
+    #[error("{0}")]
+    ImageSamples(#[from] crate::image_formats::UnsupportedSamples),
     #[error("{0}")]
     Model(#[from] motion_model::Error),
     #[error(transparent)]
@@ -237,7 +245,7 @@ impl RenderStats {
 pub struct Renderer {
     memory_pressure_probe: crate::memory_pressure::MemoryPressureProbe,
     allocation_budget: crate::AllocationBudget,
-    allocation_owner: Arc<()>,
+    pub(crate) allocation_owner: Arc<()>,
     command_profiler: Option<crate::gpu_commands::AttachedCommandProfiler>,
     submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
@@ -245,6 +253,7 @@ pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub adapter_info: wgpu::AdapterInfo,
+    pub(crate) image_capabilities: Arc<crate::image_formats::ImageCapabilities>,
     pipeline: wgpu::RenderPipeline,
     additive_pipeline: wgpu::RenderPipeline,
     masked_pipeline: wgpu::RenderPipeline,
@@ -279,7 +288,7 @@ pub struct Renderer {
     /// Explicit conversion-only submissions; excludes queue upload staging and readback.
     pub video_conversion_submissions: u64,
     pub video_encoded_conversions: u64,
-    image_readback: crate::readback::ImageReadbackCounters,
+    pub(crate) image_readback: crate::readback::ImageReadbackCounters,
     asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
@@ -325,6 +334,30 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
     ) -> Result<Self> {
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, false).await
+    }
+    /// Hosts offering live project precision changes enable the optional
+    /// supported working-format features up front. Unsupported modes still fail
+    /// explicitly when selected; other constructors retain their narrow request.
+    pub async fn new_profiled_with_precision_changes(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        Self::new_profiled_with_options(instance, surface, format, timestamps, allocation_budget, true).await
+    }
+    async fn new_profiled_with_options(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+        precision_changes: bool,
+    ) -> Result<Self> {
+        let precision = crate::image_formats::color_precision(format)
+            .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -334,6 +367,12 @@ impl Renderer {
             })
             .await?;
         let adapter_info = adapter.get_info();
+        let precision_features = crate::image_formats::working_features(precision);
+        let missing = precision_features - adapter.features();
+        if !missing.is_empty() {
+            return Err(RenderError::Invalid(format!(
+                "working precision {precision:?} requires adapter features {missing:?}; no precision fallback was applied")));
+        }
         let supported = adapter.limits();
         let base = if supported.max_compute_workgroups_per_dimension == 0 {
             wgpu::Limits::downlevel_webgl2_defaults()
@@ -343,11 +382,16 @@ impl Renderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Motion Studio GPU"),
-                    // Exposure values stay in [0,1]. UNORM16 keeps a uniform
-                    // error bound across all 80 phases within the FP16 budget.
+                    // Bounded exposure modes use UNORM16 means. Floating
+                    // working modes retain floating storage and capabilities.
                     required_features: (adapter.features()
                         & (wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
                             | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES))
+                        | precision_features
+                        | if precision_changes {
+                            adapter.features() & crate::image_formats::working_features(
+                                motion_effects::image_contract::ChannelPrecision::Float32)
+                        } else { wgpu::Features::empty() }
                         | if timestamps {
                             adapter.features() & wgpu::Features::TIMESTAMP_QUERY
                         } else {
@@ -359,6 +403,13 @@ impl Renderer {
                 },
             )
             .await?;
+        let image_capabilities = Arc::new(crate::image_formats::ImageCapabilities::query(&adapter, &device));
+        for storage in [crate::image_formats::color_storage(precision),
+            crate::image_formats::raster_storage(precision),
+            motion_effects::image_contract::coverage_storage(precision)] {
+            image_capabilities.require(storage, motion_effects::image_contract::ImageUsage::EFFECT_TARGET)?;
+        }
+        image_capabilities.require_msaa4(crate::image_formats::raster_storage(precision))?;
         let gpu_failure = Arc::new(Mutex::new(None));
         let observer = Arc::new(gpu_failure::Observation::new(gpu_failure.clone(), adapter_info.clone()));
         let lost = observer.clone();
@@ -443,68 +494,12 @@ impl Renderer {
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             ..Default::default()
         });
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::BASIC, true).into()),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Motion Studio planar pipeline"),
-            bind_group_layouts: &[Some(&uniform_layout), Some(&image_layout)],
-            immediate_size: 0,
-        });
-        let create_pipeline = |blend| {
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Motion Studio planar compositor"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: Some("vertex_main"),
-                    compilation_options: Default::default(),
-                    buffers: &[Some(wgpu::VertexBufferLayout {
-                        array_stride: std::mem::size_of::<GeometryVertex>() as u64,
-                        step_mode: wgpu::VertexStepMode::Vertex,
-                        attributes: &wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2],
-                    })],
-                },
-                primitive: wgpu::PrimitiveState {
-                    cull_mode: None,
-                    ..Default::default()
-                },
-                depth_stencil: None,
-                multisample: Default::default(),
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: Some("fragment_main"),
-                    compilation_options: Default::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(blend),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                multiview_mask: None,
-                cache: None,
-            })
-        };
-        let pipeline = create_pipeline(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING);
-        let additive_pipeline = create_pipeline(wgpu::BlendState {
-            color: wgpu::BlendComponent {
-                src_factor: wgpu::BlendFactor::One,
-                dst_factor: wgpu::BlendFactor::One,
-                operation: wgpu::BlendOperation::Add,
-            },
-            alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
-        });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MASK, true).into())});
-        let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
-            vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
-            fragment:Some(wgpu::FragmentState {module:&mask_shader,entry_point:Some("fragment_main"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend:Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),write_mask:wgpu::ColorWrites::ALL})]}),
-            primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
+        let (pipeline, additive_pipeline, masked_pipeline) = working_precision::pipelines(
+            &device, &uniform_layout, &image_layout, format);
         let allocation_uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(queue.clone()));
         let layer_gpu = crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format, &allocation_budget)?;
-        let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout,
-            allocation_budget.clone(), allocation_uploads.clone())?;
+        let mask_gpu=crate::mask_gpu::MaskGpu::with_precision(&device,&image_layout,
+            allocation_budget.clone(), allocation_uploads.clone(), precision)?;
         let white_view = white_texture.create_view(&Default::default());
         let white_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Motion Studio cached texture binding"),
@@ -514,8 +509,10 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&sampler) },
             ],
         });
-        let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
-            allocation_budget.clone(), allocation_uploads.clone())?;
+        let mut effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
+            allocation_budget.clone(), allocation_uploads.clone(),
+            image_capabilities.clone())?;
+        effect_gpu.builder.set_precision(precision);
         let mut renderer = Self {
             memory_pressure_probe: Default::default(),
             allocation_budget,
@@ -527,6 +524,7 @@ impl Renderer {
             device,
             queue,
             adapter_info,
+            image_capabilities,
             pipeline,
             additive_pipeline,
             masked_pipeline,
@@ -595,6 +593,16 @@ impl Renderer {
     pub async fn headless_with_allocation_budget(budget: crate::AllocationBudget) -> Result<Self> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         Self::new_profiled_with_allocation_budget(&instance, None, TARGET_FORMAT, false, budget).await
+    }
+    /// Project-owned headless work uses the requested mode from construction and
+    /// enables supported features for later edits on this same device.
+    pub async fn headless_with_working_precision(
+        precision: motion_effects::image_contract::ChannelPrecision,
+        budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+        let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
+        Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     pub(crate) fn allocation_uploads(&self) -> Arc<crate::allocation_uploads::AllocationUploads> {
@@ -1789,8 +1797,8 @@ impl Renderer {
         for node in &scene.nested {
             let (w,h)=nested_size(scene,&node.scene,width,height);
             let key=TextureKey::Video(node.layer);
-            if self.images.get(&key).is_none_or(|image|image.size!=(w,h)) {
-                let bytes=u64::from(w)*u64::from(h)*4;
+            if self.images.get(&key).is_none_or(|image|image.size!=(w,h)||image._texture.format()!=self.target_format) {
+                let bytes=u64::from(w)*u64::from(h)*crate::image_formats::color_storage(self.effect_gpu.builder.precision()).bytes_per_pixel();
                 let previous=self.images.get(&key).map_or(0,|image|image.bytes);
                 self.trim_image_cache(bytes.saturating_sub(previous));
                 if self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
@@ -1982,6 +1990,9 @@ impl Renderer {
     }
     fn prepare_input_snapshots(&mut self, input_order: &[usize])->Result<()> {
         let frame=&self.effect_gpu.builder.frame;
+        let storage=crate::image_formats::color_storage(frame.precision);
+        let format=crate::image_formats::native_format(storage);
+        let pixel_bytes=storage.bytes_per_pixel();
         let specs=input_order.iter().copied().map(|i| {
             let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),draw.layer,pass.width,pass.height)
         }).collect::<Vec<_>>();
@@ -1992,20 +2003,24 @@ impl Renderer {
                 self.effect_gpu.invalidate();
             }
         }
-        let needed=specs.iter().filter(|(key,_,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)))
-            .map(|(_,_,w,h)|u64::from(*w)*u64::from(*h)*4).sum();
+        let needed=specs.iter().filter(|(key,_,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)||image._texture.format()!=format))
+            .map(|(_,_,w,h)|u64::from(*w)*u64::from(*h)*pixel_bytes).sum();
         self.trim_image_cache(needed);
         for (key,layer,width,height) in specs {
-            if self.images.get(&key).is_some_and(|image|image.size==(width,height)){continue;}
-            let bytes=u64::from(width)*u64::from(height)*4;
-            if self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
+            if self.images.get(&key).is_some_and(|image|image.size==(width,height)&&image._texture.format()==format){continue;}
+            let bytes=u64::from(width)*u64::from(height)*pixel_bytes;
+            // Replacement must keep the old snapshot alive until allocation and
+            // binding creation succeed. Admit the peak, not the final cache size.
+            let required=self.texture_bytes.saturating_add(self.video_plane_bytes())
+                .saturating_add(self.effect_gpu.state.resource_bytes).saturating_add(bytes);
+            if required>self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                    self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
+                    required,
                     self.effect_gpu.builder.source_texture_budget,
                     format!("input snapshot layer={layer} size={width}x{height} phase=source_budget: effect image snapshots exceed source texture budget")));
             }
             let texture=self.device.create_admitted_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
-                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget, crate::TextureCategory::EffectInputSnapshots)
+                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget, crate::TextureCategory::EffectInputSnapshots)
                 .map_err(|error| RenderError::Context {
                     message: format!("input snapshot layer={layer} size={width}x{height} phase=allocate: {error}"),
                     cause: Box::new(error),
@@ -2476,6 +2491,10 @@ impl Renderer {
         self.render_target_in(width, height, crate::TextureCategory::CaptureTargets)
     }
     pub(crate) fn render_target_in(&self, width: u32, height: u32, category: crate::TextureCategory) -> Result<RenderTarget> {
+        self.render_target_with_format(width, height, self.target_format, category)
+    }
+    pub(crate) fn render_target_with_format(&self, width: u32, height: u32, format: wgpu::TextureFormat,
+        category: crate::TextureCategory) -> Result<RenderTarget> {
         self.check_health()?;
         if width == 0
             || height == 0
@@ -2495,7 +2514,7 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: self.target_format,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -2507,9 +2526,18 @@ impl Renderer {
             view,
             width,
             height,
+            owner: self.allocation_owner.clone(),
         })
     }
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
+        self.check_health()?;
+        if !matches!(self.target_format, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb
+            | wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
+            return Err(RenderError::Invalid(format!(
+                "PNG capture does not accept {:?}; use format-preserving readback or explicit output conversion",
+                self.target_format,
+            )));
+        }
         let target = self.render_target(width, height)?;
         let row_stride = (width * 4).div_ceil(256) * 256;
         let buffer_allocation = self.allocation_budget.reserve_in(u64::from(row_stride) * u64::from(height), crate::AllocationCategory::ReadbackBuffers)?;
@@ -2636,8 +2664,14 @@ pub struct RenderTarget {
     pub view: crate::AdmittedTextureView,
     pub width: u32,
     pub height: u32,
+    owner: Arc<()>,
 }
 impl RenderTarget {
+    pub(crate) fn texture(&self) -> &OwnedTexture { &self.texture }
+    pub(crate) fn check_owner(&self, renderer: &Renderer) -> Result<()> {
+        if Arc::ptr_eq(&renderer.allocation_owner, &self.owner) { Ok(()) }
+        else { Err(RenderError::Invalid("render target belongs to another renderer".into())) }
+    }
     pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger, owner: &str, state: crate::TextureState) {
         ledger.add(&self.texture, crate::TextureCategory::PreviewTargets, owner.into(), state);
     }

@@ -2,6 +2,8 @@ use super::*;
 use crate::panels::key_navigation::{self as navigation, Choice};
 #[cfg(test)]
 mod selection_tests;
+#[cfg(test)]
+mod dense_tests;
 
 #[cfg(test)]
 mod tests {
@@ -304,12 +306,16 @@ pub(super) fn parameter_navigation(
             } else {
                 let value = if let Some(curve) = &parameter.curve {
                     let mut value = curve::value_at(curve, local);
-                    let lut = match observe!("effect.curve_key_navigation_sample", curve.sample(local),
+                    let sampled = match observe!("effect.curve_key_navigation_sample", curve.sampled_curve(local),
                         "object={object} effect={effect} param={param} frame={local}") {
-                        Ok(lut) => lut,
+                        Ok(sampled) => sampled,
                         Err(_) => return true,
                     };
-                    value.sampled_lut = Some(lut.to_vec());
+                    value.sampled_lut = Some(sampled.high_precision_lut());
+                    // The frozen table is authoritative. Retaining its old
+                    // channel overrides would duplicate the payload and can
+                    // exceed the worker's bounded edit request.
+                    value.channel_luts = std::array::from_fn(|_| None);
                     EffectAction::SetCurveObject {
                         effect,
                         param: param.into(),

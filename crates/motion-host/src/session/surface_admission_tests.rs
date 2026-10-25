@@ -93,11 +93,12 @@ fn native_presenter_refusal_during_surface_replacement_preserves_front_and_recov
             .renderer
             .encode_preview(&session.scene, &target.view, 8, 8, &mut encoder, None)
             .unwrap();
+        graphics.scratch.encode_output(&graphics.renderer, &mut encoder).unwrap();
         graphics
             .renderer
             .submit_allocated(encoder.finish(), |_| {})
             .unwrap();
-        graphics.scratch.commit_submitted();
+        graphics.scratch.commit_submitted().unwrap();
         graphics
             .renderer
             .device

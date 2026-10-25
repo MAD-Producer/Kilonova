@@ -1,5 +1,7 @@
 use crate::{RenderError, RenderTarget, Renderer, ResourceBudgetScope, ResourceRejection};
 use std::ops::Deref;
+mod sdr;
+pub use sdr::SdrPreviewFrameTargets;
 
 /// At most two targets. Only a successfully submitted candidate becomes front.
 pub struct PreviewFrameTargets {
@@ -71,7 +73,8 @@ impl PreviewFrameTargets {
         if self
             .candidate
             .as_ref()
-            .is_none_or(|t| (t.width, t.height) != (width, height))
+            .is_none_or(|t| (t.width, t.height) != (width, height)
+                || t.texture().format() != renderer.target_format)
         {
             self.candidate = None;
             self.candidate = Some(renderer.render_target_in(width, height, crate::TextureCategory::PreviewTargets)?);

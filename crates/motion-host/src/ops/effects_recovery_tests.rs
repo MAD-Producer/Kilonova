@@ -1,5 +1,7 @@
 #[path = "../../../motion-effects/tests/support/scene_packages.rs"]
 mod scene_fixtures;
+#[path = "effects_recovery_tests/precision.rs"]
+mod precision;
 use super::*;
 use crate::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 use motion_media::Result as MediaResult;

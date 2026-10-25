@@ -135,7 +135,10 @@ fn preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle(
     let expected = r.capture_exposure(&oracle).unwrap();
     assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1));
     let candidate = texture_id(scratch.prepared().unwrap());
-    scratch.commit_submitted();
+    let mut encoder = r.allocation_command_encoder(&Default::default()).unwrap();
+    scratch.encode_output(&r, &mut encoder).unwrap();
+    r.submit_allocated(encoder.finish(), |ledger| scratch.collect_texture_resources(ledger)).unwrap();
+    scratch.commit_submitted().unwrap();
     assert!(scratch.valid());
     assert_eq!(texture_id(&scratch), candidate);
     let units = state.status()["workUnits"].clone();

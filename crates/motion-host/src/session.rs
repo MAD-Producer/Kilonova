@@ -10,7 +10,8 @@ use motion_core::{Engine, Observer, Project};
 use motion_render::Scene;
 use motion_media::{AudioJobs, AudioMixer, Limits, PackageJobs, VideoJobs};
 use motion_render::{
-    FrameMeasurement, FrameRecorder, GpuTimer, Presenter, PreviewMode, PreviewPolicy, PreviewFrameTargets,
+    FrameMeasurement, FrameRecorder, GpuTimer, Presenter, PreviewMode, PreviewPolicy,
+    SdrPreviewFrameTargets as PreviewFrameTargets,
     Renderer,
 };
 use serde_json::{json, Value};
@@ -31,9 +32,13 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+#[cfg(test)]
+mod output_precision_tests;
 mod preview_pressure;
 #[cfg(all(test, target_os = "windows"))]
 mod surface_admission_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod precision_preview_tests;
 pub(crate) mod metadata_observation;
 #[cfg(test)]
 mod metadata_observation_tests;
@@ -132,7 +137,7 @@ pub struct Session {
     pub(crate) editor_activity: Option<Instant>,
     pub(crate) editor_recovery: Option<Value>,
     pub editor_renderer: Option<Renderer>,
-    pub editor_target: Option<motion_render::CaptureTarget>,
+    pub editor_target: Option<motion_render::SdrCaptureTarget>,
     allocation_budget: motion_render::AllocationBudget,
     platform: Arc<dyn Platform>,
 }
@@ -170,7 +175,8 @@ impl Session {
             .join("plugins");
         let mut registry=registry_observation::load(&plugin_root).map_err(crate::Error::from)?;
         crate::node_effects::restore(project,&mut registry)?;
-        let effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
+        let mut effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
+        effects.set_precision(project.working_precision);
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;
@@ -406,6 +412,9 @@ impl Session {
         renderer
             .configure_assets(self.engine.project(), &self.root)
             .map_err(crate::Error::from)?;
+        if let Some(change) = renderer.prepare_working_precision(self.engine.project().working_precision)? {
+            renderer.commit_working_precision(change)?;
+        }
         // The invalid placeholder is never displayed. One pixel leaves room
         // for a candidate even at the smallest supported two-target allowance;
         // prepare the real dimensions under the bounded preview policy.
@@ -458,6 +467,9 @@ impl Session {
             || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
             || y + h > g.config.height as f32 + 0.01
         { return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=retained", g.config.width, g.config.height).into()); }
+        if g.renderer.working_precision() != self.engine.project().working_precision {
+            return self.render_with_view(self.frame, Some(viewport), image, overlay);
+        }
         if self.observe_preview_pressure()? {
             return self.render_with_view(self.frame, Some(viewport), image, overlay);
         }
@@ -484,6 +496,7 @@ impl Session {
         self.render_attempts += 1;
         self.frame = frame;
         self.sample()?;
+        self.synchronize_working_precision()?;
         let tier = self.preview.tier();
         let Some(g) = &self.graphics else {
             return Ok(false);
@@ -679,6 +692,7 @@ impl Session {
                     timestamps,
                 )
             };
+            let encoded = encoded.and_then(|_| g.scratch.encode_output(&g.renderer, &mut encoder));
             if let Err(error) = encoded {
                 if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
                     timer.cancel_unsubmitted(i);
@@ -709,7 +723,9 @@ impl Session {
                 }
             };
             let acquire_us = acquiring.elapsed().as_micros() as u64;
-            g.presenter.set_admitted_source(&g.renderer.device, &candidate_view);
+            let display = g.scratch.prepared_output()
+                .ok_or("converted preview target missing")?;
+            g.presenter.set_admitted_source(&g.renderer.device, &display.view);
             let view = output.texture.create_view(&Default::default());
             if let Err(error) = g.presenter.encode_view(
                 &g.renderer.queue, &mut encoder, &view,
@@ -740,7 +756,7 @@ impl Session {
                 g.presenter.set_admitted_source(&g.renderer.device, &g.scratch.view);
                 return Err(error.into());
             }
-            g.scratch.commit_submitted();
+            g.scratch.commit_submitted()?;
             g.actual_preview_quality = Some(quality);
             g.last_canvas = [self.scene.width, self.scene.height];
             g.last_background = self.scene.background;
@@ -816,6 +832,7 @@ impl Session {
     }
 
     pub fn sample(&mut self) -> Result<()> {
+        self.effects.set_precision(self.engine.project().working_precision);
         let result = self.sampling.synchronize(self.engine.project(),self.engine.revision(),&mut self.video_frames)
             .and_then(|_| self
             .scene
@@ -838,6 +855,29 @@ impl Session {
             self.last_error = None;
         }
         result
+    }
+
+    /// Persisted precision changes are applied before any content work on the
+    /// existing device. A refusal returns its cause; the previous SDR front is
+    /// retained and never presented as a successfully rendered new mode.
+    pub(crate) fn synchronize_working_precision(&mut self) -> Result<()> {
+        let precision = self.engine.project().working_precision;
+        let Some(g) = &mut self.graphics else { return Ok(()); };
+        if g.renderer.working_precision() == precision { return Ok(()); }
+        let context = || format!("project working precision={precision:?} phase=preview-synchronize");
+        let change = g.renderer.prepare_working_precision(precision)
+            .map_err(|error| crate::Error::with_context(context(), error))?;
+        self.sampling.cancel(&mut self.video_frames)?;
+        if let Some(change) = change {
+            g.renderer.commit_working_precision(change)
+                .map_err(|error| crate::Error::with_context(context(), error))?;
+        }
+        g.scratch.discard_candidate();
+        g.actual_preview_quality = None;
+        self.preview_memory.changed();
+        self.memory_context = None;
+        self.view_revision += 1;
+        Ok(())
     }
 
     pub fn composition_error(&self, code: &str, message: &str, details: Value) -> crate::Error {

@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 mod legacy_select;
 
 pub const UNIFORM_BYTES: usize = 7 * 16 + 32 * 16;
+/// Numeric LUT reads use explicit interpolation, independent of F32 filtering.
+pub const CURVE_LUT_ABI_VERSION: u32 = 2;
 pub const HEADER: &str = r#"
 struct EffectUniform {
     size: vec4<f32>, region: vec4<f32>, input_region: vec4<f32>, source_region: vec4<f32>,
@@ -62,12 +64,17 @@ fn sample_source(p: vec2<f32>) -> vec4<f32> {
     let c = textureSampleLevel(source_image,source_sampler,coord,0.0);
     return select(c,vec4(0.0),fx.mode.x == 0.0 && (any(uv < vec2(0.0)) || any(uv > vec2(1.0))));
 }
+fn curve_lookup_component(value: f32, channel: u32) -> f32 {
+    let last=i32(textureDimensions(curve_image).x)-1;
+    let position=clamp(value,0.0,1.0)*f32(last);
+    let lower=i32(floor(position));let upper=min(lower+1,last);
+    let a=textureLoad(curve_image,vec2(lower,0),0)[channel];
+    let b=textureLoad(curve_image,vec2(upper,0),0)[channel];
+    return a+(b-a)*(position-f32(lower));
+}
 fn curve_lookup(v: vec4<f32>) -> vec4<f32> {
-    let u=(clamp(v,vec4(0.0),vec4(1.0))*255.0+0.5)/256.0;
-    return vec4(textureSampleLevel(curve_image,curve_sampler,vec2(u.r,0.5),0.0).r,
-        textureSampleLevel(curve_image,curve_sampler,vec2(u.g,0.5),0.0).g,
-        textureSampleLevel(curve_image,curve_sampler,vec2(u.b,0.5),0.0).b,
-        textureSampleLevel(curve_image,curve_sampler,vec2(u.a,0.5),0.0).a);
+    return vec4(curve_lookup_component(v.r,0u),curve_lookup_component(v.g,1u),
+        curve_lookup_component(v.b,2u),curve_lookup_component(v.a,3u));
 }
 fn srgb_encode(v: vec3<f32>) -> vec3<f32> {
     return select(1.055*pow(max(v,vec3(0.0)),vec3(1.0/2.4))-0.055,12.92*v,v<=vec3(0.0031308));

@@ -28,6 +28,10 @@ pub(crate) struct CompositingGpu {
     blend_stride: usize,
     size: [u32; 2],
     format: wgpu::TextureFormat,
+    coverage_format: wgpu::TextureFormat,
+    coverage_bytes: u64,
+    color_bytes: u64,
+    extended: bool,
     allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     allocation_budget: crate::AllocationBudget,
 }
@@ -53,6 +57,10 @@ impl CompositingGpu {
         budget: &crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     ) -> Result<Self, RenderError> {
+        let precision = crate::image_formats::color_precision(format)
+            .ok_or_else(|| RenderError::Invalid(format!("unsupported compositing format {format:?}")))?;
+        let storage = motion_effects::image_contract::coverage_storage(precision);
+        let coverage_format = crate::image_formats::native_format(storage);
         let compiled = crate::compositing_plan::shader()?;
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer and matte plane"),
@@ -215,7 +223,7 @@ impl CompositingGpu {
             }],
         });
         let zero = crate::effect_gpu::admitted_texture(device, image, sampler,
-            1, 1, wgpu::TextureFormat::R8Unorm, budget, crate::TextureCategory::MatteBlendScratch).map_err(|error| RenderError::Context {
+            1, 1, coverage_format, budget, crate::TextureCategory::MatteBlendScratch).map_err(|error| RenderError::Context {
                 message: format!("compositing zero coverage texture size=1x1 phase=allocate: {error}"),
                 cause: Box::new(error),
             })?;
@@ -227,8 +235,8 @@ impl CompositingGpu {
                 texture: &zero.texture, mip_level: 0,
                 origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
             },
-            &[0],
-            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(1), rows_per_image: Some(1) },
+            &[0;4][..storage.bytes_per_pixel() as usize],
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(storage.bytes_per_pixel() as u32), rows_per_image: Some(1) },
             wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
         );
         Ok(Self {
@@ -249,8 +257,8 @@ impl CompositingGpu {
                     alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
                 }),
             ),
-            alpha: make("alpha_matte", wgpu::TextureFormat::R8Unorm, None),
-            luma: make("luma_matte", wgpu::TextureFormat::R8Unorm, None),
+            alpha: make("alpha_matte", coverage_format, None),
+            luma: make("luma_matte", coverage_format, None),
             mattes: HashMap::new(),
             zero,
             source: None,
@@ -267,21 +275,14 @@ impl CompositingGpu {
             blend_stride,
             allocation_uploads,
             allocation_budget: budget.clone(),
+            coverage_format, coverage_bytes: storage.bytes_per_pixel(),
+            color_bytes: crate::image_formats::color_storage(precision).bytes_per_pixel(),
+            extended: precision.is_float(),
         })
     }
     pub fn bytes(&self) -> u64 {
-        self.mattes
-            .values()
-            .map(|t| {
-                let s = t.texture.size();
-                u64::from(s.width) * u64::from(s.height)
-            })
-            .sum::<u64>()
-            + 1
-            + self.source.as_ref().map_or(0, |t| {
-                let s = t.texture.size();
-                u64::from(s.width) * u64::from(s.height) * 4
-            })
+        self.mattes.values().chain(std::iter::once(&self.zero)).chain(self.source.iter())
+            .map(|t| crate::resource_ledger::logical_bytes(&t.texture).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)
     }
     pub fn release(&mut self) {
         self.blend_inputs.clear();
@@ -302,14 +303,14 @@ impl CompositingGpu {
     ) -> Result<bool, RenderError> {
         let pixels = u64::from(size[0]) * u64::from(size[1]);
         let unique: std::collections::HashSet<_> = needed.iter().copied().collect();
-        if other_bytes + 1 + pixels * unique.len() as u64 > source_budget {
+        if other_bytes + self.coverage_bytes + pixels * unique.len() as u64 * self.coverage_bytes > source_budget {
             return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                other_bytes + 1 + pixels * unique.len() as u64, source_budget,
+                other_bytes + self.coverage_bytes + pixels * unique.len() as u64 * self.coverage_bytes, source_budget,
                 "track matte textures exceed configured source texture budget"));
         }
-        if blend && pixels * 12 > source_budget {
+        if blend && pixels * self.color_bytes * 3 > source_budget {
             return Err(RenderError::budget(crate::ResourceBudgetScope::LayerCompositing,
-                pixels * 12, source_budget,
+                pixels * self.color_bytes * 3, source_budget,
                 "layer transfer accumulators exceed configured source texture budget"));
         }
         let resized = self.size != size;
@@ -321,7 +322,7 @@ impl CompositingGpu {
                 continue;
             }
             let texture = crate::effect_gpu::admitted_texture(
-                device, image, sampler, size[0], size[1], wgpu::TextureFormat::R8Unorm,
+                device, image, sampler, size[0], size[1], self.coverage_format,
                 &self.allocation_budget,
                 crate::TextureCategory::MatteBlendScratch,
             ).map_err(|error| RenderError::Context {
@@ -431,7 +432,7 @@ impl CompositingGpu {
             u.params[0] = [
                 l.blend.mode.code() as f32,
                 f32::from(l.blend.space == motion_model::compositing::BlendSpace::Srgb),
-                0.,
+                f32::from(self.extended),
                 0.,
             ];
             queue.write_buffer(

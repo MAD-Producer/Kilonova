@@ -168,11 +168,12 @@ fn exercise(events: &winit::event_loop::EventLoop<()>, exposure: bool) {
             .renderer
             .encode_preview(&session.scene, &target.view, 64, 64, &mut encoder, None)
             .unwrap();
+        graphics.scratch.encode_output(&graphics.renderer, &mut encoder).unwrap();
         graphics
             .renderer
             .submit_allocated(encoder.finish(), |_| {})
             .unwrap();
-        graphics.scratch.commit_submitted();
+        graphics.scratch.commit_submitted().unwrap();
         graphics
             .renderer
             .device

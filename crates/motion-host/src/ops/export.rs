@@ -78,7 +78,9 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             + p.layers.len() * (128 + 20)
             + passes * (40 + motion_effects::shader::UNIFORM_BYTES
                 + motion_render::effect_plan::SCRATCH_RECORD_BYTES)
-            + count * 1024
+            + count * if s.effects.precision() == motion_effects::image_contract::ChannelPrecision::Unorm8 {
+                1024
+            } else { motion_core::HIGH_PRECISION_CURVE_SAMPLES * 16 }
             + motion_effects::MAX_SPRITES * 48
             + 8192 * 12
             + 65536 * 20
@@ -89,7 +91,12 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
         let has_audio = !p.audio_voices()
             .map_err(|e| crate::Error::with_context("export audio plan", e))?.is_empty();
         let mut info=json!({"version":motion_render::effect_plan::PLAN_VERSION,
+            "curveLutAbi":motion_effects::shader::CURVE_LUT_ABI_VERSION,
+            "curveLutEncodings":[
+                {"code":0,"format":"rgba8_unorm","samples":256,"pixelBytes":4},
+                {"code":1,"format":"rgba32_float","samples":motion_core::HIGH_PRECISION_CURVE_SAMPLES,"pixelBytes":16}],
             "scratchBudgetBytes":s.effects.scratch_budget(),
+            "sourceTextureBudgetBytes":s.effects.memory_policy().source_texture_budget_bytes,
             "headerBytes":motion_render::effect_plan::HEADER_BYTES,
             "composition_bundle_version":1,"composition_bundle_buffer_hint":131072,
             "has_video":!p.video_assets.is_empty(),
@@ -155,6 +162,8 @@ pub fn sample_render_plan_into_inner(
 pub fn capture(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
+        s.synchronize_working_precision()?;
+        s.effects.set_precision(s.engine.project().working_precision);
         let p = s.engine.project();
         for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
@@ -166,7 +175,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
-            temporary = Some(pollster::block_on(Renderer::headless_with_allocation_budget(s.allocation_budget().clone())).map_err(crate::Error::from)?);
+            temporary = Some(pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, s.allocation_budget().clone())).map_err(crate::Error::from)?);
         }
         let renderer = if let Some(g) = &mut s.graphics {
             &mut g.renderer
@@ -187,7 +196,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             .prepare_scene_assets(&scene, motion_render::image_resources::Resolution::Full, false)
             .map_err(crate::Error::from)?;
         let target = renderer
-            .capture_target(p.width, p.height)
+            .sdr_capture_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
             .map_err(crate::Error::from)?;
         let frames = s
             .video_frames
@@ -208,12 +217,12 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             image.upload(renderer, object, source)?;
         }
         let (pixels, _) = renderer
-            .capture(&scene, &target)
+            .capture_sdr(&scene, &target)
             .map_err(crate::Error::from)?;
         let dir = s.root.join("exports");
         std::fs::create_dir_all(&dir).map_err(crate::Error::from)?;
         let file = dir.join(format!("frame-{:06}.png", s.frame.floor() as u32));
-        image::save_buffer(&file, &pixels, p.width, p.height, image::ColorType::Rgba8)
+        image::save_buffer(&file, &pixels.pixels, p.width, p.height, image::ColorType::Rgba8)
             .map_err(crate::Error::from)?;
         Ok(json!({"path":file.to_string_lossy(),"width":p.width,"height":p.height,"frame":s.frame.floor()}))
     })

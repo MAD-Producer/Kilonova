@@ -1,5 +1,6 @@
 //! The same frame plan drives wgpu and the MediaCodec/GLES adapter.
 use crate::{RenderError, ResourceBudgetScope, ResourceRejection, Scene};
+use motion_effects::image_contract::ChannelPrecision;
 use motion_effects::{
     shader, AlphaMode, EdgeMode, EffectDefinition, EffectPackage, Registry, WorkingSpace,
 };
@@ -16,7 +17,7 @@ pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat
 mod scratch_proposal_tests;
 
 pub const PLAN_MAGIC: u32 = 0x46584d53;
-pub const PLAN_VERSION: u32 = 10;
+pub const PLAN_VERSION: u32 = 12;
 pub const HEADER_BYTES: usize = 160;
 pub const DRAW_WORDS: usize = 32;
 pub const PASS_WORDS: usize = 10;
@@ -118,6 +119,7 @@ pub struct PlannedDraw {
 }
 #[derive(Default, Debug)]
 pub struct EffectFramePlan {
+    pub precision: ChannelPrecision,
     /// Canonical UV-to-clip homographies for native drawing. CPU-only metadata;
     /// deliberately excluded from the portable packed-plan ABI.
     pub uv_maps: Vec<glam::DMat3>,
@@ -209,6 +211,15 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
 }
 
 impl EffectFramePlan {
+    /// Wire word 156 selects this numeric table encoding. Sampling is manual.
+    pub fn curve_lut_layout(&self) -> (usize, usize) {
+        if self.precision == ChannelPrecision::Unorm8 { (256, 4) }
+        else { (motion_model::HIGH_PRECISION_CURVE_SAMPLES, 16) }
+    }
+    fn curve_lut_stride(&self) -> usize {
+        let (samples, pixel_bytes) = self.curve_lut_layout();
+        samples * pixel_bytes
+    }
     pub fn scratch_bytes(&self) -> u64 {
         self.scratch_allocations.iter().map(|allocation| allocation.bytes()).sum()
     }
@@ -221,7 +232,7 @@ impl EffectFramePlan {
             + self.draws.len() * 128
             + self.passes.len() * 40
             + self.passes.len() * shader::UNIFORM_BYTES
-            + scene.curve_luts.len() * 1024
+            + scene.curve_luts.len() * self.curve_lut_stride()
             + self.batches.len() * 12
             + self.vertices.len() * 20
             + self.sprites.len() * 48
@@ -238,6 +249,11 @@ impl EffectFramePlan {
             + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
+        if self.precision != ChannelPrecision::Unorm8 && scene.curve_sources.len() != scene.curve_luts.len() {
+            return Err(RenderError::Invalid(format!(
+                "packed high-precision curve sources={} do not match LUTs={}",
+                scene.curve_sources.len(), scene.curve_luts.len())));
+        }
         let size = self.buffer_bytes(scene);
         if out.len() < size {
             return Err(format!("render plan buffer requires {size} bytes").into());
@@ -246,7 +262,8 @@ impl EffectFramePlan {
         let pass_offset = draw_offset + self.draws.len() * 128;
         let uniform_offset = pass_offset + self.passes.len() * 40;
         let lut_offset = uniform_offset + self.passes.len() * shader::UNIFORM_BYTES;
-        let sprite_offset = lut_offset + scene.curve_luts.len() * 1024;
+        let lut_stride = self.curve_lut_stride();
+        let sprite_offset = lut_offset + scene.curve_luts.len() * lut_stride;
         let batch_offset = sprite_offset + self.sprites.len() * 48;
         let vertex_offset = batch_offset + self.batches.len() * 12;
         let vector_offset = vertex_offset + self.vertices.len() * 20;
@@ -291,7 +308,8 @@ impl EffectFramePlan {
             crate::mask_plan::RECORD_BYTES as u32,
             compositing_offset as u32,self.compositing.len() as u32,20,
             scratch_offset as u32, self.scratch_allocations.len() as u32,
-            SCRATCH_RECORD_BYTES as u32, 0, 0,
+            SCRATCH_RECORD_BYTES as u32, self.precision as u32,
+            u32::from(self.precision != ChannelPrecision::Unorm8),
         ];
         out[..HEADER_BYTES].copy_from_slice(bytemuck::cast_slice(&header));
         for (i, d) in self.draws.iter().enumerate() {
@@ -311,7 +329,7 @@ impl EffectFramePlan {
                 if p.lut < 0 {
                     u32::MAX
                 } else {
-                    (lut_offset + p.lut as usize * 1024) as u32
+                    (lut_offset + p.lut as usize * lut_stride) as u32
                 },
                 if p.sprite {p.sprite_start} else {p.resource_input as u32},
                 p.sprite_count,
@@ -323,6 +341,14 @@ impl EffectFramePlan {
                 .copy_from_slice(bytemuck::bytes_of(&p.uniform));
         }
         for (i, lut) in scene.curve_luts.iter().enumerate() {
+            if self.precision != ChannelPrecision::Unorm8 {
+                let source = scene.curve_sources.get(i).ok_or_else(|| RenderError::Invalid(
+                    format!("packed effect curve index={i}: high-precision authored source is missing")))?;
+                let rows = source.high_precision_lut();
+                out[lut_offset + i * lut_stride..lut_offset + (i + 1) * lut_stride]
+                    .copy_from_slice(bytemuck::cast_slice(&rows));
+                continue;
+            }
             for (j, pixel) in lut.iter().enumerate() {
                 for c in 0..4 {
                     out[lut_offset + i * 1024 + j * 4 + c] =
@@ -407,6 +433,7 @@ pub struct ScratchRequest {
     pub rejection: Option<ScratchRejection>,
 }
 pub struct PlanBuilder {
+    precision: ChannelPrecision,
     scratch_budget: u64,
     pub(crate) source_texture_budget: u64,
     pub(crate) decoded_image_budget: u64,
@@ -691,6 +718,7 @@ impl PlanBuilder {
         let convert=utility("fn main_fx(p:vec2<f32>)->vec4<f32>{return convert_pixel(sample_input(p),fx.mode.yz,fx.output_mode.xy);}")?;
         let mask_source=utility(crate::mask_plan::APPLY)?;
         Ok(Self {
+            precision: ChannelPrecision::Unorm8,
             registry,
             device_dimension: 8192,
             program_errors: Default::default(),
@@ -749,6 +777,13 @@ impl PlanBuilder {
         self.last_resource_rejection = None;
         self.preview_inputs = None;
     }
+    pub fn set_precision(&mut self, precision: ChannelPrecision) {
+        if self.precision != precision {
+            self.precision = precision;
+            self.preview_inputs = None;
+        }
+    }
+    pub fn precision(&self) -> ChannelPrecision { self.precision }
     pub fn scratch_budget(&self) -> u64 { self.scratch_budget }
     pub fn memory_policy(&self) -> crate::resource_policy::MemoryPolicy {
         crate::resource_policy::MemoryPolicy {
@@ -994,6 +1029,7 @@ impl PlanBuilder {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         self.synchronize(scene)?;
+        self.frame.precision = self.precision;
         self.frame.scratch_budget = self.scratch_budget;
         self.frame.sprites.clear();
         self.frame.generator_stats = Default::default();
@@ -1718,7 +1754,8 @@ impl PlanBuilder {
             .frame
             .vectors
             .iter()
-            .map(|v| u64::from(v.width) * u64::from(v.height) * 4)
+            .map(|v| u64::from(v.width) * u64::from(v.height)
+                * crate::image_formats::color_storage(self.precision).bytes_per_pixel())
             .sum::<u64>();
         if self
             .frame
@@ -1742,7 +1779,7 @@ impl PlanBuilder {
             let accumulator = 2
                 * u64::from((scene.width as f32 * scale).ceil() as u32)
                 * u64::from((scene.height as f32 * scale).ceil() as u32)
-                * 4;
+                * crate::image_formats::color_storage(self.precision).bytes_per_pixel();
             if accumulator > self.source_texture_budget {
                 return Err(self.reject_budget(ResourceBudgetScope::LayerCompositing, accumulator, self.source_texture_budget, format!(
                     "adjustment accumulators require {:.2} MiB; composite source budget exceeded",
@@ -1751,8 +1788,9 @@ impl PlanBuilder {
             }
         }
         let (mw,mh,slots)=crate::mask_plan::scratch_dimensions(&self.frame.masks);
-        let mask_scratch=u64::from(mw)*u64::from(mh)*slots as u64;
-        let mask_outputs=self.frame.masks.chunk_by(|a,b|a.layer==b.layer).map(|g|u64::from(g[0].width)*u64::from(g[0].height)).sum::<u64>();
+        let coverage_bytes=motion_effects::image_contract::coverage_storage(self.precision).bytes_per_pixel();
+        let mask_scratch=u64::from(mw)*u64::from(mh)*slots as u64*coverage_bytes;
+        let mask_outputs=self.frame.masks.chunk_by(|a,b|a.layer==b.layer).map(|g|u64::from(g[0].width)*u64::from(g[0].height)*coverage_bytes).sum::<u64>();
         if mask_outputs>self.source_texture_budget {return Err(self.reject_budget(ResourceBudgetScope::MaskOutputs, mask_outputs, self.source_texture_budget, "layer mask outputs exceed configured source texture budget"));}
         let scratch = mask_scratch+self.frame.scratch_bytes();
         if scratch>self.scratch_budget {

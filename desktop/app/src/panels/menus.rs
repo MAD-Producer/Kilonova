@@ -100,6 +100,11 @@ pub(super) fn render(
                 ),
                 (locale.t(T::ExportPackage).into(), Action::Pack, true),
                 (
+                    locale.t(T::ProjectPrecision).into(),
+                    Action::ProjectPrecisionSettings,
+                    state["observing"] != true,
+                ),
+                (
                     panels.shortcut_bindings.label(locale.t(T::ImportMedia), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Import),
                     Action::ImportMedia,
                     true,

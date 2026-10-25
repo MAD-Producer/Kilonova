@@ -107,14 +107,14 @@ fn session_envelope_survives_project_replacement_and_tracks_retained_native_view
         let snapshot=session.engine.snapshot();
         let revision=session.engine.revision();
         let mut renderer=pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
-        let target=renderer.capture_target(size,size).unwrap();
+        let target=renderer.sdr_capture_target(size,size,motion_render::OutputTransform::SDR_CLIP).unwrap();
         for frame in [0.,3.,1.] {
             session.frame=frame;
             session.sample().unwrap();
-            let pixels=renderer.capture(&session.scene,&target).unwrap().0;
+            let pixels=renderer.capture_sdr(&session.scene,&target).unwrap().0.pixels;
             assert!(pixels.chunks_exact(4).all(|p|p==[0,255,0,255]));
         }
-        let view=target.view.clone();
+        let view=target.working_view().clone();
         let device=renderer.device.clone();
         let queue=renderer.queue.clone();
         session.editor_target=Some(target);
@@ -392,8 +392,10 @@ fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
     let info = session.plugin_request(query).unwrap();
     assert_eq!(info["submissionTracking"]["editor"]["submitted"], 1);
     assert_eq!(info["submissionTracking"]["editor"]["completed"], 1);
-    session.editor_target = Some(session.editor_renderer.as_ref().unwrap().capture_target(5, 7).unwrap());
-    assert_eq!(session.plugin_request(query).unwrap()["knownBytes"], 1032+5*7*4);
+    session.editor_target = Some(session.editor_renderer.as_ref().unwrap()
+        .sdr_capture_target(5, 7, motion_render::OutputTransform::SDR_CLIP).unwrap());
+    // Both the native working image and its explicit SDR image are retained.
+    assert_eq!(session.plugin_request(query).unwrap()["knownBytes"], 1032+5*7*8);
     session.editor_target = None;
     assert_eq!(session.plugin_request(query).unwrap()["knownBytes"], 1032);
     session.recorder = Some(motion_render::FrameRecorder::new(1, 1));
@@ -427,12 +429,13 @@ fn explicit_capacity_query_includes_caller_target_and_preserves_runtime_only_sem
     let idle = session.plugin_request(query).unwrap();
     let base = idle["knownBytes"].as_u64().unwrap();
     assert!(base > 0);
-    session.editor_target = Some(session.editor_renderer.as_ref().unwrap().capture_target(5, 7).unwrap());
+    session.editor_target = Some(session.editor_renderer.as_ref().unwrap()
+        .sdr_capture_target(5, 7, motion_render::OutputTransform::SDR_CLIP).unwrap());
     session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":true}").unwrap();
     let occupied = session.plugin_request(query).unwrap();
     let combined = &occupied["combinedCapacity"];
     let observed = &combined["observation"];
-    assert_eq!(observed["knownOwnedBytes"], base + 5 * 7 * 4);
+    assert_eq!(observed["knownOwnedBytes"], base + 5 * 7 * 8);
     assert_eq!(observed["knownCombinedBytes"], occupied["knownBytes"]);
     assert_eq!(observed["knownRetiredBytes"], 0);
     assert_eq!(observed["unknownCapacityCount"], 0);

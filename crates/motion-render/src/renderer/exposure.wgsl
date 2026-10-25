@@ -8,8 +8,9 @@ struct Weight { has_sample: f32, _padding0: f32, _padding1: f32, _padding2: f32 
     return vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
 }
 
-// The sample attachment is sRGB-encoded linear premultiplied RGB. Decode once
-// on load. Blend RGB and alpha with the CPU's current / cumulative weight.
+// Samples are linear premultiplied values. An sRGB attachment decodes once on
+// load; linear integer and floating attachments need no transfer conversion.
+// Blend RGB and alpha with the CPU's current / cumulative weight.
 // A missing phase still contributes its transparent shutter interval, without
 // reading pixels left over from the previous phase.
 @fragment fn accumulate(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
@@ -17,9 +18,11 @@ struct Weight { has_sample: f32, _padding0: f32, _padding1: f32, _padding2: f32 
     return textureLoad(source, vec2<i32>(p.xy), 0);
 }
 
-// Encode to the renderer's sRGB output only after the complete exposure.
+// Only the UNORM8 mode uses nearest-byte sRGB output quantization. Other modes
+// preserve the accumulated working values, including floating HDR/negative RGB.
 @fragment fn resolve(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
     let c = textureLoad(source, vec2<i32>(p.xy), 0);
+    if !OUTPUT_UNORM8 { return c; }
     let alpha = floor(clamp(c.a, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
     // The output stores an 8-bit alpha. Reassociate RGB with that representable
     // alpha before encoding, so tiny coverage does not change the straight
