@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "issue": 220,
+  "verifiedSourceCommit": "17f48e9cff8dc2d6284a5a149a26b1deb65145e4",
+  "baselineCommit": "880739de0f7912b8b1683ce72593fad9035d6d24",
+  "tests": {
+    "focused": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 1,
+      "raw": "logs/curve-comparison-source-verified.log"
+    },
+    "allPanels": {
+      "passed": 557,
+      "failed": 0,
+      "ignored": 1,
+      "raw": "logs/curve-comparison-panels-final.log"
+    },
+    "nativeGpu": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "raw": "logs/curve-comparison-native-final.log"
+    }
+  },
+  "native": {
+    "actualNativeFloatPresent": true,
+    "authoredProjectRevisionHistoryUnchanged": true,
+    "physicalOsInput": "not tested",
+    "screenshots": 13
+  },
+  "preview": {
+    "sourceCommit": "17f48e9cff8dc2d6284a5a149a26b1deb65145e4",
+    "profile": "dev",
+    "features": [
+      "ffmpeg"
+    ],
+    "executableSha256": "0472d30859b0c42cbd0616318ab157b1d9cb873c92cc01f6a0d6cb5f2ffbc38d",
+    "runtimeDlls": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    }
+  },
+  "runtime": {
+    "backend": "libav",
+    "decoded": true,
+    "frames": [
+      {
+        "decoder": "libavcodec",
+        "end": 33333,
+        "height": 32,
+        "pts": 0,
+        "rgbaBytes": 8192,
+        "width": 64
+      },
+      {
+        "decoder": "libavcodec",
+        "end": 133333,
+        "height": 32,
+        "pts": 100000,
+        "rgbaBytes": 8192,
+        "width": 64
+      },
+      {
+        "decoder": "libavcodec",
+        "end": 200000,
+        "height": 32,
+        "pts": 166667,
+        "rgbaBytes": 8192,
+        "width": 64
+      },
+      {
+        "decoder": "libavcodec",
+        "end": 33333,
+        "height": 32,
+        "pts": 0,
+        "rgbaBytes": 8192,
+        "width": 64
+      }
+    ],
+    "sourceFrames": 6
+  },
+  "commandCatalogueCount": 71,
+  "testExecutableSha256": "dbd1794bd6e235dbdc14da5e84195d3751d579a28324f9c14d8203f9374c6363",
+  "uiImages": {
+    "zh-main.png": "zh-1600-value-ratio1.png",
+    "en-main.png": "en-1600-speed-ratio1.png",
+    "zh-compact.png": "zh-900-speed-ratio1.5.png",
+    "zh-channels.png": "zh-compact-channels-ratio1.5.png",
+    "en-units.png": "en-compact-units-ratio1.5.png",
+    "zh-float.png": "zh-native-float-ratio1.5.png"
+  },
+  "croppedImages": {
+    "zh-timeline-detail.png": {
+      "original": "zh-1600-value-ratio1.png",
+      "bounds": [
+        0,
+        590,
+        1280,
+        980
+      ]
+    },
+    "zh-channels-detail.png": {
+      "original": "zh-compact-channels-ratio1.5.png",
+      "bounds": [
+        510,
+        495,
+        1075,
+        870
+      ]
+    }
+  },
+  "evidence": {
+    "file": "curve-comparison-evidence.zip",
+    "files": 112,
+    "bytes": 4698922,
+    "sha256": "dddd0c5ea3d20b091ad6ffb623593305a448d950e5ac6b70b7102bb0517d4e0f"
+  },
+  "pending": [
+    "PR current-head CI",
+    "system foreground mouse/keyboard/IME manual acceptance",
+    "other OS native popup focus manual acceptance",
+    "comparative rendering cost benchmark"
+  ]
+}
