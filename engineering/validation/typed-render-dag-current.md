@@ -1458,3 +1458,13 @@ and tolerances remain unchanged. Full affected-crate software-Vulkan coverage,
 a repeated final whole-workspace G and current-source remote CI are still
 required. Final-G v3 was explicitly superseded after reproducing this failure;
 its partial output is not accepted as a completed final gate.
+
+After rebasing to main `9dbdf75f`, whole-workspace G v5 caught a build-only
+integration omission in main's new `motion-core/tests/media_assets.rs` fixture:
+its explicit `EffectInstance` initializer lacked this branch's `shader_data`
+field. The fixture now supplies `None`, matching its disabled passthrough effect
+and retaining every assertion. Desktop and panel-style checks had passed;
+workspace execution had not started, so v5 is not a successful final gate.
+The complete gate must run again with this fixture correction.
+The focused `cargo test -p motion-core --test media_assets --locked --offline`
+run passes all six original tests with zero failures or ignores.
