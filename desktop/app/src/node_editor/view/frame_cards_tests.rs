@@ -349,3 +349,45 @@ fn parent_navigation_invalidates_geometry_even_when_view_and_revision_match() {
         );
     }
 }
+
+#[test]
+fn port_labels_keep_live_first_identity_for_duplicate_and_reordered_cards() {
+    for language in [Language::English, Language::Chinese] {
+        for unsupported_first in [false, true] {
+            let mut editor = simple();
+            let mut duplicate = editor.document.nodes[0].clone();
+            duplicate.operation = NodeOp::Math {
+                operation: motion_graph::MathOp::Add,
+                value_type: ValueType::Float,
+            };
+            duplicate.position = [650., 300.];
+            if unsupported_first {
+                editor.document.nodes[0].operation = NodeOp::Unsupported {
+                    feature: "controlled-duplicate-port-source".into(),
+                };
+            }
+            editor.document.nodes.push(duplicate);
+            let area = Rect::new(0., 0., 1600., 1000.);
+            let mut atlas = TextAtlas::from_system(13.).unwrap();
+            for reverse in [false, true] {
+                let mut cached = editor.cards(area);
+                let mut live = editor.cards(area);
+                if reverse {
+                    cached.reverse();
+                    live.reverse();
+                }
+                // Missing socket metadata asks the painter to resolve labels
+                // from the document, independently of each card's cached data.
+                for card in &mut live {
+                    card.sockets.clear();
+                }
+                let mut expected = PaintList::default();
+                editor.paint_canvas(&mut expected, &mut atlas, &live, area, &Input::default(), language);
+                let mut actual = PaintList::default();
+                editor.paint_canvas(&mut actual, &mut atlas, &cached, area, &Input::default(), language);
+                assert_eq!(format!("{:?}", actual.glyphs), format!("{:?}", expected.glyphs),
+                    "labels changed for {language:?}, reverse={reverse}, unsupported_first={unsupported_first}");
+            }
+        }
+    }
+}

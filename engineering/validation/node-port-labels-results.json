@@ -1,0 +1,361 @@
+{
+  "issue": 134,
+  "base": "f521593d03df8a6850738859e3664c1fac24eb3f",
+  "code_revision": "7d5fc80932040676baacae0e4ace5ab67c0711c8",
+  "before": {
+    "head": "f521593d03df8a6850738859e3664c1fac24eb3f",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "node_editor::port_label_probe::record_complete_node_frames_and_allocations",
+      "--",
+      "--exact",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 181.17,
+    "sources": {
+      "node_editor": "28cd36097705b46462d51b77cfc5f6b0e8205b2ed975671788d89bd7b2a124dc",
+      "canvas": "ee5875bfeb46b76b6f59649a5e1973e32131bc33aabfd1762d20f124aab4d548",
+      "probe": "7d55c43e238ef207fbc5d12ccafa8febf966ee91388287bdd994c3d1c449333e",
+      "allocator": "8c1cab641045156238155bbe7cde42ad417c24a7075f9e215d39a95a1cb45407",
+      "view/mod.rs": "946cbaa9ad9f41ec948db1b498122366db87f81df609d4110c317ca1253b4b54",
+      "view/frame_cards_tests.rs": "d343ca79853a50800ed6a7c6accea36a7137b3eb00c2461d01ad746258897e78",
+      "view/wire_target_tests.rs": "73722210471ed8e5cd2f290bc007eb91e1649438bc7ee2c200d60edd718354e6",
+      "view/wires/socket_index_tests.rs": "d7dc4e58c538e78e1b123390819aeb1a49117b56808789c024386626822009c4"
+    },
+    "source_unchanged": true,
+    "log_sha256": "d97f1b8242d54334d43a4c4f159a674914fbe7506ff4fad294cac0326be543c5"
+  },
+  "after": {
+    "head": "f521593d03df8a6850738859e3664c1fac24eb3f",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "node_editor::port_label_probe::record_complete_node_frames_and_allocations",
+      "--",
+      "--exact",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 164.83,
+    "sources": {
+      "node_editor": "28cd36097705b46462d51b77cfc5f6b0e8205b2ed975671788d89bd7b2a124dc",
+      "canvas": "8d03aa9cc27e14304a8cd2964f23bbc26af80c6c9ecd4a3011ca2287fd1eeea8",
+      "probe": "7d55c43e238ef207fbc5d12ccafa8febf966ee91388287bdd994c3d1c449333e",
+      "allocator": "8c1cab641045156238155bbe7cde42ad417c24a7075f9e215d39a95a1cb45407",
+      "view/mod.rs": "6331c4aa3d5dcd0af95caf27c04339243263cfdeebc9737b93d1a3b5cb66deb9",
+      "view/frame_cards_tests.rs": "d343ca79853a50800ed6a7c6accea36a7137b3eb00c2461d01ad746258897e78",
+      "view/wire_target_tests.rs": "61876248ecbfee2f9de5132719bebaeb008700aaab380c42e48f654bcb92ed9e",
+      "view/wires/socket_index_tests.rs": "afe95dbe4aacfb5b7b71bd3fec5063494ee932ff194ff2871b19745502f37843"
+    },
+    "source_unchanged": true,
+    "log_sha256": "b63592f54ba1b1840f0284373169c15a64f8cbc8530d771508beb55636cef8cb"
+  },
+  "comparison": {
+    "cases": [
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7400,
+        "requests_after": 6760,
+        "bytes_before": 4880000,
+        "bytes_after": 4700080
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7700,
+        "requests_after": 7060,
+        "bytes_before": 4985300,
+        "bytes_after": 4805380
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 3,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7380,
+        "requests_after": 6660,
+        "bytes_before": 5267080,
+        "bytes_after": 5106920
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 3,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7720,
+        "requests_after": 7000,
+        "bytes_before": 5108140,
+        "bytes_after": 4947980
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-900x600.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 5720,
+        "requests_after": 5360,
+        "bytes_before": 4379260,
+        "bytes_after": 4273220
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-1600x1000.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 6020,
+        "requests_after": 5660,
+        "bytes_before": 4484560,
+        "bytes_after": 4378520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 36980,
+        "requests_after": 36260,
+        "bytes_before": 11928880,
+        "bytes_after": 11736000
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 52960,
+        "requests_after": 49960,
+        "bytes_before": 21290920,
+        "bytes_after": 20422400
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-900x600.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": true,
+        "requests_before": 32500,
+        "requests_after": 32500,
+        "bytes_before": 9680280,
+        "bytes_after": 9700760
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-1600x1000.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": true,
+        "requests_before": 35180,
+        "requests_after": 35180,
+        "bytes_before": 10103820,
+        "bytes_after": 10124300
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7120,
+        "requests_after": 6480,
+        "bytes_before": 3936060,
+        "bytes_after": 3756140
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7440,
+        "requests_after": 6800,
+        "bytes_before": 4118160,
+        "bytes_after": 3938240
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 3,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7000,
+        "requests_after": 6280,
+        "bytes_before": 3681780,
+        "bytes_after": 3521620
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 3,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 7380,
+        "requests_after": 6660,
+        "bytes_before": 3890200,
+        "bytes_after": 3730040
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-900x600.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 5440,
+        "requests_after": 5080,
+        "bytes_before": 3322500,
+        "bytes_after": 3216460
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-1600x1000.txt",
+        "nodes": 4,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 5760,
+        "requests_after": 5400,
+        "bytes_before": 3504600,
+        "bytes_after": 3398560
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-900x600.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 36620,
+        "requests_after": 35900,
+        "bytes_before": 10794660,
+        "bytes_after": 10601780
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-1600x1000.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": false,
+        "requests_before": 51860,
+        "requests_after": 48860,
+        "bytes_before": 17896120,
+        "bytes_after": 17027600
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-900x600.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": true,
+        "requests_before": 32380,
+        "requests_after": 32380,
+        "bytes_before": 9035060,
+        "bytes_after": 9055540
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-1600x1000.txt",
+        "nodes": 128,
+        "frames": 20,
+        "culled": true,
+        "requests_before": 35080,
+        "requests_after": 35080,
+        "bytes_before": 9535400,
+        "bytes_after": 9555880
+      }
+    ],
+    "measured_frames": 400,
+    "static_snapshots": 20,
+    "interaction_snapshots": 24,
+    "complete_paint_document_view_actions_and_history_equal": true,
+    "allocation_requests_removed": 14320,
+    "requested_bytes_net_removed": 3825360,
+    "culled_extra_requested_bytes": 81920
+  },
+  "regressions": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "node_editor::",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 221.38,
+    "sources": {
+      "desktop/app/src/node_editor.rs": "b83afc4c9fe52ad964f297a720ce5d383bb46071de4623ad127486fe67fccbd5",
+      "desktop/app/src/node_editor/view/mod.rs": "6331c4aa3d5dcd0af95caf27c04339243263cfdeebc9737b93d1a3b5cb66deb9",
+      "desktop/app/src/node_editor/view/canvas.rs": "8d03aa9cc27e14304a8cd2964f23bbc26af80c6c9ecd4a3011ca2287fd1eeea8",
+      "desktop/app/src/node_editor/view/frame_cards_tests.rs": "d343ca79853a50800ed6a7c6accea36a7137b3eb00c2461d01ad746258897e78",
+      "desktop/app/src/node_editor/view/wire_target_tests.rs": "61876248ecbfee2f9de5132719bebaeb008700aaab380c42e48f654bcb92ed9e",
+      "desktop/app/src/node_editor/view/wires/socket_index_tests.rs": "afe95dbe4aacfb5b7b71bd3fec5063494ee932ff194ff2871b19745502f37843"
+    },
+    "source_unchanged": true,
+    "log_sha256": "9a0855f9edf26f6396c96da4fe460234f66494c979a72cfa4cc4f25ecc785139"
+  },
+  "fault": {
+    "exit_code": 0,
+    "sites": [
+      "canvas.sockets",
+      "canvas.labels",
+      "context.ports",
+      "inspector.ports",
+      "inspector.help_ports",
+      "request.field",
+      "layout.arrange"
+    ],
+    "default_info_log_verified": true,
+    "error_stderr_verified": true,
+    "stdout_isolated": true,
+    "original_assertions_unchanged": true,
+    "sources": {
+      "desktop/app/src/node_editor.rs": "b83afc4c9fe52ad964f297a720ce5d383bb46071de4623ad127486fe67fccbd5",
+      "desktop/app/src/node_editor/view/mod.rs": "6331c4aa3d5dcd0af95caf27c04339243263cfdeebc9737b93d1a3b5cb66deb9",
+      "desktop/app/src/node_editor/view/canvas.rs": "8d03aa9cc27e14304a8cd2964f23bbc26af80c6c9ecd4a3011ca2287fd1eeea8",
+      "desktop/app/src/node_editor/view/frame_cards_tests.rs": "d343ca79853a50800ed6a7c6accea36a7137b3eb00c2461d01ad746258897e78",
+      "desktop/app/src/node_editor/view/wire_target_tests.rs": "61876248ecbfee2f9de5132719bebaeb008700aaab380c42e48f654bcb92ed9e",
+      "desktop/app/src/node_editor/view/wires/socket_index_tests.rs": "afe95dbe4aacfb5b7b71bd3fec5063494ee932ff194ff2871b19745502f37843"
+    },
+    "source_unchanged": true
+  },
+  "tests_passed": 164,
+  "archive": {
+    "path": "engineering/validation/data/node-port-labels-f521593d.zip",
+    "bytes": 774467,
+    "sha256": "4c4955a293636f7d50d973f4073eb2725b6ff8d8221f348277a72219f702c214",
+    "entries": 119
+  },
+  "limits": [
+    "extra frame-local Card identity pointer increases fully culled scene requested bytes",
+    "allocation requests and requested bytes in this dev test corpus, not RSS or FPS",
+    "no persistent metadata cache; other node/frame allocations remain",
+    "no claim of complete #134, all DPI, native window presentation, or DESIGN section 12 acceptance",
+    "five non-skipped latest-head CI jobs pending"
+  ]
+}

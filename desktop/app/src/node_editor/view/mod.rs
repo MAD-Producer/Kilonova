@@ -92,6 +92,8 @@ struct Socket {
     point: [f32; 2],
 }
 struct Card {
+    // Identity only: never dereferenced or retained beyond this frame's cards.
+    source_node: *const Node,
     id: String,
     rect: Rect,
     sockets: Vec<Socket>,
