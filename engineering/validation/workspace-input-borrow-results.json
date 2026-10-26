@@ -1,0 +1,29 @@
+{
+  "code_head": "a17139eaff9a7b91730762a96848558445155fac",
+  "baseline": "af1e7f9f07dceb03d8f078889505adf1db78542f",
+  "scenes": 128,
+  "measured_frames": 1280,
+  "snapshots_equal": 128,
+  "saved_requests": 800,
+  "saved_requested_bytes": 13110400,
+  "floating_controls": 64,
+  "floating_savings": 0,
+  "stress_text_bytes": 81920,
+  "panels_passed": 563,
+  "panels_ignored": 1,
+  "node_passed": 164,
+  "protocol_passed": 3,
+  "native_passed": 1,
+  "native_pngs_equal": 13,
+  "compiler_crash": "Initial after build rustc_driver access violation before tests; excluded, retained, same-source diagnostic build passed; root cause unproven",
+  "sources": {
+    "desktop\\app\\src\\panels\\curve_comparison\\tests.rs": "3d89d91416bdf09e8ff4e5acc218434dd4e8f080bd602d4e916a0e64d0012934",
+    "desktop\\app\\src\\panels\\mod.rs": "e57d07a445ae9c3a00d9e19f28ad5b512055d453533af092ae1c7256d2561394"
+  },
+  "archive": "workspace-input-borrow-af1e7f9f.zip",
+  "archive_bytes": 3105219,
+  "archive_entries": 78,
+  "unique_snapshot_objects": 28,
+  "snapshot_manifest_entries": 256,
+  "archive_sha256": "b402436d0c5d8fe160319da36ec99faad7c148998f88deace205309c42a7e949"
+}
