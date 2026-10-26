@@ -236,7 +236,21 @@ impl Controls {
             (bounds.width() - pad - pad).max(0.),
             row,
         );
-        paint::rect(list, hint, styles.color("panel"));
+        let cover = Rect::new(
+            bounds.min[0],
+            hint.min[1],
+            bounds.width(),
+            bounds.max[1] - hint.min[1],
+        );
+        // Suppress whole covered glyphs as the existing native menus do; a
+        // rectangle alone can leave parts of the status label visible below it.
+        list.retain_glyphs(|glyph| {
+            glyph.position[0] + glyph.size[0] <= cover.min[0]
+                || glyph.position[0] >= cover.max[0]
+                || glyph.position[1] + glyph.size[1] <= cover.min[1]
+                || glyph.position[1] >= cover.max[1]
+        });
+        paint::rect(list, cover, styles.color("panel"));
         ui::text(
             list,
             atlas,
