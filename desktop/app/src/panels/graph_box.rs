@@ -17,6 +17,8 @@ pub(crate) struct Controls {
     context: Option<Context>,
     selected: bool,
     drag: Option<Drag>,
+    // Consecutive malformed begin attempts; neutral repaints are not attempts.
+    invalid_seed_streak: u8,
 }
 #[derive(Clone)]
 struct Drag {
@@ -31,7 +33,10 @@ struct Drag {
     begun: bool,
 }
 impl Controls {
-    pub(super) fn clear_selection(&mut self) {self.selected=false;}
+    pub(super) fn clear_selection(&mut self) {
+        self.selected = false;
+        self.invalid_seed_streak = 0;
+    }
     pub fn has_selection(&self) -> bool {
         self.selected
     }
@@ -40,7 +45,24 @@ impl Controls {
     }
     pub fn cancel(&mut self) -> bool {
         self.selected = false;
+        self.invalid_seed_streak = 0;
         self.drag.take().is_some_and(|drag| drag.begun)
+    }
+    fn invalid_seed(&mut self, ctx: &Context, elapsed_ms: u128, cause: &str) {
+        let previous = self.invalid_seed_streak;
+        self.invalid_seed_streak = previous.saturating_add(1).min(60);
+        let level = match previous {
+            0 => log::Level::Debug,
+            59 => log::Level::Error,
+            _ => return,
+        };
+        if log::log_enabled!(level) {
+            let root: String = ctx.root.chars().take(256).collect();
+            let composition: String = ctx.composition.chars().take(128).collect();
+            log::log!(level,
+                "panel failure site=graph_box.seed_frames operation=curve_drag count={} object={} property={:?} axis={:?} component={} phase=begin elapsed_ms={elapsed_ms} root={root:?} composition={composition:?} cause={cause}",
+                self.invalid_seed_streak, ctx.object, ctx.property, ctx.axis, ctx.component);
+        }
     }
     pub fn bounds(&self) -> Option<[f32; 2]> {
         self.drag
@@ -195,6 +217,9 @@ pub(super) fn interact(
     controls.context = Some(ctx.clone());
     let total = last_frame(state) + 1.;
     let current_bounds = bounds(source, &ctx, plot.scale, total);
+    if current_bounds.is_none() {
+        controls.invalid_seed_streak = 0;
+    }
     if let (true, Some(bounds), Some((MouseButton::Left, mouse))) =
         (controls.selected, current_bounds, input.pressed)
     {
@@ -224,15 +249,37 @@ pub(super) fn interact(
                     })
                     .cloned()
                     .collect();
+                let started = std::time::Instant::now();
+                let current = seeds.iter().enumerate().map(|(index, key)| {
+                    let frame = key["frame"].as_u64().ok_or_else(|| {
+                        format!("key_index={index} missing_or_noninteger_frame")
+                    })?;
+                    u32::try_from(frame).map_err(|error| {
+                        format!("key_index={index} frame={frame} {error}")
+                    })
+                }).collect::<Result<Vec<_>, String>>();
+                let current = match current {
+                    Ok(current) => current,
+                    Err(cause) => {
+                        controls.invalid_seed(&ctx, started.elapsed().as_millis(), &cause);
+                        controls.selected = false;
+                        panels.message = Some(if panels.locale == Locale::Zh {
+                            "关键帧时间无效，无法拖动曲线"
+                        } else {
+                            "Cannot drag curve because a keyframe time is invalid"
+                        }.into());
+                        panels.timeline.graph_box = controls;
+                        // Own the rejected press so it cannot start a different gesture.
+                        return true;
+                    }
+                };
+                controls.invalid_seed_streak = 0;
                 controls.drag = Some(Drag {
                     plot,
                     mouse,
                     mode,
                     bounds,
-                    current: seeds
-                        .iter()
-                        .map(|key| key["frame"].as_u64().unwrap() as u32)
-                        .collect(),
+                    current,
                     values: seeds.iter().map(|key| key["value"].clone()).collect(),
                     seeds,
                     expected,
