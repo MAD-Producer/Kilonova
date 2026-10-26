@@ -1,0 +1,852 @@
+{
+  "status": "native-acceptance-passed-latest-ci-pending",
+  "code_revision": "c18b700b6b302b9795425a45e7054505c503fee5",
+  "combined_native": {
+    "head": "ca2e0398643f2f1f40b5cc528c0a445152027694",
+    "tree": "cedf6af414aa6d11903f9450dea25d45d6d81400",
+    "sources": {
+      "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+      "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+      "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+      "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+      "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+      "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+    },
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1"
+    ],
+    "exit_code": 0,
+    "seconds": 89.55,
+    "source_unchanged": true,
+    "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b"
+  },
+  "runtime_equivalence": "The production capture helper matches the combined binary source after removing only the Windows cfg(test) module declaration and normalizing newlines.",
+  "source_sha256": {
+    "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+    "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+    "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "122de13606a6111b5a7ec0931d59c240e04074adf5f8015539da845b3760bcf5",
+    "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "96c0ed5b67b1a3054435357a483a8672e86142326f396d03ebf6ec1becc2d90c"
+  },
+  "matrix": {
+    "cases": [
+      "minimum-en-properties",
+      "minimum-en-workspace",
+      "minimum-zh-properties",
+      "minimum-zh-workspace",
+      "default-en-properties",
+      "default-en-workspace",
+      "default-zh-properties",
+      "default-zh-workspace"
+    ],
+    "completed": [
+      {
+        "name": "minimum-en-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 58.95
+      },
+      {
+        "name": "minimum-en-workspace",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 29.33
+      },
+      {
+        "name": "minimum-zh-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 48.58
+      },
+      {
+        "name": "minimum-zh-workspace",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 24.88
+      },
+      {
+        "name": "default-en-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 80.47
+      },
+      {
+        "name": "default-en-workspace",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 47.31
+      },
+      {
+        "name": "default-zh-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 88.2
+      },
+      {
+        "name": "default-zh-workspace",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 59.01
+      }
+    ],
+    "status": "passed",
+    "started_at": 1792929095.0247855,
+    "pid": 33220,
+    "elapsed_seconds": 438.9
+  },
+  "cases": [
+    {
+      "name": "minimum-en-properties",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--property-smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-properties\\report.json",
+        "--locale",
+        "en",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-properties\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        900,
+        600
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 46648,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 96,
+      "primary_png_size": [
+        900,
+        600
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 51932
+        },
+        {
+          "expandedPreview": {
+            "encodedFramesAfter": 3,
+            "encodedFramesBefore": 0,
+            "layoutRestored": true,
+            "panel": "nodes",
+            "presented": true,
+            "projectAndHistoryUntouched": true,
+            "screenshot": "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-properties\\report.workspace-nodes-1-expanded.png",
+            "viewport": [
+              658.0,
+              223.0,
+              232.0,
+              232.0
+            ]
+          },
+          "nodeOverlay": true,
+          "normalNodeOverlay": false,
+          "preset": "nodes",
+          "roundTripUs": 408985
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 26557
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 36551
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 49812
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 37787
+        }
+      ],
+      "expanded_preview_cases": 1,
+      "seconds": 58.95,
+      "source_unchanged": true
+    },
+    {
+      "name": "minimum-en-workspace",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-workspace\\report.json",
+        "--locale",
+        "en",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-workspace\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        900,
+        600
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 48836,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 46,
+      "primary_png_size": [
+        900,
+        600
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 47334
+        },
+        {
+          "expandedPreview": {
+            "encodedFramesAfter": 3,
+            "encodedFramesBefore": 0,
+            "layoutRestored": true,
+            "panel": "nodes",
+            "presented": true,
+            "projectAndHistoryUntouched": true,
+            "screenshot": "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-en-workspace\\report.workspace-nodes-1-expanded.png",
+            "viewport": [
+              658.0,
+              223.0,
+              232.0,
+              232.0
+            ]
+          },
+          "nodeOverlay": true,
+          "normalNodeOverlay": false,
+          "preset": "nodes",
+          "roundTripUs": 291318
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 26039
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 32511
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 52277
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 49306
+        }
+      ],
+      "expanded_preview_cases": 1,
+      "seconds": 29.33,
+      "source_unchanged": true
+    },
+    {
+      "name": "minimum-zh-properties",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--property-smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-properties\\report.json",
+        "--locale",
+        "zh",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-properties\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        900,
+        600
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 43600,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 96,
+      "primary_png_size": [
+        900,
+        600
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 35923
+        },
+        {
+          "expandedPreview": {
+            "encodedFramesAfter": 3,
+            "encodedFramesBefore": 0,
+            "layoutRestored": true,
+            "panel": "nodes",
+            "presented": true,
+            "projectAndHistoryUntouched": true,
+            "screenshot": "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-properties\\report.workspace-nodes-1-expanded.png",
+            "viewport": [
+              658.0,
+              223.0,
+              232.0,
+              232.0
+            ]
+          },
+          "nodeOverlay": true,
+          "normalNodeOverlay": false,
+          "preset": "nodes",
+          "roundTripUs": 376451
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 139310
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 43135
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 70479
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 59607
+        }
+      ],
+      "expanded_preview_cases": 1,
+      "seconds": 48.58,
+      "source_unchanged": true
+    },
+    {
+      "name": "minimum-zh-workspace",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-workspace\\report.json",
+        "--locale",
+        "zh",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-workspace\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        900,
+        600
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 49740,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 46,
+      "primary_png_size": [
+        900,
+        600
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 34486
+        },
+        {
+          "expandedPreview": {
+            "encodedFramesAfter": 3,
+            "encodedFramesBefore": 0,
+            "layoutRestored": true,
+            "panel": "nodes",
+            "presented": true,
+            "projectAndHistoryUntouched": true,
+            "screenshot": "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\minimum-zh-workspace\\report.workspace-nodes-1-expanded.png",
+            "viewport": [
+              658.0,
+              223.0,
+              232.0,
+              232.0
+            ]
+          },
+          "nodeOverlay": true,
+          "normalNodeOverlay": false,
+          "preset": "nodes",
+          "roundTripUs": 304792
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 22463
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 23406
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 36828
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 27967
+        }
+      ],
+      "expanded_preview_cases": 1,
+      "seconds": 24.88,
+      "source_unchanged": true
+    },
+    {
+      "name": "default-en-properties",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--property-smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-en-properties\\report.json",
+        "--locale",
+        "en",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-en-properties\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        1600,
+        1000
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 30912,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 96,
+      "primary_png_size": [
+        1600,
+        1000
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 64674
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": true,
+          "normalNodeOverlay": true,
+          "preset": "nodes",
+          "roundTripUs": 64552
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 33542
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 44921
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 54650
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 55290
+        }
+      ],
+      "expanded_preview_cases": 0,
+      "seconds": 80.47,
+      "source_unchanged": true
+    },
+    {
+      "name": "default-en-workspace",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-en-workspace\\report.json",
+        "--locale",
+        "en",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-en-workspace\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        1600,
+        1000
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 48944,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 46,
+      "primary_png_size": [
+        1600,
+        1000
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 64280
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": true,
+          "normalNodeOverlay": true,
+          "preset": "nodes",
+          "roundTripUs": 75489
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 37315
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 49141
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 74909
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 69674
+        }
+      ],
+      "expanded_preview_cases": 0,
+      "seconds": 47.31,
+      "source_unchanged": true
+    },
+    {
+      "name": "default-zh-properties",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--property-smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-zh-properties\\report.json",
+        "--locale",
+        "zh",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-zh-properties\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        1600,
+        1000
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 40332,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 96,
+      "primary_png_size": [
+        1600,
+        1000
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 36738
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": true,
+          "normalNodeOverlay": true,
+          "preset": "nodes",
+          "roundTripUs": 69017
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 20575
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 26258
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 36801
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 43913
+        }
+      ],
+      "expanded_preview_cases": 0,
+      "seconds": 88.2,
+      "source_unchanged": true
+    },
+    {
+      "name": "default-zh-workspace",
+      "command": [
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native\\motion-studio.exe",
+        "--smoke",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-zh-workspace\\report.json",
+        "--locale",
+        "zh",
+        "--project",
+        "E:\\Dev\\aem\\.tools\\cache-minimum-preview-complete\\native-ui\\default-zh-workspace\\project"
+      ],
+      "binary_sha256": "2f246f1500e6381d59892d4692762735bf352430bd3c4d9b43b40390160c2e7b",
+      "sources": {
+        "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+        "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+        "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+        "desktop/app/src/panels/effect_controls/dropdown_cache.rs": "d8f1dd20cdb73c6724e83b49072c75cea9861ae8cb23393ad641355727ad7dc6",
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "4cb94c7c397e74aaeccf306296256f37c686f851b3f34b74b1dc98a3a179b989"
+      },
+      "requested_logical_size": [
+        1600,
+        1000
+      ],
+      "harness_limit_seconds": 240,
+      "pid": 43512,
+      "exit_code": 0,
+      "passed": true,
+      "design_screen_count": 46,
+      "primary_png_size": [
+        1600,
+        1000
+      ],
+      "presentations": [
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 31022
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": true,
+          "normalNodeOverlay": true,
+          "preset": "nodes",
+          "roundTripUs": 60527
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "drawing",
+          "roundTripUs": 21895
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "all",
+          "roundTripUs": 26093
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "animation",
+          "roundTripUs": 40373
+        },
+        {
+          "expandedPreview": null,
+          "nodeOverlay": false,
+          "normalNodeOverlay": false,
+          "preset": "default",
+          "roundTripUs": 35737
+        }
+      ],
+      "expanded_preview_cases": 0,
+      "seconds": 59.01,
+      "source_unchanged": true
+    }
+  ],
+  "failure_test": {
+    "exit_code": 0,
+    "source_unchanged": true,
+    "sources": {
+      "desktop/app/src/shell/workspace_acceptance.rs": "7b39866eb33c24ccb8078af8ed5d2c9cbad9ab837ad9263c9409af98c0f7a65d",
+      "desktop/app/src/workspace/maximize/tests.rs": "b7c7b0ef74b18e95e8fdd6a018c576d2429b461a48cbbebd15fd056d63f5a721",
+      "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd",
+      "desktop/app/src/shell/effect_timeline_acceptance.rs": "122de13606a6111b5a7ec0931d59c240e04074adf5f8015539da845b3760bcf5",
+      "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "96c0ed5b67b1a3054435357a483a8672e86142326f396d03ebf6ec1becc2d90c"
+    },
+    "binary_sha256": "95ace18405f9c371f4c8c1897d6f273a322034553e52e2e706b24dccce411458",
+    "seconds": 15.5,
+    "seconds_scope": "Rust test harness runtime; separate compile duration in raw cargo log",
+    "command": "cargo test -p motion-desktop --bin motion-studio [recorded Windows build configuration] shell::effect_timeline_acceptance::tests::screenshot_write_failure_restores_minimum_surface_and_preserves_project -- --exact --nocapture",
+    "log_sha256": "da5aa0331f91acd15c008f3d42673aa137b4d600e45ada63b4caac2962e6a65f"
+  },
+  "actual_failure": {
+    "cause": "拒绝访问。 (os error 5)",
+    "originalWriteCausePreserved": true,
+    "projectRevisionAndHistoryUntouched": true,
+    "restoredCaptureDimensions": [
+      900,
+      600
+    ]
+  },
+  "archive": {
+    "path": "engineering/validation/data/minimum-workspace-preview-ca2e0398.zip",
+    "bytes": 3018891,
+    "sha256": "dc7701483dacb975b26e7c60f04afa38a1b788c39eee51bbca3d85b53841f2d7",
+    "entries": 99
+  },
+  "limits": [
+    "new head five non-skipped CI jobs pending",
+    "Windows native matrix used actual 100% capture scale; other DPI and native platforms unverified",
+    "device loss, blocked resize and simultaneous cleanup failure not injected",
+    "not completion of entire #134 or DESIGN section 12"
+  ]
+}

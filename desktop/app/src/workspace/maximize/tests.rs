@@ -72,3 +72,26 @@ fn invalid_floating_hidden_or_removed_targets_cannot_hide_the_layout() {
     workspace.restore_panel();
     assert!(!workspace.toggle_panel_maximize(target));
 }
+
+#[test]
+fn expanded_nodes_preview_fits_both_native_acceptance_sizes_and_restores_layout() {
+    for size in [[900., 600.], [1600., 1000.]] {
+        let mut workspace = Workspace::default();
+        workspace.select_preset(Preset::Nodes);
+        let before = snapshot(&workspace);
+        let normal = crate::panels::node_view_bound(workspace.display_root(), size, false);
+        let frames = crate::panels::frames(workspace.display_root(), size);
+        let node = frames.iter().find(|frame| frame.panel == dock::Panel::Nodes).unwrap();
+        assert!(workspace.toggle_panel_maximize(dock::Panel::Nodes.dock()));
+        let expanded = crate::panels::node_view_bound(workspace.display_root(), size, false)
+            .expect("expanded Nodes view must fit the existing preview controls");
+        assert!(Rect::new(0., 0., size[0], size[1]).contains_rect(expanded));
+        assert!(expanded.width() > 1. && expanded.height() > 1.);
+        println!("{}", serde_json::json!({"size":size,"normalPreview":normal.map(|r|[r.min,r.max]),
+            "nodeContent":[node.content.min,node.content.max],"expandedPreview":[expanded.min,expanded.max]}));
+        assert_eq!(snapshot(&workspace), before);
+        assert!(workspace.restore_panel());
+        assert_eq!(snapshot(&workspace), before);
+        assert_eq!(crate::panels::node_view_bound(workspace.display_root(), size, false), normal);
+    }
+}

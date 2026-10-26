@@ -16,6 +16,7 @@ use motion_ui::{
 use serde_json::Value;
 use std::collections::HashMap;
 mod curve;
+mod dropdown_cache;
 mod key_navigation;
 mod library;
 mod track_cache;
@@ -66,7 +67,7 @@ pub struct Controls {
     recent: Vec<String>,
     query: String,
     search: motion_ui::widgets::SearchField,
-    dropdowns: HashMap<(u64, String), motion_ui::widgets::Dropdown>,
+    dropdowns: dropdown_cache::Cache,
     enum_owner: Option<(u64, String)>,
     pub favorites: std::collections::BTreeSet<String>,
     field: Option<Field>,
@@ -300,9 +301,7 @@ impl Controls {
         self.enum_owner = None;
         self.context_menu = None;
         self.color_popup = None;
-        for dropdown in self.dropdowns.values_mut() {
-            dropdown.open = false;
-        }
+        self.dropdowns.close();
         begun
     }
     pub(super) fn definition(&self, effect: &Value) -> Option<Value> {
@@ -1710,7 +1709,6 @@ impl Controls {
                                     .clicked
                                     .then_some(if value[0] > 0.5 { 0. } else { 1. })
                                 } else {
-                                    let key = (id, param.to_string());
                                     let curve_channel =
                                         effect["effect"] == "curves" && param == "p0002";
                                     let items: Vec<_> = parameter["options"]
@@ -1730,26 +1728,30 @@ impl Controls {
                                             enabled: true,
                                         })
                                         .collect();
-                                    let dropdown = self.dropdowns.entry(key.clone()).or_default();
-                                    let result = dropdown.draw(
-                                        &mut overlays,
-                                        atlas,
-                                        rect,
-                                        area,
-                                        &items,
-                                        (value[0] - parameter["min"].as_f64().unwrap_or(0.) as f32)
-                                            .max(0.) as usize,
-                                        if modal_owner.as_ref() == Some(&key) {
-                                            original_input
-                                        } else {
-                                            input
-                                        },
-                                        enabled,
-                                        false,
-                                    );
-                                    if dropdown.open {
-                                        self.enum_owner = Some(key);
-                                    } else if self.enum_owner.as_ref() == Some(&key) {
+                                    let is_modal_owner = modal_owner.as_ref()
+                                        .is_some_and(|(owner, name)| *owner == id && name == param);
+                                    let (result, open) = self.dropdowns.with(id, param, |dropdown| {
+                                        let result = dropdown.draw(
+                                            &mut overlays,
+                                            atlas,
+                                            rect,
+                                            area,
+                                            &items,
+                                            (value[0] - parameter["min"].as_f64().unwrap_or(0.) as f32)
+                                                .max(0.) as usize,
+                                            if is_modal_owner { original_input } else { input },
+                                            enabled,
+                                            false,
+                                        );
+                                        (result, dropdown.open)
+                                    });
+                                    let is_owner = self.enum_owner.as_ref()
+                                        .is_some_and(|(owner, name)| *owner == id && name == param);
+                                    if open {
+                                        if !is_owner {
+                                            self.enum_owner = Some((id, param.into()));
+                                        }
+                                    } else if is_owner {
                                         self.enum_owner = None;
                                     }
                                     result.map(|i| {

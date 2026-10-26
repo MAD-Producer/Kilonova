@@ -6,8 +6,47 @@ use motion_ui::{
     MouseButton,
 };
 
+#[cfg(all(test, target_os = "windows"))]
+mod tests;
+
 impl Shell {
     pub(super) fn capture_effect_timeline_screens(
+        &mut self,
+        window_size: [f32; 2],
+        report: &std::path::Path,
+        output: &mut serde_json::Map<String, Value>,
+    ) -> Result<(), String> {
+        // These independently sized fixtures must fit the GPU capture target.
+        // Cropping a smaller host image silently loses their right/bottom edges.
+        let capture_size = [window_size[0].max(1200.), window_size[1].max(760.)];
+        if capture_size == window_size {
+            return self.capture_effect_timeline_screens_at(window_size, report, output);
+        }
+        let original = self.window.as_ref().ok_or("effect screenshot window missing")?.inner_size();
+        let resize = |width, height| -> Result<(), String> {
+            self.engine.resize_async(0, width, height)?
+                .recv_timeout(Duration::from_secs(5))
+                .map_err(|cause| format!("effect screenshot resize {width}x{height}: {cause}"))??;
+            Ok(())
+        };
+        let resized = resize((capture_size[0] * self.scale).round() as u32,
+                             (capture_size[1] * self.scale).round() as u32);
+        let captured = resized.and_then(|_| {
+            self.capture_effect_timeline_screens_at(capture_size, report, output)
+        });
+        // The application window stays at its actual size. Restore the capture
+        // surface before any later presentation, including when capture fails.
+        let restored = self.engine.resize_async(0, original.width, original.height)
+            .and_then(|reply| reply.recv_timeout(Duration::from_secs(5))
+                .map_err(|cause| format!("effect screenshot restore: {cause}"))?);
+        match (captured, restored) {
+            (Err(cause), Err(cleanup)) => Err(format!("{cause}; restoring screenshot surface also failed: {cleanup}")),
+            (Err(cause), _) => Err(cause),
+            (Ok(()), restored) => restored.map(|_| ()),
+        }
+    }
+
+    fn capture_effect_timeline_screens_at(
         &mut self,
         window_size: [f32; 2],
         report: &std::path::Path,
@@ -83,7 +122,7 @@ impl Shell {
             panels.timeline.collapsed_transforms.insert(7);
             panels.timeline.expanded_effects.insert(7);
             panels.effect_timeline.begin_probe(1, "speed");
-            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
+            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":0,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
             let draw = |atlas: &mut TextAtlas,
                         panels: &mut panels::Panels,
                         engine: &mut motion_core::Engine,
@@ -118,6 +157,12 @@ impl Shell {
                         panels::Action::Edit(c) => engine.apply(c).map_err(|e| e.to_string())?,
                         panels::Action::EditBatch(cs) => {
                             engine.apply_batch(cs).map_err(|e| e.to_string())?;
+                        }
+                        panels::Action::EditorAction { source, commands } => {
+                            if source != crate::layer_clipboard::KeyframeSource::of(&state) {
+                                return Err("effect capture edit source changed".into());
+                            }
+                            engine.apply_batch(commands).map_err(|e| e.to_string())?;
                         }
                         panels::Action::History(2) => {
                             engine.begin_gesture().map_err(|e| e.to_string())?
