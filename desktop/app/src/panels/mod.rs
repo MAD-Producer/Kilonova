@@ -54,6 +54,7 @@ mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
+mod curve_comparison;
 mod graph_notice;
 mod graph_workspace;
 mod helpers;
@@ -123,6 +124,15 @@ pub use types::{Action, Frame, EffectSearch, Panels};
 pub(crate) use keyboard::layout_shortcuts_blocked;
 pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
+
+#[cfg(test)]
+pub(crate) fn seed_curve_comparison(panels:&mut Panels,state:&Value) {
+    curve_comparison::seed(panels,state);
+}
+#[cfg(test)]
+pub(crate) fn comparison_test_anchor(panels:&Panels,index:usize)->Rect {
+    panels.timeline.comparison.test_anchor(index)
+}
 
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
 const GUTTER: f32 = 640.0;
@@ -377,6 +387,7 @@ pub fn chrome(
         panels.selected,
         panels.focused == Some(Panel::Timeline)
             && !panels.timeline_columns.editing()
+            && !panels.timeline.comparison.keyboard_focus()
             && !panels.parent_controls.open
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
@@ -387,7 +398,7 @@ pub fn chrome(
     );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
-    let timeline_dropdown = panels.timeline_columns.editing();
+    let timeline_dropdown = panels.timeline_columns.editing() || panels.timeline.comparison.popup_open();
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     if panels.menu.is_none() && input.pressed.is_some_and(|(_, point)|
         point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR) {
@@ -756,6 +767,10 @@ pub fn chrome(
         motion_ui::style::box_style(list, rect, style);
         motion_ui::style::text_style(list, atlas, rect.shrink(4.), note, style, Align::Left);
     }
+    if frames(layout,size).iter().any(|f|f.panel==Panel::Timeline) {
+        curve_comparison::overlay(list,atlas,layout_area,panels,state,
+            if panels.timeline.comparison.popup_open(){input}else{body_input},&mut out);
+    }
     menus(
         list,
         atlas,
@@ -1040,8 +1055,9 @@ pub fn floating_chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
-    let timeline_dropdown = panels.timeline_columns.editing();
-    let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
+    let timeline_dropdown = panels.timeline_columns.editing() || panels.timeline.comparison.popup_open();
+    let dropdown_owned = panels.timeline_columns.editing_in(Some(panel))
+        || panels.timeline.comparison.popup_open() && matches!(panel,Panel::Timeline|Panel::Curves);
     let popup_neutral = Input::default();
     let layer_modal = panels.layer_actions.prepare(
         Some(panel),
@@ -1051,6 +1067,7 @@ pub fn floating_chrome(
         panels.selected,
         panel == Panel::Timeline
             && !panels.timeline_columns.editing()
+            && !panels.timeline.comparison.keyboard_focus()
             && !panels.parent_controls.open
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
@@ -1134,6 +1151,10 @@ pub fn floating_chrome(
     );
     content.clip_to(body);
     list.append(content);
+    if panel==Panel::Timeline {
+        curve_comparison::overlay(list,atlas,body,panels,state,
+            if panels.timeline.comparison.popup_open(){input}else{body_input},&mut out);
+    }
     paint::rect(list, Rect::new(0.0, 0.0, size[0], 30.0), colors.HEADER);
     label(
         list,

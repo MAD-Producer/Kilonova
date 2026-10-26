@@ -557,6 +557,7 @@ pub(crate) struct TimelineState {
     pub collapsed_mask_items: std::collections::HashSet<(u64, u64)>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
+    pub(super) comparison: super::curve_comparison::Controls,
     pub(super) clip_view: Option<TimelineViewport>,
     pub(super) curve_view: Option<TimelineViewport>,
     pub speed_graph: bool,
