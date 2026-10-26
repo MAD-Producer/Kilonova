@@ -89,6 +89,61 @@ fn native_matte_drift_cannot_redefine_the_prepared_semantic_dependencies() {
 }
 
 #[test]
+fn sampled_out_mattes_keep_their_identity_and_mode_without_a_native_producer() {
+    use motion_model::compositing::{MatteMode, TrackMatte};
+    for mode in [
+        MatteMode::Alpha,
+        MatteMode::AlphaInverted,
+        MatteMode::Luma,
+        MatteMode::LumaInverted,
+    ] {
+        let mut project = Project::new(32, 24, 30, 60).unwrap();
+        let mut source = Layer::solid(1, "matte", [32., 24.], [16., 12., 0.], [1.; 4]);
+        source.timeline = Some(motion_model::LayerTimeline {
+            in_frame: 0,
+            out_frame: 1,
+            offset_frame: 0,
+        });
+        let mut target = Layer::solid(2, "target", [32., 24.], [16., 12., 0.], [1.; 4]);
+        target.effects = vec![effect(11, "invert")];
+        target.track_matte = Some(TrackMatte {
+            source: 1,
+            mode,
+            hide_source: true,
+        });
+        project.layers = vec![source, target];
+        project.rebuild_plugin_dependencies();
+        project.validate().unwrap();
+        let mut scene = Scene::new(&project).unwrap();
+        let mut builder = PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+        for sample in [0., 2., 0.] {
+            scene
+                .sample(&project, sample, None, &motion_core::ExpressionEvaluator)
+                .unwrap();
+            builder
+                .build(&scene, &vec![0; scene.layers.len()], 32, 24, true)
+                .unwrap();
+            let draw = scene.layers.iter().position(|layer| layer.id == 2).unwrap();
+            let expected_source = if sample == 2. { -1 } else { 0 };
+            assert_eq!(builder.frame.compositing[draw].matte, expected_source);
+            assert_eq!(builder.frame.compositing[draw].mode, mode.code());
+            assert!(builder.effect_execution().is_some());
+
+            builder.frame.compositing[draw].mode = 0;
+            assert!(builder.lower_effect_execution(&scene, &[]).is_err());
+            builder.frame.compositing[draw].mode = mode.code();
+            builder.lower_effect_execution(&scene, &[]).unwrap();
+
+            let original = scene.layers[draw].track_matte;
+            scene.layers[draw].track_matte.as_mut().unwrap().source = 999;
+            assert!(builder.lower_effect_execution(&scene, &[]).is_err());
+            scene.layers[draw].track_matte = original;
+            builder.lower_effect_execution(&scene, &[]).unwrap();
+        }
+    }
+}
+
+#[test]
 fn effect_ir_owns_individual_operations_and_lowered_tasks_consume_checked_order() {
     for fused in [false, true] {
         let (builder, _) = fixture(fused);

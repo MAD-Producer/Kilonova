@@ -1432,3 +1432,29 @@ Final G must be repeated after this correction on the rebased branch.
 Evidence: [software Vulkan source and raw receipts](data/typed-render-dag-software-vulkan-1ddb33af.zip),
 SHA-256 `c8f486700bfa092782624462914eae82607f41535465ff3ddd2a668686be8d59`;
 343,400 bytes, 53 payload files, every entry read back and hashed.
+
+### Sampled-out matte ownership regression
+
+The subsequent [Linux GPU job](https://github.com/MAD-Producer/Kilonova/actions/runs/40292776810/job/121472717365)
+passed the original image-import test and then failed the unchanged
+`matte_source_out_of_range_is_zero_coverage_and_random_seek_is_deterministic`
+test. A full local software-Vulkan run reproduced the same rejection:
+`semantic matte source is absent`. An authored matte can legitimately have no
+producer in the current sample because its source is outside its layer span.
+Rejecting that sample changed the established zero-coverage behavior.
+
+The owned semantic matte now retains the authored source, mode and hide-source
+policy separately from its optional sampled draw. Only an available draw adds
+a producer root. Native admission checks the matte mode as well as the draw,
+and rejects changed authored identity, including when the producer is absent.
+The existing compositor still applies normal or inverted zero coverage; the
+logical lowerer gains no native-frame or scene authority. This is a functional
+regression fix, with no UI, compatibility, dependency or Android change.
+
+Eleven focused effect-IR tests pass on software Vulkan. The new test exercises
+all four matte modes across present/absent/present samples, rejects native-mode
+and authored-source drift, and verifies recovery. The original GPU assertions
+and tolerances remain unchanged. Full affected-crate software-Vulkan coverage,
+a repeated final whole-workspace G and current-source remote CI are still
+required. Final-G v3 was explicitly superseded after reproducing this failure;
+its partial output is not accepted as a completed final gate.

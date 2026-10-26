@@ -417,7 +417,7 @@ fn lower(
         nodes[id].inputs = inputs;
     }
     for layer in &semantic.layers {
-        if let Some(draw) = layer.matte {
+        if let Some(draw) = layer.matte.and_then(|matte| matte.draw) {
             roots.insert(draw);
             externally_read[draw] = true;
         }

@@ -43,6 +43,9 @@ impl NativeAnnotations {
         }
         semantic.validate(frame, clocks)?;
         if semantic.composition != scene.composition_id
+            || semantic.layers.iter().enumerate().any(|(draw, layer)| {
+                layer.matte.map(|matte| matte.authored) != scene.layers[draw].track_matte
+            })
             || semantic.nodes.iter().any(|node| {
                 scene.layers[node.draw].id != node.layer
                     || node.effect.is_some_and(|i| {

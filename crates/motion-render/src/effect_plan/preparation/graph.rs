@@ -16,11 +16,19 @@ pub(in crate::effect_plan) struct SemanticFrame {
 pub(in crate::effect_plan) struct SemanticLayer {
     pub source: usize,
     pub source_size: [f32; 2],
-    pub matte: Option<usize>,
+    pub matte: Option<SemanticMatte>,
     pub mask: Option<usize>,
     pub effects: Vec<usize>,
     pub materialize: Option<usize>,
     pub output: usize,
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::effect_plan) struct SemanticMatte {
+    pub authored: motion_model::compositing::TrackMatte,
+    // A valid authored source can be outside the current sample. Retain its
+    // identity and mode, but do not invent a producer for its zero coverage.
+    pub draw: Option<usize>,
 }
 
 pub(in crate::effect_plan) struct SemanticNode {
@@ -120,18 +128,10 @@ impl PreparationPlan {
             });
             graph.layers.push(SemanticLayer {
                 source: draw,
-                matte: layer
-                    .track_matte
-                    .map(|matte| {
-                        scene
-                            .layers
-                            .iter()
-                            .position(|l| l.id == matte.source)
-                            .ok_or_else(|| {
-                                RenderError::Invalid("semantic matte source is absent".into())
-                            })
-                    })
-                    .transpose()?,
+                matte: layer.track_matte.map(|matte| SemanticMatte {
+                    authored: matte,
+                    draw: scene.layers.iter().position(|l| l.id == matte.source),
+                }),
                 source_size: if layer.adjustment {
                     [composition[2], composition[3]]
                 } else {
@@ -341,8 +341,14 @@ impl SemanticFrame {
             if frame.draws[draw].layer != self.nodes[layer.source].layer {
                 return Err("native draw changed the semantic layer origin".into());
             }
-            if frame.compositing.get(draw).map(|c| c.matte)
-                != Some(layer.matte.map_or(-1, |index| index as i32))
+            if frame.compositing.get(draw).map(|c| (c.matte, c.mode))
+                != Some((
+                    layer
+                        .matte
+                        .and_then(|matte| matte.draw)
+                        .map_or(-1, |index| index as i32),
+                    layer.matte.map_or(0, |matte| matte.authored.mode.code()),
+                ))
             {
                 return Err("native matte changed the semantic layer dependency".into());
             }
