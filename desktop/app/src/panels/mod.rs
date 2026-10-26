@@ -557,7 +557,6 @@ pub fn chrome(
     } else {
         input
     };
-    let project_input = body_input.clone();
     panels.timeline_columns.prepare_window(None, input);
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
@@ -670,7 +669,7 @@ pub fn chrome(
                 {
                     input
                 } else {
-                    &project_input
+                    body_input
                 },
                 &mut out,
             );
