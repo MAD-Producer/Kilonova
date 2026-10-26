@@ -76,7 +76,12 @@ struct EffectVertex { @builtin(position) position: vec4<f32>, @location(0) uv: v
 }
 fn edge_uv(uv: vec2<f32>) -> vec2<f32> {
     if fx.mode.x == 2.0 { return fract(uv); }
-    if fx.mode.x == 3.0 { return 1.0-abs(fract(uv*0.5)*2.0-1.0); }
+    if fx.mode.x == 3.0 {
+        // Reflection is the identity inside the image. Preserve those bits;
+        // subtracting twice from one perturbs Float32 texel-centre weights.
+        let reflected=1.0-abs(fract(uv*0.5)*2.0-1.0);
+        return select(reflected,uv,(uv>=vec2(0.0)) & (uv<=vec2(1.0)));
+    }
     return clamp(uv,vec2(0.0),vec2(1.0));
 }
 fn sample_input(p: vec2<f32>) -> vec4<f32> {

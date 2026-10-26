@@ -1468,3 +1468,25 @@ workspace execution had not started, so v5 is not a successful final gate.
 The complete gate must run again with this fixture correction.
 The focused `cargo test -p motion-core --test media_assets --locked --offline`
 run passes all six original tests with zero failures or ignores.
+
+### Mirror-edge sampling preserves in-range coordinates
+
+The full affected-crate software-Vulkan run then reached the original
+`checked_numeric_png_and_private_byte_imports_drive_actual_pixels_in_four_precisions`
+regression. Its exact cold/redraw byte equality failed in Float32 after changing
+the edge parameter to mirror mode. Both draws had identical final homographies,
+pixel-grid proof and UV scale. The mirror expression itself rounded coordinates
+inside the image, although reflection is the identity there. Across the captured
+Float32 image, 983 scalar components differed, with a maximum difference of
+1.4901161193847656e-6. An opacity-endpoint experiment did not fix this and was
+removed.
+
+The SDK mirror helper now preserves each in-range UV component exactly and
+retains the previous reflection formula for out-of-range components. This is a
+functional precision correction; the ABI, filtering policy, effect parameters
+and original test assertions remain unchanged. The diagnostic GPU reproduction
+and then the original integration test both pass on software Vulkan. The latter
+executes the numeric-PNG and private-byte imports in all four precisions, with
+zero failures or ignores (29.52 seconds). A new full affected-crate run uses
+`--no-fail-fast` to collect any remaining integration failures. Final G and
+remote CI must run on the corrected source before acceptance.
