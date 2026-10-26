@@ -9,6 +9,7 @@ mod effect_application;
 mod effect_drag;
 mod lifecycle;
 mod media;
+pub(crate) mod media_assets;
 mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;

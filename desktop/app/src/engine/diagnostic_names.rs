@@ -39,6 +39,7 @@ impl Command {
             OpenProject { .. } => "open_project",
             ImportProject { .. } => "import_project",
             ImportImage { .. } => "import_image",
+            ReplaceImage { .. } => "replace_image",
             CreateText { .. } => "create_text",
             FreezeMovie { .. } => "freeze_movie",
             RenderPreview { .. } => "render_preview",

@@ -241,7 +241,8 @@ pub(super) fn render(
         }
         _ => styles.metric("auxiliary.content.height", 500.),
     };
-    let mut y = body_y(&styles, panel, area, height, panels, input);
+    let mut y = if panel == Panel::Media { area.min[1] + pad }
+        else { body_y(&styles, panel, area, height, panels, input) };
     match panel {
         Panel::Info => {
             // Design-mock hero grid: probe channels, cursor, selection, timecode.
@@ -639,21 +640,8 @@ pub(super) fn render(
                 out,
             );
             y += control + gap;
-            for key in ["assets", "video_assets", "audio_assets", "fonts"] {
-                for asset in state["project"][key].as_array().into_iter().flatten() {
-                    line(
-                        list,
-                        atlas,
-                        area,
-                        &mut y,
-                        asset["name"]
-                            .as_str()
-                            .or(asset["path"].as_str())
-                            .unwrap_or(key),
-                        false,
-                    );
-                }
-            }
+            let rows = Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), (area.max[1] - y - pad).max(0.));
+            super::media_assets::render_list(list, atlas, rows, panels, state, input, Panel::Media, "");
         }
         Panel::RenderQueue => {
             let width = (area.width() - pad * 2.).max(0.);

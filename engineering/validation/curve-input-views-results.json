@@ -1,0 +1,41 @@
+{
+  "code_head": "8bdbd7bf8f16a5437f68acdeddf0e0a35b179d81",
+  "baseline": "a9a26d5c52588138033a6dd346471ed6cf47673f",
+  "scenes": 128,
+  "measured_frames": 1280,
+  "paint_state_snapshots_equal": 128,
+  "saved_requests": 3600,
+  "saved_requested_bytes": 58996800,
+  "mode_totals": {
+    "normal": {
+      "saved_requests": 0,
+      "saved_requested_bytes": 0
+    },
+    "composing": {
+      "saved_requests": 1200,
+      "saved_requested_bytes": 19665600
+    },
+    "ime-consumed": {
+      "saved_requests": 1200,
+      "saved_requested_bytes": 19665600
+    },
+    "focus-lost": {
+      "saved_requests": 1200,
+      "saved_requested_bytes": 19665600
+    }
+  },
+  "normal_scroll_already_borrowed": true,
+  "stress_text_bytes": 81920,
+  "curve_tests_passed": 10,
+  "native_tests_passed": 1,
+  "native_pngs_equal": 13,
+  "production_only": true,
+  "sources": {
+    "desktop\\app\\src\\panels\\curve_comparison\\tests.rs": "3d89d91416bdf09e8ff4e5acc218434dd4e8f080bd602d4e916a0e64d0012934",
+    "desktop\\app\\src\\panels\\curve_comparison\\toolbar.rs": "7234d1a9ba9515d072571f1af7fcf9b1cbd2d2a888f8033f993f008c3fa50c36"
+  },
+  "archive": "curve-input-views-a9a26d5c.zip",
+  "archive_bytes": 12003747,
+  "archive_entries": 300,
+  "archive_sha256": "61a688acdd9660b19ce2a42528235b1918bc52c2a0c4fbf169441a44095fd232"
+}

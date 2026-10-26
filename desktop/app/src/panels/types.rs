@@ -21,6 +21,7 @@ pub enum Action {
     Save,
     ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
+    MediaAsset { source: crate::media_assets::Source, intent: crate::media_assets::Intent },
     ImportEffectPackage,
     ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
@@ -171,6 +172,7 @@ pub struct Panels {
     pub(crate) drag_readout: Option<([f32; 2], String)>,
     pub(crate) motion: motion_ui::motion::Motion,
     pub(crate) project: ProjectState,
+    pub(crate) media_assets: super::media_assets::Controls,
     pub(crate) properties: PropertiesState,
     pub(crate) timeline: TimelineState,
     pub(crate) layer_actions: super::layer_actions::Controls,
@@ -466,10 +468,10 @@ pub(crate) enum Tool {
 #[derive(Default)]
 pub(crate) struct ProjectState {
     pub search_field: motion_ui::widgets::SearchField,
-    pub asset_list: motion_ui::widgets::ListView,
     pub query: String,
     pub search: bool,
     pub context_menu: Option<[f32; 2]>,
+    pub context_owner: Option<motion_ui::dock::Panel>,
 }
 
 pub(crate) struct PropertiesState {

@@ -62,6 +62,7 @@
       "expression.editor.height": 460,
       "expression.editor.seed.width": 112,
       "expression.editor.action.width": 80,
+      "project.composition.height": 32,
       "viewer.controls.height": 28,
       "viewer.field.height": 26,
       "viewer.button.height": 22,
