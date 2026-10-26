@@ -169,9 +169,9 @@ cancellation/reaping, as well as the existing blocked-worker, replacement,
 seek/source/model identity and recovery checks. Changed host files also pass
 their targeted rustfmt check; unrelated pre-existing host formatting is retained.
 
-Maintained-platform optional-feature CI and the remaining natural-domain
-evaluation are still required before closing #74. The current Windows CPU
-prototype is not a completed desktop feature. [Host setup and ownership
+Those initial gates did not cover maintained-platform optional-feature CI or
+natural-domain evaluation. The current Windows CPU prototype is not a completed
+desktop feature. Later evidence below extends that scope. [Host setup and ownership
 contract](../host-api/optional-depth-inference.md) describes how to use it.
 
 Evidence: [runtime, reference comparisons, failure paths and source receipts](data/ai-depth-onnx-d84157be.zip),
@@ -202,3 +202,48 @@ Evidence: [rebased Rust and workflow receipts](data/ai-depth-rebased-regression-
 SHA-256 `a429e1616bedb07a6bb4047c28c339b2d650dafa6ac5070d1ac55cfe9dc74388`;
 216,446 bytes, 17 entries, every entry read back and hashed. The workflow feature
 selection was added after the frozen Rust gate and validated separately.
+
+## Natural interior and real video evaluation
+
+`issue74-natural-domain-v1` exercises seventeen additional actual Rust/ONNX
+requests against the pinned official Small reference: NASA's 2003 Destiny
+laboratory photograph, twelve consecutive frames of NASA's real ISS tour,
+and four spaced anchors from other parts of the tour. The publicly supplied
+15 fps variant has 13,453 decoded frames. FFprobe verifies every frame's actual
+PTS against its `1/15000` time base; each request carries the original PTS, not
+a guessed playback time. The twelve consecutive frames cover only 0.733 seconds.
+
+The tagged limited-range BT.709 video is explicitly decoded and converted to
+sRGB RGB24 with FFmpeg/zscale before entering the host contract. The untagged
+still JPEG is interpreted as sRGB and resized to an odd 321-by-219 derivative
+fixture. The source variant hashes, library revisions, conversion commands,
+frame indices, exact timestamps and derived-input hashes are retained. Source
+audio and original media are not redistributed. NASA attribution and its
+factual/informational media-use terms are recorded in `ATTRIBUTION.md`.
+
+All seventeen requests pass the unchanged normalized maximum `2e-4` and mean
+`2e-5` numerical bounds, with actual CPU node execution, default-Info file logs,
+empty stdout/stderr and the expected resource identities. The maximum observed
+pixel error is 1.41701e-5; the maximum first-difference error is 1.39445e-5,
+within the derivative bound implied by the existing pixel bound. A one-pixel
+misregistration control fails the original bound on every case; its smallest
+maximum error is 0.1392. These checks validate the host procedure and contour
+registration against the reference, not the reference model's scene accuracy.
+
+The NASA/input, official and host comparison sheet was visually inspected.
+The model describes broad corridor depth but softens equipment and fine
+boundaries. A descriptive optical-flow-compensated residual over the short
+sequence has mean 0.0130–0.0352 and 95th percentile 0.0330–0.1052 after per-frame
+reference-range normalization. This diagnostic includes camera motion,
+occlusion, relative-scale changes and flow errors; it is not a pure flicker
+score or a passed temporal-quality threshold. No metric ground truth,
+universal domain coverage, calibrated hardware depth, accelerated execution,
+long-video quality or Session/GUI installation is established by this run.
+
+Evidence: [natural-domain sources, frames, numerical/edge controls and receipts](data/ai-depth-natural-domain-e90a6c8b.zip),
+SHA-256 `57cd71df263d336f80069913789211146ebaa6cebef994452a8308d2be5e61f7`;
+11,956,060 bytes, 204 entries, every entry read back and hashed. Original NASA
+media, audio, weights, the upstream implementation and runtime binaries remain
+external. The failed first extraction (an unsupported pixel-format negotiation)
+is retained separately; it produced no accepted frames. Explicit planar RGB
+negotiation fixed extraction without changing inference or numerical bounds.

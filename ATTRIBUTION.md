@@ -58,6 +58,23 @@ product tree; hashes, resizing and crop/translation modifications are recorded
 in the external fixture manifest. No NASA image, logo or person is added to the
 product UI, examples or release assets.
 
+Natural-domain depth validation additionally uses NASA's Destiny laboratory
+photograph `iss007e11800`, recorded 2003-08-03 by the Expedition 7 crew
+(individual photographer not specified), and NASA Johnson Space Center's
+`Step_Inside_the_Station-4K-Clean` tour, recorded by the ISS crew 2022-10-10
+and published in the NASA library 2025-12-17. Sources: [photograph record](https://images.nasa.gov/details/iss007e11800)
+and [tour record](https://images.nasa.gov/details/Step_Inside_the_Station-4K-Clean).
+NASA is credited as the author/source. Usage follows the informational and
+factual technical-evaluation permission in the [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/),
+with no endorsement or promotional use; separately identified third-party
+content is not granted NASA's permission. Selected library metadata does not
+identify a third-party copyright holder. The acquired source variants, hashes,
+dates and exact extracted video timestamps are retained in the validation
+manifest. Modifications are bounded frame extraction, RGB decoding and image
+resizing for numerical/edge comparisons; no source audio is retained. Original
+media remains external. Only credited evaluation frames and scalar results may
+enter the technical evidence archive, never product UI, examples or releases.
+
 ## Rust 依赖 / Rust dependencies
 
 The read-only adapter memory probe directly uses two unmodified binding crates
