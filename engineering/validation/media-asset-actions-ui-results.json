@@ -1,0 +1,201 @@
+{
+  "source_commit": "9913bc2f5e04c99a9e466b1830871c1106987899",
+  "stage": "shared asset UI; offline recovery and manual OS acceptance pending",
+  "panels": {
+    "passed": 559,
+    "failed": 0,
+    "ignored": 2
+  },
+  "shell": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  "native": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "native_contract": {
+    "actualNativeFloat": true,
+    "bilingualMenus": true,
+    "input": "controlled Input; no OS foreground injection or native picker automation",
+    "orphanRemoveUndoRedo": true,
+    "ratios": [
+      1,
+      1.5,
+      2
+    ],
+    "referenceRemovalBlocked": true,
+    "replacement": true,
+    "saveReopen": true,
+    "staleCancelled": true
+  },
+  "ffmpeg_build": true,
+  "command_list": {
+    "valid_json": true,
+    "contains_media_asset": true,
+    "stderr_bytes": 0
+  },
+  "desktop_exe_sha256": "1fe8e635e808f1c8ad5c7ae3a5d7aa383a65c4041c931f93f026f468da24abd8",
+  "raw_screens": {
+    "en-1600-ratio1-referenced-menu.png": {
+      "sha256": "9b7d8803d2db4dae7861429bc6e4a73baa85d5a056aa0b40ebcde6103eb8ac1d",
+      "dimensions": [
+        1600,
+        1000
+      ]
+    },
+    "en-1600-ratio1.5-referenced-menu.png": {
+      "sha256": "ed70e4236e01454476b38797a12c9ca6d021a0eb9fbec4709f3aea4566b319fc",
+      "dimensions": [
+        2400,
+        1500
+      ]
+    },
+    "en-1600-ratio2-referenced-menu.png": {
+      "sha256": "9784cb996d5e4a7426399c280882496a90d24cdd594646eba54db4541f3d3bff",
+      "dimensions": [
+        3200,
+        2000
+      ]
+    },
+    "en-900-ratio1-referenced-menu.png": {
+      "sha256": "b9e27a69cd0aecdf7edc88892a3ae3e5ebda041a42f37ccb3050cf44d9e0ebc5",
+      "dimensions": [
+        900,
+        600
+      ]
+    },
+    "en-900-ratio1.5-referenced-menu.png": {
+      "sha256": "917f7d8f8c93f1e3b71a552adc6a1394acc9177e44b4b516e457d656276d06bf",
+      "dimensions": [
+        1350,
+        900
+      ]
+    },
+    "en-900-ratio2-referenced-menu.png": {
+      "sha256": "bb251a07af0ad36297a130f035f84d5484c4b968e5c4bdd56c1a96bf7189b105",
+      "dimensions": [
+        1800,
+        1200
+      ]
+    },
+    "new-reference.png": {
+      "sha256": "8c61f9efa3572bb46c7c91a0c9f5a0046526e659f8cefe0b5603053abb83e069",
+      "dimensions": [
+        32,
+        32
+      ]
+    },
+    "zh-1600-ratio1-referenced-menu.png": {
+      "sha256": "34f680a80eff9ad9550d7614b3ed11c0768fb1bebd23d4a13c04fa31bd64587c",
+      "dimensions": [
+        1600,
+        1000
+      ]
+    },
+    "zh-1600-ratio1.5-referenced-menu.png": {
+      "sha256": "591e993173385a4598c7e4bfa848587a94182ef82adcee0b1743b1c688afdfcd",
+      "dimensions": [
+        2400,
+        1500
+      ]
+    },
+    "zh-1600-ratio2-referenced-menu.png": {
+      "sha256": "254d005ad7c5cde1155543a2f2442b36bff75895000681c4c850c0155e0c6487",
+      "dimensions": [
+        3200,
+        2000
+      ]
+    },
+    "zh-900-ratio1-referenced-menu.png": {
+      "sha256": "38f5faa939957272a2333b4c7e10146c7ea1073c73f593de50c699a9bb767c97",
+      "dimensions": [
+        900,
+        600
+      ]
+    },
+    "zh-900-ratio1.5-referenced-menu.png": {
+      "sha256": "a668663b93783277f42d79aba221aa8f51ad392311a4f83bef34493230212736",
+      "dimensions": [
+        1350,
+        900
+      ]
+    },
+    "zh-900-ratio2-referenced-menu.png": {
+      "sha256": "8e815e99a4a8aafd1cb64d399883b4a47cf168c7a3a076e2e6ee6128c10846d9",
+      "dimensions": [
+        1800,
+        1200
+      ]
+    },
+    "zh-float-media-orphan-menu.png": {
+      "sha256": "d6a6dd29b0c6a2c2635751507cf38d223fda97b3915ad4f223975e4039d87d19",
+      "dimensions": [
+        900,
+        630
+      ]
+    },
+    "zh-main-while-float-menu.png": {
+      "sha256": "aa3b81ab7b756a36c3e9e5b86b7147ea0860f5bd8c5baf43934fc3b5596265f9",
+      "dimensions": [
+        900,
+        600
+      ]
+    },
+    "zh-usages-menu.png": {
+      "sha256": "82120dc4e42f8972e40515f1e2c36cd6d36df06ad6ff1803dae101d48410cacb",
+      "dimensions": [
+        900,
+        600
+      ]
+    }
+  },
+  "delivered_screens": {
+    "en-project-scale2.png": "bb251a07af0ad36297a130f035f84d5484c4b968e5c4bdd56c1a96bf7189b105",
+    "en-project.png": "9b7d8803d2db4dae7861429bc6e4a73baa85d5a056aa0b40ebcde6103eb8ac1d",
+    "zh-media-float.png": "d6a6dd29b0c6a2c2635751507cf38d223fda97b3915ad4f223975e4039d87d19",
+    "zh-project-detail.png": "5539ed11c1876a98b692102a2f8ac062ed65a979401737abbe23a90562c1b5a2",
+    "zh-project.png": "38f5faa939957272a2333b4c7e10146c7ea1073c73f593de50c699a9bb767c97",
+    "zh-usages-detail.png": "57b214b40397d7975b357a275365b27f851c2b55b1c53960fb48a3f8c220781d",
+    "zh-usages.png": "82120dc4e42f8972e40515f1e2c36cd6d36df06ad6ff1803dae101d48410cacb"
+  },
+  "source_sha256": {
+    "DESIGN.md": "350a187904432be9be36237a8ca380e030fe33964422e4764ff0d61fa3799f1c",
+    "crates/motion-core/src/command_registry.rs": "2c6bf35195ec7af911cc8d0dffed4affb1b21c9a9ba46b7f2e54c1aeaed9dfcd",
+    "crates/motion-core/src/editor.rs": "57f3959057c871d0d65c7c6fc35751b282f7c29266670807a0788d7da740f46e",
+    "crates/motion-core/src/lib.rs": "2c6a0eec02abbcdce71611c317975b48dd6d504e1aeb6b49263e6528ad02386a",
+    "crates/motion-core/tests/media_assets.rs": "5a20ec9971103c3742be5effa1e23b305e431514d049a492186d6c29e87e45f9",
+    "crates/motion-host/src/ops/media.rs": "655da256e774324430f4f6c99ab8df5af25bdbe78a27323908f53960a9159f75",
+    "crates/motion-media/src/jobs.rs": "cb690dc9740b35f0c3f3760ab6531a3baccdd8bddeac4d8b5c3a24ff29536278",
+    "crates/motion-media/src/video.rs": "10ccf87a4c549feb26ebf974209bf102d6d50acc30ed4217547dfe3a86c15af8",
+    "crates/motion-model/src/commands.rs": "922f94a78ae12f6e7217f76b17f045a1c9c71dec544c5249f49b7ae861a59371",
+    "crates/motion-model/src/lib.rs": "170993c7314e7d7e0c20e72648ec9ed25ed2c6e807c5cb93b6284cf4e16dd7dc",
+    "crates/motion-model/src/media_assets.rs": "0db7afcf158b211d582593d200dd73f6675768296244ea1ac4a42829fee342a9",
+    "desktop/app/src/engine.rs": "628a43ea7a0fcc1ca0b5ed4ddc28710d01405553c860e84a1ee849e3c9268204",
+    "desktop/app/src/engine/diagnostic_names.rs": "56a7c0fc248aebf3223ac3a6453f54744b55a8edb28eaf5e4b4382679a8ec529",
+    "desktop/app/src/main.rs": "2274e7f3ce2301e58ad05b5d14571a63533b9400c847ac09a2a94d901d100514",
+    "desktop/app/src/media_assets.rs": "192f6bc36fd1697123646844708dbc189301139862c98658a3739c40c4f303fa",
+    "desktop/app/src/panels/auxiliary.rs": "9467c26de3c9375bc7c9a409fec3eba5d7f5197d963ed036c98909bade7ee728",
+    "desktop/app/src/panels/keyboard.rs": "b88d23562399c4a23b8b6c80725bded70518199990c46a39009328f33cca8bf3",
+    "desktop/app/src/panels/media_assets.rs": "cc3e11c5512e946bd195f7e632de5d6c72664d99e7cdbd90a24f6e4f917095e1",
+    "desktop/app/src/panels/media_assets/tests.rs": "533baae719bb68bd9a752be46791653e5afcf340d3206be385a005465c75a81f",
+    "desktop/app/src/panels/media_assets/tests/native.rs": "af93c715e0449dc75390611ed6f485b4020adf11c1c715e9b87b26f1cf996ffb",
+    "desktop/app/src/panels/mod.rs": "e9fb8d22f10a17c1589836f9785f59ec653a2ee3b9e8e8c72af49134f7fa4341",
+    "desktop/app/src/panels/project.rs": "6d75bafaee5fe48a3aef11396172e24a8b4d39fa2da1025d086ceb9b43d66511",
+    "desktop/app/src/panels/types.rs": "a43973dbd9ec9aef15f3438e6b27f783f4400de6a98888486748b17317b0a6b1",
+    "desktop/app/src/shell/actions.rs": "61587b00c61de8a0219b6c756b3ed50bc12c9ab658a2c944669bd058aebf27cb",
+    "desktop/app/src/shell/media.rs": "561db150650f44de749ab3259c7307d7bab8323278d22574188de8de7b57a0dc",
+    "desktop/app/src/shell/media_assets.rs": "a939d88333ca3939afbf726e2c0ceda367f1e5e834b1c8d44639f1979fe1a8e7",
+    "desktop/app/src/shell/media_assets/tests.rs": "c623b58d7773931b96f812a95f57a2346f948afcc7858400cef19043ea30f96e",
+    "desktop/app/src/shell/mod.rs": "03e4a519f0dcffe0d0dcd18a73c787cd1a891b4c3d0b58dc9f8de128b4bed50f",
+    "desktop/app/src/workflow.rs": "363fb3e749679ff3a8eeb40522ea125bf7386273aa309dfcdcdf35835d80f4b8",
+    "desktop/app/src/workflow/media_asset_tests.rs": "778c3733bfd8a47cc1c1673b9b4fdbc8547631c3be6c25f916102291d9cdd63d",
+    "desktop/ui/styles/dark.json": "77ae0e7a81b7ca5017b59798a7e43dad66d2f7dcd5f610c177aef09aa04f27f5"
+  },
+  "evidence": {
+    "files": 67,
+    "sha256": "38df37adb844a2205eb8a77135500d899a8b25d1d5e9c0e0c209b40a7e8c8c99"
+  }
+}
