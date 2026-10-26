@@ -180,6 +180,9 @@ pub struct OperationSemantics {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OperationCost {
+    /// Retained compiled-source/reflection bytes attributed to this operation.
+    /// An admitting compiler charges a shared owner once across its graph;
+    /// repeated invocations still contribute loop, sample and pass work below.
     pub shader_bytes: u64,
     pub static_loop_work: u64,
     /// None means unproved, never zero. An admission policy may require a bound.

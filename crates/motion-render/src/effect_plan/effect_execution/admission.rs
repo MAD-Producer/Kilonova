@@ -70,6 +70,9 @@ impl NativeAnnotations {
                 .collect(),
             pass_count: frame.passes.len(),
         };
+        // Source memory belongs to retained shader owners, not invocations.
+        // Keep this local to admission; no native ownership enters the IR.
+        let mut shader_owners = BTreeSet::new();
         for (node, value) in semantic.nodes.iter().enumerate() {
             let admission = value
                 .admission
@@ -120,9 +123,11 @@ impl NativeAnnotations {
                 })?;
                 let identity = codes.get(pass.program, program);
                 code.update(identity.digest);
-                shader_bytes = shader_bytes
-                    .checked_add(identity.text_bytes)
-                    .ok_or("effect IR shader cost overflow")?;
+                if shader_owners.insert(Arc::as_ptr(&program.shader)) {
+                    shader_bytes = shader_bytes
+                        .checked_add(identity.text_bytes)
+                        .ok_or("effect IR shader cost overflow")?;
+                }
                 loops = loops
                     .checked_add(identity.loop_work)
                     .ok_or("effect IR loop cost overflow")?;

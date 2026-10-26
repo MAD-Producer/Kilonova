@@ -19,9 +19,12 @@ fn effect(id: u64, name: &str) -> EffectInstance {
     )
 }
 fn fixture(fused: bool) -> (PlanBuilder, Scene) {
+    fixture_with_effects(fused, vec![effect(11, "invert"), effect(12, "tint")])
+}
+fn fixture_with_effects(fused: bool, effects: Vec<EffectInstance>) -> (PlanBuilder, Scene) {
     let mut project = Project::new(32, 24, 30, 60).unwrap();
     let mut layer = Layer::solid(1, "effect IR", [32., 24.], [16., 12., 0.], [1.; 4]);
-    layer.effects = vec![effect(11, "invert"), effect(12, "tint")];
+    layer.effects = effects;
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
     let mut scene = Scene::new(&project).unwrap();
@@ -32,6 +35,118 @@ fn fixture(fused: bool) -> (PlanBuilder, Scene) {
     builder.set_pointwise_fusion(fused);
     builder.build(&scene, &[0], 32, 24, true).unwrap();
     (builder, scene)
+}
+
+#[test]
+fn shared_shader_owners_are_charged_once_but_invocations_and_distinct_copies_are_not() {
+    let (mut builder, scene) =
+        fixture_with_effects(false, vec![effect(11, "tint"), effect(12, "tint")]);
+    let mut owners = BTreeSet::new();
+    let mut unique_bytes = 0;
+    let mut repeated_bytes = 0;
+    let mut loop_work = 0;
+    let mut samples = 0;
+    let text_bytes = |shader: &shader::CompiledShader| {
+        [&shader.wgsl, &shader.glsl.vertex, &shader.glsl.fragment]
+            .into_iter()
+            .map(|text| text.len() as u64)
+            .chain(shader.glsl.blocks.keys().map(|name| name.len() as u64))
+            .chain(shader.glsl.textures.keys().map(|name| name.len() as u64))
+            .sum::<u64>()
+    };
+    for pass in &builder.frame.passes {
+        let shader = &builder.programs[pass.program as usize].shader;
+        let bytes = text_bytes(shader);
+        repeated_bytes += bytes;
+        if owners.insert(Arc::as_ptr(shader)) {
+            unique_bytes += bytes;
+        }
+        loop_work += shader.loop_work;
+        samples += shader.samples_per_fragment.unwrap();
+    }
+    assert!(unique_bytes < repeated_bytes);
+    let costs = |builder: &mut PlanBuilder| {
+        let annotations = NativeAnnotations::admit(
+            builder.semantic_frame.as_ref().unwrap(),
+            &builder.frame,
+            &builder.pass_clocks,
+            &builder.programs,
+            &scene,
+            &mut builder.code_identities,
+        )
+        .unwrap();
+        let bytes = annotations
+            .nodes
+            .iter()
+            .map(|node| node.cost.shader_bytes)
+            .sum::<u64>();
+        let codes = annotations
+            .nodes
+            .iter()
+            .map(|node| node.code_identity)
+            .collect::<Vec<_>>();
+        for total in [
+            OperationCost {
+                shader_bytes: bytes,
+                static_loop_work: annotations
+                    .nodes
+                    .iter()
+                    .map(|node| node.cost.static_loop_work)
+                    .sum(),
+                samples_per_fragment: Some(
+                    annotations
+                        .nodes
+                        .iter()
+                        .map(|node| node.cost.samples_per_fragment.unwrap())
+                        .sum(),
+                ),
+                passes: annotations.nodes.iter().map(|node| node.cost.passes).sum(),
+            },
+            builder
+                .snapshot_execution(&scene, &[1])
+                .unwrap()
+                .checked()
+                .unwrap()
+                .total_cost(),
+        ] {
+            assert_eq!(total.shader_bytes, bytes);
+            assert_eq!(total.static_loop_work, loop_work);
+            assert_eq!(total.samples_per_fragment, Some(samples));
+            assert_eq!(total.passes as usize, builder.frame.passes.len());
+        }
+        (bytes, codes)
+    };
+    let original = costs(&mut builder);
+    assert_eq!(original.0, unique_bytes);
+
+    let pass = builder
+        .frame
+        .passes
+        .iter()
+        .position(|pass| pass.program > 2)
+        .unwrap();
+    let program = builder.frame.passes[pass].program as usize;
+    let copied_bytes = text_bytes(&builder.programs[program].shader);
+    let alias = builder.programs.len();
+    builder.programs.push(builder.programs[program].clone());
+    builder.frame.passes[pass].program = alias as u32;
+    assert_eq!(
+        costs(&mut builder),
+        original,
+        "a second program ID shares the same owner"
+    );
+
+    builder.programs[alias].shader = Arc::new((*builder.programs[alias].shader).clone());
+    let copied = costs(&mut builder);
+    assert_eq!(
+        copied.0,
+        unique_bytes + copied_bytes,
+        "equal code in a distinct allocation is retained twice"
+    );
+    assert_eq!(
+        copied.1, original.1,
+        "ownership accounting must not change code identity"
+    );
 }
 
 #[test]

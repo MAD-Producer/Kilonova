@@ -9,7 +9,7 @@ use motion_effects::{
     AlphaMode, WorkingSpace,
 };
 use sha2::{Digest, Sha256};
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 
 #[derive(Debug, Default)]
 pub struct SnapshotExecution {
@@ -193,6 +193,7 @@ fn prepare_snapshot_graph(
         });
     }
     let mut nodes = Vec::new();
+    let mut shader_owners = BTreeSet::new();
     for (index, draw) in frame.draws.iter().enumerate().filter(|(i, _)| selected[*i]) {
         let mut code = Sha256::new();
         code.update(b"motion-atomic-snapshot-v1");
@@ -212,8 +213,13 @@ fn prepare_snapshot_graph(
             ] {
                 code.update((text.len() as u64).to_le_bytes());
                 code.update(text.as_bytes());
-                shader_bytes = shader_bytes.checked_add(text.len() as u64)
-                    .ok_or_else(|| RenderError::Invalid(format!("composition={context} layer={} phase=snapshot_lowering: shader byte cost overflow",draw.layer)))?;
+            }
+            // Snapshot nodes share retained sources too. Equal source text in
+            // separately owned compiled shaders still consumes memory twice.
+            if shader_owners.insert(Arc::as_ptr(&program.shader)) {
+                shader_bytes = shader_bytes.checked_add(
+                    motion_effects::shader::compiled_code_identity(&program.shader).text_bytes
+                ).ok_or_else(|| RenderError::Invalid(format!("composition={context} layer={} phase=snapshot_lowering: shader byte cost overflow",draw.layer)))?;
             }
             code.update([
                 u8::from(program.shader.sprite),

@@ -1490,3 +1490,44 @@ executes the numeric-PNG and private-byte imports in all four precisions, with
 zero failures or ignores (29.52 seconds). A new full affected-crate run uses
 `--no-fail-fast` to collect any remaining integration failures. Final G and
 remote CI must run on the corrected source before acceptance.
+
+### Retained shader memory is separate from invocation work
+
+The next Linux CI run on `180bce53` passed the image-import and matte
+regressions, then failed the unchanged maximum supported layer/effect test:
+`shader_bytes requires 67159850; maximum=67108864`. Native admission had charged
+the same retained shader source again for every pass invocation. Snapshot
+admission repeated that accounting and omitted reflection-name bytes.
+
+Both native admission boundaries now charge each referenced compiled-shader
+owner once per graph, including WGSL, GLSL and reflection-name text. The first
+using operation carries that allocation's byte contribution. Different program
+IDs sharing one Arc do not duplicate memory; distinct compiled-shader owners
+with identical code still count separately. Owner addresses exist only in the
+local admission set, never in the owned logical IR or serialized identities.
+Code identity continues to hash every invocation, and loop, texture-read and
+pass costs still accumulate for every invocation. The generic graph validator
+continues to sum admitted costs with checked arithmetic and finite limits.
+The 64 MiB limit and all original acceptance assertions remain unchanged.
+
+A new controlled test independently sums actual source/reflection strings,
+checks both effect and snapshot receipts, aliases a program ID, and then
+creates an equal-code distinct owner as a negative control. Its original red
+run and corrected receipts are retained. The frozen scoped gate passes 25
+tests with zero failures or ignores: twelve effect-IR tests, the original
+maximum-chain test, four snapshot integrations (including the actual GPU
+diamond in four precisions), and eight generic graph/limit tests.
+
+The previous full affected software run was rejected: it collected the shader
+budget failure and a one-second Exposure readiness assertion. The unchanged
+Exposure test passes in isolation on the original binary (7.80 seconds for the
+whole test), which does not by itself prove why the earlier run failed. No
+Exposure timeout or assertion was changed. Full software coverage must repeat
+without concurrent model inference. Final-G v7 was explicitly superseded after
+the reproducible budget regression; its partial output is not final acceptance.
+The pinned main integration remains `9dbdf75f`; full G and maintained-platform
+CI must pass on the corrected sources before #78 can close.
+
+Evidence: [shader ownership, limits, raw failures and scoped receipts](data/typed-render-dag-shader-owners.zip),
+SHA-256 `968facc0ab829aaabd1d543933c27a576f430d9b221f9965bd79c6bed1ebe6bf`;
+331,974 bytes, 24 entries, every entry read back and hashed.
