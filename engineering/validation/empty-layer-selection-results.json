@@ -1,0 +1,50 @@
+{
+  "issue": 134,
+  "original_baseline": "5a8fdc4927493abe82b2e9b28d484b07f925ba50",
+  "current_base": "880739de0f7912b8b1683ce72593fad9035d6d24",
+  "code_head": "9ff7a5630e2ff3bb83eafa818547fb62e4bfcccd",
+  "negative_before": {
+    "passed": 1,
+    "failed": 2,
+    "effect_controls_panic_line": "effect_controls.rs:854"
+  },
+  "original_after": {
+    "passed": 536,
+    "failed": 0,
+    "ignored": 0
+  },
+  "current_after": {
+    "passed": 550,
+    "failed": 0,
+    "ignored": 1,
+    "ignored_name": "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+    "ignored_reason": "upstream manual native GPU capture; not enabled or counted"
+  },
+  "native_default_en": {
+    "passed": true,
+    "seconds": 93.92,
+    "budget_seconds": 240,
+    "source_unchanged": true
+  },
+  "sources": {
+    "desktop/app/src/panels/auxiliary.rs": "f48c56967e70ff6081f7d707abdb71c123b195f7794f6ff38f2c6fa73e954b90",
+    "desktop/app/src/panels/auxiliary/selection_tests.rs": "ac76c286e145a17ca618f5488f87b0594fb146be2f7a6e410b56c8f9174d6385",
+    "desktop/app/src/panels/effects.rs": "d8b79f7bde5456b1cb908b2372afa433fa6d548c1c704756a63f74ee99a33827",
+    "desktop/app/src/panels/effect_controls.rs": "d655b50586d12f8b9e2b2b5d9f5f48ba2e230d16ae77d2793a772901c13d17d8",
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "54653de13ac12278c156250d68dffcf94c466c41398bf23905a18bf0b7688901",
+    "Cargo.lock": "d86ef3cc61799ad1b205f56dea7c0a337f449f84a2fbcf3e83bfe5f32b20f629",
+    "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+  },
+  "normal_branches": [
+    "no primary selection",
+    "selected object absent after deletion/snapshot replacement"
+  ],
+  "new_observations": false,
+  "other_unchecked_effect_ids": "out of scope; do not claim all JSON identity reads are hardened",
+  "evidence": {
+    "file": "empty-layer-selection-880739de.zip",
+    "bytes": 739119,
+    "sha256": "bee1e2be56848e4a2e0974960d8232968ececc4134c13d52a267c22013d514c2",
+    "entries": 35
+  }
+}
