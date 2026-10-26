@@ -1,6 +1,15 @@
 //! One toolbar row at every width. Popups render after timeline navigation and
 //! own the original input while all underlying timeline content is suspended.
 use super::*;
+use motion_ui::input::{InputSource, InputView};
+
+fn filtered_input(input: &Input) -> InputView<'_> {
+    let mut view = input.input_view();
+    if view.composing || view.ime_consumed || view.focus_lost {
+        view.keys = &[];
+    }
+    view
+}
 
 fn units(c: &Controls) -> Vec<data::Unit> {
     c.entries
@@ -12,13 +21,13 @@ fn units(c: &Controls) -> Vec<data::Unit> {
         .into_iter()
         .collect()
 }
-fn advance(c: &mut Controls, input: &Input) {
+fn advance(c: &mut Controls, input: &InputView<'_>) {
     if input.focus_lost {
         c.bar_focus = None;
         c.channels_open = false;
         c.mode.open = false;
     }
-    for (key, modifiers) in &input.keys {
+    for (key, modifiers) in input.keys.iter() {
         if *key == Key::Tab && !c.mode.open {
             if let Some(focus) = c.bar_focus {
                 let first = if c.channels_open { 3 } else { 0 };
@@ -43,7 +52,7 @@ fn advance(c: &mut Controls, input: &Input) {
         }
     }
 }
-fn key(c: &Controls, index: usize, input: &Input) -> bool {
+fn key(c: &Controls, index: usize, input: &InputView<'_>) -> bool {
     c.bar_focus == Some(index)
         && input
             .keys
@@ -68,11 +77,8 @@ pub(in crate::panels) fn toolbar(
     let mut c = std::mem::take(&mut panels.timeline.comparison);
     c.sync(state, panels.locale);
     c.channels_opened = false;
-    let neutral = (input.composing || input.ime_consumed || input.focus_lost).then(|| Input {
-        keys: vec![],
-        ..input.clone()
-    });
-    let input = neutral.as_ref().unwrap_or(input);
+    let filtered = filtered_input(input);
+    let input = &filtered;
     advance(&mut c, input);
     let mode_width = (area.width() - toggle - width - gap * 2. - pad * 2.)
         .max(0.)
@@ -173,11 +179,8 @@ pub(in crate::panels) fn overlay(
         panels.timeline.comparison = c;
         return;
     };
-    let neutral = (input.composing || input.ime_consumed || input.focus_lost).then(|| Input {
-        keys: vec![],
-        ..input.clone()
-    });
-    let input = neutral.as_ref().unwrap_or(input);
+    let filtered = filtered_input(input);
+    let input = &filtered;
     // Toolbar receives neutral input while a popup is already open.
     if c.popup_open() {
         advance(&mut c, input);
@@ -229,7 +232,7 @@ pub(in crate::panels) fn overlay(
         .position(|(speed, unit)| *speed == panels.timeline.speed_graph && *unit == selected_unit)
         .unwrap_or(0);
     let was_open = c.mode.open;
-    let quiet = Input::default();
+    let quiet = InputView::default();
     if let Some(index) = c.mode.draw(
         list,
         atlas,
@@ -253,7 +256,7 @@ pub(in crate::panels) fn overlay(
         super::super::key_selection::ui::block_background(panels);
     }
     if c.channels_open {
-        let opening = Input::default();
+        let opening = InputView::default();
         let input = if c.channels_opened { &opening } else { input };
         let row = styles.metric("row.height", 22.);
         let pad = styles.metric("padding.panel", 8.);
