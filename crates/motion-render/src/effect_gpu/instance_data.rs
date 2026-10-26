@@ -58,16 +58,38 @@ impl GpuState {
             .instance_data
             .get((pass.instance_data - 1) as usize)
             .ok_or("instance shader data index is invalid")?;
-        if self.instance_resources[index]
-            .as_ref()
-            .is_some_and(|old| old.program == pass.program && Arc::ptr_eq(&old.values, values))
-        {
-            return Ok(());
-        }
         let program = builder
             .programs
             .get(pass.program as usize)
             .ok_or("instance shader data program is invalid")?;
+        use crate::effect_plan::{FrameImageImport, FrameImageSource};
+        let import = builder
+            .effect_execution()
+            .and_then(|execution| {
+                execution.frame_import(FrameImageSource::InstanceData(pass.instance_data))
+            })
+            .ok_or("phase=frame_import: instance shader data has no checked execution value")?;
+        let expected = FrameImageImport::instance(
+            pass.instance_data,
+            values,
+            program
+                .imports
+                .first()
+                .ok_or("instance import resource zero is absent")?,
+        )?;
+        if import != &expected {
+            return Err(
+                "phase=frame_import: instance shader data differs from its checked execution value"
+                    .into(),
+            );
+        }
+        if let Some(old) = self.instance_resources[index]
+            .as_ref()
+            .filter(|old| old.program == pass.program && Arc::ptr_eq(&old.values, values))
+        {
+            import.validate_native(&old.texture.texture)?;
+            return Ok(());
+        }
         let package = program
             .package
             .as_ref()
@@ -95,7 +117,7 @@ impl GpuState {
         {
             return Err("instance shader data requires declared resource zero".into());
         }
-        let [width, height] = values.texture_extent();
+        let [width, height] = import.value_type().rect.size;
         if height == 0 {
             return Err("instance shader data texture is empty".into());
         }
@@ -130,7 +152,7 @@ impl GpuState {
             &self.sampler,
             width,
             height,
-            wgpu::TextureFormat::Rgba8Unorm,
+            crate::image_formats::native_format(import.storage()),
             &self.allocation_budget,
             crate::TextureCategory::PluginResources,
         )

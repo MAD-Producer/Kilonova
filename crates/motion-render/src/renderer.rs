@@ -2144,8 +2144,9 @@ impl Renderer {
         self.trim_image_cache(vector_bytes+mask_bytes);
         let mask_other=self.video_plane_bytes()+self.effect_gpu.state.resource_bytes();
         let frame = &self.effect_gpu.builder.frame;
-        let masks_changed=self.mask_gpu.prepare(&self.device,&self.queue,encoder,&self.image_layout,scene,&frame.masks,
-            &mut self.images,&mut self.texture_bytes,mask_other,self.effect_gpu.builder.source_texture_budget)?;
+        let masks_changed=self.mask_gpu.prepare_checked(&self.device,&self.queue,encoder,&self.image_layout,scene,&frame.masks,
+            &mut self.images,&mut self.texture_bytes,mask_other,self.effect_gpu.builder.source_texture_budget,
+            self.effect_gpu.builder.effect_execution())?;
         if masks_changed {
             self.effect_gpu.state.invalidate();
         }

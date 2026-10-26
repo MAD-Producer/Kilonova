@@ -463,8 +463,9 @@ impl GpuState {
         for pass in &frame.passes {
             let program = builder.programs.get(pass.program as usize).ok_or("effect program is absent")?;
             program.validate_imports()?;
-            if pass.resource_input == 0 && pass.instance_data == 0 {
-                for import in program.imports.iter() {
+            if pass.resource_input == 0 {
+                for (slot, import) in program.imports.iter().enumerate() {
+                    if slot == 0 && pass.instance_data != 0 { continue; }
                     if builder.effect_execution().is_none_or(|execution| !execution.accepts_package_import(import)) {
                         return Err("phase=resource_import: native package image has no checked execution value".into());
                     }
@@ -547,7 +548,7 @@ impl GpuState {
         // change when every slot can still be reused.
         self.pool_width = frame.width;
         self.pool_height = frame.height;
-        self.prepare_curves(device, queue, composite, frame.precision, scene)?;
+        self.prepare_curves(device, queue, composite, builder, scene)?;
         while self.buffers.len() < frame.passes.len() {
             let index = self.buffers.len();
             let buffer = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {

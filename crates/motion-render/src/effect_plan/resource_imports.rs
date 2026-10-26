@@ -130,7 +130,8 @@ pub(super) fn package_images(
 }
 
 pub(super) fn validate_program(program: &EffectProgram) -> Result<(), RenderError> {
-    if program.resources.len() != program.imports.len()
+    if program.resources.len() > 4
+        || program.resources.len() != program.imports.len()
         || program
             .resources
             .iter()
@@ -169,13 +170,15 @@ pub(super) fn lower_package_images(
                 .get(pass.program as usize)
                 .ok_or("import program is absent")?;
             validate_program(program)?;
-            // These modes replace the complete package resource bind group.
-            // Package defaults may still occupy a native cache, but are not
-            // sampled inputs of this operation.
-            if pass.resource_input != 0 || pass.instance_data != 0 {
+            // An image override replaces the group. Private numeric data only
+            // replaces slot zero; the other package textures remain sampled.
+            if pass.resource_input != 0 {
                 continue;
             }
             for (slot, import) in program.imports.iter().enumerate() {
+                if slot == 0 && pass.instance_data != 0 {
+                    continue;
+                }
                 let package = program.package.as_ref().ok_or("import package is absent")?;
                 let key = (package.hash.clone(), import.path.clone(), import.encoding);
                 let value = if let Some(&value) = sources.get(&key) {
@@ -233,7 +236,7 @@ pub(super) fn lower_package_images(
                         resource_tokens: vec![],
                         lookup_tables: vec![],
                         instance_data: vec![],
-                        imported_image: Some(import.clone()),
+                        imported_image: Some(ImportedImage::Package(import.clone())),
                     });
                     sources.insert(key, value);
                     value

@@ -13,8 +13,8 @@ was reviewed and no subagent was used.
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
 | 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Prepared sampled parameters, typed raw/effected/asset inputs and retained semantic region recipes drive native lowering; full producer/value/ROI ownership before transactional layout proposals remains open |
-| 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded numeric defaults now supply real typed native imports; dynamic instance-data/LUT/mask imports remain open; depth producers belong to later work |
-| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology now refuses cycles before CPU work; full typed outer image lowering still follows native proposals and external-import coverage remains incomplete |
+| 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded defaults, current-instance byte containers, actual numeric curve LUTs and scalar mask coverage now supply checked values consumed by native preparation; depth producers belong to later work |
+| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology refuses cycles before CPU work; named package/private/LUT/mask imports now have checked edges, while full typed outer image lowering still follows native proposals |
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
@@ -974,3 +974,105 @@ end-to-end shader/compile/pass/frame/admitted-peak measurements and G's final
 main-aligned integrated regression/cross-platform desktop CI remain unfinished.
 Mask/generator preparation remains serial. Android implementation and acceptance
 remain excluded. #78 is still open, followed by #74 and #87.
+
+
+## Current-sample private data, curve LUTs and mask coverage
+
+Checked source values now describe actual one-based private instance sidecars,
+numeric curve tables and layer-local scalar mask coverage. Explicit imports add
+typed resource edges to their real consumers and no fictitious native draws.
+Private instance data stays an RGBA8 little-endian f32 byte container, distinct
+from floating-point color. Its sources are distinct per instance; native cache
+ownership is unchanged. Package slots 1..3 remain dependencies when a private
+instance replaces slot 0. The previous package-import lowerer incorrectly omitted
+those companion edges; this checkpoint corrects that logical omission while
+preserving the actual shader binding behavior.
+
+UNORM8 curves retain 256x1 Rgba8Unorm numeric data. The other three working
+precisions retain authored dense Float32 numeric tables, sampled without a
+filtering/blending requirement. Actual native LUT preparation consumes the
+checked width/storage and validates retained textures before cache shortcuts.
+Unreferenced scene tables remain prepared as before. Negative LUT tokens retain
+their existing system-identity behavior. Missing high-precision authored sources
+are rejected before native allocation with the original diagnostic text.
+
+Masks retain Coverage meaning, layer-local coordinates, actual raster extent
+and R8Unorm/R16Unorm/R16Float/R32Float storage. Native output preparation uses
+the checked descriptor and validates actual retained texture dimensions/format
+before fingerprint reuse. Frames without effect passes still construct the
+same typed coverage descriptor for their final compositor; no effect graph or
+new shader work is fabricated for that path. Raster/filter preparation remains
+serial and existing transactional scratch/output admission is retained.
+
+Three new CPU tests verify distinct instance sources/shared companion edges,
+all-precision LUT/coverage semantics and missing-source refusal/recovery. A new
+native test rejects stale precision and a wrong-format texture behind an
+unchanged fingerprint, preserves output bytes/owner and recovers. Two new GPU
+tests cover 16 private numeric updates and 12 curve/mask updates across four
+precisions, independent pixel references, real texture IDs/formats/capacities,
+pipeline reuse and same-renderer refusal/recovery. Interior/exterior mask pixels
+use an analytic reference; edge rasterization is not represented as independently
+proved. Allocation IDs describe application-owned backing, not driver residency.
+
+Two unchanged-test red controls prove the guards are effective: omitting the
+native cached-format validation accepts an invalid retained texture and fails
+the new regression; restoring the old whole-group private override omits the
+companion and fails the dependency regression. Both sources were restored byte
+for byte and SHA-256 checked before the broad targeted gate. The retained
+compile failures involved a new fixture's crate imports/test-helper signature
+and an attempted private Scene field access. Existing assertions, skips, pixel
+bounds and product refusal policies were not changed to pass acceptance.
+
+| Targeted gate | Actual result |
+| --- | --- |
+| `native-mask-contract` | 1 passed; zero failed/ignored |
+| `frame-imports` | 3 passed; zero failed/ignored |
+| `render-imports` | 3 passed; zero failed/ignored |
+| `frame-pixels` | 2 passed; zero failed/ignored |
+| `import-pixels` | 2 passed; zero failed/ignored |
+| `curves-masks` | 14 passed; zero failed/ignored |
+| `effects-library` | 32 passed; zero failed/ignored |
+| `desktop-check` | Passed |
+| `render-library` | 262 passed; zero failed/ignored |
+| `render-native` | 99 passed; zero failed/ignored |
+| `host-memory-policy` | 17 passed; zero failed/ignored |
+| `ir-default-output` | 1 passed; zero failed/ignored |
+| `private-numeric` | 1 passed; zero failed/ignored |
+| `private-precision` | 1 passed; zero failed/ignored |
+
+The original broad attempt terminated abnormally in the existing CPU-only
+pointwise lifetime test (Windows STATUS_ACCESS_VIOLATION). The same unchanged
+executable passed that test in isolation. The complete native scope was then
+rerun, followed by the remaining host/worker/private-data gates. The receipt
+combines only successful scopes on byte-identical source, with explicit original
+receipt/log references; it is not represented as one uninterrupted green run.
+The original crash and Windows fault context are retained. Its root cause is
+unconfirmed and remains a final-acceptance follow-up, not a claimed product fix.
+
+These scopes contain 430 distinct parent tests. The three
+library filters and one repeated mask-error target are not counted twice. The
+default worker gate still verifies six real typed failures, file/Error-stderr
+output at the default level, stdout isolation, prior pixels and recovery. The
+existing private-instance companion retains 16 updates and eight reopen,
+isolation and undo cases; those assertions were unchanged.
+
+A final native companion compiles and runs the cached-mask contract test after
+rustfmt corrected only the leading indentation of its closure arguments. The
+receipt verifies that exact named-file/line change, identical remaining source
+hashes and unchanged assertions; the earlier broad source is retained explicitly.
+
+The source-bound acceptance froze 140 Rust/Cargo hashes and checked
+them after every step. No panels, styles, UI interactions, dependencies,
+third-party assets or Android source were changed. The
+[verified frame-import checkpoint](data/typed-render-dag-frame-imports-cbe265a2.zip)
+retains successful/failed attempts, source snapshots, actual logs and native
+receipts, red controls, exact restoration proofs and controllers. Size:
+8,452,791 bytes; 1663 files plus manifest. SHA-256:
+`269671eb6d37d7073f2308c8a635c83c748bac08b500fcd921591b54055cd29a`. Every archive entry was read back and hash-verified.
+
+This is targeted checkpoint acceptance, not G or issue closure. Full producer/
+value/ROI ownership before placement, IR-level affected-group scheduling,
+end-to-end shader/compile/pass/frame/physical-peak measurements and final
+main-aligned integrated regression/cross-platform desktop CI remain open.
+Android implementation and acceptance remain excluded. #78 stays open,
+followed by #74 and #87.

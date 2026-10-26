@@ -25,7 +25,9 @@ fn numeric_package_values_have_one_checked_resource_local_producer_and_two_consu
             .collect();
         assert_eq!(imports.len(), 1);
         let binding = imports[0];
-        let import = binding.imported_image.as_ref().unwrap();
+        let ImportedImage::Package(import) = binding.imported_image.as_ref().unwrap() else {
+            panic!("expected a package import");
+        };
         assert_eq!(
             import.value_type.image,
             ImageContract::new(

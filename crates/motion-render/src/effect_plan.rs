@@ -27,7 +27,9 @@ mod cpu_prepare;
 pub use cpu_prepare::CpuPreparationInfo;
 mod preparation;
 mod resource_imports;
+mod frame_imports;
 pub use resource_imports::{PackageImageImport, ResourceEncoding};
+pub use frame_imports::{FrameImageImport, FrameImageSource, ImportedImage};
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]

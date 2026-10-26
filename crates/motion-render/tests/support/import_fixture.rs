@@ -16,6 +16,13 @@ pub const PIXELS: [[u8; 4]; 6] = [
     [123, 71, 241, 255],
 ];
 pub fn package(private: bool) -> Arc<EffectPackage> {
+    build(private, false)
+}
+#[allow(dead_code)]
+pub fn dynamic_package() -> Arc<EffectPackage> {
+    build(true, true)
+}
+fn build(private: bool, companion: bool) -> Arc<EffectPackage> {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("shaders")).unwrap();
     std::fs::create_dir(root.path().join("assets")).unwrap();
@@ -26,7 +33,9 @@ pub fn package(private: bool) -> Arc<EffectPackage> {
         .find(|d| d.id == "glow")
         .unwrap()
         .clone();
-    manifest.id = if private {
+    manifest.id = if companion {
+        "test.dynamic-companion-import"
+    } else if private {
         "test.numeric-byte-import"
     } else {
         "test.numeric-png-import"
@@ -42,6 +51,17 @@ pub fn package(private: bool) -> Arc<EffectPackage> {
     def.output_bounds = None;
     def.required_capabilities.clear();
     def.resources = vec!["assets/pixels.png".into()];
+    if companion {
+        def.resources.push("assets/companion.png".into());
+        image::save_buffer(
+            root.path().join(&def.resources[1]),
+            bytemuck::cast_slice(&PIXELS),
+            3,
+            2,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+    }
     def.shader_data = None;
     let source = if private {
         def.required_capabilities
@@ -62,7 +82,11 @@ pub fn package(private: bool) -> Arc<EffectPackage> {
             image::ColorType::Rgba8,
         )
         .unwrap();
-        "fn main_fx(p:vec2<f32>)->vec4<f32>{let b=vec4<u32>(round(textureLoad(resource0,vec2(0,0),0)*255.0));let v=bitcast<f32>(b.x|(b.y<<8u)|(b.z<<16u)|(b.w<<24u));return vec4(v,v,v,1.0);}"
+        if companion {
+            "fn main_fx(p:vec2<f32>)->vec4<f32>{let b=vec4<u32>(round(textureLoad(resource0,vec2(0,0),0)*255.0));let v=bitcast<f32>(b.x|(b.y<<8u)|(b.z<<16u)|(b.w<<24u));return vec4(textureLoad(resource1,vec2(i32(p.x)%3,i32(p.y)%2),0).rgb*v,1.0);}"
+        } else {
+            "fn main_fx(p:vec2<f32>)->vec4<f32>{let b=vec4<u32>(round(textureLoad(resource0,vec2(0,0),0)*255.0));let v=bitcast<f32>(b.x|(b.y<<8u)|(b.z<<16u)|(b.w<<24u));return vec4(v,v,v,1.0);}"
+        }
     } else {
         image::save_buffer(
             root.path().join(&def.resources[0]),

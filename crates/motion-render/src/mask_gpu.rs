@@ -24,8 +24,8 @@ struct InputBinding {
     _allocations: [Option<crate::allocation_budget::AllocationLease>; 2],
 }
 pub(crate) struct MaskGpu {
+    precision: motion_effects::image_contract::ChannelPrecision,
     format: wgpu::TextureFormat,
-    pixel_bytes: u64,
     raster: wgpu::RenderPipeline,
     filters: Vec<wgpu::RenderPipeline>,
     uniform_layout: wgpu::BindGroupLayout,
@@ -211,7 +211,7 @@ impl MaskGpu {
         });
         let _ = image_layout;
         Ok(Self {
-            format, pixel_bytes: storage.bytes_per_pixel(),
+            precision, format,
             raster,
             filters,
             uniform_layout,
@@ -361,6 +361,7 @@ impl MaskGpu {
     // Stage the complete scratch pool and resized outputs before replacing any
     // previous native owner, dimensions or input binding. A partial refusal
     // drops the staged reservations and leaves the previous targets usable.
+    #[cfg(test)]
     fn prepare_textures(
         &mut self,
         device: &wgpu::Device,
@@ -371,6 +372,21 @@ impl MaskGpu {
         bytes: &mut u64,
         other: u64,
         source_budget: u64,
+    ) -> Result<bool, RenderError> {
+        self.prepare_textures_checked(device, image_layout, scene, masks,
+            images, bytes, other, source_budget, None)
+    }
+    fn prepare_textures_checked(
+        &mut self,
+        device: &wgpu::Device,
+        image_layout: &wgpu::BindGroupLayout,
+        scene: &crate::Scene,
+        masks: &[MaskRaster],
+        images: &mut HashMap<TextureKey, GpuImage>,
+        bytes: &mut u64,
+        other: u64,
+        source_budget: u64,
+        execution: Option<&crate::effect_plan::EffectExecution>,
     ) -> Result<bool, RenderError> {
         let (w, h, slots) = mask_plan::scratch_dimensions(masks);
         let scratch = if (w, h) != self.scratch_size || slots != self.scratch.len() {
@@ -390,23 +406,43 @@ impl MaskGpu {
         for group in masks.chunk_by(|a, b| a.layer == b.layer) {
             let first = &group[0];
             let owner = scene.layers[first.layer].id;
+            use crate::effect_plan::{FrameImageImport, FrameImageSource};
+            let expected = FrameImageImport::mask(first.layer, owner,
+                [first.width, first.height], self.precision);
+            let import = if let Some(execution) = execution {
+                let import = execution.frame_import(FrameImageSource::Mask(first.layer))
+                    .ok_or("phase=frame_import: mask coverage has no checked execution value")?;
+                if import != &expected {
+                    return Err("phase=frame_import: mask coverage differs from its checked execution value".into());
+                }
+                import
+            } else {
+                // No effect passes: the final compositor still consumes typed
+                // coverage, but there is no effect execution graph to consult.
+                &expected
+            };
+            let [width, height] = import.value_type().rect.size;
+            let format = crate::image_formats::native_format(import.storage());
             let key = TextureKey::Mask(owner);
             let signature = mask_plan::group_fingerprint(group);
+            if let Some(image) = images.get(&key).filter(|image| image.size == (width, height)) {
+                import.validate_native(&image._texture)?;
+            }
             if self.fingerprints.get(&owner) == Some(&signature) && images.contains_key(&key) {
                 continue;
             }
-            let cost = u64::from(first.width) * u64::from(first.height) * self.pixel_bytes;
+            let cost = u64::from(width) * u64::from(height) * import.storage().bytes_per_pixel();
             let previous = images.get(&key).map_or(0, |image| image.bytes);
             if next_bytes - previous + cost + other > source_budget {
                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
                     next_bytes - previous + cost + other, source_budget,
                     format!("layer {owner}: source and mask textures exceed configured source texture budget")));
             }
-            if images.get(&key).is_none_or(|image| image.size != (first.width, first.height)) {
-                let target = texture(device, image_layout, &self.sampler, first.width,
-                    first.height, self.format, &self.allocation_budget).map_err(|error|
+            if images.get(&key).is_none_or(|image| image.size != (width, height)) {
+                let target = texture(device, image_layout, &self.sampler, width,
+                    height, format, &self.allocation_budget).map_err(|error|
                         mask_context(error, owner, first.id, scene.frame, "output_allocate"))?;
-                next.push((key, target, cost, (first.width, first.height)));
+                next.push((key, target, cost, (width, height)));
                 next_bytes = next_bytes - previous + cost;
             }
         }
@@ -426,6 +462,7 @@ impl MaskGpu {
         Ok(changed)
     }
 
+    #[cfg(test)]
     pub fn prepare(
         &mut self,
         device: &wgpu::Device,
@@ -438,6 +475,24 @@ impl MaskGpu {
         bytes: &mut u64,
         other: u64,
         source_budget: u64,
+    ) -> Result<bool, RenderError> {
+        self.prepare_checked(device, queue, encoder, image_layout, scene, masks,
+            images, bytes, other, source_budget, None)
+    }
+
+    pub fn prepare_checked(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        image_layout: &wgpu::BindGroupLayout,
+        scene: &crate::Scene,
+        masks: &[MaskRaster],
+        images: &mut HashMap<TextureKey, GpuImage>,
+        bytes: &mut u64,
+        other: u64,
+        source_budget: u64,
+        execution: Option<&crate::effect_plan::EffectExecution>,
     ) -> Result<bool, RenderError> {
         #[cfg(test)]
         self.input_binding_observations.clear();
@@ -471,8 +526,8 @@ impl MaskGpu {
             self.clear();
             return Ok(changed);
         }
-        changed |= self.prepare_textures(device, image_layout, scene, masks,
-            images, bytes, other, source_budget)?;
+        changed |= self.prepare_textures_checked(device, image_layout, scene, masks,
+            images, bytes, other, source_budget, execution)?;
         let mut uniform_index = 0;
         for group in masks.chunk_by(|a, b| a.layer == b.layer) {
             let owner = scene.layers[group[0].layer].id;
