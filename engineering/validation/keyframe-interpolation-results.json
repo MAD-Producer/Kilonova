@@ -109,12 +109,12 @@
     "sourceProjectVersion": 26
   },
   "preview": {
-    "sourceCommit": "7cbebb587cfa5d7587f7470b911c4787d85d0cfc",
+    "sourceCommit": "ee60eb1535ac22b3dfada56ba21f292e7989968b",
     "profile": "dev",
     "features": [
       "ffmpeg"
     ],
-    "executableSha256": "99b3deaeda249d67862d1bf3528c5075f81b234e0ffef3edaef2bfe2c36822d8",
+    "executableSha256": "124e9a8a1f0ab803fc64e678dfbd0e2caa57f20c3714da54a0aebcf467867dea",
     "runtimeDlls": {
       "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
       "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
@@ -140,8 +140,26 @@
   ],
   "evidence": {
     "file": "keyframe-interpolation-evidence.zip",
-    "bytes": 5848220,
-    "sha256": "7d80d56ec48a4c21860d0b8ceb9905a7eb125248017aceed4862e0952f385898",
-    "files": 173
+    "bytes": 5864150,
+    "sha256": "3be9b6bd82d5a86cf097297d8919e1a72ba3af8efbbbb9559dc389b4dd09d629",
+    "files": 186
+  },
+  "integration": {
+    "sourceCommit": "ee60eb1535ac22b3dfada56ba21f292e7989968b",
+    "baseCommit": "913e416acffa58b31bbe95968bd112d62f1eee20",
+    "changes": "sync main capture fixture protocol only; timing implementation and screenshots unchanged",
+    "dialogAndDefaultErrors": {
+      "passed": 7,
+      "failed": 0,
+      "ignoredManualNative": 1
+    },
+    "captureProtocolAndRealGpuWriteFailure": {
+      "passed": 3,
+      "failed": 0
+    },
+    "nativeAndUiExecutableSha256": "fdaab988989d5a72518db8a035cbfafcacae88ce1330ad69c4d0df54ba1e9036",
+    "ffmpegBuild": true,
+    "systemPathOnlyVideoDecode": true,
+    "remoteCI": "pending"
   }
 }
