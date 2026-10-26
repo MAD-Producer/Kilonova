@@ -92,6 +92,8 @@ struct Socket {
     point: [f32; 2],
 }
 struct Card {
+    // Identity only: never dereferenced or retained beyond this frame's cards.
+    source_node: *const Node,
     id: String,
     rect: Rect,
     sockets: Vec<Socket>,
@@ -103,6 +105,9 @@ pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
     let rows = node_ports(node, &document.public_parameters)
         .map(|p| port_row_count(node, p.inputs.len(), p.outputs.len()))
         .unwrap_or(1);
+    expanded_node_height(node, document, rows)
+}
+fn expanded_node_height(node: &Node, document: &GraphDocument, rows: usize) -> f32 {
     let count = inline::control_count(node, document);
     HEADER
         + rows as f32 * ROW

@@ -7,6 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 mod movement;
 mod transform;
 mod source;
+pub(super) fn authored_track<'a>(state: &'a Value, target: &KeyframeTarget) -> Option<(&'a Value, i64)> {
+    source::track(state, target)
+}
 pub(super) mod ui;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

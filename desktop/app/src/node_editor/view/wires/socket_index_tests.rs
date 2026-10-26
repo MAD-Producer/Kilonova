@@ -176,6 +176,7 @@ fn socket_lookup_scaling_matches_the_linear_oracle() {
                 socket.port = PortRef::new(format!("node-{i}"), "value");
                 socket.point = [i as f32, 2. * i as f32];
                 Card {
+                    source_node: std::ptr::null(),
                     id: socket.port.node.clone(),
                     rect: Rect::default(),
                     sockets: vec![socket],

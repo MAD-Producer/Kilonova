@@ -10,17 +10,28 @@ impl NodeEditor {
             .nodes
             .iter()
             .map(|node| {
+                let ports = self.observed(
+                    "canvas.sockets",
+                    &node.id,
+                    motion_graph::node_port_specs(node, &self.document.public_parameters),
+                );
+                let height = if node.collapsed {
+                    HEADER
+                } else {
+                    let rows = ports.as_ref()
+                        .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
+                        .unwrap_or(1);
+                    expanded_node_height(node, &self.document, rows)
+                };
                 let point = self.view.world_to_screen(node.position, canvas);
                 let rect = Rect::new(
                     point[0],
                     point[1],
                     NODE_WIDTH * self.view.zoom,
-                    node_height(node, &self.document) * self.view.zoom,
+                    height * self.view.zoom,
                 );
                 let mut sockets = vec![];
-                if let Ok(ports) =
-                    self.observed("canvas.sockets", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
-                {
+                if let Ok(ports) = ports {
                     let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
@@ -49,6 +60,7 @@ impl NodeEditor {
                     }
                 }
                 Card {
+                    source_node: node,
                     id: node.id.clone(),
                     rect,
                     sockets,
@@ -250,51 +262,69 @@ impl NodeEditor {
                 colors.TEXT_MUTED,
             );
             if !node.collapsed {
-                if let Ok(ports) =
-                    self.observed("canvas.labels", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
-                {
-                    let inputs = ports.inputs.len();
-                    for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
-                        for (index, (port, spec)) in entries.into_iter().enumerate() {
-                            let compatible = match &self.drag {
-                                Some(Drag::Wire { .. }) if !output => source_socket
-                                    .is_none_or(|socket| {
-                                        motion_graph::ports_compatible(&socket.spec, &spec)
-                                    }),
-                                _ => true,
-                            };
-                            label(
-                                &mut content,
-                                atlas,
-                                Rect::new(
-                                    if output { NODE_WIDTH * 0.5 } else { 12. },
-                                    HEADER
-                                        + port_row_index(node, inputs, output, index) as f32 * ROW,
-                                    if !output && node.input_defaults.contains_key(&port) {
-                                        (controls::input_value_rect(
-                                            Rect::new(0., 0., NODE_WIDTH, ROW),
-                                            &styles,
-                                        )
-                                        .min[0]
-                                            - styles.metric("padding.panel", 8.)
-                                            - 12.)
-                                            .max(0.)
-                                    } else {
-                                        NODE_WIDTH * 0.5 - 14.
-                                    },
-                                    ROW,
-                                ),
-                                motion_graph::group_port(&node.operation, &port, output)
-                                    .map(|port| language.text(&port.name, &port.english_name))
-                                    .unwrap_or_else(|| language.text(spec.name, spec.english_name)),
-                                if compatible {
-                                    colors.TEXT_MUTED
+                // Cards already own the current frame's resolved port metadata.
+                // Empty cards retain the original fallible path and observations.
+                let reuse_specs = !card.sockets.is_empty()
+                    && std::ptr::eq(card.source_node, node);
+                let resolved = if !reuse_specs {
+                    Some(self.observed("canvas.labels", &node.id,
+                        motion_graph::node_port_specs(node, &self.document.public_parameters)))
+                } else {
+                    None
+                };
+                let fallback = match &resolved {
+                    Some(Ok(ports)) => Some(ports),
+                    Some(Err(_)) | None => None,
+                };
+                let inputs = fallback.map_or_else(
+                    || card.sockets.iter().filter(|socket| !socket.output).count(),
+                    |ports| ports.inputs.len(),
+                );
+                for output in [false, true] {
+                    let cached = card.sockets.iter().filter(|socket| reuse_specs && socket.output == output)
+                        .map(|socket| (socket.port.port.as_str(), &socket.spec));
+                    let fresh = fallback.into_iter().flat_map(|ports| {
+                        if output { ports.outputs.iter() } else { ports.inputs.iter() }
+                    }).map(|(port, spec)| (port.as_str(), spec));
+                    for (index, (port, spec)) in cached.chain(fresh).enumerate() {
+                        let compatible = match &self.drag {
+                            Some(Drag::Wire { .. }) if !output => source_socket
+                                .is_none_or(|socket| {
+                                    motion_graph::ports_compatible(&socket.spec, spec)
+                                }),
+                            _ => true,
+                        };
+                        label(
+                            &mut content,
+                            atlas,
+                            Rect::new(
+                                if output { NODE_WIDTH * 0.5 } else { 12. },
+                                HEADER
+                                    + port_row_index(node, inputs, output, index) as f32 * ROW,
+                                if !output && node.input_defaults.contains_key(port) {
+                                    (controls::input_value_rect(
+                                        Rect::new(0., 0., NODE_WIDTH, ROW),
+                                        &styles,
+                                    )
+                                    .min[0]
+                                        - styles.metric("padding.panel", 8.)
+                                        - 12.)
+                                        .max(0.)
                                 } else {
-                                    colors.TEXT_MUTED.with_alpha(0.35)
+                                    NODE_WIDTH * 0.5 - 14.
                                 },
-                                if output { Align::Right } else { Align::Left },
-                            );
-                        }
+                                ROW,
+                            ),
+                            motion_graph::group_port(&node.operation, port, output)
+                                .map(|port| language.text(&port.name, &port.english_name))
+                                .unwrap_or_else(|| language.text(spec.name, spec.english_name)),
+                            if compatible {
+                                colors.TEXT_MUTED
+                            } else {
+                                colors.TEXT_MUTED.with_alpha(0.35)
+                            },
+                            if output { Align::Right } else { Align::Left },
+                        );
                     }
                 }
             }

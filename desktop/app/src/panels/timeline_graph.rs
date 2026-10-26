@@ -63,6 +63,17 @@ pub(super) fn render(
     ppf: f32,
     out: &mut Vec<Action>,
 ) {
+    if panels.timeline.comparison.enabled {
+        let footer=list.styles().metric("field.height",18.).min(area.height());
+        let body=Rect::new(area.min[0],area.min[1],area.width(),(area.height()-footer).max(0.));
+        let content=super::curve_comparison::toolbar(list, atlas, body, panels, state, input, out);
+        if panels.timeline.comparison.enabled {
+            let neutral=Input::default();
+            let graph_input=if panels.timeline.comparison.popup_open(){&neutral}else{input};
+            super::curve_comparison::render(list, atlas, content, panels, state, graph_input, offset, ppf, out);
+            return;
+        }
+    }
     if super::effect_timeline::graph::render(
         list, atlas, area, panels, state, input, offset, ppf, out,
     ) {

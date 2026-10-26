@@ -704,7 +704,8 @@ pub(in crate::panels) fn finish(
                         s.target.object() == primary.target.object() && s.frames == [primary.frame]
                     })
                 });
-            if !one_summary || input.modifiers.control {
+            if !one_summary || input.modifiers.control
+                || panels.timeline.graph_mode && panels.timeline.comparison.enabled {
                 drag::arm(
                     panels,
                     state,
