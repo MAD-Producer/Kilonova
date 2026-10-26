@@ -709,6 +709,7 @@ pub(super) fn render(
         || panels.path_controls.mask_menu()
         || panels.effect_timeline.menu_open()
         || panels.effect_timeline.dropdown_open()
+        || panels.timeline.comparison.popup_open()
     {
         &neutral
     } else {
@@ -782,6 +783,10 @@ pub(super) fn render(
         (area.width() - gutter - 8.0).max(1.0),
         area.height(),
     );
+    let graph_area=track;
+    let track=if graph_mode && panels.timeline.comparison.enabled {
+        super::curve_comparison::plot_bounds(track,&styles)
+    }else{track};
     let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), header_height(&styles) - 36.0);
     panels.timeline.zoom_track = Some(track);
     let wheel = input.wheel[1];
@@ -801,6 +806,7 @@ pub(super) fn render(
     if area.contains(input.mouse) && wheel.is_finite() && wheel != 0. && !gesture {
         let graph_wheel = graph_mode
             && input.mouse[0] >= track.min[0]
+            && (!panels.timeline.comparison.enabled || input.mouse[0] < track.max[0])
             && input.mouse[1] >= ruler.max[1]
             && !input.modifiers.shift
             && !input.modifiers.alt;
@@ -901,7 +907,7 @@ pub(super) fn render(
     let search = Rect::new(
         track.min[0] + styles.metric("timeline.search.inset", 12.) + shy_width + shy_gap,
         toolbar_top,
-        (track.width() - styles.metric("timeline.search.reserved", 176.) - shy_width - shy_gap)
+        (graph_area.width() - styles.metric("timeline.search.reserved", 176.) - shy_width - shy_gap)
             .min(styles.metric("timeline.search.max_width", 250.)).max(styles.metric("border", 1.)),
         toolbar_height,
     );
@@ -960,7 +966,7 @@ pub(super) fn render(
             true,
         );
     }
-    let zoom_x = track.max[0] - 146.;
+    let zoom_x = graph_area.max[0] - 146.;
     if ui::button(
         list,
         atlas,
@@ -1127,7 +1133,7 @@ pub(super) fn render(
     );
     let selection_input=super::key_selection::ui::begin(panels, state, input,
         Rect::new(track.min[0], body.min[1], track.width(), body.height()),
-        [ppf, offset, panels.timeline.scroll, panels.timeline.graph_y_zoom, panels.timeline.graph_y_offset], out.len());
+        [ppf, offset, if graph_mode && panels.timeline.comparison.enabled { panels.timeline.comparison.scroll() } else { panels.timeline.scroll }, panels.timeline.graph_y_zoom, panels.timeline.graph_y_offset], out.len());
     let selection_neutral=Input::default();
     let selection_actual=input;
     let snapped_input=super::key_selection::ui::snap_input(panels,state,input,ppf,offset,out);
@@ -1630,7 +1636,7 @@ pub(super) fn render(
         super::timeline_graph::render(
             list,
             atlas,
-            Rect::new(track.min[0], body.min[1], track.width(), body.height() + footer_height),
+            Rect::new(graph_area.min[0], body.min[1], graph_area.width(), body.height() + footer_height),
             panels,
             state,
             input,

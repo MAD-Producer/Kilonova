@@ -27,6 +27,7 @@ pub(super) enum Operation {
     Shortcut(Shortcut),
     Interpolation(Ease),
     TimingSettings,
+    CompareCurves,
     Sequence,
     ReverseTime,
 }
@@ -73,6 +74,10 @@ fn interpolation_selection(
 }
 
 pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> bool {
+    if matches!(operation,Operation::CompareCurves) {
+        return super::property_focus::navigation_scope(panels.focused)
+            && state["document_generation"].is_u64();
+    }
     if !edit_scope(panels, state) {
         return false;
     }
@@ -107,6 +112,7 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                         }))
         }
         Operation::Interpolation(_) | Operation::TimingSettings => interpolation_selection(panels, state).is_some(),
+        Operation::CompareCurves => true,
         Operation::Sequence => sequence_plan(panels, state).is_some_and(|edits| !edits.is_empty()),
         Operation::ReverseTime | Operation::Shortcut(_) => false,
     }
@@ -151,6 +157,7 @@ pub(super) fn apply(
                 });
             }
         }
+        Operation::CompareCurves => super::curve_comparison::open(panels,state,out),
         Operation::Sequence => {
             if let Some(edits) = sequence_plan(panels, state) {
                 pending.push(Action::EditBatch(edits));
@@ -240,6 +247,7 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
     rows.push((panels.shortcut_bindings.label(
         if zh { "关键帧插值与速度…" } else { "Keyframe interpolation and velocity…" },
         Scope::Animation, Shortcut::KeyframeTiming), Operation::TimingSettings));
+    rows.push(((if zh {"多通道曲线比较"} else {"Compare multiple curves"}).into(),Operation::CompareCurves));
     rows.push((
         (if zh {
             "序列图层 · 保留首层起点，整帧移动"

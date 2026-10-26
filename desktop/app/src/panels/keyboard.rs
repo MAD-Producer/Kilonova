@@ -60,6 +60,7 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
         || panels.timeline.work_area_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
+        || panels.timeline.comparison.popup_open()
         || panels.key_gestures.active()
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
@@ -174,6 +175,14 @@ fn route_inner(
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some()
     {
+        return false;
+    }
+    // Comparison widgets receive these keys later in the timeline drawing
+    // pass. Returning false keeps that input live without dispatching document
+    // shortcuts first, including the closing frame of a checkbox or popup.
+    if !node_context && matches!(panels.focused,Some(Panel::Timeline|Panel::Curves))
+        && panels.timeline.graph_mode && panels.timeline.comparison.keyboard_focus()
+        && !input.keys.is_empty() {
         return false;
     }
     // Node properties and preview can be floated or shown without the canvas.
@@ -490,6 +499,8 @@ fn handle_context_shortcuts(
             Command::Undo | Command::Redo if super::tools::camera::history(panels, command, out) => continue,
             Command::Undo => Action::History(0),
             Command::Redo => Action::History(1),
+            Command::Play if panels.timeline.graph_mode && panels.timeline.comparison.keyboard_focus()
+                && matches!(panels.focused,Some(Panel::Timeline|Panel::Curves)) => continue,
             Command::Play => Action::TogglePlay,
             Command::Solid => Action::AddSolid,
             Command::Text => Action::NewText,
