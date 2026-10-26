@@ -1,4 +1,6 @@
 //! Desktop file and layer operations use the shared session's atomic history.
+#[cfg(test)]
+mod media_asset_tests;
 use motion_core::{Asset, Command, Content, Layer, LayerTimeline};
 use motion_host::Session;
 use serde_json::Value;
@@ -10,6 +12,29 @@ use std::{
 };
 
 pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result<Value> {
+    import_image_for(session, source, None)
+}
+
+pub fn replace_image(session: &mut Session, source: &Path, asset: u64, revision: u64) -> motion_host::Result<Value> {
+    let path_context: String = source.to_string_lossy().chars().take(1024).collect();
+    log::info!("image replacement preflight asset={asset} revision={} expected_revision={revision} source={path_context:?}", session.engine.revision());
+    if revision < session.engine.revision() {
+        let mut state = session.snapshot()?;
+        state["asset_operation_cancelled"] = serde_json::json!(true);
+        state["asset_operation_reason"] = serde_json::json!("superseded");
+        return Ok(state);
+    }
+    if session.engine.revision() != revision {
+        return Err("project changed during image replacement; original asset retained".into());
+    }
+    if !session.engine.project().assets.iter().any(|a| a.id == asset) {
+        return Err("replacement image asset no longer exists".into());
+    }
+    import_image_for(session, source, Some(asset)).map_err(|cause| motion_host::Error::with_context(
+        format!("image replacement asset={asset} revision={revision} phase=replace source={path_context:?}"), cause))
+}
+
+fn import_image_for(session: &mut Session, source: &Path, target: Option<u64>) -> motion_host::Result<Value> {
     let source_info = motion_host::ops::images::image_info(&source.to_string_lossy())?;
     let width = source_info["width"].as_u64().ok_or("image width missing")? as u32;
     let height = source_info["height"]
@@ -19,7 +44,7 @@ pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result
         .as_u64()
         .ok_or("image limit missing")?;
     let project = session.engine.project();
-    let asset_id = project
+    let asset_id = if let Some(id) = target { id } else { project
         .assets
         .iter()
         .map(|a| a.id)
@@ -28,8 +53,8 @@ pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result
         .max()
         .unwrap_or(0)
         .checked_add(1)
-        .ok_or("asset IDs exhausted")?;
-    let object = next_layer_id(&session.snapshot()?)?;
+        .ok_or("asset IDs exhausted")? };
+    let object = if target.is_some() { 0 } else { next_layer_id(&session.snapshot()?)? };
     let frame = (session.frame.floor() as u32).min(project.frames - 1);
     let position = [project.width as f32 / 2.0, project.height as f32 / 2.0, 0.0];
     let end = project.frames;
@@ -89,17 +114,18 @@ pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result
             out_frame: end as i32,
             offset_frame: frame as i32,
         });
-        session.apply_command_batch(vec![
-            Command::RegisterAsset {
-                asset: Asset {
+        let asset = Asset {
                     id: asset_id,
                     path: relative,
                     width,
                     height,
-                },
-            },
-            Command::Add { layer },
-        ])
+                };
+        let commands = if target.is_some() {
+            vec![Command::MediaAsset { action: motion_core::media_assets::AssetAction::Replace {
+                source: motion_core::media_assets::MediaAsset::Image(asset),
+            } }]
+        } else { vec![Command::RegisterAsset { asset }, Command::Add { layer }] };
+        session.apply_command_batch(commands)
     })();
     if result.is_ok() {
         output.keep();

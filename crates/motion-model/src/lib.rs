@@ -3,6 +3,7 @@ mod animation;
 mod audio;
 pub mod audio_levels;
 pub mod audio_edit;
+pub mod media_assets;
 pub use audio_edit::{AudioMarker, AudioMarkersAction, AudioSourceChannel};
 pub mod boundaries;
 mod camera;

@@ -233,6 +233,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         }
         Command::RegisterAudioAsset { asset } => project.audio_assets.push(asset),
         Command::RegisterVideoAsset { asset } => project.video_assets.push(asset),
+        Command::MediaAsset { action } => motion_model::media_assets::apply(project, action)?,
         Command::SetAudio {
             object,
             volume,

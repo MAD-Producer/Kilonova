@@ -377,10 +377,17 @@ impl VideoJobs {
         Ok(initial)
     }
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<VideoTaskStatus> {
+        self.commit_target(id, engine, None)
+    }
+    /// Keep all existing clips and publish a validated replacement as one edit.
+    pub fn replace(&self, id: &str, engine: &mut impl EditSink, asset: u64) -> Result<VideoTaskStatus> {
+        self.commit_target(id, engine, Some(asset))
+    }
+    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<VideoTaskStatus> {
         let request: String = id.chars().take(128).collect();
         let observation = crate::task_logging::TaskLog::new(&request, "commit_video");
         observation.start();
-        let result = self.commit_inner(id, engine);
+        let result = self.commit_inner(id, engine, target);
         match &result {
             Ok((status, attempted)) => observation.finish(
                 &status.phase,
@@ -391,7 +398,7 @@ impl VideoJobs {
         result.map(|(status, _)| status)
     }
 
-    fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(VideoTaskStatus, bool)> {
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<(VideoTaskStatus, bool)> {
         let task = self.task(id)?;
         // Declare owned resources before the guard so unwind releases it first.
         let mut p;
@@ -412,7 +419,7 @@ impl VideoJobs {
             if at >= project.frames {
                 return Err("video insertion outside composition".into());
             }
-            let aid = project
+            let next_asset_id = project
                 .assets
                 .iter()
                 .map(|a| a.id)
@@ -420,16 +427,22 @@ impl VideoJobs {
                 .chain(project.video_assets.iter().map(|a| a.id))
                 .max()
                 .unwrap_or(0)
-                .checked_add(1)
-                .ok_or("asset ID exhausted")?;
-            let object = project
+                .checked_add(1);
+            let aid = target.or(next_asset_id).ok_or("asset ID exhausted")?;
+            let old_audio = target.and_then(|id| project.video_assets.iter().find(|a| a.id == id)).and_then(|a| a.audio_asset);
+            if let Some(id) = target {
+                if !project.video_assets.iter().any(|a| a.id == id) {
+                    return Err("replacement video asset missing".into());
+                }
+            }
+            let object = if target.is_some() { 0 } else { project
                 .layers
                 .iter()
                 .map(|l| l.id)
                 .max()
                 .unwrap_or(0)
                 .checked_add(1)
-                .ok_or("object ID exhausted")?;
+                .ok_or("object ID exhausted")? };
             let frames = (p.probe.asset.duration_us * u64::from(project.fps)).div_ceil(1_000_000);
             let out = (u64::from(at) + frames).min(u64::from(project.frames)) as u32;
             let stem = p
@@ -446,10 +459,10 @@ impl VideoJobs {
             p.probe.asset.path = path.clone();
             let mut commands = Vec::new();
             if let Some(a) = &mut p.audio {
-                a.id = aid.checked_add(1).ok_or("asset ID exhausted")?;
+                a.id = if target.is_some() { old_audio.or(next_asset_id).ok_or("asset ID exhausted")? } else { aid.checked_add(1).ok_or("asset ID exhausted")? };
                 a.path = path.clone();
                 p.probe.asset.audio_asset = Some(a.id);
-                commands.push(Command::RegisterAudioAsset { asset: a.clone() });
+                if target.is_none() { commands.push(Command::RegisterAudioAsset { asset: a.clone() }); }
             }
             let mut layer = Layer::solid(
                 object,
@@ -470,10 +483,14 @@ impl VideoJobs {
                 out_frame: out as i32,
                 offset_frame: at as i32,
             });
-            commands.push(Command::RegisterVideoAsset {
-                asset: p.probe.asset.clone(),
-            });
-            commands.push(Command::Add { layer });
+            if target.is_some() {
+                commands.push(Command::MediaAsset { action: motion_model::media_assets::AssetAction::ReplaceVideo {
+                    video: p.probe.asset.clone(), audio: p.audio.clone(),
+                } });
+            } else {
+                commands.push(Command::RegisterVideoAsset { asset: p.probe.asset.clone() });
+                commands.push(Command::Add { layer });
+            }
             contained_dir(&self.root, &self.root.join("assets"))?;
             let cache = video_cache_path(&self.root, &p.probe.asset)?;
             contained_dir(&self.root, cache.parent().unwrap())?;
@@ -496,7 +513,7 @@ impl VideoJobs {
                 .apply_batch_saved(commands, &self.root)
                 .map_err(crate::Error::from)?;
             Ok(
-                json!({"op":"import_media","kind":"video","asset":aid,"object":object,"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
+                json!({"op":if target.is_some() {"replace_media"} else {"import_media"},"kind":"video","asset":aid,"object":if target.is_some() {None} else {Some(object)},"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
             )
         })();
         match result {
