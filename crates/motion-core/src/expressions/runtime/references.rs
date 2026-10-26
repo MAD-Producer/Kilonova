@@ -174,6 +174,70 @@ fn run(
     result.map_err(|cause| error(&expression.target, frame, cause))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ExpressionTarget, Layer, Project, Property, EXPRESSION_PROFILE};
+
+    #[test]
+    fn full_bytecode_cache_survives_warm_reference_evaluation_and_evicts_only_for_a_new_source() {
+        super::super::ENGINE.with(|slot| *slot.borrow_mut() = None);
+        for number in 0..CACHE {
+            super::super::compile(&format!("{number} + value")).unwrap();
+        }
+        let cached = super::super::ENGINE
+            .with(|slot| slot.borrow().as_ref().unwrap().code["255 + value"].clone());
+        let mut project = Project::new(64, 64, 30, 60).unwrap();
+        project.layers.push(Layer::solid(
+            1,
+            "Cache control",
+            [16.; 2],
+            [7., 0., 0.],
+            [1.; 4],
+        ));
+        let expression = PropertyExpression {
+            target: ExpressionTarget::Property {
+                object: 1,
+                property: Property::Position,
+                axis: Some(crate::Axis::X),
+            },
+            source: "0 + value".into(),
+            enabled: true,
+            seed: 0,
+            profile: EXPRESSION_PROFILE.into(),
+        };
+        project.expressions.push(expression.clone());
+        assert_eq!(
+            evaluate_linked(
+                Rc::new(Session::new(project)),
+                &expression,
+                0.,
+                Instant::now() + Duration::from_millis(100),
+                Arc::new(AtomicBool::new(false))
+            )
+            .unwrap(),
+            vec![7.]
+        );
+        super::super::ENGINE.with(|slot| {
+            let slot = slot.borrow();
+            let code = &slot.as_ref().unwrap().code;
+            assert_eq!(code.len(), CACHE, "warm evaluation discarded a full cache");
+            assert!(Rc::ptr_eq(&cached, &code["255 + value"]));
+        });
+        super::super::compile("value + 1000").unwrap();
+        super::super::ENGINE.with(|slot| {
+            let slot = slot.borrow();
+            let code = &slot.as_ref().unwrap().code;
+            assert_eq!(
+                code.len(),
+                1,
+                "a new source must respect the fixed cache bound"
+            );
+            assert!(code.contains_key("value + 1000"));
+        });
+    }
+}
+
 pub(in crate::expressions) fn evaluate_linked(
     session: Rc<Session>,
     expression: &PropertyExpression,

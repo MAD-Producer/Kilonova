@@ -38,6 +38,9 @@ impl JsEngine {
             return Ok(());
         }
         let body = transpile(source)?;
+        // A full cache is still useful on a warm frame. Evict only when this
+        // new source needs a slot, before creating any compilation context.
+        if self.code.len() >= CACHE { *self = Self::new()?; }
         let module_source = format!(
             "export default function(){{\n{}\n{}\n}}",
             include_str!("helpers.js"),
@@ -195,7 +198,7 @@ fn with_engine<T>(f: impl FnOnce(&mut JsEngine) -> Result<T>) -> Result<T> {
         let mut slot = slot
             .try_borrow_mut()
             .map_err(|_| Error::Invalid("recursive expression evaluation".into()))?;
-        if slot.as_ref().is_none_or(|e| e.code.len() >= CACHE) {
+        if slot.is_none() {
             *slot = Some(JsEngine::new()?);
         }
         let engine = slot.as_mut().ok_or_else(|| {
