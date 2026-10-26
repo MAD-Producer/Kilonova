@@ -83,7 +83,7 @@ impl Changes {
             | Command::SetTrackMatte { object, .. }
             | Command::Vector { object, .. }
             | Command::Mask { object, .. } => *object,
-            Command::SetWorkingPrecision { .. } | Command::SetWorkArea { .. } | Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
+            Command::SetWorkingPrecision { .. } | Command::SetWorkArea { .. } | Command::SetGuides { .. } | Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
             Command::CameraMode { object, .. }
             | Command::CameraLens { object, .. }
