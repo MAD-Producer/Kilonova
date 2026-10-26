@@ -9,6 +9,7 @@ use winit::{
     platform::{pump_events::EventLoopExtPumpEvents, windows::EventLoopBuilderExtWindows},
     window::{Window, WindowId},
 };
+mod reference;
 
 fn main_draw(shell: &mut Shell, input: Input) -> (PaintList, Vec<Action>) {
     shell.input = input;
