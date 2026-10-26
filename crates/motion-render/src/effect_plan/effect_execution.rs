@@ -97,6 +97,8 @@ pub struct EffectOperationBinding {
     pub resource_tokens: Vec<i32>,
     pub lookup_tables: Vec<i32>,
     pub instance_data: Vec<u32>,
+    /// Imported numeric channels retain their resource-local texel contract.
+    pub imported_image: Option<PackageImageImport>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -127,6 +129,9 @@ impl EffectExecution {
     }
     pub fn bindings(&self) -> &[EffectOperationBinding] {
         &self.bindings
+    }
+    pub(crate) fn accepts_package_import(&self, import: &PackageImageImport) -> bool {
+        self.bindings.iter().any(|binding| binding.imported_image.as_ref() == Some(import))
     }
     pub fn snapshot_order(&self) -> &[usize] {
         &self.snapshots
@@ -399,6 +404,7 @@ fn lower(
             resource_tokens: vec![],
             lookup_tables: vec![],
             instance_data: vec![],
+            imported_image: None,
         });
         finals.push(id);
     }
@@ -440,6 +446,7 @@ fn lower(
                 resource_tokens: vec![],
                 lookup_tables: vec![],
                 instance_data: vec![],
+                imported_image: None,
             };
             for p in &frame.passes[at..end] {
                 for (value, values, absent) in [
@@ -574,6 +581,7 @@ fn lower(
             uniform_cells: motion_effects::MAX_PARAMS as u16,
         });
     }
+    super::resource_imports::lower_package_images(&mut nodes, &mut bindings, frame, programs, scene)?;
     for c in &frame.compositing {
         if c.matte >= 0 {
             let draw = c.matte as usize;

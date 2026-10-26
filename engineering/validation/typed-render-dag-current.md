@@ -13,7 +13,7 @@ was reviewed and no subagent was used.
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
 | 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Prepared sampled parameters, typed raw/effected/asset inputs and retained semantic region recipes drive native lowering; full producer/value/ROI ownership before transactional layout proposals remains open |
-| 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
+| 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded numeric defaults now supply real typed native imports; dynamic instance-data/LUT/mask imports remain open; depth producers belong to later work |
 | 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology now refuses cycles before CPU work; full typed outer image lowering still follows native proposals and external-import coverage remains incomplete |
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
@@ -894,3 +894,83 @@ group scheduling, end-to-end shader/compile/pass/frame/physical-peak measurement
 and final main-aligned integrated regression/cross-platform desktop CI remain
 open. Mask/generator preparation remains serial. Android implementation and
 acceptance remain excluded.
+
+
+## Checked package images and encoded numeric defaults
+
+Package resolution now retains image-resource dimensions, numeric meaning,
+resource-local coordinates, storage and explicit byte encoding before vector,
+mask or generator CPU preparation. Normal PNG channels are Data Vector4 /
+UNORM8 / Rgba8Unorm. A private numeric default uses that same byte-container
+image contract plus its LittleEndianF32 scalar-count declaration. Its shader
+explicitly reconstructs f32 bits; the image is not relabeled as Float32 color.
+Neither import silently acquires the project's working color space or alpha.
+
+The execution graph owns real source values and typed resource edges for actual
+package bindings. Repeated passes/effects share a source value with two real
+logical consumers in the new regression. Dynamic image/private overrides are
+alternatives to those package slots, not additional samples of package defaults.
+Source values add no fake draw passes. Native preparation requires a matching
+checked value before using package bindings, uses retained dimensions for pending
+admission, verifies decoded extent/storage, and allocates the declared format.
+No PNG header scan or file read was added to healthy per-frame polling.
+
+Three new library tests verify shared producer/lifetime edges, exact numeric and
+byte-container semantics, binding/format/extent refusal and recovery, and the
+original typed image-header cause with bounded package/path/phase context.
+The independently authored GPU fixture samples an asymmetric 3x2 numeric PNG or
+decodes a private f32 byte container, with two effects and all four working
+precisions. All eight cases match their independent reference and retain native
+pipelines on numeric updates. Source bytes remain UNORM8 for every working mode.
+An additional native companion verifies one actual application texture identity,
+descriptor and capacity per resource, and retention of that identity on numeric
+updates. These are application-owned allocation descriptors, not driver
+residency or physical-memory peak measurements.
+
+The first focused attempt failed the existing resource-index admission guard:
+the proposed port namespace started at 16 while the maximum resource index was
+15. It was corrected to the actual alternative group-2 slots 0..3. The limit and
+all existing assertions were retained. The earlier two-test focused source is
+historical; the final library scope includes the third header-cause test.
+
+| Targeted gate | Actual result |
+| --- | --- |
+| `render-imports` | 3 passed; zero failed/ignored |
+| `import-pixels` | 1 passed; zero failed/ignored |
+| `effects-library` | 32 passed; zero failed/ignored |
+| `desktop-check` | Passed |
+| `render-library` | 258 passed; zero failed/ignored |
+| `render-native` | 99 passed; zero failed/ignored |
+| `host-memory-policy` | 17 passed; zero failed/ignored |
+| `ir-default-output` | 1 passed; zero failed/ignored |
+| `private-numeric` | 1 passed; zero failed/ignored |
+| `private-precision` | 1 passed; zero failed/ignored |
+| `native-allocation-identity` | 1 passed; zero failed/ignored |
+
+These scopes contain 411 distinct parent tests. The focused
+three-test library filter is included in the complete render library and is not
+counted twice. The default worker gate still verifies six real typed failures,
+default file/Error-stderr output, stdout isolation, preserved pixels and recovery.
+The private-instance companion still verifies 16 numeric updates and eight
+reopen/isolation/undo cases across four precisions. Their existing assertions
+were unchanged; that regression does not claim new typed dynamic-instance edges.
+
+The broad gate froze 132 Rust/Cargo hashes. The final
+native-allocation companion freezes 133; every earlier
+hash is identical and its sole added source is the allocation-identity test.
+The archive verifies this exact addition, every retained source/log hash and
+the actual native receipts. No panels, styles, product interactions, dependencies,
+third-party assets or Android source were changed. The host's manual program
+fixture only supplies the new empty import field; none of its assertions changed.
+
+The [verified package-import checkpoint](data/typed-render-dag-package-imports-f06d7c79.zip)
+retains all attempts, actual logs, source snapshots, GPU receipts, controllers and
+the patch. Size: 3,264,220 bytes; 598 files plus manifest.
+SHA-256: `d0165b1667a7b7605cc169c95317556a08e1fa894a6e29b94c056ab4c5db0686`. Every archive entry was read back and hash-verified.
+
+This is targeted checkpoint acceptance. Full producer/value/ROI ownership before
+placement, dynamic instance-data/LUT/mask imports, affected-group scheduling,
+end-to-end shader/compile/pass/frame/admitted-peak measurements and G's final
+main-aligned integrated regression/cross-platform desktop CI remain unfinished.
+Mask/generator preparation remains serial. Android implementation and acceptance
+remain excluded. #78 is still open, followed by #74 and #87.

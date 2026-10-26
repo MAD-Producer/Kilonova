@@ -300,6 +300,7 @@ impl PlanBuilder {
                             shader: shader.clone(),
                             package: None,
                             resources: vec![],
+                            imports: Arc::default(),
                         });
                         self.fusion.reuses = self.fusion.reuses.saturating_add(1);
                         id
@@ -313,6 +314,7 @@ impl PlanBuilder {
                             shader: shader.clone(),
                             package: None,
                             resources: vec![],
+                            imports: Arc::default(),
                         };
                     }
                     if let Some(cause) = self.program_errors.get(&id) {
@@ -353,6 +355,7 @@ impl PlanBuilder {
                     shader: shader.clone(),
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 });
                 self.fusion.compiled.insert(
                     key,

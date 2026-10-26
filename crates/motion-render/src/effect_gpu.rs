@@ -439,14 +439,10 @@ impl GpuState {
             let program = &builder.programs[pass.program as usize];
             if self.resources.contains_key(&pass.program) { continue; }
             if let Some(package) = &program.package {
-                for path in &program.resources {
-                    let key = (package.hash.clone(), path.clone());
+                for import in program.imports.iter() {
+                    let key = (package.hash.clone(), import.path().to_owned());
                     if self.resource_textures.contains_key(&key) || !seen.insert(key) { continue; }
-                    if let Some(data) = package.files.get(path) {
-                        if let Ok(reader) = image::ImageReader::new(std::io::Cursor::new(data)).with_guessed_format() {
-                            if let Ok((w, h)) = reader.into_dimensions() { bytes += u64::from(w) * u64::from(h) * 4; }
-                        }
-                    }
+                    bytes += import.bytes();
                 }
             }
         }
@@ -464,6 +460,17 @@ impl GpuState {
     ) -> Result<(), RenderError> {
         self.failed_program = None;
         let frame = &builder.frame;
+        for pass in &frame.passes {
+            let program = builder.programs.get(pass.program as usize).ok_or("effect program is absent")?;
+            program.validate_imports()?;
+            if pass.resource_input == 0 && pass.instance_data == 0 {
+                for import in program.imports.iter() {
+                    if builder.effect_execution().is_none_or(|execution| !execution.accepts_package_import(import)) {
+                        return Err("phase=resource_import: native package image has no checked execution value".into());
+                    }
+                }
+            }
+        }
         if frame.passes.is_empty() {
             self.scratch_idle_frames = self.scratch_idle_frames.saturating_add(1);
             if self.scratch_idle_frames >= SCRATCH_IDLE_FRAME_LIMIT {
@@ -690,8 +697,9 @@ impl GpuState {
             if !self.resources.contains_key(&p.program) {
                 let program = &builder.programs[p.program as usize];
                 if let Some(package) = &program.package {
-                    for path in &program.resources {
-                        let key = (package.hash.clone(), path.clone());
+                    for import in program.imports.iter() {
+                        let path = import.path();
+                        let key = (package.hash.clone(), path.to_owned());
                         if !self.resource_textures.contains_key(&key) {
                             let rgba = crate::image_resources::decode_png_with_budget(
                                 &package.files[path], builder.memory_policy().decoded_image_budget_bytes,
@@ -701,6 +709,8 @@ impl GpuState {
                                     package.hash, path);
                                 error.with_diagnostic(message)
                             })?;
+                            import.validate_texture(rgba.width(), rgba.height(),
+                                motion_effects::image_contract::ImageStorage::Rgba8Unorm)?;
                             let bytes = u64::from(rgba.width()) * u64::from(rgba.height()) * 4;
                             if rgba.width() > device.limits().max_texture_dimension_2d
                                 || rgba.height() > device.limits().max_texture_dimension_2d
@@ -724,7 +734,7 @@ impl GpuState {
                                 &self.sampler,
                                 rgba.width(),
                                 rgba.height(),
-                                wgpu::TextureFormat::Rgba8Unorm,
+                                crate::image_formats::native_format(import.storage()),
                                 &self.allocation_budget,
                                 crate::TextureCategory::PluginResources,
                             ).map_err(|error| {

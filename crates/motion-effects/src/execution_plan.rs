@@ -54,6 +54,8 @@ pub struct PixelRect {
 pub enum CoordinateDomain {
     Layer { layer: u64 },
     Composition,
+    /// Texel coordinates of an imported resource, independent of any layer ROI.
+    Resource,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

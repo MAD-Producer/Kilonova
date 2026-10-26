@@ -26,6 +26,8 @@ mod runtime_template;
 mod cpu_prepare;
 pub use cpu_prepare::CpuPreparationInfo;
 mod preparation;
+mod resource_imports;
+pub use resource_imports::{PackageImageImport, ResourceEncoding};
 pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
@@ -108,6 +110,12 @@ pub struct EffectProgram {
     pub shader: Arc<shader::CompiledShader>,
     pub package: Option<Arc<EffectPackage>>,
     pub resources: Vec<String>,
+    pub imports: Arc<[PackageImageImport]>,
+}
+impl EffectProgram {
+    pub(crate) fn validate_imports(&self) -> Result<(), RenderError> {
+        resource_imports::validate_program(self)
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub struct EffectPass {
@@ -758,14 +766,16 @@ impl PlanBuilder {
                     shader: raster,
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 },
                 EffectProgram {
                     key: "sdk-convert".into(),
                     shader: convert,
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 },
-                EffectProgram {key:"sdk-mask-source".into(),shader:mask_source,package:None,resources:vec![]},
+                EffectProgram {key:"sdk-mask-source".into(),shader:mask_source,package:None,resources:vec![],imports:Arc::default()},
             ],
             resolved: Vec::new(),
             frame: EffectFramePlan::default(),
@@ -905,6 +915,7 @@ impl PlanBuilder {
                             .ok_or("saved parameter ID is missing".to_owned())
                     })
                     .collect::<Result<Vec<_>, _>>()?;
+                let imports = resource_imports::package_images(&package, &definition)?;
                 let mut programs = Vec::new();
                 for i in 0..definition.passes.len() {
                     let key = format!("{}:{}:{i}", package.hash, definition.id);
@@ -917,6 +928,7 @@ impl PlanBuilder {
                             shader,
                             package: Some(package.clone()),
                             resources: definition.resources.clone(),
+                            imports: imports.clone(),
                         });
                         self.programs.len() - 1
                     };

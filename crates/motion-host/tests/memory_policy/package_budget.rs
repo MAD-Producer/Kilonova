@@ -109,6 +109,7 @@ fn package_install_and_pixel_reads_follow_current_session_cpu_policy_without_aut
                 key: "test.host-package-budget".into(),
                 shader: Arc::new(package.shaders.values().next().unwrap().clone()),
                 resources: vec!["assets/pixels.png".into()],
+                imports: Arc::default(),
                 package: Some(package),
             });
         Ok(index as i32)
