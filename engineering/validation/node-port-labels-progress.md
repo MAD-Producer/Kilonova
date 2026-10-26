@@ -77,3 +77,12 @@
 | timeline 吸附引导颜色 | retained with reason | 不改颜色，未新增 token |
 
 [结构化结果](node-port-labels-results.json)；[原始证据](data/node-port-labels-f521593d.zip)，SHA-256 `4c4955a293636f7d50d973f4073eb2725b6ff8d8221f348277a72219f702c214`。合并前仍须新提交的五项非跳过 CI 成功。
+
+
+## F9 协议修复后的真实组合验证
+
+原 #502 的 Windows CI 继承了主分支 F9 验收夹具不兼容，仍记录为失败，PR 暂为草稿。另建独立工作树，把 main `4afb6cfc036393d3ec02062ae7a846a26403b1df`、#503 `d5d82b7e04d7432bb830a3083906f363ea779c4c` 和 #502 原 head `a9947e8ce401dad99f15d9126639c9e0709b5d03` 合并为 `c5e6d0b248f72ec1eb54e387a8cd6966919759c1`，树 `c24bada05e4b2825ace476a1f0355e8c419d3d1b`；无冲突，节点来源与 #502、原生验收来源与 #503 分别按 Git blob 逐文件核对一致（各次运行仍冻结并核对原始文件哈希，Windows 工作树换行可不同）。没有加入另一个高度复用改动。
+
+在该实际组合下，最终源码无探针，节点回归 164 项及原生协议/真实写入故障恢复 3 项全部通过，0 failed、0 ignored。中英文默认/最小窗口四个真实 GPU 属性场景全部通过，共 231.12 秒；采用独立 240 秒本地预算并沿用原尺寸、项目还原与扩大预览检查，不能替代原 40/90 秒完整脚本或 Linux 主分支原生验收。写入故障仍保留原原因、900×600 捕获恢复、项目/revision/历史及默认日志信道断言。
+
+组合证据：[data/node-port-labels-f9-integration-4afb6cfc.zip](data/node-port-labels-f9-integration-4afb6cfc.zip)，2096465 字节、77 项、SHA-256 `f77850e9a0affe763998c905c9dc6d9219ce153f562ef6935bf88641da118510`。结构化结果见 [node-port-labels-integration-results.json](node-port-labels-integration-results.json)。下一步先让 #503 按五项成功检查合入，确认实际主分支原生路径，再同步本 PR 并验证发布头的 CI；上述组合通过不表示原失败头的 CI 已经通过。
