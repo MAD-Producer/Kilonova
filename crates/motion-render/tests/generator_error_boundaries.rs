@@ -13,6 +13,7 @@ use std::{collections::HashMap, error::Error};
 
 fn effect() -> SampledEffect {
     SampledEffect {
+        shader_data: None,
         layer: 7,
         local_frame: 5.5,
         instance: 11,

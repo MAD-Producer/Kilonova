@@ -9,6 +9,10 @@ use std::collections::BTreeMap;
 
 const MAX_COMPILED_GROUPS: usize = 64;
 const MAX_REPORTED_GROUPS: usize = 128;
+const MAX_RETIRED_CODE_BYTES: usize = 8 << 20;
+
+#[cfg(test)]
+mod cache_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -48,12 +52,20 @@ pub struct FusionFrameReport {
     pub omitted_groups: usize,
     pub retained: BTreeMap<FusionRetainReason, u64>,
     pub portable_compiles: u64,
+    /// Successful portable-code reuse after program IDs were invalidated.
+    pub portable_reuses: u64,
     pub cache_entries: usize,
+    pub retired_cache_entries: usize,
+    /// Retained WGSL/GLSL/reflection UTF-8 bytes, excluding container overhead.
+    pub retired_code_bytes: usize,
+    pub retired_code_byte_limit: usize,
 }
 
 enum Compilation {
     Ready {
-        program: u32,
+        program: Option<u32>,
+        // Successful private compilation proof; a public program cannot mutate it.
+        shader: Arc<shader::CompiledShader>,
         metrics: PortableFusionMetrics,
     },
     Failed(Arc<RenderError>),
@@ -64,22 +76,74 @@ pub(super) struct FusionState {
     enabled: bool,
     compiled: BTreeMap<String, Compilation>,
     compiles: u64,
+    reuses: u64,
     report: FusionFrameReport,
     #[cfg(all(debug_assertions, feature = "gpu-tests"))]
     pub(super) invalid_source_once: bool,
 }
 impl FusionState {
     pub(super) fn reset_programs(&mut self) {
-        // Native program IDs are invalid after a registry replacement.
-        // Lifetime compile counters stay monotonic, just like native counters.
-        self.compiled.clear();
+        // IDs are registry-local; immutable successful code remains reusable.
+        // Failed compilations are retried only after this explicit invalidation.
+        let mut retained = 0;
+        self.compiled.retain(|_, entry| match entry {
+            Compilation::Ready {
+                program, shader, ..
+            } => {
+                let bytes = code_bytes(shader);
+                if bytes > MAX_RETIRED_CODE_BYTES - retained {
+                    return false;
+                }
+                retained += bytes;
+                *program = None;
+                true
+            }
+            Compilation::Failed(_) => false,
+        });
         self.report = FusionFrameReport::default();
     }
+
+    fn cache_report(&self, report: &mut FusionFrameReport) {
+        report.portable_compiles = self.compiles;
+        report.portable_reuses = self.reuses;
+        report.cache_entries = self.compiled.len();
+        report.retired_code_byte_limit = MAX_RETIRED_CODE_BYTES;
+        for entry in self.compiled.values() {
+            if let Compilation::Ready {
+                program: None,
+                shader,
+                ..
+            } = entry
+            {
+                report.retired_cache_entries += 1;
+                report.retired_code_bytes += code_bytes(shader);
+            }
+        }
+    }
+}
+
+fn code_bytes(shader: &shader::CompiledShader) -> usize {
+    shader.wgsl.len()
+        + shader.glsl.vertex.len()
+        + shader.glsl.fragment.len()
+        + shader.glsl.blocks.keys().map(String::len).sum::<usize>()
+        + shader.glsl.textures.keys().map(String::len).sum::<usize>()
 }
 
 struct Candidate {
     stage: PointwiseStage,
     namespace: StageNamespace,
+    scene_effect: usize,
+}
+
+fn copy_mapping(
+    mapping: &mut [std::ops::Range<usize>],
+    original: std::ops::Range<usize>,
+    start: usize,
+) {
+    for (offset, value) in mapping[original].iter_mut().enumerate() {
+        *value = start + offset..start + offset + 1;
+    }
 }
 
 fn traffic(passes: &[EffectPass], precision: ChannelPrecision) -> u64 {
@@ -208,6 +272,7 @@ impl PlanBuilder {
                 &b.uniform.params[..proof.parameters().len()],
             )?,
             namespace,
+            scene_effect: effect_index,
         }))
     }
 
@@ -216,19 +281,60 @@ impl PlanBuilder {
         chain: &PointwiseChain,
     ) -> Result<Option<(u32, PortableFusionMetrics)>, RenderError> {
         let key = chain.structure_key();
-        if let Some(cached) = self.fusion.compiled.get(&key) {
+        #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+        if self.fusion.invalid_source_once {
+            // Acceptance faults must reach the actual parser even on a hit.
+            self.fusion.compiled.remove(&key);
+        }
+        if let Some(cached) = self.fusion.compiled.get_mut(&key) {
             return match cached {
-                Compilation::Ready { program, metrics } => {
-                    if let Some(cause) = self.program_errors.get(program) {
+                Compilation::Ready {
+                    program,
+                    shader,
+                    metrics,
+                } => {
+                    let id = *program.get_or_insert_with(|| {
+                        let id = self.programs.len() as u32;
+                        self.programs.push(EffectProgram {
+                            key: key.clone(),
+                            shader: shader.clone(),
+                            package: None,
+                            resources: vec![],
+                            imports: Arc::default(),
+                        });
+                        self.fusion.reuses = self.fusion.reuses.saturating_add(1);
+                        id
+                    });
+                    // The successful private proof, rather than a caller's
+                    // replacement of the public program, authorizes this hit.
+                    let slot = &mut self.programs[id as usize];
+                    if !Arc::ptr_eq(&slot.shader, shader) {
+                        *slot = EffectProgram {
+                            key: key.clone(),
+                            shader: shader.clone(),
+                            package: None,
+                            resources: vec![],
+                            imports: Arc::default(),
+                        };
+                    }
+                    if let Some(cause) = self.program_errors.get(&id) {
                         return Err(RenderError::Invalid(cause.clone()));
                     }
-                    Ok(Some((*program, metrics.clone())))
+                    Ok(Some((id, metrics.clone())))
                 }
                 Compilation::Failed(error) => Err(RenderError::Shared(error.clone())),
             };
         }
         if self.fusion.compiled.len() >= MAX_COMPILED_GROUPS {
-            return Ok(None);
+            // Retired groups must not permanently exhaust the live-group limit.
+            let retired = self.fusion.compiled.iter().find_map(|(key, entry)| {
+                matches!(entry, Compilation::Ready { program: None, .. }).then(|| key.clone())
+            });
+            if let Some(retired) = retired {
+                self.fusion.compiled.remove(&retired);
+            } else {
+                return Ok(None);
+            }
         }
         let observation = crate::pointwise_observation::CompilePhase::start(
             "pointwise_compile",
@@ -243,16 +349,19 @@ impl PlanBuilder {
             Ok(fused) => {
                 let id = self.programs.len() as u32;
                 observation.done(fused.metrics.compiled_wgsl_bytes);
+                let shader = Arc::new(fused.compiled);
                 self.programs.push(EffectProgram {
                     key: key.clone(),
-                    shader: Arc::new(fused.compiled),
+                    shader: shader.clone(),
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 });
                 self.fusion.compiled.insert(
                     key,
                     Compilation::Ready {
-                        program: id,
+                        program: Some(id),
+                        shader,
                         metrics: fused.metrics.clone(),
                     },
                 );
@@ -293,34 +402,27 @@ impl PlanBuilder {
             enabled: self.fusion.enabled,
             original_passes: self.frame.passes.len(),
             original_texture_traffic_bytes: traffic(&self.frame.passes, self.precision),
-            portable_compiles: self.fusion.compiles,
-            cache_entries: self.fusion.compiled.len(),
             ..Default::default()
         };
         if !self.fusion.enabled {
             report.final_passes = report.original_passes;
             report.final_texture_traffic_bytes = report.original_texture_traffic_bytes;
+            self.fusion.cache_report(&mut report);
             self.fusion.report = report;
             return Ok(());
         }
+        // Complete local def/use validation precedes optimization and final
+        // physical placement. Semantic slot names alone cannot establish that
+        // eliminating intermediate images preserves all of their consumers.
+        let dependencies = scratch::logical_graph(&self.frame, None)?.grouping_dependencies();
         // A proved tail is local to one atomic draw. An arbitrary image-input
         // consumer or track matte can amplify its tolerated rounding error.
         // Source-stage readers bypass these effected outputs entirely.
-        let mut externally_read = vec![false; self.frame.draws.len()];
-        for pass in &self.frame.passes {
-            if pass.resource_input > 0 && pass.uniform.params[30][1] > 0.5 {
-                if let Some(read) = externally_read.get_mut((pass.resource_input - 1) as usize) {
-                    *read = true;
-                }
-            }
-        }
-        for composite in &self.frame.compositing {
-            if composite.matte >= 0 {
-                if let Some(read) = externally_read.get_mut(composite.matte as usize) {
-                    *read = true;
-                }
-            }
-        }
+        let externally_read = self
+            .effect_execution
+            .as_ref()
+            .map(|e| e.externally_read().to_vec())
+            .unwrap_or_else(|| vec![false; self.frame.draws.len()]);
         // Transfer blends may amplify source or backdrop errors. Adjustment
         // effects consume the accumulated backdrop without an explicit resource
         // edge. Neither consumer is covered by the initial pointwise proof.
@@ -336,6 +438,7 @@ impl PlanBuilder {
                 .any(|d| d.words[31] == 2. && d.pass_start < d.pass_end);
         let mut passes = Vec::with_capacity(self.frame.passes.len());
         let mut clocks = Vec::with_capacity(self.pass_clocks.len());
+        let mut mapping = vec![0..0; self.frame.passes.len()];
         for (index, _) in scene.effects.iter().enumerate().filter(|(_, e)| e.enabled) {
             if self.resolved[index]
                 .as_ref()
@@ -357,6 +460,7 @@ impl PlanBuilder {
                     FusionRetainReason::CompositingBoundary
                 };
                 *report.retained.entry(reason).or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -381,6 +485,7 @@ impl PlanBuilder {
                     .retained
                     .entry(FusionRetainReason::AlphaBoundary)
                     .or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -416,6 +521,7 @@ impl PlanBuilder {
                     .retained
                     .entry(FusionRetainReason::QuantizedTransferBoundary)
                     .or_default() += 1;
+                copy_mapping(&mut mapping, draw.pass_start..draw.pass_end, passes.len());
                 passes.extend_from_slice(&self.frame.passes[draw.pass_start..draw.pass_end]);
                 clocks.extend_from_slice(&self.pass_clocks[draw.pass_start..draw.pass_end]);
                 self.frame.draws[draw_index].pass_end = passes.len();
@@ -439,6 +545,7 @@ impl PlanBuilder {
                             .entry(FusionRetainReason::RuntimeBoundary)
                             .or_default() += 1;
                     }
+                    copy_mapping(&mut mapping, at..at + 1, passes.len());
                     passes.push(self.frame.passes[at]);
                     clocks.push(self.pass_clocks[at]);
                     at += 1;
@@ -456,6 +563,23 @@ impl PlanBuilder {
                         || self.frame.passes[end].uniform.output_mode[3]
                             != self.frame.passes[at].uniform.output_mode[3]
                     {
+                        break;
+                    }
+                    let members: Vec<_> = candidates
+                        .iter()
+                        .map(|c| c.scene_effect)
+                        .chain(std::iter::once(next.scene_effect))
+                        .collect();
+                    if !dependencies.is_closed_group(at..end + 3)
+                        || !self
+                            .effect_execution
+                            .as_ref()
+                            .is_some_and(|e| e.allows_group(&members))
+                    {
+                        *report
+                            .retained
+                            .entry(FusionRetainReason::ExternalConsumerBoundary)
+                            .or_default() += 1;
                         break;
                     }
                     candidates.push(next);
@@ -480,6 +604,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::SingleStage)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..at + 3, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..at + 3]);
                     clocks.extend_from_slice(&self.pass_clocks[at..at + 3]);
                     at += 3;
@@ -493,6 +618,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::DownstreamBoundary)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..end, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..end]);
                     clocks.extend_from_slice(&self.pass_clocks[at..end]);
                     at = end;
@@ -503,6 +629,7 @@ impl PlanBuilder {
                         .retained
                         .entry(FusionRetainReason::CacheLimit)
                         .or_default() += 1;
+                    copy_mapping(&mut mapping, at..end, passes.len());
                     passes.extend_from_slice(&self.frame.passes[at..end]);
                     clocks.extend_from_slice(&self.pass_clocks[at..end]);
                     at = end;
@@ -524,6 +651,7 @@ impl PlanBuilder {
                 fused.source = 4;
                 fused.output = 0;
                 fused.uniform.params = *chain.uniforms();
+                mapping[at..end].fill(passes.len()..passes.len() + 2);
                 passes.extend([copy, fused]);
                 clocks.extend([None, None]);
                 reserve_scratch(&mut self.frame.scratch_sizes, 4, copy.width, copy.height);
@@ -547,10 +675,18 @@ impl PlanBuilder {
         }
         report.final_passes = passes.len();
         report.final_texture_traffic_bytes = traffic(&passes, self.precision);
-        report.portable_compiles = self.fusion.compiles;
-        report.cache_entries = self.fusion.compiled.len();
+        self.fusion.cache_report(&mut report);
         self.frame.passes = passes;
         self.pass_clocks = clocks;
+        if let Some(execution) = &mut self.effect_execution {
+            let ranges: Vec<_> = self
+                .frame
+                .draws
+                .iter()
+                .map(|d| d.pass_start..d.pass_end)
+                .collect();
+            execution.lower_tasks(&mapping, &ranges)?;
+        }
         self.fusion.report = report;
         Ok(())
     }

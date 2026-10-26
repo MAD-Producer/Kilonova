@@ -36,6 +36,13 @@ struct InputResource {
     group: wgpu::BindGroup,
     _allocation: Option<crate::allocation_budget::AllocationLease>,
 }
+struct InstanceResource {
+    program: u32,
+    values: std::sync::Arc<motion_effects::shader_data::ShaderDataValues>,
+    // Bindings retire before the admitted backing texture.
+    group: wgpu::BindGroup,
+    texture: FxTexture,
+}
 struct Lut {
     view: wgpu::TextureView,
     texture: OwnedTexture,
@@ -58,10 +65,12 @@ pub(crate) struct GpuState {
     resources: HashMap<u32, wgpu::BindGroup>,
     bindings: Vec<Option<Binding>>,
     input_resources: Vec<Option<InputResource>>,
+    instance_resources: Vec<Option<InstanceResource>>,
     white: FxTexture,
     identity: Lut,
     luts: Vec<Lut>,
-    pipelines: HashMap<(u32, u32), wgpu::RenderPipeline>,
+    pipelines: HashMap<(u32, u32), pipeline_cache::Pipeline>,
+    previous_pipelines: pipeline_cache::PreviousPipelines,
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
@@ -85,6 +94,9 @@ const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 #[cfg(test)]
 mod fixed_admission_tests;
 mod curve_lut;
+mod instance_data;
+mod pipeline_cache;
+pub use pipeline_cache::EffectPipelineCacheInfo;
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -286,6 +298,7 @@ impl EffectGpu {
                 identity,
                 luts: Vec::new(),
                 pipelines: HashMap::new(),
+                previous_pipelines: Default::default(),
                 resources: HashMap::new(),
                 resource_textures: HashMap::new(),
                 resource_bytes: 0,
@@ -305,6 +318,7 @@ impl EffectGpu {
                 sprite_buffer: None,
                 bindings: Vec::new(),
                 input_resources: Vec::new(),
+                instance_resources: Vec::new(),
             },
         })
     }
@@ -316,7 +330,7 @@ impl EffectGpu {
             return;
         }
         self.builder.set_registry(r);
-        self.state.pipelines.clear();
+        self.state.retire_pipelines();
         self.state.resources.clear();
         self.state.resource_textures.clear();
         self.state.resource_bytes = 0;
@@ -356,10 +370,12 @@ impl GpuState {
         self.epoch += 1;
         self.bindings.clear();
         self.input_resources.clear();
+        self.instance_resources.clear();
     }
     pub fn release_scratch(&mut self) {
         self.sprite_buffer = None;
         let has_resources = !self.pool_allocations.is_empty()
+            || !self.instance_resources.is_empty()
             || self.pool.iter().any(Option::is_some)
             || !self.luts.is_empty()
             || !self.buffers.is_empty();
@@ -384,6 +400,11 @@ impl GpuState {
         for ((package, resource), texture) in &self.resource_textures {
             ledger.retained(&texture.texture, PluginResources, format!("effects/resource/{package}/{resource}"));
         }
+        for (index, resource) in self.instance_resources.iter().enumerate() {
+            if let Some(resource) = resource {
+                ledger.retained(&resource.texture.texture, PluginResources, format!("effects/instance-data/{index}"));
+            }
+        }
         for (i, texture) in self.pool.iter().enumerate() {
             if let Some(texture) = texture {
                 ledger.retained(&texture.texture, EffectScratch, format!("effects/pool/{i}"));
@@ -392,7 +413,7 @@ impl GpuState {
     }
     pub fn bytes(&self) -> u64 {
         self.scratch_bytes()
-            + self.resource_bytes
+            + self.resource_bytes()
             + self.luts.len() as u64 * 1024
     }
     pub fn scratch_bytes(&self) -> u64 {
@@ -418,18 +439,14 @@ impl GpuState {
             let program = &builder.programs[pass.program as usize];
             if self.resources.contains_key(&pass.program) { continue; }
             if let Some(package) = &program.package {
-                for path in &program.resources {
-                    let key = (package.hash.clone(), path.clone());
+                for import in program.imports.iter() {
+                    let key = (package.hash.clone(), import.path().to_owned());
                     if self.resource_textures.contains_key(&key) || !seen.insert(key) { continue; }
-                    if let Some(data) = package.files.get(path) {
-                        if let Ok(reader) = image::ImageReader::new(std::io::Cursor::new(data)).with_guessed_format() {
-                            if let Ok((w, h)) = reader.into_dimensions() { bytes += u64::from(w) * u64::from(h) * 4; }
-                        }
-                    }
+                    bytes += import.bytes();
                 }
             }
         }
-        bytes
+        bytes + self.pending_instance_bytes(&builder.frame)
     }
     pub fn prepare(
         &mut self,
@@ -443,6 +460,18 @@ impl GpuState {
     ) -> Result<(), RenderError> {
         self.failed_program = None;
         let frame = &builder.frame;
+        for pass in &frame.passes {
+            let program = builder.programs.get(pass.program as usize).ok_or("effect program is absent")?;
+            program.validate_imports()?;
+            if pass.resource_input == 0 {
+                for (slot, import) in program.imports.iter().enumerate() {
+                    if slot == 0 && pass.instance_data != 0 { continue; }
+                    if builder.effect_execution().is_none_or(|execution| !execution.accepts_package_import(import)) {
+                        return Err("phase=resource_import: native package image has no checked execution value".into());
+                    }
+                }
+            }
+        }
         if frame.passes.is_empty() {
             self.scratch_idle_frames = self.scratch_idle_frames.saturating_add(1);
             if self.scratch_idle_frames >= SCRATCH_IDLE_FRAME_LIMIT {
@@ -519,7 +548,7 @@ impl GpuState {
         // change when every slot can still be reused.
         self.pool_width = frame.width;
         self.pool_height = frame.height;
-        self.prepare_curves(device, queue, composite, frame.precision, scene)?;
+        self.prepare_curves(device, queue, composite, builder, scene)?;
         while self.buffers.len() < frame.passes.len() {
             let index = self.buffers.len();
             let buffer = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
@@ -543,6 +572,10 @@ impl GpuState {
         }
         self.bindings.resize_with(frame.passes.len(), || None);
         self.input_resources.resize_with(frame.passes.len(), || None);
+        self.instance_resources.resize_with(frame.passes.len(), || None);
+        for (index, pass) in frame.passes.iter().enumerate() {
+            if pass.instance_data == 0 { self.instance_resources[index] = None; }
+        }
         if !frame.sprites.is_empty() {
             self.upload_instances(device, queue, &frame.sprites)?;
         }
@@ -552,6 +585,12 @@ impl GpuState {
                 .ok_or("missing effect scratch descriptor")?.class.format;
             let target_kind = target as u32;
             let key = (p.program, target_kind);
+            let program = &builder.programs[p.program as usize];
+            #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+            let force_compile = program.key.starts_with("pointwise-v") && self.invalid_pointwise_source_once;
+            #[cfg(not(all(debug_assertions, feature = "gpu-tests")))]
+            let force_compile = false;
+            self.reuse_pipeline(key, &program.shader, force_compile);
             if !self.pipelines.contains_key(&key) {
                 let pipeline_began = std::time::Instant::now();
                 let program = &builder.programs[p.program as usize];
@@ -560,7 +599,9 @@ impl GpuState {
                 let observation = pointwise.then(|| crate::pointwise_observation::CompilePhase::start(
                     "pointwise_native_pipeline", &program.key, group.map(|g| g.object),
                     group.into_iter().flat_map(|g| g.effects.iter().copied()), Some(p.program), Some(target_kind)));
-                let source = program.shader.wgsl.clone();
+                let source = motion_effects::shader::native_output_wgsl(
+                    &program.shader, target.native() == wgpu::TextureFormat::Rgba16Float,
+                )?.into_owned();
                 #[cfg(all(debug_assertions, feature = "gpu-tests"))]
                 let source = if pointwise && std::mem::take(&mut self.invalid_pointwise_source_once) {
                     source + "\nfn pointwise_diagnostic_invalid( {"
@@ -651,7 +692,7 @@ impl GpuState {
                     return Err(error);
                 }
                 if let Some(observation) = observation { observation.done(program.shader.wgsl.len()); }
-                self.pipelines.insert(key, pipeline);
+                self.insert_pipeline(key, &program.shader, pipeline);
                 self.pipeline_builds += 1;
                 self.pipeline_build_nanos = self.pipeline_build_nanos.saturating_add(
                     pipeline_began.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64);
@@ -659,8 +700,9 @@ impl GpuState {
             if !self.resources.contains_key(&p.program) {
                 let program = &builder.programs[p.program as usize];
                 if let Some(package) = &program.package {
-                    for path in &program.resources {
-                        let key = (package.hash.clone(), path.clone());
+                    for import in program.imports.iter() {
+                        let path = import.path();
+                        let key = (package.hash.clone(), path.to_owned());
                         if !self.resource_textures.contains_key(&key) {
                             let rgba = crate::image_resources::decode_png_with_budget(
                                 &package.files[path], builder.memory_policy().decoded_image_budget_bytes,
@@ -670,6 +712,8 @@ impl GpuState {
                                     package.hash, path);
                                 error.with_diagnostic(message)
                             })?;
+                            import.validate_texture(rgba.width(), rgba.height(),
+                                motion_effects::image_contract::ImageStorage::Rgba8Unorm)?;
                             let bytes = u64::from(rgba.width()) * u64::from(rgba.height()) * 4;
                             if rgba.width() > device.limits().max_texture_dimension_2d
                                 || rgba.height() > device.limits().max_texture_dimension_2d
@@ -682,9 +726,9 @@ impl GpuState {
                                     message,
                                 });
                             }
-                            if asset_bytes + self.resource_bytes + bytes > source_budget {
+                            if asset_bytes + self.resource_bytes() + bytes > source_budget {
                                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                                    asset_bytes + self.resource_bytes + bytes, source_budget,
+                                    asset_bytes + self.resource_bytes() + bytes, source_budget,
                                     "images and effect resources exceed configured source texture budget"));
                             }
                             let t = admitted_texture(
@@ -693,7 +737,7 @@ impl GpuState {
                                 &self.sampler,
                                 rgba.width(),
                                 rgba.height(),
-                                wgpu::TextureFormat::Rgba8Unorm,
+                                crate::image_formats::native_format(import.storage()),
                                 &self.allocation_budget,
                                 crate::TextureCategory::PluginResources,
                             ).map_err(|error| {
@@ -739,6 +783,7 @@ impl GpuState {
                 });
                 self.resources.insert(p.program, group);
             }
+            self.prepare_instance_data(index, builder, device, queue, composite, asset_bytes, source_budget)?;
         }
         Ok(())
     }
@@ -759,6 +804,13 @@ impl GpuState {
             .get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} is out of range")))?;
         let source_key = if p.sprite {None} else {source_key};
+        if p.instance_data != 0 {
+            let resource = self.instance_resources.get(index).and_then(Option::as_ref)
+                .ok_or("instance shader data binding is missing")?;
+            // A later composition may replace this cache before submission.
+            // Keep every encoded use admitted until its GPU work completes.
+            self.allocation_uploads.track(resource.texture.texture.allocation())?;
+        }
         let physical = frame.scratch_bindings.get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} scratch binding is missing")))?;
         let external = if p.sprite {None} else {external};
@@ -997,7 +1049,7 @@ impl GpuState {
             occlusion_query_set: None,
         });
         pass.set_viewport(0.0, 0.0, p.width as f32, p.height as f32, 0.0, 1.0);
-        pass.set_pipeline(pipeline);
+        pass.set_pipeline(&pipeline.pipeline);
         pass.set_bind_group(0, &self.buffers[index].group, &[]);
         let binding = self
             .bindings
@@ -1005,7 +1057,10 @@ impl GpuState {
             .and_then(|binding| binding.as_ref())
             .ok_or_else(|| RenderError::Invalid(format!("effect binding {index} is missing")))?;
         pass.set_bind_group(1, &binding.group, &[]);
-        let resources = if p.resource_input != 0 {
+        let resources = if p.instance_data != 0 {
+            &self.instance_resources.get(index).and_then(Option::as_ref)
+                .ok_or("instance shader data binding is missing")?.group
+        } else if p.resource_input != 0 {
             &self
                 .input_resources
                 .get(index)

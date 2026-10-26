@@ -80,6 +80,24 @@ pub(crate) fn plane_projection(scene: &Scene, layer: &DrawLayer, overlay: bool) 
     if overlay { Mat4::from_scale(Vec3::new(2. / scene.width as f32, 2. / scene.height as f32, 1.)) }
     else { layer.view_projection }
 }
+/// Canonical UVs invert the logical composition projection in f64. Promoting
+/// the already-rounded f32 2/width coefficient instead would introduce a tiny
+/// scale even in an authored identity draw, blending adjacent high-contrast
+/// texels on full-precision consumers. Custom and camera projections retain
+/// their supplied matrix; the GPU draw ABI remains f32.
+pub(crate) fn plane_uv_projection(scene: &Scene, layer: &DrawLayer, overlay: bool) -> glam::DMat4 {
+    let projection = plane_projection(scene, layer, overlay);
+    let flat = Mat4::orthographic_rh(
+        -(scene.width as f32) * 0.5, scene.width as f32 * 0.5,
+        -(scene.height as f32) * 0.5, scene.height as f32 * 0.5, -1., 1.,
+    );
+    let mut precise = projection.as_dmat4();
+    if overlay || (!layer.three_d && projection == flat) {
+        precise.x_axis.x = 2. / f64::from(scene.width);
+        precise.y_axis.y = 2. / f64::from(scene.height);
+    }
+    precise
+}
 pub(crate) fn plane_size(scene: &Scene, layer: &DrawLayer, overlay: bool) -> [f32; 2] {
     if overlay { [scene.width as f32, scene.height as f32] } else { layer.size }
 }
@@ -272,6 +290,9 @@ impl Scene {
                 sampled.enabled = e.enabled;
                 sampled.seed = e.seed;
                 sampled.image_input = e.image_input;
+                if !match (&sampled.shader_data, &e.shader_data) {
+                    (Some(a),Some(b)) => std::sync::Arc::ptr_eq(a,b), (None,None) => true, _ => false,
+                } { sampled.shader_data = e.shader_data.clone(); }
                 sampled.scene = e.scene.clone();
                 sampled.lut = None;
                 sampled.particle_history_error = None;

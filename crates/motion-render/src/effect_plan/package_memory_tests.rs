@@ -14,6 +14,7 @@ fn actual_registry_and_program_package_owners_deduplicate_and_release_independen
         shader,
         package: Some(package.clone()),
         resources: Vec::new(),
+        imports: Arc::default(),
     });
     let observed = builder.package_memory_info();
     assert_eq!(observed.resources.len(), 1);

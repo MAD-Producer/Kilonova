@@ -2,6 +2,7 @@
 // cannot change its UV or edge derivatives through a different triangle's
 // interpolation rounding (particularly visible when unpremultiplying tiny alpha).
 struct PlaneCoordinates { uv:vec2<f32>, dx:vec2<f32>, dy:vec2<f32> };
+fn plane_pixel_grid()->vec2<f32> {return vec2(draw.screen_uv[0].w,draw.screen_uv[1].w);}
 fn plane_coordinates(p:vec4<f32>,uv:vec2<f32>,dx:vec2<f32>,dy:vec2<f32>)->PlaneCoordinates {
     if draw.screen_uv[2].w==0.0 {return PlaneCoordinates(uv,dx,dy);}
     let point=vec3(p.xy,1.0);

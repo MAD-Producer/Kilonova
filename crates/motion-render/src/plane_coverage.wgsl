@@ -20,6 +20,11 @@ fn plane_half_coverage(distance:f32, gradient:vec2<f32>)->f32 {
 }
 fn plane_coverage(uv:vec2<f32>,scale:vec2<f32>,uv_dx:vec2<f32>,uv_dy:vec2<f32>)->f32 {
     if !PLANE_ANTIALIAS {return 1.0;}
+    // CPU-proved integer rectangle edges cover entire physical pixels. Avoid
+    // subtracting nearly equal normalized UVs at the final row/column.
+    if all(plane_pixel_grid()>vec2(0.0)) {
+        return select(0.0,1.0,all(uv>=vec2(0.0))&&all(uv<=scale));
+    }
     let safe_scale=max(scale,vec2(1.0e-12));
     let p=uv/safe_scale;
     // Differentiate the incoming interpolator at the fragment entry point.

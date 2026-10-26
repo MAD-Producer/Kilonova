@@ -24,6 +24,63 @@ const MODES: [ChannelPrecision; 4] = [
     ChannelPrecision::Float32,
 ];
 
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn registry_code_revalidation_preserves_native_and_portable_fusion_in_four_precisions() {
+    let mut rows = vec![];
+    for precision in MODES {
+        let (mut project, pixels) = fixture(precision);
+        // Invert -> Tint is proved in every mode, including UNORM16.
+        project.layers[0].effects.reverse();
+        let mut r = renderer(precision);
+        r.upload_image(1, W, H, &pixels).unwrap();
+        r.set_pointwise_fusion(true);
+        let (before, _) = raw(&mut r, &project);
+        let native = r.effect_pipeline_builds();
+        let portable = r.pointwise_fusion_report().portable_compiles;
+        assert_eq!(portable, 1);
+        assert_eq!(r.pointwise_fusion_report().groups.len(), 1);
+        let mut registry = motion_effects::Registry::new_with_builtins().unwrap();
+        // Use independently parsed successful packages, not the pointer fast path.
+        for package in registry.packages.values_mut() {
+            *package = std::sync::Arc::new(
+                motion_effects::EffectPackage::from_bytes(package.bytes.clone()).unwrap(),
+            );
+        }
+        // Two updates before preparation must not erase the last prepared code.
+        r.set_effect_registry(registry.clone());
+        let key = registry.packages.keys().next().unwrap().clone();
+        registry.disabled.insert(key.clone());
+        r.set_effect_registry(registry.clone());
+        registry.disabled.remove(&key);
+        r.set_effect_registry(registry);
+        let (after, _) = raw(&mut r, &project);
+        assert_eq!(after, before);
+        assert_eq!(
+            r.effect_pipeline_builds(),
+            native,
+            "unchanged native fusion must survive program-ID reassignment"
+        );
+        let report = r.pointwise_fusion_report();
+        assert_eq!(report.portable_compiles, portable);
+        assert_eq!(report.portable_reuses, 1);
+        assert_eq!(report.groups.len(), 1);
+        assert!(report.retired_code_bytes <= report.retired_code_byte_limit);
+        let cache = r.effect_pipeline_cache_info();
+        assert!(cache.reuses > 0);
+        rows.push(json!({"precision":precision,"pixels_equal":true,
+            "new_native_builds":0,"new_portable_compiles":0,"fusion":report,"native_cache":cache}));
+    }
+    if let Some(out) = std::env::var_os("MOTION_EXECUTION_ARTIFACTS") {
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(
+            std::path::PathBuf::from(out).join("structural-fusion-reuse.json"),
+            serde_json::to_vec_pretty(&rows).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
 fn renderer(precision: ChannelPrecision) -> Renderer {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -417,7 +474,11 @@ fn actual_lifetimes_avoid_attachment_feedback_and_registry_replacement_retires_p
             );
             let report = builder.pointwise_fusion_report();
             assert_eq!(report.cache_entries, 1);
-            assert_eq!(report.portable_compiles, if replacement { 2 } else { 1 });
+            assert_eq!(
+                report.portable_compiles, 1,
+                "registry-local IDs may change without recompiling identical proved code"
+            );
+            assert_eq!(report.portable_reuses, u64::from(replacement));
             assert!(
                 builder.programs[report.groups[0].program as usize]
                     .key

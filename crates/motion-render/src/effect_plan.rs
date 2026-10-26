@@ -14,6 +14,23 @@ mod scratch_lifetimes;
 mod scratch;
 mod pointwise;
 pub use pointwise::{FusionFrameReport, FusionGroupReport, FusionRetainReason};
+mod execution;
+pub use execution::{native_execution_capabilities, native_snapshot_limits, SnapshotEncode, SnapshotExecution};
+mod effect_execution;
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+mod execution_fault;
+#[cfg(all(debug_assertions, feature = "gpu-tests"))]
+#[doc(hidden)]
+pub use execution_fault::ExecutionDiagnosticFault;
+mod runtime_template;
+mod cpu_prepare;
+pub use cpu_prepare::CpuPreparationInfo;
+mod preparation;
+mod resource_imports;
+mod frame_imports;
+pub use resource_imports::{PackageImageImport, ResourceEncoding};
+pub use frame_imports::{FrameImageImport, FrameImageSource, ImportedImage};
+pub use effect_execution::{EffectExecution, EffectOperationBinding, EffectNativeTask, ExecutionCodeCacheInfo, native_effect_limits};
 pub use scratch::{ScratchAllocation, ScratchBinding, ScratchClass, ScratchFormat, MAX_SCRATCH_PASSES, SCRATCH_RECORD_BYTES};
 #[cfg(test)]
 mod scratch_proposal_tests;
@@ -95,9 +112,18 @@ pub struct EffectProgram {
     pub shader: Arc<shader::CompiledShader>,
     pub package: Option<Arc<EffectPackage>>,
     pub resources: Vec<String>,
+    pub imports: Arc<[PackageImageImport]>,
+}
+impl EffectProgram {
+    pub(crate) fn validate_imports(&self) -> Result<(), RenderError> {
+        resource_imports::validate_program(self)
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub struct EffectPass {
+    /// Native per-instance resource override, index + 1 into the frame sidecar.
+    /// Zero uses immutable package defaults. Never serialized as packed v12.
+    pub instance_data: u32,
     /// v7 reuses non-sprite word 8: 0=package, >0=draw+1, <0=asset slot.
     pub resource_input: i32,
     pub program: u32,
@@ -121,6 +147,7 @@ pub struct PlannedDraw {
 }
 #[derive(Default, Debug)]
 pub struct EffectFramePlan {
+    pub instance_data: Vec<Arc<motion_effects::shader_data::ShaderDataValues>>,
     pub precision: ChannelPrecision,
     /// Canonical UV-to-clip homographies for native drawing. CPU-only metadata;
     /// deliberately excluded from the portable packed-plan ABI.
@@ -251,6 +278,9 @@ impl EffectFramePlan {
             + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
+        if self.passes.iter().any(|pass| pass.instance_data != 0) {
+            return Err("packed plan v12 cannot transport instance_shader_data textures; use a native consumer with instance_shader_data_v1".into());
+        }
         if self.precision != ChannelPrecision::Unorm8 && scene.curve_sources.len() != scene.curve_luts.len() {
             return Err(RenderError::Invalid(format!(
                 "packed high-precision curve sources={} do not match LUTs={}",
@@ -419,6 +449,7 @@ struct Resolved {
     mapping: Vec<usize>,
     error: Option<Arc<RenderError>>,
     pointwise: motion_effects::pointwise::Eligibility,
+    semantics: Option<Arc<preparation::DefinitionSemantics>>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScratchRejection {
@@ -469,11 +500,17 @@ pub struct PlanBuilder {
         ),
     >,
     mask_cache: crate::mask_plan::MaskCache,
+    cpu_preparation: CpuPreparationInfo,
     preview_inputs: Option<crate::effect_plan_cache::PreviewInputs>,
     pass_clocks: Vec<Option<usize>>,
     pub preview_cache_hits: u64,
     pub preview_plan_builds: u64,
     fusion: pointwise::FusionState,
+    effect_execution: Option<effect_execution::EffectExecution>,
+    semantic_frame: Option<preparation::SemanticFrame>,
+    code_identities: effect_execution::CodeIdentities,
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    execution_fault: Option<ExecutionDiagnosticFault>,
 }
 
 impl PlanBuilder {
@@ -732,14 +769,16 @@ impl PlanBuilder {
                     shader: raster,
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 },
                 EffectProgram {
                     key: "sdk-convert".into(),
                     shader: convert,
                     package: None,
                     resources: vec![],
+                    imports: Arc::default(),
                 },
-                EffectProgram {key:"sdk-mask-source".into(),shader:mask_source,package:None,resources:vec![]},
+                EffectProgram {key:"sdk-mask-source".into(),shader:mask_source,package:None,resources:vec![],imports:Arc::default()},
             ],
             resolved: Vec::new(),
             frame: EffectFramePlan::default(),
@@ -754,6 +793,7 @@ impl PlanBuilder {
             generator_scratch: Default::default(),
             vector_cache: Default::default(),
             mask_cache: Default::default(),
+            cpu_preparation: CpuPreparationInfo { worker_limit: cpu_prepare::default_worker_limit(), ..Default::default() },
             scratch_budget: motion_effects::SCRATCH_BUDGET_FLOOR,
             source_texture_budget: crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET,
             decoded_image_budget: crate::resource_policy::DEFAULT_DECODED_IMAGE_BUDGET,
@@ -764,6 +804,11 @@ impl PlanBuilder {
             preview_cache_hits: 0,
             preview_plan_builds: 0,
             fusion: pointwise::FusionState::default(),
+            effect_execution: None,
+            semantic_frame: None,
+            code_identities: Default::default(),
+            #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+            execution_fault: None,
         })
     }
     pub(crate) fn enable_plane_coverage(&mut self) {
@@ -778,6 +823,8 @@ impl PlanBuilder {
         self.program_errors.clear();
         self.programs.truncate(3);
         self.fusion.reset_programs();
+        self.effect_execution = None;
+        self.code_identities.clear();
         self.frame = EffectFramePlan::default();
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
@@ -872,6 +919,7 @@ impl PlanBuilder {
                             .ok_or("saved parameter ID is missing".to_owned())
                     })
                     .collect::<Result<Vec<_>, _>>()?;
+                let imports = resource_imports::package_images(&package, &definition)?;
                 let mut programs = Vec::new();
                 for i in 0..definition.passes.len() {
                     let key = format!("{}:{}:{i}", package.hash, definition.id);
@@ -884,6 +932,7 @@ impl PlanBuilder {
                             shader,
                             package: Some(package.clone()),
                             resources: definition.resources.clone(),
+                            imports: imports.clone(),
                         });
                         self.programs.len() - 1
                     };
@@ -892,6 +941,7 @@ impl PlanBuilder {
                 let pointwise = motion_effects::pointwise::prove_builtin(&package, &definition)?;
                 Ok(Resolved {
                     signature: signature.clone(),
+                    semantics: Some(Arc::new(preparation::DefinitionSemantics::new(&definition)?)),
                     definition,
                     programs,
                     mapping,
@@ -907,6 +957,7 @@ impl PlanBuilder {
                     programs: vec![],
                     mapping: vec![],
                     error: Some(Arc::new(err)),
+                    semantics: None,
                     pointwise: motion_effects::pointwise::Eligibility::Retain(
                         motion_effects::pointwise::RetainReason::UnsupportedBoundary),
                 },
@@ -1038,6 +1089,10 @@ impl PlanBuilder {
     ) -> Result<&EffectFramePlan, RenderError> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
+        self.effect_execution = None;
+        self.semantic_frame = None;
+        self.cpu_preparation = CpuPreparationInfo { worker_limit: self.cpu_preparation.worker_limit, ..Default::default() };
+        preparation::validate_scene(scene)?;
         self.synchronize(scene)?;
         self.frame.precision = self.precision;
         self.frame.scratch_budget = self.scratch_budget;
@@ -1053,7 +1108,6 @@ impl PlanBuilder {
         self.frame.scratch_outputs.clear();
         self.frame.draws.clear();
         self.frame.vectors.clear();
-        let mut vector_remaining = crate::vector_mesh::MAX_TRIANGLE_VERTICES;
         self.vector_cache.retain(|id, _| {
             scene
                 .layers
@@ -1062,6 +1116,7 @@ impl PlanBuilder {
         });
         self.overlays.clear();
         self.frame.passes.clear();
+        self.frame.instance_data.clear();
         self.pass_clocks.clear();
         self.frame.diagnostics.clear();
         if !scene.effects.iter().any(|e| e.enabled) {
@@ -1124,6 +1179,9 @@ impl PlanBuilder {
             .min(height as f32 / scene.height as f32)
             .min(1.0)
             .max(0.001);
+        let layer_scales = self.layer_scales(scene, [width, height], scale, preview);
+        let mut preparation = self.prepare_effect_inputs(scene, assets)?;
+        let mut semantic = preparation.semantic_frame(scene, &self.resolved, self.precision, &layer_scales, materialize)?;
         let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
             [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.frame.masks=self.mask_cache.build(scene,scale,preview)?;
@@ -1135,175 +1193,51 @@ impl PlanBuilder {
                 return Err(RenderError::Resource { rejection, message: format!("layer {}, mask {}: raster exceeds device dimensions",scene.layers[mask.layer].id,mask.id) });
             }
         }
-        let post_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled&&scene.layers.iter().any(|l|l.id==e.layer))
-            .filter_map(|e| match e.image_input {Some(motion_model::EffectImageInput::Layer{layer,stage:motion_model::EffectImageStage::Effects})=>Some(layer),_=>None})
-            .chain(scene.layers.iter().filter_map(|l|l.track_matte.map(|m|m.source)))
-            .chain(materialize.iter().copied()).collect();
-        let image_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled)
-            .filter_map(|e|e.image_input.and_then(motion_model::EffectImageInput::layer)).collect();
+        self.prepare_vectors(scene, [width, height], &layer_scales)?;
         for (layer_index, layer) in scene.layers.iter().enumerate() {
-            let scale = if preview && !layer.adjustment && !layer.composition && !image_sources.contains(&layer.id)
-                && !scene.effects.iter().enumerate().any(|(i, e)| {
-                    e.layer == layer.id && e.enabled && self.resolved[i].as_ref().is_some_and(|r| {
-                        r.definition.renderer != motion_effects::RendererKind::Image
-                    })
-                })
-            {
-                crate::quality::preview_layer_scale(layer, scene.width, scene.height, scale)
-            } else {
-                scale
-            };
-            let image_effects_only = !layer.adjustment && !layer.composition
-                && scene.effects.iter().enumerate().filter(|(_, e)| e.layer == layer.id && e.enabled)
-                    .all(|(i, _)| self.resolved[i].as_ref().is_some_and(|r|
-                        r.definition.renderer == motion_effects::RendererKind::Image));
-            let scale = if image_effects_only && scene.effects.iter().any(|e|e.layer==layer.id&&e.enabled) {
-                crate::quality::magnified_effect_scale(layer, [viewport_width, viewport_height], scale)
-            } else { scale };
-            if let Some(vector) = &layer.vector {
-                let scale = crate::raster_density::vector_scale(layer, width, height, scale)?;
-                let dirty = self
-                    .vector_cache
-                    .get(&layer.id)
-                    .is_none_or(|(v, s, r, mesh)| v != vector || *s != layer.size || *r != scale
-                        || mesh.origin != [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
-                            layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5]);
-                if dirty {
-                    let origin = [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
-                        layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5];
-                    let (w, h) = (
-                        (layer.size[0] * scale).ceil() as u32,
-                        (layer.size[1] * scale).ceil() as u32,
-                    );
-                    if w > self.device_dimension || h > self.device_dimension {
-                        let rejection = ResourceRejection::TextureDimensions { width: w, height: h, max_dimension: self.device_dimension };
-                        self.last_resource_rejection = Some(rejection);
-                        return Err(RenderError::Resource { rejection, message: format!(
-                            "layer {}: vector raster exceeds device dimensions",
-                            layer.id
-                        ) });
-                    }
-                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|cause| {
-                            let message = format!("layer {}, vector rasterize at frame {}: {cause}", layer.id, scene.frame);
-                            RenderError::from(cause).with_diagnostic(message)
-                        })?;
-                    use std::hash::{Hash, Hasher};
-                    let mut hash = std::collections::hash_map::DefaultHasher::new();
-                    bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);
-                    bytemuck::cast_slice::<_, u8>(&geometry.commands).hash(&mut hash);
-                    geometry.root_opacity.to_bits().hash(&mut hash);
-                    w.hash(&mut hash);
-                    h.hash(&mut hash);
-                    let mesh = crate::vector_mesh::VectorMesh {
-                        layer: layer_index,
-                        width: w,
-                        height: h,
-                        fingerprint: hash.finish(),
-                        vertices: Arc::new(geometry.vertices),
-                        commands: Arc::new(geometry.commands),
-                        root_opacity: geometry.root_opacity,
-                        origin,
-                    };
-                    self.vector_cache
-                        .insert(layer.id, (vector.clone(), layer.size, scale, mesh));
-                }
-                let mut mesh = self.vector_cache[&layer.id].3.clone();
-                vector_remaining = vector_remaining.checked_sub(mesh.vertices.len())
-                    .ok_or("frame vector vertex limit exceeded (262144)")?;
-                mesh.layer = layer_index;
-                self.frame.vectors.push(mesh);
-            }
+            let scale = layer_scales[layer_index];
             let asset = assets
                 .iter()
                 .position(|id| *id == layer.asset.unwrap_or(0))
                 .ok_or("image asset is not loaded")?;
             let pass_start = self.frame.passes.len();
-            let source_size = if layer.adjustment {
-                [scene.width as f32, scene.height as f32]
-            } else {
-                layer.source_size
-            };
-            let mut region = if layer.adjustment {
-                [0.0, 0.0, source_size[0], source_size[1]]
-            } else {
-                layer.source_rect
-            };
+            let source_size = semantic.layers[layer_index].source_size;
+            let mut region = semantic.region(semantic.layers[layer_index].source)?;
             let mut materialized = false;
             let mut overlay = false;
             let mut additive = false;
-            let has_image_effect=scene.effects.iter().enumerate().any(|(i,e)|e.layer==layer.id&&e.enabled&&self.resolved[i].as_ref().is_some_and(|r|r.definition.renderer==motion_effects::RendererKind::Image));
-            let starts_with_generator=scene.effects.iter().enumerate().find(|(_,e)|e.layer==layer.id&&e.enabled)
-                .is_some_and(|(i,_)|self.resolved[i].as_ref().is_some_and(|r|r.definition.renderer!=motion_effects::RendererKind::Image));
-            if !layer.masks.is_empty() && has_image_effect && !starts_with_generator {
+            if let Some(node) = semantic.layers[layer_index].mask {
+                let begin = self.frame.passes.len();
                 let w=(region[2]*scale).ceil().max(1.) as u32;let h=(region[3]*scale).ceil().max(1.) as u32;
                 reserve_scratch(&mut self.frame.scratch_sizes,0,w,h);
                 let mut u=crate::mask_plan::uniform(w,h);
                 u.size=[region[2],region[3],w as f32,h as f32];u.region=region;u.input_region=region;u.source_region=region;
                 u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
-                self.frame.passes.push(EffectPass {resource_input:0,program:2,input:-(asset as i32)-1,source:crate::mask_plan::SOURCE_TOKEN-layer_index as i32,
+                self.frame.passes.push(EffectPass {instance_data:0,resource_input:0,program:2,input:-(asset as i32)-1,source:crate::mask_plan::SOURCE_TOKEN-layer_index as i32,
                     output:0,width:w,height:h,lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
                 self.pass_clocks.push(None);
                 self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
+                semantic.admit(node, begin..self.frame.passes.len(), region, [w, h])?;
             }
-            for (index, e) in scene
-                .effects
-                .iter()
-                .enumerate()
-                .filter(|(_, e)| e.layer == layer.id && e.enabled)
-            {
+            for offset in 0..semantic.layers[layer_index].effects.len() {
+                let node = semantic.layers[layer_index].effects[offset];
+                let index = semantic.nodes[node].effect.ok_or("semantic effect origin is absent")?;
+                region = semantic.region(semantic.nodes[node].input.ok_or("semantic effect input is absent")?)?;
+                let e = &scene.effects[index];
                 let clock_start = self.frame.passes.len();
+                let data_start = self.frame.instance_data.len();
                 let sprite_start = self.frame.sprites.len();
                 let generator_stats = self.frame.generator_stats;
                 let original_region = region;
                 self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
+                let has_runtime_template = resolved.definition.execution.is_some();
                 let result = (|| -> Result<(), RenderError> {
-                    if let Some(err) = &resolved.error {
-                        return Err(RenderError::Shared(err.clone()));
-                    }
-                    for id in &resolved.programs {
-                        if let Some(error) = self.program_errors.get(id) {
-                            return Err(RenderError::Invalid(error.clone()));
-                        }
-                    }
+                    let prepared = preparation.inputs[index].take()
+                        .ok_or("effect preparation input is absent")??;
+                    let (params, resource_input) = prepared.native_uniforms();
                     let def = &resolved.definition;
-                    if layer.adjustment && def.renderer != motion_effects::RendererKind::Image {
-                        return Err("adjustment layers support image effects only".into());
-                    }
-                    let mut params = [[0.0; 4]; 32];
-                    for (i, p) in def.params.iter().enumerate() {
-                        let v = e.values[resolved.mapping[i]];
-                        if !p.kind.valid_value(&v, p.min, p.max) {
-                            return Err(format!("parameter {} exceeds plugin range", p.id).into());
-                        }
-                        if !p.implemented && v != p.default {
-                            return Err(format!("AE parameter {} is not implemented", p.id).into());
-                        }
-                        params[i] = v;
-                    }
-                    let mut resource_input=0;
-                    if let Some(input)=e.image_input {
-                        if !def.required_capabilities.iter().any(|c|c=="image_input") {
-                            return Err("effect does not accept an image input".into());
-                        }
-                        match input {
-                            motion_model::EffectImageInput::Asset { asset } => {
-                                let slot=assets.iter().position(|id|*id==asset).ok_or("effect image asset is not loaded")?;
-                                resource_input=-(slot as i32)-1;params[30][0]=3.;
-                            }
-                            motion_model::EffectImageInput::Layer { layer: source, stage } => {
-                                if let Some((index,l))=scene.layers.iter().enumerate().find(|(_,l)|l.id==source) {
-                                    resource_input=index as i32+1;
-                                    params[30]=[1.,0.,0.,if l.vector.is_some()||l.composition {1.}else{0.}];
-                                    params[31]=[linear(l.color[0]),linear(l.color[1]),linear(l.color[2]),l.color[3]];
-                                    if stage==motion_model::EffectImageStage::Effects {params[30][1]=1.;params[30][3]=1.;params[31]=[1.;4];}
-                                } else {params[30][0]=2.;}
-                            }
-                            motion_model::EffectImageInput::Empty => params[30][0]=2.,
-                        }
-                    }
                     // The SDK wrapper mixes the final result with the original input.
                     // Zero opacity is an exact identity: avoid all conversions, padding,
                     // and shader passes while retaining dependency/parameter validation.
@@ -1348,11 +1282,12 @@ impl PlanBuilder {
                         self.frame.generator_stats.visible += stats.visible;
                         self.frame.generator_stats.culled += stats.culled;
                         self.frame.generator_stats.births_sampled += stats.births_sampled;
-                        region = [0., 0., scene.width as f32, scene.height as f32];
+                        region = semantic.output_region(node)?;
                         let sprite_asset = if let Some(image) = e.scene.as_ref().and_then(|s| s.sprite_asset) {
                             assets.iter().position(|id| *id == image).ok_or_else(||format!("particle sprite image {image} is not loaded"))?
                         } else {asset};
                         self.frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program: resolved.programs[0],
                             input: -(sprite_asset as i32) - 1,
@@ -1388,6 +1323,7 @@ impl PlanBuilder {
                         let mut conversion = self.frame.passes.last().unwrap().uniform;
                         conversion.output_mode = [0., 0., 1., scale];
                         self.frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program: 1,
                             input: 7,
@@ -1412,43 +1348,20 @@ impl PlanBuilder {
                         additive = def.blend == motion_effects::SpriteBlend::Additive;
                         return Ok(());
                     }
-                    let lookup = |id: &str, component: usize| {
-                        let i = e.param_ids.iter().position(|p| p == id)?;
-                        e.values[i].get(component).copied()
-                    };
-                    let next = if let Some(rect) = &def.output_bounds {
-                        rect.evaluate_with(lookup, region)
-                            .map_err(RenderError::from)?
-                    } else {
-                        let pad = def
-                            .padding
-                            .evaluate_with(lookup, region)
-                            .map_err(RenderError::from)?;
-                        if pad < 0.0 {
-                            return Err("negative output padding".into());
-                        }
-                        [
-                            region[0] - pad,
-                            region[1] - pad,
-                            region[2] + 2.0 * pad,
-                            region[3] + 2.0 * pad,
-                        ]
-                    };
-                    let work = if def.working_space == WorkingSpace::Srgb {
-                        1
-                    } else {
-                        4
-                    };
-                    // SDK 3 rectangle shaders convert their final output directly into slot 0.
-                    // Preserve the published SDK 1/2 execution paths and quantization.
-                    let direct_output = def.output_bounds.is_some();
+                    let next = semantic.output_region(node)?;
+                    let work = prepared.working_slot();
+                    let direct_output = prepared.direct_output();
+                    let runtime = runtime_template::schedule(def, &resolved.programs, &self.programs,
+                        &mut self.code_identities, &scene.composition_id, layer.id, e.instance, self.precision,
+                        [(region[2] * scale).ceil() as u32, (region[3] * scale).ceil() as u32],
+                        [(next[2] * scale).ceil() as u32, (next[3] * scale).ceil() as u32], work, direct_output)?;
                     let intermediate_passes = resolved.programs.len() - usize::from(direct_output);
                     let work_slots = match intermediate_passes {
                         0 => 1,
                         1 => 3,
                         _ => 7,
                     };
-                    let slots = self.frame.slots | 1 | (work_slots << work);
+                    let slots = self.frame.slots | 1 | runtime.as_ref().map_or(work_slots << work, |r| r.slots);
                     let w = ((next[2] * scale).ceil() as u32).max(self.frame.width);
                     let h = ((next[3] * scale).ceil() as u32).max(self.frame.height);
                     let mut sizes = self.frame.scratch_sizes;
@@ -1464,6 +1377,16 @@ impl PlanBuilder {
                         (region[2] * scale).ceil() as u32,
                         (region[3] * scale).ceil() as u32,
                     );
+                    if let Some(runtime) = &runtime {
+                        for pass in &runtime.passes {
+                            // Virtual names are not legacy counterfactual slot
+                            // maxima. Actual descriptors and byte admission are
+                            // derived below from every native pass's lifetime.
+                            if pass.output as usize >= sizes.len() { continue; }
+                            reserve_scratch(&mut sizes, pass.output as usize,
+                                (next[2] * scale).ceil() as u32, (next[3] * scale).ceil() as u32);
+                        }
+                    } else {
                     for i in 0..intermediate_passes {
                         reserve_scratch(
                             &mut sizes,
@@ -1472,35 +1395,10 @@ impl PlanBuilder {
                             (next[3] * scale).ceil() as u32,
                         );
                     }
-                    Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
-                    let working = [
-                        if def.working_space == WorkingSpace::Srgb {
-                            1.0
-                        } else {
-                            0.0
-                        },
-                        if def.alpha_mode == AlphaMode::Straight {
-                            1.0
-                        } else {
-                            0.0
-                        },
-                    ];
-                    let mut edge = match def.edge_mode {
-                        EdgeMode::Transparent => 0.0,
-                        EdgeMode::Clamp => 1.0,
-                        EdgeMode::Repeat => 2.0,
-                        EdgeMode::Mirror => 3.0,
-                    };
-                    if let Some(id) = &def.edge_param {
-                        let i = e
-                            .param_ids
-                            .iter()
-                            .position(|p| p == id)
-                            .ok_or("unknown edge parameter")?;
-                        edge = if def.params[i].kind == motion_effects::ParamKind::Enum {
-                            e.values[i][0]
-                        } else if e.values[i][0] > 0.5 { 1.0 } else { 0.0 };
                     }
+                    Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
+                    let working = prepared.working();
+                    let edge = prepared.edge();
                     let uniform = |out: [f32; 4], input: [f32; 4], source: [f32; 4], pass: f32| {
                         EffectUniform {
                             size: [
@@ -1531,6 +1429,7 @@ impl PlanBuilder {
                                 u: EffectUniform,
                                 lut: i32| {
                         frame.passes.push(EffectPass {
+                            instance_data: 0,
                             resource_input: 0,
                             program,
                             input,
@@ -1570,6 +1469,27 @@ impl PlanBuilder {
                     let source_region = region;
                     let mut input = work as i32;
                     let mut input_region = region;
+                    let instance_data = if let Some(values) = e.shader_data.as_ref().filter(|v| !v.texture.is_empty()) {
+                        self.frame.instance_data.push(values.clone());
+                        self.frame.instance_data.len() as u32
+                    } else { 0 };
+                    if let Some(runtime) = &runtime {
+                        for (i, pass) in runtime.passes.iter().enumerate() {
+                            let mut u = uniform(next,
+                                if pass.input_import { region } else { next },
+                                if pass.source_import { region } else { next }, pass.pass as f32);
+                            if pass.output == 0 { u.output_mode[0] = 0.; u.output_mode[1] = 0.; }
+                            if i + 1 == runtime.passes.len() {
+                                u.output_mode[2] = prepared.opacity();
+                            }
+                            push(&mut self.frame, pass.program, pass.input, pass.source, pass.output,
+                                u, e.lut.map_or(-1, |v| v as i32));
+                            let native = self.frame.passes.last_mut().unwrap();
+                            native.resource_input = resource_input;
+                            native.instance_data = instance_data;
+                            input = pass.output as i32;
+                        }
+                    } else {
                     for (i, program) in resolved.programs.iter().enumerate() {
                         let final_direct = direct_output && i + 1 == resolved.programs.len();
                         let output = if final_direct {
@@ -1583,11 +1503,7 @@ impl PlanBuilder {
                             u.output_mode[1] = 0.;
                         }
                         if i + 1 == resolved.programs.len() {
-                            u.output_mode[2] = def
-                                .params
-                                .iter()
-                                .position(|p| p.id == "effect_opacity")
-                                .map_or(1.0, |i| params[i][0] / 100.0);
+                            u.output_mode[2] = prepared.opacity();
                         }
                         push(
                             &mut self.frame,
@@ -1598,9 +1514,12 @@ impl PlanBuilder {
                             u,
                             e.lut.map_or(-1, |v| v as i32),
                         );
-                        self.frame.passes.last_mut().unwrap().resource_input=resource_input;
+                        let pass = self.frame.passes.last_mut().unwrap();
+                        pass.resource_input = resource_input;
+                        pass.instance_data = instance_data;
                         input = output as i32;
                         input_region = next;
+                    }
                     }
                     if !direct_output {
                         let mut u = uniform(next, next, source_region, 0.0);
@@ -1619,6 +1538,7 @@ impl PlanBuilder {
                 })();
                 if let Err(err) = result {
                     self.frame.passes.truncate(clock_start);
+                    self.frame.instance_data.truncate(data_start);
                     self.frame.sprites.truncate(sprite_start);
                     self.frame.generator_stats = generator_stats;
                     region = original_region;
@@ -1626,7 +1546,7 @@ impl PlanBuilder {
                         "layer {}, effect {} ({}): {}",
                         layer.id, e.instance, e.effect, err.planning_message()
                     );
-                    if strict || guarded {
+                    if strict || guarded || runtime_template::requires_refusal(&err, has_runtime_template) {
                         return Err(err.with_diagnostic(message));
                     }
                     self.frame.diagnostics.push(message);
@@ -1635,8 +1555,12 @@ impl PlanBuilder {
                 } else {
                     self.pass_clocks.extend(std::iter::repeat_n(Some(index), self.frame.passes.len() - clock_start));
                 }
+                let size = self.frame.passes.get(clock_start..).and_then(|p| p.last())
+                    .map_or([1; 2], |p| [p.width, p.height]);
+                semantic.admit(node, clock_start..self.frame.passes.len(), region, size)?;
             }
-            if post_sources.contains(&layer.id)&&!materialized {
+            let materialize_start = self.frame.passes.len();
+            if semantic.layers[layer_index].materialize.is_some() && !materialized {
                 // A retained continuous vector must preserve its projected
                 // raster density instead of downsampling through a native utility pass.
                 let local_scale = if materialize.contains(&layer.id) && layer.vector.is_some() {
@@ -1649,13 +1573,21 @@ impl PlanBuilder {
                 u.region=region;u.input_region=region;u.source_region=region;u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,local_scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
                 let masked=!layer.masks.is_empty();
-                self.frame.passes.push(EffectPass {resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
+                self.frame.passes.push(EffectPass {instance_data:0,resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
                     source:if masked{crate::mask_plan::SOURCE_TOKEN-layer_index as i32}else{-(asset as i32)-1},output:0,width:w,height:h,
                     lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
                 Self::check_placed_scratch(&self.frame, Some(pass_start..self.frame.passes.len()),
                     self.frame.scratch_sizes, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                 self.pass_clocks.push(None);self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
             }
+            if let Some(node) = semantic.layers[layer_index].materialize {
+                let size = self.frame.passes.get(materialize_start..).and_then(|p| p.last())
+                    .map_or([1; 2], |p| [p.width, p.height]);
+                semantic.admit(node, materialize_start..self.frame.passes.len(), region, size)?;
+            }
+            let source_scale = self.frame.passes.get(pass_start..).and_then(|p| p.first())
+                .map_or(1., |p| p.uniform.output_mode[3]);
+            semantic.refine_source_grid(layer_index, source_scale)?;
             let mut words = [0.0; 32];
             self.overlays.push(overlay);
             let mvp = crate::scene::plane_projection(scene, layer, overlay);
@@ -1712,6 +1644,8 @@ impl PlanBuilder {
                 pass_end: self.frame.passes.len(),
             });
         }
+        self.semantic_frame = Some(semantic);
+        self.lower_effect_execution(scene, materialize)?;
         self.fuse_pointwise(scene)?;
         let layout = if self.frame.passes.is_empty() { scratch::layout(&self.frame, None)? }
             else { Self::check_placed_scratch(&self.frame, None, self.frame.scratch_sizes,

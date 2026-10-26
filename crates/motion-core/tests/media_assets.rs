@@ -209,6 +209,7 @@ fn effect_image_input_blocks_deletion_even_without_an_image_layer() {
         image_input: Some(motion_core::EffectImageInput::Asset { asset: 8 }),
         scene: None,
         node_graph: None,
+        shader_data: None,
     });
     project.rebuild_plugin_dependencies();
     let target = AssetRef {

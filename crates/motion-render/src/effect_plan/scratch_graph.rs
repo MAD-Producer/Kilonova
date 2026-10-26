@@ -45,6 +45,66 @@ pub(crate) struct Graph<K> {
     pub draw_outputs: Vec<Option<usize>>,
 }
 
+/// Bounded, allocation-independent use information for optimization admission.
+/// This is not a pointwise equivalence proof; those proofs remain mandatory.
+pub(crate) struct GroupingDependencies {
+    outputs: Vec<usize>,
+    uses: Vec<GroupUse>,
+}
+
+#[derive(Default)]
+struct GroupUse {
+    writes: usize,
+    last_reader: Option<usize>,
+    terminal: bool,
+}
+
+impl<K> Graph<K> {
+    pub fn grouping_dependencies(&self) -> GroupingDependencies {
+        let mut uses: Vec<_> = (0..self.resources.len())
+            .map(|_| GroupUse::default())
+            .collect();
+        for (index, pass) in self.passes.iter().enumerate() {
+            uses[pass.output].writes += 1;
+            for input in [pass.input, pass.source] {
+                if let Input::Resource(id) = input {
+                    // Two ports reading the same value are one consuming
+                    // operation, not a branch to two independent consumers.
+                    uses[id].last_reader = Some(index);
+                }
+            }
+        }
+        for &id in self.draw_outputs.iter().flatten() {
+            uses[id].terminal = true;
+        }
+        GroupingDependencies {
+            outputs: self.passes.iter().map(|p| p.output).collect(),
+            uses,
+        }
+    }
+}
+
+impl GroupingDependencies {
+    /// A replacement may expose only the last value. Every other value it
+    /// removes must be consumed inside the group. Terminal snapshot/composition
+    /// uses and preserved attachments are explicit boundaries. Imported values
+    /// and the final value may have other readers; the separate shader proof
+    /// must establish that their meaning and quantization remain unchanged.
+    pub fn is_closed_group(&self, range: Range<usize>) -> bool {
+        let Some(outputs) = self.outputs.get(range.clone()).filter(|v| !v.is_empty()) else {
+            return false;
+        };
+        let final_value = outputs[outputs.len() - 1];
+        outputs.iter().all(|&id| {
+            let value = &self.uses[id];
+            value.writes == 1
+                && (id == final_value
+                    || (!value.terminal
+                        && value.last_reader.is_none_or(|reader| reader < range.end)))
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum GraphError {
     ResourceLimit { required: usize, maximum: usize },
@@ -214,7 +274,7 @@ pub(crate) fn build<K: Clone + Eq>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::scratch_lifetimes::{place, Limits};
+    use super::super::scratch_lifetimes::{Limits, place};
     use super::*;
 
     fn pass(input: i32, source: i32, output: usize) -> Pass<u8> {
@@ -250,6 +310,58 @@ mod tests {
         assert_eq!(graph.resources[1].last_use, 2);
         let placement = place(&graph.resources, limits()).unwrap();
         assert_ne!(placement.assignments[0], placement.assignments[1]);
+    }
+
+    #[test]
+    fn grouping_retains_an_intermediate_read_by_a_later_branch() {
+        let graph = build(
+            &[pass(-1, -1, 0), pass(0, 0, 1), pass(1, 0, 2), pass(2, 1, 3)],
+            &[0..4],
+            8,
+            1024,
+        )
+        .unwrap();
+        let dependencies = graph.grouping_dependencies();
+        // The source port of pass 3 still needs the intermediate value from 1.
+        assert!(!dependencies.is_closed_group(1..3));
+        assert!(dependencies.is_closed_group(1..4));
+        // Imported values may have additional consumers outside the group.
+        assert!(dependencies.is_closed_group(2..4));
+    }
+
+    #[test]
+    fn grouping_uses_value_identity_and_does_not_count_duplicate_ports_as_branches() {
+        let graph = build(
+            &[pass(-1, -1, 0), pass(0, 0, 0), pass(0, 0, 0)],
+            &[0..3],
+            8,
+            1024,
+        )
+        .unwrap();
+        assert_ne!(graph.passes[0].output, graph.passes[1].output);
+        let dependencies = graph.grouping_dependencies();
+        // Reusing slot 0 does not keep the earlier SSA value live, and both
+        // ports of the next pass are a single consuming operation.
+        assert!(dependencies.is_closed_group(0..2));
+        assert!(dependencies.is_closed_group(0..3));
+        assert!(!dependencies.is_closed_group(1..1));
+        assert!(!dependencies.is_closed_group(0..4));
+    }
+
+    #[test]
+    fn grouping_cannot_remove_a_terminal_snapshot_or_preserved_attachment() {
+        let graph = build(&[pass(-1, -1, 0), pass(-1, -1, 0)], &[0..1, 1..2], 8, 1024).unwrap();
+        let dependencies = graph.grouping_dependencies();
+        assert!(!dependencies.is_closed_group(0..2));
+        assert!(dependencies.is_closed_group(0..1));
+        assert!(dependencies.is_closed_group(1..2));
+
+        let mut preserve = pass(-1, -1, 0);
+        preserve.load = Load::Preserve;
+        let graph = build(&[pass(-1, -1, 0), preserve], &[0..2], 8, 1024).unwrap();
+        let dependencies = graph.grouping_dependencies();
+        assert!(!dependencies.is_closed_group(0..2));
+        assert!(!dependencies.is_closed_group(1..2));
     }
 
     #[test]

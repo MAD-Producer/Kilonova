@@ -100,6 +100,7 @@ fn same_compilation(a: &CompiledShader, b: &CompiledShader) -> bool {
         && a.sprite == b.sprite
         && a.additive == b.additive
         && a.loop_work == b.loop_work
+        && a.samples_per_fragment == b.samples_per_fragment
 }
 
 /// A changed built-in implementation must be proved again. Frozen source hashes

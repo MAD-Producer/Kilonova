@@ -4,6 +4,7 @@ use super::*;
 use motion_core::{EffectInstance, ExpressionEvaluator, Layer, Project};
 use motion_render::{Renderer, Scene};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 
 const TARGET: &str = "motion_render::pointwise_compile";
 fn fixture() -> (Project, Scene) {
@@ -44,8 +45,22 @@ fn fixture() -> (Project, Scene) {
 
 #[test]
 fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries() {
+    compiler_failure_acceptance(
+        false,
+        "logging::pointwise_compile_tests::compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries",
+    );
+}
+
+#[test]
+fn warm_compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries() {
+    compiler_failure_acceptance(
+        true,
+        "logging::pointwise_compile_tests::warm_compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries",
+    );
+}
+
+fn compiler_failure_acceptance(warm: bool, test: &str) {
     const CHILD: &str = "MOTION_POINTWISE_FILE_CHILD";
-    const TEST: &str = "logging::pointwise_compile_tests::compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries";
     if let Some(root) = std::env::var_os(CHILD) {
         assert!(std::env::var_os("MOTION_LOG").is_none());
         let root = PathBuf::from(root);
@@ -59,12 +74,26 @@ fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries(
         let mode = std::env::var("MOTION_POINTWISE_FILE_MODE").unwrap();
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
         renderer.set_pointwise_fusion(true);
+        let target = renderer.render_target(32, 32).unwrap();
+        if warm {
+            let capture = renderer.capture_target(32, 32).unwrap();
+            let pixels = renderer.capture(&scene, &capture).unwrap().0;
+            assert!(pixels.chunks_exact(4).any(|p| p[3] != 0));
+            assert_eq!(renderer.pointwise_fusion_report().portable_compiles, 1);
+            let mut registry = motion_effects::Registry::new_with_builtins().unwrap();
+            for package in registry.packages.values_mut() {
+                *package = Arc::new(
+                    motion_effects::EffectPackage::from_bytes(package.bytes.clone()).unwrap(),
+                );
+            }
+            renderer.set_effect_registry(registry);
+            assert!(renderer.effect_pipeline_cache_info().previous_entries > 0);
+        }
         if mode == "portable" {
             renderer.debug_inject_pointwise_portable_failure();
         } else {
             renderer.debug_inject_pointwise_native_failure();
         }
-        let target = renderer.render_target(32, 32).unwrap();
         let log_path = root.join("logs/motion-studio.log");
         flush();
         let initial = fs::read_to_string(&log_path).unwrap();
@@ -136,6 +165,11 @@ fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries(
     let temporary = tempfile::tempdir().unwrap();
     let artifact = std::env::var_os("MOTION_POINTWISE_FILE_ARTIFACTS").map(PathBuf::from);
     let base = artifact.as_deref().unwrap_or(temporary.path());
+    let base = if warm {
+        base.join("warm-cache")
+    } else {
+        base.to_owned()
+    };
     for mode in ["portable", "native"] {
         let root = base.join(mode);
         assert!(!root.exists(), "acceptance output must be new");
@@ -143,7 +177,7 @@ fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries(
         let stdout = root.join("stdout.txt");
         let stderr = root.join("stderr.txt");
         let mut child = Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", TEST, "--nocapture"])
+            .args(["--exact", test, "--nocapture"])
             .env(CHILD, &root)
             .env("MOTION_POINTWISE_FILE_MODE", mode)
             .env_remove("MOTION_LOG")
@@ -194,14 +228,14 @@ fn compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries(
                     |l| l.contains(TARGET) && l.contains("operation=pointwise_compile phase=start")
                 )
                 .count(),
-            2
+            if warm && mode == "portable" { 3 } else { 2 }
         );
         assert_eq!(
             file.lines()
                 .filter(|l| l.contains(TARGET)
                     && l.contains("operation=pointwise_native_pipeline phase=start"))
                 .count(),
-            if mode == "portable" { 1 } else { 2 }
+            (if mode == "portable" { 1 } else { 2 }) + usize::from(warm)
         );
     }
 }
