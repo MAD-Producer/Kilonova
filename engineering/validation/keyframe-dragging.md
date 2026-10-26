@@ -62,6 +62,8 @@ cargo test -p motion-desktop --features ffmpeg --bin motion-studio native_key_dr
 7. 首轮远端 Linux 桌面测试 1050 过／1 失败：`default_binding_reference_matches_live_resolver` 发现四个新增 Alt 方向键绑定未同步到默认键位参考表。按 `CONTRIBUTING.md` 使用真实解析器重新生成目录，保留完整 CI 失败日志，未改解析器或测试断言；本地重新生成及关闭更新开关后的精确核对均通过。后续 CI 仍须验证新提交。
 8. 第二轮 run `40204941132` 的 Rust/GPU、Linux、macOS Intel 已通过；Windows 1087 过／1 失败，新增的 `screenshot_write_failure_restores_minimum_surface_and_preserves_project` 未走到写文件便返回 F9 无改动。真实原因是旧截图夹具没有 `document_generation`，被既有关键帧来源校验正确拒绝；夹具还未支持新的 `EditorAction`。补齐完整身份，检查来源后执行同一原子命令，不改产品校验和原测试断言。修正后本地真实 Windows/GPU 测试通过，保留原始 `Access is denied. (os error 5)`、900×600 表面恢复、完整工程／修订／历史不变及默认日志双信道验证。首轮本地编译因另一项正在运行的面板回归占用测试 exe，发生 LNK1104；等该进程结束后重新编译通过，没有终止测试或生产线程。原 CI、链接失败和最终成功原件见 [CI 后续证据](keyframe-dragging-ci-followup.zip)。最新远端提交仍须单独验证。
 
+9. run `40257727451` 对提交 `356692fb` 的依赖、Rust/GPU、Linux、Windows、macOS Intel 均通过。主分支随后合入 #503，同一截图适配器出现重复修正冲突；在 `bb0ebc8b` 沿用主分支的集中夹具状态及受来源保护动作实现，保留本分支的失败记录。同步后实际运行协议回归两项和真实 Windows/GPU 写文件失败回归一项，3 项通过，原断言不变；原始日志及可执行文件哈希追加于 CI 后续证据包。同步后的远端 CI 待当前提交验证。
+
 ## DESIGN.md §0.7／§12 的处置
 
 复查了当前文件与旧审计位置：`path_controls.rs`／`effect_controls.rs` 已因后续功能拆分和 token 化发生位移，旧行号不能当作当前原样缺陷。本轮未改这些属性控件，不将既有实现算作本轮修复，也不宣称完成整份设计验收。
