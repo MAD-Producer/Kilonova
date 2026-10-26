@@ -439,6 +439,7 @@ struct Resolved {
     mapping: Vec<usize>,
     error: Option<Arc<RenderError>>,
     pointwise: motion_effects::pointwise::Eligibility,
+    semantics: Option<Arc<preparation::DefinitionSemantics>>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScratchRejection {
@@ -924,6 +925,7 @@ impl PlanBuilder {
                 let pointwise = motion_effects::pointwise::prove_builtin(&package, &definition)?;
                 Ok(Resolved {
                     signature: signature.clone(),
+                    semantics: Some(Arc::new(preparation::DefinitionSemantics::new(&definition)?)),
                     definition,
                     programs,
                     mapping,
@@ -939,6 +941,7 @@ impl PlanBuilder {
                     programs: vec![],
                     mapping: vec![],
                     error: Some(Arc::new(err)),
+                    semantics: None,
                     pointwise: motion_effects::pointwise::Eligibility::Retain(
                         motion_effects::pointwise::RetainReason::UnsupportedBoundary),
                 },
@@ -1336,36 +1339,9 @@ impl PlanBuilder {
                         additive = def.blend == motion_effects::SpriteBlend::Additive;
                         return Ok(());
                     }
-                    let lookup = |id: &str, component: usize| {
-                        let i = e.param_ids.iter().position(|p| p == id)?;
-                        e.values[i].get(component).copied()
-                    };
-                    let next = if let Some(rect) = &def.output_bounds {
-                        rect.evaluate_with(lookup, region)
-                            .map_err(RenderError::from)?
-                    } else {
-                        let pad = def
-                            .padding
-                            .evaluate_with(lookup, region)
-                            .map_err(RenderError::from)?;
-                        if pad < 0.0 {
-                            return Err("negative output padding".into());
-                        }
-                        [
-                            region[0] - pad,
-                            region[1] - pad,
-                            region[2] + 2.0 * pad,
-                            region[3] + 2.0 * pad,
-                        ]
-                    };
-                    let work = if def.working_space == WorkingSpace::Srgb {
-                        1
-                    } else {
-                        4
-                    };
-                    // SDK 3 rectangle shaders convert their final output directly into slot 0.
-                    // Preserve the published SDK 1/2 execution paths and quantization.
-                    let direct_output = def.output_bounds.is_some();
+                    let next = prepared.output_region(region)?;
+                    let work = prepared.working_slot();
+                    let direct_output = prepared.direct_output();
                     let runtime = runtime_template::schedule(def, &resolved.programs, &self.programs,
                         &mut self.code_identities, &scene.composition_id, layer.id, e.instance, self.precision,
                         [(region[2] * scale).ceil() as u32, (region[3] * scale).ceil() as u32],
@@ -1408,34 +1384,8 @@ impl PlanBuilder {
                     }
                     }
                     Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
-                    let working = [
-                        if def.working_space == WorkingSpace::Srgb {
-                            1.0
-                        } else {
-                            0.0
-                        },
-                        if def.alpha_mode == AlphaMode::Straight {
-                            1.0
-                        } else {
-                            0.0
-                        },
-                    ];
-                    let mut edge = match def.edge_mode {
-                        EdgeMode::Transparent => 0.0,
-                        EdgeMode::Clamp => 1.0,
-                        EdgeMode::Repeat => 2.0,
-                        EdgeMode::Mirror => 3.0,
-                    };
-                    if let Some(id) = &def.edge_param {
-                        let i = e
-                            .param_ids
-                            .iter()
-                            .position(|p| p == id)
-                            .ok_or("unknown edge parameter")?;
-                        edge = if def.params[i].kind == motion_effects::ParamKind::Enum {
-                            e.values[i][0]
-                        } else if e.values[i][0] > 0.5 { 1.0 } else { 0.0 };
-                    }
+                    let working = prepared.working();
+                    let edge = prepared.edge();
                     let uniform = |out: [f32; 4], input: [f32; 4], source: [f32; 4], pass: f32| {
                         EffectUniform {
                             size: [
@@ -1517,8 +1467,7 @@ impl PlanBuilder {
                                 if pass.source_import { region } else { next }, pass.pass as f32);
                             if pass.output == 0 { u.output_mode[0] = 0.; u.output_mode[1] = 0.; }
                             if i + 1 == runtime.passes.len() {
-                                u.output_mode[2] = def.params.iter().position(|p| p.id == "effect_opacity")
-                                    .map_or(1., |i| params[i][0] / 100.);
+                                u.output_mode[2] = prepared.opacity();
                             }
                             push(&mut self.frame, pass.program, pass.input, pass.source, pass.output,
                                 u, e.lut.map_or(-1, |v| v as i32));
@@ -1541,11 +1490,7 @@ impl PlanBuilder {
                             u.output_mode[1] = 0.;
                         }
                         if i + 1 == resolved.programs.len() {
-                            u.output_mode[2] = def
-                                .params
-                                .iter()
-                                .position(|p| p.id == "effect_opacity")
-                                .map_or(1.0, |i| params[i][0] / 100.0);
+                            u.output_mode[2] = prepared.opacity();
                         }
                         push(
                             &mut self.frame,

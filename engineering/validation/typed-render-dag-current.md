@@ -12,7 +12,7 @@ was reviewed and no subagent was used.
 
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
-| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Sampled parameters and typed raw/effected/asset inputs now precede CPU preparation and are consumed by native lowering; complete producer/value/ROI ownership before transactional layout proposals remains open |
+| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Prepared sampled parameters, typed raw/effected/asset inputs and retained semantic region recipes drive native lowering; full producer/value/ROI ownership before transactional layout proposals remains open |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Actual non-color/depth producers belong to later work; metadata is not a producer |
 | 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology now refuses cycles before CPU work; full typed outer image lowering still follows native proposals and external-import coverage remains incomplete |
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
@@ -808,3 +808,89 @@ Remaining work includes full semantic producer/value/ROI ownership and external
 imports, measured end-to-end shader/compile/pass/frame/physical peak costs, and G
 full integrated regression/cross-platform desktop CI on the aligned final tree.
 Android implementation and acceptance remain excluded.
+
+
+## Retained semantic region rules and parameter identity
+
+Resolved effects now retain immutable output-region expressions, indexed
+parameter identities, working-space/alpha semantics, edge selection and opacity
+selection. Prepared effects bind frozen definition-ordered numeric values to
+those rules. Actual native lowering consumes the prepared rules rather than
+rescanning sampled authoring arrays for each field. Numeric rebuilds retain the
+same per-resolved-effect Arc and native program/code identities. This is not a
+global semantic cache or a complete initial producer/value graph.
+
+Region expressions are evaluated against the actual previously admitted input.
+If preview bypasses an oversized effect, the next effect uses the unchanged
+input extent. Padding, explicit output rectangles, input origins/sizes, vector
+parameter components and negative-padding errors preserve their existing
+contracts. Region evaluation still occurs at transactional native admission;
+this milestone does not claim complete pre-placement ROI ownership.
+
+Separately, this fixes an existing functional bug: edge selection looked up an
+index in sorted sampled parameter IDs, then used it to index the definition's
+declared parameter order. For glow-like definitions this interpreted Enum
+Repeat/Mirror as a Boolean and selected Clamp. Edge selection now uses parameter
+identity and definition order throughout. Restoring only the legacy resolver
+made the unchanged new uniform regression fail with Mirror 3 becoming Clamp 1.
+It also made the unchanged actual GPU pixel oracle fail for Repeat with an
+error of 219 sRGB storage codes. Green source and fixture hashes were verified
+after restoration.
+
+Six new library tests cover actual native flags/opacity/regions, reuse on numeric
+rebuild, frozen values, accepted-input refinement after preview bypass, exact
+negative-padding cause and explicit rectangle/vector-component evaluation.
+An additional real GPU integration test uses independently authored ramp/offset
+shaders and an integer-coordinate oracle for Clamp/Repeat/Mirror. All pixels
+are checked within one sRGB storage code; decoded linear error is also retained.
+All three modes use eight actual draw calls and the same four native pipeline
+builds. Strict preflight rejects an invalid edge value without replacing prior
+target pixels, and the same renderer recovers the original Clamp bytes without
+recompilation. Interactive per-effect bypass remains unchanged.
+
+Retained failed fixture attempts are not acceptance: the first library attempt
+expected an unprefixed Display string; pixel v1 used a renderer format that did
+not match the typed sRGB target; v2 confused linear-light units with sRGB storage
+codes; v3 expected interactive draw to perform strict preflight. Only newly
+authored fixtures were corrected. No previously committed assertion, skip,
+production refusal policy or pixel bound was changed to pass these gates.
+
+| Targeted gate | Actual result |
+| --- | --- |
+| `render-semantics` | 12 passed; zero failed/ignored |
+| `render-ir` | 8 passed; zero failed/ignored |
+| `desktop-check` | Passed |
+| `render-library` | 255 passed; zero failed/ignored |
+| `render-native` | 98 passed; zero failed/ignored |
+| `ir-default-output` | 1 passed; zero failed/ignored |
+| `private-numeric` | 1 passed; zero failed/ignored |
+| `private-precision` | 1 passed; zero failed/ignored |
+| `edge-pixels` | 1 passed; zero failed/ignored |
+
+These scopes contain 357 distinct parent tests. The focused
+semantic/preparation and earlier IR tests are subsets of the complete library
+scope and are not counted twice. The private four-precision companion includes
+16 numeric updates and eight reopen/instance-isolation/undo cases. The default
+worker gate retains six real typed fault/recovery episodes, file and Error
+stderr output at the default level, stdout isolation, preserved pixels and no
+new native pipelines.
+
+The broad gate froze 125 Rust/Cargo source hashes.
+The companion freezes 126: every earlier hash is identical,
+and the only added source is `crates/motion-render/tests/semantic_edge_modes.rs`,
+which the companion compiles and runs. The archive verifies this exact set
+difference; it does not ignore arbitrary test/source changes. No panels, styles,
+UI interactions, dependencies, assets or Android files were changed.
+
+The [verified semantic-region checkpoint](data/typed-render-dag-semantic-regions-39e17aa3.zip)
+retains every failed/successful attempt, source snapshots, actual logs, GPU
+receipts, controllers, legacy restoration proofs and the patch. Size:
+12,314,938 bytes; 1223 files plus manifest. SHA-256:
+`ed06d849714c91202225f82d511fbefb8dc3621fd0c0e8c91abc9f1b04cee25c`. Every archive entry was read back and hash-verified.
+
+This is targeted checkpoint acceptance, not G or issue closure. Full semantic
+producer/value ownership, typed package PNG/LUT/mask/private imports, affected-
+group scheduling, end-to-end shader/compile/pass/frame/physical-peak measurements
+and final main-aligned integrated regression/cross-platform desktop CI remain
+open. Mask/generator preparation remains serial. Android implementation and
+acceptance remain excluded.

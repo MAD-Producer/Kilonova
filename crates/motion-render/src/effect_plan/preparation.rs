@@ -5,8 +5,10 @@ use super::*;
 use motion_effects::execution_plan::{ExecutionNodeId, ExecutionPlanError, MAX_EXECUTION_NODES};
 use motion_model::{EffectImageInput, EffectImageStage};
 use std::collections::BTreeSet;
+mod semantics;
+pub(crate) use semantics::DefinitionSemantics;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(super) enum PreparedImage {
     None,
     Empty,
@@ -26,10 +28,11 @@ pub(super) struct PreparedEffect {
     params: [[f32; 4]; 32],
     image: PreparedImage,
     consumes_image: bool,
+    semantics: Arc<DefinitionSemantics>,
 }
 
 impl PreparedEffect {
-    pub(super) fn native_uniforms(self) -> ([[f32; 4]; 32], i32) {
+    pub(super) fn native_uniforms(&self) -> ([[f32; 4]; 32], i32) {
         let mut params = self.params;
         let resource = match self.image {
             PreparedImage::None => 0,
@@ -189,6 +192,10 @@ impl PlanBuilder {
             params,
             image,
             consumes_image: def.renderer == motion_effects::RendererKind::Image,
+            semantics: resolved
+                .semantics
+                .clone()
+                .ok_or("resolved effect semantics are absent")?,
         })
     }
 }
