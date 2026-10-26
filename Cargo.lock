@@ -2202,6 +2202,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "motion-scene"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "glam",
+ "log",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "motion-ui"
 version = "0.1.0"
 dependencies = [
