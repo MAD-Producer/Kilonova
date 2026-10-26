@@ -1,11 +1,13 @@
 //! Persisted package templates must drive native work, not just report a DAG.
 use motion_core::{EffectInstance, ExpressionEvaluator, Layer, Project};
 use motion_effects::execution_template::{
-    EXECUTION_TEMPLATE_CAPABILITY, ExecutionTemplate, TemplateError, TemplateNode, TemplateValue,
+    ExecutionTemplate, TemplateNode, TemplateValue, EXECUTION_TEMPLATE_CAPABILITY,
 };
 use motion_effects::image_contract::{ChannelPrecision, ImageContract, ImageMeaning};
 use motion_effects::{AlphaMode, EffectPackage, PassDefinition, Registry, WorkingSpace};
-use motion_render::{RenderError, Renderer, Scene, effect_plan::PlanBuilder};
+use motion_render::{
+    effect_plan::PlanBuilder, RenderError, Renderer, ResourceBudgetScope, ResourceRejection, Scene,
+};
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -76,8 +78,8 @@ fn fixture_package(pressure: bool, enabled: bool) -> Arc<EffectPackage> {
     let input = TemplateValue::Input;
     let value = |id| TemplateValue::Node { id };
     if pressure {
-        // Three independent branches retain the input plus two results while
-        // the third branch needs a fourth working image. Refusal is explicit.
+        // Three branches need four simultaneous working images. Admission must
+        // depend on their real dimensions/format and the caller's byte budget.
         template.nodes = vec![
             node(1, 0, input, input),
             node(2, 1, input, input),
@@ -114,14 +116,21 @@ fn fixture_package(pressure: bool, enabled: bool) -> Arc<EffectPackage> {
 }
 
 fn make_project(package: &EffectPackage, precision: ChannelPrecision) -> Project {
-    let mut project = Project::new(W, H, 30, 60).unwrap();
+    make_project_at(package, precision, [W, H])
+}
+fn make_project_at(
+    package: &EffectPackage,
+    precision: ChannelPrecision,
+    [w, h]: [u32; 2],
+) -> Project {
+    let mut project = Project::new(w, h, 30, 60).unwrap();
     project.working_precision = precision;
     project.background = [0.; 4];
     let mut layer = Layer::solid(
         47,
         "Runtime template",
-        [W as f32, H as f32],
-        [W as f32 / 2., H as f32 / 2., 0.],
+        [w as f32, h as f32],
+        [w as f32 / 2., h as f32 / 2., 0.],
         [1.; 4],
     );
     layer.effects.push(EffectInstance::new(
@@ -191,11 +200,9 @@ fn persisted_package_diamond_controls_actual_native_order_and_four_precision_pix
         assert_eq!(passes[4].input, passes[2].output as i32);
         assert_eq!(passes[5].input, passes[3].output as i32);
         assert_eq!(passes[5].source, passes[4].output as i32);
-        assert!(
-            passes[2..6]
-                .iter()
-                .all(|p| p.output as i32 != p.input && p.output as i32 != p.source)
-        );
+        assert!(passes[2..6]
+            .iter()
+            .all(|p| p.output as i32 != p.input && p.output as i32 != p.source));
 
         let mut renderer = renderer(precision);
         renderer.set_effect_registry(registry(package.clone()));
@@ -268,14 +275,74 @@ fn persisted_package_diamond_controls_actual_native_order_and_four_precision_pix
     }
 }
 
-fn template_cause(error: &RenderError) -> &TemplateError {
+fn resource_cause(error: &RenderError) -> ResourceRejection {
     match error {
         RenderError::Diagnostic { cause, .. } | RenderError::Context { cause, .. } => {
-            template_cause(cause)
+            resource_cause(cause)
         }
-        RenderError::Shared(cause) => template_cause(cause),
-        RenderError::Effects(motion_effects::Error::ExecutionTemplate(cause)) => cause,
-        _ => panic!("lost typed template error: {error:?}"),
+        RenderError::Shared(cause) => resource_cause(cause),
+        RenderError::Resource { rejection, .. } => *rejection,
+        _ => panic!("lost typed resource error: {error:?}"),
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn four_live_branch_images_use_real_storage_and_packed_bindings_in_every_precision() {
+    let package = fixture_package(true, true);
+    for precision in reference::MODES {
+        let project = make_project(&package, precision);
+        let scene = scene(&project);
+        let mut builder = PlanBuilder::new(registry(package.clone())).unwrap();
+        builder.set_precision(precision);
+        builder.build(&scene, &[0], W, H, true).unwrap();
+        let frame = &builder.frame;
+        assert_eq!(frame.scratch_allocations.len(), 4, "{precision:?}");
+        assert!(
+            frame.passes.iter().any(|p| p.output >= 8),
+            "virtual names must reach the real planner"
+        );
+        let bpp = contract(precision).preferred_storage().unwrap().bytes_per_pixel();
+        assert_eq!(frame.scratch_bytes(), 4 * u64::from(W) * u64::from(H) * bpp);
+        let mut packed = vec![0; frame.buffer_bytes(&scene)];
+        frame.write(&scene, &mut packed).unwrap();
+        let word = |offset| u32::from_le_bytes(packed[offset..offset + 4].try_into().unwrap());
+        let pass_start = word(5 * 4) as usize;
+        for (i, binding) in frame.scratch_bindings.iter().enumerate() {
+            let offset = pass_start + 40 * i;
+            assert_eq!(word(offset + 4) as i32, binding.input);
+            assert_eq!(word(offset + 8) as i32, binding.source);
+            assert_eq!(word(offset + 12), binding.output);
+            assert!(
+                binding.output < 4,
+                "packed outputs use physical allocations, not virtual names"
+            );
+        }
+        let mut renderer = renderer(precision);
+        renderer.set_effect_registry(registry(package.clone()));
+        let target = renderer
+            .image_capture_target(W, H, contract(precision))
+            .unwrap();
+        let stats = renderer.draw(&scene, target.view(), W, H).unwrap();
+        assert_eq!(stats.draw_calls, frame.passes.len() as u32 + 1);
+        let actual = reference::linear(&renderer.read_image_target(&target).unwrap());
+        let expected = reference::store([0.2, 0.4, 0.6, 1.0], precision);
+        let tolerance = match precision {
+            ChannelPrecision::Unorm8 => 0.015,
+            ChannelPrecision::Unorm16 => 0.00025,
+            ChannelPrecision::Float16 => 0.002,
+            ChannelPrecision::Float32 => 0.000005,
+        };
+        let worst = actual
+            .iter()
+            .flat_map(|p| (0..4).map(move |i| (p[i] - expected[i]).abs()))
+            .fold(0_f64, f64::max);
+        assert!(
+            worst <= tolerance,
+            "{precision:?} expected={expected:?} actual={:?} worst={worst}",
+            actual[0]
+        );
+        renderer.check_health().unwrap();
     }
 }
 
@@ -285,37 +352,34 @@ fn runtime_branch_storage_refusal_preserves_previous_gpu_pixels_and_recovers() {
     let healthy = fixture_package(false, true);
     let pressure = fixture_package(true, true);
     let precision = ChannelPrecision::Float16;
+    // Each real Float16 image occupies 18 MiB: the healthy diamond fits the
+    // 64 MiB policy with three allocations; four live images require 72 MiB.
+    let [w, h] = [1536, 1536];
+    let healthy_scene = scene(&make_project_at(&healthy, precision, [w, h]));
+    let pressure_scene = scene(&make_project_at(&pressure, precision, [w, h]));
     let mut renderer = renderer(precision);
+    renderer
+        .set_scratch_budget(motion_effects::SCRATCH_BUDGET_FLOOR)
+        .unwrap();
     renderer.set_effect_registry(registry(healthy.clone()));
     let target = renderer
-        .image_capture_target(W, H, contract(precision))
+        .image_capture_target(w, h, contract(precision))
         .unwrap();
-    renderer
-        .draw(
-            &scene(&make_project(&healthy, precision)),
-            target.view(),
-            W,
-            H,
-        )
-        .unwrap();
+    renderer.draw(&healthy_scene, target.view(), w, h).unwrap();
     let previous = renderer.read_image_target(&target).unwrap().pixels;
     renderer.set_effect_registry(registry(pressure.clone()));
     let before = renderer.effect_pipeline_builds();
     let error = renderer
-        .draw(
-            &scene(&make_project(&pressure, precision)),
-            target.view(),
-            W,
-            H,
-        )
+        .draw(&pressure_scene, target.view(), w, h)
         .unwrap_err();
     assert!(matches!(
-        template_cause(&error),
-        TemplateError::Storage {
-            required: 4,
-            maximum: 3,
-            ..
-        }
+        resource_cause(&error),
+        ResourceRejection::Budget {
+            scope: ResourceBudgetScope::EffectScratch,
+            required_bytes,
+            budget_bytes,
+        } if required_bytes == 4 * u64::from(w) * u64::from(h) * 8
+            && budget_bytes == motion_effects::SCRATCH_BUDGET_FLOOR
     ));
     assert!(error.to_string().contains("layer 47, effect 29"), "{error}");
     assert_eq!(
@@ -328,14 +392,7 @@ fn runtime_branch_storage_refusal_preserves_previous_gpu_pixels_and_recovers() {
         previous
     );
     renderer.set_effect_registry(registry(healthy.clone()));
-    renderer
-        .draw(
-            &scene(&make_project(&healthy, precision)),
-            target.view(),
-            W,
-            H,
-        )
-        .unwrap();
+    renderer.draw(&healthy_scene, target.view(), w, h).unwrap();
     assert_eq!(
         renderer.read_image_target(&target).unwrap().pixels,
         previous

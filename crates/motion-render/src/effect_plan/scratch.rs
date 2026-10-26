@@ -1,7 +1,7 @@
 //! Explicit physical scratch descriptors shared by admission, native allocation
 //! and the packed plan. Semantic slots remain local names while constructing
 //! effects; they are never physical allocation identities.
-use super::{EffectFramePlan, scratch_graph as graph, scratch_lifetimes as placement};
+use super::{scratch_graph as graph, scratch_lifetimes as placement, EffectFramePlan};
 use crate::RenderError;
 use serde::Serialize;
 use std::ops::Range;
@@ -137,6 +137,16 @@ pub(super) fn logical_graph(
             0 | 4..=6 => ScratchFormat::Rgba8UnormSrgb,
             1..=3 => ScratchFormat::Rgba8Unorm,
             7 => ScratchFormat::Rgba16Float,
+            slot if (super::runtime_template::VIRTUAL_SLOT_START as u32
+                ..super::runtime_template::SEMANTIC_SLOTS as u32)
+                .contains(&slot) =>
+            {
+                if slot % 2 == 0 {
+                    ScratchFormat::Rgba8Unorm
+                } else {
+                    ScratchFormat::Rgba8UnormSrgb
+                }
+            }
             other => {
                 return Err(
                     format!("effect pass {index} semantic output {other} is invalid").into(),
@@ -197,8 +207,13 @@ pub(super) fn logical_graph(
     if let Some(current) = current {
         draws.push(current);
     }
-    graph::build(&passes, &draws, 8, MAX_SCRATCH_PASSES)
-        .map_err(|error| RenderError::Invalid(error.to_string()))
+    graph::build(
+        &passes,
+        &draws,
+        super::runtime_template::SEMANTIC_SLOTS,
+        MAX_SCRATCH_PASSES,
+    )
+    .map_err(|error| RenderError::Invalid(error.to_string()))
 }
 
 /// Physical storage allocation consumes the already checked logical graph.

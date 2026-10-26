@@ -72,6 +72,7 @@ fn compare(
     let actual = reference::linear(raw);
     let [w, h] = fixture::SIZE;
     let mut worst = 0_f64;
+    let mut worst_pixel = None;
     for y in 0..h {
         for x in 0..w {
             if let Some(expected) = expected(x, y) {
@@ -84,8 +85,12 @@ fn compare(
                             v
                         }
                     };
-                    worst = worst
-                        .max((encode(actual[(y * w + x) as usize][c]) - encode(expected[c])).abs());
+                    let error =
+                        (encode(actual[(y * w + x) as usize][c]) - encode(expected[c])).abs();
+                    if error > worst {
+                        worst = error;
+                        worst_pixel = Some((x, y, c, actual[(y * w + x) as usize], expected));
+                    }
                 }
             }
         }
@@ -98,7 +103,7 @@ fn compare(
     };
     assert!(
         worst <= limit,
-        "precision={precision:?} worst={worst} limit={limit}"
+        "precision={precision:?} worst={worst} limit={limit} worst_pixel={worst_pixel:?}"
     );
     worst
 }

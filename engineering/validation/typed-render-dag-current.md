@@ -1280,3 +1280,49 @@ the Linux Float16 frame-import failure and final-source G also remain open.
 This is a logical admission change, with no UI, panel, dependency or Android work.
 
 Evidence: [cost-bound source and raw receipts](data/typed-render-dag-cost-bounds-78f6205c.zip), SHA-256 `0fcdff7a4a6ac8b1a992f79001e96fb000b3298bf5cdddd0e70ebb089591d313`; 508,002 bytes, 83 payload files, all read back and hashed.
+
+
+### C3b: runtime branches use real physical byte admission
+
+Runtime templates no longer allocate from three fixed working slots. Every
+checked package pass has a bounded virtual image name in its existing storage
+bank. The def/use graph determines immutable image lifetimes; the physical
+placer reuses compatible storage only after last use. Canonical and utility
+names keep their prior meanings. The 8-entry semantic-maxima diagnostic is
+not an allocator: native allocation, resource reservations and packed-plan
+pass bindings still use the actual physical descriptor/binding table. Virtual
+names are bounded by the existing eight-pass package limit and the 32-bit
+diagnostic mask, not a three-texture policy.
+
+A functional change required by this budget inversion is explicit: valid
+four-live-image branches now execute when their real byte capacity fits.
+The old fixed-slot refusal test has been strengthened into an actual byte-
+budget refusal: four 1536x1536 Float16 images require exactly 72 MiB against
+64 MiB, while the healthy three-image diamond fits. Original pipeline, old-
+pixel preservation and recovery assertions remain. Its obsolete Storage
+{required:4, maximum:3} assertion is replaced by the typed EffectScratch
+Budget cause with exact byte values; the new small-image control actually
+executes four simultaneous images in all four precisions, independently
+checks their pixels and verifies packed passes reference four real physical
+allocations rather than virtual names.
+
+The first refusal run exposed a real functional defect: a template's physical
+Resource refusal entered ordinary best-effort preview bypass and returned Ok
+after removing the effect. Template resource refusals now propagate their
+original structured cause and layer/effect context before native compilation
+or target writes. Ordinary non-template preview fallback is unchanged. The
+next attempt caught a misplaced local binding at compile time; both failed
+attempts are retained, with no weakened output assertions.
+
+The final frozen run passed 286 tests: three runtime-template regressions,
+two actual Vulkan frame-import tests, 267 render library tests and 14 native
+snapshot/group/fusion/alpha regressions, zero failures or ignores. The Linux
+CI Float16 import failure remains unresolved: this Windows Vulkan run is not
+a substitute for its Mesa result. Its existing 0.001 tolerance is unchanged;
+the assertion now reports the exact worst coordinate/channel and pixel pair.
+
+C1 and C3 implementation/targeted acceptance are now recorded. The five
+independent fusion obligations, Linux pixel failure and final-source G remain
+open. No panel, UI, dependency or Android changes are included.
+
+Evidence: [runtime storage source and raw receipts](data/typed-render-dag-storage-acc16781.zip), SHA-256 `1dee20491445ac173943729f7a02bf49ba4c6e5c542793e61d79b7024e238e93`; 591,861 bytes, 59 payload files, every archive entry read back and hashed.

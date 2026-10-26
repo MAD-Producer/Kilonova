@@ -1,10 +1,19 @@
-//! Lower a checked package DAG into the existing bounded native working slots.
+//! Lower a checked package DAG into bounded virtual image names. Physical
+//! allocation and byte admission use the resulting def/use graph, not a fixed
+//! number of reusable working slots.
 use super::*;
 use motion_effects::execution_plan::{ExecutionNodeId, ExecutionPlanError, ImageValueId};
 use motion_effects::execution_template::{
-    TemplateContext, TemplateError, image_template_capabilities, image_template_limits,
+    image_template_capabilities, image_template_limits, TemplateContext,
 };
 use std::collections::BTreeMap;
+
+/// Legacy utilities use names 0..8. Each package pass gets an independent name
+/// in one of the two existing storage banks. Names are not GPU allocations;
+/// checked physical lifetimes may share storage after their last use.
+pub(super) const VIRTUAL_SLOT_START: usize = 8;
+pub(super) const SEMANTIC_SLOTS: usize = VIRTUAL_SLOT_START + 2 * motion_effects::MAX_PASSES;
+const _: () = assert!(SEMANTIC_SLOTS <= u32::BITS as usize);
 
 pub(super) struct RuntimePass {
     pub program: u32,
@@ -23,14 +32,15 @@ pub(super) struct RuntimeSchedule {
 /// A graph's structural/code/capacity refusal cannot turn into a different
 /// image by dropping the operation. Ordinary non-template preview failures
 /// retain their existing bypass policy.
-pub(super) fn requires_refusal(error: &RenderError) -> bool {
+pub(super) fn requires_refusal(error: &RenderError, template: bool) -> bool {
     match error {
         RenderError::Effects(motion_effects::Error::ExecutionTemplate(_))
         | RenderError::ExecutionPlan(_) => true,
+        RenderError::Resource { .. } if template => true,
         RenderError::Context { cause, .. } | RenderError::Diagnostic { cause, .. } => {
-            requires_refusal(cause)
+            requires_refusal(cause, template)
         }
-        RenderError::Shared(cause) => requires_refusal(cause),
+        RenderError::Shared(cause) => requires_refusal(cause, template),
         _ => false,
     }
 }
@@ -94,16 +104,10 @@ pub(super) fn schedule(
         )
         .map_err(|cause| RenderError::from(motion_effects::Error::from(cause)))?;
     let nodes: BTreeMap<_, _> = checked.plan().nodes.iter().map(|n| (n.id, n)).collect();
-    let last_use: BTreeMap<_, _> = checked
-        .checked()
-        .lifetimes()
-        .iter()
-        .map(|v| (v.value, v.last_consumer_step as usize))
-        .collect();
     let mut values = BTreeMap::from([(ImageValueId(0), work)]);
     let mut passes = Vec::with_capacity(programs.len());
     let mut slots = 1 << work;
-    for (ordinal, &id) in checked.checked().order().iter().enumerate() {
+    for &id in checked.checked().order() {
         let Some(pass) = checked.pass(id) else {
             continue;
         };
@@ -114,15 +118,12 @@ pub(super) fn schedule(
         let output = if terminal && direct_output {
             0
         } else {
-            (work..work + 3)
-                .find(|slot| !values.values().any(|v| v == slot))
-                .ok_or_else(|| {
-                    RenderError::from(motion_effects::Error::from(TemplateError::Storage {
-                        node: id,
-                        required: values.len() as u64 + 1,
-                        maximum: 3,
-                    }))
-                })?
+            let bank = match work {
+                1 => 0,
+                4 => 1,
+                _ => return Err("runtime template working storage bank is invalid".into()),
+            };
+            (VIRTUAL_SLOT_START + 2 * passes.len() + bank) as u32
         };
         // Inputs stay live until this pass completes; never write a sampled
         // texture as an attachment in the same pass, even on its last use.
@@ -135,7 +136,6 @@ pub(super) fn schedule(
             source_import: source == ImageValueId(0),
             output,
         });
-        values.retain(|value, _| last_use[value] > ordinal);
         values.insert(node.output, output);
         slots |= 1 << output;
     }

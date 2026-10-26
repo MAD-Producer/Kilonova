@@ -1232,6 +1232,7 @@ impl PlanBuilder {
                 let original_region = region;
                 self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
+                let has_runtime_template = resolved.definition.execution.is_some();
                 let result = (|| -> Result<(), RenderError> {
                     let prepared = preparation.inputs[index].take()
                         .ok_or("effect preparation input is absent")??;
@@ -1378,6 +1379,10 @@ impl PlanBuilder {
                     );
                     if let Some(runtime) = &runtime {
                         for pass in &runtime.passes {
+                            // Virtual names are not legacy counterfactual slot
+                            // maxima. Actual descriptors and byte admission are
+                            // derived below from every native pass's lifetime.
+                            if pass.output as usize >= sizes.len() { continue; }
                             reserve_scratch(&mut sizes, pass.output as usize,
                                 (next[2] * scale).ceil() as u32, (next[3] * scale).ceil() as u32);
                         }
@@ -1541,7 +1546,7 @@ impl PlanBuilder {
                         "layer {}, effect {} ({}): {}",
                         layer.id, e.instance, e.effect, err.planning_message()
                     );
-                    if strict || guarded || runtime_template::requires_refusal(&err) {
+                    if strict || guarded || runtime_template::requires_refusal(&err, has_runtime_template) {
                         return Err(err.with_diagnostic(message));
                     }
                     self.frame.diagnostics.push(message);
