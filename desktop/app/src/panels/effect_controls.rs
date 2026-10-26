@@ -24,6 +24,8 @@ mod track_cache;
 mod track_cache_tests;
 #[cfg(test)]
 mod removal_tests;
+#[cfg(test)]
+mod identity_tests;
 pub(crate) use library::{entries, Entry};
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
@@ -78,6 +80,9 @@ pub struct Controls {
     collapsed_effects: std::collections::HashSet<u64>,
     revealed_effect: Option<(u64, u64)>,
     reveal_pending: bool,
+    // Invalid entries observed by this Controls instance, capped at 60.
+    // A fully valid or empty scan resets it; an instance list hidden by the chooser does not.
+    invalid_effect_ids: u8,
     context_menu: Option<EffectContextMenu>,
     color_popup: Option<ColorPopup>,
     collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
@@ -232,6 +237,15 @@ fn dimensions(kind: &str) -> usize {
     }
 }
 impl Controls {
+    fn report_invalid_effect_id(&mut self, object: u64, index: usize) {
+        let previous = self.invalid_effect_ids;
+        self.invalid_effect_ids = previous.saturating_add(1).min(60);
+        if previous == 0 {
+            log::debug!("panel degradation site=effects.instance_id count=1 operation=render object={object} effect_index={index} phase=identity cause=missing or non-u64 effect instance ID");
+        } else if previous == 59 {
+            log::error!("persistent panel degradation site=effects.instance_id count=60 operation=render object={object} effect_index={index} phase=identity cause=missing or non-u64 effect instance ID");
+        }
+    }
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
         if request.query(&mut self.search.editor, &mut self.query) {
             self.library_scroll.offset = 0.;
@@ -371,6 +385,7 @@ impl Controls {
             effects
                 .into_iter()
                 .flatten()
+                .filter(|effect| effect["id"].as_u64().is_some())
                 .map(|effect| {
                     styles.metric("effect.group.gap", 8.)
                         + header
@@ -1200,13 +1215,18 @@ impl Controls {
 
             return;
         }
+        let mut invalid_identity = false;
         for (index, effect) in layer["effects"]
             .as_array()
             .into_iter()
             .flatten()
             .enumerate()
         {
-            let id = effect["id"].as_u64().unwrap();
+            let Some(id) = effect["id"].as_u64() else {
+                invalid_identity = true;
+                self.report_invalid_effect_id(object, index);
+                continue;
+            };
             if matches!(self.property_filter,super::types::PropertyFilter::Properties(_))
                 || self.property_filter == super::types::PropertyFilter::Animated
                     && !effect["params"].as_object().into_iter().flatten().any(|(name,parameter)|
@@ -1813,6 +1833,9 @@ impl Controls {
                     *y += row;
                 }
             }
+        }
+        if !invalid_identity {
+            self.invalid_effect_ids = 0;
         }
         self.color_overlay(
             &mut overlays,
