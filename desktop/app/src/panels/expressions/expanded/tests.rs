@@ -2,6 +2,7 @@ use super::*;
 use crate::engine;
 use motion_ui::input::Modifiers;
 use std::time::Duration;
+mod picking;
 #[cfg(target_os = "windows")]
 mod native;
 
@@ -441,6 +442,7 @@ fn blocked_worker_keeps_check_and_apply_polling_nonblocking_and_reports_real_fai
             "{stdout}"
         );
         assert!(stderr.contains("expression-test-runtime"), "{stderr}");
+        assert!(stderr.contains("999") && stderr.contains("expression sampling"), "{stderr}");
         return;
     };
     let root = std::path::PathBuf::from(root);
@@ -594,6 +596,21 @@ fn blocked_worker_keeps_check_and_apply_polling_nonblocking_and_reports_real_fai
         .0
         .contains("budget exceeded"));
     assert_eq!(shell.engine.state().unwrap()["project"], state["project"]);
+    let missing = motion_core::expression_reference_source(&ExpressionTarget::Property {
+        object: 999, property: Property::Position, axis: None,
+    }).unwrap();
+    replace(&mut shell.panels, &state, &mut atlas, &missing, false);
+    let mut actions = draw(&mut shell.panels, &state, &mut atlas, key(Key::Enter, true), false);
+    shell.action(actions.pop().unwrap(), None).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while shell.expression_task.is_some() {
+        assert!(std::time::Instant::now() < deadline);
+        shell.poll_expression_task();
+        std::thread::yield_now();
+    }
+    assert!(shell.panels.expressions.expanded.as_ref().unwrap().message.as_ref().unwrap().0.contains("999"));
+    assert_eq!(shell.panels.expressions.expanded.as_ref().unwrap().source.text, missing);
+    assert_eq!(shell.engine.state().unwrap()["project"], state["project"]);
     replace(
         &mut shell.panels,
         &state,
@@ -657,4 +674,6 @@ fn blocked_worker_keeps_check_and_apply_polling_nonblocking_and_reports_real_fai
             && l.contains("budget exceeded")),
         "{file}"
     );
+    assert!(file.lines().any(|line| line.contains(" ERROR ") && line.contains("editor_action")
+        && line.contains("expression sampling") && line.contains("999")), "{file}");
 }

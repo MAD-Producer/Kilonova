@@ -3,6 +3,7 @@ use super::*;
 use motion_core::{ExpressionTarget, PropertyExpression};
 use motion_ui::widgets::{Checkbox, TextEditor, TextEvent};
 mod expanded;
+pub(super) mod picking;
 pub(crate) use expanded::Ticket;
 
 pub(super) fn find(state: &Value, target: &ExpressionTarget) -> Option<PropertyExpression> {
@@ -33,6 +34,11 @@ pub(crate) struct Controls {
     loaded: String,
     toggle_focus: bool,
     expanded: Option<expanded::Editor>,
+    pick: Option<picking::Pick>,
+    reference_hits: Vec<picking::Hit>,
+    collect_references: bool,
+    reference_window: Option<Panel>,
+    reference_host: Option<Panel>,
     #[cfg(test)]
     pub(super) triggers: Vec<(ExpressionTarget, Rect)>,
     #[cfg(test)]
@@ -57,6 +63,7 @@ impl Controls {
         self.draft = None;
         self.toggle_focus = false;
         self.expanded = None;
+        self.pick = None;
     }
     pub(crate) fn open(&mut self, state: &Value, target: ExpressionTarget, owner: Panel) {
         self.cancel();
@@ -73,7 +80,7 @@ impl Controls {
         self.owner == Some(owner) && self.draft.as_ref() == Some(target)
     }
     pub(super) fn menu_open(&self) -> bool {
-        self.menu.open || self.expanded.is_some()
+        self.menu.open || self.expanded.is_some() || self.pick.is_some()
     }
     pub(super) fn context(
         &mut self,
@@ -82,6 +89,7 @@ impl Controls {
         input: &Input,
         owner: Panel,
     ) -> bool {
+        self.reference_hit(target.clone(), rect, owner);
         #[cfg(test)]
         {
             self.triggers.retain(|(t, _)| t != &target);
@@ -112,6 +120,7 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        if self.pick.is_some() { return; }
         if self.expanded.is_some() {
             self.expanded_overlay(list, atlas, bounds, state, input, locale, out);
             return;
@@ -171,6 +180,11 @@ impl Controls {
             label: auxiliary::localized(locale, "在多行编辑器中打开…", "Open multiline editor…"),
             enabled,
         });
+        let reference_index = items.len();
+        items.push(motion_ui::widgets::DropdownItem {
+            label: auxiliary::localized(locale, "插入属性引用…", "Insert property reference…"),
+            enabled,
+        });
         match self
             .menu
             .draw_menu(list, atlas, anchor, bounds, &items, input, true)
@@ -191,6 +205,10 @@ impl Controls {
                 }
             }
             Some(index) if index == expanded_index => self.open_expanded(state, target, owner),
+            Some(index) if index == reference_index => {
+                self.open_expanded(state, target, owner);
+                self.begin_reference_pick(state, anchor, true);
+            }
             _ => {}
         }
         if !self.menu.open {

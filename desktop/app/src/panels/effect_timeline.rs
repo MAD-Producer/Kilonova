@@ -464,6 +464,12 @@ pub(super) fn render(
             selected,
         );
         label(list, atlas, caption, name, !parameter.implemented);
+        if parameter.animatable && parameter.implemented && !parameter.kind.discrete()
+            && parameter.kind != motion_effects::ParamKind::Curve && parameter.curve.is_none() {
+            panels.expressions.reference_hit(motion_core::ExpressionTarget::Effect {
+                object: row.id, effect: id, param: param.into(),
+            }, caption.intersection(body), Panel::Timeline);
+        }
         if caption.contains(input.mouse) {
             panels.drag_readout = Some((input.mouse, name.into()));
         }

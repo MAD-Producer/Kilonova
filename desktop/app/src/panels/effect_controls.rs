@@ -1618,6 +1618,9 @@ impl Controls {
                     effect: id,
                     param: param.into(),
                 };
+                if expression_supported {
+                    self.expressions.reference_hit(expression_target.clone(), Rect::new(label_x, *y, (right - label_x).max(0.), row).intersection(area), motion_ui::dock::Panel::EffectControls);
+                }
                 let sampled = observe!("effects.parameter_sample", track.sample(local),
                     "object={object} effect={id} param={param} frame={local}");
                 if let Ok(mut value) = sampled {
