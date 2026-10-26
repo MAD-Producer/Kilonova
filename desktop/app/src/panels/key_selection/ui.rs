@@ -8,6 +8,8 @@ use motion_ui::{
     paint::{self, PaintList},
     Rect,
 };
+mod drag;
+mod snapping;
 
 #[derive(Clone, PartialEq)]
 struct View {
@@ -77,6 +79,8 @@ struct Frame {
     hits: Batch,
     action_start: usize,
     background_owned: bool,
+    key_body: bool,
+    motion: Option<drag::ValueMotion>,
 }
 struct Marquee {
     view: View,
@@ -93,17 +97,33 @@ pub(crate) struct Controls {
     pub(super) select_all: bool,
     current: bool,
     pub(super) transaction: Option<Set>,
+    drag: Option<drag::Drag>,
+    snap: Option<snapping::Gesture>,
 }
 impl Controls {
     pub(crate) fn cancel(&mut self) {
         self.marquee = None;
         self.select_all = false;
+        self.drag = None;
+        self.snap = None;
     }
     pub(crate) fn active(&self) -> bool {
-        self.marquee.is_some()
+        self.marquee.is_some() || self.drag.is_some()
     }
     pub(crate) fn recording(&self) -> bool {
         self.frame.is_some()
+    }
+    pub(crate) fn dragging(&self) -> bool {
+        self.drag.is_some()
+    }
+    pub(crate) fn snapping(&self) -> bool {
+        self.snap.is_some()
+    }
+    pub(crate) fn drag_bounds(&self) -> Option<[f32; 2]> {
+        self.drag
+            .as_ref()
+            .filter(|d| d.view.graph)
+            .map(|d| [d.view.mapping[3], d.view.mapping[4]])
     }
 }
 fn mode(input: &Input) -> Mode {
@@ -179,6 +199,7 @@ pub(in crate::panels) fn begin(
         mapping,
         graph: panels.timeline.graph_mode,
     };
+    drag::advance(panels, state, input, &view);
     let rect = panels.key_gestures.marquee.as_ref().map(|d| {
         rectangle(
             d.press,
@@ -198,6 +219,8 @@ pub(in crate::panels) fn begin(
         hits: Batch::default(),
         action_start,
         background_owned: false,
+        key_body: false,
+        motion: None,
     });
     true
 }
@@ -294,6 +317,7 @@ pub(in crate::panels) fn record(panels: &mut Panels, key: Key, point: [f32; 2], 
         return;
     }
     if frame.press.is_some_and(|p| hit.contains(p)) {
+        frame.key_body = true;
         frame.hits.push(key.clone());
     }
     if frame.all || frame.rectangle.is_some_and(|r| r.contains(point)) {
@@ -309,13 +333,57 @@ pub(in crate::panels) fn mark(
     radius: f32,
     hit: Rect,
 ) {
+    mark_component(list, panels, key, point, radius, hit, None);
+}
+fn mark_component(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: Key,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+    component: Option<usize>,
+) {
     if panels.key_gestures.current && panels.selected_keys.contains(&key) {
         let styles = list.styles();
         let border = styles.metric("border", 1.);
         paint::diamond(list, point, radius + border, styles.color("text"));
         paint::diamond(list, point, radius, styles.color("keyframe"));
     }
+    if let Some(ghost) = drag::ghost(panels, &key, point, component) {
+        let styles = list.styles();
+        paint::diamond(
+            list,
+            ghost,
+            radius + styles.metric("border", 1.),
+            styles.color("focus"),
+        );
+        paint::diamond(list, ghost, radius, styles.color("keyframe"));
+    }
     record(panels, key, point, hit);
+}
+pub(in crate::panels) fn graph_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: Key,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+    component: usize,
+    per_pixel: f32,
+    limits: Option<[f32; 2]>,
+) {
+    if let Some(frame) = &mut panels.key_gestures.frame {
+        if frame.press.is_some_and(|p| hit.contains(p)) && per_pixel.is_finite() && per_pixel > 0. {
+            frame.motion = Some(drag::ValueMotion {
+                target: key.target.clone(),
+                component,
+                per_pixel,
+                limits,
+            });
+        }
+    }
+    mark_component(list, panels, key, point, radius, hit, Some(component));
 }
 pub(in crate::panels) fn mark_round(
     list: &mut PaintList,
@@ -536,12 +604,17 @@ pub(in crate::panels) fn finish(
     panels: &mut Panels,
     state: &Value,
     input: &Input,
-    out: &[Action],
+    out: &mut Vec<Action>,
+    snap_candidates: &[f64],
 ) {
+    snapping::finish(panels, input, out);
     super::movement::follow(panels, state, out);
     let Some(mut frame) = panels.key_gestures.frame.take() else {
         return;
     };
+    if drag::finish(panels, state, input, &frame.view, out) {
+        return;
+    }
     if let Some(drag) = panels.key_gestures.marquee.take() {
         if Some(&drag.scope) != Scope::of(state).as_ref()
             || drag.revision != state["revision"].as_u64()
@@ -585,10 +658,76 @@ pub(in crate::panels) fn finish(
         return;
     };
     if !frame.hits.empty() {
-        if let Some(before) = frame.before.take() {
-            panels.selected_keys = before;
+        let before = frame.before.take().unwrap_or_default();
+        let already_selected = frame.hits.error.is_none()
+            && before.status(state) == Status::Current
+            && frame.hits.channels.values().all(|c| {
+                c.frames.iter().all(|time| {
+                    c.target.as_ref().is_some_and(|target| {
+                        before.contains(&Key {
+                            target: target.clone(),
+                            frame: *time,
+                        })
+                    })
+                })
+            });
+        let primary = frame.hits.last.clone();
+        let hit_count = frame
+            .hits
+            .channels
+            .values()
+            .map(|c| c.frames.len())
+            .sum::<usize>();
+        panels.selected_keys = before.clone();
+        if frame.mode == Mode::Replace && already_selected {
+            panels.selected_keys.primary = primary.clone();
+            panels.selected_keys.intent = true;
+            project_primary(panels, state);
+        } else {
+            apply(panels, state, frame.hits, frame.mode);
         }
-        apply(panels, state, frame.hits, frame.mode);
+        let mut chosen = if frame.mode == Mode::Toggle && already_selected {
+            before
+        } else {
+            panels.selected_keys.clone()
+        };
+        chosen.primary = primary;
+        if frame.key_body
+            && chosen.writable(state)
+            && panels.timeline.graph_drag.is_none()
+            && !panels.effect_timeline.handle_active()
+        {
+            let selections = chosen.selections();
+            let one_summary = selections.iter().map(|s| s.frames.len()).sum::<usize>() == hit_count
+                && chosen.primary().is_some_and(|primary| {
+                    selections.iter().all(|s| {
+                        s.target.object() == primary.target.object() && s.frames == [primary.frame]
+                    })
+                });
+            if !one_summary || input.modifiers.control {
+                drag::arm(
+                    panels,
+                    state,
+                    chosen,
+                    frame.view,
+                    press,
+                    frame.motion,
+                    input.modifiers.control,
+                    snap_candidates,
+                    out,
+                );
+            } else {
+                snapping::arm(
+                    panels,
+                    state,
+                    &chosen,
+                    frame.view,
+                    press,
+                    snap_candidates,
+                    out,
+                );
+            }
+        }
         return;
     }
     if !frame.background_owned && frame.view.area.contains(press) && out.len() == frame.action_start
@@ -609,4 +748,14 @@ pub(in crate::panels) fn finish(
             before,
         });
     }
+}
+pub(in crate::panels) fn snap_input(
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    ppf: f32,
+    offset: f32,
+    out: &mut Vec<Action>,
+) -> Option<Input> {
+    snapping::input(panels, state, input, ppf, offset, out)
 }

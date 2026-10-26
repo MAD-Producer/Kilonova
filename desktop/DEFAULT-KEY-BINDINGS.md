@@ -62,6 +62,7 @@
 | Animation | Z | true | true | false | Redo | false |
 | Animation | D | true | false | false | Duplicate | false |
 | Animation | K | false | false | false | NextKey | true |
+| Animation | K | true | false | true | KeyframeTiming | false |
 | Animation | P | false | false | false | Reveal(Position) | false |
 | Animation | P | false | true | false | Reveal(Position) | false |
 | Animation | P | false | true | true | ToggleKey(Position) | false |
@@ -81,6 +82,10 @@
 | Animation | Semicolon | false | false | false | ToggleFrameView | false |
 | Animation | Delete | false | false | false | Delete | false |
 | Animation | Backspace | false | false | false | Delete | false |
+| Animation | Left | false | false | true | NudgeKeyEarlier | true |
+| Animation | Left | false | true | true | NudgeKeysEarlierTen | true |
+| Animation | Right | false | false | true | NudgeKeyLater | true |
+| Animation | Right | false | true | true | NudgeKeysLaterTen | true |
 | Animation | Up | true | false | false | SelectLayerAbove | true |
 | Animation | Up | true | false | true | OrderLayersUp | false |
 | Animation | Up | true | true | false | SelectLayerAbove | true |

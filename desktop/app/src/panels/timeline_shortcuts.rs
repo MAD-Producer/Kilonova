@@ -325,7 +325,7 @@ pub(super) fn handle(
         panels.focused,
         Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)
     ) || super::property_focus::navigation_scope(panels.focused)
-        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing)) {
+        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing | Shortcut::KeyframeTiming)) {
         return false;
     }
     if panels.timeline.moving.is_some()
@@ -342,6 +342,18 @@ pub(super) fn handle(
         .selected
         .filter(|id| visual_layer(state, *id).is_some());
     match command {
+        Shortcut::KeyframeTiming => {
+            let operation = super::animation_menu::Operation::TimingSettings;
+            if super::animation_menu::enabled(panels, state, operation) {
+                super::animation_menu::apply(panels, state, operation, out);
+            } else {
+                panels.message = Some(if panels.locale == Locale::Zh {
+                    "请先选中当前工程中可编辑的关键帧；只读或锁定图层无法设置。"
+                } else {
+                    "Select editable keyframes first; read-only or locked layers cannot be edited."
+                }.into());
+            }
+        }
         Shortcut::Reveal(property) => {
             if let Some(object) = object {
                 reveal(panels, state, object, Some(property), modifiers.shift);
