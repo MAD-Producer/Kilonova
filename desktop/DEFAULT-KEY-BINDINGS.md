@@ -138,6 +138,7 @@
 | Nodes | Home | false | false | false | FitAll | false |
 | Viewer | C | false | false | false | ToolCamera | false |
 | Viewer | H | false | false | false | ToolHand | false |
+| Viewer | H | true | true | false | ToggleViewerHandles | false |
 | Viewer | Q | false | false | false | ToolShape | false |
 | Viewer | V | false | false | false | ToolSelect | false |
 | Viewer | W | false | false | false | ToolRotate | false |

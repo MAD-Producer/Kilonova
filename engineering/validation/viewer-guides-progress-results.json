@@ -1,0 +1,116 @@
+{
+  "issue": 263,
+  "status": "IN_PROGRESS; not complete; no PR; never close issue from this stage",
+  "base_main": "55971318bd705c907ddf90f34d8c5560f0fc3086",
+  "pre_stage_head": "c38112f9be97808a0395687c4c99fe47c7bdf450",
+  "overlay_new_passed": 11,
+  "overlay_new_failed": 0,
+  "overlay_new_ignored": 0,
+  "binary_sha256": "3b27599fdad4ca5150790d9b23712e47dab94a2dc72625df221cd3fe08dbf39c",
+  "existing_targeted": [
+    {
+      "name": "composition",
+      "filter": "panels::composition::tests::",
+      "exit_code": 0,
+      "seconds": 0.48,
+      "summary": [
+        [
+          "ok",
+          "4",
+          "0",
+          "0"
+        ]
+      ],
+      "binary_sha256": "3b27599fdad4ca5150790d9b23712e47dab94a2dc72625df221cd3fe08dbf39c"
+    },
+    {
+      "name": "keyboard",
+      "filter": "panels::keyboard::tests::",
+      "exit_code": 0,
+      "seconds": 0.08,
+      "summary": [
+        [
+          "ok",
+          "9",
+          "0",
+          "0"
+        ]
+      ],
+      "binary_sha256": "3b27599fdad4ca5150790d9b23712e47dab94a2dc72625df221cd3fe08dbf39c"
+    },
+    {
+      "name": "shortcuts",
+      "filter": "shortcuts::",
+      "exit_code": 0,
+      "seconds": 0.16,
+      "summary": [
+        [
+          "ok",
+          "9",
+          "0",
+          "0"
+        ]
+      ],
+      "binary_sha256": "3b27599fdad4ca5150790d9b23712e47dab94a2dc72625df221cd3fe08dbf39c"
+    }
+  ],
+  "all_panels": {
+    "exit_code": 0,
+    "seconds": 668.33,
+    "binary_sha256": "3b27599fdad4ca5150790d9b23712e47dab94a2dc72625df221cd3fe08dbf39c",
+    "summary": [
+      [
+        "ok",
+        "584",
+        "0",
+        "4"
+      ]
+    ],
+    "source_unchanged": true,
+    "binary_unchanged": true,
+    "scope": "Full panel unit/integration filter; includes overlapping targeted cases, not native-window or complete issue acceptance."
+  },
+  "model_stage": {
+    "base": "3e19a47dc00aa17a013833e7ca117956c43ee43e",
+    "sources_recorded_after_runs": {
+      "crates/motion-model/src/guides.rs": "c858adb90197fcb45dff334ddae5843190d1698628963265f6da2cb5b0ab5aee",
+      "crates/motion-model/src/lib.rs": "f7edd56ec5efabcd6c256eb9b7d3d4546b192cfbcb4355b762448095ecc52317",
+      "crates/motion-model/src/model.rs": "8a2fa0a4783570c35ea922b10694f5a9c6037d228884915b6bca03d42507144c",
+      "crates/motion-model/src/composition.rs": "400ac87f237aeeb1cfa7714c5fb0d1fbdfe136649dd9d2b855915a0fe783e993",
+      "crates/motion-model/src/commands.rs": "390444148bbd53b84ee145ce0982d420bb82802808ec40023afda9eddb3a8e76",
+      "crates/motion-core/src/lib.rs": "eefadb8f10c49c17c8fd88f93c846faee1868d702e89cfa00aebac3e6127aee1",
+      "crates/motion-core/src/editor.rs": "b250e24a00b5391b53bb37040c18188a384bc5d77952f502b163e52f6dc5a893",
+      "crates/motion-core/src/command_registry.rs": "01664d1aa566edece1078303ac14cc5786f95c8e21a8af177d8dceeaa237c6e1",
+      "crates/motion-core/src/history_accounting.rs": "90471f9bd703db31fffcee14c7567279a2c4811875d4183956511e0f9177e601",
+      "crates/motion-core/src/history_accounting_tests.rs": "0069f8d0c9bf53e94cec8cfa95848d6cf79fc607bf4ae2353649dd8922a3dd5e",
+      "crates/motion-core/tests/viewer_guides.rs": "ef785807336f907d047530943130ae2559a25f47808fcf4fc170c428c5faf231"
+    },
+    "logs": {
+      "model-tests.log": "2f171877bbfe54123366de383c911e1dddfa2d8ecaf616ec0d6060a2882887bf",
+      "history-tests-01-compile.log": "13c62511fb70e121ae8bffe07fceef9bd1d072073aabd0344064cdafe565692f",
+      "history-tests-02.log": "e9dc18cefac7b952bb5b295220564b1f31491cd59d03a28dfc74d322fc31c1f7"
+    },
+    "integration_passed": 4,
+    "history_passed": 15,
+    "history_existing_ignored": 1,
+    "excluded": "Initial history lib-test compile: four missing crate qualifications in the new test and one existing Composition fixture requiring guides:Vec::new(). No tests ran in that compile; corrected setup, original assertions unchanged.",
+    "scope": "Model/transaction/persistence/history only. UI, snapping, default API log channels, export pixels and native acceptance pending; no PR for263.",
+    "commit": "3cb63e31f437ea5995a74a0a012b1b3f2b44021f"
+  },
+  "archive": {
+    "path": "engineering/validation/data/viewer-guides-progress.zip",
+    "bytes": 378938,
+    "entries": 27,
+    "sha256": "1ff61e5b3ce32275e8f7d4a0e7cb23f6b113ba307ba47c3fee4f757fdaa3a018"
+  },
+  "remaining": [
+    "Move/Scale snapping integration",
+    "new-guide native main/float EN/ZH Fit/zoom/pan/DPI acceptance and screenshots",
+    "actual worker source-checked SetGuides success/cancellation/queued stale request verification",
+    "UI failure and capacity feedback; corner hit ownership; vertical ruler label review",
+    "full application export path; headless capture+PNG equality is narrower",
+    "all DESIGN 12 acceptance and 0.7 individual baseline verification",
+    "current-main exact-head CI before PR merge"
+  ],
+  "scope": "Committed progress evidence only; full original issue263 scope remains unchanged."
+}

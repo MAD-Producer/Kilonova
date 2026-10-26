@@ -39,6 +39,7 @@ pub(crate) mod camera_controls;
 mod color_well;
 mod toolbar_style;
 mod composition;
+mod viewer_guides;
 mod curves;
 pub(crate) mod effect_controls;
 mod effect_removal;
@@ -258,6 +259,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.timeline.timeline_context_menu = None;
     panels.parent_controls.cancel();
     panels.timeline_columns.cancel();
+    panels.viewer_guides.cancel();
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
@@ -362,6 +364,10 @@ pub fn chrome(
     let asset_owned = panels.media_assets.prepare(None, state, input);
     let asset_neutral = Input::default();
     let input = if asset_owned { &asset_neutral } else { input };
+    let guide_input = input;
+    let guide_owned = panels.viewer_guides.prepare(None, state, input);
+    let guide_neutral = Input::default();
+    let input = if guide_owned { &guide_neutral } else { input };
     tools::prepare(panels,None,input);
     let parent_pick_owned = panels.parent_controls.prepare_window(None, input);
     let parent_neutral = Input::default();
@@ -1010,6 +1016,9 @@ pub fn chrome(
         let clips: Vec<_> = frames(layout, size).into_iter().map(|frame| (frame.panel, frame.content)).collect();
         expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), None, &clips, state, input, &mut out);
     }
+    let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
+    panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
+        &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -1043,6 +1052,10 @@ pub fn floating_chrome(
     let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
     let asset_neutral = Input::default();
     let input = if asset_owned { &asset_neutral } else { input };
+    let guide_input = input;
+    let guide_owned = panels.viewer_guides.prepare(Some(panel), state, input);
+    let guide_neutral = Input::default();
+    let input = if guide_owned { &guide_neutral } else { input };
     // The toolbar belongs to the main native window. Moving input to a float
     // cancels its gesture before that window can dispatch another edit.
     let mut toolbar_actions = vec![];
@@ -1329,6 +1342,9 @@ pub fn floating_chrome(
     if expressions::picking::active(panels, Some(panel)) {
         expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), Some(panel), &[(panel, body)], state, input, &mut out);
     }
+    let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
+    panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
+        &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }

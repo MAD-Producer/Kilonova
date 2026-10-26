@@ -160,6 +160,28 @@ Escape and outside click must not activate the dialog's footer. Respect IME,
 repeat and focus-loss guards. Verify English/Chinese, minimum/default window
 sizes and controlled 1/1.5/2 pixel ratios with actual GPU screenshots.
 
+### 4.2 Viewer editing overlays
+
+Safety frames, grid, rulers, guides and editing handles are viewer-only layers;
+they never become scene layers or exported pixels. Use `viewer.guide`,
+`viewer.grid`, `viewer.safe` and `viewer.overlay.*` from `dark.json`; reuse
+the native checkbox, button, panel, label and popup styles. Safety frames mark
+the inner 90% and 80% of the composition. Grid coordinates begin at the
+composition origin and coarsen by powers of two as needed for readable spacing.
+All drawing, ruler labels, hit testing and snapping share the viewer's existing
+`Mapping`; native DPI must not enter composition-pixel guide coordinates.
+
+The compact viewer footer opens a window-owned overlay menu with explicit
+checkboxes. At narrow widths optional footer readouts yield to complete controls.
+Rulers occupy an overlay strip without changing the preview mapping. Pull from
+the left ruler for a vertical guide or the top ruler for a horizontal guide.
+Drag a guide back to either ruler to remove it; releasing outside the viewer,
+Escape, focus loss, a changed document/revision/view, or input in another window
+cancels its local preview. Release commits one version-checked guide-list edit.
+Guide lock and visibility are ephemeral viewer preferences. Ctrl+Shift+H toggles
+editing handles in Viewer scope, preserving project data and rendered output;
+hidden handles do not accept new gestures.
+
 ## 5. Consistent panel visual grammar
 
 ### 5.1 Visual hierarchy

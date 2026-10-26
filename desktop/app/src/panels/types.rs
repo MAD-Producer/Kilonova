@@ -231,6 +231,7 @@ pub struct Panels {
     pub(crate) toolbar_style: super::toolbar_style::Controls,
     pub transform_controls: crate::panels::transform_controls::Controls,
     pub(crate) composition: CompositionState,
+    pub(crate) viewer_guides: super::viewer_guides::Controls,
 }
 
 #[derive(Default)]
