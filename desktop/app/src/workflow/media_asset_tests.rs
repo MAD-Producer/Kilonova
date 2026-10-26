@@ -1,4 +1,5 @@
 use super::*;
+mod relink;
 use crate::engine::{self, Engine};
 use motion_core::media_assets::{AssetKind, AssetRef};
 use motion_core::Project;

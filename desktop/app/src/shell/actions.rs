@@ -395,6 +395,7 @@ impl Shell {
                             .to_string(),
                     );
                     self.replacing_asset=None;
+                    self.relinking_assets=false;
                     if let Err(primary)=cancelled {
                         if let Err(secondary)=released { log::error!("media cancel cleanup failed request={request} cause={secondary} primary={primary}"); }
                         return Err(primary);

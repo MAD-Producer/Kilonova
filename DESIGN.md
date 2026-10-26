@@ -462,8 +462,11 @@ assets selectable independently of layer selection. Use the existing `row` and
 `menu.popup.min_width`; the existing composition row retains its 32px height through
 `project.composition.height`. Do not introduce web cards or a separate visual palette.
 
-The media menu offers relink/replace, file location, usages and removal from the
-project. Disable removal when layers or linked-video metadata still reference the
+The media menu offers relink/replace, file location, usages, removal from the
+project and relinking missing assets. The missing-asset action selects each source
+explicitly, stages the complete set, and commits one edit after full validation;
+cancelling a picker leaves the document unchanged. Do not guess matches by filename.
+Disable removal when layers or linked-video metadata still reference the
 asset; communicate the reason in the existing disabled text style. Removal keeps
 the owned file for undo. A usage list opens the actual composition and selects its
 layer, using a scrollable overlay for long lists. Font records retain their separate

@@ -14,6 +14,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+pub(crate) mod relink;
 
 /// Opens a user-selected media file.
 ///
@@ -74,6 +75,16 @@ pub enum Request {
         audio_track: Option<u32>,
     },
     MediaStatus {
+        request_id: String,
+    },
+    MissingMediaAssets,
+    StartAssetRelink {
+        request_id: String,
+        candidates: Vec<relink::Candidate>,
+        revision: u64,
+        document_generation: u64,
+    },
+    FinishAssetRelink {
         request_id: String,
     },
     ExportProject {
@@ -162,6 +173,9 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             ));
         }
         if matches!(op.as_str(), "import_media" | "probe_media") {
+            if s.asset_relink.as_ref().is_some_and(|b|Some(&b.request)==request_id.as_ref()) {
+                return Err("media request id already exists".into());
+            }
             if let Some(id) = &request_id {
                 s.media_compositions
                     .entry(id.clone())
@@ -323,8 +337,24 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
                 )?))
             })
         }
+        Request::MissingMediaAssets => crate::session::with_session(id, |s| relink::missing(s)),
+        Request::StartAssetRelink { request_id, candidates, revision, document_generation } => crate::session::with_session(id, |s| {
+            if document_generation!=s.document_generation || revision<s.engine.revision() {
+                return Ok(json!({"state":"cancelled","asset_operation_cancelled":true,"asset_operation_reason":"superseded"}));
+            }
+            if s.asset_relink.is_some() || s.audio_jobs.contains(&request_id) || s.video_jobs.contains(&request_id) || s.package_jobs.contains(&request_id) {
+                return Err("asset relink task already exists; release the previous task first".into());
+            }
+            let mut batch = relink::Batch::new(s, request_id, candidates, revision)?;
+            let status = batch.poll();
+            s.asset_relink = Some(batch);
+            Ok(status)
+        }),
+        Request::FinishAssetRelink { request_id } => crate::session::with_session(id, |s| relink::finish(s, &request_id)),
         Request::MediaStatus { request_id } => crate::session::with_session(id, |s| {
-            if s.package_jobs.contains(&request_id) {
+            if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
+                Ok(batch.poll())
+            } else if s.package_jobs.contains(&request_id) {
                 Ok(json!(s.package_jobs.status(&request_id)?))
             } else if s.video_jobs.contains(&request_id) {
                 Ok(json!(s.video_jobs.status(&request_id)?))
@@ -393,7 +423,9 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             format!("media replacement request={} asset={} kind={:?} phase=commit expected_revision={revision}",
                 request_id.chars().take(128).collect::<String>(),target.id,target.kind),cause)),
         Request::CancelMediaImport { request_id } => crate::session::with_session(id, |s| {
-            if s.package_jobs.contains(&request_id) {
+            if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
+                batch.cancel()
+            } else if s.package_jobs.contains(&request_id) {
                 Ok(json!(s.package_jobs.cancel(&request_id)?))
             } else if s.video_jobs.contains(&request_id) {
                 Ok(json!(s.video_jobs.cancel(&request_id)?))
@@ -402,7 +434,9 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             }
         }),
         Request::ReleaseMediaTask { request_id } => crate::session::with_session(id, |s| {
-            if s.package_jobs.contains(&request_id) {
+            if s.asset_relink.as_ref().is_some_and(|b|b.request==request_id) {
+                s.asset_relink=None;
+            } else if s.package_jobs.contains(&request_id) {
                 s.package_jobs.release(&request_id)?;
             } else if s.video_jobs.contains(&request_id) {
                 s.video_jobs.release(&request_id)?;

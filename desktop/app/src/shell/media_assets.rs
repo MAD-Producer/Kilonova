@@ -44,6 +44,7 @@ impl Shell {
             return Ok(());
         }
         match intent {
+            Intent::RelinkMissing => self.relink_missing_assets()?,
             Intent::Replace => {
                 if self.importing_image.is_some() || self.importing_media.is_some() {
                     return Err(self.workspace.locale.t(T::Importing).into());
@@ -191,6 +192,106 @@ impl Shell {
         self.replacing_asset = Some(source);
         self.asset_message("正在检查替换素材…", "Checking replacement asset…");
         Ok(())
+    }
+    fn relink_missing_assets(&mut self) -> Result<(), String> {
+        if self.importing_image.is_some() || self.importing_media.is_some() {
+            return Err(self.workspace.locale.t(T::Importing).into());
+        }
+        self.stop();
+        let missing = self
+            .engine
+            .media(serde_json::json!({"op":"missing_media_assets"}).to_string())?;
+        let assets = missing["assets"]
+            .as_array()
+            .ok_or("missing asset inventory is invalid")?;
+        if assets.is_empty() {
+            self.asset_message(
+                "未发现丢失的图片、音频或视频",
+                "No missing image, audio or video assets found",
+            );
+            return Ok(());
+        }
+        log::info!(
+            "asset relink picker start count={} revision={} phase=select",
+            assets.len(),
+            missing["revision"]
+        );
+        let mut candidates = Vec::new();
+        for (index, asset) in assets.iter().enumerate() {
+            let target: motion_core::media_assets::AssetRef =
+                serde_json::from_value(asset["target"].clone()).map_err(|e| e.to_string())?;
+            let path = asset["path"].as_str().ok_or("missing asset source path")?;
+            let name = asset["name"].as_str().unwrap_or(path);
+            let title = if self.workspace.locale == Locale::Zh {
+                format!("重链接 {}/{}：{name} ({path})", index + 1, assets.len())
+            } else {
+                format!("Relink {}/{}: {name} ({path})", index + 1, assets.len())
+            };
+            let extensions: &[&str] = match target.kind {
+                AssetKind::Image => &["png", "jpg", "jpeg"],
+                AssetKind::Audio => &["wav", "flac", "ogg", "opus", "mp3", "m4a", "aac", "aiff"],
+                AssetKind::Video => &["mp4", "mov", "mkv", "webm", "3gp"],
+            };
+            let Some(path) = rfd::FileDialog::new()
+                .set_title(&title)
+                .add_filter("Media", extensions)
+                .pick_file()
+            else {
+                self.asset_message(
+                    "已取消重链接，原工程保持不变",
+                    "Relink cancelled; original project retained",
+                );
+                return Ok(());
+            };
+            candidates.push(serde_json::json!({"target":target,"path":path}));
+        }
+        // All selections belong to one immutable inventory. The worker rejects
+        // superseded revisions/generations before opening any candidate.
+        self.start_asset_relink(candidates, &missing)
+    }
+    pub(crate) fn start_asset_relink(
+        &mut self,
+        candidates: Vec<Value>,
+        inventory: &Value,
+    ) -> Result<(), String> {
+        if self.importing_image.is_some() || self.importing_media.is_some() {
+            return Err(self.workspace.locale.t(T::Importing).into());
+        }
+        self.stop();
+        let request = format!(
+            "desktop-relink-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| e.to_string())?
+                .as_nanos()
+        );
+        let status=self.engine.media(serde_json::json!({"op":"start_asset_relink","request_id":request,"candidates":candidates,"revision":inventory["revision"],"document_generation":inventory["document_generation"]}).to_string())?;
+        if status["asset_operation_cancelled"] == true {
+            self.asset_message(
+                "工程已变化，已取消重链接",
+                "Project changed; relink cancelled",
+            );
+            return Ok(());
+        }
+        self.importing_media = Some((request, Instant::now() - Duration::from_secs(1)));
+        self.relinking_assets = true;
+        self.asset_message("正在检查丢失素材…", "Checking missing assets…");
+        Ok(())
+    }
+    pub(super) fn accept_asset_relink(&mut self, state: Value, cancelled: bool) {
+        self.state = state;
+        self.relinking_assets = false;
+        if cancelled {
+            self.asset_message(
+                "重链接已取消，原工程保持不变",
+                "Relink cancelled; original project retained",
+            );
+        } else {
+            self.asset_message(
+                "丢失素材已重链接，图层和引用保持不变",
+                "Missing assets relinked; layers and references retained",
+            );
+        }
     }
     pub(super) fn accept_asset_replacement(&mut self, state: Value, cancelled: bool) {
         self.state = state;

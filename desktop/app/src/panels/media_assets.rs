@@ -363,6 +363,11 @@ pub(super) fn overlay(
                 usages.is_empty() && !linked,
                 Some(Intent::Remove),
             ),
+            (
+                word(locale, "重链接丢失素材…", "Relink missing assets…"),
+                true,
+                Some(Intent::RelinkMissing),
+            ),
         ]
     };
     let note = if linked {

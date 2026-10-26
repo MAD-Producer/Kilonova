@@ -17,6 +17,67 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 #[test]
+fn asset_relink_shell_preserves_selection_and_releases_success_failure_and_cancel_slots() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("project");
+    let mut shell = Shell::new(root.clone(), None, Some(Locale::Zh)).unwrap();
+    let mut paths = Vec::new();
+    for index in 0..2 {
+        let path = temp.path().join(format!("image-{index}.png"));
+        image::RgbaImage::from_pixel(8, 8, image::Rgba([255, 20, index as u8, 255]))
+            .save(&path)
+            .unwrap();
+        shell.import_file(path.clone()).unwrap();
+        wait(&mut shell).unwrap();
+        paths.push(path);
+    }
+    shell.panels.select_only(None);
+    let before = shell.state.clone();
+    for a in before["project"]["assets"].as_array().unwrap() {
+        std::fs::remove_file(root.join(a["path"].as_str().unwrap())).unwrap();
+    }
+    let inventory = shell
+        .engine
+        .media(serde_json::json!({"op":"missing_media_assets"}).to_string())
+        .unwrap();
+    let inputs: Vec<_> = before["project"]["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(&paths)
+        .map(|(a, path)| serde_json::json!({"target":{"kind":"image","id":a["id"]},"path":path}))
+        .collect();
+    shell
+        .start_asset_relink(inputs.clone(), &inventory)
+        .unwrap();
+    wait(&mut shell).unwrap();
+    assert!(!shell.relinking_assets && shell.importing_media.is_none());
+    assert_eq!(shell.panels.selected, None);
+    assert_eq!(
+        shell.state["project"]["layers"],
+        before["project"]["layers"]
+    );
+    assert!(shell.panels.message.as_ref().unwrap().contains("已重链接"));
+    let after = shell.state.clone();
+    let mut bad = inputs.clone();
+    bad[1]["path"] = serde_json::json!(temp.path().join("missing-candidate.png"));
+    shell.start_asset_relink(bad, &after).unwrap();
+    assert!(wait(&mut shell).is_err());
+    assert!(!shell.relinking_assets && shell.importing_media.is_none());
+    assert_eq!(shell.state["project"], after["project"]);
+    shell.start_asset_relink(inputs, &after).unwrap();
+    shell.action(panels::Action::CancelImport, None).unwrap();
+    assert!(!shell.relinking_assets && shell.importing_media.is_none());
+    assert_eq!(shell.state["project"], after["project"]);
+    assert!(!std::fs::read_dir(&root).unwrap().any(|e| e
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with(".asset-relink-")));
+    shell.engine.save().unwrap();
+}
+
+#[test]
 fn asset_replacement_image_reply_keeps_selection_and_failed_or_stale_operations_release_slots() {
     let root = tempfile::tempdir().unwrap();
     let mut shell = Shell::new(root.path().join("project"), None, Some(Locale::En)).unwrap();

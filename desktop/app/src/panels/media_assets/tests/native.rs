@@ -422,6 +422,87 @@ fn asset_actions_native_menus_focus_replacement_removal_and_reopen() {
         baseline["project"]["layers"]
     );
     shell.engine.save().unwrap();
+    // Exercise the new batch against a live renderer: two source files disappear
+    // together, are independently selected, decoded and committed as one edit.
+    let before_relink = shell.state.clone();
+    let mut candidates = Vec::new();
+    for asset in before_relink["project"]["assets"].as_array().unwrap() {
+        let source = project_root.join(asset["path"].as_str().unwrap());
+        let selected = root.join(format!("recovery-{}.png", asset["id"]));
+        std::fs::copy(&source, &selected).unwrap();
+        std::fs::remove_file(source).unwrap();
+        candidates
+            .push(serde_json::json!({"target":{"kind":"image","id":asset["id"]},"path":selected}));
+    }
+    let inventory = shell
+        .engine
+        .media(serde_json::json!({"op":"missing_media_assets"}).to_string())
+        .unwrap();
+    assert_eq!(inventory["assets"].as_array().unwrap().len(), 2);
+    shell.start_asset_relink(candidates, &inventory).unwrap();
+    assert_eq!(shell.state["project"], before_relink["project"]);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while shell.importing_media.is_some() {
+        shell.poll_import().unwrap();
+        assert!(std::time::Instant::now() < deadline);
+        events.pump_app_events(Some(Duration::from_millis(1)), &mut Empty);
+    }
+    assert!(!shell.relinking_assets);
+    assert_eq!(
+        shell.state["revision"].as_u64().unwrap(),
+        before_relink["revision"].as_u64().unwrap() + 1
+    );
+    assert_eq!(
+        shell.state["project"]["layers"],
+        before_relink["project"]["layers"]
+    );
+    shell.engine.save().unwrap();
+    shell.scale = 1.;
+    shell.atlas.set_pixel_ratio(1.);
+    shell
+        .action(Action::ShowPanel(Panel::Project.dock()), None)
+        .unwrap();
+    // RevealUsage docked Timeline below Project. Use the normal panel projection
+    // for the final menu capture, rather than assuming the old split still fits.
+    assert!(shell.workspace.toggle_panel_maximize(Panel::Project.dock()));
+    let (paint, _) = draw_main(&mut shell, size, Input::default());
+    capture(
+        &mut shell,
+        &mut events,
+        paint,
+        size,
+        0,
+        root.join("zh-relinked-project-view.png"),
+        1.,
+    );
+    std::fs::write(root.join("relinked-view.json"),serde_json::to_vec_pretty(&serde_json::json!({"layout":shell.workspace.root,"maximized":shell.workspace.maximized_panel().map(|id|id.0),"query":shell.panels.project.query,"assets":shell.state["project"]["assets"],"rows":shell.panels.media_assets.rows.iter().map(|(a,_)|a.id).collect::<Vec<_>>(),"cacheError":shell.panels.media_assets.cache.as_ref().and_then(|c|c.project.as_ref().err())})).unwrap()).unwrap();
+    let row = shell
+        .panels
+        .media_assets
+        .rows
+        .iter()
+        .find(|(asset, _)| asset.id == 1)
+        .unwrap()
+        .1;
+    let (paint, actions) = draw_main(&mut shell, size, press(row, MouseButton::Right));
+    assert!(actions.is_empty());
+    capture(
+        &mut shell,
+        &mut events,
+        paint,
+        size,
+        0,
+        root.join("zh-relinked-native-menu.png"),
+        1.,
+    );
+    let _ = draw_main(
+        &mut shell,
+        size,
+        Input {
+            keys: vec![(Key::Escape, Default::default())],
+            ..Default::default()
+        },
+    );
     let saved = shell.state["project"].clone();
     shell
         .replace_asset_file(source, root.join("missing.png"))
@@ -434,7 +515,7 @@ fn asset_actions_native_menus_focus_replacement_removal_and_reopen() {
         engine::Engine::start(project_root, motion_desktop_media::platform(), 8 << 30).unwrap();
     assert_eq!(reopened.state().unwrap()["project"], saved);
     reopened.request_shutdown().unwrap();
-    std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({"actualNativeFloat":true,"bilingualMenus":true,"ratios":[1,1.5,2],"referenceRemovalBlocked":true,"orphanRemoveUndoRedo":true,"replacement":true,"staleCancelled":true,"saveReopen":true,"input":"controlled Input; no OS foreground injection or native picker automation"})).unwrap()).unwrap();
+    std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({"actualNativeFloat":true,"bilingualMenus":true,"ratios":[1,1.5,2],"referenceRemovalBlocked":true,"orphanRemoveUndoRedo":true,"replacement":true,"missingAssetRelink":true,"staleCancelled":true,"saveReopen":true,"input":"controlled Input; no OS foreground injection or native picker automation"})).unwrap()).unwrap();
 }
 struct Empty;
 impl ApplicationHandler for Empty {

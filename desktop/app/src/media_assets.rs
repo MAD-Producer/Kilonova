@@ -33,6 +33,7 @@ impl Source {
 #[derive(Debug)]
 pub(crate) enum Intent {
     Replace,
+    RelinkMissing,
     RevealFile,
     Remove,
     RevealUsage(AssetUsage),

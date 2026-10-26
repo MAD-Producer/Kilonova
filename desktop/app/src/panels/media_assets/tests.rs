@@ -97,6 +97,10 @@ fn shared_asset_menus_preserve_orphan_identity_and_localized_command_semantics()
                 "{actions:?}"
             );
             assert!(!panels.media_assets.open());
+            open(&mut panels, &state, owner, 2);
+            let relink=panels.media_assets.menu_rows[4];
+            let actions=draw(&mut panels,&state,owner,press(relink,MouseButton::Left));
+            assert!(matches!(actions.as_slice(),[Action::MediaAsset {intent:Intent::RelinkMissing,..}]),"{actions:?}");
             open(&mut panels, &state, owner, 1);
             let remove = panels.media_assets.menu_rows[3];
             assert!(draw(&mut panels, &state, owner, press(remove, MouseButton::Left)).is_empty());
