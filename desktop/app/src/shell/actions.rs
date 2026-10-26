@@ -385,6 +385,10 @@ impl Shell {
             }
             Action::ImportPath(path) => self.import_file(path)?,
             Action::CancelImport => {
+                if self.relinking_assets {
+                    self.cancel_asset_relink()?;
+                    return Ok(());
+                }
                 if let Some((request, _)) = self.importing_media.take() {
                     let cancelled=self.engine.media(
                         serde_json::json!({"op":"cancel_media_import","request_id":request})

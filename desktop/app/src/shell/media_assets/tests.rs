@@ -17,6 +17,105 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 #[test]
+fn asset_relink_ui_queues_prepare_status_commit_and_cancel_behind_a_blocked_worker() {
+    use std::sync::mpsc::channel;
+    for phase in [
+        RelinkPhase::Prepare,
+        RelinkPhase::Status,
+        RelinkPhase::Commit,
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(temp.path().join("project"), None, Some(Locale::En)).unwrap();
+        let path = temp.path().join("source.png");
+        image::RgbaImage::from_pixel(8, 8, image::Rgba([25, 50, 75, 255]))
+            .save(&path)
+            .unwrap();
+        shell.import_file(path.clone()).unwrap();
+        wait(&mut shell).unwrap();
+        let before = shell.state.clone();
+        let candidates = vec![
+            serde_json::json!({"target":{"kind":"image","id":before["project"]["assets"][0]["id"]},"path":path}),
+        ];
+        let request = format!("blocked-relink-{phase:?}");
+        if phase != RelinkPhase::Prepare {
+            shell.engine.media(serde_json::json!({"op":"start_asset_relink","request_id":request,"candidates":candidates,"revision":before["revision"],"document_generation":before["document_generation"]}).to_string()).unwrap();
+            loop {
+                let value = shell
+                    .engine
+                    .media(
+                        serde_json::json!({"op":"media_status","request_id":request}).to_string(),
+                    )
+                    .unwrap();
+                if value["state"] == "ready" {
+                    break;
+                }
+                assert_eq!(value["state"], "running", "{value}");
+            }
+        }
+        let (entered, waiting) = channel();
+        let (release, gate) = channel();
+        let blocked = shell
+            .engine
+            .request(|reply| engine::Command::TestWait {
+                entered,
+                release: gate,
+                reply,
+            })
+            .unwrap();
+        waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+        if phase == RelinkPhase::Prepare {
+            shell.start_asset_relink(candidates, &before).unwrap();
+        } else {
+            shell.importing_media =
+                Some((request.clone(), Instant::now() - Duration::from_secs(1)));
+            shell.relinking_assets = true;
+            let op = if phase == RelinkPhase::Status {
+                "media_status"
+            } else {
+                "finish_asset_relink"
+            };
+            shell
+                .queue_asset_relink(phase, serde_json::json!({"op":op,"request_id":request}))
+                .unwrap();
+        }
+        shell.poll_import().unwrap();
+        shell.action(panels::Action::CancelImport, None).unwrap();
+        shell.poll_import().unwrap();
+        assert!(shell.relinking_assets);
+        assert_eq!(shell.relink_reply.as_ref().unwrap().0, RelinkPhase::Cancel);
+        // A synchronous UI wait would exhaust TestWait's controlled gate before
+        // reaching this send. No wall-clock speed threshold or mocked success.
+        release.send(()).unwrap();
+        assert_eq!(
+            blocked
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap()
+                .unwrap()["ready"],
+            true
+        );
+        wait(&mut shell).unwrap();
+        assert!(shell.relink_reply.is_none());
+        if phase == RelinkPhase::Commit {
+            assert_eq!(
+                shell.state["revision"].as_u64().unwrap(),
+                before["revision"].as_u64().unwrap() + 1
+            );
+            assert!(
+                shell.panels.message.as_ref().unwrap().contains("relinked"),
+                "late cancellation must report the actual commit"
+            );
+        } else {
+            assert_eq!(shell.state["project"], before["project"]);
+            assert!(shell.panels.message.as_ref().unwrap().contains("cancelled"));
+        }
+        assert_eq!(
+            shell.engine.state().unwrap()["project"],
+            shell.state["project"]
+        );
+    }
+}
+
+#[test]
 fn asset_relink_shell_preserves_selection_and_releases_success_failure_and_cancel_slots() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("project");
@@ -67,6 +166,7 @@ fn asset_relink_shell_preserves_selection_and_releases_success_failure_and_cance
     assert_eq!(shell.state["project"], after["project"]);
     shell.start_asset_relink(inputs, &after).unwrap();
     shell.action(panels::Action::CancelImport, None).unwrap();
+    wait(&mut shell).unwrap();
     assert!(!shell.relinking_assets && shell.importing_media.is_none());
     assert_eq!(shell.state["project"], after["project"]);
     assert!(!std::fs::read_dir(&root).unwrap().any(|e| e

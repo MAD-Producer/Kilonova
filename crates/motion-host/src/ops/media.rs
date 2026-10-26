@@ -87,6 +87,12 @@ pub enum Request {
     FinishAssetRelink {
         request_id: String,
     },
+    CancelAssetRelink {
+        request_id: String,
+    },
+    ReleaseAssetRelink {
+        request_id: String,
+    },
     ExportProject {
         request_id: String,
     },
@@ -150,7 +156,8 @@ pub fn package_limits() -> Value {
 /// Execute one media request.
 ///
 /// `open` is only invoked for import and probe operations, so status polling
-/// and export completion never touch the file system.
+/// and export completion do not reopen import sources. Asset relink status
+/// advances its isolated preparation, including source validation and decoding.
 pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value> {
     let requested = value
         .as_object_mut()
@@ -199,6 +206,13 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
         Ok(())
     })?;
     let request: Request = serde_json::from_value(value).map_err(crate::Error::from)?;
+    // Publish before entering the session lock or a decoder. The desktop worker
+    // additionally publishes its existing command in-flight state before here.
+    match &request {
+        Request::StartAssetRelink { request_id, revision, candidates, .. } => relink::observation::record(log::Level::Info, format_args!("asset relink start request={request_id} revision={revision} count={} phase=stage", candidates.len())),
+        Request::FinishAssetRelink { request_id } => relink::observation::record(log::Level::Info, format_args!("asset relink start request={request_id} phase=commit")),
+        _ => (),
+    }
     match request {
         Request::MediaCapabilities { video_query } => crate::session::with_session(id, |s| {
             s.platform().media_capabilities(video_query.as_ref()).map_err(Into::into)
@@ -340,20 +354,38 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
         Request::MissingMediaAssets => crate::session::with_session(id, |s| relink::missing(s)),
         Request::StartAssetRelink { request_id, candidates, revision, document_generation } => crate::session::with_session(id, |s| {
             if document_generation!=s.document_generation || revision<s.engine.revision() {
-                return Ok(json!({"state":"cancelled","asset_operation_cancelled":true,"asset_operation_reason":"superseded"}));
+                return Ok(json!({"state":"cancelled","asset_operation_cancelled":true,"asset_operation_reason":"superseded","snapshot":s.snapshot()?}));
             }
             if s.asset_relink.is_some() || s.audio_jobs.contains(&request_id) || s.video_jobs.contains(&request_id) || s.package_jobs.contains(&request_id) {
                 return Err("asset relink task already exists; release the previous task first".into());
             }
-            let mut batch = relink::Batch::new(s, request_id, candidates, revision)?;
-            let status = batch.poll();
+            let batch = relink::Batch::new(s, request_id, candidates, revision)?;
+            let status = batch.snapshot();
             s.asset_relink = Some(batch);
             Ok(status)
         }),
         Request::FinishAssetRelink { request_id } => crate::session::with_session(id, |s| relink::finish(s, &request_id)),
+        Request::CancelAssetRelink { request_id } => crate::session::with_session(id, |s| {
+            if request_id.is_empty() || request_id.len()>128 { return Err("invalid asset relink request id".into()); }
+            let mut status=if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
+                batch.cancel()?
+            } else {
+                json!({"state":"cancelled","operation":"asset_relink","request_id":request_id,"reason":"not_found"})
+            };
+            status["snapshot"]=s.snapshot()?;
+            Ok(status)
+        }),
+        Request::ReleaseAssetRelink { request_id } => crate::session::with_session(id, |s| {
+            if request_id.is_empty() || request_id.len()>128 { return Err("invalid asset relink request id".into()); }
+            let released=s.asset_relink.as_ref().is_some_and(|b|b.request==request_id);
+            if released { s.asset_relink=None; }
+            Ok(json!({"released":released,"request_id":request_id}))
+        }),
         Request::MediaStatus { request_id } => crate::session::with_session(id, |s| {
             if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {
-                Ok(batch.poll())
+                let mut status=batch.poll();
+                if status["state"]=="cancelled" { status["snapshot"]=s.snapshot()?; }
+                Ok(status)
             } else if s.package_jobs.contains(&request_id) {
                 Ok(json!(s.package_jobs.status(&request_id)?))
             } else if s.video_jobs.contains(&request_id) {

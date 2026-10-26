@@ -2,6 +2,8 @@
 use crate::media_assets::{Intent, Source};
 use crate::*;
 use motion_core::media_assets::{AssetAction, AssetKind};
+mod relink;
+pub(crate) use relink::RelinkPhase;
 
 impl Shell {
     fn asset_message(&mut self, zh: &str, en: &str) {
@@ -265,14 +267,7 @@ impl Shell {
                 .map_err(|e| e.to_string())?
                 .as_nanos()
         );
-        let status=self.engine.media(serde_json::json!({"op":"start_asset_relink","request_id":request,"candidates":candidates,"revision":inventory["revision"],"document_generation":inventory["document_generation"]}).to_string())?;
-        if status["asset_operation_cancelled"] == true {
-            self.asset_message(
-                "工程已变化，已取消重链接",
-                "Project changed; relink cancelled",
-            );
-            return Ok(());
-        }
+        self.queue_asset_relink(RelinkPhase::Prepare, serde_json::json!({"op":"start_asset_relink","request_id":request,"candidates":candidates,"revision":inventory["revision"],"document_generation":inventory["document_generation"]}))?;
         self.importing_media = Some((request, Instant::now() - Duration::from_secs(1)));
         self.relinking_assets = true;
         self.asset_message("正在检查丢失素材…", "Checking missing assets…");
@@ -281,6 +276,8 @@ impl Shell {
     pub(super) fn accept_asset_relink(&mut self, state: Value, cancelled: bool) {
         self.state = state;
         self.relinking_assets = false;
+        self.relink_reply = None;
+        self.importing_media = None;
         if cancelled {
             self.asset_message(
                 "重链接已取消，原工程保持不变",

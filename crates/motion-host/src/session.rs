@@ -1013,6 +1013,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
+    let _relink_scope = crate::ops::media::relink::observation::Scope::enter();
     let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
     let slot = {
         let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());

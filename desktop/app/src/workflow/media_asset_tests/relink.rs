@@ -46,6 +46,53 @@ fn ready(e: &Engine, id: &str) -> Value {
 fn finish_batch(e: &Engine, id: &str) -> Result<Value, String> {
     e.media(json!({"op":"finish_asset_relink","request_id":id}).to_string())
 }
+
+#[test]
+fn media_asset_relink_cancel_and_release_are_idempotent_without_touching_another_batch() {
+    let temp = tempfile::tempdir().unwrap();
+    let (e, before, sources) = images(temp.path());
+    begin(&e, "retained-batch", &before, candidates(&before, &sources));
+    for _ in 0..2 {
+        let cancelled = request(
+            &e,
+            json!({"op":"cancel_asset_relink","request_id":"absent"}),
+        );
+        assert_eq!(cancelled["state"], "cancelled");
+        assert_eq!(cancelled["snapshot"]["project"], before["project"]);
+        assert_eq!(
+            request(
+                &e,
+                json!({"op":"release_asset_relink","request_id":"absent"})
+            )["released"],
+            false
+        );
+    }
+    assert_eq!(ready(&e, "retained-batch")["state"], "ready");
+    for _ in 0..2 {
+        assert_eq!(
+            request(
+                &e,
+                json!({"op":"cancel_asset_relink","request_id":"retained-batch"})
+            )["state"],
+            "cancelled"
+        );
+    }
+    assert_eq!(
+        request(
+            &e,
+            json!({"op":"release_asset_relink","request_id":"retained-batch"})
+        )["released"],
+        true
+    );
+    assert_eq!(
+        request(
+            &e,
+            json!({"op":"release_asset_relink","request_id":"retained-batch"})
+        )["released"],
+        false
+    );
+    assert_eq!(e.state().unwrap()["project"], before["project"]);
+}
 fn files(path: &Path) -> Vec<String> {
     fn walk(root: &Path, folder: &Path, out: &mut Vec<String>) {
         for entry in fs::read_dir(folder).unwrap() {
@@ -118,6 +165,11 @@ fn media_asset_relink_recovers_multiple_missing_sources_in_one_edit_and_reopens(
         .enumerate()
     {
         assert_eq!(a["id"], before["project"]["assets"][index]["id"]);
+        assert_eq!(
+            Path::new(a["path"].as_str().unwrap()).file_stem(),
+            Path::new(before["project"]["assets"][index]["path"].as_str().unwrap()).file_stem(),
+            "relink must preserve the visible source name"
+        );
         assert_eq!(
             image::open(root.join(a["path"].as_str().unwrap()))
                 .unwrap()

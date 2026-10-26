@@ -19,6 +19,7 @@ use std::{
 
 static NONCE: AtomicU64 = AtomicU64::new(1);
 const MAX_RELINKS: usize = motion_core::MAX_LAYERS * 2;
+pub(crate) mod observation;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +32,7 @@ struct Directory {
     path: PathBuf,
     parent: PathBuf,
     keep: bool,
+    request: Option<String>,
 }
 impl Directory {
     fn exact(parent: &Path, name: &std::ffi::OsStr) -> Result<Self> {
@@ -48,6 +50,7 @@ impl Directory {
             path,
             parent,
             keep: false,
+            request: None,
         })
     }
     fn unique(parent: &Path, prefix: &str) -> Result<Self> {
@@ -86,13 +89,17 @@ impl Drop for Directory {
             fs::remove_dir_all(resolved)
         })();
         if let Err(error) = result {
-            log::error!(
-                "asset relink cleanup failed path={:?} cause={error}",
+            observation::record(
+                log::Level::Error,
+                format_args!(
+                "asset relink cleanup failed request={:?} phase=cleanup path={:?} cause={error}",
+                self.request,
                 self.path
                     .to_string_lossy()
                     .chars()
                     .take(1024)
                     .collect::<String>()
+            ),
             );
         }
     }
@@ -170,7 +177,8 @@ impl Batch {
                 return Err("relink the owning video instead of its linked audio".into());
             }
         }
-        let workspace = Directory::unique(&s.root, ".asset-relink")?;
+        let mut workspace = Directory::unique(&s.root, ".asset-relink")?;
+        workspace.request = Some(request.clone());
         let decode = crate::session::audio_decoder(s.platform());
         let audio = AudioJobs::with_decoder(
             workspace.path.clone(),
@@ -183,10 +191,6 @@ impl Batch {
             engine: Engine::new(s.engine.project().clone())?,
             commands: Vec::new(),
         };
-        log::info!(
-            "asset relink start request={request} revision={revision} count={} phase=stage",
-            candidates.len()
-        );
         Ok(Self {
             audio,
             video,
@@ -223,7 +227,10 @@ impl Batch {
                         .collect::<String>()
                 });
                 let error=format!("asset relink request={} asset={target:?} source={source:?} phase=stage: {cause}",self.request).chars().take(8192).collect::<String>();
-                log::error!("{error} elapsed_ms={}", self.began.elapsed().as_millis());
+                observation::record(
+                    log::Level::Error,
+                    format_args!("{error} elapsed_ms={}", self.began.elapsed().as_millis()),
+                );
                 self.error = Some(error);
                 self.state = "failed";
             }
@@ -286,31 +293,39 @@ impl Batch {
             request.pop();
         }
         request.push_str(&format!("-{}", self.next));
-        log::info!(
-            "asset relink prepare request={} asset={} kind={:?} phase=decode index={}",
-            self.request,
-            candidate.target.id,
-            candidate.target.kind,
-            self.next
+        observation::record(
+            log::Level::Debug,
+            format_args!(
+                "asset relink source request={} asset={} kind={:?} phase=decode index={}",
+                self.request, candidate.target.id, candidate.target.kind, self.next
+            ),
         );
         match candidate.target.kind {
             AssetKind::Image => {
                 let info = super::super::images::image_info(&candidate.path.to_string_lossy())?;
+                let previous = lookup(self.draft.engine.project(), candidate.target)
+                    .ok_or("relink image target missing")?;
+                let stem = Path::new(previous.path())
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .ok_or("relink image source name missing")?;
                 let path = format!(
-                    "assets/relink-image-{}-{}.{}",
+                    "assets/image-{}/{}.{}",
                     candidate.target.id,
-                    self.workspace
-                        .path
-                        .file_name()
-                        .ok_or("relink directory name missing")?
-                        .to_string_lossy(),
+                    stem,
                     if info["format"] == "Png" {
                         "png"
                     } else {
                         "jpg"
                     }
                 );
-                fs::create_dir_all(self.workspace.path.join("assets"))?;
+                fs::create_dir_all(
+                    self.workspace
+                        .path
+                        .join(&path)
+                        .parent()
+                        .ok_or("relink image directory missing")?,
+                )?;
                 let mut source = fs::File::open(&candidate.path)?
                     .take(motion_render::image_resources::MAX_ENCODED_BYTES + 1);
                 let mut dest = fs::OpenOptions::new()
@@ -402,7 +417,8 @@ impl Batch {
     fn publish(&mut self, root: &Path) -> Result<Vec<Directory>> {
         let mut owned = Vec::new();
         let asset_parent = contained_parent(root, &root.join("assets"))?;
-        let assets = Directory::unique(&asset_parent, "relinked")?;
+        let mut assets = Directory::unique(&asset_parent, "relinked")?;
+        assets.request = Some(self.request.clone());
         let prefix = format!(
             "assets/{}/",
             assets
@@ -411,7 +427,7 @@ impl Batch {
                 .ok_or("relink directory name missing")?
                 .to_string_lossy()
         );
-        move_files(&self.workspace.path.join("assets"), &assets.path)?;
+        move_sources(&self.workspace.path.join("assets"), &assets.path)?;
         owned.push(assets);
         // Existing cache keys are source stems. Preserve the warmed PCM, waveform,
         // index and thumbnail, and refuse collisions instead of replacing caches.
@@ -447,12 +463,13 @@ impl Batch {
                     .parent()
                     .ok_or("relink cache destination parent missing")?,
             )?;
-            let directory = Directory::exact(
+            let mut directory = Directory::exact(
                 &cache_parent,
                 destination
                     .file_name()
                     .ok_or("relink cache destination name missing")?,
             )?;
+            directory.request = Some(self.request.clone());
             move_files(source, &directory.path)?;
             owned.push(directory);
         }
@@ -496,6 +513,23 @@ fn contained_parent(root: &Path, path: &Path) -> Result<PathBuf> {
         return Err("relink publication directory escapes project".into());
     }
     Ok(resolved)
+}
+fn move_sources(source: &Path, destination: &Path) -> Result<()> {
+    let source = source.canonicalize()?;
+    let destination = destination.canonicalize()?;
+    for entry in fs::read_dir(&source)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        if !kind.is_file() && !kind.is_dir() {
+            return Err("unexpected relink source file type".into());
+        }
+        let resolved = entry.path().canonicalize()?;
+        if resolved.parent() != Some(source.as_path()) {
+            return Err("relink source moved outside its staging directory".into());
+        }
+        fs::rename(resolved, destination.join(entry.file_name()))?;
+    }
+    Ok(())
 }
 fn move_files(source: &Path, destination: &Path) -> Result<()> {
     for entry in fs::read_dir(source)? {
@@ -583,17 +617,21 @@ pub fn finish(s: &mut Session, request: &str) -> Result<Value> {
         batch.state = "succeeded";
         s.audio_mixer = None;
         s.video_frames.clear();
-        log::debug!(
-            "asset relink done request={request} revision={} elapsed_ms={}",
-            s.engine.revision(),
-            batch.began.elapsed().as_millis()
+        observation::record(
+            log::Level::Debug,
+            format_args!(
+                "asset relink done request={request} revision={} elapsed_ms={}",
+                s.engine.revision(),
+                batch.began.elapsed().as_millis()
+            ),
         );
         Ok(json!({"state":state,"task":batch.snapshot()}))
     })();
     if let Err(cause) = &result {
-        log::error!("asset relink failed request={request} revision={} elapsed_ms={} phase=commit cause={cause}",s.engine.revision(),batch.began.elapsed().as_millis());
+        let detail = cause.to_string().chars().take(8192).collect::<String>();
+        observation::record(log::Level::Error, format_args!("asset relink failed request={request} revision={} elapsed_ms={} phase=commit cause={detail}",s.engine.revision(),batch.began.elapsed().as_millis()));
         batch.state = "failed";
-        batch.error = Some(cause.to_string());
+        batch.error = Some(detail);
     }
     s.asset_relink = Some(batch);
     result

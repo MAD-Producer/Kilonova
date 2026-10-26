@@ -37,15 +37,18 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn poll_import(&mut self) -> Result<(), String> {
+        let relinking = self.relinking_assets;
         let result = self.poll_import_inner();
         if result.is_err() {
             self.replacing_asset = None;
             self.relinking_assets = false;
+            self.relink_reply = None;
             if let Some((request, _)) = self.importing_media.take() {
-                for op in ["cancel_media_task", "release_media_task"] {
+                let operations = if relinking { ["cancel_asset_relink", "release_asset_relink"] } else { ["cancel_media_import", "release_media_task"] };
+                for op in operations {
                     let text = serde_json::json!({"op":op,"request_id":request}).to_string();
                     if let Err(error) = self.engine.request(|reply| engine::Command::Media {text,reply}) {
-                        log::warn!("media import cleanup dispatch failed: request={request} op={op} reason={error}");
+                        log::error!("media import cleanup dispatch failed: request={request} op={op} reason={error}");
                     }
                 }
             }
@@ -53,6 +56,7 @@ impl Shell {
         result
     }
     fn poll_import_inner(&mut self) -> Result<(), String> {
+        if self.relinking_assets { return self.poll_asset_relink(); }
         if let Some(receiver) = &self.importing_image {
             match receiver.try_recv() {
                 Ok(result) => {
@@ -91,10 +95,7 @@ impl Shell {
             match checked_task_state(&status, &request)? {
                 "ready" => {
                     let replacing = self.replacing_asset.clone();
-                    let relinking = self.relinking_assets;
-                    let finish = if relinking {
-                        serde_json::json!({"op":"finish_asset_relink","request_id":request})
-                    } else if let Some(source)=&replacing {
+                    let finish = if let Some(source)=&replacing {
                         serde_json::json!({"op":"finish_media_replacement","request_id":request,"target":source.target,"revision":source.revision})
                     } else { serde_json::json!({"op":"finish_media_import","request_id":request}) };
                     let result = self.engine.media(
@@ -108,11 +109,6 @@ impl Shell {
                         log::warn!("media import task release failed: request={request} reason={error}");
                     }
                     let result=result?;
-                    if relinking {
-                        let cancelled=result["asset_operation_cancelled"]==true;
-                        self.accept_asset_relink(result["state"].clone(),cancelled);
-                        return Ok(());
-                    }
                     if replacing.is_some() {
                         let cancelled=result["asset_operation_cancelled"]==true;
                         self.accept_asset_replacement(result["state"].clone(),cancelled);
@@ -129,16 +125,11 @@ impl Shell {
                 }
                 "failed" | "cancelled" => {
                     self.importing_media = None;
-                    let relinking=std::mem::take(&mut self.relinking_assets);
                     if let Err(error) = self.engine.media(
                         serde_json::json!({"op":"release_media_task","request_id":request})
                             .to_string(),
                     ) {
                         log::warn!("media import task release failed: request={request} reason={error}");
-                    }
-                    if status["state"]=="cancelled" && relinking {
-                        self.accept_asset_relink(self.state.clone(),true);
-                        return Ok(());
                     }
                     if status["state"]=="cancelled" && self.replacing_asset.take().is_some() {
                         self.accept_asset_replacement(self.state.clone(),true);
@@ -150,9 +141,7 @@ impl Shell {
                         .into());
                 }
                 "running" => {
-                    let label=if self.relinking_assets {
-                        if self.workspace.locale==Locale::Zh {"检查丢失素材"}else{"Checking missing assets"}
-                    } else {self.workspace.locale.t(T::Importing)};
+                    let label=self.workspace.locale.t(T::Importing);
                     self.panels.message = Some(format!(
                         "{} {:.0}%",
                         label,
