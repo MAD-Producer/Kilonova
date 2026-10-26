@@ -128,6 +128,20 @@ fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_re
         for field in ["project", "revision", "history"] {
             assert_eq!(shell.state[field], before_open[field]);
         }
+        let invalid_precision = "z".repeat(8192);
+        shell.state["project"]["working_precision"] = invalid_precision.clone().into();
+        let cause = shell
+            .open_keyframe_timing(
+                crate::layer_clipboard::KeyframeSource::of(&before_open),
+                vec![selected(7, Property::Position, 30)],
+            )
+            .unwrap_err();
+        assert!(
+            cause.contains(&invalid_precision),
+            "the returned primary cause must stay complete"
+        );
+        assert!(shell.dialog.is_none());
+        shell.state = before_open.clone();
         shell
             .open_keyframe_timing(
                 crate::layer_clipboard::KeyframeSource::of(&before_open),
@@ -198,4 +212,16 @@ fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_re
         && l.contains("object 999 does not exist")));
     assert!(stderr.contains("keyframe timing failed operation=open"));
     assert!(!stderr.contains("keyframe timing start") && !stdout.contains("keyframe timing"));
+    for output in [&file, stderr.as_ref()] {
+        let line = output
+            .lines()
+            .find(|l| l.contains("keyframe timing failed operation=open") && l.contains("zzzzzzzz"))
+            .unwrap();
+        assert_eq!(
+            line.split_once("cause=").unwrap().1.chars().count(),
+            2048,
+            "bound the original cause independently of the logger's thread-name prefix"
+        );
+        assert!(!line.contains(&"z".repeat(8192)));
+    }
 }

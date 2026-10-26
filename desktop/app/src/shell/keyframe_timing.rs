@@ -36,8 +36,9 @@ impl Shell {
                 Ok(())
             }
             Err(cause) => {
+                let observed = crate::fallback_observation::error_cause(&cause);
                 log::error!(
-                    "keyframe timing failed operation=open window={owner} revision={revision:?} generation={generation:?} object={object:?} phase=profile elapsed_ms={} cause={cause}",
+                    "keyframe timing failed operation=open window={owner} revision={revision:?} generation={generation:?} object={object:?} phase=profile elapsed_ms={} cause={observed}",
                     began.elapsed().as_millis()
                 );
                 Err(cause)
