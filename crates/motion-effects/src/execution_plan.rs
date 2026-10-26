@@ -52,7 +52,9 @@ pub struct PixelRect {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CoordinateDomain {
-    Layer { layer: u64 },
+    Layer {
+        layer: u64,
+    },
     Composition,
     /// Texel coordinates of an imported resource, independent of any layer ROI.
     Resource,
@@ -213,6 +215,13 @@ pub struct ExecutionPlan {
 
 /// These are logical preparation limits supplied by the caller. Physical GPU
 /// memory admission and actual negotiated storage remain separate requirements.
+/// Default application admission budgets for one checked graph. These bound
+/// aggregate compiled text and conservative static work, not elapsed GPU time,
+/// texture filtering taps, total covered pixels or physical memory residency.
+pub const DEFAULT_EXECUTION_SHADER_BYTES: u64 = 64 * 1024 * 1024;
+pub const DEFAULT_EXECUTION_LOOP_WORK: u64 = 1024 * 1024;
+pub const DEFAULT_EXECUTION_SAMPLE_READS: u64 = 16 * 1024 * 1024;
+
 #[derive(Clone, Copy, Debug)]
 pub struct ExecutionLimits {
     pub nodes: usize,

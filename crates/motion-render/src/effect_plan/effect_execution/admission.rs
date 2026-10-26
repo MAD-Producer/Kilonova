@@ -96,6 +96,7 @@ impl NativeAnnotations {
             code.update(b"motion-effect-operation-v1");
             let mut shader_bytes = 0_u64;
             let mut loops = 0_u64;
+            let mut samples = Some(0_u64);
             for pass in &frame.passes[passes] {
                 for (token, tokens, absent) in [
                     (pass.resource_input, &mut binding.resource_tokens, 0),
@@ -122,6 +123,13 @@ impl NativeAnnotations {
                 loops = loops
                     .checked_add(identity.loop_work)
                     .ok_or("effect IR loop cost overflow")?;
+                samples = match (samples, identity.samples_per_fragment) {
+                    (Some(a), Some(b)) => Some(
+                        a.checked_add(b)
+                            .ok_or("effect IR texture-read bound overflow")?,
+                    ),
+                    _ => None,
+                };
             }
             let effect = value.effect.map(|i| &scene.effects[i]);
             result.nodes.push(ExecutionNode {
@@ -154,7 +162,7 @@ impl NativeAnnotations {
                 cost: OperationCost {
                     shader_bytes,
                     static_loop_work: loops,
-                    samples_per_fragment: None,
+                    samples_per_fragment: samples,
                     passes: binding.original_passes.len() as u32,
                 },
                 code_identity: code.finalize().into(),

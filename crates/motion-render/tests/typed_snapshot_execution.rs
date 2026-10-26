@@ -4,13 +4,13 @@ use motion_core::{
     Project,
 };
 use motion_effects::{
-    AlphaMode, Registry, WorkingSpace,
     execution_plan::{ExecutionCapability, ExecutionPlanError},
     image_contract::{ChannelPrecision, ImageContract, ImageMeaning},
+    AlphaMode, Registry, WorkingSpace,
 };
 use motion_render::{
+    effect_plan::{native_execution_capabilities, native_snapshot_limits, PlanBuilder},
     RenderError, Renderer, Scene,
-    effect_plan::{PlanBuilder, native_execution_capabilities, native_snapshot_limits},
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -149,14 +149,12 @@ fn saved_authoring_diamond_lowers_to_typed_native_snapshot_inputs_and_lifetimes(
     assert_eq!(shared.output_type.rect.size, [W, H]);
     assert!(shared.cost.passes > 0);
     assert!(shared.cost.shader_bytes > 0);
-    assert_eq!(
-        execution
-            .checked()
-            .unwrap()
-            .total_cost()
-            .samples_per_fragment,
-        None
-    );
+    assert!(execution
+        .checked()
+        .unwrap()
+        .total_cost()
+        .samples_per_fragment
+        .is_some_and(|n| n > 0));
     assert_eq!(
         graph.required_capabilities,
         BTreeSet::from([ExecutionCapability::ImageDagV1])

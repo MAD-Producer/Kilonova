@@ -1,5 +1,6 @@
 //! SDK 1: host-owned fullscreen vertex, resource bindings and 16-byte parameter slots.
 mod identity;
+mod sample_bounds;
 pub use identity::{CompiledCodeIdentity, compiled_code_identity};
 use crate::{ensure, Error, Result};
 use naga::{
@@ -109,6 +110,9 @@ pub struct CompiledShader {
     pub additive: bool,
     /// Existing portable-source validation metric; not a texture-sample count.
     pub loop_work: u64,
+    /// Conservative reads per fragment, including SDK helpers and bounded
+    /// loops. None is reserved for implementations without an IR proof.
+    pub samples_per_fragment: Option<u64>,
 }
 
 fn portable_source(source: &str) -> Result<u64> {
@@ -251,8 +255,9 @@ fn compile_internal(
             context: "WGSL validation",
             cause: Box::new(cause),
         })?;
+    let samples_per_fragment = Some(sample_bounds::fragment_reads(&module, loop_work)?);
     let glsl = host_glsl(&module, &info, "sdk_vertex", "sdk_fragment")?;
-    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work })
+    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work, samples_per_fragment })
 }
 
 /// Host-owned geometry programs use the same Naga reflection and ES compiler.

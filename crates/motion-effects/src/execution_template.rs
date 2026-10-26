@@ -2,7 +2,7 @@
 //! by the consumer; a reusable package never serializes a frame's texture IDs.
 use crate::execution_plan::*;
 use crate::image_contract::{ChannelPrecision, ImageContract, ImageMeaning};
-use crate::shader::{CompiledCodeIdentity, CompiledShader, compiled_code_identity};
+use crate::shader::{compiled_code_identity, CompiledCodeIdentity, CompiledShader};
 use crate::{AlphaMode, EffectDefinition, RendererKind, WorkingSpace};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -117,10 +117,10 @@ pub fn image_template_limits() -> ExecutionLimits {
         nodes: crate::MAX_PASSES + 1,
         edges: crate::MAX_PASSES * 2,
         passes: crate::MAX_PASSES as u64,
-        shader_bytes: 64 * 1024 * 1024,
-        static_loop_work: u64::MAX,
-        samples_per_fragment: u64::MAX,
-        require_sample_bounds: false,
+        shader_bytes: DEFAULT_EXECUTION_SHADER_BYTES,
+        static_loop_work: DEFAULT_EXECUTION_LOOP_WORK,
+        samples_per_fragment: DEFAULT_EXECUTION_SAMPLE_READS,
+        require_sample_bounds: true,
         uniform_cells_per_node: crate::MAX_PARAMS as u16,
         resource_inputs_per_node: 4,
         rectangle_side: i32::MAX as u32,
@@ -170,12 +170,16 @@ impl ExecutionTemplate {
         &self,
         effect: &EffectDefinition,
     ) -> Result<(), TemplateError> {
+        // Package metadata alone has no compiled IR. Structure validation is
+        // not runtime admission; check() still requires actual sample bounds.
+        let mut limits = image_template_limits();
+        limits.require_sample_bounds = false;
         self.check_inner(
             effect,
             None,
             &TemplateContext::package(),
             &image_template_capabilities(),
-            image_template_limits(),
+            limits,
         )
         .map(|_| ())
     }
@@ -263,7 +267,7 @@ impl ExecutionTemplate {
         let zero_cost = OperationCost {
             shader_bytes: 0,
             static_loop_work: 0,
-            samples_per_fragment: None,
+            samples_per_fragment: Some(0),
             passes: 0,
         };
         let mut nodes = vec![ExecutionNode {
@@ -306,7 +310,7 @@ impl ExecutionTemplate {
                 cost: OperationCost {
                     shader_bytes: identity.map_or(0, |c| c.text_bytes),
                     static_loop_work: identity.map_or(0, |c| c.loop_work),
-                    samples_per_fragment: None,
+                    samples_per_fragment: identity.and_then(|c| c.samples_per_fragment),
                     passes: 1,
                 },
                 code_identity: node.code_identity,

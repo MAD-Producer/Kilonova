@@ -47,11 +47,10 @@ pub fn native_snapshot_limits(max_dimension: u32) -> ExecutionLimits {
         nodes: motion_model::MAX_LAYERS,
         edges: motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER,
         passes: MAX_SCRATCH_PASSES as u64,
-        // Original package/shader and physical-memory admission still applies.
-        shader_bytes: u64::MAX,
-        static_loop_work: u64::MAX,
-        samples_per_fragment: u64::MAX,
-        require_sample_bounds: false,
+        shader_bytes: DEFAULT_EXECUTION_SHADER_BYTES,
+        static_loop_work: DEFAULT_EXECUTION_LOOP_WORK,
+        samples_per_fragment: DEFAULT_EXECUTION_SAMPLE_READS,
+        require_sample_bounds: true,
         uniform_cells_per_node: motion_effects::MAX_PARAMS as u16,
         resource_inputs_per_node: motion_effects::MAX_EFFECTS_PER_LAYER as u16,
         rectangle_side: max_dimension,
@@ -199,6 +198,7 @@ fn prepare_snapshot_graph(
         code.update(b"motion-atomic-snapshot-v1");
         let mut shader_bytes = 0_u64;
         let mut loop_work = 0_u64;
+        let mut samples = Some(0_u64);
         for (offset, pass) in frame.passes[draw.pass_start..draw.pass_end]
             .iter()
             .enumerate()
@@ -221,6 +221,13 @@ fn prepare_snapshot_graph(
             ]);
             loop_work = loop_work.checked_add(program.shader.loop_work)
                 .ok_or_else(|| RenderError::Invalid(format!("composition={context} layer={} phase=snapshot_lowering: loop metric overflow",draw.layer)))?;
+            samples = match (samples, program.shader.samples_per_fragment) {
+                (Some(a), Some(b)) => Some(
+                    a.checked_add(b)
+                        .ok_or("snapshot texture-read bound overflow")?,
+                ),
+                _ => None,
+            };
         }
         let output_type = types[index].ok_or("snapshot output type is absent")?;
         nodes.push(ExecutionNode {
@@ -253,8 +260,7 @@ fn prepare_snapshot_graph(
             cost: OperationCost {
                 shader_bytes,
                 static_loop_work: loop_work,
-                // The SDK loop metric is not a proved texture-sampling bound.
-                samples_per_fragment: None,
+                samples_per_fragment: samples,
                 passes: (draw.pass_end - draw.pass_start) as u32,
             },
             code_identity: code.finalize().into(),

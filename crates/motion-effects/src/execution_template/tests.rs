@@ -1,5 +1,61 @@
 use super::*;
 
+#[test]
+fn actual_compiled_costs_are_enforced_independently_and_unknown_samples_are_refused() {
+    let (definition, shader, template) = fixture();
+    let code = [compiled_code_identity(&shader)];
+    let healthy = check(&template, &definition, &shader).unwrap();
+    let cost = healthy.checked().total_cost();
+    assert!(cost.shader_bytes > 0);
+    assert!(cost.static_loop_work > 0);
+    assert_eq!(cost.samples_per_fragment, Some(2));
+    for resource in ["shader_bytes", "static_loop_work", "samples_per_fragment"] {
+        let mut limits = image_template_limits();
+        let (slot, required) = match resource {
+            "shader_bytes" => (&mut limits.shader_bytes, cost.shader_bytes),
+            "static_loop_work" => (&mut limits.static_loop_work, cost.static_loop_work),
+            _ => (&mut limits.samples_per_fragment, 2),
+        };
+        *slot = required - 1;
+        let error = template
+            .check(
+                &definition,
+                &code,
+                &TemplateContext::package(),
+                &image_template_capabilities(),
+                limits,
+            )
+            .err()
+            .unwrap();
+        assert!(
+            matches!(error, TemplateError::Plan(ExecutionPlanError::Budget {
+            resource: actual, required: actual_required, maximum, ..
+        }) if actual == resource && actual_required == required && maximum == required - 1),
+            "{error}"
+        );
+    }
+    let mut unknown = shader.clone();
+    unknown.samples_per_fragment = None;
+    let unknown_template = ExecutionTemplate::single_pass(&definition, &unknown);
+    assert!(matches!(
+        check(&unknown_template, &definition, &unknown),
+        Err(TemplateError::Plan(ExecutionPlanError::UnknownCost {
+            resource: "samples_per_fragment",
+            ..
+        }))
+    ));
+    // Structure-only package validation does not pretend to have code costs.
+    template.validate_structure(&definition).unwrap();
+    assert_eq!(
+        check(&template, &definition, &shader)
+            .unwrap()
+            .checked()
+            .total_cost()
+            .samples_per_fragment,
+        Some(2)
+    );
+}
+
 fn fixture() -> (EffectDefinition, CompiledShader, ExecutionTemplate) {
     let package = crate::builtin::package().unwrap();
     let definition = package
@@ -68,7 +124,7 @@ fn runtime_template_binds_current_precision_extent_and_origin_without_texture_id
         assert_eq!(output.inputs[0].expected.rect.size, [32, 24]);
         assert_eq!(result.pass(output.id), Some(0));
         assert_eq!(result.checked().total_cost().passes, 1);
-        assert!(result.checked().total_cost().samples_per_fragment.is_none());
+        assert_eq!(result.checked().total_cost().samples_per_fragment, Some(2));
     }
 }
 
@@ -193,25 +249,21 @@ fn runtime_template_capability_declaration_is_required_and_optional_for_ordinary
     let definition = &mut manifest.effects[0];
     let shader = &package.shaders[&(definition.id.clone(), 0)];
     definition.execution = Some(ExecutionTemplate::single_pass(definition, shader));
-    assert!(
-        manifest
-            .validate()
-            .unwrap_err()
-            .to_string()
-            .contains("capability")
-    );
+    assert!(manifest
+        .validate()
+        .unwrap_err()
+        .to_string()
+        .contains("capability"));
     manifest.effects[0]
         .required_capabilities
         .push(EXECUTION_TEMPLATE_CAPABILITY.into());
     manifest.validate().unwrap();
     manifest.effects[0].execution = None;
-    assert!(
-        manifest
-            .validate()
-            .unwrap_err()
-            .to_string()
-            .contains("capability")
-    );
+    assert!(manifest
+        .validate()
+        .unwrap_err()
+        .to_string()
+        .contains("capability"));
     manifest.effects[0]
         .required_capabilities
         .retain(|c| c != EXECUTION_TEMPLATE_CAPABILITY);

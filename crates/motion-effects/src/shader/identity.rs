@@ -8,6 +8,7 @@ pub struct CompiledCodeIdentity {
     /// UTF-8 source/reflection names, excluding binary hash framing.
     pub text_bytes: u64,
     pub loop_work: u64,
+    pub samples_per_fragment: Option<u64>,
 }
 
 pub fn compiled_code_identity(shader: &CompiledShader) -> CompiledCodeIdentity {
@@ -33,9 +34,12 @@ pub fn compiled_code_identity(shader: &CompiledShader) -> CompiledCodeIdentity {
     }
     hash.update([u8::from(shader.sprite), u8::from(shader.additive)]);
     hash.update(shader.loop_work.to_le_bytes());
+    hash.update([u8::from(shader.samples_per_fragment.is_some())]);
+    hash.update(shader.samples_per_fragment.unwrap_or(0).to_le_bytes());
     CompiledCodeIdentity {
         digest: hash.finalize().into(),
         text_bytes: bytes,
         loop_work: shader.loop_work,
+        samples_per_fragment: shader.samples_per_fragment,
     }
 }

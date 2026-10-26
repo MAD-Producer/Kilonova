@@ -15,7 +15,7 @@ pub struct PortableFusionMetrics {
     pub portable_compile_nanos: u64,
     /// Existing portable compiler metric, not a GPU instruction count.
     pub static_loop_work: u64,
-    /// One input lookup plus the SDK wrapper's original-source lookup.
+    /// Bound derived from the actual compiled fragment IR, including the SDK.
     pub shader_texture_samples_upper_bound: u64,
 }
 
@@ -146,7 +146,9 @@ impl PointwiseChain {
             compiled_glsl_bytes: compiled.glsl.vertex.len() + compiled.glsl.fragment.len(),
             portable_compile_nanos: elapsed.as_nanos().min(u64::MAX as u128) as u64,
             static_loop_work: compiled.loop_work,
-            shader_texture_samples_upper_bound: 2,
+            shader_texture_samples_upper_bound: compiled.samples_per_fragment.ok_or_else(|| {
+                Error::Invalid("pointwise compiled fragment has no texture-read bound".into())
+            })?,
         };
         Ok(FusedShader { compiled, metrics })
     }

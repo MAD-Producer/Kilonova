@@ -1240,3 +1240,43 @@ fusion proof obligations, the Linux Float16 frame-import failure, or G. The
 No panel, UI, dependency or Android changes are included.
 
 Evidence: [C1 source and raw acceptance receipts](data/typed-render-dag-c1-244a7b39.zip), SHA-256 `5ad3f71be97b1b25f1795a97519d46ac51e6c8bc9fcb43014233fab4b5812870`; 278,989 bytes, 34 payload files, all archive entries read back and hashed.
+
+
+### C3a: enforce finite measured code and bounded static-work admission
+
+Compiled shaders now carry a conservative fragment texture-read bound derived
+from validated Naga IR. It includes ImageSample/ImageLoad expressions, SDK
+helpers, repeated function call occurrences and both branch arms. Naga's
+callee-before-caller invariant permits iterative expansion without recursion.
+The existing portable-source bounded-loop product is applied once to the
+expanded call graph; current SDK helpers have no loops. This overestimates
+branches, zero-iteration loops and sibling loops. It counts shader read
+operations, not filtering taps, covered pixels, GPU instructions or duration.
+Overflow reachable from the fragment refuses compilation; unreachable helper
+overflow is not charged to an unrelated entry point. Unknown implementations
+retain None and cannot pass runtime sample-bound admission.
+
+Native effect/snapshot and reusable-template checks now enforce 64 MiB aggregate
+compiled text, 1,048,576 aggregate static-loop work and 16,777,216 conservative
+fragment reads per checked graph. These are finite application safety policies,
+not adapter measurements. Actual per-pass code identities/text sizes, loop work
+and read bounds flow into the graph before checking. Source/import nodes cost
+zero known reads. Structure-only package validation has no compiled costs and
+is explicitly separate from runtime admission. Fused-program read metrics also
+come from the compiled IR instead of a literal two-sample claim.
+
+New independent tests check loads, SDK curves, repeated calls, branches, nested
+loops, reachable overflow, unreachable work, all three individual budget
+refusals, unknown-cost refusal and recovery. Two previous assertions expecting
+unknown sampling have been strengthened to require actual known bounds; no
+numeric tolerance, refusal guard or GPU output assertion was relaxed. The first
+new overflow fixture accidentally named a helper f32; that source-name collision
+was corrected without changing its assertions. Its failed receipt is retained.
+The frozen corrected run passed 39 effects tests and 273 render tests, zero
+failures or ignores, including the actual native diamond and runtime template.
+
+C3 remains open for the runtime three-slot ceiling. Independent fusion proofs,
+the Linux Float16 frame-import failure and final-source G also remain open.
+This is a logical admission change, with no UI, panel, dependency or Android work.
+
+Evidence: [cost-bound source and raw receipts](data/typed-render-dag-cost-bounds-78f6205c.zip), SHA-256 `0fcdff7a4a6ac8b1a992f79001e96fb000b3298bf5cdddd0e70ebb089591d313`; 508,002 bytes, 83 payload files, all read back and hashed.
