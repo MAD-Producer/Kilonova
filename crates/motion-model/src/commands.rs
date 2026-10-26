@@ -57,6 +57,7 @@ pub enum Command {
     RegisterVideoAsset {
         asset: crate::VideoAsset,
     },
+    MediaAsset { action: crate::media_assets::AssetAction },
     SetAudio {
         object: u64,
         #[serde(default)]
@@ -290,6 +291,7 @@ impl Command {
             Self::RegisterAsset { .. }
             | Self::RegisterAudioAsset { .. }
             | Self::RegisterVideoAsset { .. }
+            | Self::MediaAsset { .. }
             | Self::RegisterFontAsset { .. }
             | Self::Content { .. }
             | Self::Add { .. }
@@ -299,7 +301,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

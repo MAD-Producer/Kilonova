@@ -252,6 +252,12 @@ pub enum Command {
         file: PathBuf,
         reply: Sender<Result<Value, String>>,
     },
+    ReplaceImage {
+        file: PathBuf,
+        asset: u64,
+        revision: u64,
+        reply: Sender<Result<Value, String>>,
+    },
     CreateText {
         text: String,
         size: f32,
@@ -412,7 +418,7 @@ impl Command {
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
-            | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
+            | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
@@ -1859,6 +1865,7 @@ fn handle(
         })()),
         Command::ImportProject { file, reply } => respond(reply,guard.changed(project::import_project(id, &file))),
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
+        Command::ReplaceImage {file,asset,revision,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::replace_image(s,&file,asset,revision))),
         Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
         Command::FreezeMovie {control,reply}=> {
             let result = (|| -> motion_host::Result<()> {

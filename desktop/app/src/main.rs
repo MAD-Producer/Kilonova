@@ -3,6 +3,7 @@ mod audio_output;
 mod cursors;
 mod diagnostics;
 mod dialogs;
+mod media_assets;
 mod effect_import;
 mod fallback_observation;
 mod engine;
@@ -311,6 +312,10 @@ struct Shell {
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
+    replacing_asset: Option<media_assets::Source>,
+    relinking_assets: bool,
+    relink_reply: Option<(shell::media_assets::RelinkPhase, std::sync::mpsc::Receiver<Result<Value, String>>)>,
+    file_location: Option<shell::media_assets::Location>,
     audio_analysis: Option<shell::audio_analysis::Analysis>,
     importing_effect: Option<effect_import::Task>,
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
@@ -431,6 +436,10 @@ impl Shell {
             export_notified: false,
             importing_image: None,
             importing_media: None,
+            replacing_asset: None,
+            relinking_assets: false,
+            relink_reply: None,
+            file_location: None,
             audio_analysis: None,
             importing_effect: None,
             attaching: None,
@@ -763,6 +772,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         self.poll_effect_import();
         self.poll_layer_clipboard();
+        if let Err(error) = self.poll_file_location() {
+            self.panels.message = Some(self.workspace.locale.error(&error));
+            self.dirty = true;
+        }
         if let Err(error) = self.poll_audio_analysis() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -1047,6 +1060,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.dirty
             || self.importing_image.is_some()
             || self.importing_media.is_some()
+            || self.file_location.is_some()
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()

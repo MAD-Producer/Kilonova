@@ -95,7 +95,7 @@ fn layout_shortcuts_blocked_for(panels: &Panels, path_focus: bool) -> bool {
         || panels.node_editor.popup_open()
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
-        || panels.project.context_menu.is_some()
+        || panels.project.context_menu.is_some() || panels.media_assets.open()
         || panels.timeline.timeline_context_menu.is_some()
         || panels.effect_search.is_some()
         || panels.layer_actions.modal_in(None)
@@ -141,7 +141,7 @@ fn route_inner(
         || input.pressed.is_some() || input.wheel != [0.; 2] || text_active(panels) || node_context
         || panels.menu.is_some() || panels.panel_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some()
-        || panels.project.context_menu.is_some() || panels.effect_search.is_some()
+        || panels.project.context_menu.is_some() || panels.media_assets.open() || panels.effect_search.is_some()
         || panels.node_editor.popup_open() || panels.layer_actions.modal_in(owner)
         || panels.layer_actions.text_in(owner) || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || panels.layer_actions.text_in(Some(Panel::Timeline))
@@ -172,7 +172,7 @@ fn route_inner(
     if panels.node_editor.popup_open()
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
-        || panels.project.context_menu.is_some()
+        || panels.project.context_menu.is_some() || panels.media_assets.open()
         || panels.timeline.timeline_context_menu.is_some()
     {
         return false;

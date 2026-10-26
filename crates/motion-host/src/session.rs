@@ -101,6 +101,7 @@ pub struct Session {
     pub video_frames: VideoFrames,
     pub preview_inputs: crate::preview_inputs::PreviewInputReader,
     pub audio_jobs: AudioJobs,
+    pub(crate) asset_relink: Option<crate::ops::media::relink::Batch>,
     pub package_jobs: PackageJobs,
     pub audio_mixer: Option<(u64, AudioMixer)>,
     pub audio_pcm: Vec<f32>,
@@ -200,6 +201,7 @@ impl Session {
             video_frames,
             preview_inputs: crate::preview_inputs::PreviewInputReader::new(platform.clone()),
             audio_jobs,
+            asset_relink: None,
             package_jobs: PackageJobs::default(),
             audio_mixer: None,
             audio_pcm: Vec::new(),
@@ -320,6 +322,11 @@ impl Session {
     }
 
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
+        if let Some(batch) = &mut self.asset_relink {
+            // Keep the bounded terminal task queryable until its caller releases
+            // it, so a document replacement is observed as cancellation.
+            batch.cancel()?;
+        }
         let document_generation = next_document_generation()?;
         let next_scene = Scene::new(engine.project())?;
         let mut registry=self.effects.registry.clone();
@@ -984,7 +991,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
 }
 
 /// Adapt the host's audio fallback to the callback shape `motion-media` expects.
-fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
+pub(crate) fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
     let platform = platform.clone();
     Arc::new(
         move |path: &std::path::Path,
@@ -1006,6 +1013,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
+    let _relink_scope = crate::ops::media::relink::observation::Scope::enter();
     let mut command_logs = motion_render::gpu_commands::GpuCommandLogScope::new(Some(id));
     let slot = {
         let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());

@@ -1,0 +1,52 @@
+{
+  "stage": "backend transactions; UI integration pending",
+  "source_commit": "782e60a62f2e9cea6880968b012851c58ce6b491",
+  "core": {
+    "passed": 374,
+    "failed": 0,
+    "ignored": 1
+  },
+  "media": {
+    "passed": 165,
+    "failed": 0,
+    "ignored": 2
+  },
+  "desktop": {
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  "existing_dispatch_blocking": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "ui_acceptance": "pending: menus, selection, file picker/location, native focus, bilingual/DPI screenshots",
+  "sources": {
+    "crates/motion-model/src/media_assets.rs": "0db7afcf158b211d582593d200dd73f6675768296244ea1ac4a42829fee342a9",
+    "crates/motion-model/src/commands.rs": "922f94a78ae12f6e7217f76b17f045a1c9c71dec544c5249f49b7ae861a59371",
+    "crates/motion-model/src/lib.rs": "170993c7314e7d7e0c20e72648ec9ed25ed2c6e807c5cb93b6284cf4e16dd7dc",
+    "crates/motion-core/src/editor.rs": "57f3959057c871d0d65c7c6fc35751b282f7c29266670807a0788d7da740f46e",
+    "crates/motion-core/src/lib.rs": "2c6a0eec02abbcdce71611c317975b48dd6d504e1aeb6b49263e6528ad02386a",
+    "crates/motion-core/src/command_registry.rs": "2c6bf35195ec7af911cc8d0dffed4affb1b21c9a9ba46b7f2e54c1aeaed9dfcd",
+    "crates/motion-core/tests/media_assets.rs": "5a20ec9971103c3742be5effa1e23b305e431514d049a492186d6c29e87e45f9",
+    "crates/motion-media/src/jobs.rs": "cb690dc9740b35f0c3f3760ab6531a3baccdd8bddeac4d8b5c3a24ff29536278",
+    "crates/motion-media/src/video.rs": "10ccf87a4c549feb26ebf974209bf102d6d50acc30ed4217547dfe3a86c15af8",
+    "crates/motion-host/src/ops/media.rs": "655da256e774324430f4f6c99ab8df5af25bdbe78a27323908f53960a9159f75",
+    "desktop/app/src/engine.rs": "628a43ea7a0fcc1ca0b5ed4ddc28710d01405553c860e84a1ee849e3c9268204",
+    "desktop/app/src/engine/diagnostic_names.rs": "56a7c0fc248aebf3223ac3a6453f54744b55a8edb28eaf5e4b4382679a8ec529",
+    "desktop/app/src/workflow.rs": "363fb3e749679ff3a8eeb40522ea125bf7386273aa309dfcdcdf35835d80f4b8",
+    "desktop/app/src/workflow/media_asset_tests.rs": "778c3733bfd8a47cc1c1673b9b4fdbc8547631c3be6c25f916102291d9cdd63d"
+  },
+  "default_error_evidence": {
+    "asset": 1,
+    "audioCause": "media replacement request=error-short asset=2 kind=Audio phase=commit expected_revision=2: audio clip exceeds recoverable source interval",
+    "cause": "image replacement asset=1 revision=1 phase=replace source=\"E:/Dev/aem/artifacts/pr-ci-followups/media-assets-default-errors-final\\\\missing-replacement.png\": 系统找不到指定的文件。 (os error 2)",
+    "projectUnchanged": true,
+    "revision": 1
+  },
+  "evidence": {
+    "files": 25,
+    "sha256": "ab4bdc7a2fbd3dad71d7a0d9d7ad2cd0478505c20503020b1460f1632b8e2e62"
+  }
+}
