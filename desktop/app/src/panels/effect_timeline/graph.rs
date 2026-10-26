@@ -231,6 +231,7 @@ pub(in crate::panels) fn render(
         .as_ref()
         .map(|d| d.bounds)
         .or_else(|| panels.effect_timeline.drag.as_ref().and_then(|d| d.bounds))
+        .or_else(|| panels.key_gestures.drag_bounds())
         .unwrap_or([center - half, center + half]);
     let y_of = |v: f32| plot.max[1] - (v - bounds[0]) / (bounds[1] - bounds[0]) * plot.height();
     let x_of = |f: f64| plot.min[0] + (f - offset) as f32 * ppf;
@@ -299,9 +300,10 @@ pub(in crate::panels) fn render(
         let hit = styles.metric("timeline.key.hit_radius", 5.);
         let rect = Rect::new(point[0] - hit, point[1] - hit, hit * 2., hit * 2.);
         if let Some(frame) = composition_frame(time, state) {
-            key_selection::ui::mark(&mut lines, panels, key_selection::Key {
+            key_selection::ui::graph_mark(&mut lines, panels, key_selection::Key {
                 target: motion_core::KeyframeTarget::Effect { object: target.object, effect: target.effect, param: target.param.clone() }, frame,
-            }, point, styles.metric("graph.handle_radius", 4.), rect);
+            }, point, styles.metric("graph.handle_radius", 4.), rect,component,
+                if speed || parameter.kind.discrete() {0.} else {(bounds[1]-bounds[0])/plot.height()},Some([parameter.min,parameter.max]));
         }
         #[cfg(test)]
         panels

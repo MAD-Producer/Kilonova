@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 mod movement;
+mod transform;
 mod source;
 pub(super) mod ui;
 
@@ -110,6 +111,17 @@ impl Set {
         self.channels.values().any(|channel| {
             channel.target.as_ref() == Some(&key.target) && channel.frames.contains(&key.frame)
         })
+    }
+
+    fn translated(&self, delta: i32) -> motion_core::Result<Self> {
+        let shifted=|frame:u32| u32::try_from(i64::from(frame)+i64::from(delta))
+            .map_err(|_|Error::Invalid("key selection time overflow".into()));
+        let mut set=self.clone();
+        for channel in set.channels.values_mut() {
+            channel.frames=channel.frames.iter().map(|f|shifted(*f)).collect::<motion_core::Result<_>>()?;
+        }
+        if let Some(primary)=&mut set.primary {primary.frame=shifted(primary.frame)?;}
+        set.validated.set(None);set.intent=true;Ok(set)
     }
 
     /// Explicit layer/property navigation relinquishes ownership. Clearing only
@@ -332,6 +344,7 @@ pub(super) fn shortcut(
 ) -> bool {
     use crate::shortcuts::Command as Shortcut;
     use motion_ui::dock::Panel;
+    if transform::nudge(panels,state,command,out) { return true; }
     if command == Shortcut::SelectAll
         && panels.focused == Some(Panel::Timeline)
         && (panels.selected_keys.owns_keys() || panels.timeline.graph_mode)

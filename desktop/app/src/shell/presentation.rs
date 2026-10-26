@@ -7,6 +7,9 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if state["editorAction"]["cancelled"]==true && state["editorAction"]["operation"]=="keyframe_timing" {
+            self.reject_stale_keyframe_timing();
+        }
         if state["edit_result"]["op"] == "create_camera" {
             if let Some(object) = state["edit_result"]["object"].as_u64() {
                 self.panels.select_only(Some(object));
@@ -168,7 +171,7 @@ impl Shell {
             Some(began.elapsed()),
             context,
         );
-        if let Some(dialog) = &mut self.dialog {
+        if let Some(dialog) = self.dialog.as_mut().filter(|d|d.timing_owner().is_none_or(|owner|owner==0)) {
             if let Some(event) = dialog.render(
                 &mut paint,
                 &mut self.atlas,
@@ -247,6 +250,7 @@ impl Shell {
                             self.state = self.engine.edit(command)?;
                             self.dialog = None;
                         }
+                        event @ dialogs::Event::KeyframeTiming { .. } => self.timing_dialog_event(event)?,
                         dialogs::Event::Text {
                             text,
                             size,
@@ -659,6 +663,9 @@ impl Shell {
             .map(|(id, _)| *id)
         {
             if let Some(f) = self.floating.remove(&id) {
+                if self.dialog.as_ref().is_some_and(|d|d.timing_owner()==Some(f.key)) {
+                    self.dialog=None;
+                }
                 self.exposure_presentations.remove(&f.key);
                 self.present_deferrals.closed(f.key);
                 self.resize_queue.remove(&f.key);
@@ -744,6 +751,8 @@ impl Shell {
             if blocked { &neutral } else { &f.input },
         );
         self.panels.timeline.navigation_paint_only = navigation;
+        let timing_event = self.dialog.as_mut().filter(|d|d.timing_owner()==Some(key))
+            .and_then(|dialog|dialog.render(&mut paint,&mut self.atlas,size,if acknowledged {&neutral}else{&f.input},self.workspace.locale));
         f.window.set_cursor(
             self.cursors
                 .get(self.panels.cursor.unwrap_or_default(), scale),
@@ -753,6 +762,7 @@ impl Shell {
             f.input.begin_frame();
             f.paint_input = f.input.clone();
         }
+        if let Some(event)=timing_event {self.timing_dialog_event(event)?;}
         if !self.actions.is_empty() && !acknowledged {
             self.observe_action_deferral(key, "after_draw");
             self.engine.recycle_paint(paint);

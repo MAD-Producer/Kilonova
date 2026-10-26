@@ -428,10 +428,15 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         ModifiedProperties => ("显示已修改属性", "Reveal modified properties"),
         PreviousKey => ("上一个关键帧", "Previous keyframe"),
         NextKey => ("下一个关键帧", "Next keyframe"),
+        NudgeKeyEarlier => ("关键帧提前一帧", "Nudge keys one frame earlier"),
+        NudgeKeyLater => ("关键帧延后一帧", "Nudge keys one frame later"),
+        NudgeKeysEarlierTen => ("关键帧提前十帧", "Nudge keys ten frames earlier"),
+        NudgeKeysLaterTen => ("关键帧延后十帧", "Nudge keys ten frames later"),
         ToggleGraph => ("切换值曲线", "Toggle value graph"),
         EaseBoth => ("双侧缓动", "Ease both"),
         EaseIncoming => ("入段缓动", "Ease incoming"),
         EaseOutgoing => ("出段缓动", "Ease outgoing"),
+        KeyframeTiming => ("关键帧插值与速度", "Keyframe interpolation and velocity"),
         Reveal(property) | ToggleKey(property) => {
             let text = match property {
                 motion_core::Property::Anchor => T::Anchor,

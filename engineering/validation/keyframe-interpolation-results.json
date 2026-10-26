@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    218,
+    252
+  ],
+  "productionCommit": "1cd57079",
+  "mainSyncCommit": "a481bd02",
+  "continuityTestCommit": "e9d8bd92",
+  "boundedCauseCommit": "3aa4cf45",
+  "normalCancellationCommit": "7cbebb58",
+  "verifiedSourceCommit": "7cbebb587cfa5d7587f7470b911c4787d85d0cfc",
+  "tests": {
+    "model": {
+      "passed": 51,
+      "failed": 0,
+      "raw": "logs/keyframe-timing-model-with-continuity.log"
+    },
+    "dialogAndDefaultErrors": {
+      "passed": 7,
+      "failed": 0,
+      "ignoredManualNative": 1,
+      "raw": "logs/keyframe-timing-ui-final-accepted-2.log"
+    },
+    "allPanels": {
+      "passed": 545,
+      "failed": 0,
+      "ignored": 1,
+      "raw": "logs/keyframe-timing-panels-final.log",
+      "scope": "same keyframe panel implementation before the a481bd02 main cache/paint sync; current-source targeted tests and CI are separate",
+      "executableSha256": "2436678da281f43934c852ed8550c2e542ea23d708d797021620be12064b4c53"
+    },
+    "postSyncAnimationMenu": {
+      "passed": 9,
+      "failed": 0,
+      "raw": "logs/keyframe-timing-animation-menu-final.log"
+    },
+    "defaultBindingReference": {
+      "passed": 1,
+      "failed": 0,
+      "evidence": "terminal output after disabling MOTION_UPDATE_SHORTCUT_DOCS"
+    },
+    "existingFallbackObservations": {
+      "passed": 2,
+      "failed": 0,
+      "evidence": "terminal output; no threshold changes"
+    },
+    "nativeGpu": {
+      "passed": 1,
+      "failed": 0,
+      "raw": "logs/keyframe-timing-native-final-accepted.log"
+    },
+    "actualFrozenMp4": {
+      "passed": 1,
+      "failed": 0,
+      "raw": "logs/keyframe-timing-frozen-output.log"
+    },
+    "styleConsumers": {
+      "passed": true,
+      "raw": "logs/keyframe-timing-style-final-accepted.log"
+    }
+  },
+  "native": {
+    "screenshots": 14,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "mainLogicalSizes": [
+      [
+        900,
+        600
+      ],
+      [
+        1600,
+        1000
+      ]
+    ],
+    "pixelRatios": [
+      1,
+      1.5
+    ],
+    "actualPresentFloatAndWindowDevice": true,
+    "injectedProductionInput": true,
+    "systemForegroundInput": "pending manual validation",
+    "singleUndoMainAndFloat": true,
+    "separateProcessReopenExactProject": true
+  },
+  "frozenOutput": {
+    "differentBytesFromLinearPerFrame": [
+      0,
+      1116,
+      914,
+      1084,
+      1173,
+      967
+    ],
+    "differentBytesFromRemovedPerFrame": [
+      1096,
+      1072,
+      672,
+      706,
+      822,
+      593
+    ],
+    "frames": 6,
+    "frozenEqualsSavedReopenedPixels": true,
+    "frozenIndependentOfLiveUndoRemovalAndSessionClose": true,
+    "sourceProjectVersion": 26
+  },
+  "preview": {
+    "sourceCommit": "ee60eb1535ac22b3dfada56ba21f292e7989968b",
+    "profile": "dev",
+    "features": [
+      "ffmpeg"
+    ],
+    "executableSha256": "124e9a8a1f0ab803fc64e678dfbd0e2caa57f20c3714da54a0aebcf467867dea",
+    "runtimeDlls": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    }
+  },
+  "executableHashes": {
+    "nativeAndUi": "18bfeddfb3b4fe63b0c3e5c00b1682bebce9e0d2d8baead8932b7bb1058d9bbb",
+    "model": "3e465906c5dd1293a712ca645a3cf033dd5397e7dd456c00c6b1de2f9d357a7b"
+  },
+  "remaining": [
+    "current PR CI",
+    "system foreground keyboard/mouse and IME-service manual validation"
+  ],
+  "unchanged": [
+    "project version and current-only loading",
+    "sampler and pixel semantics",
+    "third-party dependencies and assets"
+  ],
+  "evidence": {
+    "file": "keyframe-interpolation-evidence.zip",
+    "bytes": 5864150,
+    "sha256": "3be9b6bd82d5a86cf097297d8919e1a72ba3af8efbbbb9559dc389b4dd09d629",
+    "files": 186
+  },
+  "integration": {
+    "sourceCommit": "ee60eb1535ac22b3dfada56ba21f292e7989968b",
+    "baseCommit": "913e416acffa58b31bbe95968bd112d62f1eee20",
+    "changes": "sync main capture fixture protocol only; timing implementation and screenshots unchanged",
+    "dialogAndDefaultErrors": {
+      "passed": 7,
+      "failed": 0,
+      "ignoredManualNative": 1
+    },
+    "captureProtocolAndRealGpuWriteFailure": {
+      "passed": 3,
+      "failed": 0
+    },
+    "nativeAndUiExecutableSha256": "fdaab988989d5a72518db8a035cbfafcacae88ce1330ad69c4d0df54ba1e9036",
+    "ffmpegBuild": true,
+    "systemPathOnlyVideoDecode": true,
+    "remoteCI": "pending"
+  }
+}

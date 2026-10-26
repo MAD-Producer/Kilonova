@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "productionCommit": "da4b1ebe3a7f0dab66bb639e952be2514625b2db",
+  "nativeTestCommit": "49524ff77a4f3d238a31bbd360563359fc7c9cf9",
+  "tests": {
+    "model": {
+      "passed": 34,
+      "failed": 0,
+      "raw": "keyframe-dragging-model-final.log"
+    },
+    "chrome": {
+      "passed": 33,
+      "failed": 0,
+      "raw": "keyframe-dragging-ui-accepted.log"
+    },
+    "allPanels": {
+      "passed": 543,
+      "failed": 0,
+      "raw": "keyframe-dragging-panels-final.log"
+    },
+    "engineErrors": {
+      "passed": 1,
+      "failed": 0,
+      "raw": "keyframe-transform-error-final.log"
+    },
+    "nativeGpu": {
+      "passed": 1,
+      "failed": 0,
+      "raw": "keyframe-dragging-gpu-native-accepted.log"
+    }
+  },
+  "nativeGpu": {
+    "capturePid": 46772,
+    "reopenPid": 49504,
+    "actualPngCount": 16,
+    "fullUndoExact": true,
+    "sameHostLanguageSemanticsExact": true,
+    "independentReopenFullTypedProjectExact": true,
+    "newHistoryEmpty": true,
+    "inputKind": "production chrome panel input in hidden native GPU window; physical OS input not accepted"
+  },
+  "evidence": {
+    "members": 190,
+    "bytes": 1943175,
+    "sha256": "b3c3d51fbcd927a5f62921a6129465cd15d414eaa36e812332e087270ae8e591"
+  },
+  "retainedLimits": [
+    "Physical OS input attempts did not produce valid acceptance; original receipts and geometry retained.",
+    "Existing Vulkan layer registration and font diagnostics retained.",
+    "Remote PR CI pending."
+  ]
+}
