@@ -1,7 +1,9 @@
 # Typed render DAG: current delivery ledger
 
-Issue #78 is **in progress**, followed by #74 and #87. This is a partial
-implementation record, not an issue-closure claim. The initial foundation was
+Issue #78's maintained-desktop implementation and final source-bound acceptance
+are complete at `8ffb5af7`; PR #508 still owns publication and merge. The route
+continues with #74 and #87. Dated sections below retain historical intermediate
+states; their earlier pending gates are superseded only by the final G8 evidence. The initial foundation was
 based on `40efcd35`, then integrated with #73 at `ebb983c0`; the foundation
 commit is `6fdc5f1d`; the native snapshot milestone is `7fe37354`. PR #491
 passed all required checks and merged as `7bd4d860`, with its actual merge
@@ -10,25 +12,28 @@ was reviewed and no subagent was used.
 
 ## Requirements and actual coverage
 
-Latest closure audit: C1 and C3 are implemented with the source-bound targeted
-receipts below. Five independent fusion obligations are being accepted with
-their own arguments and controls. Final latest-main whole-workspace regression
-and maintained desktop CI remain required; earlier passing checkpoints are not
-attributed to later source.
+Latest closure audit: C1 removes the native frame from logical lowering, C3
+enforces finite code/work and actual physical runtime-slot admission, and the
+five independent fusion obligations have implementation-bound arguments and
+controls. Final G8, the separate software-Vulkan run and all five maintained
+remote checks pass on the same executable sources. The final gate is aligned
+with main `9dbdf75f`, not an unspecified moving latest-main revision. No original
+assertion, readiness timeout or resource limit was relaxed. See the final
+acceptance section at the end for exact commands, exclusions and evidence.
 
-| Item | Current evidence | Remaining requirement |
+| Item | Current evidence | Scope boundary / integrated verification |
 | --- | --- | --- |
-| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Pre-raster semantic producers, sampled selectors, origin IDs and region recipes now drive native proposals; admission refines real texel grids and aliases preview bypasses; final main-aligned integrated acceptance remains open |
+| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Pre-raster semantic producers, sampled selectors, origin IDs and region recipes now drive native proposals; admission refines real texel grids and aliases preview bypasses; final G8 and maintained-platform CI pass on the pinned main-aligned source |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded defaults, current-instance byte containers, actual numeric curve LUTs and scalar mask coverage now supply checked values consumed by native preparation; depth producers belong to later work |
 | 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology refuses cycles before CPU work; the initial semantic graph now owns outer producer identity and dependency selectors before proposals, while concrete checked texel extents follow transactional admission |
-| 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Final integrated boundary acceptance on the current main baseline |
-| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Real two-group portable/native counters now verify zero numeric compilation and only affected structural compilation; CurrentSample tasks still execute per frame; cache eviction may require recompilation; final integrated CI remains |
-| 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
-| 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial with its existing mutable cache/budget ordering; bounded pure-vector CPU parallelism fulfills the current scope; final integrated scheduling acceptance remains |
-| 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Complete final desktop integration/CI; extending the retired Android/GLES packed ABI is excluded by user instruction |
-| 78-R9 failures / observation | Typed cycle, precision mismatch and pass-budget failures now traverse the actual worker and default file/Error stderr channels with request/origin/timing context, stdout isolation, original GPU pixels and same-renderer recovery; earlier compiler/private-data faults remain covered | Confirm the complete final source in G integration and cross-platform desktop CI |
-| 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Actual dev-profile shader sizes, portable/native compilation, pass counts, synchronized frame wall intervals and per-frame enrolled-capacity peaks are recorded below; no process RSS, driver VRAM or GPU-only timing inference; final integration remains |
-| 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
+| 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Final G8 and remote CI pass on pinned main `9dbdf75f` |
+| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Real two-group portable/native counters now verify zero numeric compilation and only affected structural compilation; CurrentSample tasks still execute per frame; cache eviction may require recompilation; final G8 and maintained-platform CI pass |
+| 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Five independent arguments and negative controls plus final G8 and maintained CI pass; closed graph regions alone never establish shader equivalence |
+| 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial with its existing mutable cache/budget ordering; bounded pure-vector CPU parallelism fulfills the current scope; final integrated G8 acceptance passes |
+| 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Final desktop G8 and maintained CI pass; extending the retired Android/GLES packed ABI is excluded by user instruction |
+| 78-R9 failures / observation | Typed cycle, precision mismatch and pass-budget failures now traverse the actual worker and default file/Error stderr channels with request/origin/timing context, stdout isolation, original GPU pixels and same-renderer recovery; earlier compiler/private-data faults remain covered | Final G8 and Linux/Windows/Intel macOS CI confirm the complete executable source |
+| 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Actual dev-profile shader sizes, portable/native compilation, pass counts, synchronized frame wall intervals and per-frame enrolled-capacity peaks are recorded below; no process RSS, driver VRAM or GPU-only timing inference; final G8 and maintained CI pass |
+| 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | G8: 3070 passed, zero failures, 12 explicitly ignored; software Vulkan: 889 passed, zero failures, one explicitly ignored; five remote checks pass |
 
 All Android implementation and acceptance, plus legacy migration, are outside
 the user-confirmed scope. The user explicitly reconfirmed on 2026-10-25 that
@@ -1531,3 +1536,47 @@ CI must pass on the corrected sources before #78 can close.
 Evidence: [shader ownership, limits, raw failures and scoped receipts](data/typed-render-dag-shader-owners.zip),
 SHA-256 `968facc0ab829aaabd1d543933c27a576f430d9b221f9965bd79c6bed1ebe6bf`;
 331,974 bytes, 24 entries, every entry read back and hashed.
+
+## Final maintained-desktop acceptance at 8ffb5af7 (2026-10-26)
+
+The terminal G8 receipt binds every Rust, WGSL, GLSL, JSON, TOML and Cargo.lock
+input to SHA-256 and confirms clean, unchanged executable source after every
+stage. Main `9dbdf75f` is an ancestor of the tested head. The archive also retains
+the 36 Rust files changed between the previous pinned main `af1e7f9f` and this
+integration baseline. It does not attribute this gate to later main changes.
+
+| Gate | Actual result |
+| --- | --- |
+| Panel-style consumer guard | Exit 0; no panel changes in this branch |
+| `build_desktop.py --task check --debug --ffmpeg --locked` | Exit 0 |
+| Whole workspace, excluding retired `motion-android`, with diagnostics, maintained GPU tests and FFmpeg enabled | 3070 passed, zero failed, 12 explicitly ignored, 302 targets; no fail-fast; one test thread |
+| Separate complete effects/render/graph run on software Vulkan | 889 passed, zero failed, one explicitly ignored, 151 targets; no concurrent model inference |
+| Real desktop binary build with FFmpeg | Exit 0 |
+| Actual binary `--command-list` | 72 JSON commands; stdout parses as the protocol catalogue, stderr empty; default-level isolated file logger created |
+| [Remote CI run 40315736241](https://github.com/MAD-Producer/Kilonova/actions/runs/40315736241), executable head `8ffb5af7` | Dependency audit, Rust/GPU, Linux, Windows and Intel macOS all succeed; libav/publish are policy-skipped |
+
+The twelve reported ignores are source-declared opt-in studies or external/native
+fixtures: large-document accounting; native audio device timing; two real-file
+video studies; three manual native UI captures; manual timing-dialog capture;
+manual frozen keyframe GPU/FFmpeg comparison; the 128 MiB import / 256 MiB project
+study; the external >512 MiB video roundtrip; and the optional original-image
+probe. Their annotations and raw results remain visible; this gate does not claim
+that those opt-in scenarios ran. The software run's single ignore is the same
+optional original-image probe. No new ignore was added during final acceptance.
+
+The original Float32 PNG/private-data mirror assertion, out-of-range matte
+regression, maximum supported chain and one-second Exposure readiness assertion
+all pass unchanged in the full relevant run. The earlier isolated Exposure pass
+was not used as a substitute for the integrated repeat. Retained rejected runs
+remain historical failures rather than being overwritten with successful totals.
+
+The maintained desktop scope has no remaining implementation gate in #78.
+Android/GLES packed-plan migration, depth producers, general arbitrary shader
+equivalence, driver/process memory measurement and future 3D scene scheduling
+remain explicit scope boundaries. Docs-only publication does not retroactively
+change the executable head of any receipt; current PR checks must still be
+observed before merging. #74 and #87 remain separate deliveries.
+
+Evidence: [final G8, separate software Vulkan, source snapshots, controllers and
+CI receipts](data/typed-render-dag-final-g8-8ffb5af7.zip).
+SHA-256 `0c377964aa825be098105f829a5e060cd8efbd8c9dcef308d1b9f5746706439e`; 3,454,926 bytes, 279 entries, every entry read back and hashed.
