@@ -406,7 +406,12 @@ impl Controls {
         let mut commit = false;
         let seed_owned_input = editor.seed_focus;
         if editor.seed_focus {
-            if matches!(editor.seed.input(input), Some(TextEvent::Commit(_))) {
+            let seed_input = if editor.snippets.open {
+                &neutral
+            } else {
+                input
+            };
+            if matches!(editor.seed.input(seed_input), Some(TextEvent::Commit(_))) {
                 editor.seed_focus = false;
                 editor.seed.cancel();
             }
@@ -502,6 +507,7 @@ impl Controls {
                 if let Some(at) = diagnostic.byte_offset {
                     editor.source.select_bytes(at, at);
                     editor.seed_focus = false;
+                    editor.seed.cancel();
                 }
             }
         } else if let Some(pending) = &editor.pending {

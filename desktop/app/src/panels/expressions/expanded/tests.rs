@@ -189,6 +189,19 @@ fn expanded_editor_routes_both_windows_and_locales_and_persists_one_transaction(
                 floating
             )
             .is_empty());
+            assert!(draw(&mut panels, &state, &mut atlas, click(snippets), floating).is_empty());
+            assert!(draw(
+                &mut panels,
+                &state,
+                &mut atlas,
+                key(Key::Escape, false),
+                floating
+            )
+            .is_empty());
+            assert!(
+                panels.expressions.expanded.as_ref().unwrap().seed.active(),
+                "closing snippets must preserve the seed field's input session"
+            );
             assert!(draw(
                 &mut panels,
                 &state,
@@ -292,6 +305,7 @@ fn syntax_location_runtime_failure_stale_apply_and_old_replies_preserve_the_draf
     assert!(editor.diagnostic.is_some());
     assert_eq!(host.state().unwrap()["revision"], state["revision"]);
     let areas = editor.areas.unwrap();
+    draw(&mut panels, &state, &mut atlas, click(areas[1]), false);
     let diagnostic = Rect::new(
         areas[0].min[0],
         areas[4].min[1] - 22.,
@@ -309,6 +323,7 @@ fn syntax_location_runtime_failure_stale_apply_and_old_replies_preserve_the_draf
             .caret_byte_index(),
         source.find(')').unwrap()
     );
+    assert!(!panels.expressions.expanded.as_ref().unwrap().seed.active());
     replace(
         &mut panels,
         &state,
