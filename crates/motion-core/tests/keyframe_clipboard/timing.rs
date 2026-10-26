@@ -3,6 +3,8 @@ use motion_core::{
     Curve, CurveShape, CurveSpace, Easing,
     timing::{self, TimingInterpolation, TimingSettings, TimingSide, VelocityUnits},
 };
+#[path = "timing/continuity.rs"]
+mod continuity;
 
 fn settings(speed: f64) -> TimingSettings {
     TimingSettings {

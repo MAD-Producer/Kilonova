@@ -56,6 +56,8 @@ mod session_budget_tests;
 mod work_area_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod precision_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod keyframe_timing_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
