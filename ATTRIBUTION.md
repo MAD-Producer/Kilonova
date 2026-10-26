@@ -101,3 +101,16 @@ SHA-256 values are recorded in its manifest. Only local, owned frozen bundles
 and numerical reports are generated; no model or texture enters the product,
 node examples or release artwork. This records technical evaluation, not
 endorsement by the authors or Khronos.
+
+The independently authored OBJ/MTL importer references Library of Congress,
+Digital Formats descriptions [fdd000507 (OBJ)](https://www.loc.gov/preservation/digital/formats/fdd/fdd000507.shtml),
+last significant revision 2025-02-18, and
+[fdd000508 (MTL)](https://www.loc.gov/preservation/digital/formats/fdd/fdd000508.shtml),
+last significant revision 2019-10-04, accessed 2026-10-26. These are reference
+links only: no source text, loader code, illustration or model is copied or
+redistributed, and rights to the references remain with their authors. Wavefront
+names identify the documented interchange format, not a product affiliation.
+The OBJ/MTL/glTF comparison geometry and PNG pixels used by the added tests and
+local probe are authored by Motion Studio contributors and encoded locally;
+they are covered by this repository's MIT license. No extra dependency or
+third-party model/texture is introduced for OBJ.

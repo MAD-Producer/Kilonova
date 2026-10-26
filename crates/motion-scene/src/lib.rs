@@ -1,10 +1,11 @@
-//! Owned scene resources and bounded, CPU-only glTF ingestion.
+//! Owned scene resources and bounded, CPU-only glTF/GLB and OBJ/MTL ingestion.
 //! Importing a scene does not imply that the desktop renderer supports it.
 mod accessors;
 mod container;
 mod decode;
 mod frozen;
 mod import;
+pub mod obj;
 mod resources;
 mod schema;
 
@@ -57,12 +58,12 @@ fn unsupported(phase: &'static str, object: impl ToString, reason: impl Into<Str
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Primitive {
     pub positions: Vec<[f32; 3]>,
-    /// Missing normals require flat shading; import does not invent smooth normals.
+    /// Missing normals require flat shading. OBJ smoothing groups are resolved on import.
     pub normals: Option<Vec<[f32; 3]>>,
     pub tangents: Option<Vec<[f32; 4]>>,
     pub texcoords: [Option<Vec<[f32; 2]>>; 2],
     pub colors: Option<Vec<[f32; 4]>>,
-    /// Triangle list in source counterclockwise winding; no coordinate reflection.
+    /// Triangle list in canonical right-handed coordinates, retaining authored front faces.
     pub indices: Vec<u32>,
     pub material: Option<usize>,
 }
@@ -95,6 +96,8 @@ pub struct TextureSlot {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Material {
+    /// Keeps classic OBJ/MTL distinct from glTF PBR; no implicit Phong-to-PBR conversion.
+    pub model: MaterialModel,
     pub base_color: [f32; 4],
     pub metallic: f32,
     pub roughness: f32,
@@ -115,6 +118,7 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
+            model: MaterialModel::MetallicRoughness,
             base_color: [1.; 4],
             metallic: 1.,
             roughness: 1.,
@@ -131,6 +135,18 @@ impl Default for Material {
             emissive_texture: None,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum MaterialModel {
+    MetallicRoughness,
+    Wavefront(Box<obj::WavefrontMaterial>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SourceFormat {
+    Gltf,
+    Obj,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -158,6 +174,9 @@ pub struct Image {
 /// Fields are read-only through this API. A future package decoder must revalidate them.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Scene {
+    pub(crate) format: SourceFormat,
+    pub(crate) obj_metadata: Option<obj::ObjMetadata>,
+    pub(crate) extra_resources: Vec<Resource>,
     pub(crate) source_sha256: [u8; 32],
     pub(crate) buffers: Vec<Resource>,
     pub(crate) images: Vec<Image>,
@@ -173,6 +192,15 @@ pub struct Scene {
 }
 
 impl Scene {
+    pub fn source_format(&self) -> SourceFormat {
+        self.format
+    }
+    pub fn obj_metadata(&self) -> Option<&obj::ObjMetadata> {
+        self.obj_metadata.as_ref()
+    }
+    pub fn extra_resources(&self) -> &[Resource] {
+        &self.extra_resources
+    }
     pub fn source_sha256(&self) -> [u8; 32] {
         self.source_sha256
     }

@@ -374,6 +374,9 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         return Err(invalid("scene", "default", "scene index out of range"));
     }
     Ok(Scene {
+        format: crate::SourceFormat::Gltf,
+        obj_metadata: None,
+        extra_resources: Vec::new(),
         source_sha256: Sha256::digest(source).into(),
         buffers,
         images,
@@ -389,7 +392,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
     })
 }
 
-fn image_mime(
+pub(crate) fn image_mime(
     id: usize,
     bytes: &[u8],
     declared: Option<&str>,

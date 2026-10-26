@@ -35,3 +35,10 @@ The CPU scene importer follows the public Khronos glTF 2.0 document and retains
 owned, content-identified resource bytes. Its implementation and adversarial
 fixtures are independently authored. External Khronos validation models are
 pinned and credited in `ATTRIBUTION.md`; they are not bundled with the product.
+
+The static OBJ/MTL profile is independently implemented from public format
+descriptions listed in `ATTRIBUTION.md`. It does not incorporate an upstream
+loader or a commercial application's binary resources. New OBJ/MTL fixtures,
+comparison geometry and PNG pixels are locally authored numerical test data.
+Wavefront's classic material descriptors remain distinct from glTF PBR, with
+unsupported directives explicitly rejected rather than silently translated.

@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io};
 
 const MAGIC: &[u8; 8] = b"MSCN\0\0\0\x01";
+const OBJ_MAGIC: &[u8; 8] = b"MSCO\0\0\0\x01";
 
 impl Scene {
     /// Freeze the exact imported source plus every owned external dependency. The source
@@ -27,6 +28,7 @@ impl Scene {
             .buffers
             .iter()
             .chain(self.images.iter().map(|i| &i.resource))
+            .chain(self.extra_resources.iter())
         {
             if let Some(path) = resource.locator.as_deref() {
                 if resources
@@ -45,7 +47,28 @@ impl Scene {
             bytes: Vec::new(),
             limit: max_bytes,
         };
-        out.append(MAGIC)?;
+        match self.source_format() {
+            crate::SourceFormat::Gltf => out.append(MAGIC)?,
+            crate::SourceFormat::Obj => {
+                out.append(OBJ_MAGIC)?;
+                let options = &self
+                    .obj_metadata
+                    .as_ref()
+                    .ok_or_else(|| invalid("freeze", "options", "OBJ options missing"))?
+                    .options;
+                let encoded = serde_json::to_vec(options).map_err(|cause| crate::Error {
+                    phase: "freeze",
+                    object: "options".into(),
+                    cause: crate::Cause::Json(cause),
+                })?;
+                if encoded.len() > 512 {
+                    return Err(invalid("freeze", "options", "OBJ options too large"));
+                }
+                out.append(&(encoded.len() as u32).to_le_bytes())?;
+                out.append(&Sha256::digest(&encoded))?;
+                out.append(&encoded)?;
+            }
+        }
         out.append(&(source.len() as u64).to_le_bytes())?;
         out.append(&digest)?;
         out.append(source)?;
@@ -92,16 +115,23 @@ pub fn import_frozen(
 ) -> Result<Scene> {
     // Publish before digest verification or parsing as well as the importer's own start.
     let began = std::time::Instant::now();
+    let operation = if bytes.starts_with(OBJ_MAGIC) {
+        "obj_unfreeze"
+    } else {
+        "gltf_unfreeze"
+    };
     log::info!(
-        "start #{} gltf_unfreeze source={}",
+        "start #{} {} source={}",
         context.request,
+        operation,
         context.source
     );
     let result = decode(context, bytes, max_bundle_bytes, limits);
     if let Err(error) = &result {
         let cause: String = error.to_string().chars().take(1024).collect();
         log::error!(
-            "gltf_unfreeze #{} source={} elapsed_ms={} cause={}",
+            "{} #{} source={} elapsed_ms={} cause={}",
+            operation,
             context.request,
             context.source,
             began.elapsed().as_millis(),
@@ -128,13 +158,39 @@ fn decode(
         return Err(invalid("unfreeze", "bundle", "bundle byte limit exceeded"));
     }
     let mut cursor = Cursor { bytes, position: 0 };
-    if cursor.take(8)? != MAGIC {
+    let magic = cursor.take(8)?;
+    let obj_options = if magic == OBJ_MAGIC {
+        let length = cursor.u32()? as usize;
+        if length > 512 {
+            return Err(invalid(
+                "unfreeze",
+                "options",
+                "OBJ option byte limit exceeded",
+            ));
+        }
+        let expected = cursor.take(32)?;
+        let encoded = cursor.take(length)?;
+        if Sha256::digest(encoded).as_slice() != expected {
+            return Err(invalid("unfreeze", "options", "OBJ option digest mismatch"));
+        }
+        Some(
+            serde_json::from_slice::<crate::obj::ObjOptions>(encoded).map_err(|cause| {
+                crate::Error {
+                    phase: "unfreeze",
+                    object: "options".into(),
+                    cause: crate::Cause::Json(cause),
+                }
+            })?,
+        )
+    } else if magic == MAGIC {
+        None
+    } else {
         return Err(invalid(
             "unfreeze",
             "version",
             "unsupported scene bundle version",
         ));
-    }
+    };
     let source_len = cursor.length()?;
     if source_len > limits.max_source_bytes {
         return Err(invalid("unfreeze", "source", "source byte limit exceeded"));
@@ -182,7 +238,17 @@ fn decode(
     if cursor.position != bytes.len() {
         return Err(invalid("unfreeze", "bundle", "trailing bundle bytes"));
     }
-    import(context, source, &mut OwnedResolver(resources), limits)
+    if let Some(options) = obj_options {
+        crate::obj::import_obj(
+            context,
+            source,
+            &mut OwnedResolver(resources),
+            &options,
+            limits,
+        )
+    } else {
+        import(context, source, &mut OwnedResolver(resources), limits)
+    }
 }
 
 struct Cursor<'a> {

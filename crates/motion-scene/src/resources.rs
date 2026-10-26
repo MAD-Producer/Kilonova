@@ -12,6 +12,7 @@ use std::{
 pub enum ResourceKind {
     Buffer,
     Image,
+    MaterialLibrary,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -153,6 +154,7 @@ pub(crate) fn load_uri(
                 ["application/octet-stream", "application/gltf-buffer"].contains(&mime)
             }
             ResourceKind::Image => ["image/png", "image/jpeg"].contains(&mime),
+            ResourceKind::MaterialLibrary => false,
         };
         if !allowed {
             return Err(invalid(
@@ -194,4 +196,23 @@ pub(crate) fn load_uri(
         return Err(invalid("resource", path, "resolver exceeded byte limit"));
     }
     Ok((Resource::new(Some(path), bytes), None))
+}
+
+/// OBJ filenames are literal filesystem names, not percent-encoded URIs.
+pub(crate) fn load_path(
+    path: &str,
+    kind: ResourceKind,
+    limit: usize,
+    resolver: &mut impl AssetResolver,
+) -> Result<Resource> {
+    relative_path_checked(path).map_err(|reason| invalid("resource", "path", reason))?;
+    let bytes = resolver.read(path, kind, limit).map_err(|cause| Error {
+        phase: "resource",
+        object: path.to_owned(),
+        cause: Cause::Io(cause),
+    })?;
+    if bytes.len() > limit {
+        return Err(invalid("resource", path, "resolver exceeded byte limit"));
+    }
+    Ok(Resource::new(Some(path.to_owned()), bytes))
 }

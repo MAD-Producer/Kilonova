@@ -66,6 +66,65 @@ models, textures, binaries and generated model bundles are excluded from the
 archive and product. Source/runtime hashes bind both accepted probes and tests;
 the numerical reports are credited derivatives used only as technical evidence.
 
+## OBJ/MTL addition
+
+The user explicitly added OBJ to the same scene work. A fresh branch/worktree
+overlap check found no active OBJ/Wavefront implementation to duplicate. This
+addition remains on the owned #87 branch and draft PR #516, after the glTF
+foundation checkpoint `af959f4e1f50d264c6f58074bfcc784f8dc72f2a`.
+
+Accepted: a bounded static polygon importer with concave triangulation,
+positive/negative separate attribute indices, explicit coordinate/unit/UV
+options, object/group metadata and smoothing across UV seams. Classic MTL
+values and map options remain `MaterialModel::Wavefront`; there is no implicit
+Phong-to-PBR conversion. Owned raw MTL and image resources are included in a
+distinct OBJ snapshot, with integrity-checked import options. Unsupported
+directives, missing materials/resources and invalid geometry return explicit
+causes. See the [supported profile and exclusions](../host-api/scene-ingestion.md#static-wavefront-obj-and-mtl).
+
+Current source-frozen acceptance supersedes the earlier crate-only test count:
+
+- 45 Rust tests passed, zero failed/ignored: the original 25 glTF/freeze tests
+  remain unchanged, with 20 added OBJ tests; formatting and strict all-target
+  Clippy passed
+- Controlled blocking MTL resolution verifies an Info start is published before
+  resolver completion, and the original IO cause/request/source survive failure
+- A real-directory OBJ+MTL+PNG import matches an independently authored glTF
+  triangle's decoded geometry, normalized normals, UVs, instances and image
+  identity; classic material/map metadata is checked separately
+- A second process restores an equal scene after all five original comparison
+  input files have been removed; deterministic freezing and digest/length/
+  option-corruption refusal are also exercised
+- Eight actual-binary cases cover the two format imports, source-free restore,
+  traversal, missing MTL, bad corner index, unsupported script directive and
+  damaged frozen options; default Info starts are file-visible, five errors
+  reach both file and stderr, and stdout is empty throughout
+- All four pinned Khronos model variants were rerun against the changed runtime,
+  with the same geometry/material/texture/instance and freeze checks; these
+  remain CPU ingestion comparisons, rather than rendered-image acceptance
+
+The first external OBJ probe was rejected because its new controller compared
+an f32 value serialized through JSON with a binary64 literal `0.2`. The second
+uses the exact IEEE f32 golden. No product code, existing assertion, error
+bound or acceptance criterion was changed for that correction; the first
+controller and incremental receipt are retained as superseded evidence.
+
+Evidence: [OBJ source, controllers, raw outputs, current glTF probes and receipts](data/obj-ingestion-af959f4e-v2.zip),
+SHA-256 `b56d16ec1c7c28bed7774ab1a622cdb3ddf9e3d6b74e93053bca9c4b2c0c125b`,
+267,995 bytes, 108 entries, all read back and SHA-256 verified. Original models,
+images, binary probes and encoded model bundles are excluded. The independent
+OBJ/MTL/PNG/glTF fixture generator and individual identities are included.
+Source/runtime hashes were unchanged across each accepted run. The initial
+glTF archive above remains a historical checkpoint, not current-runtime proof.
+The final OBJ rerun also includes explicit refusal of overflowing sRGB emissive
+conversion; a finite authored number cannot introduce infinity into the scene.
+
+Not delivered by this addition: desktop import/project asset registration,
+GPU texture decode/material rendering, PBR mapping policy, freeform geometry,
+reflection/spectral MTL, external PBR extensions, animated deformation or mixed
+depth. OBJ parsing is not complete #87 acceptance. No UI/panel/Android change
+or old-project compatibility layer is added.
+
 ## Remaining issue acceptance
 
 | Item | Current disposition |

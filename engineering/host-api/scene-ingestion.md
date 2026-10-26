@@ -91,3 +91,81 @@ routing belongs to the existing desktop logger. Done records use Debug. The
 caller must schedule import off the paint thread and publish its worker's
 in-flight state before calling this synchronous API. No worker restart, retry
 or command timeout is introduced.
+
+## Static Wavefront OBJ and MTL
+
+`obj::import_obj(context, source, resolver, options, limits)` uses the same
+owned scene/resource API. The independent implementation references the Library
+of Congress descriptions of [OBJ](https://www.loc.gov/preservation/digital/formats/fdd/fdd000507.shtml)
+(2025-02-18) and [MTL](https://www.loc.gov/preservation/digital/formats/fdd/fdd000508.shtml)
+(2019-10-04). This is a polygon profile, not the entire historical format.
+
+Supported records are `v`, `vt`, `vn`, `f`, `o`, `g`, `s`, `mtllib` and `usemtl`.
+Face corners support all four position/UV/normal forms, positive one-based and
+negative relative indices. Attributes must already be defined. A face must use
+one consistent attribute layout. XYZ, nonzero homogeneous XYZW and the explicit
+XYZ+linear-RGB vertex extension are accepted; ambiguous seven-component vertex
+records are rejected. UVs have one or two components, or a third zero component.
+UTF-8 text supports BOM, LF/CRLF, comments, quoted names and line continuation.
+
+Dominant-axis ear clipping triangulates simple concave polygons while preserving
+front faces. Self-intersections, cancelling/degenerate faces and polygons over
+256 corners fail explicitly. A nonplanar polygon retains its original 3D
+positions; the metadata counts projected faces and the importer emits one Warn
+per import with a nonzero count. This is a triangulation policy, not a claim
+that nonplanar faces have a uniquely defined surface. A shared 16-million-step
+work bound limits polygon intersection and ear searches.
+
+Authored normals are normalized and retained. If missing, an enabled smoothing
+group generates area-weighted normals across faces of the same object and
+smoothing group, including UV seams and material splits. Named `g` membership
+does not create a hard edge. Smoothing off leaves normals absent for later flat
+shading. Opposing contributions that cancel to zero fail explicitly. Object,
+named groups, smoothing group and source line survive in `ObjMetadata`.
+
+OBJ has no mandatory unit or coordinate convention. `ObjOptions` explicitly
+selects positive `metres_per_unit`, Y/Z up, right/left handedness, V flipping and
+MTL color interpretation. Defaults are one metre/unit, right-handed Y up,
+V flip enabled and linear MTL RGB. These defaults are application choices.
+Geometry is converted to canonical right-handed Y-up metres; reflected input
+also reverses winding and transforms normals consistently. Options survive
+freezing and are integrity checked. Instancing still requires a separate
+positive pixel/metre scale. No auto-fit or placement heuristic is introduced.
+
+Classic MTL is retained as `MaterialModel::Wavefront`, including RGB
+`Ka/Kd/Ks/Ke/Tf`, `Ns`, `Ni`, `d`/the common inverse `Tr` convention and `illum`.
+The diffuse, ambient, specular, emissive, opacity, exponent, bump, normal and
+displacement maps retain their image identity and authored `-o`, `-s`,
+`-clamp`, `-bm` and `-imfchan` options. `Ke` and `norm` are supported exporter
+conventions. Bump remains a height descriptor, rather than pretending to be a
+normal map. Diffuse/alpha/emissive scalar mirrors are diagnostic conveniences;
+generic PBR texture slots remain unset. No guessed Phong-to-PBR conversion or
+material rendering is claimed. Duplicate material names/map kinds, undefined
+materials, contradictory dissolve values and unknown properties/options fail.
+Spectral/XYZ colors, reflection maps and nonstandard PBR extensions are outside
+this profile. Map filenames that are solely numeric are outside the option
+parser's supported profile.
+
+OBJ filenames are literal local names, with no URI percent decoding. Quoted
+spaces and backslash separators are accepted. A texture is resolved relative
+to its containing MTL; normalization may remove `..` only while staying inside
+the explicit OBJ import root. Absolute/network paths and root escape fail
+before reading. Missing MTL/texture files preserve their original IO cause.
+PNG/JPEG encoded images are deduplicated by normalized path, with a sampler per
+map. The same signature-only image limitation as glTF applies. Raw MTL bytes
+are retained as extra resources. No script, shell, `call`, freeform, line or
+point directive is executed or silently discarded.
+
+OBJ reuses source/resource/decoded payload and descriptor limits. Material text
+also respects the JSON-text byte limit. Logical records are at most 64 KiB and
+1,025 tokens; names are at most 1,024 bytes and group membership at most 32.
+Raw attribute arrays are individually bounded before decoding; final duplicate
+vertices and indices are charged again against aggregate limits. These bounds
+exclude parser containers, names, temporary storage and allocator overhead:
+they are not a process RAM cap. Frozen OBJ uses a distinct current envelope
+with hashed import options, exact source and owned MTL/images. glTF's current
+envelope stays byte-for-byte unchanged. Reimport requires no original files.
+
+This adds a CPU API only. Desktop import commands, project asset transactions,
+GPU shading, PBR mapping policy, texture decoding, mixed depth and interactive
+model manipulation remain subsequent #87 work shared with glTF.
