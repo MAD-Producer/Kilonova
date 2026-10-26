@@ -8,6 +8,8 @@ use motion_ui::{
 
 #[cfg(all(test, target_os = "windows"))]
 mod tests;
+#[cfg(test)]
+mod protocol_tests;
 
 impl Shell {
     pub(super) fn capture_effect_timeline_screens(
@@ -122,7 +124,7 @@ impl Shell {
             panels.timeline.collapsed_transforms.insert(7);
             panels.timeline.expanded_effects.insert(7);
             panels.effect_timeline.begin_probe(1, "speed");
-            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":0,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
+
             let draw = |atlas: &mut TextAtlas,
                         panels: &mut panels::Panels,
                         engine: &mut motion_core::Engine,
@@ -130,7 +132,7 @@ impl Shell {
              -> Result<PaintList, String> {
                 let mut list = PaintList::default();
                 list.stylesheet = panels.styles.clone();
-                let state = state(engine);
+                let state = fixture_state(engine);
                 let actions = if floating {
                     panels::floating_chrome(
                         &mut list,
@@ -152,33 +154,7 @@ impl Shell {
                         input,
                     )
                 };
-                for action in actions {
-                    match action {
-                        panels::Action::Edit(c) => engine.apply(c).map_err(|e| e.to_string())?,
-                        panels::Action::EditBatch(cs) => {
-                            engine.apply_batch(cs).map_err(|e| e.to_string())?;
-                        }
-                        panels::Action::EditorAction { source, commands } => {
-                            if source != crate::layer_clipboard::KeyframeSource::of(&state) {
-                                return Err("effect capture edit source changed".into());
-                            }
-                            engine.apply_batch(commands).map_err(|e| e.to_string())?;
-                        }
-                        panels::Action::History(2) => {
-                            engine.begin_gesture().map_err(|e| e.to_string())?
-                        }
-                        panels::Action::History(3) => {
-                            engine.end_gesture(true).map_err(|e| e.to_string())?
-                        }
-                        panels::Action::History(4) => {
-                            engine.end_gesture(false).map_err(|e| e.to_string())?
-                        }
-                        panels::Action::Seek(_) => {}
-                        other => {
-                            return Err(format!("effect capture unexpected action: {other:?}"))
-                        }
-                    }
-                }
+                apply_fixture_actions(engine, actions)?;
                 Ok(list)
             };
             draw(&mut self.atlas, &mut panels, &mut engine, &Input::default())?;
@@ -316,4 +292,52 @@ impl Shell {
         }
         Ok(())
     }
+}
+
+// This local engine owns one document for the entire capture. Edits advance its
+// revision, while its document generation remains fixed, just as in a session.
+fn fixture_state(engine: &motion_core::Engine) -> Value {
+    serde_json::json!({
+        "root": "effect-timeline-native-fixture",
+        "composition": motion_core::composition::MAIN_COMPOSITION,
+        "document_generation": 1,
+        "revision": engine.revision(),
+        "frame": 20,
+        "project": engine.project(),
+        "timeline_layers": engine.project().timeline_layers(20.).unwrap(),
+    })
+}
+
+fn apply_fixture_actions(
+    engine: &mut motion_core::Engine,
+    actions: Vec<panels::Action>,
+) -> Result<(), String> {
+    for action in actions {
+        match action {
+            panels::Action::Edit(c) => engine.apply(c).map_err(|e| e.to_string())?,
+            panels::Action::EditBatch(cs) => {
+                engine.apply_batch(cs).map_err(|e| e.to_string())?;
+            }
+            panels::Action::EditorAction { source, commands } => {
+                if source != crate::layer_clipboard::KeyframeSource::of(&fixture_state(engine)) {
+                    return Err("effect capture editor action source is stale".into());
+                }
+                engine.apply_batch(commands).map_err(|e| e.to_string())?;
+            }
+            panels::Action::History(2) => {
+                engine.begin_gesture().map_err(|e| e.to_string())?
+            }
+            panels::Action::History(3) => {
+                engine.end_gesture(true).map_err(|e| e.to_string())?
+            }
+            panels::Action::History(4) => {
+                engine.end_gesture(false).map_err(|e| e.to_string())?
+            }
+            panels::Action::Seek(_) => {}
+            other => {
+                return Err(format!("effect capture unexpected action: {other:?}"))
+            }
+        }
+    }
+    Ok(())
 }
