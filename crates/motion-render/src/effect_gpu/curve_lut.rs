@@ -1,7 +1,8 @@
 //! Admitted numeric LUTs. F32 tables need sampling/copy, never filtering/blending.
 use super::{admitted_texture, upload, GpuState, Lut};
+use crate::effect_plan::{FrameImageImport, FrameImageSource, PlanBuilder};
 use crate::{resource_ledger::DeviceTextureExt, RenderError, Scene};
-use motion_effects::image_contract::{ChannelPrecision, ImageStorage, ImageUsage};
+use motion_effects::image_contract::{ChannelPrecision, ImageUsage};
 
 impl GpuState {
     pub(super) fn prepare_curves(
@@ -9,9 +10,10 @@ impl GpuState {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         composite: &wgpu::BindGroupLayout,
-        precision: ChannelPrecision,
+        builder: &PlanBuilder,
         scene: &Scene,
     ) -> Result<(), RenderError> {
+        let precision = builder.frame.precision;
         if precision != ChannelPrecision::Unorm8
             && scene.curve_sources.len() != scene.curve_luts.len()
         {
@@ -26,21 +28,35 @@ impl GpuState {
         }
         self.luts.truncate(scene.curve_luts.len());
         for (index, lut) in scene.curve_luts.iter().enumerate() {
+            let import = builder
+                .effect_execution()
+                .and_then(|execution| execution.frame_import(FrameImageSource::Curve(index as u32)))
+                .ok_or("phase=frame_import: curve LUT has no checked execution value")?;
+            if import != &FrameImageImport::curve(index as u32, precision) {
+                return Err(
+                    "phase=frame_import: curve LUT differs from its checked execution value".into(),
+                );
+            }
+            let [width, height] = import.value_type().rect.size;
+            let format = crate::image_formats::native_format(import.storage());
             if precision == ChannelPrecision::Unorm8 {
                 let bytes: [u8; 1024] =
                     std::array::from_fn(|i| (lut[i / 4][i % 4].clamp(0., 1.) * 255.).round() as u8);
                 let replace = self
                     .luts
                     .get(index)
-                    .is_none_or(|old| old.texture.format() != wgpu::TextureFormat::Rgba8Unorm);
+                    .is_none_or(|old| old.texture.format() != format);
+                if !replace {
+                    import.validate_native(&self.luts[index].texture)?;
+                }
                 if replace {
                     let target = admitted_texture(
                         device,
                         composite,
                         &self.sampler,
-                        256,
-                        1,
-                        wgpu::TextureFormat::Rgba8Unorm,
+                        width,
+                        height,
+                        format,
                         &self.allocation_budget,
                         crate::TextureCategory::CurveLuts,
                     )
@@ -79,19 +95,21 @@ impl GpuState {
             let replace = self
                 .luts
                 .get(index)
-                .is_none_or(|old| old.texture.format() != wgpu::TextureFormat::Rgba32Float);
+                .is_none_or(|old| old.texture.format() != format);
+            if !replace {
+                import.validate_native(&self.luts[index].texture)?;
+            }
             if !replace && self.luts[index].source.as_ref() == Some(source) {
                 continue;
             }
             self.format_capabilities.require(
-                ImageStorage::Rgba32Float,
+                import.storage(),
                 ImageUsage {
                     sampled: true,
                     copy_dst: true,
                     ..Default::default()
                 },
             )?;
-            let width = motion_model::HIGH_PRECISION_CURVE_SAMPLES as u32;
             let max_dimension = device.limits().max_texture_dimension_2d;
             if width > max_dimension {
                 return Err(RenderError::Resource {
@@ -115,7 +133,7 @@ impl GpuState {
                                 mip_level_count: 1,
                                 sample_count: 1,
                                 dimension: wgpu::TextureDimension::D2,
-                                format: wgpu::TextureFormat::Rgba32Float,
+                                format,
                                 usage: wgpu::TextureUsages::TEXTURE_BINDING
                                     | wgpu::TextureUsages::COPY_DST,
                                 view_formats: &[],

@@ -91,6 +91,8 @@ pub enum RenderError {
     Image(#[from] image::ImageError),
     #[error("{0}")]
     Effects(#[from] motion_effects::Error),
+    #[error(transparent)]
+    ExecutionPlan(#[from] motion_effects::execution_plan::ExecutionPlanError),
     #[error("{0}")]
     ImageFormat(#[from] crate::image_formats::UnsupportedStorage),
     #[error("{0}")]
@@ -305,6 +307,7 @@ pub struct Renderer {
     pub image_memory_cache_hits: u64,
     pub image_prefetches: u64,
     pub effect_diagnostics: Vec<String>,
+    snapshot_encodes: Vec<crate::effect_plan::SnapshotEncode>,
     composition_images: std::collections::HashSet<u64>,
     // Drop last: finish unsubmitted destination lifetimes after cache handles.
     allocation_uploads: Arc<crate::allocation_uploads::AllocationUploads>,
@@ -576,6 +579,7 @@ impl Renderer {
             image_memory_cache_hits: 0,
             image_prefetches: 0,
             effect_diagnostics: Vec::new(),
+            snapshot_encodes: Vec::new(),
             compositing_gpu: None,
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
@@ -605,6 +609,11 @@ impl Renderer {
         Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
+    /// Successfully encoded snapshot draws in the latest local composition
+    /// attempt. This counts native encode/copy calls, not predicted graph work.
+    pub fn snapshot_encodes(&self) -> &[crate::effect_plan::SnapshotEncode] {
+        &self.snapshot_encodes
+    }
     pub(crate) fn allocation_uploads(&self) -> Arc<crate::allocation_uploads::AllocationUploads> {
         self.allocation_uploads.clone()
     }
@@ -768,6 +777,7 @@ impl Renderer {
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    pub fn effect_pipeline_cache_info(&self) -> crate::EffectPipelineCacheInfo { self.effect_gpu.state.pipeline_cache_info() }
     /// CPU time spent creating and validating native effect pipelines, including
     /// the validation wait. This is not GPU execution time or a driver-only timer.
     pub fn effect_pipeline_build_nanos(&self) -> u64 { self.effect_gpu.state.pipeline_build_nanos }
@@ -790,6 +800,13 @@ impl Renderer {
     #[doc(hidden)]
     pub fn debug_inject_pointwise_native_failure(&mut self) {
         self.effect_gpu.state.invalid_pointwise_source_once = true;
+    }
+    /// Corrupt one actual semantic draft before the next execution-IR check.
+    /// Clears preview reuse, consumes once and never fabricates an error result.
+    #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+    #[doc(hidden)]
+    pub fn debug_inject_execution_fault(&mut self, fault: crate::effect_plan::ExecutionDiagnosticFault) {
+        self.effect_gpu.builder.inject_execution_fault(fault);
     }
     /// Compositing pipeline-set construction count, not driver compilation time.
     pub fn compositing_pipeline_set_builds(&self) -> u64 { self.compositing_pipeline_set_builds }
@@ -883,7 +900,7 @@ impl Renderer {
         let mut memory = crate::TextureMemoryBreakdown {
             video_planes: self.video_plane_bytes(),
             effect_scratch: self.effect_gpu.state.scratch_bytes(),
-            plugin_resources: self.effect_gpu.state.resource_bytes,
+            plugin_resources: self.effect_gpu.state.resource_bytes(),
             curve_luts: self.effect_gpu.state.curve_lut_bytes(),
             vector_raster_scratch: self.layer_gpu.raster_scratch_bytes(),
             vector_group_scratch: self.layer_gpu.group_scratch_bytes(),
@@ -931,11 +948,11 @@ impl Renderer {
             self.texture_bytes + self.video_plane_bytes(),
             self.effect_gpu.builder.source_texture_budget,
         )?;
-        if self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes
+        if self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes()
             > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes,
+                self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes(),
                 self.effect_gpu.builder.source_texture_budget, "images and plugin resources exceed configured source texture budget"));
         }
         Ok(())
@@ -1076,11 +1093,11 @@ impl Renderer {
             .as_ref()
             .map_or(frame.bytes() as u64, |v| v.replacement_bytes(object, frame));
         self.trim_image_cache((bytes + planes).saturating_sub(previous + self.video_plane_bytes()));
-        if self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes
+        if self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes()
             > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes,
+                self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes(),
                 self.effect_gpu.builder.source_texture_budget, "video planes and images exceed configured source texture budget"));
         }
         // Reserve the standalone encoding scope before replacing an existing
@@ -1256,7 +1273,7 @@ impl Renderer {
         let required = self.texture_bytes - previous
             + bytes
             + self.video_plane_bytes() - retiring_planes
-            + self.effect_gpu.state.resource_bytes;
+            + self.effect_gpu.state.resource_bytes();
         if required > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
@@ -1517,7 +1534,7 @@ impl Renderer {
     fn trim_image_cache_except(&mut self, additional: u64, replacing: Option<TextureKey>, retiring_bytes: u64) {
         let limit = if self.image_cache_enabled { crate::image_resources::IDLE_TEXTURE_BYTES } else { 0 };
         let mut idle = self.image_idle_bytes();
-        let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional - retiring_bytes;
+        let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes() + additional - retiring_bytes;
         if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget {
             self.check_texture_accounting();
             return;
@@ -1610,7 +1627,7 @@ impl Renderer {
                     // resources needed by an already active video/effect.
                     let cost = pixels.rgba.len() as u64;
                     if !wanted.contains(&source.id) && (cost + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
-                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + cost > self.effect_gpu.builder.source_texture_budget) { IMAGE_PENDING.success(); return Ok(true); }
+                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes() + cost > self.effect_gpu.builder.source_texture_budget) { IMAGE_PENDING.success(); return Ok(true); }
                 self.upload_pixels(TextureKey::Static(source.id), pixels.width, pixels.height, &pixels.rgba, false)?;
                 self.image_decodes += u64::from(!pixels.cached);
                 self.image_proxy_cache_hits += u64::from(pixels.cached);
@@ -1670,7 +1687,7 @@ impl Renderer {
             let bytes = u64::from(w) * u64::from(h) * 4;
             if w > self.device.limits().max_texture_dimension_2d || h > self.device.limits().max_texture_dimension_2d
                 || bytes + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
-                || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + bytes > self.effect_gpu.builder.source_texture_budget { continue; }
+                || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes() + bytes > self.effect_gpu.builder.source_texture_budget { continue; }
             self.image_decode.start_with_budget(source.clone(), resolution, true, self.effect_gpu.builder.decoded_image_budget)?;
             self.image_prefetches += 1;
             break;
@@ -1792,6 +1809,7 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
+        self.snapshot_encodes.clear();
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
         let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
@@ -1801,7 +1819,7 @@ impl Renderer {
         // A reduced budget also applies to already-resident sources. It must
         // not be bypassed by a cached plan or a no-op upload.
         self.trim_image_cache(0);
-        let resident = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
+        let resident = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes();
         if resident > self.effect_gpu.builder.source_texture_budget {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, resident,
                 self.effect_gpu.builder.source_texture_budget, "resident sources exceed source texture budget"));
@@ -1824,9 +1842,9 @@ impl Renderer {
                 let bytes=u64::from(w)*u64::from(h)*crate::image_formats::color_storage(self.effect_gpu.builder.precision()).bytes_per_pixel();
                 let previous=self.images.get(&key).map_or(0,|image|image.bytes);
                 self.trim_image_cache(bytes.saturating_sub(previous));
-                if self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
+                if self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes()+bytes>self.effect_gpu.builder.source_texture_budget {
                     return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                        self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
+                        self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes()+bytes,
                         self.effect_gpu.builder.source_texture_budget, format!("composition {}: nested textures exceed configured source texture budget",node.composition)));
                 }
                 let target=self.render_target_in(w,h,crate::TextureCategory::NestedCompositions)?;
@@ -1850,6 +1868,7 @@ impl Renderer {
         Ok((child_stats, child_diagnostics))
     }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
+        self.snapshot_encodes.clear();
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
             return Err(RenderError::Invalid(
                 "invalid render target or layer count".into(),
@@ -1879,7 +1898,7 @@ impl Renderer {
         }
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
-        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
+        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes();
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -2035,7 +2054,7 @@ impl Renderer {
             // Replacement must keep the old snapshot alive until allocation and
             // binding creation succeed. Admit the peak, not the final cache size.
             let required=self.texture_bytes.saturating_add(self.video_plane_bytes())
-                .saturating_add(self.effect_gpu.state.resource_bytes).saturating_add(bytes);
+                .saturating_add(self.effect_gpu.state.resource_bytes()).saturating_add(bytes);
             if required>self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                     required,
@@ -2070,6 +2089,7 @@ impl Renderer {
     ) -> Result<RenderStats> {
         let started = Instant::now();
         self.effect_gpu.builder.enable_plane_coverage();
+        self.snapshot_encodes.clear();
         let image_input_order = loop {
             if let Some((receiver, _)) = &materialize {
                 self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
@@ -2084,8 +2104,7 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
-            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)?;
+            let input_order = self.effect_gpu.builder.effect_snapshot_order().to_vec();
             self.prepare_input_snapshots(&input_order).map_err(|error| RenderError::Context {
                 message: format!("effects frame={} phase=input_snapshots: {error}", scene.frame),
                 cause: Box::new(error),
@@ -2123,14 +2142,15 @@ impl Renderer {
                 cost.saturating_sub(resident)
             }).sum::<u64>();
         self.trim_image_cache(vector_bytes+mask_bytes);
-        let mask_other=self.video_plane_bytes()+self.effect_gpu.state.resource_bytes;
+        let mask_other=self.video_plane_bytes()+self.effect_gpu.state.resource_bytes();
         let frame = &self.effect_gpu.builder.frame;
-        let masks_changed=self.mask_gpu.prepare(&self.device,&self.queue,encoder,&self.image_layout,scene,&frame.masks,
-            &mut self.images,&mut self.texture_bytes,mask_other,self.effect_gpu.builder.source_texture_budget)?;
+        let masks_changed=self.mask_gpu.prepare_checked(&self.device,&self.queue,encoder,&self.image_layout,scene,&frame.masks,
+            &mut self.images,&mut self.texture_bytes,mask_other,self.effect_gpu.builder.source_texture_budget,
+            self.effect_gpu.builder.effect_execution())?;
         if masks_changed {
             self.effect_gpu.state.invalidate();
         }
-        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
+        let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes();
         let vectors_changed = self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -2169,7 +2189,7 @@ impl Renderer {
             cause: Box::new(error),
         })?;
         if has_compositing {
-            let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
+            let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes();
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
                 .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
@@ -2288,7 +2308,7 @@ impl Renderer {
         // This is GPU-only and independent of the composition's stacking order.
         for i in image_input_order {
             let draw=&frame.draws[i];
-            for p in draw.pass_start..draw.pass_end {
+            for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
                     Some(texture_key(&scene.layers[i])),None,&self.images,&self.device,&self.queue,encoder)?;
                 executed_passes+=1;
@@ -2298,6 +2318,10 @@ impl Renderer {
                 wgpu::TexelCopyTextureInfo{texture:&self.effect_gpu.state.output(frame,i)?.texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::TexelCopyTextureInfo{texture:&self.images[&TextureKey::EffectInput(draw.layer)]._texture,mip_level:0,origin:wgpu::Origin3d::ZERO,aspect:wgpu::TextureAspect::All},
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
+            self.snapshot_encodes.push(crate::effect_plan::SnapshotEncode {
+                layer: draw.layer,
+                encoded_passes: draw.pass_end - draw.pass_start,
+            });
         }
         composition_draws += self.encode_track_mattes(encoder,composition_size)?;
         if materialize.is_some() || prepare_only {
@@ -2330,7 +2354,7 @@ impl Renderer {
                     materialized=Some(i);
                 }
             }
-            for p in draw.pass_start..draw.pass_end {
+            for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 if materialized == Some(i) {
                     break;
                 }

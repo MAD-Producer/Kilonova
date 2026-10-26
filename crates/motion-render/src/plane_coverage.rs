@@ -7,7 +7,7 @@ pub(crate) fn shader(source: &str, enabled: bool) -> String {
         source.replace("screen_uv:mat3x4<f32>,", "")
     };
     let coordinates = if enabled { include_str!("plane_coordinates.wgsl") } else {
-        "struct PlaneCoordinates { uv:vec2<f32>, dx:vec2<f32>, dy:vec2<f32> };\nfn plane_coordinates(p:vec4<f32>,uv:vec2<f32>,dx:vec2<f32>,dy:vec2<f32>)->PlaneCoordinates{return PlaneCoordinates(uv,dx,dy);}"
+        "struct PlaneCoordinates { uv:vec2<f32>, dx:vec2<f32>, dy:vec2<f32> };\nfn plane_pixel_grid()->vec2<f32>{return vec2(0.0);}\nfn plane_coordinates(p:vec4<f32>,uv:vec2<f32>,dx:vec2<f32>,dy:vec2<f32>)->PlaneCoordinates{return PlaneCoordinates(uv,dx,dy);}"
     };
     format!(
         "const PLANE_ANTIALIAS:bool={enabled};\n{}\n{source}\n{coordinates}",

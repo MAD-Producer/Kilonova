@@ -338,6 +338,8 @@ pub struct EffectInstance {
     pub scene: Option<motion_effects::SceneSettings>,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub node_graph: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub shader_data: Option<std::sync::Arc<motion_effects::shader_data::ShaderDataValues>>,
 }
 impl EffectInstance {
     pub fn new(
@@ -391,6 +393,7 @@ impl EffectInstance {
             image_input: None,
             scene: definition.scene.clone(),
             node_graph: None,
+            shader_data: None,
         }
     }
     pub fn dependency(&self) -> PluginDependency {
@@ -401,6 +404,7 @@ impl EffectInstance {
         }
     }
     pub fn validate(&self, frames: u32) -> Result<()> {
+        if let Some(data) = &self.shader_data { data.validate().map_err(|error| Error::Invalid(error.to_string()))?; }
         ensure(
             self.id != 0
                 && motion_effects::valid_id(&self.plugin)
@@ -830,6 +834,7 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
 
 #[derive(Clone, Debug)]
 pub struct SampledEffect {
+    pub shader_data: Option<std::sync::Arc<motion_effects::shader_data::ShaderDataValues>>,
     pub layer: u64,
     pub local_frame: f64,
     pub instance: u64,
@@ -850,6 +855,7 @@ pub struct SampledEffect {
 impl SampledEffect {
     pub fn new(layer: u64, e: &EffectInstance) -> Self {
         Self {
+            shader_data: e.shader_data.clone(),
             layer,
             local_frame: 0.0,
             instance: e.id,

@@ -72,6 +72,9 @@ fn same_effect(a: &SampledEffect, b: &SampledEffect) -> bool {
         && a.param_ids == b.param_ids
         && bytemuck::bytes_of(&a.values) == bytemuck::bytes_of(&b.values)
         && a.lut == b.lut
+        && match (&a.shader_data, &b.shader_data) {
+            (Some(a),Some(b)) => Arc::ptr_eq(a,b), (None,None) => true, _ => false,
+        }
 }
 impl PreviewInputs {
     pub fn capture(

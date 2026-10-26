@@ -4,10 +4,18 @@
 // but evaluate its four weights in f32. Flat composition draws retain the
 // ordinary sampler. No additional textures, uniforms or readback are required.
 fn sample_plane_texture(source:texture_2d<f32>, linear_sampler:sampler, uv:vec2<f32>)->vec4<f32> {
+    let dimensions=vec2<i32>(textureDimensions(source));
+    // Integer rectangle edges alone do not imply 1:1 sampling. Require its
+    // physical extent to equal the used texel rectangle as well. Pixel centres
+    // are then exact source texel centres; interpolating rounded UVs would
+    // accidentally mix neighbours. Scaled/subpixel/projective draws keep linear.
+    let grid=plane_pixel_grid();
+    if all(grid>vec2(0.0)) && all(grid==vec2<f32>(dimensions)*draw.uv_scale.xy) {
+        return textureLoad(source,clamp(vec2<i32>(floor(uv*vec2<f32>(dimensions))),vec2(0),dimensions-vec2(1)),0);
+    }
     if abs(draw.mvp[0].w)+abs(draw.mvp[1].w)+abs(draw.mvp[2].w)==0.0 {
         return textureSample(source,linear_sampler,uv);
     }
-    let dimensions=vec2<i32>(textureDimensions(source));
     if all(dimensions==vec2(1)) {return textureLoad(source,vec2(0),0);}
     let p=clamp(uv,vec2(0.0),vec2(1.0))*vec2<f32>(dimensions)-vec2(0.5);
     let lower=vec2<i32>(floor(p));let fraction=fract(p);

@@ -1,4 +1,9 @@
 //! SDK 1: host-owned fullscreen vertex, resource bindings and 16-byte parameter slots.
+mod identity;
+mod sample_bounds;
+#[cfg(test)]
+mod store_policy_tests;
+pub use identity::{CompiledCodeIdentity, compiled_code_identity};
 use crate::{ensure, Error, Result};
 use naga::{
     back::glsl,
@@ -12,6 +17,38 @@ mod legacy_select;
 pub const UNIFORM_BYTES: usize = 7 * 16 + 32 * 16;
 /// Numeric LUT reads use explicit interpolation, independent of F32 filtering.
 pub const CURVE_LUT_ABI_VERSION: u32 = 2;
+/// Shared exact binary16 quantizer, also used at removed pointwise stores.
+pub const HALF_STORE_WGSL: &str = include_str!("shader/half_store.wgsl");
+const STORE_POLICY: &str = r#"
+const SDK_STORE_FLOAT16: bool = false;
+fn sdk_store(c:vec4<f32>)->vec4<f32> {
+    if SDK_STORE_FLOAT16 {return vec4(sdk_half(c.x),sdk_half(c.y),sdk_half(c.z),sdk_half(c.w));}
+    return c;
+}
+"#;
+
+/// Target format is a native pipeline specialization, alongside blend/vertex
+/// state. The full helper and marker are part of both compiled representations
+/// and code budgets; the admitted output image contract selects this constant.
+pub fn native_output_wgsl(
+    shader: &CompiledShader,
+    float16: bool,
+) -> Result<std::borrow::Cow<'_, str>> {
+    if !float16 {
+        return Ok(std::borrow::Cow::Borrowed(&shader.wgsl));
+    }
+    let marker = "const SDK_STORE_FLOAT16: bool = false;";
+    ensure(
+        shader.wgsl.matches(marker).count() == 1,
+        "Float16 shader is missing its unique SDK store policy",
+    )?;
+    Ok(std::borrow::Cow::Owned(shader.wgsl.replacen(
+        marker,
+        "const SDK_STORE_FLOAT16: bool = true;",
+        1,
+    )))
+}
+
 pub const HEADER: &str = r#"
 struct EffectUniform {
     size: vec4<f32>, region: vec4<f32>, input_region: vec4<f32>, source_region: vec4<f32>,
@@ -39,7 +76,12 @@ struct EffectVertex { @builtin(position) position: vec4<f32>, @location(0) uv: v
 }
 fn edge_uv(uv: vec2<f32>) -> vec2<f32> {
     if fx.mode.x == 2.0 { return fract(uv); }
-    if fx.mode.x == 3.0 { return 1.0-abs(fract(uv*0.5)*2.0-1.0); }
+    if fx.mode.x == 3.0 {
+        // Reflection is the identity inside the image. Preserve those bits;
+        // subtracting twice from one perturbs Float32 texel-centre weights.
+        let reflected=1.0-abs(fract(uv*0.5)*2.0-1.0);
+        return select(reflected,uv,(uv>=vec2(0.0)) & (uv<=vec2(1.0)));
+    }
     return clamp(uv,vec2(0.0),vec2(1.0));
 }
 fn sample_input(p: vec2<f32>) -> vec4<f32> {
@@ -107,6 +149,9 @@ pub struct CompiledShader {
     pub additive: bool,
     /// Existing portable-source validation metric; not a texture-sample count.
     pub loop_work: u64,
+    /// Conservative reads per fragment, including SDK helpers and bounded
+    /// loops. None is reserved for implementations without an IR proof.
+    pub samples_per_fragment: Option<u64>,
 }
 
 fn portable_source(source: &str) -> Result<u64> {
@@ -213,7 +258,7 @@ fn compile_internal(
         let start = HEADER.find("struct EffectVertex").unwrap();
         let end = HEADER.find("fn edge_uv").unwrap();
         let header = format!("{}{}{}", &HEADER[..start], SPRITE_VERTEX, &HEADER[end..]);
-        format!("{header}\n{source}\n@fragment fn sdk_fragment(input:SpriteVertex)->@location(0) vec4<f32>{{return {entry}(input.uv,input.color,input.style);}}\n")
+        format!("{header}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:SpriteVertex)->@location(0) vec4<f32>{{return sdk_store({entry}(input.uv,input.color,input.style));}}\n")
     } else if convert_output {
         let original = if finite_source {
             "select(sample_source(p),vec4(0.0),any(p<fx.source_region.xy)||any(p>fx.source_region.xy+fx.source_region.zw))"
@@ -221,9 +266,9 @@ fn compile_internal(
         let mix=if coverage_mix {
             format!("let original={original};let filtered={entry}(p);var c=mix(original,filtered,fx.output_mode.z);if fx.mode.z>0.5 {{let alpha=c.a;let rgb=mix(original.rgb*original.a,filtered.rgb*filtered.a,fx.output_mode.z);c=vec4(rgb/max(alpha,0.000001),alpha);}}")
         }else{format!("let c=mix({original},{entry}(p),fx.output_mode.z);")};
-        format!("{HEADER}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;{mix}if all(fx.mode.yz==fx.output_mode.xy) {{return c;}} return convert_pixel(c,fx.mode.yz,fx.output_mode.xy);}}\n")
+        format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;{mix}if all(fx.mode.yz==fx.output_mode.xy) {{return sdk_store(c);}} return sdk_store(convert_pixel(c,fx.mode.yz,fx.output_mode.xy));}}\n")
     } else {
-        format!("{HEADER}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return mix(sample_source(p),{entry}(p),fx.output_mode.z);}}\n")
+        format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return sdk_store(mix(sample_source(p),{entry}(p),fx.output_mode.z));}}\n")
     };
     let wgsl = legacy_select::normalize(&wgsl).into_owned();
     let module = naga::front::wgsl::parse_str(&wgsl).map_err(|cause| Error::ShaderParse {
@@ -249,8 +294,9 @@ fn compile_internal(
             context: "WGSL validation",
             cause: Box::new(cause),
         })?;
+    let samples_per_fragment = Some(sample_bounds::fragment_reads(&module, loop_work)?);
     let glsl = host_glsl(&module, &info, "sdk_vertex", "sdk_fragment")?;
-    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work })
+    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work, samples_per_fragment })
 }
 
 /// Host-owned geometry programs use the same Naga reflection and ES compiler.

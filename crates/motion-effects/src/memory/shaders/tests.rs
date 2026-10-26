@@ -50,6 +50,7 @@ fn shader_observation_limits_bound_entries_and_context_without_zero_claims() {
                 sprite: false,
                 additive: false,
                 loop_work: 0,
+                samples_per_fragment: None,
             })
         })
         .collect();

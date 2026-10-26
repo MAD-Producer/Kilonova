@@ -14,6 +14,111 @@ mod reference;
 
 const W: u32 = 65;
 const H: u32 = 33;
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn alpha_preserving_rgb_groups_keep_native_alpha_exact_through_tiny_and_hdr_inputs() {
+    let custom = package();
+    let builtin = motion_effects::builtin::package().unwrap();
+    let mut rows = Vec::new();
+    for precision in reference::MODES {
+        let mut project = Project::new(W, H, 30, 60).unwrap();
+        project.working_precision = precision;
+        project.background = [0.; 4];
+        let mut layer = Layer::solid(
+            47,
+            "Alpha-preserving proof",
+            [W as f32, H as f32],
+            [W as f32 / 2., H as f32 / 2., 0.],
+            [1.; 4],
+        );
+        let invert = effect(11, "invert", &builtin);
+        let mut tint = effect(12, "tint", &builtin);
+        tint.params.get_mut("p0001").unwrap().track.value = [0.07, 0.19, 0.31, 1.];
+        tint.params.get_mut("p0002").unwrap().track.value = [0.91, 0.65, 0.43, 1.];
+        tint.params.get_mut("p0003").unwrap().track.value[0] = 37.5;
+        layer.effects = vec![effect(10, "producer", &custom), invert, tint];
+        project.layers.push(layer);
+        project.rebuild_plugin_dependencies();
+        project.validate().unwrap();
+        let mut registry = motion_effects::Registry::new_with_builtins().unwrap();
+        registry.insert(custom.clone()).unwrap();
+        let mut original = renderer(precision);
+        let mut optimized = renderer(precision);
+        original.set_effect_registry(registry.clone());
+        optimized.set_effect_registry(registry);
+        optimized.set_pointwise_fusion(true);
+        let mut source_project = project.clone();
+        source_project.layers[0].effects.truncate(1);
+        source_project.rebuild_plugin_dependencies();
+        let source = raw(&mut original, &source_project);
+        assert!(source.iter().any(|p| p[3] == 0.));
+        assert!(source.iter().any(|p| p[3] == 1.));
+        if matches!(
+            precision,
+            ChannelPrecision::Float16 | ChannelPrecision::Float32
+        ) {
+            assert!(
+                source.iter().any(|p| p[3] > 0. && p[3] < 1.0e-6),
+                "actual floating source must reach the alpha threshold"
+            );
+        }
+        for channel in 1..=4 {
+            project.layers[0].effects[1]
+                .params
+                .get_mut("channel")
+                .unwrap()
+                .track
+                .value[0] = channel as f32;
+            let expected = raw(&mut original, &project);
+            let actual = raw(&mut optimized, &project);
+            let report = optimized.pointwise_fusion_report();
+            assert_eq!(
+                report.groups.len(),
+                1,
+                "{precision:?} channel={channel} {report:?}"
+            );
+            assert_eq!(report.groups[0].effects, [11, 12]);
+            assert_eq!(report.original_passes - report.final_passes, 4);
+            let mut worst_rgb = 0_f64;
+            let mut worst_pixel = None;
+            for (index, (a, b)) in expected.iter().zip(&actual).enumerate() {
+                assert_eq!(
+                    a[3], b[3],
+                    "alpha must be independently exact: {precision:?} channel={channel} pixel={index}"
+                );
+                assert!(a.iter().chain(b).all(|v| v.is_finite()));
+                for c in 0..3 {
+                    let difference = (a[c] - b[c]).abs();
+                    if difference > worst_rgb {
+                        worst_rgb = difference;
+                        worst_pixel = Some((index, c, *a, *b));
+                    }
+                }
+            }
+            let bound = match precision {
+                ChannelPrecision::Unorm8 => 0.012,
+                ChannelPrecision::Unorm16 => 8. / 65535.,
+                ChannelPrecision::Float16 => 0.005,
+                ChannelPrecision::Float32 => 0.00002,
+            };
+            assert!(
+                worst_rgb <= bound,
+                "{precision:?} channel={channel} RGB error={worst_rgb} bound={bound} worst_pixel={worst_pixel:?}"
+            );
+            rows.push(serde_json::json!({"precision":precision,"channel":channel,"alpha_exact":true,"worst_rgb":worst_rgb,"bound":bound,"fusion":report}));
+        }
+    }
+    if let Some(output) = std::env::var_os("MOTION_EXECUTION_ARTIFACTS") {
+        std::fs::create_dir_all(&output).unwrap();
+        std::fs::write(
+            std::path::PathBuf::from(output).join("proof-alpha-preserving.json"),
+            serde_json::to_vec_pretty(&rows).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
 fn package() -> Arc<EffectPackage> {
     let directory = tempfile::tempdir().unwrap();
     let mut manifest = motion_effects::builtin::manifest();

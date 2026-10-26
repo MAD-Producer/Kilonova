@@ -29,6 +29,22 @@ pub fn compiled_package_bytes(
     manifest: &motion_effects::PluginManifest,
     source: &str,
 ) -> Result<Vec<u8>> {
+    package_with_resources(manifest, source, &Default::default())
+}
+
+impl crate::CompiledGraph {
+    pub fn resource(&self, path: &str) -> Option<&[u8]> {
+        self.resources.get(path).map(Vec::as_slice)
+    }
+    /// Package code and its declared numeric data together, including when a
+    /// bound instance supplies a different package identity.
+    pub fn package_bytes(&self, manifest: &motion_effects::PluginManifest) -> Result<Vec<u8>> {
+        package_with_resources(manifest, &self.source, &self.resources)
+    }
+}
+
+fn package_with_resources(manifest: &motion_effects::PluginManifest, source: &str,
+    resources: &std::collections::BTreeMap<String, Vec<u8>>) -> Result<Vec<u8>> {
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let settings = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
@@ -38,6 +54,10 @@ pub fn compiled_package_bytes(
     zip.write_all(&serde_json::to_vec_pretty(manifest)?)?;
     zip.start_file("shaders/graph.wgsl", settings)?;
     zip.write_all(source.as_bytes())?;
+    for (path, bytes) in resources {
+        zip.start_file(path, settings)?;
+        zip.write_all(bytes)?;
+    }
     Ok(zip.finish()?.into_inner())
 }
 

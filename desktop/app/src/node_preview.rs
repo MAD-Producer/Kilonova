@@ -6,9 +6,8 @@ use motion_render::{
     AdmittedBuffer, AdmittedTexture, AdmittedTextureView, AllocationContext, RenderError,
 };
 use motion_ui::{
-    paint,
+    Input, PaintList, Rect, TextAtlas, paint,
     ui::{self, Align},
-    Input, PaintList, Rect, TextAtlas,
 };
 use std::time::Instant;
 
@@ -109,17 +108,9 @@ impl Controls {
             atlas,
             play,
             if self.playing {
-                if zh {
-                    "暂停"
-                } else {
-                    "Pause"
-                }
+                if zh { "暂停" } else { "Pause" }
             } else {
-                if zh {
-                    "播放"
-                } else {
-                    "Play"
-                }
+                if zh { "播放" } else { "Play" }
             },
             input,
             true,
@@ -279,7 +270,8 @@ pub fn panel_image_rect(area: Rect) -> Rect {
 
 pub struct NodePreview {
     pub stamp: (u64, u64),
-    pipeline: wgpu::RenderPipeline,
+    pipeline: std::sync::Arc<PreviewPipeline>,
+    pub pipeline_builds: u64,
     groups: [wgpu::BindGroup; 3],
     uniform: EffectUniform,
     view: AdmittedTextureView,
@@ -292,11 +284,50 @@ pub struct NodePreview {
     buffer: AdmittedBuffer,
     _source: AdmittedTexture,
     _lut: AdmittedTexture,
+    _data: Option<AdmittedTexture>,
     _texture: AdmittedTexture,
     allocations: AllocationContext,
 }
+struct PreviewPipeline {
+    pipeline: wgpu::RenderPipeline,
+    // Immutable successful build; compare mutable public output in full.
+    wgsl: String,
+}
+/// Immutable successful pipelines only. Canonical validation must not keep
+/// candidate textures, bind groups or upload buffers alive between requests.
+pub struct PipelineCache {
+    allocations: AllocationContext,
+    pipeline: std::sync::Arc<PreviewPipeline>,
+    display: DisplayPipelines,
+    pub pipeline_builds: u64,
+}
+impl PipelineCache {
+    pub fn shader_code_bytes(&self) -> usize {
+        self.pipeline.wgsl.len()
+    }
+}
+struct DisplayPipelines {
+    pipeline: wgpu::RenderPipeline,
+    alternate: Option<(wgpu::TextureFormat, wgpu::RenderPipeline)>,
+    format: wgpu::TextureFormat,
+}
+impl DisplayPipelines {
+    fn pipeline_for(&self, format: wgpu::TextureFormat) -> Option<&wgpu::RenderPipeline> {
+        if self.format == format {
+            Some(&self.pipeline)
+        } else {
+            self.alternate
+                .as_ref()
+                .filter(|(key, _)| *key == format)
+                .map(|(_, pipeline)| pipeline)
+        }
+    }
+}
 struct Display {
     pipeline: wgpu::RenderPipeline,
+    // Current format plus one alternate (normally swapchain and PNG capture).
+    // No previous Display or resource owners are retained by this cache.
+    alternate: Option<(wgpu::TextureFormat, wgpu::RenderPipeline)>,
     group: wgpu::BindGroup,
     format: wgpu::TextureFormat,
     buffer: AdmittedBuffer,
@@ -381,6 +412,54 @@ impl NodePreview {
         snapshot: &EditorSnapshot,
         compiled: &motion_graph::CompiledGraph,
     ) -> Result<Self, RenderError> {
+        Self::build_reusing(context, snapshot, compiled, None)
+    }
+    pub fn build_reusing(
+        context: &GpuContext,
+        snapshot: &EditorSnapshot,
+        compiled: &motion_graph::CompiledGraph,
+        previous: Option<&Self>,
+    ) -> Result<Self, RenderError> {
+        let previous = previous.map(Self::pipeline_cache);
+        Self::build_with_cache(context, snapshot, compiled, previous.as_ref())
+    }
+    pub fn pipeline_cache(&self) -> PipelineCache {
+        PipelineCache {
+            allocations: self.allocations.clone(),
+            pipeline: self.pipeline.clone(),
+            display: self.display.pipeline_cache(),
+            pipeline_builds: self.pipeline_builds,
+        }
+    }
+    pub fn build_with_cache(
+        context: &GpuContext,
+        snapshot: &EditorSnapshot,
+        compiled: &motion_graph::CompiledGraph,
+        previous: Option<&PipelineCache>,
+    ) -> Result<Self, RenderError> {
+        if compiled.shader.wgsl.len() > 2 << 20 {
+            return Err(RenderError::Invalid(
+                "node preview WGSL exceeds 2 MiB".into(),
+            ));
+        }
+        compiled.manifest.validate()?;
+        let definition = compiled
+            .manifest
+            .effects
+            .first()
+            .ok_or("node preview has no effect")?;
+        if let Some(data) = &definition.shader_data {
+            if let Some(texture) = &data.overflow {
+                data.validate_texture(
+                    compiled
+                        .resource(&texture.path)
+                        .ok_or("node shader data resource is missing")?,
+                )?;
+            }
+        }
+        let previous =
+            previous.filter(|previous| context.allocations.same_owner(&previous.allocations));
+        let reused = previous.filter(|previous| previous.pipeline.wgsl == compiled.shader.wgsl);
         let allocations = &context.allocations;
         let device = allocations.device();
         let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
@@ -462,7 +541,43 @@ impl NodePreview {
                 })
             };
             let input_group = bind(&input, &[&source_view, &source_view, &lut_view]);
-            let resource_group = bind(&resources, &[&*source_view; 4]);
+            let data = if let Some(data) = compiled.manifest.effects[0]
+                .shader_data
+                .as_ref()
+                .and_then(|data| data.overflow.as_ref())
+            {
+                let bytes = compiled
+                    .resource(&data.path)
+                    .ok_or("node shader data resource is missing")?;
+                let pixels = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
+                    .into_rgba8();
+                let texture = texture(
+                    allocations,
+                    pixels.width(),
+                    pixels.height(),
+                    wgpu::TextureFormat::Rgba8Unorm,
+                )?;
+                upload(
+                    allocations,
+                    &texture,
+                    pixels.width(),
+                    pixels.height(),
+                    pixels.as_raw(),
+                )?;
+                Some(texture)
+            } else {
+                None
+            };
+            let data_view = data.as_ref().map(AdmittedTexture::view).transpose()?;
+            let resource_group = bind(
+                &resources,
+                &[
+                    data_view.as_deref().unwrap_or(&source_view),
+                    &source_view,
+                    &source_view,
+                    &source_view,
+                ],
+            );
             let size = LOGICAL_SIZE as f32;
             let region = [0., 0., size, size];
             let mut uniform = EffectUniform {
@@ -487,6 +602,12 @@ impl NodePreview {
             };
             for (index, p) in snapshot.document.public_parameters.iter().enumerate() {
                 uniform.params[index] = p.default;
+            }
+            if let Some(data) = &compiled.manifest.effects[0].shader_data {
+                data.write_uniforms(
+                    snapshot.document.public_parameters.len(),
+                    &mut uniform.params,
+                )?;
             }
             let buffer = allocations.buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("SDK node clock and parameters"),
@@ -514,34 +635,54 @@ impl NodePreview {
                 u32::from(context.format.is_srgb()),
                 0,
             ];
-            let display = Display::new(allocations, &view, context.format, display_mode, None)?;
+            let display = Display::new(
+                allocations,
+                &view,
+                context.format,
+                display_mode,
+                None,
+                previous.map(|p| &p.display),
+            )?;
             // Admit output and display capacity before compiling user WGSL, so
             // a later budget refusal cannot replace an earlier shader fault.
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("N1 compiled graph"),
-                source: wgpu::ShaderSource::Wgsl(compiled.shader.wgsl.clone().into()),
-            });
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("SDK node pipeline"),
-                bind_group_layouts: &[Some(&uniform_layout), Some(&input), Some(&resources)],
-                immediate_size: 0,
-            });
-            let pipeline = pipeline(
-                device,
-                &layout,
-                &shader,
-                "sdk_vertex",
-                "sdk_fragment",
-                wgpu::TextureFormat::Rgba16Float,
-            );
+            let pipeline = if let Some(previous) = reused {
+                previous.pipeline.clone()
+            } else {
+                let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("N1 compiled graph"),
+                    source: wgpu::ShaderSource::Wgsl(compiled.shader.wgsl.clone().into()),
+                });
+                let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("SDK node pipeline"),
+                    bind_group_layouts: &[Some(&uniform_layout), Some(&input), Some(&resources)],
+                    immediate_size: 0,
+                });
+                let pipeline = pipeline(
+                    device,
+                    &layout,
+                    &shader,
+                    "sdk_vertex",
+                    "sdk_fragment",
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+                std::sync::Arc::new(PreviewPipeline {
+                    pipeline,
+                    wgsl: compiled.shader.wgsl.clone(),
+                })
+            };
             Ok(Self {
                 stamp: snapshot.preview_stamp(),
                 pipeline,
+                pipeline_builds: u64::from(reused.is_none())
+                    + u64::from(
+                        previous.is_none_or(|p| p.display.pipeline_for(context.format).is_none()),
+                    ),
                 groups: [uniform_group, input_group, resource_group],
                 uniform,
                 buffer,
                 _source: source,
                 _lut: lut,
+                _data: data,
                 _texture: texture,
                 view,
                 display,
@@ -572,13 +713,16 @@ impl NodePreview {
     ) -> Result<(), RenderError> {
         if self.display.format != format {
             self.display_mode[2] = u32::from(format.is_srgb());
+            let rebuild = self.display.pipeline_for(format).is_none();
             self.display = Display::new(
                 &self.allocations,
                 &self.view,
                 format,
                 self.display_mode,
                 Some(self.display.buffer.clone()),
+                Some(&self.display.pipeline_cache()),
             )?;
+            self.pipeline_builds = self.pipeline_builds.saturating_add(u64::from(rebuild));
         }
         if self.cached_seconds != Some(viewport.seconds) {
             self.uniform.clock[0] = viewport.seconds as f32;
@@ -602,7 +746,7 @@ impl NodePreview {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
-                pass.set_pipeline(&self.pipeline);
+                pass.set_pipeline(&self.pipeline.pipeline);
                 for (i, group) in self.groups.iter().enumerate() {
                     pass.set_bind_group(i as u32, group, &[]);
                 }
@@ -638,7 +782,12 @@ impl NodePreview {
         self.frames += 1;
         Ok(())
     }
+    pub fn shader_code_bytes(&self) -> usize {
+        self.pipeline.wgsl.len()
+    }
 }
+#[cfg(test)]
+thread_local! { static PIPELINE_CREATIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
 fn pipeline(
     device: &wgpu::Device,
     layout: &wgpu::PipelineLayout,
@@ -647,6 +796,8 @@ fn pipeline(
     fragment: &str,
     format: wgpu::TextureFormat,
 ) -> wgpu::RenderPipeline {
+    #[cfg(test)]
+    PIPELINE_CREATIONS.with(|calls| calls.set(calls.get() + 1));
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("independent node shader"),
         layout: Some(layout),
@@ -674,12 +825,30 @@ fn pipeline(
     })
 }
 impl Display {
+    fn pipeline_cache(&self) -> DisplayPipelines {
+        DisplayPipelines {
+            pipeline: self.pipeline.clone(),
+            alternate: self.alternate.clone(),
+            format: self.format,
+        }
+    }
+    fn pipeline_for(&self, format: wgpu::TextureFormat) -> Option<&wgpu::RenderPipeline> {
+        if self.format == format {
+            Some(&self.pipeline)
+        } else {
+            self.alternate
+                .as_ref()
+                .filter(|(key, _)| *key == format)
+                .map(|(_, pipeline)| pipeline)
+        }
+    }
     fn new(
         allocations: &AllocationContext,
         source: &wgpu::TextureView,
         format: wgpu::TextureFormat,
         mode: [u32; 4],
         existing: Option<AdmittedBuffer>,
+        previous: Option<&DisplayPipelines>,
     ) -> Result<Self, RenderError> {
         let device = allocations.device();
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -746,24 +915,37 @@ impl Display {
                 },
             ],
         });
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("node preview display shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("node_preview.wgsl").into()),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[Some(&layout)],
-            immediate_size: 0,
-        });
-        Ok(Self {
-            pipeline: pipeline(
+        let reused = previous.and_then(|previous| previous.pipeline_for(format));
+        let pipeline = if let Some(pipeline) = reused {
+            pipeline.clone()
+        } else {
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("node preview display shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("node_preview.wgsl").into()),
+            });
+            let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[Some(&layout)],
+                immediate_size: 0,
+            });
+            pipeline(
                 device,
                 &pipeline_layout,
                 &shader,
                 "vertex_main",
                 "fragment_main",
                 format,
-            ),
+            )
+        };
+        Ok(Self {
+            pipeline,
+            alternate: previous.and_then(|previous| {
+                if previous.format != format {
+                    Some((previous.format, previous.pipeline.clone()))
+                } else {
+                    previous.alternate.clone()
+                }
+            }),
             group,
             format,
             buffer,
@@ -774,6 +956,43 @@ impl Display {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+    fn node_canonical_cache_retains_pipelines_without_candidate_allocations() {
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let snapshot = crate::node_editor::NodeEditor::default().snapshot();
+        let compiled = snapshot.compile_runtime().unwrap();
+        let budget = context.allocations.budget();
+        let baseline = budget.info().unwrap().admitted_bytes;
+        let candidate = NodePreview::build(&context, &snapshot, &compiled).unwrap();
+        let cache = candidate.pipeline_cache();
+        assert!(budget.info().unwrap().admitted_bytes > baseline);
+        drop(candidate);
+        let encoder = renderer
+            .allocation_command_encoder(&Default::default())
+            .unwrap();
+        renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
+        context
+            .allocations
+            .device()
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        assert_eq!(
+            budget.info().unwrap().admitted_bytes,
+            baseline,
+            "pipeline-only canonical cache must release admitted data/output/buffers after submission"
+        );
+        let calls = PIPELINE_CREATIONS.with(|calls| calls.get());
+        let candidate =
+            NodePreview::build_with_cache(&context, &snapshot, &compiled, Some(&cache)).unwrap();
+        assert_eq!(PIPELINE_CREATIONS.with(|counter| counter.get()) - calls, 0);
+        assert_eq!(candidate.pipeline_builds, 0);
+        assert!(std::sync::Arc::ptr_eq(&cache.pipeline, &candidate.pipeline));
+    }
     #[test]
     #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn node_preview_respects_occupied_session_admission() {
@@ -792,8 +1011,11 @@ mod tests {
         let occupied = budget.info().unwrap().admitted_bytes;
         budget.set_limit(occupied + 1).unwrap();
         let result = NodePreview::build(&context, &snapshot, &compiled);
-        assert!(result.is_err(),
-            "independent N1 preview bypassed the live shared allowance: occupied={occupied} budget={}", occupied + 1);
+        assert!(
+            result.is_err(),
+            "independent N1 preview bypassed the live shared allowance: occupied={occupied} budget={}",
+            occupied + 1
+        );
     }
 
     fn pixels(
@@ -822,6 +1044,264 @@ mod tests {
             })
             .unwrap();
         renderer.read_target(&target).unwrap()
+    }
+    #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+    fn editable_uniform_and_byte_data_match_baked_preview_and_remain_admitted() {
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let mut snapshot = crate::node_editor::NodeEditor::default().snapshot();
+        let parameter = snapshot.document.public_parameters[0].clone();
+        snapshot.document.nodes = vec![
+            motion_graph::Node::new(
+                "color",
+                motion_graph::NodeOp::Color {
+                    value: [0.1, 0.3, 0.8, 0.5],
+                },
+            ),
+            motion_graph::Node::new("output", motion_graph::NodeOp::ColorOutput),
+        ];
+        snapshot.document.connections = vec![motion_graph::Connection::new(
+            "color", "value", "output", "color",
+        )];
+        for overflow in [false, true] {
+            snapshot.document.public_parameters = if overflow {
+                (0..32)
+                    .map(|i| {
+                        let mut p = parameter.clone();
+                        p.id = format!("p{i}");
+                        p
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
+            let compiled = snapshot.compile_runtime().unwrap();
+            let baked = motion_graph::compile(&snapshot.document, &snapshot.options).unwrap();
+            let mut actual = NodePreview::build(&context, &snapshot, &compiled).unwrap();
+            assert_eq!(actual._data.is_some(), overflow);
+            if let Some(texture) = &actual._data {
+                assert_eq!(
+                    texture.width(),
+                    motion_effects::shader_data::SHADER_DATA_TEXTURE_WIDTH
+                );
+            }
+            let mut expected = NodePreview::build(&context, &snapshot, &baked).unwrap();
+            assert_eq!(
+                pixels(&renderer, &mut actual, 0.),
+                pixels(&renderer, &mut expected, 0.)
+            );
+        }
+    }
+    #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+    fn numeric_candidates_reuse_native_pipelines_and_keep_failures_transactional() {
+        use motion_graph::{Connection, EditableCompiler, Node, NodeOp};
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let mut snapshot = crate::node_editor::NodeEditor::default().snapshot();
+        let parameter = snapshot.document.public_parameters[0].clone();
+        snapshot.document.nodes = vec![
+            Node::new(
+                "color",
+                NodeOp::Color {
+                    value: [0.2, 0.3, 0.8, 1.],
+                },
+            ),
+            Node::new("output", NodeOp::ColorOutput),
+        ];
+        snapshot.document.connections = vec![Connection::new("color", "value", "output", "color")];
+        let calls = || PIPELINE_CREATIONS.with(|calls| calls.get());
+        let mut rows = vec![];
+        for overflow in [false, true] {
+            snapshot.document.public_parameters = if overflow {
+                (0..32)
+                    .map(|i| {
+                        let mut p = parameter.clone();
+                        p.id = format!("p{i}");
+                        p
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
+            let mut compiler = EditableCompiler::default();
+            let first = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            let count = calls();
+            let mut active = NodePreview::build(&context, &snapshot, &first).unwrap();
+            assert_eq!(calls() - count, 2);
+            assert_eq!(active.pipeline_builds, 2);
+            let mut previous_pixels = pixels(&renderer, &mut active, 0.);
+            for color in [[0.8, 0.1, 0.2, 1.], [0.1, 0.5, 0.8, 0.5]] {
+                snapshot.document.nodes[0].operation = NodeOp::Color { value: color };
+                let compiled = compiler
+                    .compile(&snapshot.document, &snapshot.options)
+                    .unwrap();
+                assert_eq!(compiled.report.portable_compilations, 0);
+                let count = calls();
+                let mut candidate =
+                    NodePreview::build_reusing(&context, &snapshot, &compiled, Some(&active))
+                        .unwrap();
+                assert_eq!(
+                    calls() - count,
+                    0,
+                    "both actual create_render_pipeline calls must be avoided"
+                );
+                assert_eq!(candidate.pipeline_builds, 0);
+                assert!(std::sync::Arc::ptr_eq(
+                    &active.pipeline,
+                    &candidate.pipeline
+                ));
+                let current = pixels(&renderer, &mut candidate, 0.);
+                assert_ne!(
+                    previous_pixels, current,
+                    "paused output must invalidate on numeric update"
+                );
+                assert_eq!(
+                    pixels(&renderer, &mut active, 0.),
+                    previous_pixels,
+                    "candidate must not mutate the previous preview"
+                );
+                let baked = snapshot.compile().unwrap();
+                let mut oracle = NodePreview::build(&context, &snapshot, &baked).unwrap();
+                assert_eq!(current, pixels(&renderer, &mut oracle, 0.));
+                active = candidate;
+                previous_pixels = current;
+                rows.push(serde_json::json!({"overflow":overflow,"color":color,"portable_compilations":compiled.report.portable_compilations,"native_pipeline_creations":0,"matches_baked_pixels":true,"old_candidate_unchanged":true}));
+            }
+            let mut invalid = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            invalid.shader.wgsl = "this is not valid WGSL".into();
+            assert!(
+                NodePreview::build_reusing(&context, &snapshot, &invalid, Some(&active)).is_err()
+            );
+            assert_eq!(pixels(&renderer, &mut active, 0.), previous_pixels);
+            let mut invalid = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            invalid.manifest.effects[0]
+                .shader_data
+                .as_mut()
+                .unwrap()
+                .uniforms = vec![[0.; 4]; 33];
+            assert!(
+                NodePreview::build_reusing(&context, &snapshot, &invalid, Some(&active)).is_err()
+            );
+            assert_eq!(pixels(&renderer, &mut active, 0.), previous_pixels);
+
+            let valid = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            let budget = context.allocations.budget().clone();
+            let original_limit = budget.info().unwrap().budget_bytes;
+            let occupied = budget.info().unwrap().admitted_bytes;
+            budget.set_limit(occupied + 1).unwrap();
+            assert!(
+                NodePreview::build_reusing(&context, &snapshot, &valid, Some(&active)).is_err(),
+                "reuse must still admit a separate candidate"
+            );
+            budget.set_limit(original_limit).unwrap();
+            assert_eq!(pixels(&renderer, &mut active, 0.), previous_pixels);
+
+            let compiled = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            let swapchain = GpuContext {
+                allocations: context.allocations.clone(),
+                format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            };
+            let count = calls();
+            let mut alternate =
+                NodePreview::build_reusing(&swapchain, &snapshot, &compiled, Some(&active))
+                    .unwrap();
+            assert_eq!(
+                calls() - count,
+                1,
+                "a new presentation format compiles once"
+            );
+            let count = calls();
+            assert_eq!(pixels(&renderer, &mut alternate, 0.), previous_pixels);
+            assert_eq!(
+                calls() - count,
+                0,
+                "returning to PNG format must use its retained pipeline"
+            );
+            let count = calls();
+            let round_trip =
+                NodePreview::build_reusing(&swapchain, &snapshot, &compiled, Some(&alternate))
+                    .unwrap();
+            assert_eq!(
+                calls() - count,
+                0,
+                "numeric replacement after capture must retain both formats"
+            );
+            let third_context = GpuContext {
+                allocations: context.allocations.clone(),
+                format: wgpu::TextureFormat::Rgba8Unorm,
+            };
+            let count = calls();
+            let third =
+                NodePreview::build_reusing(&third_context, &snapshot, &compiled, Some(&round_trip))
+                    .unwrap();
+            assert_eq!(calls() - count, 1);
+            assert!(
+                third
+                    .display
+                    .pipeline_for(wgpu::TextureFormat::Rgba8UnormSrgb)
+                    .is_none(),
+                "third format must evict the older alternate"
+            );
+            assert!(third.display.alternate.is_some());
+
+            // Actual changed WGSL rebuilds only the graph pipeline, while the
+            // same owner's fixed display pipeline remains reusable.
+            snapshot.document.alpha_mode = if snapshot.document.alpha_mode == AlphaMode::Straight {
+                AlphaMode::Premultiplied
+            } else {
+                AlphaMode::Straight
+            };
+            let structural = compiler
+                .compile(&snapshot.document, &snapshot.options)
+                .unwrap();
+            assert_eq!(structural.report.portable_compilations, 1);
+            let count = calls();
+            let changed =
+                NodePreview::build_reusing(&context, &snapshot, &structural, Some(&active))
+                    .unwrap();
+            assert_eq!(calls() - count, 1);
+            assert!(!std::sync::Arc::ptr_eq(&active.pipeline, &changed.pipeline));
+            let other = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+            let other_context = GpuContext {
+                allocations: other.allocation_context(),
+                format: context.format,
+            };
+            let count = calls();
+            let _other =
+                NodePreview::build_reusing(&other_context, &snapshot, &structural, Some(&changed))
+                    .unwrap();
+            assert_eq!(
+                calls() - count,
+                2,
+                "same adapter does not authorize cross-owner reuse"
+            );
+        }
+        if let Some(out) = std::env::var_os("MOTION_EXECUTION_ARTIFACTS") {
+            std::fs::create_dir_all(&out).unwrap();
+            std::fs::write(
+                std::path::Path::new(&out).join("preview-numeric-reuse.json"),
+                serde_json::to_vec_pretty(&rows).unwrap(),
+            )
+            .unwrap();
+        }
     }
     #[test]
     #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]

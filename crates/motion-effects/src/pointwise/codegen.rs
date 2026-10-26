@@ -15,7 +15,7 @@ pub struct PortableFusionMetrics {
     pub portable_compile_nanos: u64,
     /// Existing portable compiler metric, not a GPU instruction count.
     pub static_loop_work: u64,
-    /// One input lookup plus the SDK wrapper's original-source lookup.
+    /// Bound derived from the actual compiled fragment IR, including the SDK.
     pub shader_texture_samples_upper_bound: u64,
 }
 
@@ -60,23 +60,8 @@ fn pointwise_canonical_store(v:vec4<f32>)->vec4<f32>{return pointwise_work_store
         }
         ChannelPrecision::Float16 => {
             r#"
-// Round binary32 to binary16 precision without f16 types or packing builtins.
-// Normal values retain ten fraction bits with round-to-nearest, ties-to-even.
-// Subnormal binary16 values are integral multiples of 2^-24.
-fn pointwise_half(v:f32)->f32{
-    let bits=bitcast<u32>(v);let sign=bits&0x80000000u;let magnitude=bits&0x7fffffffu;
-    if magnitude>=0x7f800000u{return v;}
-    if magnitude>=0x47800000u{return bitcast<f32>(sign|0x7f800000u);}
-    if magnitude<0x38800000u{
-        let q=round(abs(v)*16777216.0)/16777216.0;
-        return bitcast<f32>(bitcast<u32>(q)|sign);
-    }
-    let rounded=(magnitude+0xfffu+((magnitude>>13u)&1u))&0x7fffe000u;
-    if rounded>=0x47800000u{return bitcast<f32>(sign|0x7f800000u);}
-    return bitcast<f32>(sign|rounded);
-}
 fn pointwise_work_store(v:vec4<f32>)->vec4<f32>{
-    return vec4(pointwise_half(v.x),pointwise_half(v.y),pointwise_half(v.z),pointwise_half(v.w));
+    return vec4(sdk_half(v.x),sdk_half(v.y),sdk_half(v.z),sdk_half(v.w));
 }
 fn pointwise_canonical_store(v:vec4<f32>)->vec4<f32>{return pointwise_work_store(v);}
 "#
@@ -146,7 +131,9 @@ impl PointwiseChain {
             compiled_glsl_bytes: compiled.glsl.vertex.len() + compiled.glsl.fragment.len(),
             portable_compile_nanos: elapsed.as_nanos().min(u64::MAX as u128) as u64,
             static_loop_work: compiled.loop_work,
-            shader_texture_samples_upper_bound: 2,
+            shader_texture_samples_upper_bound: compiled.samples_per_fragment.ok_or_else(|| {
+                Error::Invalid("pointwise compiled fragment has no texture-read bound".into())
+            })?,
         };
         Ok(FusedShader { compiled, metrics })
     }

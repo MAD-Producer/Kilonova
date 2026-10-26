@@ -19,6 +19,8 @@ mod command_error_tests;
 mod gpu_command_tests;
 #[cfg(all(test, debug_assertions, feature = "gpu-tests"))]
 mod pointwise_compile_tests;
+#[cfg(all(test, debug_assertions, feature = "gpu-tests"))]
+mod execution_ir_tests;
 #[cfg(test)]
 mod media_task_bounds_tests;
 

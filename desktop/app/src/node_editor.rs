@@ -92,6 +92,18 @@ impl EditorSnapshot {
     pub fn compile(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
         motion_graph::compile(&self.document, &self.options)
     }
+    /// Live worker compilation separates private numeric values from code.
+    /// The ordinary compile/export APIs produce baked, self-contained code.
+    pub fn compile_runtime(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
+        motion_graph::compile_editable(&self.document, &self.options)
+    }
+    pub fn compile_preview_runtime(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
+        if let Some(target) = &self.preview_target {
+            motion_graph::compile_preview_editable(&self.document, &self.options, target)
+        } else {
+            self.compile_runtime()
+        }
+    }
     pub fn save(&self, path: &std::path::Path) -> motion_graph::Result<()> {
         self.document.save(path)
     }

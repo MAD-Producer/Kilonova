@@ -1,6 +1,6 @@
 //! Count allocations on this test thread, independently of timing or GPU speed.
 use motion_render::effect_plan::{
-    image_input_order, EffectFramePlan, EffectPass, EffectUniform, LayerComposite, PlannedDraw,
+    EffectFramePlan, EffectPass, EffectUniform, LayerComposite, PlannedDraw, image_input_order,
 };
 use std::{
     alloc::{GlobalAlloc, Layout, System},
@@ -76,6 +76,7 @@ fn plan(inputs: &[(i32, bool)]) -> EffectFramePlan {
                 let mut uniform = EffectUniform::zeroed();
                 uniform.params[30][1] = f32::from(u8::from(effected));
                 EffectPass {
+                    instance_data: 0,
                     resource_input,
                     program: 0,
                     input: 0,
@@ -126,9 +127,11 @@ fn plans_without_snapshot_dependencies_do_not_allocate_traversal_storage() {
         assert_eq!(
             allocations(|| {
                 for _ in 0..120 {
-                    assert!(image_input_order(std::hint::black_box(&frame))
-                        .unwrap()
-                        .is_empty());
+                    assert!(
+                        image_input_order(std::hint::black_box(&frame))
+                            .unwrap()
+                            .is_empty()
+                    );
                 }
             }),
             0,
@@ -136,9 +139,11 @@ fn plans_without_snapshot_dependencies_do_not_allocate_traversal_storage() {
         );
     }
     assert_eq!(
-        allocations(|| assert!(image_input_order(&EffectFramePlan::default())
-            .unwrap()
-            .is_empty())),
+        allocations(|| assert!(
+            image_input_order(&EffectFramePlan::default())
+                .unwrap()
+                .is_empty()
+        )),
         0
     );
 }
