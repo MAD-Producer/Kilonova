@@ -597,7 +597,11 @@ impl Editor {
                     row,
                 );
                 let id = if i == 0 {
-                    if influence { 4 } else { 3 }
+                    if influence {
+                        4
+                    } else {
+                        3
+                    }
                 } else if influence {
                     7
                 } else {
@@ -695,8 +699,20 @@ impl Editor {
             [
                 word(
                     locale,
-                    "标量保留正负；向量速率非负且保留原方向。",
-                    "Signed scalars; vector speed keeps its original direction.",
+                    if !profile.temporal {
+                        "此类型仅支持保持插值，不提供速度。"
+                    } else if !profile.numeric {
+                        "此类型不提供属性单位速度；可使用平均倍数。"
+                    } else {
+                        "标量保留正负；向量速率非负且保留原方向。"
+                    },
+                    if !profile.temporal {
+                        "This type supports Hold only; velocity is unavailable."
+                    } else if !profile.numeric {
+                        "No property-unit velocity; use average multiples."
+                    } else {
+                        "Signed scalars; vector speed keeps its original direction."
+                    },
                 ),
                 word(
                     locale,

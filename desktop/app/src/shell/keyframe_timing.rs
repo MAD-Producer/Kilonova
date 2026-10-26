@@ -2,11 +2,23 @@
 use crate::*;
 
 impl Shell {
+    pub(super) fn reject_stale_keyframe_timing(&mut self) {
+        self.panels.message = Some(if self.workspace.locale == Locale::Zh {
+            "工程或选择已变化，关键帧设置未应用，请重新打开设置。"
+        } else {
+            "The document or selection changed. Keyframe settings were not applied; reopen the editor."
+        }.into());
+        self.dirty = true;
+    }
     pub(crate) fn open_keyframe_timing(
         &mut self,
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
     ) -> Result<(), String> {
+        if source != crate::layer_clipboard::KeyframeSource::of(&self.state) {
+            self.reject_stale_keyframe_timing();
+            return Ok(());
+        }
         self.stop();
         let owner = if self.window.as_ref().is_some_and(|w| w.has_focus()) {
             0
@@ -54,11 +66,7 @@ impl Shell {
                 settings,
             } => {
                 if source != crate::layer_clipboard::KeyframeSource::of(&self.state) {
-                    self.panels.message=Some(if self.workspace.locale==Locale::Zh {
-                        "工程或选择已变化，关键帧设置未应用，请重新打开设置。"
-                    }else{
-                        "The document or selection changed. Keyframe settings were not applied; reopen the editor."
-                    }.into());
+                    self.reject_stale_keyframe_timing();
                     self.dialog = None;
                     self.dirty = true;
                     return Ok(());

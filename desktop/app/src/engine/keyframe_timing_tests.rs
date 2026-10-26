@@ -117,6 +117,24 @@ fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_re
         let mut shell =
             crate::Shell::new(open_directory, None, Some(crate::i18n::Locale::En)).unwrap();
         let before_open = shell.state.clone();
+        let mut stale_open = before_open.clone();
+        stale_open["revision"] = 9999.into();
+        shell
+            .open_keyframe_timing(
+                crate::layer_clipboard::KeyframeSource::of(&stale_open),
+                vec![selected(7, Property::Position, 30)],
+            )
+            .unwrap();
+        assert!(shell.dialog.is_none());
+        assert!(shell
+            .panels
+            .message
+            .as_ref()
+            .unwrap()
+            .contains("not applied"));
+        for field in ["project", "revision", "history"] {
+            assert_eq!(shell.state[field], before_open[field]);
+        }
         let cause = shell
             .open_keyframe_timing(
                 crate::layer_clipboard::KeyframeSource::of(&before_open),
@@ -212,6 +230,15 @@ fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_re
         && l.contains("object 999 does not exist")));
     assert!(stderr.contains("keyframe timing failed operation=open"));
     assert!(!stderr.contains("keyframe timing start") && !stdout.contains("keyframe timing"));
+    assert_eq!(
+        file.lines()
+            .filter(|l| l.contains("keyframe timing start operation=open"))
+            .count(),
+        3,
+        "stale opens must not start a profile operation"
+    );
+    assert_eq!(file.lines().filter(|l| l.contains(" ERROR ") && l.contains("keyframe timing failed operation=open")).count(), 2,
+        "stale opens must not be logged as faults");
     for output in [&file, stderr.as_ref()] {
         let line = output
             .lines()

@@ -8,11 +8,7 @@ mod curve_playback_tests;
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
         if state["editorAction"]["cancelled"]==true && state["editorAction"]["operation"]=="keyframe_timing" {
-            self.panels.message=Some(if self.workspace.locale==Locale::Zh {
-                "工程或选择已变化，关键帧设置未应用，请重新打开设置。"
-            }else{
-                "The document or selection changed. Keyframe settings were not applied; reopen the editor."
-            }.into());
+            self.reject_stale_keyframe_timing();
         }
         if state["edit_result"]["op"] == "create_camera" {
             if let Some(object) = state["edit_result"]["object"].as_u64() {
