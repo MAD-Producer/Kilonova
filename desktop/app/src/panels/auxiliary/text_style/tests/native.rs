@@ -476,6 +476,73 @@ fn text_style_native_controls_pixels_transactions_and_floating_input() {
         shell.state = shell.engine.history(0).unwrap();
         assert_eq!(shell.state["project"], baseline);
     }
+    // Exercise the styled layout path with real CJK glyph metrics as well as
+    // the portable IBM Plex Mono export test; the unstyled path is separate.
+    let content = &shell.state["project"]["layers"][0]["content"];
+    let mut style: motion_core::TextStyle =
+        serde_json::from_value(content["style"].clone()).unwrap();
+    style.font_size = 48.;
+    style.line_height = Some(76.);
+    style.tracking = 3.;
+    style.stroke_width = 1.5;
+    style.alignment = motion_core::TextAlign::Center;
+    style.indent_left = 12.;
+    style.indent_right = 12.;
+    style.indent_first = 16.;
+    let request = serde_json::json!({"op":"font_edit_text","object":object,"revision":shell.state["revision"],
+        "text":content["text"],"font":content["font"],"style":style});
+    let source = crate::layer_clipboard::KeyframeSource::of(&shell.state);
+    let reply = shell
+        .engine
+        .request(|reply| crate::engine::Command::TextLayout {
+            source,
+            request,
+            reply,
+        })
+        .unwrap();
+    shell.state = native_test_support::receive(&mut events, &reply, Duration::from_secs(30))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        shell.state["project"]["layers"][0]["content"]["style"],
+        serde_json::to_value(&style).unwrap()
+    );
+    shell.engine.save().unwrap();
+    let output = root.join("zh-styled-output.png");
+    let reply = shell
+        .engine
+        .capture_async(output.clone(), Default::default())
+        .unwrap();
+    let result = native_test_support::receive(&mut events, &reply, Duration::from_secs(60))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (result["width"].as_u64(), result["height"].as_u64()),
+        (Some(640), Some(360))
+    );
+    let pixels = image::open(output).unwrap().to_rgba8();
+    assert!(pixels.pixels().filter(|p| p[0] > 160 && p[3] > 160).count() > 200);
+    shell.panels.locale = Locale::Zh;
+    shell.workspace.locale = Locale::Zh;
+    resize(&mut shell, &mut events, [900., 600.], 1.);
+    for (panel, name) in [
+        (Panel::Character, "character"),
+        (Panel::Paragraph, "paragraph"),
+    ] {
+        shell.workspace.root = panel_root(panel, 900.);
+        shell.panels.focused = Some(panel);
+        let (paint, actions) = main_draw(&mut shell, [900., 600.], Input::default());
+        assert!(actions.is_empty());
+        capture(
+            &mut shell,
+            &mut events,
+            paint,
+            [900., 600.],
+            0,
+            root.join(format!("zh-styled-{name}.png")),
+            1.,
+        );
+    }
     shell.engine.close_window(1).unwrap();
     shell.floating.clear();
     shell.attached = false;
