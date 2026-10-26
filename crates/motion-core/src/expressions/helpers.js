@@ -38,6 +38,7 @@ function radiansToDegrees(x) { return x*180/Math.PI; }
 function framesToTime(f,fps=thisComp.frameRate) { return f/fps; }
 function timeToFrames(t=time,fps=thisComp.frameRate,isDuration=false) { return isDuration?Math.sign(t)*Math.ceil(Math.abs(t*fps)):Math.floor(t*fps); }
 function valueAtTime(t) { if(!Number.isFinite(t))throw Error("invalid sample time"); return JSON.parse(globalThis.__msSample(t)); }
+function propertyValue(target,t=time) { if(!Number.isFinite(t))throw Error("invalid reference sample time"); return JSON.parse(globalThis.__msReference(JSON.stringify(target),t)); }
 function velocityAtTime(t) { const h=thisComp.frameDuration/100; return div(sub(valueAtTime(t+h),valueAtTime(t-h)),2*h); }
 function speedAtTime(t) { return length(velocityAtTime(t)); }
 function key(n) { if(typeof n!=="number"||!Number.isInteger(n)||n<1||n>numKeys)throw Error("key index outside 1..numKeys"); return {...__msD.keys[n-1],index:n}; }
