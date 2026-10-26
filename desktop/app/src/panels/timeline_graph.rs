@@ -315,6 +315,7 @@ pub(super) fn render(
         .as_ref()
         .map(|d| d.bounds())
         .or_else(|| panels.timeline.key_drag.as_ref().map(|d| d.bounds()))
+        .or_else(|| panels.key_gestures.drag_bounds())
         .or_else(|| panels.timeline.graph_box.bounds());
     let low = fixed.map_or(center - half, |b| b[0]);
     let high = fixed.map_or(center + half, |b| b[1]);
@@ -438,13 +439,17 @@ pub(super) fn render(
                 styles.metric("graph.key_radius", 5.) + if chosen { 0.5 } else { 0. },
                 colors.KEYFRAME,
             );
-            super::key_selection::ui::mark(&mut lines, panels, super::key_selection::Key {
+            let value_per_pixel=if panels.timeline.speed_graph {0.} else {(high-low)/plot.height()/scale};
+            super::key_selection::ui::graph_mark(&mut lines, panels, super::key_selection::Key {
                 target: motion_core::KeyframeTarget::Property { object, property, axis }, frame: frame as u32,
             }, point, styles.metric("graph.key_radius", 5.),
                 Rect::new(point[0] - styles.metric("graph.selection.hit_radius", 6.) - styles.metric("motion.drag_threshold", 3.),
                     point[1] - styles.metric("graph.selection.hit_radius", 6.) - styles.metric("motion.drag_threshold", 3.),
                     (styles.metric("graph.selection.hit_radius", 6.) + styles.metric("motion.drag_threshold", 3.)) * 2.,
-                    (styles.metric("graph.selection.hit_radius", 6.) + styles.metric("motion.drag_threshold", 3.)) * 2.));
+                    (styles.metric("graph.selection.hit_radius", 6.) + styles.metric("motion.drag_threshold", 3.)) * 2.),
+                if axis.is_some() || property.is_scalar() {0} else {components[index]},
+                value_per_pixel,
+                (property==Property::Opacity).then_some([0.,1.]));
             if clicked(
                 curve_input,
                 Rect::new(point[0] - 9., point[1] - 9., 18., 18.),

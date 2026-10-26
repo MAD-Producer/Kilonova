@@ -169,6 +169,7 @@ registry! {
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];
     Command::DeleteKeyframes { .. } => "delete_keyframes" [("selections","Vec<KeyframeSelection>",true)];
+    Command::TransformKeyframes { .. } => "transform_keyframes" [("selections","Vec<KeyframeSelection>",true),("delta_frame","i32",true),("value_offset","Option<KeyframeValueOffset>",false),("copy","bool",true)];
     Command::PastePaths { .. } => "paste_paths" [("clipboard","PathClipboard",true), ("target","PathDestination",true), ("at_frame","Option<u32>",false)];
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];

@@ -319,3 +319,60 @@ fn key_selection_edits_keep_original_failures_on_default_channels_and_recover_at
     assert!(!stderr.contains("start #") && !stdout.contains("start #"));
     assert!(!stderr.contains("context_changed") && !stdout.contains("context_changed"));
 }
+
+#[test]
+fn keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history() {
+    const NAME:&str="engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history";
+    const CHILD:&str="MOTION_KEYFRAME_TRANSFORM_CHILD";
+    if let Some(root)=std::env::var_os(CHILD) {
+        let root=PathBuf::from(root);let _logging=crate::logging::init(root.join("logs")).unwrap();
+        let mut project=Project::new(640,360,30,120).unwrap();
+        for id in [7,8] {
+            let mut layer=Layer::solid(id,"Key transform",[32.;2],[0.;3],[1.;4]);
+            for frame in [0,10,20] {
+                layer.transform.position.upsert(frame,[frame as f32;3],Ease::Linear).unwrap();
+                layer.transform.opacity.upsert(frame,0.5,Ease::Linear).unwrap();
+            }
+            layer.locked=id==8;project.layers.push(layer);
+        }
+        let directory=root.join("project");motion_core::storage::save(&directory,&project).unwrap();
+        let engine=Engine::start(directory,motion_desktop_media::platform(),8*1024*1024*1024).unwrap();
+        let selected=|object,property,frames:Vec<u32>|KeyframeSelection {target:KeyframeTarget::Property {object,property,axis:None},frames};
+        let apply=|state:&Value,selections,delta_frame,value_offset|engine.call(|reply|Command::EditorAction {source:crate::layer_clipboard::KeyframeSource::of(state),commands:vec![motion_core::Command::TransformKeyframes {selections,delta_frame,value_offset,copy:false}],reply});
+        let before=engine.state().unwrap();
+        for (object,frame,delta,component,reason) in [
+            (7,0,10,None,"destination is occupied"),
+            (7,0,-1,None,"outside composition"),
+            (999,0,1,None,"object 999 does not exist"),
+            (8,0,1,None,"object 8 is locked"),
+            (7,0,1,Some(9),"component out of range"),
+        ] {
+            let value=component.map(|component|motion_core::KeyframeValueOffset {target:KeyframeTarget::Property {object,property:Property::Position,axis:None},component,delta:1.});
+            let error=apply(&before,vec![selected(7,Property::Opacity,vec![0]),selected(object,Property::Position,vec![frame])],delta,value).unwrap_err();
+            assert!(error.contains(reason),"{error}");assert!(error.contains("operation=transform"),"{error}");
+            let after=engine.state().unwrap();
+            for field in ["project","revision","history"] {assert_eq!(after[field],before[field],"{field}");}
+        }
+        let applied=apply(&before,vec![selected(7,Property::Position,vec![0,10])],1,None).unwrap();
+        assert_ne!(applied["project"],before["project"]);
+        assert_eq!(applied["history"]["undoEntries"],1);
+        let cancelled=apply(&before,vec![selected(7,Property::Position,vec![0])],1,None).unwrap();
+        assert_eq!(cancelled["editorAction"]["cancelled"],true);assert_eq!(cancelled["project"],applied["project"]);
+        assert_eq!(engine.history(0).unwrap()["project"],before["project"]);
+        engine.request_shutdown().unwrap();return;
+    }
+    let temporary=tempfile::tempdir().unwrap();let root=std::env::var_os("MOTION_KEYFRAME_TRANSFORM_ARTIFACTS").map(PathBuf::from).unwrap_or_else(||temporary.path().into());
+    std::fs::create_dir_all(&root).unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact",NAME,"--nocapture","--test-threads=1"]).env(CHILD,&root).env_remove("MOTION_LOG").output().unwrap();
+    std::fs::write(root.join("stdout.log"),&output.stdout).unwrap();std::fs::write(root.join("stderr.log"),&output.stderr).unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let file=std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();let stderr=String::from_utf8_lossy(&output.stderr);let stdout=String::from_utf8_lossy(&output.stdout);
+    for cause in ["destination is occupied","outside composition","object 999 does not exist","object 8 is locked","component out of range"] {
+        assert!(file.lines().any(|l|l.contains(" ERROR ")&&l.contains("editor_action")&&l.contains(cause)),"{file}");
+        assert!(stderr.contains(cause),"{stderr}");assert!(!stdout.contains(cause),"{stdout}");
+    }
+    assert_eq!(file.lines().filter(|l|l.contains(" ERROR ")&&l.contains("editor_action")).count(),5);
+    assert!(file.lines().any(|l|l.contains(" INFO ")&&l.contains("start #")&&l.ends_with(" editor_action")));
+    assert!(!stderr.contains("start #")&&!stdout.contains("start #"));
+    assert!(!stderr.contains("context_changed")&&!stdout.contains("context_changed"));
+}

@@ -3,6 +3,8 @@ use super::*;
 mod interpolation;
 #[path = "easing.rs"]
 mod easing;
+#[path = "transform.rs"]
+mod transform;
 use motion_core::{
     masks::{LayerMask, MaskProperty},
     vector::{groups::*, *},

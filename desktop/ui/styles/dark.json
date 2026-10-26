@@ -120,6 +120,7 @@
       "graph.plot.footer.height": 48,
       "graph.mode.width": 100,
       "timeline.key.radius": 4,
+      "timeline.key.snap_tolerance": 8,
       "timeline.work_area.height": 14,
       "timeline.header.base.height": 64,
       "timeline.work_area.inset": 4,

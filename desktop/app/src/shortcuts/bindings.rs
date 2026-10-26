@@ -392,6 +392,8 @@ fn repeatable(command: Command) -> bool {
             | Command::MoveDown
             | Command::PreviousKey
             | Command::NextKey
+            | Command::NudgeKeyEarlier | Command::NudgeKeyLater
+            | Command::NudgeKeysEarlierTen | Command::NudgeKeysLaterTen
             | Command::SelectLayerAbove
             | Command::SelectLayerBelow
     )
