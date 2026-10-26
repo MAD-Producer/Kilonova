@@ -57,6 +57,50 @@ fn commands(actions: Vec<Action>) -> Vec<Command> {
 }
 
 #[test]
+fn timing_menu_and_shortcut_freeze_the_same_selection_without_editing_or_changing_view_mode() {
+    let (engine,state)=fixture();
+    for locale in [Locale::Zh,Locale::En] {for owner in [None,Some(Panel::Timeline)] {
+        let mut panels=context(&state,locale);let mut menu=Vec::new();
+        apply(&mut panels,&state,Operation::TimingSettings,&mut menu);
+        let mut keys=Vec::new();
+        super::super::keyboard::route(&Input{keys:vec![(Key::K,Modifiers{control:true,alt:true,shift:false})],..Default::default()},&mut panels,&state,false,owner,&mut keys);
+        assert_eq!(menu.len(),1);assert_eq!(keys.len(),1);
+        let frozen=|action:&Action|match action {Action::KeyframeTimingSettings{source,selections}=>(source.clone(),selections.clone()),other=>panic!("unexpected {other:?}")};
+        assert_eq!(frozen(&menu[0]),frozen(&keys[0]));
+        assert!(!panels.timeline.graph_mode);assert!(!engine.can_undo());
+        let mut blocked=state.clone();blocked["observing"]=true.into();
+        assert!(!enabled(&panels,&blocked,Operation::TimingSettings));
+    }}
+}
+
+#[test]
+fn timing_shortcut_without_editable_keys_explains_the_disabled_action_in_both_hosts_and_locales() {
+    let (_, state) = fixture();
+    for locale in [Locale::Zh, Locale::En] {
+        for owner in [None, Some(Panel::Timeline)] {
+            for unavailable in ["empty", "readonly", "locked"] {
+                let mut panels = context(&state, locale);
+                let mut blocked = state.clone();
+                match unavailable {
+                    "empty" => panels.selected_keys.clear(&state),
+                    "readonly" => blocked["observing"] = true.into(),
+                    _ => blocked["project"]["layers"][0]["locked"] = true.into(),
+                }
+                let mut actions = Vec::new();
+                super::super::keyboard::route(&Input {
+                    keys: vec![(Key::K, Modifiers {control:true,alt:true,shift:false})],
+                    ..Default::default()
+                }, &mut panels, &blocked, false, owner, &mut actions);
+                assert!(actions.is_empty(), "{unavailable}");
+                assert!(panels.message.as_deref().is_some_and(|s| s.contains(if locale == Locale::Zh {
+                    "可编辑的关键帧"
+                } else {"editable keyframes"})), "{unavailable}");
+            }
+        }
+    }
+}
+
+#[test]
 fn menu_and_keyboard_share_current_property_commands_and_single_undo() {
     let (engine, state) = fixture();
     for locale in [Locale::En, Locale::Zh] {

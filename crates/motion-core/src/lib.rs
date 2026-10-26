@@ -9,6 +9,7 @@ mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
 pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use motion_model::KeyframeValueOffset;
+pub use motion_model::keyframe_clipboard::timing;
 pub use motion_model::keyframe_clipboard::MAX_KEYFRAME_CLIPBOARD_BYTES;
 pub use motion_model::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 mod history_accounting;

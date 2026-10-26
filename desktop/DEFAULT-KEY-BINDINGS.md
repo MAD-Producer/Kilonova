@@ -62,6 +62,7 @@
 | Animation | Z | true | true | false | Redo | false |
 | Animation | D | true | false | false | Duplicate | false |
 | Animation | K | false | false | false | NextKey | true |
+| Animation | K | true | false | true | KeyframeTiming | false |
 | Animation | P | false | false | false | Reveal(Position) | false |
 | Animation | P | false | true | false | Reveal(Position) | false |
 | Animation | P | false | true | true | ToggleKey(Position) | false |

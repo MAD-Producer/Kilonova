@@ -206,6 +206,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
+        Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
         Command::EaseKeyframes { selections, incoming, outgoing } => motion_model::keyframe_clipboard::ease_keys(project, &selections, incoming, outgoing)?,
         Command::DeleteKeyframes { selections } => motion_model::keyframe_clipboard::delete_keys(project, &selections)?,
         Command::TransformKeyframes { selections, delta_frame, value_offset, copy } => motion_model::keyframe_clipboard::transform_keys(project, &selections, delta_frame, value_offset.as_ref(), copy)?,

@@ -5,6 +5,8 @@ mod interpolation;
 mod easing;
 #[path = "transform.rs"]
 mod transform;
+#[path = "timing.rs"]
+mod timing;
 use motion_core::{
     masks::{LayerMask, MaskProperty},
     vector::{groups::*, *},

@@ -26,6 +26,7 @@ impl MenuScope {
 pub(super) enum Operation {
     Shortcut(Shortcut),
     Interpolation(Ease),
+    TimingSettings,
     Sequence,
     ReverseTime,
 }
@@ -105,7 +106,7 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                                 .any(|layer| layer["id"] == key.object && layer["locked"] != true)
                         }))
         }
-        Operation::Interpolation(_) => interpolation_selection(panels, state).is_some(),
+        Operation::Interpolation(_) | Operation::TimingSettings => interpolation_selection(panels, state).is_some(),
         Operation::Sequence => sequence_plan(panels, state).is_some_and(|edits| !edits.is_empty()),
         Operation::ReverseTime | Operation::Shortcut(_) => false,
     }
@@ -140,6 +141,14 @@ pub(super) fn apply(
                     selections: selected.selections,
                     ease,
                 }));
+            }
+        }
+        Operation::TimingSettings => {
+            if let Some(selected) = interpolation_selection(panels, state) {
+                out.push(Action::KeyframeTimingSettings {
+                    source: crate::layer_clipboard::KeyframeSource::of(state),
+                    selections: selected.selections,
+                });
             }
         }
         Operation::Sequence => {
@@ -222,12 +231,15 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
         (Ease::Hold, "Hold", "保持"),
     ] {
         let title = if zh {
-            format!("{cn}插值 · 当前属性 {count} 个关键帧")
+            format!("{cn}插值 · 所选 {count} 个关键帧")
         } else {
-            format!("{en} interpolation · {count} keys in current property")
+            format!("{en} interpolation · {count} selected keys")
         };
         rows.push((title, Operation::Interpolation(ease)));
     }
+    rows.push((panels.shortcut_bindings.label(
+        if zh { "关键帧插值与速度…" } else { "Keyframe interpolation and velocity…" },
+        Scope::Animation, Shortcut::KeyframeTiming), Operation::TimingSettings));
     rows.push((
         (if zh {
             "序列图层 · 保留首层起点，整帧移动"

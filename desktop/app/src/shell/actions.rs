@@ -235,6 +235,9 @@ impl Shell {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::project_precision(&self.state)?);
             }
+            Action::KeyframeTimingSettings { source, selections } => {
+                self.open_keyframe_timing(source, selections)?;
+            }
             Action::ExportMovie => {
                 if self.freezing_movie.is_some()
                     || self.exporting_frame.is_some()

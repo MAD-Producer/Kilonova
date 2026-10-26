@@ -167,6 +167,7 @@ registry! {
     Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
+    Command::KeyframeTiming { .. } => "keyframe_timing" [("selections","Vec<KeyframeSelection>",true),("settings","TimingSettings",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];
     Command::DeleteKeyframes { .. } => "delete_keyframes" [("selections","Vec<KeyframeSelection>",true)];
     Command::TransformKeyframes { .. } => "transform_keyframes" [("selections","Vec<KeyframeSelection>",true),("delta_frame","i32",true),("value_offset","Option<KeyframeValueOffset>",false),("copy","bool",true)];
