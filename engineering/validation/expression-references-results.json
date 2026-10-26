@@ -1,0 +1,169 @@
+{
+  "issue": 244,
+  "source_commit": "17fdee824967e5f4331962172641135bf6085e2c",
+  "base_main": "3e19a47dc00aa17a013833e7ca117956c43ee43e",
+  "checks": {
+    "panels": {
+      "passed": 571,
+      "failed": 0,
+      "ignored": 4,
+      "result_summaries": 1,
+      "source_commit": "7dd6d207a3bfc232f1f0750259da156d656446ef"
+    },
+    "core": {
+      "passed": 386,
+      "failed": 0,
+      "ignored": 1,
+      "result_summaries": 67,
+      "source_commit": "7dd6d207a3bfc232f1f0750259da156d656446ef"
+    },
+    "core_unit_final": {
+      "passed": 28,
+      "failed": 0,
+      "ignored": 1,
+      "result_summaries": 1,
+      "source_commit": "17fdee824967e5f4331962172641135bf6085e2c"
+    },
+    "core_contracts_final": {
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "result_summaries": 5,
+      "source_commit": "17fdee824967e5f4331962172641135bf6085e2c"
+    },
+    "focused": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 2,
+      "result_summaries": 1,
+      "source_commit": "17fdee824967e5f4331962172641135bf6085e2c"
+    },
+    "native_reference": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "result_summaries": 1,
+      "source_commit": "17fdee824967e5f4331962172641135bf6085e2c"
+    },
+    "native_editor_regression": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "result_summaries": 1,
+      "source_commit": "92dfa386a5bb5de84a08184890a512cf21d42e6f"
+    },
+    "gpu_render_expressions": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "result_summaries": 1,
+      "source_commit": "17fdee824967e5f4331962172641135bf6085e2c"
+    }
+  },
+  "native_reference": {
+    "context_menu_pick": true,
+    "controlled_input": true,
+    "cross_layer_reference": true,
+    "draft_does_not_mutate_project": true,
+    "foreground_os_ime_verified": false,
+    "images": 12,
+    "link_button_drag": true,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "main_and_native_float": true,
+    "native_float_apply_undo": true,
+    "pixel_ratios": [
+      1,
+      1.5
+    ],
+    "schema_version": 1,
+    "shell_docking_interception": true,
+    "source_uses_decimal_string_ids": true
+  },
+  "native_editor_regression": {
+    "controlled_input": true,
+    "draft_and_check_did_not_mutate_project": true,
+    "foreground_os_ime_verified": false,
+    "images": 16,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "main_and_native_float": true,
+    "native_float_apply_undo": true,
+    "pixel_ratios": [
+      1,
+      1.5,
+      2
+    ],
+    "schema_version": 1,
+    "sizes": [
+      [
+        900,
+        600
+      ],
+      [
+        1600,
+        1000
+      ],
+      [
+        600,
+        420
+      ]
+    ]
+  },
+  "preview": {
+    "sourceCommit": "17fdee824967e5f4331962172641135bf6085e2c",
+    "profile": "dev",
+    "features": [
+      "ffmpeg"
+    ],
+    "issue": 244,
+    "executableSha256": "fd7c6d70e685c8fbc75d1a04a1f89a023572eeda3142b66ff942d48a6fa35d86",
+    "runtimeDlls": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    }
+  },
+  "standalone": {
+    "path": "E:\\Dev\\aem\\artifacts\\expression-references-preview",
+    "system_only_path": true,
+    "commands_stderr_bytes": 0,
+    "video_stderr_bytes": 0,
+    "libav_source_frames": 72,
+    "rgba_samples": 4
+  },
+  "source_sha256": {
+    "crates/motion-core/src/expressions/helpers.js": "18e70732f2573ca4e11558a08bd840e5a294eea27b9420cd28ba57b4148de5f8",
+    "crates/motion-core/src/expressions/mod.rs": "8d4243382eaeb358909a29a8767828d0f53c6a2248de815fa42c1e42d663c9e9",
+    "crates/motion-core/src/expressions/references.rs": "8d6c77713bead9e47e7ba44e5cd2c60300d1b83b5009a6d440b7f7fa9009f7fc",
+    "crates/motion-core/src/expressions/runtime.rs": "06d177418fee2d61077b7cbb3bd950ebe488c50cc60f02681941fea8f1ad5dcc",
+    "crates/motion-core/src/expressions/runtime/references.rs": "dca527612fb07ca2ddb763b9a139f7a36c6fb3c3ff8e751c4593422d9b0d84ea",
+    "crates/motion-core/src/lib.rs": "2039882a37d3b24a103c0eeec4e89ff40e8feace7272e2ec83ba8b58f8904eac",
+    "crates/motion-core/tests/expression_references.rs": "cb0bb1267b7d85f3fd82774b88d75427f973a0e8934a13e7eb3dd79cd377f003",
+    "desktop/app/src/panels/effect_controls.rs": "c3b5349678aed417630d4898052c2351a388a116d3c01db26b6fd2b76b59e798",
+    "desktop/app/src/panels/effect_timeline.rs": "fd1ebda995bd1740a698a2c77792c38a6b59e06143b91809dd8369bb9a88de26",
+    "desktop/app/src/panels/expressions.rs": "4f1b69272d54fa1951004c26f9bbf3acf3c7a37cbb3fef606326945e8d4a0105",
+    "desktop/app/src/panels/expressions/expanded.rs": "20bd8b3723b05c1f5d98687c81bd449a751f610a1136c91033e79d99e9aebee5",
+    "desktop/app/src/panels/expressions/expanded/tests.rs": "c991f65ad32dfbda25c921d5cb2f95b8df922e8762eb8759fcadc52e1927f57c",
+    "desktop/app/src/panels/expressions/expanded/tests/native.rs": "cade14a612a32baa1e68112a7a998a7e5241166c0dc495bcd1c845e9d62599da",
+    "desktop/app/src/panels/expressions/expanded/tests/native/reference.rs": "cbd0483ec3e7360f1acc8159491427bf1005f2063c442ee16ec7e833ce3f01b2",
+    "desktop/app/src/panels/expressions/expanded/tests/picking.rs": "7f835566c22cbff5f23c3a7f974ae7c54176c57ce04dd839f1dfc7988a5fcde3",
+    "desktop/app/src/panels/expressions/picking.rs": "7a935a9a2f593cb7f1611f9b4a4c9a16fbc184d92bb596c9ae08e4a1801c2347",
+    "desktop/app/src/panels/mod.rs": "44d85fdab4c6ae44a25115a28452020261b64b4e9c4088c79f92d1f2ad3f67f0",
+    "desktop/app/src/shell/presentation.rs": "90d083c8824f687b3277c220e970fc0839c0d8591c0e6ca7333d02ad243e0b68"
+  },
+  "boundaries": [
+    "controlled Input does not inject foreground OS IME or physical mouse events",
+    "macOS/Linux native interaction remains for manual verification",
+    "low-level allocation failure and permanently blocked native callbacks are not injected",
+    "system clipboard integration and original-source runtime mapping are not added"
+  ]
+}
