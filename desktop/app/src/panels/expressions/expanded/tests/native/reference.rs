@@ -1,6 +1,52 @@
 use super::*;
 use motion_core::ProjectExpressions;
 
+struct MainPresent<'a> {
+    shell: &'a mut Shell,
+    called: bool,
+}
+impl ApplicationHandler for MainPresent<'_> {
+    fn resumed(&mut self, events: &ActiveEventLoop) {
+        self.draw(events);
+    }
+    fn about_to_wait(&mut self, events: &ActiveEventLoop) {
+        self.draw(events);
+    }
+    fn window_event(&mut self, _: &ActiveEventLoop, _: WindowId, _: winit::event::WindowEvent) {}
+}
+impl MainPresent<'_> {
+    fn draw(&mut self, events: &ActiveEventLoop) {
+        if !self.called {
+            self.called = true;
+            self.shell.present(events).unwrap();
+        }
+    }
+}
+fn main_present(shell: &mut Shell, events: &mut EventLoop<()>, input: Input) {
+    shell.input = input;
+    shell.present_due = false;
+    let mut app = MainPresent {
+        shell,
+        called: false,
+    };
+    events.pump_app_events(Some(Duration::ZERO), &mut app);
+    assert!(app.called);
+    if let Some(reply) = shell.rendering.remove(&0) {
+        native_test_support::receive(events, &reply, Duration::from_secs(30))
+            .unwrap()
+            .unwrap();
+    }
+    shell.input = Default::default();
+    assert!(
+        shell.actions.is_empty(),
+        "reference gesture reached shell actions"
+    );
+    assert!(
+        shell.workspace.drag_cursor().is_none(),
+        "reference gesture armed background docking"
+    );
+}
+
 fn center(rect: Rect) -> [f32; 2] {
     [
         (rect.min[0] + rect.max[0]) * 0.5,
@@ -219,13 +265,14 @@ fn property_reference_native_menus_drag_drafts_and_float_transactions() {
                 .reference_button
                 .unwrap(),
         );
-        assert!(main_draw(&mut shell, press(link)).1.is_empty());
+        main_present(&mut shell, &mut events, press(link));
         let point = destination(&shell);
         let held = Input {
             mouse: point,
             held: Some(MouseButton::Left),
             ..Default::default()
         };
+        main_present(&mut shell, &mut events, held.clone());
         let (paint, actions) = main_draw(&mut shell, held);
         assert!(actions.is_empty());
         capture(
@@ -236,7 +283,7 @@ fn property_reference_native_menus_drag_drafts_and_float_transactions() {
             0,
             root.join(format!("{lang}-reference-drag.png")),
         );
-        assert!(main_draw(&mut shell, release(point)).1.is_empty());
+        main_present(&mut shell, &mut events, release(point));
         assert_eq!(shell.state["project"], baseline["project"]);
         let mut actions = main_draw(&mut shell, key(Key::Enter, true)).1;
         assert_eq!(actions.len(), 1);
@@ -355,6 +402,7 @@ fn property_reference_native_menus_drag_drafts_and_float_transactions() {
         "controlled_input":true,"foreground_os_ime_verified":false,"pixel_ratios":[1,1.5],
         "context_menu_pick":true,"link_button_drag":true,"draft_does_not_mutate_project":true,
         "native_float_apply_undo":true,"source_uses_decimal_string_ids":true,"cross_layer_reference":true,
+        "shell_docking_interception":true,
     })).unwrap()).unwrap();
     shell.engine.close_window(1).unwrap();
     shell.floating.clear();

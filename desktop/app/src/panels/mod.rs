@@ -123,6 +123,11 @@ use timeline::render as timeline;
 use timeline::rows;
 pub use types::{Action, Frame, EffectSearch, Panels};
 pub(crate) use keyboard::layout_shortcuts_blocked;
+
+pub(crate) fn expression_overlay_open(panels: &Panels) -> bool {
+    [&panels.expressions, &panels.effect_controls.expressions, &panels.properties.effects.expressions]
+        .iter().any(|controls| controls.menu_open())
+}
 pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
 

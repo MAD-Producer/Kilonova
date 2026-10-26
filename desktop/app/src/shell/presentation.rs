@@ -487,6 +487,7 @@ impl Shell {
             || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
             || self.panels.effect_search_in(None)
+            || panels::expression_overlay_open(&self.panels)
             || self.panels.node_editor.popup_open()
             || self.dialog.is_some()
             || self.project_modal()

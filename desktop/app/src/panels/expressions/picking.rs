@@ -228,7 +228,7 @@ impl Controls {
             styles.colors().ACCENT,
             styles.metric("border", f32::default()),
         );
-        let pad = styles.metric("panel.padding", f32::default());
+        let pad = styles.metric("padding.panel", f32::default());
         let row = styles.metric("row.height", f32::default());
         let hint = Rect::new(
             bounds.min[0] + pad,
