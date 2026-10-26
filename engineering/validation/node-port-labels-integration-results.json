@@ -1,0 +1,64 @@
+{
+  "base": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+  "fix": "d5d82b7e04d7432bb830a3083906f363ea779c4c",
+  "labels": "a9947e8ce401dad99f15d9126639c9e0709b5d03",
+  "integration_head": "c5e6d0b248f72ec1eb54e387a8cd6966919759c1",
+  "integration_tree": "c24bada05e4b2825ace476a1f0355e8c419d3d1b",
+  "sources": {
+    "desktop/app/src/node_editor.rs": "b83afc4c9fe52ad964f297a720ce5d383bb46071de4623ad127486fe67fccbd5",
+    "desktop/app/src/node_editor/view/canvas.rs": "81fc3b6bf7f84433720ef7a73784e7e1258148023cce983c306ad8181712cd4d",
+    "desktop/app/src/node_editor/view/mod.rs": "6331c4aa3d5dcd0af95caf27c04339243263cfdeebc9737b93d1a3b5cb66deb9",
+    "desktop/app/src/node_editor/view/frame_cards_tests.rs": "d343ca79853a50800ed6a7c6accea36a7137b3eb00c2461d01ad746258897e78",
+    "desktop/app/src/node_editor/view/wire_target_tests.rs": "61876248ecbfee2f9de5132719bebaeb008700aaab380c42e48f654bcb92ed9e",
+    "desktop/app/src/node_editor/view/wires/socket_index_tests.rs": "afe95dbe4aacfb5b7b71bd3fec5063494ee932ff194ff2871b19745502f37843",
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "54653de13ac12278c156250d68dffcf94c466c41398bf23905a18bf0b7688901",
+    "desktop/app/src/shell/effect_timeline_acceptance/protocol_tests.rs": "e09e88d985559fea58eb2a8996e9bdcc8f125fef28f0f3907e506451d6c08af1",
+    "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "96c0ed5b67b1a3054435357a483a8672e86142326f396d03ebf6ec1becc2d90c",
+    "desktop/app/src/panels/key_selection.rs": "723c737d7fbf52f2dcec863a3300f517f17ceb85c9e9b93ef485c9501985b1bf",
+    "desktop/ui/src/paint.rs": "ace371984eb2dd96b0d5b6fd9beda540e23a0ec03670545bcbb6f9440b6e26ee",
+    "Cargo.lock": "d86ef3cc61799ad1b205f56dea7c0a337f449f84a2fbcf3e83bfe5f32b20f629",
+    "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+  },
+  "node_regressions_passed": 164,
+  "native_protocol_regressions_passed": 3,
+  "native_property_cases": [
+    {
+      "name": "default-en-properties",
+      "exit_code": 0,
+      "passed": true,
+      "seconds": 59.94
+    },
+    {
+      "name": "default-zh-properties",
+      "exit_code": 0,
+      "passed": true,
+      "seconds": 59.83
+    },
+    {
+      "name": "minimum-en-properties",
+      "exit_code": 0,
+      "passed": true,
+      "seconds": 58.16
+    },
+    {
+      "name": "minimum-zh-properties",
+      "exit_code": 0,
+      "passed": true,
+      "seconds": 52.22
+    }
+  ],
+  "matrix_seconds": 231.12,
+  "native_limit_seconds": 240,
+  "evidence": {
+    "file": "node-port-labels-f9-integration-4afb6cfc.zip",
+    "bytes": 2096465,
+    "sha256": "f77850e9a0affe763998c905c9dc6d9219ce153f562ef6935bf88641da118510",
+    "entries": 77
+  },
+  "limits": [
+    "This is the actual 503+502+main combination, not the original failing standalone #502 CI head",
+    "Original complete ci_desktop.py and 90-second limits are not claimed to pass here",
+    "No height reuse patch is included",
+    "Main Linux native post-merge CI still pending"
+  ]
+}

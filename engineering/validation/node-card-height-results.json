@@ -1,0 +1,309 @@
+{
+  "issue": 134,
+  "base": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+  "code_revision": "c1d7a7c12a14e328267de295529da8a46f7e9eb4",
+  "before": {
+    "head": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "node_editor::card_height_probe::record_complete_node_frames_and_allocations",
+      "--",
+      "--exact",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 248.86,
+    "sources": {
+      "node_editor": "6ba709ca9882846971616f0ed72a74cae54c07400a293e463a5723a24ee24d25",
+      "canvas": "ee5875bfeb46b76b6f59649a5e1973e32131bc33aabfd1762d20f124aab4d548",
+      "probe": "3ce71aab017f2f3cf855d232bbc326b652b1a8497d6e7d6d2d2d07c7c87f6211",
+      "allocator": "8c1cab641045156238155bbe7cde42ad417c24a7075f9e215d39a95a1cb45407",
+      "view/mod.rs": "946cbaa9ad9f41ec948db1b498122366db87f81df609d4110c317ca1253b4b54",
+      "view/frame_cards_tests.rs": "5b750d8ae1b64697f1e01d2677b63fa60f873061082cc5bda53411cac3abc289",
+      "view/wire_target_tests.rs": "73722210471ed8e5cd2f290bc007eb91e1649438bc7ee2c200d60edd718354e6",
+      "view/wires/socket_index_tests.rs": "d7dc4e58c538e78e1b123390819aeb1a49117b56808789c024386626822009c4"
+    },
+    "source_unchanged": true,
+    "log_sha256": "94797b3e9528f1508f645296b877bc046f050acd44bb7c9572f9f83f5888838d"
+  },
+  "after": {
+    "head": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "motion-desktop",
+      "--bin",
+      "motion-studio",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1",
+      "node_editor::card_height_probe::record_complete_node_frames_and_allocations",
+      "--",
+      "--exact",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 98.14,
+    "sources": {
+      "node_editor": "6ba709ca9882846971616f0ed72a74cae54c07400a293e463a5723a24ee24d25",
+      "canvas": "f4c123b3267a51f6503ce3f303a13e8bb20f2012375c0c93c912678fc72dcbd2",
+      "probe": "3ce71aab017f2f3cf855d232bbc326b652b1a8497d6e7d6d2d2d07c7c87f6211",
+      "allocator": "8c1cab641045156238155bbe7cde42ad417c24a7075f9e215d39a95a1cb45407",
+      "view/mod.rs": "a9edeac7fb98b77c8114401d36c51a90fe9484ed40a12c98a3dfd6639fba38c2",
+      "view/frame_cards_tests.rs": "5b750d8ae1b64697f1e01d2677b63fa60f873061082cc5bda53411cac3abc289",
+      "view/wire_target_tests.rs": "73722210471ed8e5cd2f290bc007eb91e1649438bc7ee2c200d60edd718354e6",
+      "view/wires/socket_index_tests.rs": "d7dc4e58c538e78e1b123390819aeb1a49117b56808789c024386626822009c4"
+    },
+    "source_unchanged": true,
+    "log_sha256": "073942fbcfd66837b5c1af03cf360aa0cc41a979434241c17d481d64b5ee4ff4"
+  },
+  "regressions": {
+    "base": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+    "sources": {
+      "desktop/app/src/node_editor.rs": "b83afc4c9fe52ad964f297a720ce5d383bb46071de4623ad127486fe67fccbd5",
+      "desktop/app/src/node_editor/view/canvas.rs": "f4c123b3267a51f6503ce3f303a13e8bb20f2012375c0c93c912678fc72dcbd2",
+      "desktop/app/src/node_editor/view/mod.rs": "a9edeac7fb98b77c8114401d36c51a90fe9484ed40a12c98a3dfd6639fba38c2"
+    },
+    "passed": 163,
+    "failed": 0,
+    "ignored": 0,
+    "source_unchanged": true,
+    "workdir": "E:\\Dev\\aem\\.worktrees\\node-card-height",
+    "log_sha256": "6d7c61017ef0489e2ff16025c926f22a86e39fae3eb12e2b4278247ae7d69cbb",
+    "excluded_attempt": {
+      "log": "excluded-root-working-directory-build.log",
+      "reason": "Wrong working directory; stopped before tests, not counted"
+    }
+  },
+  "actual_fault": {
+    "command": [
+      "E:\\Dev\\aem\\target\\debug\\deps\\motion_studio-d5bd28a41c2d0117.exe",
+      "--exact",
+      "node_editor::view::observability_tests::malformed_ports_and_rejected_requests_log_once_per_site_without_editing",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 1.56,
+    "sources": {
+      "desktop/app/src/node_editor.rs": "b83afc4c9fe52ad964f297a720ce5d383bb46071de4623ad127486fe67fccbd5",
+      "desktop/app/src/node_editor/view/canvas.rs": "f4c123b3267a51f6503ce3f303a13e8bb20f2012375c0c93c912678fc72dcbd2",
+      "desktop/app/src/node_editor/view/mod.rs": "a9edeac7fb98b77c8114401d36c51a90fe9484ed40a12c98a3dfd6639fba38c2"
+    },
+    "binary_sha256": "6419c632c9711fbc1785956bcf49fa49571043b1ed2d18d6362525622224ea2c",
+    "default_info_file": true,
+    "all_seven_error_sites_in_stderr": true,
+    "stdout_isolated": true,
+    "source_unchanged": true,
+    "counter_scope": "existing NodeEditor instance/site lifetime; success does not reset; saturated; new instance resets"
+  },
+  "comparison": {
+    "scenes": 28,
+    "measured_frames": 560,
+    "full_snapshots_identical": 52,
+    "allocation_requests_saved": 66640,
+    "requested_bytes_saved": 6979680,
+    "all_cases_nonincreasing": true,
+    "rows": [
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      }
+    ]
+  },
+  "evidence": {
+    "file": "node-card-height-4afb6cfc.zip",
+    "bytes": 869608,
+    "sha256": "ca4af1714784b019ded23ef02cd0ac776dad0a15069d05fdeddd69d668ea860f",
+    "entries": 130
+  },
+  "limits": [
+    "Allocation request totals are not RSS or FPS",
+    "Separate label reuse PR #502 is not included in this baseline",
+    "No complete native GPU matrix or entire DESIGN acceptance is claimed",
+    "Original baseline predates #503; the latest combined validation includes its merged repair."
+  ],
+  "latest_combined_verification": "node-card-height-combined-results.json"
+}
