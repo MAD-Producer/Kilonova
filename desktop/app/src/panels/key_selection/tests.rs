@@ -8,6 +8,8 @@ use serde_json::json;
 mod sources;
 #[path = "ui_tests.rs"]
 mod ui;
+#[path = "transform_tests.rs"]
+mod transforms;
 
 fn fixture() -> Engine {
     let mut project = Project::new(640, 360, 30, 120).unwrap();

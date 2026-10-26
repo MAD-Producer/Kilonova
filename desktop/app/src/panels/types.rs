@@ -60,6 +60,10 @@ pub enum Action {
     NewText,
     CompositionSettings,
     ProjectPrecisionSettings,
+    KeyframeTimingSettings {
+        source: crate::layer_clipboard::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+    },
     Preferences,
     NewComposition,
     CompositionPreset(u32, u32),

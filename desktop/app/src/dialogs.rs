@@ -1,6 +1,7 @@
 mod composition;
 mod text_input;
 pub(crate) mod project_precision;
+pub(crate) mod keyframe_timing;
 pub(crate) mod preferences;
 use crate::i18n::Locale;
 use motion_ui::{
@@ -80,6 +81,11 @@ pub enum Event {
     PreferencesExportKeys,
     Settings(Value),
     ProjectPrecision(motion_effects::image_contract::ChannelPrecision),
+    KeyframeTiming {
+        source: crate::layer_clipboard::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+        settings: motion_core::timing::TimingSettings,
+    },
     CreateComposition(Value),
     Text {
         text: String,
@@ -98,6 +104,7 @@ enum Kind {
 pub struct Dialog {
     pub(crate) preferences: Option<preferences::Editor>,
     project_precision: Option<project_precision::Editor>,
+    keyframe_timing: Option<keyframe_timing::Editor>,
     kind: Kind,
     settings_tab: usize,
     preset_dropdown: motion_ui::widgets::Dropdown,
@@ -163,6 +170,7 @@ impl Dialog {
             kind: Kind::Settings,
             preferences: None,
             project_precision: None,
+            keyframe_timing: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -195,6 +203,7 @@ impl Dialog {
             kind: Kind::Text,
             preferences: None,
             project_precision: None,
+            keyframe_timing: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -224,6 +233,9 @@ impl Dialog {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        if let Some(timing) = &mut self.keyframe_timing {
+            return timing.draw(list, atlas, size, input, locale, self.error.as_deref());
+        }
         if let Some(preferences) = &mut self.preferences {
             return preferences.draw(list, atlas, size, input, locale, self.error.as_deref());
         }

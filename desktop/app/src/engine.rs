@@ -38,6 +38,8 @@ mod parent_policy_tests;
 #[cfg(test)]
 mod animation_action_tests;
 #[cfg(test)]
+mod keyframe_timing_tests;
+#[cfg(test)]
 mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
@@ -1591,6 +1593,9 @@ fn handle(
                 // the current complete snapshot, never apply IDs to another document.
                 let mut state = s.snapshot()?;
                 state["editorAction"] = serde_json::json!({"cancelled":true,"reason":"context_changed"});
+                if commands.iter().any(|command|matches!(command,motion_core::Command::KeyframeTiming{..})) {
+                    state["editorAction"]["operation"]="keyframe_timing".into();
+                }
                 return Ok(state);
             }
             if motion_core::serialized_bytes(&commands) > motion_core::MAX_KEYFRAME_CLIPBOARD_BYTES {

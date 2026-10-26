@@ -100,7 +100,10 @@ pub(super) fn update(
         out.push(Action::History(2));
     }
     if input.dragging() || input.released.is_some() {
-        let delta = input.mouse[0] - drag.mouse[0];
+        let dx=input.mouse[0]-drag.mouse[0];let dy=input.mouse[1]-drag.mouse[1];
+        let value_only=input.modifiers.shift && dy.abs()>dx.abs() && !input.modifiers.alt;
+        let time_only=input.modifiers.alt || input.modifiers.shift&&!value_only;
+        let delta = if value_only {0.} else {dx};
         let next = (drag.original as f64 + delta as f64 / ppf.max(0.001) as f64)
             .round()
             .clamp(0., last_frame(state)) as u32;
@@ -131,7 +134,7 @@ pub(super) fn update(
             drag.current = next;
             drag.copied = true;
         }
-        if !panels.timeline.speed_graph && !input.modifiers.alt && (!drag.copy || drag.copied) {
+        if !panels.timeline.speed_graph && !time_only && (!drag.copy || drag.copied) {
             let dy = (drag.mouse[1] - input.mouse[1]) / plot.height().max(1.)
                 * (drag.bounds[1] - drag.bounds[0]);
             let mut value = (drag.seed + dy) / scale.max(0.0001);

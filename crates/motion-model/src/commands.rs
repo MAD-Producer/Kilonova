@@ -223,8 +223,10 @@ pub enum Command {
     PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<u32> },
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     KeyframeInterpolation { selections: Vec<crate::KeyframeSelection>, ease: Ease },
+    KeyframeTiming { selections: Vec<crate::KeyframeSelection>, settings: crate::keyframe_clipboard::timing::TimingSettings },
     EaseKeyframes { selections: Vec<crate::KeyframeSelection>, incoming: bool, outgoing: bool },
     DeleteKeyframes { selections: Vec<crate::KeyframeSelection> },
+    TransformKeyframes { selections: Vec<crate::KeyframeSelection>, delta_frame: i32, value_offset: Option<crate::KeyframeValueOffset>, copy: bool },
     PastePaths { clipboard: Box<crate::PathClipboard>, target: crate::PathDestination, at_frame: Option<u32> },
     RemovePaths { clipboard: Box<crate::PathClipboard> },
     CopyPathAs { target: crate::PathTarget, path: u64 },
@@ -297,7 +299,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
+        match self { Self::InComposition {command,..} => command.composition_transaction(), Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

@@ -1129,7 +1129,10 @@ pub(super) fn render(
         Rect::new(track.min[0], body.min[1], track.width(), body.height()),
         [ppf, offset, panels.timeline.scroll, panels.timeline.graph_y_zoom, panels.timeline.graph_y_offset], out.len());
     let selection_neutral=Input::default();
-    let input=if selection_input {input} else {out.extend(cancel_interaction(panels)); &selection_neutral};
+    let selection_actual=input;
+    let snapped_input=super::key_selection::ui::snap_input(panels,state,input,ppf,offset,out);
+    let input=if !selection_input {out.extend(cancel_interaction(panels)); &selection_neutral}
+        else if panels.key_gestures.dragging() {&selection_neutral} else {snapped_input.as_ref().unwrap_or(input)};
     if !graph_mode && super::key_selection::ui::selecting_all(panels) {
         for row in &rows {
             match observe!("timeline.selection_all",super::timeline_key_drag::selection_keys(state,row),"object={} phase=select_all",row.id) {
@@ -1832,9 +1835,12 @@ pub(super) fn render(
             ),
         ));
     }
+    super::key_selection::ui::finish(list, panels, state, selection_actual, out, &seek_candidates);
     if panels.timeline.scrubbing
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
+        || panels.key_gestures.dragging()
+        || panels.key_gestures.snapping()
     {
         if let Some(frame) = panels.timeline.snap_guide {
             let x = x_of(frame);
@@ -1886,7 +1892,6 @@ pub(super) fn render(
         );
     }
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
-    super::key_selection::ui::finish(list, panels, state, input, out);
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
     super::shy_layers::hint(list, atlas, shy_toolbar, &columns, ruler, area, input, locale, panels.timeline.hide_shy);

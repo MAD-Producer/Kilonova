@@ -98,10 +98,15 @@ pub enum Command {
     ModifiedProperties,
     PreviousKey,
     NextKey,
+    NudgeKeyEarlier,
+    NudgeKeyLater,
+    NudgeKeysEarlierTen,
+    NudgeKeysLaterTen,
     ToggleGraph,
     EaseBoth,
     EaseIncoming,
     EaseOutgoing,
+    KeyframeTiming,
     ToggleKey(motion_core::Property),
 }
 
@@ -139,6 +144,10 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::Semicolon, false, false, false) => ToggleFrameView,
         (Animation, Key::J, false, false, false) => PreviousKey,
         (Animation, Key::K, false, false, false) => NextKey,
+        (Animation, Key::Left, false, false, true) => NudgeKeyEarlier,
+        (Animation, Key::Right, false, false, true) => NudgeKeyLater,
+        (Animation, Key::Left, false, true, true) => NudgeKeysEarlierTen,
+        (Animation, Key::Right, false, true, true) => NudgeKeysLaterTen,
         (Animation, Key::I, false, false, false) => GoToIn,
         (Animation, Key::O, false, false, false) => GoToOut,
         (Animation, Key::B, false, false, false) => WorkAreaIn,
@@ -155,6 +164,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::F9, false, false, false) => EaseBoth,
         (Animation, Key::F9, false, true, false) => EaseIncoming,
         (Animation, Key::F9, true, true, false) => EaseOutgoing,
+        (Animation, Key::K, true, false, true) => KeyframeTiming,
         (Animation, Key::P, false, true, true) => ToggleKey(motion_core::Property::Position),
         (Animation, Key::S, false, true, true) => ToggleKey(motion_core::Property::Scale),
         (Animation, Key::R, false, true, true) => ToggleKey(motion_core::Property::Rotation),
@@ -235,6 +245,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
                 | MoveDown
                 | PreviousKey
                 | NextKey
+                | NudgeKeyEarlier | NudgeKeyLater | NudgeKeysEarlierTen | NudgeKeysLaterTen
                 | SelectLayerAbove
                 | SelectLayerBelow
         ))
