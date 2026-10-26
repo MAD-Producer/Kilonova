@@ -7,6 +7,7 @@ pub use command_registry::CommandRegistry;
 mod editor;
 mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
+pub use motion_model::{TextAlign, TextStyle};
 pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::timing;

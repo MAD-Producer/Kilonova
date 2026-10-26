@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 26;
+pub const CURRENT_PROJECT_VERSION: u32 = 27;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -53,6 +53,7 @@ pub enum Content {
     Text {
         text: String,
         font: String,
+        style: crate::TextStyle,
         color: [f32; 4],
         raster_asset: u64,
     },
@@ -603,6 +604,7 @@ impl Project {
                 Content::Text {
                     text,
                     font,
+                    style,
                     color,
                     raster_asset,
                 } => {
@@ -611,6 +613,7 @@ impl Project {
                         "text or font identifier too long",
                     )?;
                     validate_color(*color)?;
+                    style.validate()?;
                     ensure(
                         self.assets.iter().any(|a| a.id == *raster_asset),
                         "text raster asset is missing",

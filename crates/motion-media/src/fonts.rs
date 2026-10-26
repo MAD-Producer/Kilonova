@@ -2,6 +2,7 @@
 //! No Android UI, installed system fonts, network, or GPU readbacks required.
 use crate::Result;
 use fontdue::{Font, FontSettings};
+mod text;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{

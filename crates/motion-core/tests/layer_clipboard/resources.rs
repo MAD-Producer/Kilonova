@@ -116,6 +116,7 @@ fn text_fonts_rasters_and_effect_images_follow_only_the_selected_resource_closur
     layer.content = Content::Text {
         text: "Clipboard text".into(),
         font: "fixture-font".into(),
+        style: motion_core::TextStyle::new(32., 256),
         color: [1.; 4],
         raster_asset: 20,
     };
@@ -155,6 +156,7 @@ fn text_fonts_rasters_and_effect_images_follow_only_the_selected_resource_closur
         Content::Text {
             text: "Clipboard text".into(),
             font: "clipboard-font-1".into(),
+            style: motion_core::TextStyle::new(32., 256),
             color: [1.; 4],
             raster_asset: 52,
         }

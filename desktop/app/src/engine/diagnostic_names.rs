@@ -41,6 +41,7 @@ impl Command {
             ImportImage { .. } => "import_image",
             ReplaceImage { .. } => "replace_image",
             CreateText { .. } => "create_text",
+            TextLayout { .. } => "text_layout",
             FreezeMovie { .. } => "freeze_movie",
             RenderPreview { .. } => "render_preview",
             Edit { .. } => "edit",

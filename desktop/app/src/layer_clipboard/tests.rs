@@ -482,6 +482,7 @@ fn destination_junction_cannot_create_font_directories_outside_the_project() {
     document.layers[0].content = motion_core::Content::Text {
         text: "Boundary".into(),
         font: "boundary-font".into(),
+        style: motion_core::TextStyle::new(32., 256),
         raster_asset: 1,
         color: [1.; 4],
     };
