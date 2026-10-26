@@ -4,6 +4,8 @@ mod property_layout;
 mod text_history;
 mod text_input;
 mod text_commands;
+mod multiline;
+pub use multiline::TextViewport;
 pub use text_commands::{TextCommand, TextSession};
 pub use property_layout::PropertyColumns;
 mod composite;
@@ -30,6 +32,10 @@ pub struct TextEditor {
     select_all: bool,
     /// Extended grapheme index, never a position inside a displayed character.
     cursor: usize,
+    anchor: Option<usize>,
+    multiline: bool,
+    preferred_column: Option<usize>,
+    max_bytes: usize,
     dirty: bool,
     history: text_history::History,
     session: text_commands::Session,
@@ -58,12 +64,20 @@ impl TextEditor {
         self.active = true;
         self.select_all = true;
         self.cursor = self.text.graphemes(true).count();
+        self.anchor = None;
+        self.multiline = false;
+        self.preferred_column = None;
+        self.max_bytes = crate::text_clipboard::MAX_BYTES;
         self.error = None;
         self.dirty = false;
         self.history = Default::default();
         self.session = Default::default();
     }
-    /// Live searches resume at the end; value editors keep begin's select-all behavior.
+    /// Apply a domain limit without changing single-line field behavior.
+    pub fn begin_bounded(&mut self, value: &str, max_bytes: usize) {
+        self.begin(value);
+        self.max_bytes = max_bytes.min(crate::text_clipboard::MAX_BYTES);
+    }
     pub fn begin_at_end(&mut self, value: &str) {
         self.begin(value);
         self.select_all = false;
@@ -109,6 +123,7 @@ impl TextEditor {
             .count();
     }
     pub fn input(&mut self, input: &impl crate::InputSource) -> Option<TextEvent> {
+        if self.multiline { return self.input_multiline(input); }
         let view = input.input_view();
         let input = &view;
         if !self.active {

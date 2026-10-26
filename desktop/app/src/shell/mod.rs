@@ -24,6 +24,7 @@ pub(crate) mod presentation_observation;
 pub(crate) mod styles;
 mod preferences;
 mod keyframe_timing;
+pub(crate) mod expressions;
 #[cfg(all(test,target_os="windows"))]
 mod curve_comparison_tests;
 mod preferences_acceptance;

@@ -895,6 +895,16 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.request(|reply|
                     engine::Command::EditorAction { source, commands, reply })?));
             }
+            Action::ExpressionCheck { ticket, target, text } => {
+                let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });
+                self.start_expression_task(ticket, false, receive)?;
+            }
+            Action::ExpressionApply { ticket, source, expression, frame } => {
+                self.stop();
+                let receive = self.engine.request(|reply| engine::Command::EditorAction {
+                    source, commands: vec![motion_core::Command::SetExpression { expression, frame }], reply });
+                self.start_expression_task(ticket, true, receive)?;
+            }
             Action::PathOperation { source, operation } => {
                 self.stop();
                 self.editing = Some((Instant::now(), self.engine.request(|reply|

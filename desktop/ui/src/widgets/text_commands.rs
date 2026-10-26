@@ -36,7 +36,7 @@ impl TextEditor {
             && match command {
                 TextCommand::Undo => self.history.can_undo(),
                 TextCommand::Redo => self.history.can_redo(),
-                TextCommand::Copy | TextCommand::Cut => self.select_all && !self.text.is_empty(),
+                TextCommand::Copy | TextCommand::Cut => self.selected_text().is_some(),
                 TextCommand::Paste => true,
                 TextCommand::SelectAll => !self.text.is_empty(),
             }

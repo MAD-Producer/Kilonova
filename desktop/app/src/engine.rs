@@ -197,6 +197,11 @@ pub enum Command {
         commands: Vec<motion_core::Command>,
         reply: Sender<Result<Value, String>>,
     },
+    ExpressionCheck {
+        target: motion_core::ExpressionTarget,
+        source: String,
+        reply: Sender<Result<Value, String>>,
+    },
     PathOperation {
         source: crate::layer_clipboard::PathSource,
         operation: crate::layer_clipboard::PathOperation,
@@ -414,7 +419,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | EditorAction { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | EditorAction { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1593,6 +1598,12 @@ fn handle(
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
+        Command::ExpressionCheck { target, source, reply } => {
+            // Validation is an explicit user operation on a bounded draft, not
+            // an edit or runtime evaluation. Syntax feedback is a normal reply.
+            respond(reply, Ok(serde_json::json!({"target":target,
+                "diagnostic":motion_core::expression_source_diagnostic(&source)})));
+        },
         Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
             if !source.current(s) {
                 // Superseded UI work is an explicit normal cancellation. Return

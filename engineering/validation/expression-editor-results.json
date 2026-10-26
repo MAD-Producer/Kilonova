@@ -1,0 +1,128 @@
+{
+  "issue": 243,
+  "source_commit": "29b7001a948f47e6e3ad0c267d2e5598b9f66d35",
+  "base_main": "9dbdf75f6b6c800b52bed95b00bcf02db8ed3b71",
+  "checks": {
+    "panels": {
+      "passed": 568,
+      "failed": 0,
+      "ignored": 3,
+      "source_commit": "ca0637460a3d4768e10a327db529f09b25018b41"
+    },
+    "core": {
+      "passed": 24,
+      "failed": 0,
+      "ignored": 1,
+      "source_commit": "ca0637460a3d4768e10a327db529f09b25018b41"
+    },
+    "ui": {
+      "passed": 56,
+      "failed": 0,
+      "ignored": 12,
+      "source_commit": "ca0637460a3d4768e10a327db529f09b25018b41"
+    },
+    "focused": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 1,
+      "source_commit": "29b7001a948f47e6e3ad0c267d2e5598b9f66d35"
+    },
+    "native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "source_commit": "29b7001a948f47e6e3ad0c267d2e5598b9f66d35"
+    }
+  },
+  "native": {
+    "controlled_input": true,
+    "draft_and_check_did_not_mutate_project": true,
+    "foreground_os_ime_verified": false,
+    "images": 16,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "main_and_native_float": true,
+    "native_float_apply_undo": true,
+    "pixel_ratios": [
+      1,
+      1.5,
+      2
+    ],
+    "schema_version": 1,
+    "sizes": [
+      [
+        900,
+        600
+      ],
+      [
+        1600,
+        1000
+      ],
+      [
+        600,
+        420
+      ]
+    ]
+  },
+  "ffmpeg_build": true,
+  "preview": {
+    "sourceCommit": "29b7001a948f47e6e3ad0c267d2e5598b9f66d35",
+    "profile": "dev",
+    "features": [
+      "ffmpeg"
+    ],
+    "issue": 243,
+    "executableSha256": "b89a78638a1fdf97d47f4166b97d9d9f7a435ecec0dfefd8d53b0b12dec40dce",
+    "runtimeDlls": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    }
+  },
+  "standalone": {
+    "path": "E:\\Dev\\aem\\artifacts\\expression-editor-preview",
+    "system_only_path": true,
+    "commands_stderr_bytes": 0,
+    "video_stderr_bytes": 0,
+    "libav_source_frames": 72,
+    "rgba_samples": 4
+  },
+  "source_sha256": {
+    "DESIGN.md": "bc9087eb431d1da482b68c0ca28867d39f4031f01a3476e0bad8f3161b14656e",
+    "crates/motion-core/src/expressions/mod.rs": "699a543a48d1513920db82b01dd5eb1453668084f4c3965ff7d9d647c306fc1c",
+    "crates/motion-core/src/expressions/transpile.rs": "f2a3a7cde443411588dd10e4cfdf4214ee0ecb75e188802b6a550a137a1639f7",
+    "crates/motion-core/src/lib.rs": "5c6f79670b7084652ca2ce96ef0e77bf797f7b3c6c409b40918fbd8f7a43191b",
+    "desktop/app/src/engine.rs": "56688faf4150d987f56883a7f91ab3129c355ad38d4d1d3da5a725b2d32d34a3",
+    "desktop/app/src/engine/diagnostic_names.rs": "2e222d01008b417b9481a81d297e2689635662f7fa44d41daefdeb324dd71720",
+    "desktop/app/src/main.rs": "faf4b79216fd93b3e4aee822ad29f7a8d72bb04d9ed7ef385fe9fbd3587028fb",
+    "desktop/app/src/panels/expressions.rs": "7b80534b6bf8fdc7d1e66d783019e47807c9266d8aa2fe6624e6bacb8152b87e",
+    "desktop/app/src/panels/expressions/expanded.rs": "cc1053c34948c2c7d67d2d3afa77e049de9224ab6c53166e1817a53729f6150f",
+    "desktop/app/src/panels/expressions/expanded/tests.rs": "6380caa09d8e37081ebc1870ac3e3d039a72104e2f79cfd4a3f5c2e03c4fef59",
+    "desktop/app/src/panels/expressions/expanded/tests/native.rs": "0d85cebe542a70eccbe21f810f89175c6af9196dd698794742408132185e736f",
+    "desktop/app/src/panels/mod.rs": "de2209c08c2f92a4585cd03465adf5a8ab71c183e8a80fcf978bd44221143449",
+    "desktop/app/src/panels/text_menu.rs": "fed0a7af489e4fe6de01efbc8619cb284a29036a935072ed0478867889bd40a1",
+    "desktop/app/src/panels/types.rs": "334c80baf3b956b128af180a69cd578198c2f5e248682b77c98bc212c3f7b314",
+    "desktop/app/src/shell/actions.rs": "f4b96226d431df4e31bb034377af489bec03434833f49f002f66ad2f437367e9",
+    "desktop/app/src/shell/expressions.rs": "eca85da0902a99a6fcecbca9fcd8a5da21ef386d8079a410d0144d0cc14e7221",
+    "desktop/app/src/shell/mod.rs": "8b8952ce76d29394a459d1fc04939ee5aa4150686c498b44d4e83a1a85344e81",
+    "desktop/ui/src/widgets.rs": "376f047ae59d3a0cdc84d5742edd160ec15887c2b9ee0e20a65b2494fb8a22bb",
+    "desktop/ui/src/widgets/multiline.rs": "4936f33c98361ed62563bb7d9814ed0fe5a051f9bb5619deaa4282f796ad5de8",
+    "desktop/ui/src/widgets/multiline/tests.rs": "322f7f5fc26bdc5a4ba6d52bee654abc107405c079af72157bac09147cc3ba5c",
+    "desktop/ui/src/widgets/text_commands.rs": "4beb1faf89a647c1ddc194fdf4b77a83b013060c242ddc9e6db928ca6ac010fe",
+    "desktop/ui/src/widgets/text_history.rs": "ba8a31900e1f35fd7b58e1f11b3e6d5e5403d4645a3c29398d2c8bb0f4cdfe42",
+    "desktop/ui/src/widgets/text_input.rs": "9c793e178cd147ca3b0cebf58880cc9b33531dfdfc3445f7f452c724741459a2",
+    "desktop/ui/styles/dark.json": "412be4391b1717fc46e3acd6bd569a4942859e1cd9fc7952cf8792aef8099f3b"
+  },
+  "remaining": [
+    "foreground OS IME and physical input",
+    "macOS/Linux interactive acceptance",
+    "system clipboard integration is not added",
+    "runtime original-source mapping is unavailable"
+  ]
+}

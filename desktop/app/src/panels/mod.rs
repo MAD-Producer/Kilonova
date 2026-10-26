@@ -48,7 +48,7 @@ mod recent_effect_menu_tests;
 pub(crate) mod effect_drag;
 mod effects;
 mod effect_timeline;
-mod expressions;
+pub(crate) mod expressions;
 pub(crate) mod effect_search;
 mod graph_box;
 pub(crate) mod graph_handles;
@@ -490,7 +490,7 @@ pub fn chrome(
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
     {
-        if !text_menu_owned { out.extend(cancel_interaction(panels)); }
+        if !text_menu_owned && !panels.expressions.menu_open() { out.extend(cancel_interaction(panels)); }
         panels.menu = None;
         panels.panel_menu = None;
         if !text_menu_owned {
@@ -775,6 +775,10 @@ pub fn chrome(
         curve_comparison::overlay(list,atlas,layout_area,panels,state,
             if panels.timeline.comparison.popup_open(){input}else{body_input},&mut out);
     }
+    // Render the application Edit menu once, above the property-owned overlay.
+    // Its existing glyph occlusion must run after the editor's text is drawn.
+    let defer_expression_text_menu = expression_modal && text_menu_owned;
+    if !defer_expression_text_menu {
     menus(
         list,
         atlas,
@@ -788,6 +792,7 @@ pub fn chrome(
         state,
         &mut out,
     );
+    }
     if let Some((panel, position)) = panels.panel_menu {
         let group = match layout.find(panel) {
             Some(Node::Dock { tabs, .. }) => tabs.clone(),
@@ -972,7 +977,7 @@ pub fn chrome(
             atlas,
             Rect::new(0., 0., size[0], size[1]),
             state,
-            input,
+            if text_menu_owned { &text_menu_neutral } else { input },
             panels.locale,
             &mut out,
         );
@@ -992,6 +997,7 @@ pub fn chrome(
     panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, editing_input, panels.locale, &mut out);
     if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
     if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
+    if defer_expression_text_menu { menus(list, atlas, size, panels, input, state, &mut out); }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }

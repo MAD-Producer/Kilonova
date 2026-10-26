@@ -91,6 +91,10 @@ impl Request<'_> {
     }
 }
 fn visit(panels: &mut Panels, request: &mut Request<'_>) {
+    if panels.expressions.menu_open() && panels.expressions.owner == panels.focused {
+        panels.expressions.text_menu(request);
+        return;
+    }
     panels.parent_controls.text_menu(request);
     panels.timeline_columns.text_menu(request);
     panels.layer_actions.text_menu(request);
