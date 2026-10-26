@@ -1390,3 +1390,45 @@ does not accept subsequent main changes or replace final G. Linux CI's existing
 Float16 import bound of 0.001 still requires a new remote run of the fix.
 
 Evidence: [five obligation source and raw receipts](data/typed-render-dag-five-obligations-41d517c9.zip), SHA-256 `7aa975965a948ebc88d905e6a0ea1625d4ae0f4cff96c45b7f0029f19879ead9`; 1,057,709 bytes, 101 payload files, every archive entry read back and hashed.
+
+### Software Vulkan identity sampling and pixel coverage
+
+The next actual [Linux Rust/GPU run](https://github.com/MAD-Producer/Kilonova/actions/runs/40286617249/job/121451675784)
+passed the previously failing Float16 mode but exposed a Float32 import error:
+2.9206276e-6 exceeded the unchanged 2e-6 limit. The exact same pixel, channels
+and magnitude were reproduced locally with a software Vulkan ICD. Native
+filtering of rounded normalized coordinates mixed neighbouring texels in an
+authored identity draw; normalized edge subtraction also lost full coverage
+at the final row/column. Merely evaluating all bilinear taps in f32 did not
+correct it. Reconstructing the logical 2D projection alone corrected interior
+pixels but left an alpha error of 2.7418137e-6 at the bottom-right corner.
+Both failed experiments and the original CI log remain in the evidence.
+
+The functional correction reconstructs the known logical composition projection
+in f64 for canonical UVs; supplied camera/custom projections retain their
+original matrices. The CPU separately proves positive, axis-aligned rectangles
+with exact integer physical edges, using equality rather than an epsilon snap.
+Their box coverage is binary. Only when the physical extent also equals the
+used source-texel extent can sampling use the exact texel at that pixel centre.
+Scaled, fractional, rotated and projective mappings keep linear filtering and
+the existing general edge coverage. Proof metadata uses two previously unused
+uniform lanes; there is no new allocation, binding or uniform byte. Portable
+programs conservatively retain their ordinary sampling path.
+
+The frozen software-Vulkan gate passed 52 tests, with no failures or ignores:
+the five obligations were re-executed on this adapter class, including the
+original four-precision import test and its original bounds. A new independent
+four-colour GPU fixture verifies exact identity pixels, fractional coverage and
+bilinear mixing under both quarter-pixel translation and integer-edge scaling.
+A nearest-filter negative control cannot satisfy the scaled result. CPU checks
+exclude fractional edges, fractional extents, rotation, perspective and flips
+from the fast path; four existing projected-plane regressions also pass.
+
+This scoped gate does not replace final whole-workspace or remote acceptance.
+The earlier final-G v2 run was explicitly superseded once the CI failure was
+reproduced; its partial output is not counted as successful final acceptance.
+Final G must be repeated after this correction on the rebased branch.
+
+Evidence: [software Vulkan source and raw receipts](data/typed-render-dag-software-vulkan-1ddb33af.zip),
+SHA-256 `c8f486700bfa092782624462914eae82607f41535465ff3ddd2a668686be8d59`;
+343,400 bytes, 53 payload files, every entry read back and hashed.

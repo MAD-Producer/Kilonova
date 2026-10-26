@@ -39,14 +39,35 @@ pub(crate) fn screen_map(
     let rows = inverse.transpose().to_cols_array_2d();
     // Homogeneous coordinates allow common normalization without changing UV.
     let scale = rows.iter().flatten().fold(0f64, |n, v| n.max(v.abs()));
-    let mapped = rows.map(|r| {
+    let mut mapped = rows.map(|r| {
         [
             (r[0] / scale) as f32,
             (r[1] / scale) as f32,
             (r[2] / scale) as f32,
-            1.,
+            0.,
         ]
     });
+    mapped[2][3] = 1.;
+    // A positive axis-aligned rectangle whose edges are *exact* integer pixel
+    // boundaries has binary box coverage. These two unused lanes carry its
+    // physical extent. No tolerance snaps a fractional transform onto the grid.
+    if screen.x_axis.y == 0.
+        && screen.y_axis.x == 0.
+        && screen.x_axis.z == 0.
+        && screen.y_axis.z == 0.
+    {
+        let w = screen.z_axis.z;
+        let extent = [screen.x_axis.x / w, screen.y_axis.y / w];
+        let origin = [screen.z_axis.x / w, screen.z_axis.y / w];
+        if extent
+            .iter()
+            .all(|n| *n > 0. && *n <= 16_777_216. && n.fract() == 0.)
+            && origin.iter().all(|n| n.is_finite() && n.fract() == 0.)
+        {
+            mapped[0][3] = extent[0] as f32;
+            mapped[1][3] = extent[1] as f32;
+        }
+    }
     if mapped[2][..3].iter().all(|v| *v == 0.) {
         return Err(crate::RenderError::Invalid(format!(
             "object={object} phase=plane_coordinates: projection exceeds GPU coordinate range"
@@ -58,6 +79,40 @@ pub(crate) fn screen_map(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pixel_grid_proof_requires_integer_edges_and_preserves_fractional_and_projective_maps() {
+        let viewport = [0., 0., 64., 64.];
+        let screen = DMat3::from_cols(
+            DVec3::new(32., 0., 0.),
+            DVec3::new(0., -32., 0.),
+            DVec3::new(32., 32., 1.),
+        );
+        let rect = DMat3::from_cols(
+            DVec3::new(30., 0., 0.),
+            DVec3::new(0., 24., 0.),
+            DVec3::new(1., 3., 1.),
+        );
+        let mapped = screen_map(screen.inverse() * rect, viewport, 7).unwrap();
+        assert_eq!([mapped[0][3], mapped[1][3]], [30., 24.]);
+        let mut subpixel = rect;
+        subpixel.z_axis.x += 0.25;
+        let mut fractional_extent = rect;
+        fractional_extent.x_axis.x += 0.5;
+        let mut rotated = rect;
+        rotated.x_axis.y = 1.;
+        let mut perspective = rect;
+        perspective.x_axis.z = 0.001;
+        let mut flipped = rect;
+        flipped.x_axis.x = -30.;
+        for matrix in [subpixel, fractional_extent, rotated, perspective, flipped] {
+            let mapped = screen_map(screen.inverse() * matrix, viewport, 7).unwrap();
+            assert_eq!([mapped[0][3], mapped[1][3]], [0., 0.]);
+            assert_eq!(
+                mapped[2][3], 1.,
+                "classification must retain a valid ordinary map"
+            );
+        }
+    }
     #[test]
     fn screen_coordinates_roundtrip_perspective_letterboxing_and_asymmetric_bounds() {
         let projection = DMat4::perspective_rh(0.9, 1.4, 0.5, 10000.)

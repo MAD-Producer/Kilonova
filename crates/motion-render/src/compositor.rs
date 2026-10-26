@@ -169,10 +169,10 @@ impl PlaneCompositor {
         };
         let model = crate::scene::plane_model(l, overlay).as_dmat4();
         self.uv_maps[layer] = crate::plane_coordinates::clip_map(
-            crate::scene::plane_projection(scene, l, overlay).as_dmat4() * model, size, offset);
+            crate::scene::plane_uv_projection(scene, l, overlay) * model, size, offset);
         let margin = self.coverage_viewport.map_or(DVec2::ZERO, |viewport|
             crate::plane_coverage::margin(
-                crate::scene::plane_projection(scene, l, overlay).as_dmat4() * model,
+                crate::scene::plane_uv_projection(scene, l, overlay) * model,
                 size, offset, viewport));
         let start = self.arena.len();
         if self.projected.active {
