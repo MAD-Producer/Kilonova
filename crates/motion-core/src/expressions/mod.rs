@@ -4,6 +4,7 @@ mod sampling_tests;
 mod invariant_tests;
 mod runtime;
 mod transpile;
+pub use transpile::{expression_source_diagnostic, ExpressionSourceDiagnostic};
 
 use crate::{ensure, Axis, Error, ExpressionTarget, ExpressionValue, Project, Property, PropertyExpression, Result, Track};
 use motion_model::expressions::{active, raw};
