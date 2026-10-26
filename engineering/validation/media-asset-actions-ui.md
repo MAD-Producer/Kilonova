@@ -32,6 +32,8 @@
 
 [结果与源码哈希](media-asset-actions-ui-results.json)、[原始日志和全部截图](media-asset-actions-ui-evidence.zip)、[项目菜单](media-asset-actions-ui/zh-project.png)、[使用处](media-asset-actions-ui/zh-usages.png)、[媒体浮窗菜单](media-asset-actions-ui/zh-media-float.png)。预览程序使用源码 `9913bc2f`，SHA-256 为 `1fe8e635e808f1c8ad5c7ae3a5d7aa383a65c4041c931f93f026f468da24abd8`；FFmpeg DLL 和许可沿用已验证运行时，保留其来源记录。
 
+独立预览位于 `artifacts/media-asset-actions-preview`。仅保留自身目录与 Windows 系统目录的 PATH 后，`--command-list` JSON 通过且 stderr 为零；`--video-smoke` 对独立生成的 `sound-24fps.mp4` 实际解码，报告 `backend=libav`、`decoded=true`、72 源帧，并返回首帧、中间帧、尾帧和再次首帧的 RGBA 数据。视频专项 exit 0、stderr 为零。原始报告及运行时哈希已补入证据包；这证明打包后的 DLL 可加载并解码视频，不替代原生文件对话框和全工作区验收。
+
 ## 未完成边界
 
 多份素材同时丢失时，现有全工程资源预检可能阻止逐份重链接；本轮未改变存储校验和 renderer 的完整目录预检。需独立完成分批恢复方案及附带渲染验证，不能通过略过失败或吞掉资源错误解决。原生文件选择器取消、Windows 资源管理器最后呈现、macOS/Linux 文件位置与实际 OS 键盘/IME 交互还需验收。字体仍使用既有字符串身份，未接入数字媒体操作。

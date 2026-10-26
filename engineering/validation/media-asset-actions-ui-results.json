@@ -195,7 +195,70 @@
     "desktop/ui/styles/dark.json": "77ae0e7a81b7ca5017b59798a7e43dad66d2f7dcd5f610c177aef09aa04f27f5"
   },
   "evidence": {
-    "files": 67,
-    "sha256": "38df37adb844a2205eb8a77135500d899a8b25d1d5e9c0e0c209b40a7e8c8c99"
+    "files": 71,
+    "sha256": "83d8da8e891c168f429a987632cfd0dbbed02148396ed336c34aeefe91e9457c"
+  },
+  "preview": {
+    "build": {
+      "sourceCommit": "9913bc2f5e04c99a9e466b1830871c1106987899",
+      "profile": "dev",
+      "features": [
+        "ffmpeg"
+      ],
+      "executableSha256": "1fe8e635e808f1c8ad5c7ae3a5d7aa383a65c4041c931f93f026f468da24abd8",
+      "runtimeDlls": {
+        "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+        "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+        "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+        "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+        "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+        "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+        "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+      },
+      "issue": 222,
+      "stage": "共享素材菜单与替换事务；多素材丢失恢复及原生系统交互仍待验收"
+    },
+    "minimal_path_command_list": true,
+    "video_smoke": {
+      "backend": "libav",
+      "decoded": true,
+      "frames": [
+        {
+          "decoder": "libavcodec",
+          "end": 41667,
+          "height": 144,
+          "pts": 0,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 1541667,
+          "height": 144,
+          "pts": 1500000,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 3000000,
+          "height": 144,
+          "pts": 2958333,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 41667,
+          "height": 144,
+          "pts": 0,
+          "rgbaBytes": 147456,
+          "width": 256
+        }
+      ],
+      "sourceFrames": 72
+    },
+    "video_exit": 0,
+    "video_stderr_bytes": 0
   }
 }
