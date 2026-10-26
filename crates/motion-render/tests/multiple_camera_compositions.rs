@@ -72,6 +72,7 @@ fn fixture() -> Project {
         fps: 60,
         frames: 180,
         work_area: motion_core::WorkArea::full(180),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: legacy,
         layers: vec![camera(1, 100.), child_top, child_shape],

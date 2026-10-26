@@ -547,6 +547,7 @@ fn nested_dependency_failure_is_not_bypassed_in_preview_and_valid_child_recovers
         fps: 30,
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: motion_core::Camera::new(64, 64),
         layers: vec![child],

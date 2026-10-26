@@ -37,6 +37,7 @@ fn fixture() -> Project {
         fps: 60,
         frames: 12,
         work_area: motion_core::WorkArea::full(12),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(64, 64),
         layers: layers(12, [0., 1., 0., 1.], 19.),

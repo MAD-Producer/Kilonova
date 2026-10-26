@@ -51,6 +51,7 @@ fn upcoming_clips_map_nested_time_without_sampling_or_loading_media() {
         fps: 60,
         frames: 90,
         work_area: motion_core::WorkArea::full(90),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: p.camera.clone(),
         layers: vec![clip(1, 3, 24, 40), clip(2, 4, 35, 45)],

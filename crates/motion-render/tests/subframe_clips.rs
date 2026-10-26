@@ -28,6 +28,7 @@ fn nested_fractional_visibility_uses_exact_bounds_during_random_seek() {
         fps: 48,
         frames: 96,
         work_area: motion_core::WorkArea::full(96),
+        guides: Vec::new(),
         background: [0.; 4],
         camera,
         layers: vec![leaf],
