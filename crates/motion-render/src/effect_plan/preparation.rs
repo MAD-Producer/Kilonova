@@ -1,11 +1,13 @@
 //! Sampled parameter and image-input ownership before CPU raster preparation.
-//! This dependency projection has no fabricated image rectangles or precision:
-//! the complete typed image IR still checks the accepted native proposals.
+//! Region recipes and typed producers precede raster work; physical admission
+//! refines their texel grids and aliases effects bypassed by ordinary preview.
 use super::*;
 use motion_effects::execution_plan::{ExecutionNodeId, ExecutionPlanError, MAX_EXECUTION_NODES};
 use motion_model::{EffectImageInput, EffectImageStage};
 use std::collections::BTreeSet;
+mod graph;
 mod semantics;
+pub(super) use graph::SemanticFrame;
 pub(crate) use semantics::DefinitionSemantics;
 
 #[derive(Clone, Copy, Debug)]
@@ -66,7 +68,7 @@ impl PreparedEffect {
 
 pub(super) struct PreparationPlan {
     pub effects_by_layer: Vec<Vec<usize>>,
-    pub inputs: Vec<Option<Result<PreparedEffect, RenderError>>>,
+    pub inputs: Vec<Option<Result<Arc<PreparedEffect>, RenderError>>>,
 }
 
 pub(super) fn validate_scene(scene: &Scene) -> Result<(), RenderError> {
@@ -105,7 +107,10 @@ impl PlanBuilder {
                 continue;
             };
             plan.effects_by_layer[draw].push(index);
-            plan.inputs[index] = Some(self.prepare_effect_input(scene, assets, draw, index));
+            plan.inputs[index] = Some(
+                self.prepare_effect_input(scene, assets, draw, index)
+                    .map(Arc::new),
+            );
         }
         plan.check_dependencies(scene)?;
         Ok(plan)

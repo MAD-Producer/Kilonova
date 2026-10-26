@@ -12,10 +12,10 @@ was reviewed and no subagent was used.
 
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
-| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Prepared sampled parameters, typed raw/effected/asset inputs and retained semantic region recipes drive native lowering; full producer/value/ROI ownership before transactional layout proposals remains open |
+| 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Pre-raster semantic producers, sampled selectors, origin IDs and region recipes now drive native proposals; admission refines real texel grids and aliases preview bypasses; final main-aligned integrated acceptance remains open |
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded defaults, current-instance byte containers, actual numeric curve LUTs and scalar mask coverage now supply checked values consumed by native preparation; depth producers belong to later work |
-| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology refuses cycles before CPU work; named package/private/LUT/mask imports now have checked edges, while full typed outer image lowering still follows native proposals |
-| 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Complete initial effect-graph ownership and final integrated boundary acceptance |
+| 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology refuses cycles before CPU work; the initial semantic graph now owns outer producer identity and dependency selectors before proposals, while concrete checked texel extents follow transactional admission |
+| 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Final integrated boundary acceptance on the current main baseline |
 | 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
 | 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial; end-to-end costs and final integrated scheduling acceptance remain unfinished |
@@ -1076,3 +1076,63 @@ end-to-end shader/compile/pass/frame/physical-peak measurements and final
 main-aligned integrated regression/cross-platform desktop CI remain open.
 Android implementation and acceptance remain excluded. #78 stays open,
 followed by #74 and #87.
+
+
+## Pre-raster semantic ownership checkpoint (2026-10-26)
+
+The frame-local semantic graph now exists before mask rasterization, vector
+tessellation and generator preparation. It owns raw layer views, sampled image
+selectors, ordered authored effect producers, initial mask materialization and
+explicit terminal materialization. Composition/layer/effect origins, working
+color/alpha/precision contracts and logical region recipes are retained there.
+The native builder consumes its operation order and source/region rules rather
+than independently rediscovering them from the scene or completed pass clocks.
+
+Physical proposal admission records real native ranges and texel grids. An
+ordinary preview refusal or zero-opacity identity aliases its semantic output
+to the actual accepted upstream value; subsequent padding/bounds recipes use
+that value. A generator retains its composition-space output recipe. Continuous
+vector terminal materialization refines the source grid at the actual raster
+density. No fabricated 1x1 extents or all-effects-succeed rectangles are used.
+
+Concrete execution lowering compacts those admitted producers and aliases.
+Pass clocks and native uniforms verify ownership, canonical boundaries, region,
+extent and sampled selector encoding; they cannot invent producers or switch
+raw/effected dependency identity. Real shader identities, costs, package/frame
+resource imports, checked topology, lifetimes and the existing physical allocator
+remain authoritative for their respective lowering stages. Logical canonical
+source views describe SDK sampling/conversion results, not the stored byte
+encoding of external assets. Existing raw-asset allocation/binding ownership is
+retained; no new exclusive GPU resource or device is assigned per node.
+
+Three new regressions verify pre-raster ownership/frozen recipes and alias
+regions, rejection/recovery of forged clocks or native output regions, and
+rejection/recovery of altered backend resource selectors. Existing ordinary
+preview bypass, early cycle, diamond/snapshot, mask/generator, numeric pipeline
+reuse and four-precision pixel assertions remain unchanged. Two unchanged-test
+negative controls remove the clock/selector guards and fail at unwrap_err;
+exact accepted source bytes are restored afterward.
+
+| Receipt under artifacts/pr-queue/ | Actual result |
+| --- | --- |
+| issue78-numeric-semantic-frame-v1 | Failed compile in the new test fixture (field and enum names); retained, no pass claim |
+| issue78-numeric-semantic-frame-v2 | Early preparation/lowering filters: 23 passed before the additional frozen-origin guard; historical scope |
+| issue78-numeric-semantic-frame-v3 | Exact final-source targeted checkpoint: 265 render library, 99 native across 21 targets, 32 effects library, 17 host memory-policy, 14 curve/mask, two frame-import GPU, two package-import GPU, and three desktop worker/private-data tests; desktop FFmpeg check passed |
+| issue78-numeric-semantic-frame-clock-control | Removed clock ownership guard: unchanged new regression fails as expected |
+| issue78-numeric-semantic-frame-selector-control | Removed typed selector guard: unchanged new regression fails as expected |
+
+The final checkpoint contains **433 distinct parent test passes**, zero failures
+or ignored tests. Focused filters are library subsets; mask_error_boundaries is
+deduplicated across the two native groups. Child-process cases are not counted
+again. Actual artifacts retain 16 private/frame numeric pixel rows, 12 curve/mask
+rows, 16 desktop numeric updates, eight reopen/isolation/undo cases, and six
+default-level IR fault/recovery cases with Error file/stderr and stdout isolation.
+The earlier unexplained CPU-planning access violation remains recorded in the
+preceding checkpoint; it did not recur in this source-bound native range.
+
+This is targeted acceptance, not G or cross-platform completion. No panel,
+UI/style, Android, dependency, compatibility or third-party asset change is
+included. Final cost evidence, main alignment, full integration and maintained
+desktop CI remain pending.
+
+Evidence: [verified semantic-owner archive](data/typed-render-dag-semantic-owner-97936c6b.zip), SHA-256 `9324789ab25942c168b3bb73933d6d245ad14e0c5d6b8be0fdbd093302c42727`; 4,152,536 bytes, 799 payload files plus manifest, all entries read back and hashed.

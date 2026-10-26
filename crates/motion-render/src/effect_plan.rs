@@ -507,6 +507,7 @@ pub struct PlanBuilder {
     pub preview_plan_builds: u64,
     fusion: pointwise::FusionState,
     effect_execution: Option<effect_execution::EffectExecution>,
+    semantic_frame: Option<preparation::SemanticFrame>,
     code_identities: effect_execution::CodeIdentities,
     #[cfg(all(debug_assertions, feature = "gpu-tests"))]
     execution_fault: Option<ExecutionDiagnosticFault>,
@@ -804,6 +805,7 @@ impl PlanBuilder {
             preview_plan_builds: 0,
             fusion: pointwise::FusionState::default(),
             effect_execution: None,
+            semantic_frame: None,
             code_identities: Default::default(),
             #[cfg(all(debug_assertions, feature = "gpu-tests"))]
             execution_fault: None,
@@ -1088,6 +1090,7 @@ impl PlanBuilder {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         self.effect_execution = None;
+        self.semantic_frame = None;
         self.cpu_preparation = CpuPreparationInfo { worker_limit: self.cpu_preparation.worker_limit, ..Default::default() };
         preparation::validate_scene(scene)?;
         self.synchronize(scene)?;
@@ -1178,6 +1181,7 @@ impl PlanBuilder {
             .max(0.001);
         let layer_scales = self.layer_scales(scene, [width, height], scale, preview);
         let mut preparation = self.prepare_effect_inputs(scene, assets)?;
+        let mut semantic = preparation.semantic_frame(scene, &self.resolved, self.precision, &layer_scales, materialize)?;
         let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
             [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.frame.masks=self.mask_cache.build(scene,scale,preview)?;
@@ -1189,10 +1193,6 @@ impl PlanBuilder {
                 return Err(RenderError::Resource { rejection, message: format!("layer {}, mask {}: raster exceeds device dimensions",scene.layers[mask.layer].id,mask.id) });
             }
         }
-        let post_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled&&scene.layers.iter().any(|l|l.id==e.layer))
-            .filter_map(|e| match e.image_input {Some(motion_model::EffectImageInput::Layer{layer,stage:motion_model::EffectImageStage::Effects})=>Some(layer),_=>None})
-            .chain(scene.layers.iter().filter_map(|l|l.track_matte.map(|m|m.source)))
-            .chain(materialize.iter().copied()).collect();
         self.prepare_vectors(scene, [width, height], &layer_scales)?;
         for (layer_index, layer) in scene.layers.iter().enumerate() {
             let scale = layer_scales[layer_index];
@@ -1201,23 +1201,13 @@ impl PlanBuilder {
                 .position(|id| *id == layer.asset.unwrap_or(0))
                 .ok_or("image asset is not loaded")?;
             let pass_start = self.frame.passes.len();
-            let source_size = if layer.adjustment {
-                [scene.width as f32, scene.height as f32]
-            } else {
-                layer.source_size
-            };
-            let mut region = if layer.adjustment {
-                [0.0, 0.0, source_size[0], source_size[1]]
-            } else {
-                layer.source_rect
-            };
+            let source_size = semantic.layers[layer_index].source_size;
+            let mut region = semantic.region(semantic.layers[layer_index].source)?;
             let mut materialized = false;
             let mut overlay = false;
             let mut additive = false;
-            let has_image_effect=scene.effects.iter().enumerate().any(|(i,e)|e.layer==layer.id&&e.enabled&&self.resolved[i].as_ref().is_some_and(|r|r.definition.renderer==motion_effects::RendererKind::Image));
-            let starts_with_generator=scene.effects.iter().enumerate().find(|(_,e)|e.layer==layer.id&&e.enabled)
-                .is_some_and(|(i,_)|self.resolved[i].as_ref().is_some_and(|r|r.definition.renderer!=motion_effects::RendererKind::Image));
-            if !layer.masks.is_empty() && has_image_effect && !starts_with_generator {
+            if let Some(node) = semantic.layers[layer_index].mask {
+                let begin = self.frame.passes.len();
                 let w=(region[2]*scale).ceil().max(1.) as u32;let h=(region[3]*scale).ceil().max(1.) as u32;
                 reserve_scratch(&mut self.frame.scratch_sizes,0,w,h);
                 let mut u=crate::mask_plan::uniform(w,h);
@@ -1228,8 +1218,12 @@ impl PlanBuilder {
                     output:0,width:w,height:h,lut:-1,uniform:u,sprite:false,sprite_start:0,sprite_count:0});
                 self.pass_clocks.push(None);
                 self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
+                semantic.admit(node, begin..self.frame.passes.len(), region, [w, h])?;
             }
-            for &index in &preparation.effects_by_layer[layer_index] {
+            for offset in 0..semantic.layers[layer_index].effects.len() {
+                let node = semantic.layers[layer_index].effects[offset];
+                let index = semantic.nodes[node].effect.ok_or("semantic effect origin is absent")?;
+                region = semantic.region(semantic.nodes[node].input.ok_or("semantic effect input is absent")?)?;
                 let e = &scene.effects[index];
                 let clock_start = self.frame.passes.len();
                 let data_start = self.frame.instance_data.len();
@@ -1287,7 +1281,7 @@ impl PlanBuilder {
                         self.frame.generator_stats.visible += stats.visible;
                         self.frame.generator_stats.culled += stats.culled;
                         self.frame.generator_stats.births_sampled += stats.births_sampled;
-                        region = [0., 0., scene.width as f32, scene.height as f32];
+                        region = semantic.output_region(node)?;
                         let sprite_asset = if let Some(image) = e.scene.as_ref().and_then(|s| s.sprite_asset) {
                             assets.iter().position(|id| *id == image).ok_or_else(||format!("particle sprite image {image} is not loaded"))?
                         } else {asset};
@@ -1353,7 +1347,7 @@ impl PlanBuilder {
                         additive = def.blend == motion_effects::SpriteBlend::Additive;
                         return Ok(());
                     }
-                    let next = prepared.output_region(region)?;
+                    let next = semantic.output_region(node)?;
                     let work = prepared.working_slot();
                     let direct_output = prepared.direct_output();
                     let runtime = runtime_template::schedule(def, &resolved.programs, &self.programs,
@@ -1556,8 +1550,12 @@ impl PlanBuilder {
                 } else {
                     self.pass_clocks.extend(std::iter::repeat_n(Some(index), self.frame.passes.len() - clock_start));
                 }
+                let size = self.frame.passes.get(clock_start..).and_then(|p| p.last())
+                    .map_or([1; 2], |p| [p.width, p.height]);
+                semantic.admit(node, clock_start..self.frame.passes.len(), region, size)?;
             }
-            if post_sources.contains(&layer.id)&&!materialized {
+            let materialize_start = self.frame.passes.len();
+            if semantic.layers[layer_index].materialize.is_some() && !materialized {
                 // A retained continuous vector must preserve its projected
                 // raster density instead of downsampling through a native utility pass.
                 let local_scale = if materialize.contains(&layer.id) && layer.vector.is_some() {
@@ -1577,6 +1575,14 @@ impl PlanBuilder {
                     self.frame.scratch_sizes, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                 self.pass_clocks.push(None);self.frame.slots|=1;self.frame.width=self.frame.width.max(w);self.frame.height=self.frame.height.max(h);materialized=true;
             }
+            if let Some(node) = semantic.layers[layer_index].materialize {
+                let size = self.frame.passes.get(materialize_start..).and_then(|p| p.last())
+                    .map_or([1; 2], |p| [p.width, p.height]);
+                semantic.admit(node, materialize_start..self.frame.passes.len(), region, size)?;
+            }
+            let source_scale = self.frame.passes.get(pass_start..).and_then(|p| p.first())
+                .map_or(1., |p| p.uniform.output_mode[3]);
+            semantic.refine_source_grid(layer_index, source_scale)?;
             let mut words = [0.0; 32];
             self.overlays.push(overlay);
             let mvp = crate::scene::plane_projection(scene, layer, overlay);
@@ -1633,6 +1639,7 @@ impl PlanBuilder {
                 pass_end: self.frame.passes.len(),
             });
         }
+        self.semantic_frame = Some(semantic);
         self.lower_effect_execution(scene, materialize)?;
         self.fuse_pointwise(scene)?;
         let layout = if self.frame.passes.is_empty() { scratch::layout(&self.frame, None)? }
