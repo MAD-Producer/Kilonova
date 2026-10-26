@@ -10,6 +10,7 @@ mod channels;
 mod interpolation;
 mod easing;
 mod transform;
+pub mod timing;
 pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;

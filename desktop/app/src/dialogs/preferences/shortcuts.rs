@@ -436,6 +436,7 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         EaseBoth => ("双侧缓动", "Ease both"),
         EaseIncoming => ("入段缓动", "Ease incoming"),
         EaseOutgoing => ("出段缓动", "Ease outgoing"),
+        KeyframeTiming => ("关键帧插值与速度", "Keyframe interpolation and velocity"),
         Reveal(property) | ToggleKey(property) => {
             let text = match property {
                 motion_core::Property::Anchor => T::Anchor,
