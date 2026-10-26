@@ -16,6 +16,48 @@ This file lists third-party material currently intended for the repository or a 
 | actions/cache (CI tool only) | Cache pinned libclang wheels and verified FFmpeg build inputs/runtime; not bundled in releases | GitHub and actions/cache contributors; [revision 0057852bfaa89a56745cba8c7296529d2fc39830](https://github.com/actions/cache/tree/0057852bfaa89a56745cba8c7296529d2fc39830) (v4); no modifications | MIT; [upstream license](https://github.com/actions/cache/blob/0057852bfaa89a56745cba8c7296529d2fc39830/LICENSE) |
 | zlib 1.3.2 (Unix FFmpeg) | 解码压缩头 MOV；静态链接进 Unix libav，不依赖构建机 libz / Compressed MOV headers, statically linked into Unix libav | Jean-loup Gailly and Mark Adler; [official 1.3.2 source](https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz), SHA-256 `bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16`; no source changes, static PIC build | Zlib license; original `LICENSE` accompanies archives as `licenses/ffmpeg/zlib-LICENSE.txt`; source, revision, checksum and linkage in `FFmpeg-SOURCE.json` |
 
+## Optional desktop depth prototype
+
+Depth Anything V2 Small is by Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao,
+Xiaogang Xu, Jiashi Feng, Hengshuang Zhao and the upstream contributors. Reference:
+[official source](https://github.com/DepthAnything/Depth-Anything-V2/tree/a561b849ebae10a6f5ef49e26c83cbbcd36c71bf),
+revision `a561b849ebae10a6f5ef49e26c83cbbcd36c71bf`;
+[official Small weights](https://huggingface.co/depth-anything/Depth-Anything-V2-Small),
+SHA-256 `715fade13be8f229f8a70cc02066f656f2423a59effd0579197bbf57860e1378`.
+Only Small's Apache-2.0 weights are supported by the export tool; the
+noncommercial Base/Large/Giant models are not used. No model weights, reference
+source or upstream images are bundled. The separately installed reference is
+unmodified; the owned export procedure produces a fixed-shape opset-17 ONNX
+artifact and retains its original license and provenance next to that artifact.
+The host's letterboxing, process protocol, scheduling and installation checks
+are independently authored under this repository's MIT license.
+
+The optional worker uses separately installed Python (Python Software Foundation,
+PSF license), NumPy 2.4.6 (NumPy Developers, BSD-3-Clause,
+[source](https://github.com/numpy/numpy)), opencv-python-headless 5.0.0.93
+(OpenCV team and wheel contributors, Apache-2.0 and the installed wheel's
+third-party notices, [source](https://github.com/opencv/opencv-python)), and ONNX
+Runtime 1.31.0 (Microsoft and contributors, MIT,
+[source](https://github.com/microsoft/onnxruntime)). These versions record the
+validated environment, not bundled dependencies. Local model export additionally
+uses unmodified PyTorch 2.14.1 (PyTorch contributors, BSD-3-Clause,
+[source](https://github.com/pytorch/pytorch)) and ONNX 1.23.2 (ONNX contributors,
+Apache-2.0, [source](https://github.com/onnx/onnx)). Their existing licenses and
+notices remain in their external installations; no runtime binaries or packages
+are redistributed by this change.
+
+External depth validation also uses NASA's Eileen Collins portrait, distributed
+as `skimage/data/astronaut.png` in scikit-image v0.25.2 (Git blob
+`834cda0012478c5edc8d43bade96d315dedeaab4`). Author/credit: NASA; source:
+[portrait data and public-domain record](https://scikit-image.org/docs/stable/api/skimage.data#skimage.data.astronaut).
+The portrait is identified as public domain by the dataset and is used for
+factual technical evaluation under NASA's
+[media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/),
+with no endorsement or promotional use. Original downloads remain outside the
+product tree; hashes, resizing and crop/translation modifications are recorded
+in the external fixture manifest. No NASA image, logo or person is added to the
+product UI, examples or release assets.
+
 ## Rust 依赖 / Rust dependencies
 
 The read-only adapter memory probe directly uses two unmodified binding crates

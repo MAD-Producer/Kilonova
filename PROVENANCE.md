@@ -3,6 +3,14 @@
 **状态 / Status:** 仓库政策与发布证据 / Repository policy and release evidence
 **生效日期 / Effective date:** 2026-10-14
 
+The optional desktop depth prototype uses independently authored host/process
+code and a separately installed, hash-verified Apache-2.0 Small model. The export
+tool requires the pinned official reference checkout and retains its original
+license and a model manifest next to the external ONNX artifact. No upstream
+source, weights, images or inference runtime enter project/effect packages or
+the shipped product. Authors, revisions, hashes and modification scope are
+recorded in [ATTRIBUTION.md](ATTRIBUTION.md).
+
 ## 中文
 
 Motion Studio 是独立的 clean-room 实现。项目可以研究公开行为和公开记录的工作流，但不会复制 Adobe 源代码、二进制文件、资源、图标、指针、字体、音频、预设、模板、截图或专有文件数据。

@@ -91,3 +91,92 @@ Official references read for the prototype:
 [execution providers](https://onnxruntime.ai/docs/execution-providers/).
 No inference capability, zero-copy path or model quality claim is made by this
 contract checkpoint.
+
+## Real optional ONNX host checkpoint
+
+The optional host now embeds an independently authored file-protocol worker.
+Python, its packages, the upstream reference and model weights remain external;
+there is no network use during inference and no model in an effect/project
+package. `tools/export_ai_depth.py` verifies the pinned reference and Small weight
+hash, checks an actual CPU export against the official PyTorch forward, and
+publishes the ONNX artifact with the original license and a separate manifest.
+The tool reproduced the accepted 98,941,070-byte ONNX export, SHA-256
+`274368034c0fcef08f9b197d33b606bae9c578acca861ef72feb268143b21434`.
+The original Small-weight hash and exported ONNX hash are different identities.
+
+The host uses bounded private stdout and stderr pipes, explicit scratch roots,
+cooperative cancellation with child kill/reap, and primary-error preservation
+when cleanup also fails. It records actual profiled providers, not the requested
+provider alone. Costs include full backend wall time, parent staging and output
+ownership, child tensor copies and inference phases; startup, model loading and
+temporary cleanup are real costs. There is no persistent runtime, I/O Binding,
+GPU interoperability or zero-copy claim.
+
+`issue74-real-rust-v3` exercised the actual Rust Jobs/Onnx path, real model and
+the existing desktop file logger at its default Info level. All four cases pass:
+CPU inference, unavailable CUDA falling back to profiled CPU, missing model,
+and bad model hash followed by successful recovery on the same Jobs instance.
+In-flight request/source state is observed during real inference, returned
+identity and R32Float values agree with the independent reference, and empty
+queue/in-flight state and scratch cleanup are checked afterward. Failures retain
+`request=1`, `asset=74`, `phase=model_hash` and the original cause in both file
+and stderr; stdout is empty in every case. The external harness has no GUI
+Engine; its panic command context is explicitly absent, not a GUI acceptance
+claim. The maximum normalized numerical error is 2.14214e-6 against the unchanged
+2e-4 maximum and 2e-5 mean bounds.
+
+The model is hashed and loaded from the same bounded owned byte snapshot.
+`issue74-model-snapshot-v1` replaces an owned copy precisely between verification
+and runtime construction: the previous path-loading worker really fails in
+ONNX Runtime with InvalidProtobuf, while the corrected worker still executes
+the verified snapshot and agrees with the official reference. The original
+model is hash-checked before and after; neither weights nor a model copy are
+retained in the repository.
+
+`issue74-domain-matrix-v2` passes fifteen real Rust/model/reference cases: NASA's
+public-domain Eileen Collins portrait, an independently authored flat
+illustration, an authored ray-traced interior, and twelve frames of authored
+camera motion at exact rational PTS. Reference letterbox geometry is derived
+independently with integer arithmetic; official normalization/forward and
+PyTorch interpolation supply the comparison. Maximum normalized error is
+2.41116e-5, within the original bound. Input/official/host comparison images and
+the per-frame sources, timing, identities and hashes are retained. The synthetic
+interior's inverse-camera-Z Pearson correlation is approximately 0.962–0.981;
+this finite quality probe does not calibrate the unitless model output.
+
+The domain evidence has explicit limits. The interior and camera sequence are
+synthetic, not a natural interior photograph or live-action video. A candidate
+NASA interior image was not acquired (the server returned 429); it is not counted
+as tested. The model imposes apparent depth on the deliberately flat illustration
+and does not guarantee fine-contour accuracy. Per-frame changes include true
+parallax and are not a pure flicker metric. No accelerated provider, long video,
+temporal model, Session installation or desktop UI feature has been accepted.
+The original cancellation/seek/replacement installation tests remain necessary.
+
+The first repeated optional-host compile was rejected: a shared target supplied
+the other worktree's model artifact without the new depth module. After the
+render run finished, only the affected workspace-package artifacts were
+invalidated; third-party caches, sources and evidence were preserved. The next
+four unit tests passed, but the controller incorrectly expected ten: the other
+six tests are a separate integration target. That selection error is not a
+product failure or an accepted ten-test run. No existing assertion was changed.
+
+The corrected source-frozen `issue74-depth-regression-v3` runs both targets
+explicitly. All four real-child ONNX tests and all six job integration tests
+pass, with zero failures or ignores. They cover separate protocol/diagnostic
+pipes, bounded overflow, original failure causes, actual child entry and
+cancellation/reaping, as well as the existing blocked-worker, replacement,
+seek/source/model identity and recovery checks. Changed host files also pass
+their targeted rustfmt check; unrelated pre-existing host formatting is retained.
+
+Maintained-platform optional-feature CI and the remaining natural-domain
+evaluation are still required before closing #74. The current Windows CPU
+prototype is not a completed desktop feature. [Host setup and ownership
+contract](../host-api/optional-depth-inference.md) describes how to use it.
+
+Evidence: [runtime, reference comparisons, failure paths and source receipts](data/ai-depth-onnx-d84157be.zip),
+SHA-256 `cfbd5b1f6e4482600a8dbce9ff28aa3b0b798b608326e715f1ee4b816e3fe9ef`;
+7,036,560 bytes, 248 entries, every entry read back and SHA-256 verified.
+The archive includes the original Apache license and model manifest, not model
+weights, upstream implementation or runtime binaries. Rejected cache/selection
+runs are retained separately from accepted receipts.

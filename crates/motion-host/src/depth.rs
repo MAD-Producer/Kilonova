@@ -6,6 +6,7 @@
 //! terminate their own child). This worker never owns a render session or GPU.
 
 use motion_model::depth::{DepthGeometry, DepthModel, DepthResource, DepthSource};
+pub mod onnx;
 use std::{
     any::Any,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -37,6 +38,14 @@ pub enum Error {
     Backend(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+    #[error("{primary}; depth temporary cleanup also failed: {cleanup}")]
+    Cleanup {
+        #[source]
+        primary: Box<Error>,
+        cleanup: std::io::Error,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -103,6 +112,11 @@ impl Input {
 
 #[derive(Clone, Debug, Default)]
 pub struct Costs {
+    /// Full backend wall time, including child startup, transport and cleanup.
+    pub total: Duration,
+    /// Measured parent-side staging/serialization and output ownership checks.
+    /// This is separate from the child's tensor copies and filesystem phases.
+    pub host_transport: Duration,
     pub load: Duration,
     pub preprocess: Duration,
     pub input_copy: Duration,
