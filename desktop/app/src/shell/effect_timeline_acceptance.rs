@@ -122,7 +122,7 @@ impl Shell {
             panels.timeline.collapsed_transforms.insert(7);
             panels.timeline.expanded_effects.insert(7);
             panels.effect_timeline.begin_probe(1, "speed");
-            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
+            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":0,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
             let draw = |atlas: &mut TextAtlas,
                         panels: &mut panels::Panels,
                         engine: &mut motion_core::Engine,
@@ -157,6 +157,12 @@ impl Shell {
                         panels::Action::Edit(c) => engine.apply(c).map_err(|e| e.to_string())?,
                         panels::Action::EditBatch(cs) => {
                             engine.apply_batch(cs).map_err(|e| e.to_string())?;
+                        }
+                        panels::Action::EditorAction { source, commands } => {
+                            if source != crate::layer_clipboard::KeyframeSource::of(&state) {
+                                return Err("effect capture edit source changed".into());
+                            }
+                            engine.apply_batch(commands).map_err(|e| e.to_string())?;
                         }
                         panels::Action::History(2) => {
                             engine.begin_gesture().map_err(|e| e.to_string())?
