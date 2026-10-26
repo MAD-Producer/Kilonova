@@ -123,6 +123,11 @@ use timeline::render as timeline;
 use timeline::rows;
 pub use types::{Action, Frame, EffectSearch, Panels};
 pub(crate) use keyboard::layout_shortcuts_blocked;
+
+pub(crate) fn expression_overlay_open(panels: &Panels) -> bool {
+    [&panels.expressions, &panels.effect_controls.expressions, &panels.properties.effects.expressions]
+        .iter().any(|controls| controls.menu_open())
+}
 pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
 
@@ -352,6 +357,7 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    expressions::picking::prepare(panels, None);
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(None, state, input);
     let asset_neutral = Input::default();
@@ -398,7 +404,8 @@ pub fn chrome(
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
             && !panels.timeline.timeline_search
-            && !panels.expressions.editing(),
+            && !panels.expressions.editing()
+            && !expressions::picking::active(panels, None),
         &mut out,
     );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
@@ -423,6 +430,7 @@ pub fn chrome(
             && !layer_modal
             && !path_context_owned
             && !panels.expressions.menu_open()
+            && !expressions::picking::active(panels, None)
             && !toolbar_modal
             && panels.menu.is_none()
             && !(point[1] >= metrics::TITLE_BAR && point[1] < metrics::TITLE_BAR + metrics::MENU_BAR)
@@ -490,7 +498,7 @@ pub fn chrome(
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
     {
-        if !text_menu_owned && !panels.expressions.menu_open() { out.extend(cancel_interaction(panels)); }
+        if !text_menu_owned && !panels.expressions.menu_open() && !expressions::picking::active(panels, None) { out.extend(cancel_interaction(panels)); }
         panels.menu = None;
         panels.panel_menu = None;
         if !text_menu_owned {
@@ -516,7 +524,7 @@ pub fn chrome(
             }
         })
         && panels.menu.is_none();
-    let expression_modal = panels.expressions.menu_open();
+    let expression_modal = panels.expressions.menu_open() || expressions::picking::active(panels, None);
     let shortcut_modal =
         expression_modal || keyboard::route(if path_context_owned { &text_menu_neutral } else { input }, panels, state, node_keyboard, None, &mut out);
     let menu_modal = path_context_owned || text_menu_owned || layer_modal
@@ -998,6 +1006,10 @@ pub fn chrome(
     if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
     if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
     if defer_expression_text_menu { menus(list, atlas, size, panels, input, state, &mut out); }
+    if expressions::picking::active(panels, None) {
+        let clips: Vec<_> = frames(layout, size).into_iter().map(|frame| (frame.panel, frame.content)).collect();
+        expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), None, &clips, state, input, &mut out);
+    }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -1026,6 +1038,7 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    expressions::picking::prepare(panels, Some(panel));
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
     let asset_neutral = Input::default();
@@ -1089,7 +1102,8 @@ pub fn floating_chrome(
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
             && !panels.timeline.timeline_search
-            && !panels.expressions.editing(),
+            && !panels.expressions.editing()
+            && !expressions::picking::active(panels, Some(panel)),
         &mut out,
     );
     if !panels.effect_search_in(Some(panel))
@@ -1111,6 +1125,7 @@ pub fn floating_chrome(
     let mut content = list.child();
     if !panels.effect_search_in(Some(panel))
         && !path_context_owned
+        && !expressions::picking::active(panels, Some(panel))
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -1126,7 +1141,7 @@ pub fn floating_chrome(
         }
         panels.focused = Some(panel);
     }
-    let shortcut_modal = keyboard::route(
+    let shortcut_modal = expressions::picking::active(panels, Some(panel)) || keyboard::route(
         if path_context_owned || timeline_dropdown && !dropdown_owned {
             &popup_neutral
         } else {
@@ -1142,7 +1157,7 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if panels.expressions.menu_open()
+    let body_input = if panels.expressions.menu_open() || expressions::picking::active(panels, Some(panel))
         || path_context_owned
         || layer_modal
         || panels.layer_actions.modal_in(Some(panel))
@@ -1311,6 +1326,9 @@ pub fn floating_chrome(
         &mut out,
     );
     media_assets::overlay(list, atlas, Rect::new(0., 0., size[0], size[1]), panels, state, asset_input, Some(panel), &mut out);
+    if expressions::picking::active(panels, Some(panel)) {
+        expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), Some(panel), &[(panel, body)], state, input, &mut out);
+    }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }

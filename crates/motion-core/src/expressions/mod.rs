@@ -3,8 +3,10 @@ mod sampling_tests;
 #[cfg(test)]
 mod invariant_tests;
 mod runtime;
+mod references;
 mod transpile;
 pub use transpile::{expression_source_diagnostic, ExpressionSourceDiagnostic};
+pub use references::expression_reference_source;
 
 use crate::{ensure, Axis, Error, ExpressionTarget, ExpressionValue, Project, Property, PropertyExpression, Result, Track};
 use motion_model::expressions::{active, raw};
@@ -22,13 +24,11 @@ fn error(target: &ExpressionTarget, frame: f64, error: Error) -> Error {
         source: Box::new(error),
     }
 }
-fn evaluate(
+fn prepare(
     project: &Project,
     e: &PropertyExpression,
     frame: f64,
-    deadline: Instant,
-    cancel: Arc<AtomicBool>,
-) -> Result<Vec<f32>> {
+) -> Result<references::Invocation> {
     let track = raw(project, &e.target)?;
     let selected = project.layers.iter().enumerate().find(|(_, l)| l.id == e.target.object());
     let layer = selected.map(|(_, layer)| layer);
@@ -66,12 +66,17 @@ fn evaluate(
     let data=json!({"time":frame/fps,"value":js_value(track.sample(local)?),"index":index,"keys":keys,"seed":seed,
         "comp":{"width":project.width,"height":project.height,"frameRate":project.fps,"frameDuration":1.0/fps,"duration":project.frames as f64/fps},
         "layer":{"name":layer.map_or("Camera",|l|l.name.as_str()),"index":index,"inPoint":clip.map_or(0.0,|c|c.in_frame as f64/fps),"outPoint":clip.map_or(project.frames as f64/fps,|c|c.out_frame as f64/fps),"startTime":offset as f64/fps}}).to_string();
-    evaluate_source(e, frame, &data,
-        move |time| Ok(js_value(track.sample(time * fps - offset as f64)?).to_string()),
-        deadline, cancel)
+    Ok(references::Invocation { data, track, fps, offset: f64::from(offset), percent })
+}
+fn evaluate(
+    project: &Project, e: &PropertyExpression, frame: f64,
+    deadline: Instant, cancel: Arc<AtomicBool>,
+) -> Result<Vec<f32>> {
+    runtime::evaluate_linked(std::rc::Rc::new(references::Session::new(project.clone())), e, frame, deadline, cancel)
 }
 
 /// Keep a native sampling failure even if JavaScript catches the callback exception.
+#[cfg(test)]
 fn evaluate_source(
     e: &PropertyExpression,
     frame: f64,
@@ -104,18 +109,12 @@ fn evaluate_source(
     }
     result.map_err(|err| error(&e.target, frame, err))
 }
-fn write(
-    project: &mut Project,
-    target: &ExpressionTarget,
-    frame: f64,
-    result: &[f32],
-) -> Result<()> {
-    fn scalar(t: &mut Track<f32>, v: &[f32]) -> Result<()> {
+fn scalar(t: &mut Track<f32>, v: &[f32]) -> Result<()> {
         ensure(v.len() == 1, "expression must return a scalar")?;
         *t = Track::constant(v[0]);
         Ok(())
     }
-    fn vec(t: &mut Track<[f32; 3]>, axis: Option<Axis>, f: f64, v: &[f32]) -> Result<()> {
+fn vec(t: &mut Track<[f32; 3]>, axis: Option<Axis>, f: f64, v: &[f32]) -> Result<()> {
         let mut base = t.sample(f)?;
         if let Some(a) = axis {
             ensure(v.len() == 1, "axis expression must return a scalar")?;
@@ -130,6 +129,43 @@ fn write(
         *t = Track::constant(base);
         Ok(())
     }
+fn write_camera(c: &mut crate::Camera, property: Property, axis: Option<Axis>, frame: f64, result: &[f32], frames: Option<u32>) -> Result<()> {
+    match property {
+        Property::Position => vec(&mut c.position, axis, frame, result)?,
+        Property::Target => vec(&mut c.target, axis, frame, result)?,
+        Property::Roll => scalar(&mut c.roll, result)?,
+        Property::Fov => scalar(&mut c.fov, result)?,
+        Property::Radius => scalar(&mut c.radius, result)?,
+        Property::Azimuth => scalar(&mut c.azimuth, result)?,
+        Property::Elevation => scalar(&mut c.elevation, result)?,
+        _ => return Err(Error::Invalid("unsupported camera expression property".into())),
+    }
+    if let Some(frames) = frames { c.validate(frames) } else { c.validate_local() }
+}
+fn write_transform(t: &mut crate::Transform, property: Property, axis: Option<Axis>, frame: f64, result: &[f32]) -> Result<()> {
+    match property {
+        Property::Position => vec(&mut t.position, axis, frame, result)?,
+        Property::Rotation => vec(&mut t.rotation, axis, frame, result)?,
+        Property::Scale => vec(&mut t.scale, axis, frame, result)?,
+        Property::Opacity => {
+            ensure(result.len() == 1, "opacity expression must return a scalar")?;
+            scalar(&mut t.opacity, &[(result[0] / 100.).clamp(0., 1.)])?;
+        }
+        _ => return Err(Error::Invalid("unsupported layer expression property".into())),
+    }
+    t.validate_local()
+}
+fn write_parameter(p: &mut crate::EffectParam, result: &[f32]) -> Result<()> {
+    ensure(result.len() == p.kind.dimensions(), "effect expression has incorrect dimensions")?;
+    ensure(result.iter().all(|v| *v >= p.min && *v <= p.max), "effect expression exceeds parameter range")?;
+    let mut value = [0.; 4];
+    value[..result.len()].copy_from_slice(result);
+    p.track = Track::constant(value);
+    Ok(())
+}
+fn write(
+    project: &mut Project, target: &ExpressionTarget, frame: f64, result: &[f32],
+) -> Result<()> {
     match target {
         ExpressionTarget::Property {
             object,
@@ -145,32 +181,12 @@ fn write(
                         _ => return Err(Error::Invalid("object is not a camera".into())),
                     }
                 };
-                match property {
-                    Property::Position => vec(&mut c.position, *axis, local, result)?,
-                    Property::Target => vec(&mut c.target, *axis, local, result)?,
-                    Property::Roll => scalar(&mut c.roll, result)?,
-                    Property::Fov => scalar(&mut c.fov, result)?,
-                    Property::Radius => scalar(&mut c.radius, result)?,
-                    Property::Azimuth => scalar(&mut c.azimuth, result)?,
-                    Property::Elevation => scalar(&mut c.elevation, result)?,
-                    _ => unreachable!(),
-                }
-                if *object == 0 { c.validate(frames)?; } else { c.validate_local()?; }
+                write_camera(c, *property, *axis, local, result, (*object == 0).then_some(frames))?;
             } else {
                 let l = project.layer_mut(*object)?;
                 let f = l.local_frame(frame);
                 let t = &mut l.transform;
-                match property {
-                    Property::Position => vec(&mut t.position, *axis, f, result)?,
-                    Property::Rotation => vec(&mut t.rotation, *axis, f, result)?,
-                    Property::Scale => vec(&mut t.scale, *axis, f, result)?,
-                    Property::Opacity => {
-                        ensure(result.len() == 1, "opacity expression must return a scalar")?;
-                        scalar(&mut t.opacity, &[(result[0] / 100.0).clamp(0.0, 1.0)])?;
-                    }
-                    _ => unreachable!(),
-                }
-                t.validate_local()?;
+                write_transform(t, *property, *axis, f, result)?;
             }
         }
         ExpressionTarget::Effect {
@@ -187,17 +203,7 @@ fn write(
                 .ok_or_else(|| {
                     Error::Invalid("expression effect parameter does not exist".into())
                 })?;
-            ensure(
-                result.len() == p.kind.dimensions(),
-                "effect expression has incorrect dimensions",
-            )?;
-            ensure(
-                result.iter().all(|v| *v >= p.min && *v <= p.max),
-                "effect expression exceeds parameter range",
-            )?;
-            let mut value = [0.0; 4];
-            value[..result.len()].copy_from_slice(result);
-            p.track = Track::constant(value);
+            write_parameter(p, result)?;
         }
     }
     Ok(())
@@ -228,10 +234,11 @@ impl ProjectExpressions for Project {
             "invalid expression frame",
         )?;
         let deadline = Instant::now() + Duration::from_millis(100);
+        let session = std::rc::Rc::new(references::Session::new(self.clone()));
         let mut evaluated = self.clone();
         for e in &self.expressions {
             if active(self, e) {
-                let result = evaluate(self, e, frame, deadline, cancel.clone())?;
+                let result = runtime::evaluate_linked(session.clone(), e, frame, deadline, cancel.clone())?;
                 write(&mut evaluated, &e.target, frame, &result)
                     .map_err(|err| error(&e.target, frame, err))?;
             }
@@ -276,8 +283,15 @@ pub(crate) fn set(project: &mut Project, expression: PropertyExpression, frame: 
     if expression.enabled {
         runtime::compile(&expression.source)
             .map_err(|err| error(&expression.target, frame as f64, err))?;
+        // The candidate must participate in dependency resolution. Otherwise
+        // replacing B with B -> A would miss the existing A -> B cycle.
+        let mut candidate = project.clone();
+        if let Some(previous) = candidate.expressions.iter_mut().find(|e| e.target == expression.target) {
+            *previous = expression.clone();
+        } else { candidate.expressions.push(expression.clone()); }
+        candidate.validate()?;
         let result = evaluate(
-            project,
+            &candidate,
             &expression,
             frame as f64,
             Instant::now() + Duration::from_millis(100),

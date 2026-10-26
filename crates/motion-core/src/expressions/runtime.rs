@@ -11,14 +11,17 @@ use std::{
         Arc, OnceLock,
     },
     time::{Duration, Instant},
+    rc::Rc,
 };
+mod references;
+pub(super) use references::evaluate_linked;
 
 const MEMORY: usize = 64 * 1024 * 1024;
 const CACHE: usize = 256;
 // Runtime drops before bytecode: QuickJS may reference ROM_DATA until its heap is freed.
 struct JsEngine {
     runtime: Runtime,
-    code: HashMap<String, Vec<u8>>,
+    code: HashMap<String, Rc<Vec<u8>>>,
 }
 impl JsEngine {
     fn new() -> Result<Self> {
@@ -35,6 +38,9 @@ impl JsEngine {
             return Ok(());
         }
         let body = transpile(source)?;
+        // A full cache is still useful on a warm frame. Evict only when this
+        // new source needs a slot, before creating any compilation context.
+        if self.code.len() >= CACHE { *self = Self::new()?; }
         let module_source = format!(
             "export default function(){{\n{}\n{}\n}}",
             include_str!("helpers.js"),
@@ -46,9 +52,10 @@ impl JsEngine {
                 .and_then(|m| m.write(WriteOptions::default()))
                 .map_err(|e| caught(&ctx, e))
         })?;
-        self.code.insert(source.into(), code);
+        self.code.insert(source.into(), Rc::new(code));
         Ok(())
     }
+    #[cfg(test)]
     fn evaluate(
         &mut self,
         source: &str,
@@ -131,21 +138,19 @@ impl JsEngine {
     }
 }
 
+type EvaluationIntrinsics = (
+    intrinsic::RegExp, intrinsic::Json, intrinsic::Proxy, intrinsic::MapSet,
+    intrinsic::TypedArrays, intrinsic::Promise, intrinsic::WeakRef,
+);
 fn evaluation_context(runtime: &Runtime) -> Result<Context> {
     // Omit Eval itself: hiding its global names cannot stop constructor chains.
     // Date and Performance are external clocks. Promise is required internally
     // to evaluate a precompiled module; its user-facing bindings stay hidden.
-    let context = Context::custom::<(
-        intrinsic::RegExp,
-        intrinsic::Json,
-        intrinsic::Proxy,
-        intrinsic::MapSet,
-        intrinsic::TypedArrays,
-        intrinsic::Promise,
-        intrinsic::WeakRef,
-    )>(runtime)
-    .map_err(js_error)?;
-    context.with(|ctx| {
+    let context = Context::custom::<EvaluationIntrinsics>(runtime).map_err(js_error)?;
+    context.with(|ctx| prepare_context(&ctx))?;
+    Ok(context)
+}
+fn prepare_context(ctx: &Ctx<'_>) -> Result<()> {
         let operation = || -> rquickjs::Result<()> {
             // Preserve the existing full context's pure Base64 helpers. rquickjs
             // 0.14 has no intrinsic marker for this public QuickJS initializer.
@@ -169,9 +174,7 @@ fn evaluation_context(runtime: &Runtime) -> Result<Context> {
             }
             Ok(())
         };
-        operation().map_err(|error| caught(&ctx, error))
-    })?;
-    Ok(context)
+        operation().map_err(|error| caught(ctx, error))
 }
 
 fn js_error(e: rquickjs::Error) -> Error {
@@ -195,7 +198,7 @@ fn with_engine<T>(f: impl FnOnce(&mut JsEngine) -> Result<T>) -> Result<T> {
         let mut slot = slot
             .try_borrow_mut()
             .map_err(|_| Error::Invalid("recursive expression evaluation".into()))?;
-        if slot.as_ref().is_none_or(|e| e.code.len() >= CACHE) {
+        if slot.is_none() {
             *slot = Some(JsEngine::new()?);
         }
         let engine = slot.as_mut().ok_or_else(|| {
@@ -216,6 +219,7 @@ fn with_engine<T>(f: impl FnOnce(&mut JsEngine) -> Result<T>) -> Result<T> {
 pub(super) fn compile(source: &str) -> Result<()> {
     with_engine(|e| e.compile(source))
 }
+#[cfg(test)]
 pub(super) fn evaluate(
     source: &str,
     data: &str,

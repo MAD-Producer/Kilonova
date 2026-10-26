@@ -47,8 +47,37 @@ pub(super) struct Editor {
     opened: bool,
     #[cfg(test)]
     pub(super) areas: Option<[Rect; 6]>,
+    #[cfg(test)]
+    pub(super) reference_button: Option<Rect>,
 }
 impl Editor {
+    pub(super) fn reference_target(&self) -> &ExpressionTarget { &self.target }
+    pub(super) fn reference_ready(&self, state: &Value) -> bool { self.current(state) && self.pending.is_none() }
+    pub(super) fn reference_notice(&mut self, locale: Locale, cancelled: bool) {
+        self.opened = true;
+        self.message = Some((if cancelled {
+            words(locale, "引用拾取已取消；草稿保持原样。", "Reference pick cancelled; draft unchanged.")
+        } else {
+            words(locale, "已插入稳定属性引用；检查后再应用。", "Stable property reference inserted; review before applying.")
+        }.into(), false));
+    }
+    pub(super) fn insert_reference(&mut self, source: String, locale: Locale) {
+        if self.baseline.is_none() && self.source.text == "value" { self.source.select_bytes(0, self.source.text.len()); }
+        self.source.input(&Input { text: source, ..Default::default() });
+        if let Some(cause) = self.source.error.clone() {
+            self.reference_error(cause);
+            return;
+        }
+        self.seed_focus = false;
+        self.seed.cancel();
+        self.checked = None;
+        self.diagnostic = None;
+        self.reference_notice(locale, false);
+    }
+    pub(super) fn reference_error(&mut self, cause: String) {
+        self.opened = true;
+        self.message = Some((cause, true));
+    }
     pub(super) fn text_menu(&mut self, request: &mut super::super::text_menu::Request<'_>) {
         if self.seed_focus {
             request.visit(&mut self.seed);
@@ -163,6 +192,8 @@ impl Controls {
             opened: true,
             #[cfg(test)]
             areas: None,
+            #[cfg(test)]
+            reference_button: None,
         });
     }
 
@@ -336,7 +367,7 @@ impl Controls {
         label(
             list,
             atlas,
-            title,
+            Rect::new(title.min[0], title.min[1], (title.width() - sheet.metric("icon.slot", f32::default()) - gap).max(0.), title.height()),
             words(locale, "表达式编辑器", "Expression editor"),
             false,
         );
@@ -549,6 +580,13 @@ impl Controls {
             );
         }
         let busy = editor.pending.is_some();
+        let slot = sheet.metric("icon.slot", f32::default());
+        let reference_button = Rect::new(title.max[0] - slot, title.min[1], slot, title.height());
+        #[cfg(test)]
+        { editor.reference_button = Some(reference_button); }
+        ui::button_icon(list, reference_button, motion_ui::icons::Icon::Link, input, !busy && !editor.snippets.open);
+        let start_reference = !busy && !editor.snippets.open && !input.composing && !input.ime_consumed
+            && input.pressed.is_some_and(|(button, point)| button == MouseButton::Left && reference_button.contains(point));
         if ui::button(
             list,
             atlas,
@@ -622,6 +660,8 @@ impl Controls {
         }
         if cancel_clicked || escape {
             self.expanded = None;
+        } else if start_reference {
+            self.begin_reference_pick(state, reference_button, false);
         }
     }
 }
