@@ -63,11 +63,15 @@ impl State {
     }
 }
 
+#[cfg(test)]
+mod selection_tests;
+
 pub(super) fn selected<'a>(panels: &Panels, state: &'a Value) -> Option<&'a Value> {
+    let object = panels.selected?;
     state["project"]["layers"]
         .as_array()?
         .iter()
-        .find(|l| l["id"].as_u64() == panels.selected)
+        .find(|l| l["id"].as_u64() == Some(object))
 }
 pub(super) fn body_y(
     styles: &motion_ui::style::StyleSheet,

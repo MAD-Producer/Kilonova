@@ -1,0 +1,18 @@
+{
+  "code_head": "805903734e735e028c4fe796c0009baaf99f2100",
+  "baseline": "880739de0f7912b8b1683ce72593fad9035d6d24",
+  "archive": "effect-instance-identity-880739de.zip",
+  "archive_sha256": "c63c5bdb81630050e6107ef9a6b86f2c57fc2382fcddb49de70305b3d847567f",
+  "archive_bytes": 98966,
+  "archive_entries": 32,
+  "baseline_failed": 3,
+  "focused_passed": 3,
+  "panels_passed": 550,
+  "panels_ignored": 1,
+  "paint_comparisons": 16,
+  "fault_error_records": 3,
+  "default_info_verified": true,
+  "source_unchanged": true,
+  "binary_sha256": "4ea916ecbc90272a6a99095213e4f6a3e75c629f806b0ecdb828cd1fda6c894d",
+  "current_main_combination": "Not claimed by this frozen 880739de evidence; follow the final PR head checks and subsequent native integration receipt."
+}
