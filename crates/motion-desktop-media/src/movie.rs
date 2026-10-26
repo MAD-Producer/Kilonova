@@ -19,6 +19,7 @@ use std::{
 };
 
 pub mod frame;
+pub mod durable;
 mod allocation_observation;
 
 #[cfg(test)]

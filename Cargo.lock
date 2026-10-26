@@ -2081,6 +2081,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "wgpu",
 ]
