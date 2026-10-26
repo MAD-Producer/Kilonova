@@ -35,6 +35,60 @@ fn fixture(fused: bool) -> (PlanBuilder, Scene) {
 }
 
 #[test]
+fn admitted_semantic_graph_lowers_after_native_drafts_and_compiler_tables_are_released() {
+    let (mut builder, scene) = fixture(false);
+    let expected = serde_json::to_value(builder.effect_execution().unwrap().plan()).unwrap();
+    let expected_bindings =
+        serde_json::to_value(builder.effect_execution().unwrap().bindings()).unwrap();
+    let annotations = NativeAnnotations::admit(
+        builder.semantic_frame.as_ref().unwrap(),
+        &builder.frame,
+        &builder.pass_clocks,
+        &builder.programs,
+        &scene,
+        &mut builder.code_identities,
+    )
+    .unwrap();
+    let semantic = builder.semantic_frame.take().unwrap();
+    builder.frame = EffectFramePlan::default();
+    builder.pass_clocks.clear();
+    builder.programs.clear();
+    drop(scene);
+    let actual = lower(
+        &semantic,
+        annotations,
+        &[],
+        builder.device_dimension,
+        #[cfg(all(debug_assertions, feature = "gpu-tests"))]
+        None,
+    )
+    .unwrap();
+    assert_eq!(serde_json::to_value(actual.plan()).unwrap(), expected);
+    assert_eq!(
+        serde_json::to_value(actual.bindings()).unwrap(),
+        expected_bindings
+    );
+    assert_eq!(actual.native_tasks().len(), 2);
+    assert_eq!(actual.pass_order[0], (0..7).collect::<Vec<_>>());
+}
+
+#[test]
+fn native_matte_drift_cannot_redefine_the_prepared_semantic_dependencies() {
+    let (mut builder, scene) = fixture(false);
+    let hashes = builder.execution_code_cache_info().hashes;
+    builder.frame.compositing[0].matte = 0;
+    let error = builder.lower_effect_execution(&scene, &[]).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("native matte changed the semantic layer dependency"));
+    assert_eq!(builder.execution_code_cache_info().hashes, hashes);
+    assert!(builder.effect_execution().is_none());
+    builder.frame.compositing[0].matte = -1;
+    builder.lower_effect_execution(&scene, &[]).unwrap();
+    assert!(builder.effect_execution().is_some());
+}
+
+#[test]
 fn effect_ir_owns_individual_operations_and_lowered_tasks_consume_checked_order() {
     for fused in [false, true] {
         let (builder, _) = fixture(fused);
@@ -261,13 +315,11 @@ fn virtual_source_views_do_not_inherit_physical_texture_limits() {
     let source = &builder.effect_execution().unwrap().plan().nodes[0];
     assert_eq!(source.output_type.rect.size, [32768; 2]);
     assert_eq!(source.cost.passes, 0);
-    assert!(
-        builder
-            .frame
-            .scratch_allocations
-            .iter()
-            .all(|a| a.width <= 64 && a.height <= 64)
-    );
+    assert!(builder
+        .frame
+        .scratch_allocations
+        .iter()
+        .all(|a| a.width <= 64 && a.height <= 64));
     // A genuinely materialized image still obeys the physical device bound.
     let mut large = scene.clone();
     large.layers[1].source_rect = [0., 0., 128., 128.];

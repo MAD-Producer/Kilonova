@@ -1,12 +1,12 @@
-//! First native execution-IR consumer: atomic effected-layer snapshots.
-//! Passes within a draw keep their existing scratch owner and allocation plan.
-//! The checked typed graph, rather than recursive traversal, orders snapshots.
-use super::{EffectFramePlan, EffectProgram, MAX_SCRATCH_PASSES, PlanBuilder};
+//! Diagnostic atomic snapshot receipts for public native drafts.
+//! Runtime snapshots are ordered by the independently owned effect execution IR.
+//! The adapter prepares a graph; lowering consumes only that owned graph.
+use super::{EffectFramePlan, EffectProgram, PlanBuilder, MAX_SCRATCH_PASSES};
 use crate::{RenderError, Scene};
 use motion_effects::{
-    AlphaMode, WorkingSpace,
     execution_plan::*,
     image_contract::{ImageContract, ImageMeaning},
+    AlphaMode, WorkingSpace,
 };
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -86,14 +86,12 @@ impl PlanBuilder {
         capabilities: &BTreeSet<ExecutionCapability>,
         limits: ExecutionLimits,
     ) -> Result<SnapshotExecution, RenderError> {
-        lower(
-            &self.frame,
-            &self.programs,
-            &scene.composition_id,
-            targets,
-            capabilities,
-            limits,
-        )
+        let Some(plan) =
+            prepare_snapshot_graph(&self.frame, &self.programs, &scene.composition_id, targets)?
+        else {
+            return Ok(SnapshotExecution::default());
+        };
+        lower(plan, capabilities, limits)
     }
 }
 
@@ -111,16 +109,14 @@ fn needs_snapshots(frame: &EffectFramePlan, targets: &[u64]) -> bool {
         || frame.compositing.iter().any(|c| c.matte >= 0)
 }
 
-fn lower(
+fn prepare_snapshot_graph(
     frame: &EffectFramePlan,
     programs: &[EffectProgram],
     composition: &str,
     targets: &[u64],
-    capabilities: &BTreeSet<ExecutionCapability>,
-    limits: ExecutionLimits,
-) -> Result<SnapshotExecution, RenderError> {
+) -> Result<Option<ExecutionPlan>, RenderError> {
     if !needs_snapshots(frame, targets) {
-        return Ok(SnapshotExecution::default());
+        return Ok(None);
     }
     let context: String = composition.chars().take(128).collect();
     if frame.draws.len() > motion_model::MAX_LAYERS || frame.passes.len() > MAX_SCRATCH_PASSES {
@@ -273,11 +269,29 @@ fn lower(
         // consumers are separate from inter-snapshot edges and composition.
         outputs: roots.into_iter().map(|i| ImageValueId(i as u32)).collect(),
     };
+    Ok(Some(plan))
+}
+
+fn lower(
+    plan: ExecutionPlan,
+    capabilities: &BTreeSet<ExecutionCapability>,
+    limits: ExecutionLimits,
+) -> Result<SnapshotExecution, RenderError> {
+    let context = plan
+        .nodes
+        .first()
+        .map(|node| node.origin.composition.as_str())
+        .unwrap_or("");
     let checked = plan.check(capabilities, limits).map_err(|error| {
         let layers: Vec<_> = match &error {
             ExecutionPlanError::Cycle { members, .. } => members
                 .iter()
-                .filter_map(|id| frame.draws.get(id.0 as usize).map(|draw| draw.layer))
+                .filter_map(|id| {
+                    plan.nodes
+                        .iter()
+                        .find(|node| node.id == *id)
+                        .map(|node| node.origin.layer)
+                })
                 .collect(),
             _ => vec![],
         };

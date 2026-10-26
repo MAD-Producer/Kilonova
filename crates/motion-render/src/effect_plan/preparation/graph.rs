@@ -16,6 +16,7 @@ pub(in crate::effect_plan) struct SemanticFrame {
 pub(in crate::effect_plan) struct SemanticLayer {
     pub source: usize,
     pub source_size: [f32; 2],
+    pub matte: Option<usize>,
     pub mask: Option<usize>,
     pub effects: Vec<usize>,
     pub materialize: Option<usize>,
@@ -119,6 +120,18 @@ impl PreparationPlan {
             });
             graph.layers.push(SemanticLayer {
                 source: draw,
+                matte: layer
+                    .track_matte
+                    .map(|matte| {
+                        scene
+                            .layers
+                            .iter()
+                            .position(|l| l.id == matte.source)
+                            .ok_or_else(|| {
+                                RenderError::Invalid("semantic matte source is absent".into())
+                            })
+                    })
+                    .transpose()?,
                 source_size: if layer.adjustment {
                     [composition[2], composition[3]]
                 } else {
@@ -327,6 +340,11 @@ impl SemanticFrame {
         for (draw, layer) in self.layers.iter().enumerate() {
             if frame.draws[draw].layer != self.nodes[layer.source].layer {
                 return Err("native draw changed the semantic layer origin".into());
+            }
+            if frame.compositing.get(draw).map(|c| c.matte)
+                != Some(layer.matte.map_or(-1, |index| index as i32))
+            {
+                return Err("native matte changed the semantic layer dependency".into());
             }
             if frame.draws[draw].pass_start != covered {
                 return Err("semantic draw range is not contiguous".into());

@@ -679,7 +679,13 @@ impl PlanBuilder {
         self.frame.passes = passes;
         self.pass_clocks = clocks;
         if let Some(execution) = &mut self.effect_execution {
-            execution.lower_tasks(&mapping, &self.frame.draws)?;
+            let ranges: Vec<_> = self
+                .frame
+                .draws
+                .iter()
+                .map(|d| d.pass_start..d.pass_end)
+                .collect();
+            execution.lower_tasks(&mapping, &ranges)?;
         }
         self.fusion.report = report;
         Ok(())

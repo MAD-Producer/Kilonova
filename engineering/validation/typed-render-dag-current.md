@@ -1209,3 +1209,34 @@ source regression, maintained-desktop CI and issue closure remain pending.
 No UI, panel, runtime feature, dependency or Android change is included.
 
 Evidence: [verified cost archive](data/typed-render-dag-costs-74940bff.zip), SHA-256 `7c6923f629a79e08ce582192ccd11fd9202f3effc559b460a458ab82a1173ad5`; 2,662,213 bytes, 552 payload files plus manifest, every entry read back and hashed.
+
+
+### C1: owned logical lowering, native drafts confined to admission
+
+The runtime effect lowerer consumes the pre-raster semantic graph plus owned
+native admission annotations. Its signature has no EffectFramePlan, scene,
+pass/uniform table, clock table or compiler. Native annotations bind actual
+code identities, resource imports, costs and admitted pass ranges to producers
+already owned by the semantic graph. Primary and sampled-layer dependencies
+come from that graph; matte ownership is captured before rasterization and
+native matte drift is rejected before code hashing. Task mapping uses owned
+draw ranges. The public snapshot diagnostic adapter still accepts a native
+draft to diagnose public-draft mutations; its lowerer consumes an owned graph
+and is not the authoritative runtime dependency source.
+
+The new regression releases the native drafts, scene and compiler tables after
+admission, then actually lowers the retained semantic graph and compares the
+complete serialized plan and bindings against the admitted original. A second
+regression proves native matte drift cannot redefine semantic dependencies and
+verifies recovery after restoring it. Existing assertions and tolerances are
+unchanged. Source-frozen Windows runs passed 267 render library tests and 16
+native integration tests (snapshot execution, runtime templates, pointwise
+fusion, independent group invalidation and extreme alpha), zero failures or
+ignores. Two existing non-test-library dead-code warnings are retained.
+
+This evidence closes C1's lowerer dependency, not C3, the five independent
+fusion proof obligations, the Linux Float16 frame-import failure, or G. The
+244a7b39 baseline full-workspace run cannot accept these changed sources.
+No panel, UI, dependency or Android changes are included.
+
+Evidence: [C1 source and raw acceptance receipts](data/typed-render-dag-c1-244a7b39.zip), SHA-256 `5ad3f71be97b1b25f1795a97519d46ac51e6c8bc9fcb43014233fab4b5812870`; 278,989 bytes, 34 payload files, all archive entries read back and hashed.

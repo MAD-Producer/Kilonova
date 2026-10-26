@@ -9,6 +9,9 @@ use std::{
     sync::Weak,
 };
 
+mod admission;
+use admission::NativeAnnotations;
+
 const MAX_CODE_IDENTITIES: usize = 1024;
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
@@ -184,7 +187,7 @@ impl EffectExecution {
     pub(super) fn lower_tasks(
         &mut self,
         mapping: &[Range<usize>],
-        draws: &[PlannedDraw],
+        draws: &[Range<usize>],
     ) -> Result<(), RenderError> {
         let mut tasks: Vec<EffectNativeTask> = Vec::new();
         let mut owners = vec![None; self.bindings.len()];
@@ -198,10 +201,7 @@ impl EffectExecution {
             let range = ranges.first().ok_or("effect IR task is empty")?.start
                 ..ranges.last().ok_or("effect IR task is empty")?.end;
             let draw = &draws[binding.draw];
-            if range.start >= range.end
-                || range.start < draw.pass_start
-                || range.end > draw.pass_end
-            {
+            if range.start >= range.end || range.start < draw.start || range.end > draw.end {
                 return Err("effect IR task escapes its atomic draw".into());
             }
             let owner = if tasks
@@ -224,7 +224,7 @@ impl EffectExecution {
             owners[binding.node.0 as usize] = Some(owner);
         }
         let mut remaining: Vec<_> = tasks.iter().map(|t| t.members.len()).collect();
-        let mut cursors: Vec<_> = draws.iter().map(|d| d.pass_start).collect();
+        let mut cursors: Vec<_> = draws.iter().map(|d| d.start).collect();
         let mut order = vec![Vec::new(); draws.len()];
         for id in self.checked.order() {
             let Some(task) = owners[id.0 as usize] else {
@@ -246,7 +246,7 @@ impl EffectExecution {
         if cursors
             .iter()
             .zip(draws)
-            .any(|(&end, draw)| end != draw.pass_end)
+            .any(|(&end, draw)| end != draw.end)
         {
             return Err("effect IR native task coverage is incomplete".into());
         }
@@ -304,16 +304,22 @@ impl PlanBuilder {
             .take(128)
             .collect();
         let result = scratch::logical_graph(&self.frame, None).and_then(|_| {
-            lower(
+            let semantic = self
+                .semantic_frame
+                .as_ref()
+                .ok_or("semantic frame is absent before native lowering")?;
+            let annotations = NativeAnnotations::admit(
+                semantic,
                 &self.frame,
                 &self.pass_clocks,
                 &self.programs,
                 scene,
-                targets,
-                self.semantic_frame
-                    .as_ref()
-                    .ok_or("semantic frame is absent before native lowering")?,
                 &mut self.code_identities,
+            )?;
+            lower(
+                semantic,
+                annotations,
+                targets,
                 self.device_dimension,
                 #[cfg(all(debug_assertions, feature = "gpu-tests"))]
                 self.execution_fault.take(),
@@ -328,103 +334,24 @@ impl PlanBuilder {
 }
 
 fn lower(
-    frame: &EffectFramePlan,
-    clocks: &[Option<usize>],
-    programs: &[EffectProgram],
-    scene: &Scene,
-    targets: &[u64],
     semantic: &preparation::SemanticFrame,
-    codes: &mut CodeIdentities,
+    annotations: NativeAnnotations,
+    targets: &[u64],
     dimension: u32,
     #[cfg(all(debug_assertions, feature = "gpu-tests"))] fault: Option<
         super::ExecutionDiagnosticFault,
     >,
 ) -> Result<EffectExecution, RenderError> {
-    if frame.draws.len() > motion_model::MAX_LAYERS
-        || scene.effects.len() > motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER
-        || frame.draws.len() != scene.layers.len()
-        || clocks.len() != frame.passes.len()
-    {
-        return Err("effect IR draft origins do not match the scene".into());
-    }
-    if scene.composition_id.is_empty()
-        || scene.composition_id.len() > 128
-        || scene.composition_id.trim().is_empty()
-        || scene.composition_id.chars().any(char::is_control)
-    {
-        return Err(RenderError::ExecutionPlan(
-            ExecutionPlanError::InvalidOrigin {
-                node: ExecutionNodeId(0),
-            },
-        ));
-    }
-    semantic.validate(frame, clocks)?;
-    if semantic.composition != scene.composition_id
-        || semantic.nodes.iter().any(|node| {
-            scene.layers[node.draw].id != node.layer
-                || node.effect.is_some_and(|i| {
-                    scene
-                        .effects
-                        .get(i)
-                        .is_none_or(|e| e.layer != node.layer || Some(e.instance) != node.instance)
-                })
-        })
-    {
-        return Err("sampled scene changed the owned semantic operation origins".into());
-    }
-    let mut bindings = Vec::new();
-    let mut types = Vec::new();
-    let mut mapping = vec![None; semantic.nodes.len()];
-    let mut semantic_origins = Vec::new();
-    let mut effects = vec![None; scene.effects.len()];
-    // Sources and operations come from the pre-raster semantic graph. Native
-    // ranges only refine the admitted texel grid and verify the physical work.
-    for (node, value) in semantic.nodes.iter().enumerate() {
-        let admission = value
-            .admission
-            .as_ref()
-            .ok_or("semantic operation is pending")?;
-        if admission.alias {
-            continue;
-        }
-        let id = bindings.len();
-        let passes = if value.input.is_none() {
-            frame.draws[value.draw].pass_start..frame.draws[value.draw].pass_start
-        } else {
-            admission.passes.clone()
-        };
-        let mut binding = EffectOperationBinding {
-            node: ExecutionNodeId(id as u32),
-            draw: value.draw,
-            scene_effect: value.effect,
-            original_passes: passes.clone(),
-            output_region: admission.region,
-            resource_tokens: vec![],
-            lookup_tables: vec![],
-            instance_data: vec![],
-            imported_image: None,
-        };
-        for pass in &frame.passes[passes] {
-            for (value, values, absent) in [
-                (pass.resource_input, &mut binding.resource_tokens, 0),
-                (pass.lut, &mut binding.lookup_tables, -1),
-            ] {
-                if value != absent && !values.contains(&value) {
-                    values.push(value);
-                }
-            }
-            if pass.instance_data != 0 && !binding.instance_data.contains(&pass.instance_data) {
-                binding.instance_data.push(pass.instance_data);
-            }
-        }
-        types.push(semantic.value_type(node)?);
-        mapping[node] = Some(id);
-        semantic_origins.push(node);
-        if let Some(index) = value.effect {
-            effects[index] = Some(id);
-        }
-        bindings.push(binding);
-    }
+    let NativeAnnotations {
+        mut nodes,
+        bindings,
+        semantic_origins,
+        mapping,
+        effects,
+        draw_ranges,
+        pass_count,
+    } = annotations;
+    let types: Vec<_> = nodes.iter().map(|node| node.output_type).collect();
     let compact = |node| -> Result<usize, RenderError> {
         mapping[semantic.resolved(node)?].ok_or_else(|| "semantic producer was not lowered".into())
     };
@@ -440,11 +367,10 @@ fn lower(
     if bindings.len() > MAX_EXECUTION_NODES {
         return Err("effect IR node budget exceeded".into());
     }
-    let mut dependencies = vec![Vec::new(); frame.draws.len()];
+    let mut dependencies = vec![Vec::new(); draw_ranges.len()];
     let mut roots = BTreeSet::new();
-    let mut externally_read = vec![false; frame.draws.len()];
-    let mut nodes = Vec::with_capacity(bindings.len());
-    for (id, binding) in bindings.iter().enumerate() {
+    let mut externally_read = vec![false; draw_ranges.len()];
+    for (id, binding) in bindings.iter().take(semantic_origins.len()).enumerate() {
         let mut inputs = Vec::new();
         if let Some(source) = primary[id] {
             for role in [ImagePortRole::Primary, ImagePortRole::OriginalSource] {
@@ -456,33 +382,13 @@ fn lower(
             }
         }
         let mut resource_values = Vec::new();
-        let mut code = Sha256::new();
-        code.update(b"motion-effect-operation-v1");
-        let mut shader_bytes = 0_u64;
-        let mut loops = 0_u64;
-        for pass in &frame.passes[binding.original_passes.clone()] {
-            let program = programs.get(pass.program as usize).ok_or_else(|| {
-                RenderError::Invalid(format!(
-                    "layer={} phase=effect_ir: absent program={}",
-                    scene.layers[binding.draw].id, pass.program
-                ))
-            })?;
-            let identity = codes.get(pass.program, program);
-            code.update(identity.digest);
-            shader_bytes = shader_bytes
-                .checked_add(identity.text_bytes)
-                .ok_or("effect IR shader cost overflow")?;
-            loops = loops
-                .checked_add(identity.loop_work)
-                .ok_or("effect IR loop cost overflow")?;
-        }
         // The sampled typed selector owns raw/effected identity. Uniform token
         // encoding is a backend detail and cannot redefine dependency edges.
         if let preparation::PreparedImage::Layer { draw, stage, .. } =
             semantic.nodes[semantic_origins[id]].image
         {
             let source = if stage == motion_model::EffectImageStage::Effects {
-                if frame.draws[draw].pass_start == frame.draws[draw].pass_end {
+                if draw_ranges[draw].is_empty() {
                     return Err("effect IR effected image input is not materialized".into());
                 }
                 externally_read[draw] = true;
@@ -505,65 +411,22 @@ fn lower(
                 expected: types[source],
             });
         }
-        let effect = binding.scene_effect.map(|i| &scene.effects[i]);
-        nodes.push(ExecutionNode {
-            id: binding.node,
-            origin: OperationOrigin {
-                composition: semantic.composition.clone(),
-                layer: semantic.nodes[semantic_origins[id]].layer,
-                effect: semantic.nodes[semantic_origins[id]].instance,
-            },
-            inputs,
-            output: ImageValueId(id as u32),
-            output_type: types[id],
-            semantics: OperationSemantics {
-                domain: if binding.original_passes.is_empty() {
-                    ExecutionDomain::Source
-                } else if effect.is_some_and(|e| e.scene.is_some()) {
-                    ExecutionDomain::External
-                } else if effect.is_some() {
-                    ExecutionDomain::Image
-                } else {
-                    ExecutionDomain::Materialization
-                },
-                time: TimeDependency::CurrentSample,
-                halo: None,
-                stateful: false,
-                side_effects: false,
-            },
-            cost: OperationCost {
-                shader_bytes,
-                static_loop_work: loops,
-                samples_per_fragment: None,
-                passes: binding.original_passes.len() as u32,
-            },
-            code_identity: code.finalize().into(),
-            uniform_cells: motion_effects::MAX_PARAMS as u16,
-        });
+        // Native import edges have already passed their own admission. The
+        // primary and sampled-layer edges are owned only by the semantic frame.
+        inputs.append(&mut nodes[id].inputs);
+        nodes[id].inputs = inputs;
     }
-    super::resource_imports::lower_package_images(
-        &mut nodes,
-        &mut bindings,
-        frame,
-        programs,
-        scene,
-    )?;
-    super::frame_imports::lower_frame_images(&mut nodes, &mut bindings, frame, programs, scene)?;
-    for c in &frame.compositing {
-        if c.matte >= 0 {
-            let draw = c.matte as usize;
-            if draw >= frame.draws.len() {
-                return Err("effect IR matte draw is absent".into());
-            }
+    for layer in &semantic.layers {
+        if let Some(draw) = layer.matte {
             roots.insert(draw);
             externally_read[draw] = true;
         }
     }
     for target in targets {
-        let draw = frame
-            .draws
+        let draw = semantic
+            .layers
             .iter()
-            .position(|d| d.layer == *target)
+            .position(|layer| semantic.nodes[layer.source].layer == *target)
             .ok_or("effect IR receiver is absent")?;
         roots.insert(draw);
     }
@@ -574,7 +437,7 @@ fn lower(
         outputs: finals
             .iter()
             .enumerate()
-            .filter(|(i, _)| frame.draws[*i].pass_start < frame.draws[*i].pass_end)
+            .filter(|(i, _)| !draw_ranges[*i].is_empty())
             .map(|(_, &id)| ImageValueId(id as u32))
             .collect(),
     };
@@ -612,13 +475,13 @@ fn lower(
             }
         }
     }
-    let mut selected = vec![false; frame.draws.len()];
+    let mut selected = vec![false; draw_ranges.len()];
     let mut pending: Vec<_> = roots.into_iter().collect();
     while let Some(draw) = pending.pop() {
         if selected[draw] {
             continue;
         }
-        if frame.draws[draw].pass_start == frame.draws[draw].pass_end {
+        if draw_ranges[draw].is_empty() {
             return Err("effect IR snapshot has no native output".into());
         }
         selected[draw] = true;
@@ -644,8 +507,8 @@ fn lower(
         tasks: vec![],
         pass_order: vec![],
     };
-    let mapping: Vec<_> = (0..frame.passes.len()).map(|i| i..i + 1).collect();
-    execution.lower_tasks(&mapping, &frame.draws)?;
+    let mapping: Vec<_> = (0..pass_count).map(|i| i..i + 1).collect();
+    execution.lower_tasks(&mapping, &draw_ranges)?;
     Ok(execution)
 }
 
