@@ -60,6 +60,7 @@ cargo test -p motion-desktop --features ffmpeg --bin motion-studio native_key_dr
 5. 原生 GPU 首轮八格绘制、编辑、保存和撤销都完成；第二进程读取证据 JSON 时，宽化 f32 的十进制经 f64 JSON 解析出现末位差异。重开比较改为完整 `Project` 类型的精确相等，不引入容差或字段投影；原始失败目录保留。
 6. 外部 OS 输入的窗口焦点失败、位置变化、意外退出和关闭超时均保留；没有据此重试生产命令或将它们计为交互通过。
 7. 首轮远端 Linux 桌面测试 1050 过／1 失败：`default_binding_reference_matches_live_resolver` 发现四个新增 Alt 方向键绑定未同步到默认键位参考表。按 `CONTRIBUTING.md` 使用真实解析器重新生成目录，保留完整 CI 失败日志，未改解析器或测试断言；本地重新生成及关闭更新开关后的精确核对均通过。后续 CI 仍须验证新提交。
+8. 第二轮 run `40204941132` 的 Rust/GPU、Linux、macOS Intel 已通过；Windows 1087 过／1 失败，新增的 `screenshot_write_failure_restores_minimum_surface_and_preserves_project` 未走到写文件便返回 F9 无改动。真实原因是旧截图夹具没有 `document_generation`，被既有关键帧来源校验正确拒绝；夹具还未支持新的 `EditorAction`。补齐完整身份，检查来源后执行同一原子命令，不改产品校验和原测试断言。修正后本地真实 Windows/GPU 测试通过，保留原始 `Access is denied. (os error 5)`、900×600 表面恢复、完整工程／修订／历史不变及默认日志双信道验证。首轮本地编译因另一项正在运行的面板回归占用测试 exe，发生 LNK1104；等该进程结束后重新编译通过，没有终止测试或生产线程。原 CI、链接失败和最终成功原件见 [CI 后续证据](keyframe-dragging-ci-followup.zip)。最新远端提交仍须单独验证。
 
 ## DESIGN.md §0.7／§12 的处置
 
