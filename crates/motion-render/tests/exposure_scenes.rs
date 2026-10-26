@@ -160,7 +160,7 @@ fn receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_un
         .upsert(20, camera_end, Ease::Linear)
         .unwrap();
     p.layers = vec![receiver, unblurred, source, matte, parent];
-    p.expressions.push(motion_model::PropertyExpression {
+    let expression = motion_model::PropertyExpression {
         target: motion_model::ExpressionTarget::Property {
             object: 10,
             property: motion_model::Property::Position,
@@ -170,10 +170,21 @@ fn receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_un
         enabled: true,
         seed: 0,
         profile: motion_model::EXPRESSION_PROFILE.into(),
-    });
+    };
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
-    let p = Arc::new(p);
+    // Author through the production command: it compiles before opening the
+    // frame deadline. Directly appending JSON made this scene-timing fixture
+    // charge first-use compilation to its first sampled frame on busy runners.
+    let mut engine = motion_core::Engine::new(p).unwrap();
+    engine
+        .apply(motion_core::Command::SetExpression {
+            expression: expression.clone(),
+            frame: 10,
+        })
+        .unwrap();
+    let p = Arc::new(engine.snapshot());
+    assert_eq!(p.expressions, [expression]);
     let mut task = exposure(
         p.clone(),
         MAIN_COMPOSITION,

@@ -8,7 +8,7 @@
 
 ## 需求与证据
 
-已同步主线 `da2fd4af`；生产实现提交为 `c75d06a9`。最终结果见 [结果 JSON](text-style-editing-results.json)，原始日志、23 张原生截图、独立进程回复、PNG／MP4 和重现脚本见 [证据包](text-style-editing-evidence.zip)（SHA-256：`84bb56a9eecdd315142051297edf62117178c9f5b4301b228f77d465435264a1`）。包内保留首轮失败，不含字体二进制和效果包。
+已同步主线 `da2fd4af`；生产实现提交为 `c75d06a9`。最终结果见 [结果 JSON](text-style-editing-results.json)，原始日志、23 张原生截图、独立进程回复、PNG／MP4 和重现脚本见 [证据包](text-style-editing-evidence.zip)（SHA-256：`df731efe8581d19a2c786798735a005166262a2df7b0edeacf2bf8ce49663ed0`）。包内保留首轮失败，不含字体二进制和效果包。
 
 最终模型／核心 85 组共 461 项通过，媒体像素 4 项、桌面文字 6 项、辅助面板 4 项通过；原生夹具先通过 20 图版本，再通过增加中文完整样式后的 23 图版本。默认错误信道在独立进程核验 3 条真实失败的文件／stderr／stdout 边界。以上均没有失败。
 
@@ -63,6 +63,16 @@ cargo build -p motion-desktop --bin motion-studio --features ffmpeg
 原生第一轮只改逻辑尺寸，实际 surface 尺寸未变化；第二、三轮发现没有等待首次异步图片解码就断言呈现完成。夹具现在调用真实 resize／Present，正常 pending 有界轮询，Err 和 renderError 立即失败，保留实际文字像素和物理输出尺寸断言。截图检查还发现失败后成功时旧状态仍显示错误，修正为显示最新成功结果，原始失败日志保留。
 
 本机既有 Epic Vulkan overlay JSON 缺失、字体库扫描和物理内存探测日志原样保留，没有通过过滤这些日志制造通过。
+
+## 首次 PR CI 的曝光场景失败
+
+run `40338183964` 的 Rust/GPU job `121625294774` 在既有 `receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_unblurred_time` 测试失败；原因为 frame `9.333333333333334` 的 `value + time` 返回 `expression cancelled or execution budget exceeded`。失败发生在曝光场景，不将其他已通过测试作为该项通过。原日志保存在证据包中。
+
+该夹具直接追加表达式 JSON，绕过了实际 `SetExpression` 命令在帧期限开始前编译源码的步骤。现改为通过真实命令创作同一表达式，再取不可变快照；新增表达式内容相等断言，全部原曝光、父级、摄影机、蒙版、效果输入和时钟断言保留，逐采样帧仍使用生产 `ExpressionEvaluator`。没有增加运行时预算、容错重试或跳过测试。首次失败信息不能单独区分 20ms 执行期限和 100ms 整帧期限；冷编译与执行期限的耦合是从夹具调用路径得到的判断，修正没有冒称修复所有运行环境调度暂停。
+
+修正前、后分别执行完整曝光场景回归，均为 8 项通过；两份记录分开保留，前者不作为修正后的证明。新提交 CI 仍需重新验证。
+
+同时对独立进程重开的中文 PNG 二次比较全部 RGBA 字节，结果完全相同；证据脚本改为直接比较字节，避免 Pillow 的默认 alpha 边界判定遗漏 RGB 差异。
 
 ## DESIGN §0.7 逐项处置
 

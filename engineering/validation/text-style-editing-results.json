@@ -53,6 +53,18 @@
       "failed": 0,
       "log": "text-style-native-cjk-final.log",
       "sha256": "2394f3b60f005d98ef6f79727b3bbf861840c440daa4d4c2652031f14c85385a"
+    },
+    "exposure_scenes_final": {
+      "passed": 8,
+      "failed": 0,
+      "log": "text-style-exposure-scenes-final.log",
+      "sha256": "502de02945228af047e8533a0a797cb2e2fafd2d4d22ff5d76291689eb337c5f"
+    },
+    "exposure_scenes_authored": {
+      "passed": 8,
+      "failed": 0,
+      "log": "text-style-exposure-scenes-authored.log",
+      "sha256": "488be1e550299fe32d3c54e5be1aa09238e0d30655e67501484740c287cfcd3d"
     }
   },
   "native": {
@@ -348,7 +360,8 @@
       "stroke_width": 1.5,
       "tracking": 3.0,
       "width": 420
-    }
+    },
+    "cjk_reopen_comparison": "all RGBA bytes"
   },
   "limitations": [
     "LTR glyph layout without complex shaping",
@@ -356,6 +369,14 @@
     "serial engine worker stops playback for layout; no claim of continuous preview while laying out",
     "no foreground OS IME or macOS/Linux native manual input proof"
   ],
+  "initial_ci": {
+    "run": 40338183964,
+    "job": 121625294774,
+    "conclusion": "failure",
+    "cause": "exposure_scenes fixture expression execution budget exceeded",
+    "original_log": "text-style-ci-rust-gpu-failed.log",
+    "new_ci_pending": true
+  },
   "selected_screenshots": [
     "zh-styled-character.png",
     "zh-styled-paragraph.png",
