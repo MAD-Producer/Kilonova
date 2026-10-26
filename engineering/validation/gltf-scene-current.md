@@ -119,18 +119,94 @@ glTF archive above remains a historical checkpoint, not current-runtime proof.
 The final OBJ rerun also includes explicit refusal of overflowing sRGB emissive
 conversion; a finite authored number cannot introduce infinity into the scene.
 
-Not delivered by this addition: desktop import/project asset registration,
-GPU texture decode/material rendering, PBR mapping policy, freeform geometry,
+At this CPU ingestion checkpoint the following were not delivered (the later
+native milestone below supersedes its GPU portion): desktop import/project asset
+registration, GPU texture decode/material rendering, PBR mapping policy, freeform geometry,
 reflection/spectral MTL, external PBR extensions, animated deformation or mixed
 depth. OBJ parsing is not complete #87 acceptance. No UI/panel/Android change
 or old-project compatibility layer is added.
+
+## Native static material and depth consumer
+
+The new `motion-render::scene_gpu` consumer uploads immutable scenes using the
+renderer's existing admission owner, queued-upload retirement and allocated
+encoder/submission paths. It decodes bounded PNG/JPEG images, generates complete
+linear-light mip chains, and keeps 16-bit inputs in filterable Float32 storage.
+Enabled-device capability refusal is explicit. Core glTF metallic-roughness and
+classic MTL illumination 0/1/2 remain separate material models; unsupported
+reflection/refraction, halo and displacement requirements are not silently lost.
+See the native API contract for exact units, limits, filtering and exclusions.
+
+Actual rasterization uses inverse-transpose normals, authored or UV-derived
+signed tangent frames, native depth, opaque/mask/blend handling, stable primitive
+alpha sorting, mirrored winding, immutable frame uniforms and explicit 1x/4x
+sampling. All four working precisions render without an 8-bit intermediate;
+floating outputs retain directly lit HDR values. This consumer does not alter
+the existing 2D BSP compositor or establish shared mesh/plane depth ownership.
+
+The first normal-map pixel control exposed a reversed UV-derived tangent frame.
+Explicitly inverting the signed UV Jacobian corrected both ordinary and mirrored
+world cases without changing their lighting oracle. A new tiny decode allowance
+control also exposed an invalid reuse of the image decoder's four-byte budget
+validator after dividing by twelve; scene decode admission now checks its actual
+48-byte-per-pixel transient estimate directly and preserves typed budget refusal.
+Finite non-affine worlds and singular camera projections are refused explicitly.
+
+| Frozen gate | Actual result |
+| --- | --- |
+| Explicit new-file formatting | Pass |
+| Clippy | Exit 0; zero warnings in the new scene files and changed native allocation API; existing dependency/crate warnings remain in raw output |
+| Original CPU glTF/OBJ/freeze suite | 45 passed, zero failed/ignored, five targets |
+| New actual native GPU controls | 15 passed, zero failed/ignored |
+| Existing allocation, retirement, raw capture, formats, layer compositing and masks | 31 passed, zero failed/ignored, seven targets |
+| Full new scene controls on software Vulkan | 15 passed, zero failed/ignored |
+| Default-level standalone logger probe | Info starts before preparation/pipeline entry, Error file and stderr, empty stdout; first and sixtieth failure only, success resets, same-renderer recovery |
+| Same binary on verified CPU Vulkan | Actual llvmpipe adapter, same file/stderr/stdout, suppression and recovery checks |
+
+Native adapter evidence records NVIDIA GeForce RTX 4070 Laptop GPU / Vulkan,
+driver 591.86. Software evidence records llvmpipe / Vulkan, Mesa 25.2.4 and LLVM
+21.1.2. These are the adapters actually exercised, not a cross-platform CI claim.
+The 15 pixel/contract tests include independent metallic-roughness lighting
+solutions, sRGB/data-map and UV1 controls, normal-map response under reflection,
+opaque/mask/blend/depth, actual MSAA edge coverage, four-precision/HDR values,
+sub-byte PNG16 precision, odd-image mip integration, owner/mip/budget refusals,
+partial upload retirement and recovery, and two encodes before one submission.
+UNORM MSAA controls permit the two adjacent storage codes at a fractional
+coverage boundary; the initial new checker had incorrectly assumed one tie
+rounding direction. No pre-existing regression assertion or budget was changed.
+
+The initial full GPU gate was rejected at its logger-controller assertion: the
+controller expected `scene_obj_import`, while the real operation is `obj_import`.
+The unchanged actual logger output and full initial receipt remain archived.
+The successor repeats every stage on frozen sources after the additional
+world/projection guards, checks the actual operation, and passes. A separate
+same-binary software probe verifies the CPU adapter identity. Native raw Vulkan
+startup logs also retain the machine's missing Epic overlay JSON registration
+errors; those are distinct from the four controlled scene Error records.
+
+An independently authored robot OBJ/MTL (1210 source positions, 2320 triangles,
+22 primitives, five materials) has also passed actual import/freeze and internal
+native-pixel inspection at five sampled authored property-key times. Its source,
+generator, reopened tracks, QA receipt and images are retained. This standalone
+QA is not a desktop model layer, editable project or exported movie. It is not
+the user's requested in-app animation acceptance.
+
+The next desktop milestone must install a first-class owned model resource and
+model layer, preserve real property tracks through save/reopen, render the model
+inside Motion Studio, and produce both actual app screenshots at multiple keys
+and an exported animation video. The user's request cannot be satisfied by
+presenting a standalone image or a pre-rendered video as an editable model.
+
+Evidence: [source, frozen native/software gates, actual logger outputs and
+original-model internal QA](data/static-scene-gpu-7a83a16b.zip).
+SHA-256 `adabdb1acbf409fe261934e68e8e5846adb4f580187447fcae1cbddbdbfe0e0e`; 718,558 bytes, 84 entries, all read back and hashed.
 
 ## Remaining issue acceptance
 
 | Item | Current disposition |
 | --- | --- |
 | #87.1 static geometry and owned resources | CPU foundation accepted above; host asset registration/relink transactions and desktop/project integration still pending |
-| #87.2 core PBR, normal/tangent, alpha, lights, instancing | Descriptors retained; actual GPU texture decoding, material shading and budget/capability gates pending |
+| #87.2 core PBR, normal/tangent, alpha, lights, instancing | Targeted native/software material, image, depth and budget controls accepted above; official rendered-material reference, broader point-light/instancing coverage and desktop integration remain pending |
 | #87.3 skin, morph, animation and cameras | Explicitly unsupported by this static profile; implementation and quaternion/cubic sampling proof pending |
 | #87.4 unified camera/AI depth, occlusion, DOF | Pending explicit projection/calibration and mixed 2D/3D, parent/matte/BSP regressions |
 | #87.5 scene nodes, optional RT/volume and export disposition | Later work; no unsupported feature may be silently stripped from an export |

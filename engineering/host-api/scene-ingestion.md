@@ -169,3 +169,69 @@ envelope stays byte-for-byte unchanged. Reimport requires no original files.
 This adds a CPU API only. Desktop import commands, project asset transactions,
 GPU shading, PBR mapping policy, texture decoding, mixed depth and interactive
 model manipulation remain subsequent #87 work shared with glTF.
+
+
+## Native static scene consumer
+
+`motion_render::scene_gpu::GpuScene::upload` consumes an immutable owned
+`motion_scene::Scene`. The caller supplies numeric request/source IDs and
+explicit decode, resident, image-edge and draw limits. This is a backend API;
+it does not by itself register a desktop asset or install a model layer.
+
+An upload emits Info start before image decode or device entry. Error records
+retain request, source, phase, elapsed time and the bounded original cause;
+image codec errors also identify the image index. The host serial worker must
+publish its own in-flight state before entering this API. This consumer does
+not create a new worker, timeout or restart policy.
+
+- Resources use the existing renderer allocation owner, global admission and
+  upload/encoder/submission retirement. A scene cannot move to another renderer
+- `SceneGpuLimits::resident_bytes` measures logical mesh, material-buffer and
+  image-mip capacities. Frame uniforms and color/depth targets also join the
+  renderer's global allowance; neither measure is process RAM or driver VRAM
+- Decode admission estimates 48 bytes per pixel before allocating decoded
+  storage, covering concurrent conversion/mip/upload pixel containers. Encoded
+  scene resources and codec/allocator/driver overhead are outside that estimate
+- PNG/JPEG images produce complete mip chains with linear-light area integration,
+  including odd final rows and columns. Color images decode sRGB; normal,
+  metallic/roughness and occlusion maps retain linear numeric channels
+- PNG16 uses filterable Rgba32Float storage to retain precision after color
+  conversion. The device must have FLOAT32_FILTERABLE enabled; refusal is
+  explicit, with no silent byte or half-float conversion
+
+`SceneFrame` chooses the imported scene and pixels-per-metre scale, a finite
+invertible camera projection, a finite affine world transform, up to four
+point/directional lights, linear ambient/background values and explicit 1x/4x
+sampling. The camera and world share right-handed Y-up coordinates. Point-light
+attenuation uses distance in metres. Frame-local immutable uniforms allow
+multiple encodes before one submission without overwriting the first draw.
+
+The core glTF path uses metallic-roughness shading with GGX/Smith/Schlick,
+normal/tangent inputs, selected UV0/UV1, vertex color, occlusion, emissive and
+opaque/mask/blend alpha. The ambient term is a constant irradiance approximation,
+not environment-map lighting. A finite raster sample cannot represent a perfect
+zero-roughness delta lobe; the slope has an explicit numerical floor of 1e-4.
+
+OBJ remains a separate classic MTL model: illumination 0/1/2, ambient/diffuse/
+specular/emissive factors, exponent, dissolve and supported maps/transforms are
+consumed without guessing metallic or roughness values. Reflection/refraction
+illumination models, halo dissolve, displacement, 3D texture coordinates and
+simultaneous bump/normal maps are explicitly refused. Texture color/data roles
+are distinct even when they reference the same encoded image.
+
+Opaque and mask draws write Depth32Float; blend draws test depth without writing
+it and use premultiplied source-over. Blend primitives sort stably far-to-near by
+their transformed bounds centre. This is not order-independent transparency for
+intersecting triangles. Mirrored transforms select the corresponding front-face
+winding. Missing tangents use the signed UV Jacobian; discarding its sign would
+reverse the mapped light direction. Normals use inverse-transpose transforms.
+
+Healthy repeated frames do not log. Cold pipeline compilation emits Info start;
+slow successful frames use Debug after 100 ms. Actual frame errors log on the
+first occurrence and occurrence 60, suppress subsequent repetitions, and reset
+on a successful frame. This instance-local consecutive counter does not measure
+seconds. Frame errors keep their original return values.
+
+This API does not establish mixed 2D/3D BSP depth ownership, camera/AI depth
+calibration, skin/morph/clip animation, editor keyframe integration or movie
+export acceptance. An internal standalone render is not an in-app demonstration.
