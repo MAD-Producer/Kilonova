@@ -1,0 +1,108 @@
+{
+  "base": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+  "sources": {
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "d123a9364b6418484cb9ae357cda5dc71c6fd3d37a90bddebf9a3c086871d828",
+    "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "96c0ed5b67b1a3054435357a483a8672e86142326f396d03ebf6ec1becc2d90c",
+    "desktop/app/src/shell/effect_timeline_acceptance/protocol_tests.rs": "e09e88d985559fea58eb2a8996e9bdcc8f125fef28f0f3907e506451d6c08af1",
+    "desktop/app/src/panels/key_selection.rs": "723c737d7fbf52f2dcec863a3300f517f17ceb85c9e9b93ef485c9501985b1bf",
+    "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+  },
+  "unit_regressions": {
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  "original_90_second_property_attempt": {
+    "binary_sha256": "13d11e2e68773cd101ce4ce8df173158734c88a4aa7a1a82b73930b77fcb508a",
+    "locale_cases": [
+      "en",
+      "zh"
+    ],
+    "unchanged_timeout_seconds": 90,
+    "completed": [],
+    "passed": false,
+    "error": "TimeoutExpired",
+    "cause": "Command '['E:\\\\Dev\\\\aem\\\\.tools\\\\effect-timeline-regression\\\\native\\\\motion-studio.exe', '--property-smoke', 'E:\\\\Dev\\\\aem\\\\.tools\\\\effect-timeline-regression\\\\native-properties\\\\property-panels-zh.json', '--locale', 'zh']' timed out after 90 seconds",
+    "seconds": 167.05
+  },
+  "controlled_property_cases": {
+    "cases": [
+      "default-zh-properties",
+      "minimum-en-properties",
+      "minimum-zh-properties"
+    ],
+    "completed": [
+      {
+        "name": "default-zh-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 74.72
+      },
+      {
+        "name": "minimum-en-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 58.5
+      },
+      {
+        "name": "minimum-zh-properties",
+        "exit_code": 0,
+        "passed": true,
+        "seconds": 57.55
+      }
+    ],
+    "status": "passed",
+    "started_at": 1792940785.1071181,
+    "pid": 49108,
+    "elapsed_seconds": 191.42
+  },
+  "native_property_cases_passed": 4,
+  "full_desktop_harness": {
+    "passed": false,
+    "stage": "first workspace smoke",
+    "cause": "40-second timeout before property acceptance",
+    "receipt": {
+      "base": "4afb6cfc036393d3ec02062ae7a846a26403b1df",
+      "sources": {
+        "desktop/app/src/shell/effect_timeline_acceptance.rs": "d123a9364b6418484cb9ae357cda5dc71c6fd3d37a90bddebf9a3c086871d828",
+        "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "96c0ed5b67b1a3054435357a483a8672e86142326f396d03ebf6ec1becc2d90c",
+        "desktop/app/src/shell/effect_timeline_acceptance/protocol_tests.rs": "e09e88d985559fea58eb2a8996e9bdcc8f125fef28f0f3907e506451d6c08af1",
+        "desktop/app/src/panels/key_selection.rs": "723c737d7fbf52f2dcec863a3300f517f17ceb85c9e9b93ef485c9501985b1bf",
+        "tools/ci_desktop.py": "bde8b09d1798f52ee51fea2404613c9d5323930ff5f62d5f3124678bf13847bd"
+      },
+      "binary_sha256": "13d11e2e68773cd101ce4ce8df173158734c88a4aa7a1a82b73930b77fcb508a",
+      "started_at": 1792940420.116551,
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/ci_desktop.py",
+        "--binary",
+        "E:\\Dev\\aem\\.tools\\effect-timeline-regression\\native\\motion-studio.exe",
+        "--output",
+        "E:\\Dev\\aem\\.tools\\effect-timeline-regression\\native-ci"
+      ],
+      "exit_code": 1,
+      "seconds": 43.29,
+      "source_unchanged": true
+    }
+  },
+  "root_cause": {
+    "before_500_fixture_blob": "4bd4bbc5b2da743e840cd551526567950f3b709f",
+    "after_500_fixture_blob": "4bd4bbc5b2da743e840cd551526567950f3b709f",
+    "missing_fields": [
+      "document_generation"
+    ],
+    "missing_action": "EditorAction",
+    "existing_assertions_retained": true
+  },
+  "limits": [
+    "Linux native post-merge CI remains pending",
+    "Rust/GPU merge_dimensions expression budget failure is separate and is not fixed here",
+    "Complete Windows desktop harness did not pass its original 40-second workspace limit"
+  ],
+  "evidence": {
+    "file": "engineering\\validation\\data\\effect-timeline-acceptance-4afb6cfc.zip",
+    "bytes": 2579960,
+    "sha256": "f893be1d4623a5ed14ddbaa9e1c5f4f37c0fb9642a285881d9792833b40433c9",
+    "entries": 83
+  }
+}
