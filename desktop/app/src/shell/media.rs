@@ -39,6 +39,7 @@ impl Shell {
     pub(crate) fn poll_import(&mut self) -> Result<(), String> {
         let result = self.poll_import_inner();
         if result.is_err() {
+            self.replacing_asset = None;
             if let Some((request, _)) = self.importing_media.take() {
                 for op in ["cancel_media_task", "release_media_task"] {
                     let text = serde_json::json!({"op":op,"request_id":request}).to_string();
@@ -55,7 +56,13 @@ impl Shell {
             match receiver.try_recv() {
                 Ok(result) => {
                     self.importing_image = None;
-                    self.state = result?;
+                    let state = result?;
+                    if self.replacing_asset.is_some() {
+                        let cancelled=state["asset_operation_cancelled"]==true;
+                        self.accept_asset_replacement(state,cancelled);
+                        return Ok(());
+                    }
+                    self.state = state;
                     let selected = self.state["project"]["layers"]
                         .as_array()
                         .and_then(|ls| ls.last())
@@ -82,9 +89,12 @@ impl Shell {
                 .media(serde_json::json!({"op":"media_status","request_id":request}).to_string())?;
             match checked_task_state(&status, &request)? {
                 "ready" => {
+                    let replacing = self.replacing_asset.clone();
+                    let finish = if let Some(source)=&replacing {
+                        serde_json::json!({"op":"finish_media_replacement","request_id":request,"target":source.target,"revision":source.revision})
+                    } else { serde_json::json!({"op":"finish_media_import","request_id":request}) };
                     let result = self.engine.media(
-                        serde_json::json!({"op":"finish_media_import","request_id":request})
-                            .to_string(),
+                        finish.to_string(),
                     );
                     self.importing_media = None;
                     if let Err(error) = self.engine.media(
@@ -93,7 +103,13 @@ impl Shell {
                     ) {
                         log::warn!("media import task release failed: request={request} reason={error}");
                     }
-                    self.state = result?["state"].clone();
+                    let result=result?;
+                    if replacing.is_some() {
+                        let cancelled=result["asset_operation_cancelled"]==true;
+                        self.accept_asset_replacement(result["state"].clone(),cancelled);
+                        return Ok(());
+                    }
+                    self.state = result["state"].clone();
                     let selected = self.state["project"]["layers"]
                         .as_array()
                         .and_then(|ls| ls.last())
@@ -109,6 +125,10 @@ impl Shell {
                             .to_string(),
                     ) {
                         log::warn!("media import task release failed: request={request} reason={error}");
+                    }
+                    if status["state"]=="cancelled" && self.replacing_asset.take().is_some() {
+                        self.accept_asset_replacement(self.state.clone(),true);
+                        return Ok(());
                     }
                     return Err(status["error"]
                         .as_str()

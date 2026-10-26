@@ -454,6 +454,28 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - Workspace state is a concrete struct in `desktop/ui/src/workspace.rs`; do not replace it with a hypothetical `workspaceLayout: unknown`.
 - The Project panel currently shows a **flat asset list** and a footer with item/project counts. It does not currently have a `name`/`type`/`dimensions`/`fps`/`duration` column-header table, nor a confirmed virtualized list. Future expansion must be marked **not implemented / separate feature request**, outside this visual-remediation scope.
 
+### 11.1 Shared media asset actions
+
+Project and Media share asset identity, selection and context operations. Keep orphan
+assets selectable independently of layer selection. Use the existing `row` and
+`context_menu` styles, `row.height`, `context.row.height`, `padding`, and
+`menu.popup.min_width`; the existing composition row retains its 32px height through
+`project.composition.height`. Do not introduce web cards or a separate visual palette.
+
+The media menu offers relink/replace, file location, usages and removal from the
+project. Disable removal when layers or linked-video metadata still reference the
+asset; communicate the reason in the existing disabled text style. Removal keeps
+the owned file for undo. A usage list opens the actual composition and selects its
+layer, using a scrollable overlay for long lists. Font records retain their separate
+string identity and do not expose numeric media actions.
+
+The native window that opens an overlay owns it. Neutral repaints in other windows
+retain it without painting it there; input in another window dismisses it and owns
+that closing frame. Escape, outside clicks, revision changes and document replacement
+cannot activate the underlying timeline or canvas. IME composition and repeated
+Enter do not commit menu actions. Replacement cancellation is normal feedback and
+does not report success; decode/transaction errors retain the original cause.
+
 ---
 
 ## 12. UI redraw acceptance checklist

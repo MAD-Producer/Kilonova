@@ -205,6 +205,7 @@ impl Shell {
             .into());
         }
         match action {
+            Action::MediaAsset { source, intent } => self.asset_action(source, intent, event_loop)?,
             Action::AnalyzeAudio(object) => self.analyze_audio(object)?,
             Action::CancelAudioAnalysis => self.cancel_audio_analysis(),
             Action::ProjectChoice(choice) => self.choose_project_change(choice)?,
@@ -385,14 +386,22 @@ impl Shell {
             Action::ImportPath(path) => self.import_file(path)?,
             Action::CancelImport => {
                 if let Some((request, _)) = self.importing_media.take() {
-                    self.engine.media(
+                    let cancelled=self.engine.media(
                         serde_json::json!({"op":"cancel_media_import","request_id":request})
                             .to_string(),
-                    )?;
-                    self.engine.media(
+                    );
+                    let released=self.engine.media(
                         serde_json::json!({"op":"release_media_task","request_id":request})
                             .to_string(),
-                    )?;
+                    );
+                    self.replacing_asset=None;
+                    if let Err(primary)=cancelled {
+                        if let Err(secondary)=released { log::error!("media cancel cleanup failed request={request} cause={secondary} primary={primary}"); }
+                        return Err(primary);
+                    }
+                    released?;
+                    self.panels.message=Some(if self.workspace.locale==Locale::Zh {"已取消，原素材保持不变"}else{"Cancelled; original asset retained"}.into());
+                    self.dirty=true;
                 }
             }
             Action::AddNull => {
