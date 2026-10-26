@@ -144,6 +144,17 @@ pub enum Action {
         source: crate::layer_clipboard::KeyframeSource,
         commands: Vec<Command>,
     },
+    ExpressionCheck {
+        ticket: super::expressions::Ticket,
+        target: motion_core::ExpressionTarget,
+        text: String,
+    },
+    ExpressionApply {
+        ticket: super::expressions::Ticket,
+        source: crate::layer_clipboard::KeyframeSource,
+        expression: motion_core::PropertyExpression,
+        frame: u32,
+    },
     OrderLayers {
         objects: Vec<u64>,
         order: super::layer_navigation::Order,

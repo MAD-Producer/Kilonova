@@ -2,6 +2,8 @@
 use super::*;
 use motion_core::{ExpressionTarget, PropertyExpression};
 use motion_ui::widgets::{Checkbox, TextEditor, TextEvent};
+mod expanded;
+pub(crate) use expanded::Ticket;
 
 pub(super) fn find(state: &Value, target: &ExpressionTarget) -> Option<PropertyExpression> {
     state["project"]["expressions"]
@@ -30,6 +32,7 @@ pub(crate) struct Controls {
     editor: TextEditor,
     loaded: String,
     toggle_focus: bool,
+    expanded: Option<expanded::Editor>,
     #[cfg(test)]
     pub(super) triggers: Vec<(ExpressionTarget, Rect)>,
     #[cfg(test)]
@@ -37,10 +40,14 @@ pub(crate) struct Controls {
 }
 impl Controls {
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        if let Some(editor) = &mut self.expanded {
+            editor.text_menu(request);
+            return;
+        }
         request.visit(&mut self.editor);
     }
     pub fn editing(&self) -> bool {
-        self.editor.active() || self.toggle_focus || self.menu.open
+        self.editor.active() || self.toggle_focus || self.menu.open || self.expanded.is_some()
     }
     pub fn cancel(&mut self) {
         self.menu.open = false;
@@ -49,20 +56,24 @@ impl Controls {
         self.editor.text = self.loaded.clone();
         self.draft = None;
         self.toggle_focus = false;
+        self.expanded = None;
     }
     pub(crate) fn open(&mut self, state: &Value, target: ExpressionTarget, owner: Panel) {
         self.cancel();
         self.loaded = find(state, &target).map_or_else(|| "value".into(), |e| e.source);
-        self.editor.begin(&self.loaded);
+        self.editor.begin_bounded(&self.loaded, 8192);
         self.owner = Some(owner);
         self.target = Some(target.clone());
-        self.draft = Some(target);
+        self.draft = Some(target.clone());
+        if self.loaded.contains('\n') {
+            self.open_expanded(state, target, owner);
+        }
     }
     pub(super) fn visible(&self, _state: &Value, target: &ExpressionTarget, owner: Panel) -> bool {
         self.owner == Some(owner) && self.draft.as_ref() == Some(target)
     }
     pub(super) fn menu_open(&self) -> bool {
-        self.menu.open
+        self.menu.open || self.expanded.is_some()
     }
     pub(super) fn context(
         &mut self,
@@ -101,6 +112,10 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        if self.expanded.is_some() {
+            self.expanded_overlay(list, atlas, bounds, state, input, locale, out);
+            return;
+        }
         let Some((target, mut anchor, owner)) = self.menu_target.clone() else {
             return;
         };
@@ -151,6 +166,11 @@ impl Controls {
                 enabled,
             });
         }
+        let expanded_index = items.len();
+        items.push(motion_ui::widgets::DropdownItem {
+            label: auxiliary::localized(locale, "在多行编辑器中打开…", "Open multiline editor…"),
+            enabled,
+        });
         match self
             .menu
             .draw_menu(list, atlas, anchor, bounds, &items, input, true)
@@ -160,7 +180,7 @@ impl Controls {
                 out.push(Action::Edit(Command::RemoveExpression { target }));
                 self.cancel();
             }
-            Some(2) => {
+            Some(2) if dimension.is_some() => {
                 if let Some((separated, object, property)) = dimension {
                     out.push(Action::Edit(if separated {
                         Command::MergeDimensions { object, property }
@@ -170,6 +190,7 @@ impl Controls {
                     self.cancel();
                 }
             }
+            Some(index) if index == expanded_index => self.open_expanded(state, target, owner),
             _ => {}
         }
         if !self.menu.open {
@@ -209,15 +230,21 @@ impl Controls {
             slot.min(source.width()),
             source.height(),
         );
+        let expand_width = if source.width() >= slot + slot { slot } else { 0. };
+        let expand = Rect::new(remove.min[0] - expand_width,
+            source.min[1], expand_width, source.height());
         let source = Rect::new(
             source.min[0],
             source.min[1],
-            (source.width() - slot).max(0.),
+            (source.width() - slot - expand_width).max(0.),
             source.height(),
         );
         let existing = find(state, &target);
         if ui::button_icon(list, remove, motion_ui::icons::Icon::Close, input, true).clicked {
             self.cancel();
+        }
+        if expand_width > 0. && ui::button_icon(list, expand, motion_ui::icons::Icon::Expand, input, editable).clicked {
+            self.open_expanded(state, target.clone(), self.owner.unwrap_or(Panel::Timeline));
         }
         let states = if editable {
             motion_ui::style::States::default()
@@ -245,11 +272,13 @@ impl Controls {
             .pressed
             .is_some_and(|(b, p)| b == MouseButton::Left && source.contains(p));
         if editable && clicked_source {
-            if !selected {
+            if value.contains('\n') {
+                self.open_expanded(state, target.clone(), self.owner.unwrap_or(Panel::Timeline));
+            } else if !selected {
                 self.open(state, target.clone(), self.owner.unwrap_or(Panel::Timeline));
             } else if !self.editor.active() {
                 let draft = self.editor.text.clone();
-                self.editor.begin(&draft);
+                self.editor.begin_bounded(&draft, 8192);
             }
         }
         if selected
@@ -314,11 +343,16 @@ impl Controls {
                     None => {}
                 }
             }
-            self.editor
-                .draw_styled(list, atlas, source, &styles, "field.number", states);
+            if self.editor.text.contains('\n') {
+                let mut preview = TextEditor::default();
+                preview.text = format!("{} …", self.editor.text.lines().next().unwrap_or(""));
+                preview.draw_styled(list, atlas, source, &styles, "field.number", states);
+            } else {
+                self.editor.draw_styled(list, atlas, source, &styles, "field.number", states);
+            }
         } else {
             let mut editor = TextEditor::default();
-            editor.text = value.into();
+            editor.text = if value.contains('\n') { format!("{} …", value.lines().next().unwrap_or("")) } else { value.into() };
             editor.draw_styled(list, atlas, source, &styles, "field.number", states);
         }
     }

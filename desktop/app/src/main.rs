@@ -321,6 +321,7 @@ struct Shell {
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
     editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
+    expression_task: Option<shell::expressions::Task>,
     present_due: bool,
     present_deferrals: shell::presentation_observation::ActionDeferrals,
     diagnostics_export: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
@@ -441,6 +442,7 @@ impl Shell {
             resize_queue: Default::default(),
             actions: Default::default(),
             editing: None,
+            expression_task: None,
             present_due: false,
             present_deferrals: Default::default(),
             diagnostics_export: None,
@@ -668,6 +670,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         self.poll_styles();
         self.poll_project_change();
+        self.poll_expression_task();
         if let Some((began, receive)) = &self.editing {
             let result = match receive.try_recv() {
                 Ok(result) => Some(result),
@@ -852,6 +855,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.rendering.is_empty()
             && self.resizing.is_none()
             && self.editing.is_none()
+            && self.expression_task.is_none()
             && self.project_pending.is_none()
             && !self.layer_clipboard.committing()
             && self.actions.is_empty()
@@ -863,6 +867,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.rendering.is_empty()
             && self.resizing.is_none()
             && self.editing.is_none()
+            && self.expression_task.is_none()
             && self.project_pending.is_none()
             && !self.layer_clipboard.committing()
             && (!self.present_due || self.closing)
@@ -873,7 +878,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.stop();
                 }
                 self.redraw();
-                if self.editing.is_some() || self.project_pending.is_some() {
+                if self.editing.is_some() || self.expression_task.is_some() || self.project_pending.is_some() {
                     break;
                 }
             }
@@ -1021,6 +1026,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.diagnostics_export.is_some()
             || self.present_due
             || self.editing.is_some()
+            || self.expression_task.is_some()
             || !self.rendering.is_empty()
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()

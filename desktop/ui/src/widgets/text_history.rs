@@ -7,6 +7,7 @@ pub(super) struct Snapshot {
     pub text: String,
     pub cursor: usize,
     pub select_all: bool,
+    pub anchor: Option<usize>,
 }
 #[derive(Clone, Default)]
 struct Stack {
@@ -65,6 +66,7 @@ mod tests {
             text,
             cursor: 0,
             select_all: false,
+            anchor: None,
         }
     }
     #[test]

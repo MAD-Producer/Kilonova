@@ -24,6 +24,7 @@ impl Command {
             NodeCapture { .. } => "node_capture",
             EditChecked { .. } => "edit_checked",
             EditorAction { .. } => "editor_action",
+            ExpressionCheck { .. } => "expression_check",
             PathOperation { .. } => "path_operation",
             CaptureUi { .. } => "capture_ui",
             Attach { .. } => "attach",

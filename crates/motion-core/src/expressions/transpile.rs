@@ -1,16 +1,38 @@
-use crate::{ensure, Error, Result};
+use crate::{Error, Result};
 use swc_common::{sync::Lrc, FileName, SourceMap, Spanned, DUMMY_SP};
 use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, EsSyntax, Parser, StringInput, Syntax};
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 
+/// A source validation result. Offsets refer to the original UTF-8 draft,
+/// before vector adaptation; runtime errors do not have this source mapping.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ExpressionSourceDiagnostic {
+    pub message: String,
+    pub byte_offset: Option<usize>,
+}
+impl ExpressionSourceDiagnostic {
+    fn new(message: impl Into<String>, byte_offset: Option<usize>) -> Self {
+        Self { message: message.into(), byte_offset }
+    }
+}
+
+pub fn expression_source_diagnostic(source: &str) -> Option<ExpressionSourceDiagnostic> {
+    checked_transpile(source).err().map(|mut diagnostic| {
+        diagnostic.message = diagnostic.message.chars().take(1024).collect();
+        diagnostic
+    })
+}
+
 /// Parse real JavaScript before adapting the vector operators and completion value
 /// supported by Motion Studio expressions.
 pub(super) fn transpile(source: &str) -> Result<String> {
-    ensure(
-        !source.trim().is_empty() && source.len() <= 8192,
-        "expression source must be 1..8192 bytes",
-    )?;
+    checked_transpile(source).map_err(|diagnostic| Error::Invalid(diagnostic.message))
+}
+fn checked_transpile(source: &str) -> std::result::Result<String, ExpressionSourceDiagnostic> {
+    if source.trim().is_empty() || source.len() > 8192 {
+        return Err(ExpressionSourceDiagnostic::new("expression source must be 1..8192 bytes", None));
+    }
     let cm: Lrc<SourceMap> = Default::default();
     let file = cm.new_source_file(
         FileName::Custom("expression.js".into()).into(),
@@ -23,30 +45,51 @@ pub(super) fn transpile(source: &str) -> Result<String> {
         None,
     );
     let mut parser = Parser::new_from(lexer);
-    let mut script = parser.parse_script().map_err(|e| {
-        Error::Invalid(format!(
+    let diagnostic = |e: &swc_ecma_parser::error::Error| {
+        let offset = e.span().lo.0.checked_sub(file.start_pos.0).map(|n| n as usize)
+            .filter(|&n| n <= source.len() && source.is_char_boundary(n));
+        ExpressionSourceDiagnostic::new(format!(
             "JavaScript syntax: {:?} at byte {}",
             e.kind(),
             e.span().lo.0
-        ))
-    })?;
+        ), offset)
+    };
+    let mut script = parser.parse_script().map_err(|e| diagnostic(&e))?;
     if let Some(e) = parser.take_errors().first() {
-        return Err(Error::Invalid(format!(
-            "JavaScript syntax: {:?} at byte {}",
-            e.kind(),
-            e.span().lo.0
-        )));
+        return Err(diagnostic(e));
     }
     let mut adapter = Adapter::default();
     script.visit_mut_with(&mut adapter);
-    ensure(
-        !adapter.invalid,
-        "expression exceeds AST limits, uses reserved __ms identifiers or asynchronous JavaScript",
-    )?;
+    if adapter.invalid {
+        return Err(ExpressionSourceDiagnostic::new(
+            "expression exceeds AST limits, uses reserved __ms identifiers or asynchronous JavaScript", None));
+    }
     if let Some(tail) = script.body.last_mut() {
         completion(tail);
     }
     Ok(swc_ecma_codegen::to_code(&script))
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+    #[test]
+    fn source_diagnostics_map_real_parser_spans_without_executing_the_draft() {
+        let source = "const 名称 = 1;\nvalue + )";
+        let diagnostic = expression_source_diagnostic(source).unwrap();
+        assert_eq!(diagnostic.byte_offset, source.find(')'));
+        assert!(diagnostic.message.contains("JavaScript syntax:"));
+        assert!(transpile(source).unwrap_err().to_string().contains(&diagnostic.message));
+        for source in ["while (true) {}", "value + [10, 0, 0]", "wiggle(2, 20)"] {
+            assert!(expression_source_diagnostic(source).is_none());
+        }
+        for source in ["", "async function f() {}", "__msReserved", &"v".repeat(8193)] {
+            let diagnostic = expression_source_diagnostic(source).unwrap();
+            assert!(diagnostic.byte_offset.is_none());
+            assert!(diagnostic.message.len() <= 1024);
+            assert!(transpile(source).is_err());
+        }
+    }
 }
 
 fn completion(stmt: &mut Stmt) {
