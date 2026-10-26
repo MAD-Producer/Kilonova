@@ -1,0 +1,172 @@
+{
+  "issue": 222,
+  "source_commit": "071e8de3adbd8f66ac883d1574e6d16b6368503d",
+  "base_main": "af1e7f9f07dceb03d8f078889505adf1db78542f",
+  "stage": "shared asset actions and atomic multi-source recovery; manual OS acceptance pending",
+  "targeted_after_main": {
+    "passed": 20,
+    "failed": 0,
+    "ignored": 1
+  },
+  "host_directory_ownership": {
+    "passed": 1,
+    "failed": 0
+  },
+  "panels_earlier_stage": {
+    "passed": 559,
+    "failed": 0,
+    "ignored": 2,
+    "log": "media-assets-relink-panels-final.log",
+    "scope": "Before async relink/main selection follow-up; panel action code unchanged. Not claimed as exact-head full suite."
+  },
+  "native_after_main": {
+    "passed": 1,
+    "failed": 0,
+    "screenshots": 17
+  },
+  "native_contract": {
+    "actualNativeFloat": true,
+    "bilingualMenus": true,
+    "input": "controlled Input; no OS foreground injection or native picker automation",
+    "missingAssetRelink": true,
+    "orphanRemoveUndoRedo": true,
+    "ratios": [
+      1,
+      1.5,
+      2
+    ],
+    "referenceRemovalBlocked": true,
+    "replacement": true,
+    "saveReopen": true,
+    "staleCancelled": true
+  },
+  "ffmpeg_build": true,
+  "preview": {
+    "sourceCommit": "071e8de3adbd8f66ac883d1574e6d16b6368503d",
+    "profile": "dev",
+    "features": [
+      "ffmpeg"
+    ],
+    "executableSha256": "e2b2faa818498ee737bae9ccd93cf986b44c0f4446363ffa661726ce71a87f7f",
+    "runtimeDlls": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    },
+    "issue": 222,
+    "stage": "共享素材菜单、原子批量重链接；原生系统操作和跨平台人工验收待完成"
+  },
+  "standalone_runtime": {
+    "path": "E:\\Dev\\aem\\artifacts\\media-asset-relink-preview",
+    "path_scope": "preview and Windows system directories only",
+    "commands_stderr_bytes": 0,
+    "video_stderr_bytes": 0,
+    "video": {
+      "backend": "libav",
+      "decoded": true,
+      "frames": [
+        {
+          "decoder": "libavcodec",
+          "end": 41667,
+          "height": 144,
+          "pts": 0,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 1541667,
+          "height": 144,
+          "pts": 1500000,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 3000000,
+          "height": 144,
+          "pts": 2958333,
+          "rgbaBytes": 147456,
+          "width": 256
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 41667,
+          "height": 144,
+          "pts": 0,
+          "rgbaBytes": 147456,
+          "width": 256
+        }
+      ],
+      "sourceFrames": 72
+    }
+  },
+  "observability": {
+    "default_level": "Info, MOTION_LOG removed in child",
+    "actual_failure": "second missing PNG after first source prepared",
+    "channels": [
+      "file",
+      "Error stderr",
+      "stdout isolation"
+    ],
+    "terminal_poll_suppression": true,
+    "normal_cancel_and_supersession": true,
+    "controlled_blocking": "Prepare/Status/Commit queued behind TestWait; UI polls and cancels before release; late commit truth preserved"
+  },
+  "retained_limits": [
+    "Actual native picker, OS foreground keyboard/IME and cross-platform file location need manual acceptance",
+    "Strict project opening still rejects missing resources; recovery applies to an already open project",
+    "Font string identities are outside numeric media recovery",
+    "Undo cannot recreate externally deleted source bytes",
+    "Short Project overview may consume available list height; capture uses existing maximize",
+    "Missing inventory is a synchronous metadata query; no permanent filesystem block or cleanup IO failure injected"
+  ],
+  "source_sha256": {
+    "DESIGN.md": "c0120dc295afaa8c77f3cf18b8ab1e2d880a9a35b0a2e52fb690b1e07cbda574",
+    "crates/motion-core/src/command_registry.rs": "2c6bf35195ec7af911cc8d0dffed4affb1b21c9a9ba46b7f2e54c1aeaed9dfcd",
+    "crates/motion-core/src/editor.rs": "57f3959057c871d0d65c7c6fc35751b282f7c29266670807a0788d7da740f46e",
+    "crates/motion-core/src/lib.rs": "45b009be76bd96be9eb8cb8b5f4eb35de52b6f8d55e4feca2cadfa5a704b49c2",
+    "crates/motion-core/tests/media_assets.rs": "5a20ec9971103c3742be5effa1e23b305e431514d049a492186d6c29e87e45f9",
+    "crates/motion-host/src/ops/media.rs": "bb8d8d69c7584cd77ba70d3866c459219d25295b2cb901b30eb239a683ea3d71",
+    "crates/motion-host/src/ops/media/relink.rs": "b8a20e8110f61e2d8a7f52bd784c420217b8a7e211996dcc0e0f8850f811c6b0",
+    "crates/motion-host/src/ops/media/relink/observation.rs": "633fd5f21fa5de96144eca612589251af4077437b9b96c36e24b79856c07f1d7",
+    "crates/motion-host/src/ops/media/relink/tests.rs": "a0aaf2fffa7a6f434b80927a64bd0b2f9e79d450223177baf001e75a6bdc6039",
+    "crates/motion-host/src/session.rs": "7f73d7a144f8306537fd6685149177e76fa7d8296e7bbfff8dfcf377de4514b8",
+    "crates/motion-media/src/jobs.rs": "cb690dc9740b35f0c3f3760ab6531a3baccdd8bddeac4d8b5c3a24ff29536278",
+    "crates/motion-media/src/video.rs": "10ccf87a4c549feb26ebf974209bf102d6d50acc30ed4217547dfe3a86c15af8",
+    "crates/motion-model/src/commands.rs": "922f94a78ae12f6e7217f76b17f045a1c9c71dec544c5249f49b7ae861a59371",
+    "crates/motion-model/src/lib.rs": "170993c7314e7d7e0c20e72648ec9ed25ed2c6e807c5cb93b6284cf4e16dd7dc",
+    "crates/motion-model/src/media_assets.rs": "0db7afcf158b211d582593d200dd73f6675768296244ea1ac4a42829fee342a9",
+    "desktop/app/src/engine.rs": "628a43ea7a0fcc1ca0b5ed4ddc28710d01405553c860e84a1ee849e3c9268204",
+    "desktop/app/src/engine/diagnostic_names.rs": "56a7c0fc248aebf3223ac3a6453f54744b55a8edb28eaf5e4b4382679a8ec529",
+    "desktop/app/src/main.rs": "2285566af1d706a4b66f7f29ab3f6e14db2379d3d0fe8506fef29fade7646d45",
+    "desktop/app/src/media_assets.rs": "d76ee8d182c5174db980d35fc4b1f1cfdc5e669b9162f36b9ba15d49373d80e1",
+    "desktop/app/src/panels/auxiliary.rs": "9d3b1dee9f9e1b4ee61808aff852427963fc7ad6535a1ec325200220bdd80042",
+    "desktop/app/src/panels/keyboard.rs": "b88d23562399c4a23b8b6c80725bded70518199990c46a39009328f33cca8bf3",
+    "desktop/app/src/panels/media_assets.rs": "bff1c5ffde07c34e4573cef470912660b4911187de87ec030eef961b496058bf",
+    "desktop/app/src/panels/media_assets/tests.rs": "cb7397ebe248dd4b02116c0e1ccae26afd1407d7b9770304a3435fb40dc0df31",
+    "desktop/app/src/panels/media_assets/tests/native.rs": "77e4a8ef3ed3f28006098519380e35bfe55c96e0af51feeb197fdc1081880fed",
+    "desktop/app/src/panels/mod.rs": "e9fb8d22f10a17c1589836f9785f59ec653a2ee3b9e8e8c72af49134f7fa4341",
+    "desktop/app/src/panels/project.rs": "6d75bafaee5fe48a3aef11396172e24a8b4d39fa2da1025d086ceb9b43d66511",
+    "desktop/app/src/panels/types.rs": "a43973dbd9ec9aef15f3438e6b27f783f4400de6a98888486748b17317b0a6b1",
+    "desktop/app/src/shell/actions.rs": "c7ebf1037206be396025ebfba76490a61bf418e979d02a9aa017ddf1baa10af0",
+    "desktop/app/src/shell/media.rs": "5f4c4d153f5d344569c213afd8929843f80d9404134c9a570e77a39c7c203383",
+    "desktop/app/src/shell/media_assets.rs": "197c280189b485c8f734bfe0e8b78f48839b1f2e1865ba86637afd209d9ef8d7",
+    "desktop/app/src/shell/media_assets/relink.rs": "527922f157c14407c07997b96c8f03ce686235ef1d7a865d5c0a9dfd13f42c63",
+    "desktop/app/src/shell/media_assets/tests.rs": "237a00ae7b1b35857ae4a2e1f5b919b8c3d51b995a93a1aa14cba46a61dac7cb",
+    "desktop/app/src/shell/mod.rs": "03e4a519f0dcffe0d0dcd18a73c787cd1a891b4c3d0b58dc9f8de128b4bed50f",
+    "desktop/app/src/workflow.rs": "363fb3e749679ff3a8eeb40522ea125bf7386273aa309dfcdcdf35835d80f4b8",
+    "desktop/app/src/workflow/media_asset_tests.rs": "4cfe8c254bdd85a8b8de3cd178ed4b700f9fb75d67162eb847d6f0619b25ec3b",
+    "desktop/app/src/workflow/media_asset_tests/relink.rs": "e368636d7d663f929e297a99f280aa11361393a6ce81d0f46f27ee5e8e98d1c9",
+    "desktop/ui/styles/dark.json": "77ae0e7a81b7ca5017b59798a7e43dad66d2f7dcd5f610c177aef09aa04f27f5"
+  },
+  "evidence_archive": {
+    "path": "media-asset-relink-evidence.zip",
+    "sha256": "02fcb572508d034b2cf0c6ec35d570758b5a3decf62896d65cfa375c0461450f",
+    "entries": 204
+  }
+}

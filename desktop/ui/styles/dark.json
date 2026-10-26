@@ -53,6 +53,7 @@
       "font.small": 11,
       "panel.header.height": 24,
       "row.height": 22,
+      "project.composition.height": 32,
       "viewer.controls.height": 28,
       "viewer.field.height": 26,
       "viewer.button.height": 22,

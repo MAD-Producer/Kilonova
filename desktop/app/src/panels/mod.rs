@@ -82,6 +82,7 @@ pub(crate) mod layer_sampling;
 pub(crate) mod path_controls;
 mod paths;
 mod project;
+mod media_assets;
 mod properties;
 mod property_focus;
 #[cfg(test)]
@@ -351,6 +352,10 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let asset_input = input;
+    let asset_owned = panels.media_assets.prepare(None, state, input);
+    let asset_neutral = Input::default();
+    let input = if asset_owned { &asset_neutral } else { input };
     tools::prepare(panels,None,input);
     let parent_pick_owned = panels.parent_controls.prepare_window(None, input);
     let parent_neutral = Input::default();
@@ -980,8 +985,10 @@ pub fn chrome(
         panels,
         input,
         panels.locale,
+        None,
         &mut out,
     );
+    media_assets::overlay(list, atlas, Rect::new(0., 0., size[0], size[1]), panels, state, asset_input, None, &mut out);
     let toolbar_ids = panels.selection_ids();
     panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, editing_input, panels.locale, &mut out);
     if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
@@ -1014,6 +1021,10 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    let asset_input = input;
+    let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
+    let asset_neutral = Input::default();
+    let input = if asset_owned { &asset_neutral } else { input };
     // The toolbar belongs to the main native window. Moving input to a float
     // cancels its gesture before that window can dispatch another edit.
     let mut toolbar_actions = vec![];
@@ -1291,8 +1302,10 @@ pub fn floating_chrome(
         panels,
         input,
         panels.locale,
+        Some(panel),
         &mut out,
     );
+    media_assets::overlay(list, atlas, Rect::new(0., 0., size[0], size[1]), panels, state, asset_input, Some(panel), &mut out);
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }

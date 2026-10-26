@@ -14,6 +14,9 @@ pub(super) fn render(
 
     paint::rect(list, area, colors.PANEL);
     let locale = panels.locale;
+    let pad = styles.metric("padding.panel", 8.);
+    let border = styles.metric("border", 1.);
+    let composition_height = styles.metric("project.composition.height", 32.);
     let p = &state["project"];
     let raw_name = p["name"].as_str().unwrap_or(locale.t(T::Untitled));
     let name = if raw_name == "Untitled Project" {
@@ -81,7 +84,7 @@ pub(super) fn render(
     );
     panels.project.search = response.active;
     if response.changed {
-        panels.project.asset_list.scroll.offset = 0.;
+        panels.media_assets.reset_project_scroll();
     }
     let header = Rect::new(area.min[0], search.max[1] + 4.0, area.width(), 28.0);
     paint::rect(list, header, colors.CHROME);
@@ -117,7 +120,7 @@ pub(super) fn render(
             area.min[0] + 8.0,
             header.max[1] + 1.0,
             area.width() - 16.0,
-            32.0,
+            composition_height,
         );
         paint::rect(list, row, colors.CHROME.with_alpha(0.45));
         paint::rect(
@@ -132,7 +135,7 @@ pub(super) fn render(
                 row.min[0] + 26.0,
                 row.min[1],
                 row.width() * 0.59 - 26.0,
-                32.0,
+                composition_height,
             ),
             name,
             false,
@@ -144,17 +147,18 @@ pub(super) fn render(
                 row.min[0] + row.width() * 0.64,
                 row.min[1],
                 row.width() * 0.34,
-                32.0,
+                composition_height,
             ),
             locale.t(T::Composition),
             true,
         );
         if right_clicked(input, row) {
+            panels.media_assets.cancel();
+            panels.project.context_owner = panels.media_assets.window();
             panels.project.context_menu = Some(input.mouse);
         }
     }
     let footer = Rect::new(area.min[0], area.max[1] - 30.0, area.width(), 30.0);
-    let layers = p["layers"].as_array().map(Vec::as_slice).unwrap_or(&[]);
     let assets: Vec<_> = [
         ("assets", "Image"),
         ("video_assets", "Video"),
@@ -169,57 +173,13 @@ pub(super) fn render(
             .map(move |a| (a, kind))
     })
     .collect();
-    let filtered: Vec<_> = assets
-        .iter()
-        .filter_map(|(asset, kind)| {
-            let layer = layers.iter().find(|l| {
-                l["content"]["asset"] == asset["id"]
-                    || l["content"]["audio"]["asset"] == asset["id"]
-                    || l["content"]["video"]["asset"] == asset["id"]
-            });
-            let name = layer
-                .and_then(|l| l["name"].as_str())
-                .unwrap_or_else(|| asset["path"].as_str().unwrap_or(kind));
-            name.to_lowercase()
-                .contains(&panels.project.query.to_lowercase())
-                .then_some((name, *kind, layer.and_then(|l| l["id"].as_u64())))
-        })
-        .collect();
-    let labels: Vec<_> = filtered
-        .iter()
-        .map(|(name, kind, _)| format!("{name} · {kind}"))
-        .collect();
-    let items: Vec<_> = labels
-        .iter()
-        .map(|label| motion_ui::widgets::ListItem {
-            label,
-            depth: 0,
-            expanded: None,
-            enabled: true,
-        })
-        .collect();
-    panels.project.asset_list.selected = filtered
-        .iter()
-        .position(|(_, _, id)| id.is_some() && *id == panels.selected);
     let list_area = Rect::new(
-        area.min[0] + 8.,
-        header.max[1] + 34.,
-        (area.width() - 16.).max(0.),
-        (footer.min[1] - header.max[1] - 34.).max(0.),
+        area.min[0] + pad, header.max[1] + composition_height + border * 2.,
+        (area.width() - pad * 2.).max(0.),
+        (footer.min[1] - header.max[1] - composition_height - border * 2.).max(0.),
     );
-    let response = panels.project.asset_list.draw(
-        list,
-        atlas,
-        list_area,
-        &items,
-        input,
-        panels.focused == Some(Panel::Project) && !panels.project.search,
-    );
-    if let Some(index) = response.selected {
-        if let Some(id) = filtered[index].2 {
-            panels.select_only(Some(id));
-        }
-    }
+    let query = panels.project.query.clone();
+    super::media_assets::render_list(list, atlas, list_area, panels, state, input, Panel::Project, &query);
     paint::rect(list, footer, colors.CHROME);
     label(
         list,
@@ -251,68 +211,19 @@ pub(super) fn finish_context_menu(
     panels: &mut Panels,
     input: &Input,
     locale: Locale,
+    owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) {
+    if panels.project.context_owner != owner { return; }
     let Some(anchor) = panels.project.context_menu else {
         return;
     };
     let styles = list.styles();
-    let entries = [
-        (
-            "合成设置...",
-            "Composition Settings...",
-            true,
-            Some(Action::CompositionSettings),
-            false,
-        ),
-        (
-            "在基本图形中打开",
-            "Open in Essential Graphics",
-            false,
-            None,
-            false,
-        ),
-        (
-            "基于所选项新建合成",
-            "New Composition from Selection",
-            false,
-            None,
-            false,
-        ),
-        (
-            "替换为预合成",
-            "Replace with Precomposition",
-            false,
-            None,
-            false,
-        ),
-        ("创建代理", "Create Proxy", false, None, true),
-        ("设置代理", "Set Proxy", false, None, true),
-        ("解释素材", "Interpret Footage", false, None, true),
-        ("替换素材", "Replace Footage", false, None, true),
-        ("重新加载素材", "Reload Footage", false, None, false),
-        ("许可...", "Interpretation...", false, None, false),
-        (
-            "在资源管理器中显示",
-            "Reveal in Explorer",
-            false,
-            None,
-            false,
-        ),
-        ("在 Bridge 中显示", "Reveal in Bridge", false, None, false),
-        (
-            "在合成中显示",
-            "Reveal in Composition",
-            true,
-            Some(Action::ShowPanel(Panel::Timeline.dock())),
-            true,
-        ),
-        ("纯色文件夹", "Solids Folder", false, None, false),
-        ("重命名    Enter", "Rename    Enter", false, None, false),
-    ];
-    let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
-    let width = 238f32.min(bounds.width());
-    let height = entries.len() as f32 * row + 6.;
+    let entries = [("合成设置...", "Composition Settings...", true, Some(Action::CompositionSettings), false)];
+    let row = styles.metric("context.row.height", 20.);
+    let pad = styles.metric("padding", 5.);
+    let width = styles.metric("context.menu.width", 220.).min(bounds.width());
+    let height = entries.len() as f32 * row + pad * 2.;
     let card = Rect::new(
         anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
         (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
@@ -334,11 +245,11 @@ pub(super) fn finish_context_menu(
         styles.resolve("context_menu", States::default()).unwrap(),
     );
     let mut chosen = None;
-    for (index, (zh, en, enabled, _action, arrow)) in entries.iter().enumerate() {
+    for (index, (zh, en, enabled, _action, _arrow)) in entries.iter().enumerate() {
         let area = Rect::new(
-            card.min[0] + 3.,
-            card.min[1] + 3. + index as f32 * row,
-            width - 6.,
+            card.min[0] + pad,
+            card.min[1] + pad + index as f32 * row,
+            width - pad * 2.,
             row,
         );
         let mut states = States::default();
@@ -354,26 +265,15 @@ pub(super) fn finish_context_menu(
             list,
             atlas,
             Rect::new(
-                area.min[0] + 5.,
+                area.min[0] + pad,
                 area.min[1],
-                area.width() - 28.,
+                area.width() - pad * 2.,
                 area.height(),
             ),
             &pword(locale, zh, en),
             style,
             Align::Left,
         );
-        if *arrow {
-            paint::line(
-                list,
-                vec![
-                    [area.max[0] - 13., area.min[1] + row * 0.5 - 4.],
-                    [area.max[0] - 9., area.min[1] + row * 0.5],
-                    [area.max[0] - 13., area.min[1] + row * 0.5 + 4.],
-                ],
-                style.foreground.with_alpha(0.82),
-            );
-        }
         if *enabled
             && input
                 .pressed
@@ -381,16 +281,7 @@ pub(super) fn finish_context_menu(
         {
             chosen = Some(index);
         }
-        if matches!(index, 3 | 8 | 12) {
-            paint::line(
-                list,
-                vec![
-                    [area.min[0] + 4., area.max[1] - 1.],
-                    [area.max[0] - 4., area.max[1] - 1.],
-                ],
-                styles.color("context.border"),
-            );
-        }
+
     }
     if let Some(index) = chosen {
         panels.project.context_menu = None;

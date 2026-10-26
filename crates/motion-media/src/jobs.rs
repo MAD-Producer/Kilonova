@@ -518,10 +518,17 @@ impl AudioJobs {
     /// Called on the editor's owning worker. Cancel and commit serialize on the
     /// task lock, so a completed cancellation cannot subsequently publish a layer.
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<TaskStatus> {
+        self.commit_target(id, engine, None)
+    }
+    /// Publish a prepared source under an existing identity, without adding a layer.
+    pub fn replace(&self, id: &str, engine: &mut impl EditSink, asset: u64) -> Result<TaskStatus> {
+        self.commit_target(id, engine, Some(asset))
+    }
+    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<TaskStatus> {
         let request: String = id.chars().take(128).collect();
         let observation = crate::task_logging::TaskLog::new(&request, "commit_audio");
         observation.start();
-        let result = self.commit_inner(id, engine);
+        let result = self.commit_inner(id, engine, target);
         match &result {
             Ok((status, attempted)) => observation.finish(
                 &status.phase,
@@ -532,7 +539,7 @@ impl AudioJobs {
         result.map(|(status, _)| status)
     }
 
-    fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(TaskStatus, bool)> {
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<(TaskStatus, bool)> {
         let task = self.task(id)?;
         // Declare owned resources before the guard so unwind releases it first.
         let mut prepared;
@@ -550,7 +557,7 @@ impl AudioJobs {
             if prepared.options.at_frame >= p.frames {
                 return Err("audio insertion outside composition".into());
             }
-            let asset_id = p
+            let asset_id = if let Some(id) = target { id } else { p
                 .assets
                 .iter()
                 .map(|a| a.id)
@@ -559,15 +566,23 @@ impl AudioJobs {
                 .max()
                 .unwrap_or(0)
                 .checked_add(1)
-                .ok_or("asset ID space exhausted")?;
-            let object = p
+                .ok_or("asset ID space exhausted")? };
+            if let Some(id) = target {
+                if !p.audio_assets.iter().any(|a| a.id == id) {
+                    return Err("replacement audio asset missing".into());
+                }
+                if p.video_assets.iter().any(|v| v.audio_asset == Some(id)) {
+                    return Err("replace the owning video asset instead of its linked audio".into());
+                }
+            }
+            let object = if target.is_some() { 0 } else { p
                 .layers
                 .iter()
                 .map(|l| l.id)
                 .max()
                 .unwrap_or(0)
                 .checked_add(1)
-                .ok_or("object ID space exhausted")?;
+                .ok_or("object ID space exhausted")? };
             let source_frames = (prepared.asset.sample_frames * u64::from(p.fps))
                 .div_ceil(u64::from(prepared.asset.sample_rate));
             let in_frame = prepared.options.at_frame;
@@ -605,18 +620,22 @@ impl AudioJobs {
             ) {
                 return Err(publication.rollback_files(error, &[&source]));
             }
-            let commands = vec![
+            let commands = if target.is_some() {
+                vec![Command::MediaAsset { action: motion_model::media_assets::AssetAction::Replace {
+                    source: motion_model::media_assets::MediaAsset::Audio(prepared.asset.clone()),
+                } }]
+            } else { vec![
                 Command::RegisterAudioAsset {
                     asset: prepared.asset.clone(),
                 },
                 Command::Add { layer },
-            ];
+            ] };
             if let Err(error) = engine.apply_batch_saved(commands, &self.root) {
                 let error = publication.rollback_published_cache(error);
                 return Err(publication.rollback_files(error, &[&source]));
             }
             Ok(
-                json!({"op":"import_media", "kind":"audio", "asset":asset_id,"object":object,"in_frame":in_frame,"out_frame":out_frame,
+                json!({"op":if target.is_some() {"replace_media"} else {"import_media"}, "kind":"audio", "asset":asset_id,"object":if target.is_some() {None} else {Some(object)},"in_frame":in_frame,"out_frame":out_frame,
                 "source_offset_us":0,"has_audio":true,"truncated_to_composition": u64::from(out_frame-in_frame) < source_frames}),
             )
         })();
