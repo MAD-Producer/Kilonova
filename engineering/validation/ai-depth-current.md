@@ -180,3 +180,25 @@ SHA-256 `cfbd5b1f6e4482600a8dbce9ff28aa3b0b798b608326e715f1ee4b816e3fe9ef`;
 The archive includes the original Apache license and model manifest, not model
 weights, upstream implementation or runtime binaries. Rejected cache/selection
 runs are retained separately from accepted receipts.
+
+## Integration after the #78 budget correction
+
+The three depth commits were rebased onto #78 head `8ffb5af7`, preserving only
+their depth-specific changes. The rebased source-frozen gate
+`issue74-depth-regression-v4` passes 91 tests with no failures or ignores: four
+actual-child ONNX unit tests, six job integration tests, and the complete
+81-test model regression. The previously archived real-model procedure itself
+is unchanged by the rebase; this new run verifies integration with the current
+main-derived model/render changes rather than replaying the old build result.
+
+The existing native desktop CI test command now explicitly enables
+`motion-host/ai-depth`, covering the optional contract/process tests on the
+maintained desktop matrix without installing model weights or an inference
+runtime. It adds no job, matrix entry or second full test command. Twelve
+workflow-policy tests pass with the pinned PyYAML 6.0.3; the provenance guard
+also passes. Remote results for this optional feature remain pending.
+
+Evidence: [rebased Rust and workflow receipts](data/ai-depth-rebased-regression-609e793d.zip),
+SHA-256 `a429e1616bedb07a6bb4047c28c339b2d650dafa6ac5070d1ac55cfe9dc74388`;
+216,446 bytes, 17 entries, every entry read back and hashed. The workflow feature
+selection was added after the frozen Rust gate and validated separately.

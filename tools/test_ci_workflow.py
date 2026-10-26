@@ -247,6 +247,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual((members - excluded) | native, members - {"motion-android"})
         native_features = native_args[native_args.index("--features") + 1].split(",")
         self.assertIn("motion-host/diagnostics", native_features)
+        self.assertIn("motion-host/ai-depth", native_features)
         self.assertIn("motion-ui/gpu-tests", native_features)
         manifests = [tomllib.loads((ROOT / member / "Cargo.toml").read_text(encoding="utf-8")) for member in workspace["members"]]
         gpu_packages = {manifest["package"]["name"] for manifest in manifests if "gpu-tests" in manifest.get("features", {})}
