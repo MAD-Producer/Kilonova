@@ -16,12 +16,12 @@ was reviewed and no subagent was used.
 | 78-R2 typed values and semantics | Versioned image values, origin IDs, distinct input roles, canonical color/alpha/precision, coordinates, rectangles, depth-direction rules, time, halo and state/capabilities | Package PNG/encoded defaults, current-instance byte containers, actual numeric curve LUTs and scalar mask coverage now supply checked values consumed by native preparation; depth producers belong to later work |
 | 78-R3 checked topology and lifetime | Checked effect-level operations control actual snapshot/native task coverage; checked package-local DAG order and lifetimes control native pass order, both sampled image ports and working-slot placement | Early effected-source topology refuses cycles before CPU work; the initial semantic graph now owns outer producer identity and dependency selectors before proposals, while concrete checked texel extents follow transactional admission |
 | 78-R4 actual shared upstream work | Four-precision native snapshot traces retain one encode/copy per shared producer; four-precision package-local diamonds execute A/B/C/D despite a B/D/A/C shader list, with actual draw counts, an independent numeric oracle and a differing linear-list control | Final integrated boundary acceptance on the current main baseline |
-| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Complete IR-level affected-group scheduling remains unfinished; cache eviction can require recompilation |
+| 78-R5 numeric data / code identity | Numeric updates preserve validated packages and native pipelines; four-precision uniform/overflow instance tests verify 16 raw-pixel updates and eight disk reopen/isolation/undo cases; structural edits rebuild only the affected program; grouping preserves actual generated code and runtime manifests | Real two-group portable/native counters now verify zero numeric compilation and only affected structural compilation; CurrentSample tasks still execute per frame; cache eviction may require recompilation; final integrated CI remains |
 | 78-R6 proven grouping | #73 implementation-bound proof, local SSA def/use closure and effect-level IR primary-chain/unique-consumer checks jointly gate actual groups before final physical placement | Complete semantic import/boundary coverage and final acceptance; closed graph regions alone never establish shader equivalence |
-| 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial; end-to-end costs and final integrated scheduling acceptance remain unfinished |
+| 78-R7 CPU / GPU scheduling | Pure vector tessellation now runs in bounded batches of at most four jobs with ordered global-budget/cache admission; native GPU ownership, encoder and atomic scratch allocator stay unchanged | Mask/generator state remains serial with its existing mutable cache/budget ordering; bounded pure-vector CPU parallelism fulfills the current scope; final integrated scheduling acceptance remains |
 | 78-R8 runtime version / capabilities | Version-1 package image templates require image_execution_v1, bind actual compiled code and current precision/extents, and execute natively; actual loader tests reject versions/capabilities/code/cycles and recover; the targeted source-bound runtime gate passed | Complete final desktop integration/CI; extending the retired Android/GLES packed ABI is excluded by user instruction |
 | 78-R9 failures / observation | Typed cycle, precision mismatch and pass-budget failures now traverse the actual worker and default file/Error stderr channels with request/origin/timing context, stdout isolation, original GPU pixels and same-renderer recovery; earlier compiler/private-data faults remain covered | Confirm the complete final source in G integration and cross-platform desktop CI |
-| 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Measure end-to-end shader/compile/pass/frame/peak costs; hash counters are not frame timing or unique driver allocation measurements |
+| 78-R10 performance / admission | Physical scratch/source admission remains authoritative; a bounded weak code-identity cache avoids rehashing unchanged shader text on numeric rebuilds | Actual dev-profile shader sizes, portable/native compilation, pass counts, synchronized frame wall intervals and per-frame enrolled-capacity peaks are recorded below; no process RSS, driver VRAM or GPU-only timing inference; final integration remains |
 | 78-R11 regression / CI | Current targeted library/native/affected-path results below pass with source snapshots | Full integrated final-source regression, cross-platform CI and final acceptance remain pending |
 
 All Android implementation and acceptance, plus legacy migration, are outside
@@ -1136,3 +1136,76 @@ included. Final cost evidence, main alignment, full integration and maintained
 desktop CI remain pending.
 
 Evidence: [verified semantic-owner archive](data/typed-render-dag-semantic-owner-97936c6b.zip), SHA-256 `9324789ab25942c168b3bb73933d6d245ad14e0c5d6b8be0fdbd093302c42727`; 4,152,536 bytes, 799 payload files plus manifest, all entries read back and hashed.
+
+
+## Independent-group compilation and measured costs (2026-10-26)
+
+After the semantic-owner checkpoint, the branch was fetched/rebased without
+conflicts onto main `880739de`; its semantic-owner head became `74940bff`.
+The earlier source-bound counts remain historical acceptance, not acceptance
+of all newly integrated main changes. A checkout-only CRLF byte change in
+effect_plan.rs is distinguished from 21 main source-content changes in the
+archived rebase receipt. G must cover this integrated baseline.
+
+The new native multi-group regression uses two independently addressed layers,
+each with a proved Invert -> Tint group. In every working precision, two numeric
+edits (one per group) add zero portable compiles and zero native pipeline builds.
+Reversing only the first group's structure preserves the second group's native
+program and pipeline. UNORM8/Float16/Float32 add one portable compile and one
+native fused pipeline; UNORM16 correctly retains its quantized transfer boundary,
+adds no portable group compile, and first builds the two original effect
+pipelines plus their working conversion. Restoring the original structure
+reuses both portable and native code. Full-frame linear-premultiplied pixels
+are compared with actual ungrouped rendering in every phase; no existing
+assertion, tolerance or return behavior was changed.
+
+This closes the literal issue requirement for affected-group **compilation**.
+It does not introduce an extra requirement to skip unaffected GPU work in a new
+frame: graph operations conservatively carry CurrentSample time dependence and
+still execute. Likewise, CPU preparation may parallelize; the pure vector
+preparer does so. Mutable mask/generator caches and ordered budget admission
+remain serial; they are retained behavior, not an unimplemented mandatory new
+parallel executor.
+
+`cargo run -p motion-render --example render_dag_costs -- <output.json>` runs
+the same independently checked fixture at 65x33 and 513x257, all four working
+precisions. The optional example is outside the default test matrix. The source-
+bound run contains eight cases and 40 paired grouped/ungrouped phases; a separate
+one-parent-test regression runs all four precisions at the smaller extent.
+Observed values below come from the dev profile on this Windows adapter, with
+the exact sources, commands, environment overrides and raw JSON archived. A renderer-cold
+compile does not imply cold driver caches. Two warm numeric samples per case
+are observations, not a statistically established speedup or FPS baseline.
+
+| 513x257 working mode | One reusable group WGSL bytes | Portable compile ms | Renderer-cold native compile ms | Warm draw/readback wall ms (two samples) | Warm admitted peak bytes |
+| --- | ---: | ---: | ---: | --- | ---: |
+| unorm8 | 5851 | 9.994 | 14.989 | 1.897–2.135 | 4,049,920 |
+| unorm16 | 5733 | 10.389 | 15.038 | 2.372–2.605 | 6,158,348 |
+| float16 | 6539 | 11.738 | 16.748 | 2.418–2.434 | 6,158,348 |
+| float32 | 5661 | 11.166 | 15.688 | 2.953–2.958 | 10,375,204 |
+
+Each initial pair measures 14 -> 6 native effect passes. Shader byte lengths
+and portable compile time describe one actual generated program reused by two
+groups; repeated group metadata must not be summed as distinct compiles.
+Native timers are cumulative CPU pipeline creation/validation time per renderer,
+with phase deltas available in JSON. Draw/readback wall intervals include CPU
+preparation, submissions and synchronization; they are not isolated GPU time.
+
+The capacity measure is the actual central budget's completed per-frame
+`session_enrolled_native_capacity` window, including retained resources and
+command reservations. Its API explicitly reports complete_coverage=false and
+is_physical_vram=false. It excludes un-enrolled/driver allocations and process
+RSS; independent category maxima must not be summed. All recorded windows have
+zero pending or unconfirmed submissions and zero omitted tracking windows.
+
+Attempt costs-v1 failed because the new fixture incorrectly expected complete
+physical coverage from that deliberately partial gauge. The fixture now asserts
+the reported scope/false flags and preserves the completion/fault/omission
+guards, recording the limitation rather than changing production accounting.
+costs-v2 passed the initial multi-group regression; costs-v3 passed the final
+stronger native invalidation assertions and the full optional cost example.
+All attempts and exact source snapshots are retained. This is not G: full final-
+source regression, maintained-desktop CI and issue closure remain pending.
+No UI, panel, runtime feature, dependency or Android change is included.
+
+Evidence: [verified cost archive](data/typed-render-dag-costs-74940bff.zip), SHA-256 `7c6923f629a79e08ce582192ccd11fd9202f3effc559b460a458ab82a1173ad5`; 2,662,213 bytes, 552 payload files plus manifest, every entry read back and hashed.
