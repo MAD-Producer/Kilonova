@@ -599,7 +599,9 @@ impl GpuState {
                 let observation = pointwise.then(|| crate::pointwise_observation::CompilePhase::start(
                     "pointwise_native_pipeline", &program.key, group.map(|g| g.object),
                     group.into_iter().flat_map(|g| g.effects.iter().copied()), Some(p.program), Some(target_kind)));
-                let source = program.shader.wgsl.clone();
+                let source = motion_effects::shader::native_output_wgsl(
+                    &program.shader, target.native() == wgpu::TextureFormat::Rgba16Float,
+                )?.into_owned();
                 #[cfg(all(debug_assertions, feature = "gpu-tests"))]
                 let source = if pointwise && std::mem::take(&mut self.invalid_pointwise_source_once) {
                     source + "\nfn pointwise_diagnostic_invalid( {"

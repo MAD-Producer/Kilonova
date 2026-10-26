@@ -10,6 +10,12 @@ was reviewed and no subagent was used.
 
 ## Requirements and actual coverage
 
+Latest closure audit: C1 and C3 are implemented with the source-bound targeted
+receipts below. Five independent fusion obligations are being accepted with
+their own arguments and controls. Final latest-main whole-workspace regression
+and maintained desktop CI remain required; earlier passing checkpoints are not
+attributed to later source.
+
 | Item | Current evidence | Remaining requirement |
 | --- | --- | --- |
 | 78-R1 authoring / execution / frame ownership | Actual model relationships lower to snapshot IR; exported graph packages now carry a reusable image execution template, checked by the real loader and instantiated by the native consumer | Pre-raster semantic producers, sampled selectors, origin IDs and region recipes now drive native proposals; admission refines real texel grids and aliases preview bypasses; final main-aligned integrated acceptance remains open |
@@ -1326,3 +1332,61 @@ independent fusion obligations, Linux pixel failure and final-source G remain
 open. No panel, UI, dependency or Android changes are included.
 
 Evidence: [runtime storage source and raw receipts](data/typed-render-dag-storage-acc16781.zip), SHA-256 `1dee20491445ac173943729f7a02bf49ba4c6e5c542793e61d79b7024e238e93`; 591,861 bytes, 59 payload files, every archive entry read back and hashed.
+
+### Completed baseline whole-workspace gate at 244a7b39
+
+The clean frozen source at 244a7b39, based on main 880739de, passed the
+maintained workspace with all GPU feature gates, diagnostics and desktop FFmpeg:
+3,011 passed, zero failures, ten pre-existing ignored optional studies, 298 test
+targets. Panel style checks, the desktop check, a real desktop binary build and
+an isolated actual command-list invocation also passed. The catalogue parsed as
+protocol JSON and the default file log was created. No new test was ignored.
+
+This is baseline evidence only. It predates C1, C3, the new fusion obligations
+and the Float16 store fix, so it cannot close G for those later changes.
+
+Evidence: [baseline source and raw receipts](data/typed-render-dag-baseline-g-244a7b39.zip), SHA-256 `03df72fe629d3ae1c5baf91982544df98c476615bf5ccc9e8d8f62a9ba925686`; 2,872,256 bytes, 187 payload files, all archive entries read back and hashed.
+
+
+### Independent fusion obligations and explicit Float16 effect stores
+
+The [five independent arguments](pointwise-fusion-obligations.md) separate
+scalar shader identity/evaluation, ordered quantization, alpha, external image
+and matte readers, and compositing/backdrop consumers. Each has its own frozen
+native gate and raw output. Boundary retention is distinguished from supported
+fusion; bounded finite pixel probes are not a universal floating-point theorem.
+
+The scalar GPU gate compares actual pinned original bodies with generated
+functions bit-for-bit on 1,728 inputs in 25 parameter/channel cases, and rejects
+mutated compiled implementations. The independent binary16 oracle covers all
+63,488 signed finite half cells and 253,952 scalar center/quarter/tie probes;
+190,465 differing results in the omitted-quantization control prevent a copied
+input from passing. The exact half helper is shared by native and fused stores.
+
+A newly added procedural RGB-only/alpha-preserving HDR probe initially failed:
+Float16 worst error was 0.005859375 against the unchanged 0.005 bound. Neither
+an identity-conversion shortcut nor exact pixel-center sampling corrected it;
+both unsuccessful production experiments were removed. A later first integration
+attempt caught a duplicated helper definition and is also retained. No output
+assertion, tolerance, or existing test was relaxed.
+
+The functional numeric fix explicitly rounds Float16 SDK effect outputs to
+representable nearest-even values before attachment conversion. Native format
+conversion alone cannot establish this policy. Admitted output format selects
+a bounded native pipeline specialization; full helper source participates in
+code identity/cost accounting, specialization cannot exceed admitted text size,
+unknown/multiple policy markers refuse, and source ownership is not mutated.
+This policy covers effects, including utility conversions, not hardware blend
+rounding. There are no new uniforms, dependencies, UI or Android changes.
+
+The final source-frozen nine-step gate passed 44 tests with zero failures or
+ignores. The native alpha gate now independently requires exact alpha in all
+16 RGB-only cases, plus the existing 32 exact retained alpha-lifting cases.
+UNORM16 transfer-order, effected-resource/matte and three compositing families
+retain their original stores with exact pixels. The ordinary four-mode chain
+remains a separate positive fusion control. The SDK specialization also has
+valid WGSL/GLSL and refused-marker/recovery coverage. This targeted evidence
+does not accept subsequent main changes or replace final G. Linux CI's existing
+Float16 import bound of 0.001 still requires a new remote run of the fix.
+
+Evidence: [five obligation source and raw receipts](data/typed-render-dag-five-obligations-41d517c9.zip), SHA-256 `7aa975965a948ebc88d905e6a0ea1625d4ae0f4cff96c45b7f0029f19879ead9`; 1,057,709 bytes, 101 payload files, every archive entry read back and hashed.
