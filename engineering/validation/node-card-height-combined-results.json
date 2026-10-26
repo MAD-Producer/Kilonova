@@ -1,0 +1,220 @@
+{
+  "baseline": "ab538d0e6db8dff8b37729fdfc04a3e0bf44e19c",
+  "code_proposal": "9cb30a6848e0d609604c1c5e61c815d1b8452ca3",
+  "verified_head": "67d40c82e71b4c0b3de0a3d95a7d269b7e2d513d",
+  "verified_tree": "27466391d1e080f4839c29697429cc43ed46778a",
+  "runtime_source_blobs": {
+    "desktop/app/src/node_editor.rs": "a20423748bcb1fe0b1c2a8de7187ba0a930f8730",
+    "desktop/app/src/node_editor/view/canvas.rs": "e6f6d9bc0987e1033f1c94759175404b30df95d1",
+    "desktop/app/src/node_editor/view/mod.rs": "9eae7ff55911a881964f99ed7d6bcf53af7a7eba",
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "9e4b347f3dc6427708231dc1310e6ba7ad92feea",
+    "desktop/app/src/shell/effect_timeline_acceptance/protocol_tests.rs": "240bc088fe504eee34ee89eb4313fdc75e2d498a",
+    "desktop/app/src/shell/effect_timeline_acceptance/tests.rs": "9636d926f19730c21cdbe52205e7fdecc858e461",
+    "desktop/ui/src/paint.rs": "b8457730260cec2596f9415ed5450e5338468f1a",
+    "Cargo.lock": "9bdeabd50494534dc3d6870d88ebea902e4f2148",
+    "tools/ci_desktop.py": "0e128aad5997fc9201f9128a03a35edbbcf4374b"
+  },
+  "comparison": {
+    "baseline": "ab538d0e6db8dff8b37729fdfc04a3e0bf44e19c",
+    "scenes": 28,
+    "measured_frames": 560,
+    "identical_snapshots": 52,
+    "allocation_requests_saved": 66640,
+    "requested_bytes_saved": 6979680,
+    "all_cases_nonincreasing": true,
+    "both_phases_compiled_actual_changed_sources": true,
+    "rows": [
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "English-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "English-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 32120
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "Chinese-3-defaultstrue-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 360,
+        "requested_bytes_saved": 28800
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 180,
+        "requested_bytes_saved": 19020
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledfalse-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-900x600.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-128-defaultsfalse-collapsedfalse-culledtrue-brokenfalse-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 7680,
+        "requested_bytes_saved": 811520
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedfalse-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 320,
+        "requested_bytes_saved": 29260
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-900x600.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      },
+      {
+        "name": "Chinese-4-defaultsfalse-collapsedtrue-culledfalse-brokentrue-1600x1000.txt",
+        "frames": 20,
+        "requests_saved": 120,
+        "requested_bytes_saved": 12680
+      }
+    ]
+  },
+  "node_regressions": 164,
+  "native_protocol_tests": 3,
+  "native_minimum_zh": {
+    "passed": true,
+    "seconds": 52.69,
+    "limit_seconds": 240,
+    "source_unchanged": true
+  },
+  "default_failure_sites": 7,
+  "stale_binary_attempt_excluded": true,
+  "measurement_profile": "Windows dev build; motion-desktop debug=0 and codegen-units=256",
+  "evidence": {
+    "file": "node-card-height-combined-ab538d0e.zip",
+    "bytes": 1954306,
+    "sha256": "a748a8a20d6f2cdc877a7924bcf7177cd9a1141b6136541cb8d3a11754cbf7c3",
+    "entries": 219
+  },
+  "limits": [
+    "Allocation requests are not RSS or FPS",
+    "One representative native property case on this exact height combination; four earlier native cases validate the repaired label baseline",
+    "Whole original 40/90-second ci_desktop.py acceptance is not claimed",
+    "Issue #134 remains open"
+  ]
+}

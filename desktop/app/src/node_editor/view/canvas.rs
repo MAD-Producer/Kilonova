@@ -10,17 +10,28 @@ impl NodeEditor {
             .nodes
             .iter()
             .map(|node| {
+                let ports = self.observed(
+                    "canvas.sockets",
+                    &node.id,
+                    motion_graph::node_port_specs(node, &self.document.public_parameters),
+                );
+                let height = if node.collapsed {
+                    HEADER
+                } else {
+                    let rows = ports.as_ref()
+                        .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
+                        .unwrap_or(1);
+                    expanded_node_height(node, &self.document, rows)
+                };
                 let point = self.view.world_to_screen(node.position, canvas);
                 let rect = Rect::new(
                     point[0],
                     point[1],
                     NODE_WIDTH * self.view.zoom,
-                    node_height(node, &self.document) * self.view.zoom,
+                    height * self.view.zoom,
                 );
                 let mut sockets = vec![];
-                if let Ok(ports) =
-                    self.observed("canvas.sockets", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
-                {
+                if let Ok(ports) = ports {
                     let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
