@@ -6,10 +6,12 @@ use motion_ui::{
 };
 use std::collections::BTreeMap;
 pub(crate) mod text_style;
+pub(crate) mod render_queue;
 
 #[derive(Default)]
 pub(crate) struct State {
     pub(crate) text_style: text_style::State,
+    pub(crate) render_queue: render_queue::Controls,
     pub(super) align: super::align::Controls,
     pub scroll: BTreeMap<u32, f32>,
     color_popup: Option<ColorPopup>,
@@ -37,6 +39,7 @@ struct ColorPopup {
 impl State {
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
         self.text_style.text_menu(request);
+        self.render_queue.text_menu(request);
         if let Some((_, field)) = &mut self.color_field { request.visit(&mut field.editor.text); }
     }
     pub fn editing(&self) -> bool {
@@ -44,6 +47,7 @@ impl State {
     }
     pub fn owner(&self) -> Option<Panel> {
         if let Some(owner) = self.text_style.owner() { return Some(owner); }
+        if self.render_queue.editing() { return Some(Panel::RenderQueue); }
         if self.color_popup.is_some() {
             Some(Panel::Character)
         } else if self.preview_quality.open || self.preview_options.iter().any(|d| d.open) {
@@ -58,6 +62,7 @@ impl State {
     }
     pub fn cancel(&mut self) -> bool {
         self.text_style.cancel_field();
+        self.render_queue.cancel_field();
         let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
         self.color_popup = None;
         self.preview_quality.open = false;
@@ -181,6 +186,11 @@ pub(super) fn render(
     };
 
     paint::rect(list, area, colors.PANEL);
+    if panel == Panel::RenderQueue {
+        let input = if panels.auxiliary.owner().is_some_and(|owner|owner != Panel::RenderQueue) { &neutral } else { original_input };
+        render_queue::render(list,atlas,area,panels,state,input,out);
+        return;
+    }
     if matches!(panel, Panel::Character | Panel::Paragraph) {
         let input = if panels.auxiliary.color_popup.is_some() { &neutral } else { original_input };
         text_style::render(list, atlas, area, panels, state, input, panel, out);
@@ -383,51 +393,6 @@ pub(super) fn render(
             y += control + gap;
             let rows = Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), (area.max[1] - y - pad).max(0.));
             super::media_assets::render_list(list, atlas, rows, panels, state, input, Panel::Media, "");
-        }
-        Panel::RenderQueue => {
-            let width = (area.width() - pad * 2.).max(0.);
-            let caption = styles.metric("label.column", 72.).min(width * 0.36);
-            label(list, atlas, Rect::new(area.min[0]+pad,y,caption,control), localized(locale,"MP4 范围","MP4 range"), true);
-            let scope_rect = Rect::new(area.min[0] + pad + caption + gap, y, (width - caption - gap).max(0.), control);
-            #[cfg(test)] { panels.auxiliary.movie_scope_rect = Some(scope_rect); }
-            y += control + gap;
-            line(
-                list,
-                atlas,
-                area,
-                &mut y,
-                panels.message.as_deref().unwrap_or(locale.t(T::Ready)),
-                true,
-            );
-            for (text, action, enabled) in [
-                (T::ExportPng, Action::ExportPng, true),
-                (
-                    T::ExportMovie,
-                    Action::ExportMovie,
-                    cfg!(feature = "ffmpeg"),
-                ),
-                (T::ExportPackage, Action::Pack, true),
-                (T::CancelExport, Action::CancelExport, true),
-            ] {
-                button(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad, y, area.width() - pad * 2., control),
-                    locale.t(text),
-                    input,
-                    enabled,
-                    action,
-                    out,
-                );
-                y += control + gap;
-            }
-            let items = [localized(locale, "整段合成", "Full composition"), localized(locale, "工作范围", "Work area")]
-                .map(|label| DropdownItem { label, enabled: true });
-            if let Some(index) = panels.auxiliary.export_scope.draw(list, atlas, scope_rect, area, &items,
-                usize::from(panels.movie_export_scope == motion_core::FrameScope::WorkArea), original_input, true, false) {
-                out.push(Action::MovieExportScope(if index == 0 { motion_core::FrameScope::Composition } else { motion_core::FrameScope::WorkArea }));
-            }
-
         }
         _ => {}
     }

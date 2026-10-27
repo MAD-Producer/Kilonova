@@ -284,6 +284,7 @@ pub enum Command {
         reply: Sender<Result<Value,String>>,
     },
     FreezeMovie {
+        source: Option<crate::layer_clipboard::KeyframeSource>,
         control: motion_desktop_media::movie::ExportControl,
         reply: Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>,
     },
@@ -1258,7 +1259,17 @@ impl Engine {
         if !cfg!(feature = "ffmpeg") {
             return Err("this build does not support MP4 export".into());
         }
-        self.request(|reply| Command::FreezeMovie { control, reply })
+        self.request(|reply| Command::FreezeMovie { source: None, control, reply })
+    }
+    pub fn freeze_movie_for_queue(
+        &self,
+        source: crate::layer_clipboard::KeyframeSource,
+        control: motion_desktop_media::movie::ExportControl,
+    ) -> Result<std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>, String> {
+        if !cfg!(feature = "ffmpeg") {
+            return Err("this build does not support MP4 export".into());
+        }
+        self.request(|reply| Command::FreezeMovie { source: Some(source), control, reply })
     }
     pub fn prepare_image(&self, root: PathBuf, path: String) -> Result<Value, String> {
         self.call(|reply| Command::PrepareImage { root, path, reply })
@@ -1910,10 +1921,17 @@ fn handle(
             let response=s.plugin_request(&request.to_string())?;
             let mut state=s.snapshot()?;state["textEdit"]=response;Ok(state)
         })),
-        Command::FreezeMovie {control,reply}=> {
+        Command::FreezeMovie {source,control,reply}=> {
             let result = (|| -> motion_host::Result<()> {
                 movie_freeze.available()?;
-                let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from))?;
+                let plan=motion_host::session::with_session(id,|s| {
+                    if source.as_ref().is_some_and(|source| !source.current(s)) {
+                        control.cancel();
+                        log::info!("movie freeze cancelled phase=capture request={:?} reason=context_changed", CURRENT_COMMAND.get().map(|flight| flight.request));
+                        return Err("movie export cancelled".into());
+                    }
+                    motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from)
+                })?;
                 let plan = plan.with_observation_request(CURRENT_COMMAND.get().map_or(0, |flight| flight.request));
                 let cancel = control.clone();
                 movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel))?;

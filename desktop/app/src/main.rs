@@ -12,6 +12,7 @@ mod i18n;
 mod logging;
 mod mcp;
 mod movie_export;
+mod render_queue;
 mod node_editor;
 mod node_layer;
 mod node_examples;
@@ -256,6 +257,7 @@ struct Shell {
     window: Option<Arc<Window>>,
     // Cancel queued clipboard transactions before the engine's shutdown/drop.
     layer_clipboard: layer_clipboard::controller::Clipboard,
+    render_queue: render_queue::controller::Controller,
     engine: Arc<Engine>,
     atlas: TextAtlas,
     cursors: cursors::Cursors,
@@ -389,6 +391,7 @@ impl Shell {
         let chosen = workspace.locale;
         let mut shell = Self {
             window: None,
+            render_queue: Default::default(),
             engine,
             cursors: Default::default(),
             atlas: TextAtlas::from_family(
@@ -729,6 +732,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.dirty = true;
         }
         self.poll_frame_export();
+        self.poll_render_queue();
         if let Some((receive, path, control, scope)) = &self.freezing_movie {
             if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
@@ -868,6 +872,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         if self.closing
+            && !self.render_queue.busy()
             && self.rendering.is_empty()
             && self.resizing.is_none()
             && self.editing.is_none()
@@ -910,7 +915,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     Err(e) => self.panels.message = Some(e),
                 }
             }
-            if self.closing && self.editing.is_none() && self.actions.is_empty() {
+            if self.closing && self.editing.is_none() && self.actions.is_empty() && !self.render_queue.busy() {
                 event_loop.exit();
                 return;
             }
@@ -1073,6 +1078,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
+            || self.render_queue.busy()
             || self.exporting_frame.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
         {

@@ -1,0 +1,250 @@
+{
+  "issue": 240,
+  "parent": "2308323b761b5ce47c248891b49a3ec63f31c552",
+  "source_sha256": {
+    "Cargo.lock": "9b020468c28ff09c58ec76d77fc8a0d2e6412e298530fc5d7b9e7f2b44714d64",
+    "crates/motion-desktop-media/Cargo.toml": "53908ab58881ec6969cd145c88c0375b4978c64b249d7d2b8f4533c0ec1a8050",
+    "crates/motion-desktop-media/src/movie.rs": "7bf37c2bea05336918c99918d2c87a4af5b2ebdb4905ab2c63817810cac534ec",
+    "crates/motion-desktop-media/src/movie/durable.rs": "7ff5e1183ff513975c0d46ad15769ff034a28627b4d5b0b822bff0bfce88077b",
+    "crates/motion-desktop-media/src/movie/durable/tests.rs": "e3f40b874028dc0e7f771acecc780f4cfcd45d8f567c4953421cfac3941b95db",
+    "crates/motion-desktop-media/src/movie/publication_tests.rs": "0b9d1ef2cc5ff09073aab45824d1e5ef186a88af3fb2f490dab44a04731cbeb1",
+    "desktop/app/src/engine.rs": "b9ef7e11470920889ccdb8576ec2a9a15ba36d928b252a2a349584598dd086c1",
+    "desktop/app/src/engine/movie_freeze/tests.rs": "ac284fb3a298c56b470cf4d699cfc8c09217ec88e386863409585208334f5314",
+    "desktop/app/src/main.rs": "4175bddd2586808c0b9d3a1adce273b42a62b7c20179d32a7b5a977215503003",
+    "desktop/app/src/movie_export.rs": "13efb1d332278963cd5c60b15d03ab93e136aacdfcb504e3fcc76fc2e3282f91",
+    "desktop/app/src/panels/auxiliary.rs": "df6bc18493b0a6afdf63658e2d7636dff3aaad3583642095990fe284b4a17761",
+    "desktop/app/src/panels/auxiliary/render_queue.rs": "aed6023b8f0b3a0d39fee4218803cd5def9fdad8f6ea788da973a8ee61d92987",
+    "desktop/app/src/panels/auxiliary/render_queue/tests.rs": "2108b61eb7b73479ad43016afab59001f329b19f633ee1ba30decaba68f8f6d8",
+    "desktop/app/src/panels/auxiliary/render_queue/tests/native.rs": "7ac5fb8c671ce7ba0e688968b7576a5503273fdc490268743d86ea0a7cc873a4",
+    "desktop/app/src/panels/types.rs": "003dc977078ee7c17de1f5a5d68688c962ba408bebb719bf2e21b164c0bee741",
+    "desktop/app/src/render_queue/controller.rs": "263ee334b5e4faad59d053f044d4b9f7f0c6a854763a61140753d1ab47032b59",
+    "desktop/app/src/render_queue/mod.rs": "2fe1fc0af456d9c531a70a7b8667be7de8392237de3452392e3452eef20a2a39",
+    "desktop/app/src/render_queue/model.rs": "10b5c268bc607de0df014219a19213803d99479f641b79cdfbcef161e3c74962",
+    "desktop/app/src/render_queue/model/tests.rs": "01afabaab27ccac5a0a4dac5f85fca23557551c3476871849e0debf40056227d",
+    "desktop/app/src/render_queue/store.rs": "1659d2d84fceee2fe06a6248cb9e5d3ff9386b4d6195eb469a68044c1f9e3ffd",
+    "desktop/app/src/render_queue/store/tests.rs": "0ef237f565e9e29694931ab616e40850f72a0158ab0ddc198641c556ba16eb80",
+    "desktop/app/src/render_queue/worker.rs": "6826025229e0a5acdae95aead683e24814918e9c14a978d48f1f277dff57b650",
+    "desktop/app/src/render_queue/worker/tests.rs": "6bc9aa150ab7e4bf438a425f0fa272e461db6dbc16013db215721ed7adc6df78",
+    "desktop/app/src/shell/actions.rs": "79a750acb40c7161a5958f6b1dd2d8f4621710fd5a69e6822bc8a764f6a0854f",
+    "desktop/app/src/shell/lifecycle.rs": "74fc6ab7444fe7c05b7fc64060bac2d6c9b801bbfb11673b3253c4f2786b1510",
+    "desktop/app/src/shell/mod.rs": "f444df188e78dc367d7956acc6adf4fabbfa77952fd33032b61a68a8e3d9c2a4",
+    "desktop/app/src/shell/render_queue.rs": "93c0780e976ffc89f326e5549b996f50e78421fd230a35ddbff3ac5f02fd54c3"
+  },
+  "checks": {
+    "durable": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 3,
+      "log": "render-queue-durable-ownership-final.log",
+      "sha256": "2e4a2e8a3fcbe3bbf6bd791a6fb883227b6abdf5048539c4029b6ccce28f7db0"
+    },
+    "publication": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 3,
+      "log": "render-queue-publication-initial.log",
+      "sha256": "344f6eb7297429f39c351f13e4f12304e03b3483e0c9cd6be5d64ce28ed34d15"
+    },
+    "capture_identity": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "render-queue-capture-identity.log",
+      "sha256": "828b1ad381fc5f233aeb9cb3db4e9615f5b5b3897e5ca4be6de7b1ac75cfb6e9"
+    },
+    "queue_final": {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 1,
+      "suites": 1,
+      "log": "render-queue-final-targeted-recovery.log",
+      "sha256": "de1d5661bb53c26513069a7b370d8903a04ba772dc64f795466067d9e10946a6"
+    },
+    "auxiliary_final": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 2,
+      "suites": 1,
+      "log": "render-queue-final-auxiliary.log",
+      "sha256": "b87720ba45b40d24cb2ad7698e497c5d07d7adfb7b0875f39c66c37ab7399963"
+    },
+    "native_final": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "render-queue-final-native-recovery.log",
+      "sha256": "72e6243b030a10b478e27c57a46749e5f0c7271f0bcb1a158c6904966c1d6630"
+    },
+    "media_full": {
+      "passed": 62,
+      "failed": 0,
+      "ignored": 1,
+      "suites": 4,
+      "log": "render-queue-main-media.log",
+      "sha256": "8e4465dbe4fb9f9858cee1804ecb121abf7729b103571630b80f80f27ef707d5",
+      "phase": "Main integration before final template receipt changes; media production source unchanged."
+    },
+    "without_ffmpeg": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 3,
+      "suites": 1,
+      "log": "render-queue-final-noffmpeg.log",
+      "sha256": "fc855feacab4678d659b17066b11a147c57309896223a3e7c6b3bda19d0a9540"
+    },
+    "original_work_area_recovery": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "render-queue-final-work-area.log",
+      "sha256": "d189d45bca09e026d633408309cc18857934a9624fc5621bb3ae423efaa26dd9"
+    },
+    "desktop_full_initial": {
+      "phase": "Original work-area native assertion exposed paint-triggered Open intent. Fixed by moving on-demand open to Shell lifecycle; original assertions retained and rerun.",
+      "passed": 1172,
+      "failed": 1,
+      "ignored": 11,
+      "log": "render-queue-desktop-full.log",
+      "sha256": "ad6d4d7ae40b3b9def528ad8475c112e7b78651ba599d39840de317fb15645d7",
+      "failed_test": "panels::work_area::tests::native::native_work_area_drag_save_undo_main_float_bilingual",
+      "executable_sha256": "f1a6def095653b46f44ef8abbbdd29b663b7ba9e12ce54f36dc749a5e6e86b0f"
+    },
+    "desktop_full_before_receipt": {
+      "state": "intentionally_stopped_for_template_receipt_fix",
+      "log": "render-queue-main-desktop-full.log",
+      "sha256": "3fc55a457147b2f7f2ffbad816a2fa262e1047978e64935c44456b64c44394ff",
+      "reason": "Stopped the own pre-receipt full regression because template-save acknowledgement needs a functional correction; no test assertion failed at the time of this intentional stop."
+    },
+    "desktop_full_final": {
+      "state": "pending_or_running_at_packaging",
+      "log": "render-queue-final-desktop-full.log"
+    }
+  },
+  "build": {
+    "log": "render-queue-final-build.log",
+    "sha256": "0ed0cbcadfb802e1beb2677c836de51b57da81e09547d6461ee5423c0b77bbaa",
+    "passed": true
+  },
+  "preview": {
+    "parent": "2308323b761b5ce47c248891b49a3ec63f31c552",
+    "production_source_sha256": {
+      "Cargo.lock": "9b020468c28ff09c58ec76d77fc8a0d2e6412e298530fc5d7b9e7f2b44714d64",
+      "crates/motion-desktop-media/Cargo.toml": "53908ab58881ec6969cd145c88c0375b4978c64b249d7d2b8f4533c0ec1a8050",
+      "crates/motion-desktop-media/src/movie.rs": "7bf37c2bea05336918c99918d2c87a4af5b2ebdb4905ab2c63817810cac534ec",
+      "crates/motion-desktop-media/src/movie/durable.rs": "7ff5e1183ff513975c0d46ad15769ff034a28627b4d5b0b822bff0bfce88077b",
+      "crates/motion-desktop-media/src/movie/durable/tests.rs": "e3f40b874028dc0e7f771acecc780f4cfcd45d8f567c4953421cfac3941b95db",
+      "crates/motion-desktop-media/src/movie/publication_tests.rs": "0b9d1ef2cc5ff09073aab45824d1e5ef186a88af3fb2f490dab44a04731cbeb1",
+      "desktop/app/src/engine.rs": "b9ef7e11470920889ccdb8576ec2a9a15ba36d928b252a2a349584598dd086c1",
+      "desktop/app/src/engine/movie_freeze/tests.rs": "ac284fb3a298c56b470cf4d699cfc8c09217ec88e386863409585208334f5314",
+      "desktop/app/src/main.rs": "4175bddd2586808c0b9d3a1adce273b42a62b7c20179d32a7b5a977215503003",
+      "desktop/app/src/movie_export.rs": "13efb1d332278963cd5c60b15d03ab93e136aacdfcb504e3fcc76fc2e3282f91",
+      "desktop/app/src/panels/auxiliary.rs": "df6bc18493b0a6afdf63658e2d7636dff3aaad3583642095990fe284b4a17761",
+      "desktop/app/src/panels/auxiliary/render_queue.rs": "aed6023b8f0b3a0d39fee4218803cd5def9fdad8f6ea788da973a8ee61d92987",
+      "desktop/app/src/panels/auxiliary/render_queue/tests.rs": "2108b61eb7b73479ad43016afab59001f329b19f633ee1ba30decaba68f8f6d8",
+      "desktop/app/src/panels/auxiliary/render_queue/tests/native.rs": "7ac5fb8c671ce7ba0e688968b7576a5503273fdc490268743d86ea0a7cc873a4",
+      "desktop/app/src/panels/types.rs": "003dc977078ee7c17de1f5a5d68688c962ba408bebb719bf2e21b164c0bee741",
+      "desktop/app/src/render_queue/controller.rs": "263ee334b5e4faad59d053f044d4b9f7f0c6a854763a61140753d1ab47032b59",
+      "desktop/app/src/render_queue/mod.rs": "2fe1fc0af456d9c531a70a7b8667be7de8392237de3452392e3452eef20a2a39",
+      "desktop/app/src/render_queue/model.rs": "10b5c268bc607de0df014219a19213803d99479f641b79cdfbcef161e3c74962",
+      "desktop/app/src/render_queue/model/tests.rs": "01afabaab27ccac5a0a4dac5f85fca23557551c3476871849e0debf40056227d",
+      "desktop/app/src/render_queue/store.rs": "1659d2d84fceee2fe06a6248cb9e5d3ff9386b4d6195eb469a68044c1f9e3ffd",
+      "desktop/app/src/render_queue/store/tests.rs": "0ef237f565e9e29694931ab616e40850f72a0158ab0ddc198641c556ba16eb80",
+      "desktop/app/src/render_queue/worker.rs": "6826025229e0a5acdae95aead683e24814918e9c14a978d48f1f277dff57b650",
+      "desktop/app/src/render_queue/worker/tests.rs": "6bc9aa150ab7e4bf438a425f0fa272e461db6dbc16013db215721ed7adc6df78",
+      "desktop/app/src/shell/actions.rs": "79a750acb40c7161a5958f6b1dd2d8f4621710fd5a69e6822bc8a764f6a0854f",
+      "desktop/app/src/shell/lifecycle.rs": "74fc6ab7444fe7c05b7fc64060bac2d6c9b801bbfb11673b3253c4f2786b1510",
+      "desktop/app/src/shell/mod.rs": "f444df188e78dc367d7956acc6adf4fabbfa77952fd33032b61a68a8e3d9c2a4",
+      "desktop/app/src/shell/render_queue.rs": "93c0780e976ffc89f326e5549b996f50e78421fd230a35ddbff3ac5f02fd54c3"
+    },
+    "executable_sha256": "ceeaaf431f811090274e5d6b15d01df20ac60e940729f2dadbb300f8ff40effd",
+    "ffmpeg_runtime": [
+      {
+        "file": "avcodec-62.dll",
+        "sha256": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a"
+      },
+      {
+        "file": "avdevice-62.dll",
+        "sha256": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e"
+      },
+      {
+        "file": "avfilter-11.dll",
+        "sha256": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172"
+      },
+      {
+        "file": "avformat-62.dll",
+        "sha256": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef"
+      },
+      {
+        "file": "avutil-60.dll",
+        "sha256": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5"
+      },
+      {
+        "file": "swresample-6.dll",
+        "sha256": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b"
+      },
+      {
+        "file": "swscale-9.dll",
+        "sha256": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+      }
+    ],
+    "minimal_path": "E:\\Dev\\aem\\artifacts\\render-queue-preview;C:\\WINDOWS\\System32",
+    "command_list_json_stdout": true,
+    "command_list_empty_stderr": true,
+    "video_runtime": {
+      "backend": "libav",
+      "decoded": true,
+      "frames": [
+        {
+          "decoder": "libavcodec",
+          "end": 33333,
+          "height": 24,
+          "pts": 0,
+          "rgbaBytes": 3072,
+          "width": 32
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 66667,
+          "height": 24,
+          "pts": 33333,
+          "rgbaBytes": 3072,
+          "width": 32
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 100000,
+          "height": 24,
+          "pts": 66667,
+          "rgbaBytes": 3072,
+          "width": 32
+        },
+        {
+          "decoder": "libavcodec",
+          "end": 33333,
+          "height": 24,
+          "pts": 0,
+          "rgbaBytes": 3072,
+          "width": 32
+        }
+      ],
+      "sourceFrames": 3
+    }
+  },
+  "artifact": {
+    "path": "engineering/validation/data/render-task-queue-evidence.zip",
+    "entries": 95,
+    "bytes": 869038,
+    "sha256": "bae1a1afea265c6eb5396470cedf323be459789b8c51b0c505b0b0e0b376cf91"
+  },
+  "ci": "Pending on final PR head; parent checks are not substituted.",
+  "limits": [
+    "Windows native captures use controlled production Input, not foreground OS IME injection.",
+    "Crash/power-loss durability is not claimed; tooltips wrap within the current panel capacity.",
+    "Controlled block exercises production observation decorator; handler panic exercises the actual serial worker."
+  ]
+}
