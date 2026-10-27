@@ -1,8 +1,11 @@
 //! Optional session-owned depth results. The live document stamp is read from
 //! Session at both sampling and installation, never supplied by a poll caller.
 use super::{Result, Session};
-use crate::depth::{self, image::ImageInput, Backend, Estimate, Jobs, Key, SessionStatus};
-use motion_core::Asset;
+use crate::depth::{
+    self, image::ImageInput, video::VideoInput, Backend, Estimate, Identity, Jobs, Key,
+    SessionStatus, VideoKey,
+};
+use motion_core::{Asset, Content, Layer, Project, VideoAsset};
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime};
 use std::{path::PathBuf, sync::Arc};
 
@@ -13,14 +16,57 @@ pub(super) struct State {
 }
 struct Binding {
     request: u64,
-    key: Key,
+    key: Identity,
     document: u64,
     revision: u64,
     frame: f64,
     composition: String,
     root: PathBuf,
-    asset: Asset,
+    source: Source,
     decoded_budget: u64,
+}
+enum Source {
+    Image(Asset),
+    Video { asset: VideoAsset, object: u64 },
+}
+fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64) -> Option<u64> {
+    let clip = layer.clip(project.frames);
+    // Original sources may be inspected while hidden, but empty time intervals
+    // remain normal misses. No clamp/repeat of another source frame is allowed.
+    if !frame.is_finite()
+        || frame < 0.
+        || frame >= f64::from(project.frames)
+        || frame < f64::from(clip.in_frame)
+        || frame >= f64::from(clip.out_frame)
+    {
+        return None;
+    }
+    let Content::Video { video } = &layer.content else {
+        return None;
+    };
+    let time = video.source_time_us(layer.local_frame(frame), project.fps);
+    let time = u64::try_from(time).ok()?;
+    (time >= asset.video_start_us && time < asset.video_end_us).then_some(time)
+}
+impl Source {
+    fn current(&self, session: &Session, key: &Identity) -> bool {
+        let project = session.engine.project();
+        match (self, key) {
+            (Self::Image(asset), Identity::Sample(_)) => project.assets.iter().any(|a| a == asset),
+            (Self::Video { asset, object }, Identity::Video(key)) => {
+                let Some(layer) = project.layers.iter().find(|layer| layer.id == *object) else {
+                    return false;
+                };
+                let Content::Video { video } = &layer.content else {
+                    return false;
+                };
+                video.asset == asset.id
+                    && project.video_assets.iter().any(|a| a == asset)
+                    && video_target(project, layer, asset, session.frame) == Some(key.target_us)
+            }
+            _ => false,
+        }
+    }
 }
 impl Binding {
     fn current(&self, session: &Session) -> bool {
@@ -30,12 +76,7 @@ impl Binding {
             && self.composition == session.engine.project().composition_id
             && self.root == session.root
             && self.decoded_budget == session.effects.memory_policy().decoded_image_budget_bytes
-            && session
-                .engine
-                .project()
-                .assets
-                .iter()
-                .any(|asset| asset == &self.asset)
+            && self.source.current(session, &self.key)
     }
 }
 impl Session {
@@ -120,17 +161,94 @@ impl Session {
         })?;
         depth.binding = Some(Binding {
             request,
-            key,
+            key: Identity::Sample(key),
             document: self.document_generation,
             revision: self.engine.revision(),
             frame: self.frame,
             composition: self.engine.project().composition_id.clone(),
             root: self.root.clone(),
-            asset,
+            source: Source::Image(asset),
             decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
         });
         depth.installed = None;
         Ok(request)
+    }
+
+    /// Infer the current original video layer sample. Source IO/index/decoder,
+    /// CPU SDR conversion and inference run on the depth worker. The returned
+    /// resource uses the actual indexed decoder PTS, never composition frame
+    /// time or the requested source coordinate. Outside the clip is a normal miss.
+    pub fn request_video_depth(
+        &mut self,
+        object: u64,
+        geometry: DepthGeometry,
+        model: DepthModel,
+    ) -> Result<Option<u64>> {
+        self.check_thread()?;
+        self.synchronize_depth()?;
+        geometry.validate()?;
+        model.validate()?;
+        if !self.frame.is_finite() {
+            return Err(depth::Error::Invalid("nonfinite session frame").into());
+        }
+        let project = self.engine.project();
+        let layer = project
+            .layers
+            .iter()
+            .find(|layer| layer.id == object)
+            .ok_or(depth::Error::Invalid("depth video layer not found"))?;
+        let Content::Video { video } = &layer.content else {
+            return Err(depth::Error::Invalid("depth source layer is not video").into());
+        };
+        let asset = project
+            .video_assets
+            .iter()
+            .find(|asset| asset.id == video.asset)
+            .ok_or(depth::Error::Invalid(
+                "registered depth video asset not found",
+            ))?
+            .clone();
+        let Some(target_us) = video_target(project, layer, &asset, self.frame) else {
+            self.cancel_depth()?;
+            return Ok(None);
+        };
+        if geometry.source_size != [asset.display_width, asset.display_height] {
+            return Err(depth::Error::Invalid(
+                "depth geometry differs from oriented video dimensions",
+            )
+            .into());
+        }
+        let key = VideoKey {
+            asset: asset.id,
+            revision: self.engine.revision(),
+            target_us,
+            geometry,
+            model,
+        };
+        let state = self
+            .depth
+            .as_mut()
+            .ok_or(depth::Error::Invalid("depth backend not configured"))?;
+        let request = state.jobs.request_video(VideoInput {
+            key: key.clone(),
+            root: self.root.clone(),
+            asset: asset.clone(),
+            platform: self.platform.clone(),
+            budget: self.effects.memory_policy().decoded_image_budget_bytes,
+        })?;
+        state.binding = Some(Binding {
+            request,
+            key: Identity::Video(key),
+            document: self.document_generation,
+            revision: self.engine.revision(),
+            frame: self.frame,
+            composition: project.composition_id.clone(),
+            root: self.root.clone(),
+            source: Source::Video { asset, object },
+            decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
+        });
+        state.installed = None;
+        Ok(Some(request))
     }
 
     /// Install or reuse only a result for the current independently checked
@@ -146,7 +264,11 @@ impl Session {
         let Some(binding) = &state.binding else {
             return Ok(None);
         };
-        if let Some(estimate) = state.jobs.take_ready(&binding.key)? {
+        let ready = match &binding.key {
+            Identity::Sample(key) => state.jobs.take_ready(key)?,
+            Identity::Video(key) => state.jobs.take_video_ready(key)?,
+        };
+        if let Some(estimate) = ready {
             state.installed = Some(Arc::new(estimate));
         }
         Ok(state.installed.clone())

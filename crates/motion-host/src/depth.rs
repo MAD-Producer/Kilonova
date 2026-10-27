@@ -8,6 +8,7 @@
 use motion_model::depth::{DepthGeometry, DepthModel, DepthResource, DepthSource};
 pub(crate) mod image;
 pub mod onnx;
+pub(crate) mod video;
 use std::{
     any::Any,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -43,6 +44,10 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Image(#[from] ::image::ImageError),
+    #[error(transparent)]
+    Media(#[from] motion_media::Error),
+    #[error(transparent)]
+    Render(#[from] motion_render::RenderError),
     #[error("{primary}; depth temporary cleanup also failed: {cleanup}")]
     Cleanup {
         #[source]
@@ -115,7 +120,11 @@ impl Input {
 
 #[derive(Clone, Debug, Default)]
 pub struct Costs {
-    /// Full backend wall time, including child startup, transport and cleanup.
+    /// Worker-side managed source IO, decode and RGB preparation, before inference.
+    pub source_prepare: Duration,
+    pub source_rgb_bytes: u64,
+    /// Full worker operation wall time, including managed-source preparation.
+    /// Direct backend calls report their own wall time without source staging.
     pub total: Duration,
     /// Measured parent-side staging/serialization and output ownership checks.
     /// This is separate from the child's tensor copies and filesystem phases.
@@ -197,8 +206,82 @@ pub struct Counts {
 #[derive(Clone, Debug)]
 pub struct InFlight {
     pub request: u64,
-    pub source: DepthSource,
+    pub asset: u64,
+    pub revision: u64,
+    /// Unknown until video decoding has established the exact source sample.
+    pub source: Option<DepthSource>,
+    pub target_time_us: Option<u64>,
+    pub phase: &'static str,
     pub elapsed: Duration,
+}
+
+/// A requested video timeline coordinate, distinct from the decoded frame PTS.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct VideoKey {
+    pub asset: u64,
+    pub revision: u64,
+    pub target_us: u64,
+    pub geometry: DepthGeometry,
+    pub model: DepthModel,
+}
+impl VideoKey {
+    fn validate(&self) -> Result<()> {
+        self.geometry.validate()?;
+        self.model.validate()?;
+        if self.target_us > 3_600_000_000 {
+            return Err(Error::Invalid(
+                "video depth target exceeds source duration limit",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub(crate) enum Identity {
+    Sample(Key),
+    Video(VideoKey),
+}
+impl Identity {
+    fn same_request(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Sample(a), Self::Sample(b)) => a.same_sample(b),
+            (Self::Video(a), Self::Video(b)) => a == b,
+            _ => false,
+        }
+    }
+    fn validate(&self) -> Result<()> {
+        match self {
+            Self::Sample(key) => key.validate(),
+            Self::Video(key) => key.validate(),
+        }
+    }
+    fn source(&self) -> Option<DepthSource> {
+        match self {
+            Self::Sample(key) => Some(key.source.clone()),
+            Self::Video(_) => None,
+        }
+    }
+    fn asset_revision(&self) -> (u64, u64) {
+        match self {
+            Self::Sample(key) => (key.source.asset, key.source.revision),
+            Self::Video(key) => (key.asset, key.revision),
+        }
+    }
+    fn target_time_us(&self) -> Option<u64> {
+        match self {
+            Self::Sample(_) => None,
+            Self::Video(key) => Some(key.target_us),
+        }
+    }
+    fn log_start(&self, request: u64) {
+        match self {
+            Self::Sample(key) => log::info!("start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={}",
+                request,key.source.asset,key.source.revision,key.source.pts.ticks,key.source.pts.timescale,key.model.id,key.model.revision),
+            Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode model={} model_revision={}",
+                request,key.asset,key.revision,key.target_us,key.model.id,key.model.revision),
+        }
+    }
 }
 
 /// Read-only session observation. Counts belong to this worker's lifetime;
@@ -221,30 +304,37 @@ struct Job {
 enum Work {
     Prepared(Input),
     Image(image::ImageInput),
+    Video(video::VideoInput),
 }
 impl Work {
-    fn key(&self) -> &Key {
+    fn identity(&self) -> Identity {
         match self {
-            Self::Prepared(input) => input.key(),
-            Self::Image(input) => &input.key,
+            Self::Prepared(input) => Identity::Sample(input.key().clone()),
+            Self::Image(input) => Identity::Sample(input.key.clone()),
+            Self::Video(input) => Identity::Video(input.key.clone()),
         }
     }
     fn prepare(self, cancellation: &Cancellation) -> Result<Input> {
         match self {
             Self::Prepared(input) => Ok(input),
             Self::Image(input) => input.decode(cancellation),
+            Self::Video(input) => input.decode(cancellation),
         }
     }
 }
 struct Flight {
     request: u64,
-    source: DepthSource,
+    asset: u64,
+    revision: u64,
+    source: Option<DepthSource>,
+    target_time_us: Option<u64>,
+    phase: &'static str,
     started: Instant,
     cancellation: Cancellation,
 }
 struct Completion {
     request: u64,
-    key: Key,
+    identity: Identity,
     result: Result<Estimate>,
 }
 #[derive(Default)]
@@ -286,8 +376,12 @@ impl Jobs {
         self.submit(Work::Image(input))
     }
 
+    pub(crate) fn request_video(&mut self, input: video::VideoInput) -> Result<u64> {
+        self.submit(Work::Video(input))
+    }
+
     fn submit(&mut self, input: Work) -> Result<u64> {
-        input.key().validate()?;
+        input.identity().validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         if state.stopped {
             return Err(Error::Stopped);
@@ -332,12 +426,20 @@ impl Jobs {
     /// This is the installation boundary: independently supply the live key.
     /// A source/revision/PTS/crop/model mismatch is a normal discarded old result.
     pub fn take_ready(&mut self, current: &Key) -> Result<Option<Estimate>> {
+        self.take_identity(&Identity::Sample(current.clone()))
+    }
+
+    pub(crate) fn take_video_ready(&mut self, current: &VideoKey) -> Result<Option<Estimate>> {
+        self.take_identity(&Identity::Video(current.clone()))
+    }
+
+    fn take_identity(&mut self, current: &Identity) -> Result<Option<Estimate>> {
         current.validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         let Some(done) = state.ready.take() else {
             return Ok(None);
         };
-        if done.request != state.latest || !done.key.same_sample(current) {
+        if done.request != state.latest || !done.identity.same_request(current) {
             state.counts.stale = state.counts.stale.saturating_add(1);
             return Ok(None);
         }
@@ -358,7 +460,11 @@ impl Jobs {
             .as_ref()
             .map(|f| InFlight {
                 request: f.request,
+                asset: f.asset,
+                revision: f.revision,
                 source: f.source.clone(),
+                target_time_us: f.target_time_us,
+                phase: f.phase,
                 elapsed: f.started.elapsed(),
             }))
     }
@@ -437,34 +543,50 @@ fn run(mut backend: impl Backend, shared: Shared) {
             let Some(job) = state.pending.take() else {
                 continue;
             };
+            let identity = job.input.identity();
+            let (asset, revision) = identity.asset_revision();
             state.flight = Some(Flight {
                 request: job.request,
-                source: job.input.key().source.clone(),
+                asset,
+                revision,
+                source: identity.source(),
+                target_time_us: identity.target_time_us(),
+                phase: "source_prepare",
                 started: Instant::now(),
                 cancellation: job.cancellation.clone(),
             });
             job
         };
         let began = Instant::now();
-        let key = job.input.key().clone();
-        let source = &key.source;
-        log::info!(
-            "start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={}",
-            job.request,
-            source.asset,
-            source.revision,
-            source.pts.ticks,
-            source.pts.timescale,
-            key.model.id,
-            key.model.revision
-        );
+        let identity = job.input.identity();
+        let (asset, revision) = identity.asset_revision();
+        identity.log_start(job.request);
+        let mut stage = "source_prepare";
+        let mut source = identity.source();
         let result = catch_unwind(AssertUnwindSafe(|| {
             job.cancellation.check()?;
+            let prepare_began = Instant::now();
             let input = job.input.prepare(&job.cancellation)?;
+            let source_prepare = prepare_began.elapsed();
             job.cancellation.check()?;
-            let estimate = backend.infer(&input, &job.cancellation)?;
+            source = Some(input.key().source.clone());
+            stage = "backend";
+            {
+                let mut state = lock_state(&shared)?;
+                let flight = state.flight.as_mut().ok_or(Error::State)?;
+                flight.source = Some(input.key().source.clone());
+                flight.phase = "backend";
+            }
+            if identity.target_time_us().is_some() {
+                log::info!("request={} operation=depth_infer asset={} revision={} phase=source_ready pts={}/{} source_prepare_ms={}",
+                    job.request,asset,revision,input.key().source.pts.ticks,input.key().source.pts.timescale,source_prepare.as_millis());
+            }
+            let mut estimate = backend.infer(&input, &job.cancellation)?;
             job.cancellation.check()?;
-            estimate.validate(&key)?;
+            estimate.validate(input.key())?;
+            estimate.costs.source_prepare = source_prepare;
+            estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
+            estimate.costs.total = began.elapsed();
             Ok(estimate)
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
@@ -474,8 +596,8 @@ fn run(mut backend: impl Backend, shared: Shared) {
         });
         if let Err(error) = &result {
             if !matches!(error, Error::Canceled) {
-                log::error!("request={} operation=depth_infer asset={} revision={} phase=prepare_or_backend elapsed_ms={} cause={}",
-                    job.request, source.asset, source.revision, began.elapsed().as_millis(),
+                log::error!("request={} operation=depth_infer asset={} revision={} phase=prepare_or_backend stage={} target_us={:?} pts={:?} elapsed_ms={} cause={}",
+                    job.request, asset, revision, stage, identity.target_time_us(), source.as_ref().map(|s| &s.pts), began.elapsed().as_millis(),
                     error.to_string().chars().take(768).collect::<String>());
             }
         }
@@ -502,7 +624,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
         if state.latest == job.request && !job.cancellation.is_canceled() && !state.stopped {
             state.ready = Some(Completion {
                 request: job.request,
-                key,
+                identity,
                 result,
             });
         }

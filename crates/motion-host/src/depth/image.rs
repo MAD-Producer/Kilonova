@@ -88,36 +88,51 @@ impl ImageInput {
         }
         let rgba = DynamicImage::from_decoder(decoder)?.into_rgba8();
         cancellation.check()?;
-        let [x0, y0, cw, ch] = self.key.geometry.crop;
-        let [ow, oh] = if self.key.geometry.quarter_turns % 2 == 0 {
-            [cw, ch]
-        } else {
-            [ch, cw]
-        };
-        let mut rgb = vec![0; (u64::from(ow) * u64::from(oh) * 3) as usize];
-        for y in 0..ch {
-            cancellation.check()?;
-            for x in 0..cw {
-                let pixel = rgba.get_pixel(x0 + x, y0 + y).0;
-                if pixel[3] != 255 {
-                    return Err(Error::Invalid(
-                        "depth image crop requires explicit alpha compositing",
-                    ));
-                }
-                let (mut ox, oy) = match self.key.geometry.quarter_turns {
-                    0 => (x, y),
-                    1 => (ch - 1 - y, x),
-                    2 => (cw - 1 - x, ch - 1 - y),
-                    3 => (y, cw - 1 - x),
-                    _ => return Err(Error::Invalid("unsupported depth rotation")),
-                };
-                if self.key.geometry.mirror_x {
-                    ox = ow - 1 - ox;
-                }
-                let offset = ((u64::from(oy) * u64::from(ow) + u64::from(ox)) * 3) as usize;
-                rgb[offset..offset + 3].copy_from_slice(&pixel[..3]);
-            }
-        }
-        Input::new(self.key, [ow, oh], Arc::from(rgb))
+        rgb_from_rgba(self.key, rgba.as_raw(), cancellation)
     }
+}
+
+pub(super) fn rgb_from_rgba(key: Key, rgba: &[u8], cancellation: &Cancellation) -> Result<Input> {
+    key.validate()?;
+    let [width, height] = key.geometry.source_size;
+    if width > 4096
+        || height > 4096
+        || rgba.len() as u64 != u64::from(width) * u64::from(height) * 4
+    {
+        return Err(Error::Invalid(
+            "depth RGBA extent differs from source geometry",
+        ));
+    }
+    let [x0, y0, cw, ch] = key.geometry.crop;
+    let [ow, oh] = if key.geometry.quarter_turns % 2 == 0 {
+        [cw, ch]
+    } else {
+        [ch, cw]
+    };
+    let mut rgb = vec![0; (u64::from(ow) * u64::from(oh) * 3) as usize];
+    for y in 0..ch {
+        cancellation.check()?;
+        for x in 0..cw {
+            let source = ((u64::from(y0 + y) * u64::from(width) + u64::from(x0 + x)) * 4) as usize;
+            let pixel = &rgba[source..source + 4];
+            if pixel[3] != 255 {
+                return Err(Error::Invalid(
+                    "depth image crop requires explicit alpha compositing",
+                ));
+            }
+            let (mut ox, oy) = match key.geometry.quarter_turns {
+                0 => (x, y),
+                1 => (ch - 1 - y, x),
+                2 => (cw - 1 - x, ch - 1 - y),
+                3 => (y, cw - 1 - x),
+                _ => return Err(Error::Invalid("unsupported depth rotation")),
+            };
+            if key.geometry.mirror_x {
+                ox = ow - 1 - ox;
+            }
+            let offset = ((u64::from(oy) * u64::from(ow) + u64::from(ox)) * 3) as usize;
+            rgb[offset..offset + 3].copy_from_slice(&pixel[..3]);
+        }
+    }
+    Input::new(key, [ow, oh], Arc::from(rgb))
 }
