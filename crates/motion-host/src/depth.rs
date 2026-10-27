@@ -6,6 +6,7 @@
 //! terminate their own child). This worker never owns a render session or GPU.
 
 use motion_model::depth::{DepthGeometry, DepthModel, DepthResource, DepthSource};
+pub(crate) mod image;
 pub mod onnx;
 use std::{
     any::Any,
@@ -40,6 +41,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Image(#[from] ::image::ImageError),
     #[error("{primary}; depth temporary cleanup also failed: {cleanup}")]
     Cleanup {
         #[source]
@@ -198,10 +201,40 @@ pub struct InFlight {
     pub elapsed: Duration,
 }
 
+/// Read-only session observation. Counts belong to this worker's lifetime;
+/// invalidating a document/sample does not reset them.
+#[derive(Clone, Debug)]
+pub struct SessionStatus {
+    pub request: Option<u64>,
+    pub installed: bool,
+    pub counts: Counts,
+    pub in_flight: Option<InFlight>,
+    pub queue_depth: usize,
+}
+
 struct Job {
     request: u64,
-    input: Input,
+    input: Work,
     cancellation: Cancellation,
+}
+
+enum Work {
+    Prepared(Input),
+    Image(image::ImageInput),
+}
+impl Work {
+    fn key(&self) -> &Key {
+        match self {
+            Self::Prepared(input) => input.key(),
+            Self::Image(input) => &input.key,
+        }
+    }
+    fn prepare(self, cancellation: &Cancellation) -> Result<Input> {
+        match self {
+            Self::Prepared(input) => Ok(input),
+            Self::Image(input) => input.decode(cancellation),
+        }
+    }
 }
 struct Flight {
     request: u64,
@@ -246,6 +279,15 @@ impl Jobs {
     /// Replace the one pending input and cancel the old in-flight sample. The
     /// monotonically increasing ticket prevents an older completion overwriting it.
     pub fn request(&mut self, input: Input) -> Result<u64> {
+        self.submit(Work::Prepared(input))
+    }
+
+    pub(crate) fn request_image(&mut self, input: image::ImageInput) -> Result<u64> {
+        self.submit(Work::Image(input))
+    }
+
+    fn submit(&mut self, input: Work) -> Result<u64> {
+        input.key().validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         if state.stopped {
             return Err(Error::Stopped);
@@ -397,14 +439,15 @@ fn run(mut backend: impl Backend, shared: Shared) {
             };
             state.flight = Some(Flight {
                 request: job.request,
-                source: job.input.key.source.clone(),
+                source: job.input.key().source.clone(),
                 started: Instant::now(),
                 cancellation: job.cancellation.clone(),
             });
             job
         };
         let began = Instant::now();
-        let source = &job.input.key.source;
+        let key = job.input.key().clone();
+        let source = &key.source;
         log::info!(
             "start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={}",
             job.request,
@@ -412,14 +455,16 @@ fn run(mut backend: impl Backend, shared: Shared) {
             source.revision,
             source.pts.ticks,
             source.pts.timescale,
-            job.input.key.model.id,
-            job.input.key.model.revision
+            key.model.id,
+            key.model.revision
         );
         let result = catch_unwind(AssertUnwindSafe(|| {
             job.cancellation.check()?;
-            let estimate = backend.infer(&job.input, &job.cancellation)?;
+            let input = job.input.prepare(&job.cancellation)?;
             job.cancellation.check()?;
-            estimate.validate(&job.input.key)?;
+            let estimate = backend.infer(&input, &job.cancellation)?;
+            job.cancellation.check()?;
+            estimate.validate(&key)?;
             Ok(estimate)
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
@@ -429,7 +474,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
         });
         if let Err(error) = &result {
             if !matches!(error, Error::Canceled) {
-                log::error!("request={} operation=depth_infer asset={} revision={} phase=backend elapsed_ms={} cause={}",
+                log::error!("request={} operation=depth_infer asset={} revision={} phase=prepare_or_backend elapsed_ms={} cause={}",
                     job.request, source.asset, source.revision, began.elapsed().as_millis(),
                     error.to_string().chars().take(768).collect::<String>());
             }
@@ -457,7 +502,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
         if state.latest == job.request && !job.cancellation.is_canceled() && !state.stopped {
             state.ready = Some(Completion {
                 request: job.request,
-                key: job.input.key,
+                key,
                 result,
             });
         }

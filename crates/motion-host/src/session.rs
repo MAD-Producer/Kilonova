@@ -40,6 +40,8 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+#[cfg(feature = "ai-depth")]
+mod depth;
 #[cfg(test)]
 mod output_precision_tests;
 mod preview_pressure;
@@ -100,6 +102,8 @@ pub struct Session {
     pub video_jobs: VideoJobs,
     pub video_frames: VideoFrames,
     pub preview_inputs: crate::preview_inputs::PreviewInputReader,
+    #[cfg(feature = "ai-depth")]
+    depth: Option<depth::State>,
     pub audio_jobs: AudioJobs,
     pub(crate) asset_relink: Option<crate::ops::media::relink::Batch>,
     pub package_jobs: PackageJobs,
@@ -205,6 +209,8 @@ impl Session {
             video_jobs,
             video_frames,
             preview_inputs: crate::preview_inputs::PreviewInputReader::new(platform.clone()),
+            #[cfg(feature = "ai-depth")]
+            depth: None,
             audio_jobs,
             asset_relink: None,
             package_jobs: PackageJobs::default(),
@@ -856,6 +862,8 @@ impl Session {
     }
 
     pub fn sample(&mut self) -> Result<()> {
+        #[cfg(feature = "ai-depth")]
+        self.synchronize_depth()?;
         self.effects.set_precision(self.engine.project().working_precision);
         let result = self.sampling.synchronize(self.engine.project(),self.engine.revision(),&mut self.video_frames)
             .and_then(|_| self
