@@ -359,7 +359,9 @@ impl Project {
                 depth < MAX_COMPOSITION_DEPTH,
                 "audio composition nesting too deep",
             )?;
+            let solo_active = p.layers.iter().any(|layer| layer.solo);
             for l in p.layers {
+                if solo_active && !l.solo { continue; }
                 let context = |phase, source| Error::AudioTimeline {
                     composition: p.id.chars().take(64).collect(), object: l.id, phase, source: Box::new(source),
                 };
@@ -926,16 +928,18 @@ impl Project {
         child.camera = Camera::new(self.width, self.height);
         child.camera.created = false;
         child.layers.retain(|l| selected.contains(&l.id));
+        let reference_solo = child.layers.iter().any(|layer| layer.solo);
         child
             .expressions
             .retain(|e| selected.contains(&e.target.object()));
         self.compositions.push(child);
         let reference = self.add_reference(&child_id, 0)?;
-        let l = self.layers.pop().ok_or_else(|| Error::Composition(CompositionError {
+        let mut l = self.layers.pop().ok_or_else(|| Error::Composition(CompositionError {
             code: "reference_missing".into(), composition: source.clone(),
             message: "Precomposition reference was not created".into(),
             details: json!({"object":reference,"target":child_id}),
         }))?;
+        l.solo = reference_solo;
         self.layers.retain(|l| !selected.contains(&l.id));
         self.layers.insert(insert, l);
         self.expressions

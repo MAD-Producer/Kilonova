@@ -1,0 +1,252 @@
+{
+  "base_commit": "2227a195fb21d765b24abdb45f1759d7fe06c0ec",
+  "branch": "feat/layer-playback-switches",
+  "project_format": 28,
+  "tests": {
+    "core_model": {
+      "passed": 476,
+      "failed": 0,
+      "ignored": 1
+    },
+    "output": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    "columns": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    "3d": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    "shy": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    "sampling": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    "blocking": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "total_passed": 502,
+  "total_failed": 0,
+  "original_ignored": 1,
+  "test_binary_sha256": "2d7d6d4f488e232e0e6ed7fdf9df7cd33a0ca3a7a5b6efa343ce8945b2141966",
+  "desktop_binary_sha256": "21bc1112d4f7ee38ef3c06ee9e0f8f0ff561f4dd03a98e1ffe1c4ba14632573e",
+  "build": "ffmpeg development profile, locked offline",
+  "source_sha256": {
+    "crates/motion-core/src/command_registry.rs": "9667423597068e86fd5003cb65e913225f477cab45e6014d24e67519a9fbbf11",
+    "crates/motion-core/src/editor.rs": "9fcaa18841df4e583b31f55f6a90ece2d0312009ddd516ef3c46c334f1545692",
+    "crates/motion-core/src/lib.rs": "bd1f1b70f2e35f13b114132c2581b51d1b9034e9c48f7980d46cba69f5867130",
+    "crates/motion-core/tests/layer_switches.rs": "0348132aed2a55990feea5c24352bcee2b4b2e0fb37f8ff73a7712947ee8bb59",
+    "crates/motion-host/src/ops/snapshot.rs": "bd9de4bf0c37988b1021909b6f55e7823aba24027b4078fd341aaa82bbb97e43",
+    "crates/motion-model/src/commands.rs": "fe7516e530c959c453d40d16d02f200e493ddd79e0a4ad34ce7eedc783e00e65",
+    "crates/motion-model/src/composition.rs": "862b0da74cf3fdd64db5a2241df1058339f801f20d5af5b50e922084d6ae2b2c",
+    "crates/motion-model/src/layer_switches.rs": "20f9ec0ff50b773ecb8174427c253987713c8a49467d188ad6307451ecd16b00",
+    "crates/motion-model/src/lib.rs": "2e49f393bc64d78320fe871a690a0bcc0dbf62382898ac65e3cdac62f4281440",
+    "crates/motion-model/src/model.rs": "4f0db75ea18508ecaf5f5f978e057983f6950d441b988248cb09c555e80905a0",
+    "crates/motion-render/src/effect_plan.rs": "3c1f1002fa1d980f8557d8f60d746498fa52eb9b3a8b8ec5e97743274faf97d0",
+    "crates/motion-render/src/scene.rs": "408f9bf5b1ebf2442412c82e970425934a971a4ed13635dd5fab6151f2ce6690",
+    "desktop/app/src/panels/layer_sampling/tests.rs": "d10846d0ce282d58a76118d6e6da9cb449549819fe045d3b51b4e5dd8079b11c",
+    "desktop/app/src/panels/layer_switches.rs": "d3d72279258c1667833b7c745d22663ded2674f526890931a2b1c6dbf0dbdfe9",
+    "desktop/app/src/panels/mod.rs": "269fee3883189b22693f0cea339a537397a3aa9bb828ef95102c18add0335a27",
+    "desktop/app/src/panels/playback_switches.rs": "24b25f59298966bd9cdb8893a18db66cd781070f6e3ca209bba09551c9d758c8",
+    "desktop/app/src/panels/playback_switches/tests.rs": "708d0ea794c86e191fe64bef216a68553d60252c0b7b3d057f0b758d0460a8ca",
+    "desktop/app/src/panels/playback_switches/tests/native.rs": "fcc9b7e16dc2bd2280e96e86b126b623e8882f82c068781fa6eebdb5b82a1518",
+    "desktop/app/src/panels/shy_layers/tests/native.rs": "766d1d07dc1d22feb126fa01ef7b39e102cf3e2e4959bd81a771b879401f99c0",
+    "desktop/app/src/panels/timeline.rs": "c4dd2feefbf56c50ff7f98ca3b37edcb379d2b898d5daf28be757ffebf98fdf9",
+    "desktop/app/src/panels/timeline_3d_tests.rs": "1c2933fc2ee614b9e3725b37811da01cdb76e68fe2de7a6fe8789e54538572d8",
+    "desktop/app/src/panels/timeline_columns.rs": "b98c2b130b482fce59622ce8b12624c56ca119aa2e6543e773c950cb948d23e8"
+  },
+  "runtime": {
+    "schemaVersion": 1,
+    "platform": "windows-x86_64",
+    "author": "FFmpeg developers",
+    "provenance": {
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1.zip",
+      "sha256": "3e47bda1607740550141e37c0e49d1e5182b34699f15adfd137ee266d346811a",
+      "revision": "n8.1.3-9-g29e619e767",
+      "license": "LGPL-3.0-or-later",
+      "buildScripts": "https://github.com/BtbN/FFmpeg-Builds/tree/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+      "source": "https://github.com/FFmpeg/FFmpeg/tree/29e619e767"
+    },
+    "configure": [
+      "--prefix=/ffbuild/prefix",
+      "--pkg-config-flags=--static",
+      "--pkg-config=pkg-config",
+      "--cross-prefix=x86_64-w64-mingw32-",
+      "--arch=x86_64",
+      "--target-os=mingw32",
+      "--enable-version3",
+      "--disable-debug",
+      "--enable-shared",
+      "--disable-static",
+      "--disable-w32threads",
+      "--enable-pthreads",
+      "--enable-iconv",
+      "--enable-zlib",
+      "--enable-libxml2",
+      "--enable-libvmaf",
+      "--enable-fontconfig",
+      "--enable-libharfbuzz",
+      "--enable-libfreetype",
+      "--enable-libfribidi",
+      "--enable-vulkan",
+      "--enable-libshaderc",
+      "--enable-libdav1d",
+      "--enable-libvorbis",
+      "--enable-librav1e",
+      "--enable-librsvg",
+      "--disable-libxcb",
+      "--disable-xlib",
+      "--disable-libpulse",
+      "--enable-gmp",
+      "--enable-lzma",
+      "--enable-liblcevc-dec",
+      "--enable-opencl",
+      "--enable-amf",
+      "--enable-libaom",
+      "--disable-avisynth",
+      "--enable-chromaprint",
+      "--disable-libdavs2",
+      "--disable-libdvdread",
+      "--disable-libdvdnav",
+      "--disable-libfdk-aac",
+      "--enable-ffnvcodec",
+      "--enable-cuda-llvm",
+      "--disable-frei0r",
+      "--enable-libgme",
+      "--enable-libkvazaar",
+      "--enable-libaribb24",
+      "--enable-libaribcaption",
+      "--enable-libass",
+      "--enable-libbluray",
+      "--enable-libjxl",
+      "--enable-libmp3lame",
+      "--enable-libopus",
+      "--enable-libplacebo",
+      "--enable-librist",
+      "--enable-libssh",
+      "--enable-libtheora",
+      "--enable-libvpx",
+      "--enable-libwebp",
+      "--enable-libzmq",
+      "--enable-lv2",
+      "--enable-libvpl",
+      "--enable-openal",
+      "--enable-liboapv",
+      "--enable-libopencore-amrnb",
+      "--enable-libopencore-amrwb",
+      "--enable-libopenh264",
+      "--enable-libopenjpeg",
+      "--enable-libopenmpt",
+      "--disable-librubberband",
+      "--enable-schannel",
+      "--enable-sdl2",
+      "--enable-libsnappy",
+      "--enable-libsoxr",
+      "--enable-libsrt",
+      "--enable-libsvtav1",
+      "--enable-libtwolame",
+      "--enable-libuavs3d",
+      "--disable-libdrm",
+      "--enable-vaapi",
+      "--disable-libvidstab",
+      "--enable-libvvenc",
+      "--disable-whisper",
+      "--disable-libx264",
+      "--disable-libx265",
+      "--disable-libxavs2",
+      "--disable-libxvid",
+      "--enable-libzimg",
+      "--enable-libzvbi",
+      "--extra-cflags=-DLIBTWOLAME_STATIC",
+      "--extra-cxxflags=",
+      "--extra-libs=-lgomp",
+      "--extra-ldflags=-pthread",
+      "--extra-ldexeflags=",
+      "--cc=x86_64-w64-mingw32-gcc",
+      "--cxx=x86_64-w64-mingw32-g++",
+      "--ar=x86_64-w64-mingw32-gcc-ar",
+      "--ranlib=x86_64-w64-mingw32-gcc-ranlib",
+      "--nm=x86_64-w64-mingw32-gcc-nm",
+      "--extra-version=20260930"
+    ],
+    "modifications": "No source changes; shared libraries copied without the command-line programs",
+    "files": [
+      {
+        "path": "bin/avcodec-62.dll",
+        "sha256": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a"
+      },
+      {
+        "path": "bin/avdevice-62.dll",
+        "sha256": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e"
+      },
+      {
+        "path": "bin/avfilter-11.dll",
+        "sha256": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172"
+      },
+      {
+        "path": "bin/avformat-62.dll",
+        "sha256": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef"
+      },
+      {
+        "path": "bin/avutil-60.dll",
+        "sha256": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5"
+      },
+      {
+        "path": "bin/swresample-6.dll",
+        "sha256": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b"
+      },
+      {
+        "path": "bin/swscale-9.dll",
+        "sha256": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+      }
+    ],
+    "licenses": [
+      {
+        "path": "licenses/COPYING.GPLv3",
+        "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+      },
+      {
+        "path": "licenses/COPYING.LGPLv2.1",
+        "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+      },
+      {
+        "path": "licenses/COPYING.LGPLv3",
+        "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      {
+        "path": "licenses/FFmpeg-LGPL-3.0.txt",
+        "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      {
+        "path": "licenses/LICENSE.md",
+        "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+      }
+    ],
+    "dependencies": []
+  },
+  "startup": {
+    "bare_executable_exit": -1073741515,
+    "adjacent_verified_runtime_help_exit": 0,
+    "help_channel": "stderr"
+  },
+  "limits": [
+    "Windows native surfaces tested; no physical OS mouse injection",
+    "Linux/macOS native acceptance remains CI or platform follow-up",
+    "Existing Epic overlay loader errors preserved",
+    "Local development preview; not a published CI release"
+  ]
+}
