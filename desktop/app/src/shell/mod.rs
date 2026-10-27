@@ -5,6 +5,7 @@ mod node_view_acceptance;
 mod node_search_acceptance;
 pub(crate) mod actions;
 pub(crate) mod text_style;
+mod render_queue;
 mod layer_clipboard;
 mod effect_application;
 mod effect_drag;

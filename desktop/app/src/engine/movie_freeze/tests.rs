@@ -270,7 +270,7 @@ fn actual_movie_request_survives_freezing_and_engine_exit_in_all_frame_windows()
     let budget=engine.allocation_budget.clone();
     let control=ExportControl::default();
     let (reply,receive)=channel();
-    let request=engine.dispatch(Command::FreezeMovie{control:control.clone(),reply}).unwrap();
+    let request=engine.dispatch(Command::FreezeMovie{source:None,control:control.clone(),reply}).unwrap();
     let snapshot=receive.recv_timeout(Duration::from_secs(15)).unwrap().unwrap();
     drop(engine);
     let output=root.path().join("observed-snapshot.mp4");
@@ -284,4 +284,45 @@ fn actual_movie_request_survives_freezing_and_engine_exit_in_all_frame_windows()
     assert_eq!(peaks.recent.iter().filter_map(|w|w.source_frame).collect::<Vec<_>>(),[0.,1.]);
     assert_eq!(peaks.recent.last().unwrap().operation,motion_render::FrameOperation::ExportJob);
     assert_eq!(peaks.recent.last().unwrap().end_admitted_bytes,Some(0));
+}
+
+#[cfg(feature = "ffmpeg")]
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn queued_movie_capture_rejects_stale_identity_and_keeps_the_accepted_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("project");
+    let mut project = motion_core::Project::new(32, 24, 30, 2).unwrap();
+    project.layers.push(motion_core::Layer::solid(
+        1, "Original", [32., 24.], [16., 12., 0.], [1.; 4],
+    ));
+    motion_core::storage::save(&directory, &project).unwrap();
+    let engine = Engine::start(directory, motion_desktop_media::platform(), 8 << 30).unwrap();
+    let original = engine.state().unwrap();
+    for field in ["root", "composition", "document_generation", "revision"] {
+        let mut stale = original.clone();
+        stale[field] = if field == "root" || field == "composition" {
+            serde_json::json!("different document")
+        } else {
+            serde_json::json!(original[field].as_u64().unwrap() + 1)
+        };
+        let control = ExportControl::default();
+        let result = engine.freeze_movie_for_queue(
+            crate::layer_clipboard::KeyframeSource::of(&stale), control.clone(),
+        ).unwrap().recv_timeout(Duration::from_secs(15)).unwrap();
+        assert!(matches!(result, Err(ref cause) if cause == "movie export cancelled"));
+        assert!(control.check().is_err());
+        assert_eq!(engine.state().unwrap()["project"], original["project"]);
+    }
+    let snapshot = engine.freeze_movie_for_queue(
+        crate::layer_clipboard::KeyframeSource::of(&original), ExportControl::default(),
+    ).unwrap().recv_timeout(Duration::from_secs(15)).unwrap().unwrap();
+    let info = snapshot.snapshot_info();
+    let edited = engine.edit(serde_json::to_string(&motion_core::Command::Rename {
+        object: 1, name: "Later edit".into(),
+    }).unwrap()).unwrap();
+    assert!(edited["revision"].as_u64().unwrap() > info.revision);
+    assert_eq!(snapshot.snapshot_info(), info);
+    assert_eq!(info.revision, original["revision"].as_u64().unwrap());
+    assert_eq!(motion_core::storage::load(&root.path().join("project")).unwrap(), project);
 }
