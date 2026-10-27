@@ -6,7 +6,7 @@ use crate::{
 };
 use motion_core::{Axis, Command, Curve, CurveShape, CurveSpace, Ease, Easing, Property};
 use motion_ui::{
-    input::{Input, MouseButton, Rect},
+    input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
     ui::{self, Align},
@@ -173,6 +173,12 @@ impl Controls {
     ) {
         #[cfg(test)]
         { self.clipboard_hits = None; }
+        let cancelled = self.editing() && (input.focus_lost
+            || !input.composing && !input.ime_consumed && input.key_presses().any(|(key,modifiers,repeat)|
+                key==Key::Escape && !repeat && !modifiers.control && !modifiers.alt)) && self.cancel();
+        if cancelled { out.push(Action::History(4)); }
+        let neutral = Input::default();
+        let input = if cancelled { &neutral } else { input };
         let styles = list.styles();
         let colors = styles.colors();
 
