@@ -15,6 +15,8 @@ enum Field {
 pub(crate) struct Controls {
     selected: Option<u64>,
     last_added: Option<u64>,
+    last_template: Option<(u64, u64)>,
+    source: Option<(String, u64)>,
     template: Option<u64>,
     templates: Dropdown,
     scope: Dropdown,
@@ -212,6 +214,27 @@ pub(super) fn render(
     let t = |zh, en| localized(locale, zh, en);
     let projection = panels.render_queue.clone();
     let mut controls = std::mem::take(&mut panels.auxiliary.render_queue);
+    let source = (
+        project["root"].as_str().unwrap_or_default().to_owned(),
+        project["document_generation"].as_u64().unwrap_or_default(),
+    );
+    if controls.source.as_ref().is_some_and(|old| old != &source) {
+        controls.cancel_field();
+        controls.draft = None;
+        controls.error = None;
+        controls.selected = None;
+        controls.template = None;
+    }
+    controls.source = Some(source);
+    if controls.last_template != projection.last_template {
+        controls.last_template = projection.last_template;
+        if let Some((_, id)) = projection.last_template {
+            controls.cancel_field();
+            controls.draft = None;
+            controls.error = None;
+            controls.template = Some(id);
+        }
+    }
     #[cfg(test)]
     {
         controls.task_rows.clear();
@@ -544,7 +567,7 @@ pub(super) fn render(
             &mut child,
             atlas,
             Rect::new(viewport.min[0], y, viewport.width(), row),
-            error,
+            &format!("{}: {error}", t("最近错误", "Last error")),
             false,
         );
         y += row;

@@ -454,3 +454,81 @@ fn passive_queue_paint_does_not_dispatch_a_file_io_intent() {
         }
     }
 }
+
+#[test]
+fn template_save_waits_for_success_receipt_keeps_failed_drafts_and_cancels_replaced_sources() {
+    for locale in [Locale::Zh, Locale::En] {
+        let mut panels = panels(locale);
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        draw(
+            &mut panels,
+            &mut atlas,
+            &Input::default(),
+            false,
+            [600., 900.],
+        );
+        let mut draft = panels
+            .render_queue
+            .view
+            .as_ref()
+            .unwrap()
+            .document
+            .templates[0]
+            .clone();
+        draft.id = 0;
+        draft.name = "New output template".into();
+        panels.auxiliary.render_queue.draft = Some(draft.clone());
+        panels.render_queue.pending = true;
+        draw(
+            &mut panels,
+            &mut atlas,
+            &Input::default(),
+            false,
+            [600., 900.],
+        );
+        assert_eq!(panels.auxiliary.render_queue.draft.as_ref(), Some(&draft));
+        panels.render_queue.pending = false;
+        panels.render_queue.view.as_mut().unwrap().error = Some("original write failure".into());
+        draw(
+            &mut panels,
+            &mut atlas,
+            &Input::default(),
+            false,
+            [600., 900.],
+        );
+        assert_eq!(panels.auxiliary.render_queue.draft.as_ref(), Some(&draft));
+        let view = panels.render_queue.view.as_mut().unwrap();
+        let document = Arc::make_mut(&mut view.document);
+        draft.id = document.next_template;
+        document.next_template += 1;
+        document.templates.push(draft.clone());
+        panels.render_queue.last_template = Some((42, draft.id));
+        draw(
+            &mut panels,
+            &mut atlas,
+            &Input::default(),
+            false,
+            [600., 900.],
+        );
+        assert!(panels.auxiliary.render_queue.draft.is_none());
+        assert_eq!(panels.auxiliary.render_queue.template, Some(draft.id));
+        assert_eq!(
+            panels.render_queue.view.as_ref().unwrap().error.as_deref(),
+            Some("original write failure")
+        );
+        panels.auxiliary.render_queue.draft = Some(draft);
+        let mut replaced = state();
+        replaced["document_generation"] = 2.into();
+        render(
+            &mut PaintList::default(),
+            &mut atlas,
+            Rect::new(0., 0., 600., 900.),
+            &mut panels,
+            &replaced,
+            &Input::default(),
+            &mut Vec::new(),
+        );
+        assert!(panels.auxiliary.render_queue.draft.is_none());
+        assert!(!panels.auxiliary.render_queue.editing());
+    }
+}

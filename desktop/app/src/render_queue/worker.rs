@@ -85,6 +85,7 @@ impl Shared {
 
 pub(crate) struct Ticket {
     pub request: u64,
+    pub operation: &'static str,
     reply: Receiver<Result<Option<u64>>>,
 }
 impl Ticket {
@@ -217,6 +218,7 @@ impl Queue {
             return Err("render queue worker is stopped".into());
         }
         let id = self.shared.next()?;
+        let operation = command.operation();
         let (reply, receive) = mpsc::sync_channel(1);
         self.sender
             .try_send(Request { id, command, reply })
@@ -228,6 +230,7 @@ impl Queue {
             })?;
         Ok(Ticket {
             request: id,
+            operation,
             reply: receive,
         })
     }

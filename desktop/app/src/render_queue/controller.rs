@@ -17,6 +17,7 @@ pub(crate) struct Presentation {
     pub retiring: bool,
     pub error: Option<String>,
     pub last_added: Option<u64>,
+    pub last_template: Option<(u64, u64)>,
 }
 #[derive(Debug)]
 pub(crate) enum Intent {
@@ -56,6 +57,7 @@ pub(crate) struct Controller {
     preparing: Option<ExportControl>,
     error: Option<String>,
     last_added: Option<u64>,
+    last_template: Option<(u64, u64)>,
 }
 impl Controller {
     pub fn presentation(&self) -> Presentation {
@@ -70,6 +72,7 @@ impl Controller {
             retiring: self.retiring,
             error: self.error.clone(),
             last_added: self.last_added,
+            last_template: self.last_template,
         }
     }
     pub fn busy(&self) -> bool {
@@ -167,6 +170,7 @@ impl Controller {
             self.root = root;
             self.attempted = false;
             self.last_added = None;
+            self.last_template = None;
             self.error = None;
             changed = true;
         } else if self.generation != generation {
@@ -255,6 +259,9 @@ impl Controller {
             }
             match result {
                 Ok(id) if pending.adding => self.last_added = id,
+                Ok(Some(id)) if pending.ticket.operation == "save_template" => {
+                    self.last_template = Some((pending.ticket.request, id));
+                }
                 Ok(_) => {}
                 Err(cause) if cause == "movie export cancelled" => {}
                 Err(cause) => {
@@ -327,8 +334,48 @@ mod tests {
             .unwrap()
             .save_template(template.clone())
             .unwrap();
+        let saved_request = ticket.request;
         controller.accept(ticket, false).unwrap();
         until(&mut controller, &a, &state_a, |p| !p.pending);
+        assert_eq!(
+            controller.presentation().last_template,
+            Some((saved_request, template.id))
+        );
+        assert_eq!(
+            controller.queue().unwrap().view().document.templates[0],
+            template
+        );
+        let mut invalid = template.clone();
+        invalid.pattern = "../outside.mp4".into();
+        let ticket = controller.queue().unwrap().save_template(invalid).unwrap();
+        controller.accept(ticket, false).unwrap();
+        until(&mut controller, &a, &state_a, |p| !p.pending);
+        let cause = controller.presentation().error.unwrap();
+        assert_eq!(
+            controller.presentation().last_template,
+            Some((saved_request, template.id)),
+            "a failed write must not acknowledge a successful template save"
+        );
+        assert_eq!(
+            controller.queue().unwrap().view().document.templates[0],
+            template
+        );
+        let ticket = controller
+            .queue()
+            .unwrap()
+            .save_template(template.clone())
+            .unwrap();
+        let recovered_request = ticket.request;
+        controller.accept(ticket, false).unwrap();
+        until(&mut controller, &a, &state_a, |p| !p.pending);
+        assert_eq!(
+            controller.presentation().last_template,
+            Some((recovered_request, template.id))
+        );
+        assert_eq!(
+            controller.presentation().error.as_deref(),
+            Some(cause.as_str())
+        );
         assert_eq!(
             controller.queue().unwrap().view().document.templates[0],
             template
@@ -337,6 +384,7 @@ mod tests {
         until(&mut controller, &b, &state_b, |p| {
             !p.retiring && p.view.as_ref().is_some_and(|v| v.ready)
         });
+        assert!(controller.presentation().last_template.is_none());
         assert_ne!(
             controller.queue().unwrap().view().document.templates[0],
             template

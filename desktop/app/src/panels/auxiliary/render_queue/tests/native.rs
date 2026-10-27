@@ -343,6 +343,56 @@ fn render_queue_native_tasks_templates_and_actual_output() {
         );
         shell.atlas.set_pixel_ratio(1.);
     }
+    draw(&mut shell, Input::default());
+    let templates_before = shell
+        .panels
+        .render_queue
+        .view
+        .as_ref()
+        .unwrap()
+        .document
+        .templates
+        .len();
+    let new_template = shell
+        .panels
+        .auxiliary
+        .render_queue
+        .actions
+        .iter()
+        .find(|(name, _)| *name == "new_template")
+        .unwrap()
+        .1;
+    draw(&mut shell, input(new_template));
+    draw(&mut shell, Input::default());
+    let save_template = shell
+        .panels
+        .auxiliary
+        .render_queue
+        .actions
+        .iter()
+        .find(|(name, _)| *name == "save_template")
+        .unwrap()
+        .1;
+    draw(&mut shell, input(save_template));
+    poll(&mut shell, |s| !s.panels.render_queue.pending);
+    draw(&mut shell, Input::default());
+    let saved_document = &shell.panels.render_queue.view.as_ref().unwrap().document;
+    assert_eq!(saved_document.templates.len(), templates_before + 1);
+    let saved_id = shell.panels.render_queue.last_template.unwrap().1;
+    assert_eq!(shell.panels.auxiliary.render_queue.template, Some(saved_id));
+    assert!(shell.panels.auxiliary.render_queue.draft.is_none());
+    assert!(!shell
+        .panels
+        .auxiliary
+        .render_queue
+        .actions
+        .iter()
+        .any(|(name, _)| *name == "save_template"));
+    capture(
+        &mut shell,
+        &mut events,
+        root.join("en-template-created.png"),
+    );
     shell
         .action(Action::RenderQueue(Intent::Start), None)
         .unwrap();
