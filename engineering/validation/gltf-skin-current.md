@@ -90,3 +90,32 @@ SHA-256 `d459ba56b6cbaec59460ebedb5093975d4cac69d9ecde5a27d39ab9b0b6c7cf7`; 1,30
 Binaries/weights are excluded. This targeted gate does not attribute the
 predecessor full regression or PR525 CI to these later morph/skin sources.
 Stage totals overlap and must not be added.
+
+## Maintained-main full gate after PR525
+
+Rebased onto maintained main `4184f0c8` at executable source
+`9ffe5ea5`. Source hashes are identical to the earlier final targeted gate;
+the rebase removes already-merged ancestor commits without rewriting code.
+`issue87-skin-main-full-v2` executes the complete maintained workspace with
+native GPU, FFmpeg, AI-depth and desktop/editor consumers: **3347 passed,
+0 failed**, 323 test targets. Android is retired and excluded.
+The **20 ignored manual fixtures are existing main annotations**: every complete
+file blob is unchanged and every observed ignore matches that audited inventory.
+No new ignore, relaxed assertion, tolerance, budget or timeout is introduced.
+The initial pretest inventory mismatch (old expected18, current main20) is
+retained with its explicit tests-not-started receipt.
+
+Panel style and provenance checks, FFmpeg/AI-depth desktop check, actual desktop
+binary build and actual `--command-list` invocation also pass. The catalogue
+parses as JSON, contains `register_model_asset`, and its stderr is empty.
+Every step verifies clean source and unchanged hashes, including the main code
+brought in before the full gate. No panel file is modified. The earlier
+targeted totals overlap this full run and must not be added.
+
+Evidence: [full raw outputs, exact source, manual inventory and source-equivalent
+rebase receipt](data/gltf-morph-skin-main-9ffe5ea5.zip), SHA-256
+`8cc4987dd681ee7ffa834f94a960d07d64829cc6655333e80a4f91bcb786f8c6`; 1,526,346 bytes, 69 entries,
+all read back and verified. Runtime binaries and model weights are excluded.
+Cross-platform PR merge-ref CI remains a separate gate. Actual mixed
+mesh/plane/matte/effect/nested project composition, calibrated AI depth and camera
+selection remain pending; this milestone does not close #87.
