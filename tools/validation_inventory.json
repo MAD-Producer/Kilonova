@@ -1,6 +1,15 @@
 {
   "version": 1,
   "tools": {
+    "tools/ai_depth_onnx.py": {
+      "mode": "manual",
+      "command": "python tools/ai_depth_onnx.py <host-generated-request.json>",
+      "requires": [
+        "A bounded host-generated request and its exact SHA-256-identified ONNX model",
+        "An optional Python environment with the pinned NumPy, Pillow and ONNX Runtime versions"
+      ],
+      "reason": "The optional host launches this isolated inference runner; ordinary CI does not download weights or install a model runtime. Native unit and task-contract tests cover the feature without model inference."
+    },
     "tools/bootstrap_android.py": {
       "mode": "manual",
       "command": "python tools/bootstrap_android.py",
@@ -9,6 +18,15 @@
         "Selected local Android toolchain directory"
       ],
       "reason": "Developer toolchain setup is explicit and is not a CI acceptance run."
+    },
+    "tools/export_ai_depth.py": {
+      "mode": "manual",
+      "command": "python tools/export_ai_depth.py --reference <absolute-checkout> --weights <absolute-small-weights> --output <new-absolute-directory>",
+      "requires": [
+        "The pinned official reference checkout and SHA-256-identified Small weights",
+        "The optional pinned CPU reference/export environment documented in engineering/host-api/optional-depth-inference.md"
+      ],
+      "reason": "Model export and numerical reference evaluation are explicit external acceptance work; neither model weights nor the upstream reference implementation are bundled in ordinary CI."
     },
     "tools/build_android.py": {
       "mode": "manual",

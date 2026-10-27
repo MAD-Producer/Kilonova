@@ -269,3 +269,10 @@ SHA-256 `86f6a01600df10b7c37742b042016a366101fd40cee91a72dedce177a3162024`;
 203,421 bytes, ten entries, every entry read back and hashed. Remote native
 feature CI remains pending. Session/UI installation and the remaining issue
 #74 acceptance are still open; this integration does not close the issue.
+
+The first remote main-based check identified missing tool-inventory entries for
+the two optional Python helpers. Both are now classified with explicit external
+model/runtime requirements and invocation commands. The unchanged tool-policy
+suite passes all 106 discovered tests locally (one existing Windows platform
+skip); this metadata correction does not enable model downloads in CI or alter
+the inference procedure. Remote checks on the corrected head remain pending.
