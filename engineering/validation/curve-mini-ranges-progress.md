@@ -1,5 +1,7 @@
 # Mini曲线范围和实际区间读数阶段（#259，尚未完成）
 
+后续四个Mini默认故障站点、缓存恢复及已合并519主分支接续见[故障阶段](curve-mini-faults-progress.md)；其余新增站点和完整#259验收仍待完成。
+
 接续[对比图阶段](curve-comparison-ranges-progress.md)。源码 `4d7a49ed09930db06c48878a65a79b69d173428f`，实际桌面二进制SHA-256 `7b0393bcec2ae9747ad8f2bba090712e2d36d2d538f43a8f847b0a64170ca27f`，Rust/WGSL/Cargo/样式来源前后哈希一致。开始前重新核对开放PR只有本人#519，已有curve-comparison、curve-view-controls、easing-clipboard分支能力已在基线中；本项接续现有曲线功能，没有重复其功能、新增依赖或第三方资产。
 
 ## 实现与语义
