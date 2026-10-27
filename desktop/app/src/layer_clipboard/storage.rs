@@ -149,6 +149,11 @@ pub(super) fn capture(read: Read, cache: &Path, cancel: &AtomicBool) -> Result<F
     for asset in &view.assets {
         sources.insert(&asset.path, (64 * 1024 * 1024, None, false));
     }
+    let node_paths: std::collections::BTreeSet<_> = view.node_resources.iter().map(|r| r.path.as_str()).collect();
+    for resource in &view.node_resources {
+        sources.insert(&resource.path, (motion_core::node_resources::MAX_NODE_RESOURCE_BYTES, Some(resource.bytes), false));
+        motion_core::storage::open_node_resource(&read.stamp.root, resource).map_err(|e| e.to_string())?;
+    }
     for asset in &view.model_assets {
         sources.insert(&asset.path, (motion_core::model_assets::MAX_MODEL_ASSET_BYTES, Some(asset.bytes), false));
     }
@@ -242,7 +247,7 @@ pub(super) fn capture(read: Read, cache: &Path, cancel: &AtomicBool) -> Result<F
         entries.push(Entry {
             source: relative.into(),
             cached,
-            destination: format!("assets/{}{name}", if font { "fonts/" } else if relative.starts_with("assets/models/") { "models/" } else { "" }),
+            destination: if node_paths.contains(relative) { relative.into() } else { format!("assets/{}{name}", if font { "fonts/" } else if relative.starts_with("assets/models/") { "models/" } else { "" }) },
             bytes: before.len(),
         });
     }
@@ -310,6 +315,8 @@ pub(super) fn prepare(
         .map_err(|e| io_error("target", &target.root, e))?;
     let mut clipboard = frozen.clipboard.clone();
     let mut files = vec![];
+    let node_resources = project.node_resources().map_err(|e| e.to_string())?;
+    let node_paths: std::collections::BTreeSet<_> = frozen.clipboard.resolve().map_err(|e| e.to_string())?.node_resources.into_iter().map(|r| r.path).collect();
     let registered: std::collections::BTreeSet<_> = project
         .assets
         .iter()
@@ -318,6 +325,7 @@ pub(super) fn prepare(
         .chain(project.audio_assets.iter().map(|a| a.path.as_str()))
         .chain(project.video_assets.iter().map(|a| a.path.as_str()))
         .chain(project.model_assets.iter().map(|a| a.path.as_str()))
+        .chain(node_resources.iter().map(|a| a.path.as_str()))
         .collect();
     for entry in &frozen.entries {
         check(cancel)?;
@@ -326,7 +334,7 @@ pub(super) fn prepare(
             .file_name()
             .ok_or("clipboard resource filename missing")?;
         let path = parent.join(name);
-        if registered.contains(entry.destination.as_str()) {
+        if registered.contains(entry.destination.as_str()) || (node_paths.contains(&entry.destination) && path.try_exists().map_err(|e| io_error("reuse_exists", &path, e))?) {
             let actual = owned_source(&root, &entry.destination)?;
             if !equal(&entry.cached, &actual, entry.bytes, cancel)? {
                 return Err(io_error(

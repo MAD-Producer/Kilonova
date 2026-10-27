@@ -1,6 +1,8 @@
 //! Serial file operations and a separate CPU graph compiler keep native dialogs
 //! off the GUI thread and do not stall live preview compilation.
 #[cfg(test)]
+mod bound_source_tests;
+#[cfg(test)]
 mod graph_native_effect_tests;
 #[cfg(test)]
 mod image_source_tests;
@@ -13,7 +15,7 @@ use std::{
     collections::BTreeMap,
     path::PathBuf,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         mpsc::{self, Receiver, Sender, TryRecvError},
         Arc,
     },
@@ -146,6 +148,7 @@ pub(crate) fn decision_prompt(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     Open,
+    BoundOpen,
     Save,
     SaveAs,
     Validate,
@@ -160,9 +163,34 @@ struct Job {
     locale: Locale,
     dirty: bool,
     path: Option<PathBuf>,
+    bound_source: Option<Arc<serde_json::Value>>,
+    permit: Option<QueuePermit>,
+}
+/// Counts queued, running and unconsumed completions together. Cancelling UI
+/// pending state cannot release memory still owned by a blocked worker/queue.
+struct QueuePermit(Arc<AtomicUsize>);
+impl QueuePermit {
+    fn acquire(count: &Arc<AtomicUsize>) -> Result<Self, String> {
+        count
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                (n < 16).then_some(n + 1)
+            })
+            .map_err(|_| "node operation queue is full".to_owned())?;
+        Ok(Self(count.clone()))
+    }
+}
+impl Drop for QueuePermit {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Release);
+    }
 }
 enum Outcome {
     Opened(GraphDocument, PathBuf),
+    BoundOpened(
+        GraphDocument,
+        motion_graph::CompileOptions,
+        crate::node_layer::Target,
+    ),
     Saved(PathBuf),
     Validated(Result<ValidationReport, Diagnostic>),
     Compiled(Result<(CompiledGraph, Option<CompiledGraph>), Diagnostic>),
@@ -175,6 +203,7 @@ struct Completion {
     generation: u64,
     snapshot: EditorSnapshot,
     outcome: Outcome,
+    _permit: Option<QueuePermit>,
 }
 pub struct ReadyPreview {
     pub snapshot: EditorSnapshot,
@@ -189,6 +218,8 @@ pub struct NodeTasks {
     latest_compile: Arc<AtomicU64>,
     next: u64,
     pending: BTreeMap<u64, (Kind, EditorSnapshot)>,
+    bound_open: Option<(u64, Arc<serde_json::Value>)>,
+    queued: Arc<AtomicUsize>,
 }
 impl NodeTasks {
     pub fn start() -> Result<Self, String> {
@@ -216,11 +247,13 @@ impl NodeTasks {
                             Outcome::Cancelled
                         } else {
                             log::info!(
-                                "node start #{} {:?} epoch={} revision={}",
+                                "node start #{} {:?} epoch={} revision={} object={:?} effect={:?}",
                                 job.id,
                                 job.kind,
                                 job.snapshot.epoch,
-                                job.snapshot.revision
+                                job.snapshot.revision,
+                                job.snapshot.layer_target.as_ref().map(|t| t.object),
+                                job.snapshot.layer_target.as_ref().map(|t| t.effect)
                             );
                             crate::logging::flush();
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -245,6 +278,7 @@ impl NodeTasks {
                                 generation: job.generation,
                                 snapshot: job.snapshot,
                                 outcome,
+                                _permit: job.permit,
                             })
                             .is_err()
                         {
@@ -263,6 +297,8 @@ impl NodeTasks {
             latest_compile,
             next: 1,
             pending: BTreeMap::new(),
+            bound_open: None,
+            queued: Arc::new(AtomicUsize::new(0)),
         })
     }
     pub fn busy(&self) -> bool {
@@ -280,6 +316,72 @@ impl NodeTasks {
     }
     pub fn submit(&mut self, action: Action, locale: Locale, dirty: bool) -> Result<(), String> {
         self.submit_inner(action, locale, dirty, None)
+    }
+    pub fn open_bound(
+        &mut self,
+        mut snapshot: EditorSnapshot,
+        source: serde_json::Value,
+        target: crate::node_layer::Target,
+        locale: Locale,
+    ) -> Result<(), String> {
+        if self.bound_open.is_some() {
+            return Err("a bound node source is already loading".into());
+        }
+        if motion_core::serialized_bytes(&source) > 4 * 1024 * 1024 {
+            return Err("node source metadata exceeds 4 MiB".into());
+        }
+        motion_core::node_resources::source_resources(&source).map_err(|e| e.to_string())?;
+        snapshot.layer_target = Some(target);
+        self.enqueue(
+            Kind::BoundOpen,
+            snapshot,
+            locale,
+            false,
+            None,
+            Some(Arc::new(source)),
+        )
+    }
+    /// Navigation/undo may change the target while file/PNG work is in flight.
+    /// Cancel before consuming a completion; never bind an old source to a new
+    /// project, instance, or revision of that instance's authoring document.
+    pub fn reconcile_bound_open(
+        &mut self,
+        editor: &mut NodeEditor,
+        state: &serde_json::Value,
+        locale: Locale,
+    ) {
+        let Some((id, source)) = &self.bound_open else {
+            return;
+        };
+        let target = self
+            .pending
+            .get(id)
+            .and_then(|(_, s)| s.layer_target.as_ref());
+        let valid = target.is_some_and(|target| {
+            state["root"]
+                .as_str()
+                .is_some_and(|root| std::path::Path::new(root) == target.root)
+                && state["composition"]
+                    .as_str()
+                    .or(state["project"]["composition_id"].as_str())
+                    == Some(target.composition.as_str())
+                && state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"].as_u64() == Some(target.object))
+                    .and_then(|l| l["effects"].as_array())
+                    .into_iter()
+                    .flatten()
+                    .any(|e| {
+                        e["id"].as_u64() == Some(target.effect)
+                            && e.get("node_graph") == Some(source.as_ref())
+                    })
+        });
+        if !valid {
+            self.cancel(editor);
+            editor.report_status(locale.t(T::NodeCancelled));
+        }
     }
     pub fn submit_to(
         &mut self,
@@ -313,6 +415,17 @@ impl NodeTasks {
                 return Ok(());
             }
         };
+        self.enqueue(kind, snapshot, locale, dirty, path, None)
+    }
+    fn enqueue(
+        &mut self,
+        kind: Kind,
+        snapshot: EditorSnapshot,
+        locale: Locale,
+        dirty: bool,
+        path: Option<PathBuf>,
+        bound_source: Option<Arc<serde_json::Value>>,
+    ) -> Result<(), String> {
         if kind == Kind::Compile && self.compiling(&snapshot) {
             log::debug!(
                 "node compile coalesced epoch={} revision={} reason=already_pending",
@@ -324,8 +437,12 @@ impl NodeTasks {
         if self.pending.len() >= 16 {
             return Err("node operation queue is full".into());
         }
+        let permit = QueuePermit::acquire(&self.queued)?;
         let id = self.next;
-        self.next += 1;
+        self.next = self
+            .next
+            .checked_add(1)
+            .ok_or("node request ID space exhausted")?;
         if kind == Kind::Compile {
             self.latest_compile.store(id, Ordering::Release);
         }
@@ -335,6 +452,9 @@ impl NodeTasks {
             &self.io
         };
         self.pending.insert(id, (kind, snapshot.clone()));
+        if let Some(source) = &bound_source {
+            self.bound_open = Some((id, source.clone()));
+        }
         if sender
             .send(Job {
                 id,
@@ -344,16 +464,27 @@ impl NodeTasks {
                 locale,
                 dirty,
                 path,
+                bound_source,
+                permit: Some(permit),
             })
             .is_err()
         {
             self.pending.remove(&id);
+            if self
+                .bound_open
+                .as_ref()
+                .is_some_and(|(pending, _)| *pending == id)
+            {
+                self.bound_open = None;
+            }
             return Err("node worker is closed".into());
         }
         Ok(())
     }
     pub fn cancel(&mut self, editor: &mut NodeEditor) {
+        self.bound_open = None;
         self.generation.fetch_add(1, Ordering::AcqRel);
+        while self.receive.try_recv().is_ok() {}
         for (id, (kind, snapshot)) in std::mem::take(&mut self.pending) {
             log::info!(
                 "node task cancellation requested #{id} {kind:?} epoch={} revision={} path={:?}",
@@ -372,6 +503,13 @@ impl NodeTasks {
                 Ok(c) => c,
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             };
+            if self
+                .bound_open
+                .as_ref()
+                .is_some_and(|(id, _)| *id == completion.id)
+            {
+                self.bound_open = None;
+            }
             if self.pending.remove(&completion.id).is_none()
                 || completion.generation != self.generation.load(Ordering::Acquire)
             {
@@ -385,6 +523,11 @@ impl NodeTasks {
                 continue;
             }
             match completion.outcome {
+                Outcome::BoundOpened(document, options, target) => {
+                    if !editor.accept_layer_document(&snapshot, document, options, target) {
+                        editor.report_status(locale.t(T::NodeStaleOpen));
+                    }
+                }
                 Outcome::Opened(document, path) => {
                     if editor.accept_open(&snapshot, document, path.clone()) {
                         editor.report_status(format!(
@@ -472,13 +615,16 @@ fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: boo
     // The generation and preview guards must still discard stale results.
     match &outcome {
         Outcome::Failed(error) => log::error!(
-            "node error #{} {:?} {}ms epoch={} revision={} path={:?} cancelled={cancelled}: {error}",
+            "node error #{} {:?} {}ms epoch={} revision={} path={:?} object={:?} effect={:?} cancelled={cancelled}: {}",
             job.id,
             job.kind,
             began.elapsed().as_millis(),
             job.snapshot.epoch,
             job.snapshot.revision,
-            job.path.as_ref().or(job.snapshot.source_path.as_ref())
+            job.path.as_ref().or(job.snapshot.source_path.as_ref()),
+            job.snapshot.layer_target.as_ref().map(|t| t.object),
+            job.snapshot.layer_target.as_ref().map(|t| t.effect),
+            error.chars().take(1024).collect::<String>()
         ),
         Outcome::Validated(Err(error)) | Outcome::Compiled(Err(error)) => log::warn!(
             "node rejected #{} {:?} {}ms epoch={} revision={} path={:?} cancelled={cancelled}: {error}",
@@ -512,6 +658,27 @@ fn execute(
 ) -> Outcome {
     let cancelled = || job_cancelled(job, generation, latest_compile);
     let result = (|| -> Result<Outcome, String> {
+        if job.kind == Kind::BoundOpen {
+            #[cfg(test)]
+            bound_source_tests::before_load(job);
+            if cancelled() {
+                return Ok(Outcome::Cancelled);
+            }
+            let target = job
+                .snapshot
+                .layer_target
+                .as_ref()
+                .ok_or("node source target missing")?;
+            let source = job
+                .bound_source
+                .as_ref()
+                .ok_or("node source metadata missing")?;
+            let document = crate::node_layer::load_document(source, &target.root)
+                .map_err(|e| e.to_string())?;
+            let options =
+                serde_json::from_value(source["options"].clone()).map_err(|e| e.to_string())?;
+            return Ok(Outcome::BoundOpened(document, options, target.clone()));
+        }
         if job.kind == Kind::Validate {
             return Ok(Outcome::Validated(
                 job.snapshot.validate().map_err(|e| e.diagnostic()),
@@ -810,6 +977,8 @@ mod observability_tests {
                 locale: Locale::En,
                 dirty: false,
                 path: Some(root.join("blocked/failure.msgraph")),
+                bound_source: None,
+                permit: None,
             };
             let began = std::time::Instant::now();
             let outcome = execute(&job, &generation, &latest, &mut Default::default());

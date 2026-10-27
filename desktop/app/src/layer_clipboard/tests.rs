@@ -9,6 +9,7 @@ mod keyframes;
 mod keyframe_bridge;
 mod path_bridge;
 mod curve_bridge;
+mod node_images;
 
 fn project(root: &Path, images: u64) -> motion_core::Project {
     let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();

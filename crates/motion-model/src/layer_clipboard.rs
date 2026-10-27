@@ -25,6 +25,7 @@ pub struct LayerClipboardView<'a> {
     pub fonts: Vec<&'a FontAsset>,
     pub audio_assets: Vec<&'a AudioAsset>,
     pub video_assets: Vec<&'a VideoAsset>,
+    pub node_resources: Vec<crate::NodeResource>,
     pub expressions: Vec<&'a PropertyExpression>,
 }
 
@@ -151,6 +152,7 @@ impl LayerClipboard {
             }
         }
         Ok(LayerClipboardView {
+            node_resources: crate::node_resources::effect_resources(layers.iter().copied().chain(compositions.iter().flat_map(|c| &c.layers)).flat_map(|l| &l.effects))?,
             layers,
             compositions,
             model_assets: self.source.model_assets.iter().filter(|a| models.contains(&a.id)).collect(),

@@ -110,6 +110,9 @@ fn anchor_scale(track: &mut Track<[f32; 2]>, scale: [f32; 2]) {
     }
 }
 impl AnimationPreset {
+    pub fn node_resources(&self) -> Result<Vec<crate::NodeResource>> {
+        crate::node_resources::effect_resources(&self.effects)
+    }
     /// Empty property/effect selections are deliberate, not shorthand for all.
     pub fn capture(
         project: &Project,

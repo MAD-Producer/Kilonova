@@ -9,18 +9,38 @@ fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
         let root = PathBuf::from(root);
         let _logger = crate::logging::init(root.join("logs")).unwrap();
         let mut initial = motion_core::Project::new(64, 64, 30, 120).unwrap();
-        initial.layers.push(motion_core::Layer::solid(1, "Layer", [32.; 2], [32., 32., 0.], [1.; 4]));
+        initial.layers.push(motion_core::Layer::solid(
+            1,
+            "Layer",
+            [32.; 2],
+            [32., 32., 0.],
+            [1.; 4],
+        ));
         let active = root.join("library/default");
         motion_core::storage::save(&active, &initial).unwrap();
         let original = std::fs::read(active.join("project.json")).unwrap();
-        let engine = Engine::start(active.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let engine =
+            Engine::start(active.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
         let before = engine.state().unwrap();
-        for (name, directory, cause) in [("old-version", "project-101", "unsupported project format"), ("missing-version", "project-102", "missing field `version`"), ("missing-setting", "project-103", "missing field `three_d`")] {
+        for (name, directory, cause) in [
+            ("old-version", "project-101", "unsupported project format"),
+            ("missing-version", "project-102", "missing field `version`"),
+            ("missing-setting", "project-103", "missing field `three_d`"),
+        ] {
             let mut value = serde_json::to_value(&initial).unwrap();
             match name {
-                "old-version" => value["version"] = serde_json::json!(motion_core::CURRENT_PROJECT_VERSION - 1),
-                "missing-version" => { value.as_object_mut().unwrap().remove("version"); }
-                "missing-setting" => { value["layers"][0].as_object_mut().unwrap().remove("three_d"); }
+                "old-version" => {
+                    value["version"] = serde_json::json!(motion_core::CURRENT_PROJECT_VERSION - 1)
+                }
+                "missing-version" => {
+                    value.as_object_mut().unwrap().remove("version");
+                }
+                "missing-setting" => {
+                    value["layers"][0]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("three_d");
+                }
                 _ => unreachable!(),
             }
             let folder = root.join("library").join(directory);
@@ -30,8 +50,14 @@ fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
             let error = engine.open_project(directory.into()).unwrap_err();
             assert!(error.contains(cause), "{error}");
             if name == "old-version" {
-                assert!(error.contains(&format!("version={}", motion_core::CURRENT_PROJECT_VERSION - 1)));
-                assert!(error.contains(&format!("expected={}", motion_core::CURRENT_PROJECT_VERSION)));
+                assert!(error.contains(&format!(
+                    "version={}",
+                    motion_core::CURRENT_PROJECT_VERSION - 1
+                )));
+                assert!(error.contains(&format!(
+                    "expected={}",
+                    motion_core::CURRENT_PROJECT_VERSION
+                )));
             }
             let after = engine.state().unwrap();
             for key in ["project", "revision", "history", "canUndo", "canRedo"] {
@@ -39,7 +65,10 @@ fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
             }
             assert!(!engine.failed());
             assert_eq!(std::fs::read(folder.join("project.json")).unwrap(), bytes);
-            assert_eq!(std::fs::read(active.join("project.json")).unwrap(), original);
+            assert_eq!(
+                std::fs::read(active.join("project.json")).unwrap(),
+                original
+            );
             assert!(!folder.join("project.json.tmp").exists());
         }
         // Explicitly repair our fixture and make a new request; no automatic retry.
@@ -52,21 +81,46 @@ fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
     let root = tempfile::tempdir().unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
-        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
-    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let file = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(file.contains("logging initialized level=INFO"));
-    let errors: Vec<_> = file.lines().filter(|line| line.contains("ERROR") && line.contains(" open_project ")).collect();
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|line| line.contains("ERROR") && line.contains(" open_project "))
+        .collect();
     assert_eq!(errors.len(), 3, "{file}");
-    for cause in ["unsupported project format", "missing field `version`", "missing field `three_d`"] {
+    for cause in [
+        "unsupported project format",
+        "missing field `version`",
+        "missing field `three_d`",
+    ] {
         let error = errors.iter().find(|line| line.contains(cause)).unwrap();
         assert!(stderr.contains(cause), "{stderr}");
         assert!(!stdout.contains(cause) && !stdout.contains("logging initialized"));
-        let request = error.split("error #").nth(1).unwrap().split_whitespace().next().unwrap();
+        let request = error
+            .split("error #")
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap();
         assert!(error.contains("ms:"));
-        assert!(file.find(&format!("start #{request} open_project")).unwrap() < file.find(*error).unwrap());
+        assert!(
+            file.find(&format!("start #{request} open_project"))
+                .unwrap()
+                < file.find(*error).unwrap()
+        );
     }
 }
 
@@ -268,7 +322,8 @@ fn real_save_publication_failure_reaches_reply_file_and_stderr() {
 #[test]
 fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
     const CHILD: &str = "MOTION_PROJECT_ROLLBACK_LOG_CHILD";
-    const CAUSE: &str = "invalid compiled node runtime archive encoding";
+    const CAUSE: &str = "invalid compiled node runtime";
+    const MISSING: &str = "node resource phase=resolve";
     if let Some(root) = std::env::var_os(CHILD) {
         let root = PathBuf::from(root);
         let _logger = crate::logging::init(root.clone()).unwrap();
@@ -284,7 +339,7 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
         .unwrap();
         let before = engine.state().unwrap();
 
-        // The document is valid, but its embedded runtime archive is genuinely
+        // The document is valid, but its project-owned runtime is genuinely
         // corrupt. Model/save/import succeed; replace_project rejects it before
         // switching the active session. No mocked error or decoder is used.
         let package = motion_effects::builtin::package().unwrap();
@@ -305,18 +360,35 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
             &package.manifest.effects[0],
             [64.; 2],
         );
+        let bytes = [0, 0];
+        let sha256 = motion_core::storage::resource_sha256(&bytes);
+        let resource = motion_core::NodeResource {
+            path: format!("assets/node-{sha256}.msfx"),
+            bytes: 2,
+            sha256,
+        };
         effect.node_graph = Some(serde_json::json!({
-            "format_version":1,"key":"cleanup-test","document":{},"options":{},
-            "runtime":{"package_hex":"zz"}
+            "format_version":2,"key":"cleanup-test","document":{},"options":{},
+            "runtime":resource
         }));
         layer.effects.push(effect);
         candidate.layers.push(layer);
         candidate.rebuild_plugin_dependencies();
         candidate.validate().unwrap();
         let source = root.join("source");
+        std::fs::create_dir(&source).unwrap();
+        let mut stage = motion_core::storage::NodeResourceStage::new(&source).unwrap();
+        stage.stage(&resource, &bytes).unwrap();
+        stage.keep_resources();
         motion_core::storage::save(&source, &candidate).unwrap();
         let archive = root.join("controlled-project.msproj");
         motion_core::storage::export_package(&source, &candidate, &archive).unwrap();
+        // A newly allocated project has no assets directory. Windows reports
+        // PATH_NOT_FOUND (3), while a missing final file reports FILE_NOT_FOUND
+        // (2); preserve and compare the actual platform cause, not a fixed code.
+        let missing_cause = std::fs::canonicalize(root.join("absent-parent/node.msfx"))
+            .unwrap_err()
+            .to_string();
 
         for import in [false, true, false, true] {
             let result = if import {
@@ -324,7 +396,21 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
             } else {
                 engine.new_project(serde_json::to_string(&candidate).unwrap())
             };
-            assert!(result.unwrap_err().contains(CAUSE));
+            let error = result.unwrap_err();
+            if import {
+                assert!(
+                    error.contains(CAUSE) && error.contains("Could not find EOCD"),
+                    "{error}"
+                );
+            } else {
+                // JSON alone cannot supply an external file to a fresh root.
+                assert!(
+                    error.contains(MISSING)
+                        && error.contains(&missing_cause)
+                        && error.contains(&resource.path),
+                    "{error}"
+                );
+            }
             let after = engine.state().unwrap();
             for key in ["project", "revision", "history", "canUndo", "canRedo"] {
                 assert_eq!(after[key], before[key], "changed {key}");
@@ -371,6 +457,19 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "engine::failure::project_tests::rejected_project_switch_rolls_back_directory_and_preserves_error_channels"])
         .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    if let Some(evidence) = std::env::var_os("MOTION_NODE_OWNED_EVIDENCE_DIR") {
+        let evidence = PathBuf::from(evidence);
+        std::fs::create_dir_all(&evidence).unwrap();
+        std::fs::write(evidence.join("project-rollback-stdout.txt"), &output.stdout).unwrap();
+        std::fs::write(evidence.join("project-rollback-stderr.txt"), &output.stderr).unwrap();
+        if root.path().join("motion-studio.log").is_file() {
+            std::fs::copy(
+                root.path().join("motion-studio.log"),
+                evidence.join("project-rollback-default.log"),
+            )
+            .unwrap();
+        }
+    }
     assert!(
         output.status.success(),
         "{}\n{}",
@@ -381,7 +480,10 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(file.contains("logging initialized level=INFO"));
-    let errors: Vec<_> = file.lines().filter(|line| line.contains(CAUSE)).collect();
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|line| line.contains(CAUSE) || line.contains(MISSING))
+        .collect();
     assert_eq!(errors.len(), 5, "{file}");
     for error in errors {
         assert!(
@@ -406,9 +508,14 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
         );
         assert!(stderr.contains(error.split("motion_studio::engine: ").nth(1).unwrap()));
     }
-    assert_eq!(stderr.matches(CAUSE).count(), 5);
+    assert_eq!(stderr.matches(CAUSE).count(), 3);
+    assert_eq!(stderr.matches(MISSING).count(), 2);
     for text in [file.as_str(), stderr.as_str(), stdout.as_str()] {
         assert!(!text.contains("private-project-title"));
     }
-    assert!(!stdout.contains(CAUSE) && !stdout.contains("logging initialized"));
+    assert!(
+        !stdout.contains(CAUSE)
+            && !stdout.contains(MISSING)
+            && !stdout.contains("logging initialized")
+    );
 }
