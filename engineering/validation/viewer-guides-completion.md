@@ -72,3 +72,5 @@
 ![最小浮窗菜单](viewer-guides/en-float-min-menu.png)
 
 后续接续渲染队列主分支的实际重验、旧CI排除与新CI责任边界见[组合验收](viewer-guides-queue-integration.md)。
+
+后续模型图层与深度任务主分支组合重验及旧CI排除见[模型组合验收](viewer-guides-model-integration.md)。
