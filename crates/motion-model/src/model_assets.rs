@@ -18,12 +18,23 @@ pub struct ModelAsset {
 impl ModelAsset {
     pub fn validate(&self) -> Result<()> {
         crate::storage::validate_relative_path(&self.path)?;
-        ensure(self.path.starts_with("assets/models/") && self.path.ends_with(".mscn"),
-            "model source must be a managed frozen scene")?;
+        ensure(
+            self.path.starts_with("assets/models/") && self.path.ends_with(".mscn"),
+            "model source must be a managed frozen scene",
+        )?;
         ensure(self.id != 0, "model asset ID must be nonzero")?;
-        ensure((1..=MAX_MODEL_ASSET_BYTES).contains(&self.bytes), "invalid frozen model byte count")?;
-        ensure(self.sha256.len() == 64 && self.sha256.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
-            "invalid model SHA-256")
+        ensure(
+            (1..=MAX_MODEL_ASSET_BYTES).contains(&self.bytes),
+            "invalid frozen model byte count",
+        )?;
+        ensure(
+            self.sha256.len() == 64
+                && self
+                    .sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "invalid model SHA-256",
+        )
     }
 }
 
@@ -42,9 +53,20 @@ pub struct ModelClip {
 impl ModelClip {
     pub fn validate(&self) -> Result<()> {
         ensure(self.asset != 0, "model source missing")?;
-        ensure(self.pixels_per_metre.is_finite() && (0.001..=1_000_000.).contains(&self.pixels_per_metre),
-            "model pixels per metre out of range")?;
-        ensure(self.pivot.iter().all(|n| n.is_finite() && n.abs() <= 10_000_000.), "invalid model pivot")?;
-        ensure(matches!(self.samples, 1 | 4), "model samples must be 1 or 4")
+        ensure(
+            self.pixels_per_metre.is_finite()
+                && (0.001..=1_000_000.).contains(&self.pixels_per_metre),
+            "model pixels per metre out of range",
+        )?;
+        ensure(
+            self.pivot
+                .iter()
+                .all(|n| n.is_finite() && n.abs() <= 10_000_000.),
+            "invalid model pivot",
+        )?;
+        ensure(
+            matches!(self.samples, 1 | 4),
+            "model samples must be 1 or 4",
+        )
     }
 }

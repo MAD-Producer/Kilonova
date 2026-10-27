@@ -22,6 +22,9 @@ pub struct SceneGpuLimits {
     /// Logical descriptors for meshes, image mips and material constants.
     /// Frame uniforms, color/depth targets also join the renderer's shared cap.
     pub resident_bytes: u64,
+    /// Physical material-image storage, including mips and fallback variants.
+    /// Frame color/depth targets use the shared native allocation budget.
+    pub source_texture_bytes: u64,
     pub max_draws: usize,
     pub max_image_edge: u32,
 }
@@ -30,6 +33,7 @@ impl Default for SceneGpuLimits {
         Self {
             decoded_image_bytes: 128 << 20,
             resident_bytes: 256 << 20,
+            source_texture_bytes: 128 << 20,
             max_draws: 16_384,
             max_image_edge: 8192,
         }
@@ -134,6 +138,13 @@ impl GpuScene {
     /// Native image allocations, including fallback pixels and color/data variants.
     pub fn texture_count(&self) -> usize {
         self.images.len()
+    }
+    pub fn source_texture_bytes(&self) -> u64 {
+        self.images.bytes()
+    }
+    /// Logical native texture capacity; does not allocate observation metadata.
+    pub fn texture_bytes(&self) -> u64 {
+        self.images.bytes() + self.targets.as_ref().map_or(0, render::Targets::bytes)
     }
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
         let mut ledger = crate::TextureResourceLedger::default();

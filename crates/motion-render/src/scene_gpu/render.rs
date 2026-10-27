@@ -57,7 +57,7 @@ impl SceneFrame<'static> {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SceneRenderStats {
     pub draws: usize,
     pub triangles: u64,
@@ -100,8 +100,12 @@ pub(super) struct Targets {
     _depth: AdmittedTexture,
     color: Option<AdmittedTextureView>,
     _color: Option<AdmittedTexture>,
+    bytes: u64,
 }
 impl Targets {
+    pub fn bytes(&self) -> u64 {
+        self.bytes
+    }
     pub fn collect(&self, ledger: &mut crate::TextureResourceLedger) {
         self._depth
             .collect_texture_resources(ledger, "scene/depth", crate::TextureState::Retained);
@@ -561,6 +565,13 @@ impl GpuScene {
         } else {
             None
         };
+        let depth_bytes = crate::resource_ledger::logical_bytes(&depth)
+            .ok_or_else(|| invalid("targets", 0, "cannot account scene depth storage"))?;
+        let color_bytes = color.as_ref().map(|texture| crate::resource_ledger::logical_bytes(texture)
+            .ok_or_else(|| invalid("targets", 0, "cannot account scene multisample storage")))
+            .transpose()?.unwrap_or(0);
+        let bytes = depth_bytes.checked_add(color_bytes)
+            .ok_or_else(|| invalid("targets", 0, "scene target capacity overflow"))?;
         self.targets = Some(Targets {
             size,
             format,
@@ -569,6 +580,7 @@ impl GpuScene {
             _depth: depth,
             color: color.as_ref().map(|c| c.view()).transpose()?,
             _color: color,
+            bytes,
         });
         Ok(())
     }
