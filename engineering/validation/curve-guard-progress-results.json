@@ -1,0 +1,233 @@
+{
+  "head": "8ec085709d674973ee02c97e507ca212f630097d",
+  "compiled_base_main": "72d23d740f7885d7a3c1d118fd5e547564e3ccc1",
+  "binary_sha256": "50c41a4d234f2373d7e6d36da7c04229e5c3228db3eef8db00342d909834dca6",
+  "source_unchanged": true,
+  "portable_passed": 136,
+  "portable_ignored": 1,
+  "counts": {
+    "adaptive": 7,
+    "sampling": 4,
+    "timeline": 50,
+    "handles": 2,
+    "ranges": 24,
+    "axes": 7,
+    "effects": 16,
+    "comparison": 14,
+    "mini": 12
+  },
+  "verified_new_sites": [
+    "curve.comparison.adaptive",
+    "curve.comparison.fit_all",
+    "curve.comparison.fit_selection",
+    "curve.comparison.readout",
+    "curve.comparison.view_bounds",
+    "curve.mini.adaptive",
+    "curve.mini.fit_all",
+    "curve.mini.readout_fps",
+    "curve.mini.readout_load",
+    "curve.mini.readout_sample",
+    "effect.graph_adaptive",
+    "effect.graph_fit_all",
+    "effect.graph_fit_selection",
+    "effect.graph_readout",
+    "effect.graph_view_bounds",
+    "timeline.graph_adaptive",
+    "timeline.graph_fit_all",
+    "timeline.graph_fit_selection",
+    "timeline.graph_view_bounds"
+  ],
+  "guarded_new_sites": [
+    "curve.mini.normalized_readout"
+  ],
+  "pending_new_sites": [],
+  "evidence": [
+    {
+      "family": "range-default-info",
+      "process": "first-process",
+      "result": {
+        "actualRenderers": true,
+        "comparisonNegativeCache": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid style tolerance and unrepresentable offsets are presentation boundaries, not legal stored project faults. Budget failures use Engine-validated project tracks. Other readout/Mini guard sites are not covered.",
+        "noEditsOrHistory": true,
+        "selectedFitRecoversOnShorterInterval": true,
+        "sites": [
+          "timeline.graph_view_bounds",
+          "effect.graph_view_bounds",
+          "curve.comparison.view_bounds",
+          "timeline.graph_adaptive",
+          "effect.graph_adaptive",
+          "curve.comparison.adaptive",
+          "timeline.graph_fit_all",
+          "timeline.graph_fit_selection",
+          "effect.graph_fit_all",
+          "effect.graph_fit_selection",
+          "curve.comparison.fit_all",
+          "curve.comparison.fit_selection"
+        ],
+        "suppressedAfter60": true,
+        "validatedKeysPerTrack": 33000
+      }
+    },
+    {
+      "family": "range-default-info",
+      "process": "reset-process",
+      "result": {
+        "actualRenderers": true,
+        "comparisonNegativeCache": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid style tolerance and unrepresentable offsets are presentation boundaries, not legal stored project faults. Budget failures use Engine-validated project tracks. Other readout/Mini guard sites are not covered.",
+        "noEditsOrHistory": true,
+        "selectedFitRecoversOnShorterInterval": true,
+        "sites": [
+          "timeline.graph_view_bounds",
+          "effect.graph_view_bounds",
+          "curve.comparison.view_bounds",
+          "timeline.graph_adaptive",
+          "effect.graph_adaptive",
+          "curve.comparison.adaptive",
+          "timeline.graph_fit_all",
+          "timeline.graph_fit_selection",
+          "effect.graph_fit_all",
+          "effect.graph_fit_selection",
+          "curve.comparison.fit_all",
+          "curve.comparison.fit_selection"
+        ],
+        "suppressedAfter60": true,
+        "validatedKeysPerTrack": 33000
+      }
+    },
+    {
+      "family": "mini-default-info",
+      "process": "first-process",
+      "result": {
+        "actualConsumers": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid geometry is a presentation boundary; fps 0/1e308 model-provider faults do not describe legal stored projects. Adaptive/normalized_readout defensive branches and other surfaces remain unverified here.",
+        "normalMissingAndNoIntervalQuiet": true,
+        "originalCausesRetained": true,
+        "sameSourceFailuresCached": true,
+        "sites": [
+          "curve.mini.fit_all",
+          "curve.mini.readout_load",
+          "curve.mini.readout_fps",
+          "curve.mini.readout_sample"
+        ],
+        "sourceUnchanged": true,
+        "suppressedAfter60": true
+      }
+    },
+    {
+      "family": "mini-default-info",
+      "process": "reset-process",
+      "result": {
+        "actualConsumers": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid geometry is a presentation boundary; fps 0/1e308 model-provider faults do not describe legal stored projects. Adaptive/normalized_readout defensive branches and other surfaces remain unverified here.",
+        "normalMissingAndNoIntervalQuiet": true,
+        "originalCausesRetained": true,
+        "sameSourceFailuresCached": true,
+        "sites": [
+          "curve.mini.fit_all",
+          "curve.mini.readout_load",
+          "curve.mini.readout_fps",
+          "curve.mini.readout_sample"
+        ],
+        "sourceUnchanged": true,
+        "suppressedAfter60": true
+      }
+    },
+    {
+      "family": "readout-default-info",
+      "process": "first-process",
+      "result": {
+        "actualHoverConsumers": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "limits": "fps1e308 and shortened composition are intentionally degraded provider snapshots, not a legal saved project.",
+        "noEditsOrHistory": true,
+        "normalCurveStaysAvailable": true,
+        "recoveryPreservesCounterScope": true,
+        "sites": [
+          "effect.graph_readout",
+          "curve.comparison.readout"
+        ],
+        "suppressedAfter60": true
+      }
+    },
+    {
+      "family": "readout-default-info",
+      "process": "reset-process",
+      "result": {
+        "actualHoverConsumers": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "limits": "fps1e308 and shortened composition are intentionally degraded provider snapshots, not a legal saved project.",
+        "noEditsOrHistory": true,
+        "normalCurveStaysAvailable": true,
+        "recoveryPreservesCounterScope": true,
+        "sites": [
+          "effect.graph_readout",
+          "curve.comparison.readout"
+        ],
+        "suppressedAfter60": true
+      }
+    },
+    {
+      "family": "mini-guard-default-info",
+      "process": "first-process",
+      "result": {
+        "actualViewConsumer": true,
+        "finiteNormalizedSamples": 22550,
+        "firstWarnAndErrorAtLifetime60": true,
+        "guardedBoundary": "curve.mini.normalized_readout: valid finite t is gated to0..1; validated Core Bezier/elastic definitions have finite bounded coefficients/normalization. Boundary cases plus actual hover are evidence, not an exhaustive injected-failure test.",
+        "limits": "Frozen range1e-310 is an intentionally degraded presentation snapshot; not claimed reachable through ordinary wheel input. Normalized readout is a defensive guard disposition, not a newly reproduced/fixed defect.",
+        "malformedEasingRejectedBeforeHover": true,
+        "noEdits": true,
+        "recoveryPreservesCounterScope": true,
+        "retainedGeometryNegativeCache": true,
+        "sites": [
+          "curve.mini.adaptive"
+        ],
+        "suppressedAfter60": true,
+        "validActualHoverQuiet": true,
+        "validEasingCases": 22
+      }
+    },
+    {
+      "family": "mini-guard-default-info",
+      "process": "reset-process",
+      "result": {
+        "actualViewConsumer": true,
+        "finiteNormalizedSamples": 22550,
+        "firstWarnAndErrorAtLifetime60": true,
+        "guardedBoundary": "curve.mini.normalized_readout: valid finite t is gated to0..1; validated Core Bezier/elastic definitions have finite bounded coefficients/normalization. Boundary cases plus actual hover are evidence, not an exhaustive injected-failure test.",
+        "limits": "Frozen range1e-310 is an intentionally degraded presentation snapshot; not claimed reachable through ordinary wheel input. Normalized readout is a defensive guard disposition, not a newly reproduced/fixed defect.",
+        "malformedEasingRejectedBeforeHover": true,
+        "noEdits": true,
+        "recoveryPreservesCounterScope": true,
+        "retainedGeometryNegativeCache": true,
+        "sites": [
+          "curve.mini.adaptive"
+        ],
+        "suppressedAfter60": true,
+        "validActualHoverQuiet": true,
+        "validEasingCases": 22
+      }
+    }
+  ],
+  "archive": {
+    "path": "data/curve-guard-stage-26.zip",
+    "bytes": 297024,
+    "entries": 100,
+    "sha256": "6f7837434c7874c5b27b88193ce87827eb61e26369fb4c70dd601f1162d09f85"
+  },
+  "remaining": [
+    "Performance including actual Info/native counters and current baseline comparison",
+    "Final formatting/all-targets/latest-main integration and native revalidation",
+    "Full DESIGN12 disposition, own259 PR and all five current-composed-tree CI gates; do not close259 yet"
+  ]
+}
