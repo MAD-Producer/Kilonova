@@ -20,6 +20,7 @@ fn project() -> Project {
             pixels_per_metre: 20.,
             pivot: [0.; 3],
             samples: 4,
+            animation: None,
         },
     };
     layer.transform.rotation.set_animated(0, true).unwrap();
@@ -137,4 +138,57 @@ fn clipboard_retains_model_dependency_and_remaps_its_shared_asset_id() {
         target.layers[0].transform.rotation,
         original.layers[0].transform.rotation
     );
+}
+
+#[test]
+fn imported_animation_selection_survives_storage_and_keeps_layer_euler_keys() {
+    let mut project = project();
+    let Content::Model { model } = &mut project.layers[0].content else {
+        unreachable!()
+    };
+    model.animation = Some(motion_core::ModelAnimation {
+        clip: 2,
+        offset_seconds: 3.,
+        speed: -0.5,
+    });
+    project.layers[0]
+        .transform
+        .rotation
+        .set_at(60, [0., 720., 0.])
+        .unwrap();
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("assets/models")).unwrap();
+    std::fs::write(root.path().join("assets/models/owned.mscn"), b"test").unwrap();
+    storage::save(root.path(), &project).unwrap();
+    let restored = storage::load(root.path()).unwrap();
+    assert_eq!(restored, project);
+    assert_eq!(
+        restored.layers[0].transform.rotation.sample(60.).unwrap(),
+        [0., 720., 0.]
+    );
+    let clipboard = LayerClipboard::capture(&project, vec![1]).unwrap();
+    let resolved = clipboard.resolve().unwrap();
+    assert_eq!(resolved.layers[0].content, project.layers[0].content);
+}
+
+#[test]
+fn imported_animation_time_is_explicit_signed_and_checked_for_overflow() {
+    let mut animation = motion_core::ModelAnimation {
+        clip: 0,
+        offset_seconds: 3.,
+        speed: -2.,
+    };
+    assert_eq!(animation.sample_seconds(15., 30).unwrap(), 2.);
+    assert_eq!(animation.sample_seconds(-15., 30).unwrap(), 4.);
+    animation.speed = 0.;
+    assert_eq!(animation.sample_seconds(300., 30).unwrap(), 3.);
+    assert!(animation.sample_seconds(f64::NAN, 30).is_err());
+    assert!(animation.sample_seconds(0., 0).is_err());
+    animation.speed = f64::MAX;
+    assert!(animation.sample_seconds(f64::MAX, 30).is_err());
+    animation.offset_seconds = f64::INFINITY;
+    assert!(animation.validate().is_err());
+    animation.offset_seconds = 0.;
+    animation.speed = f64::NAN;
+    assert!(animation.validate().is_err());
 }

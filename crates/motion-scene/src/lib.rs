@@ -1,6 +1,7 @@
 //! Owned scene resources and bounded, CPU-only glTF/GLB and OBJ/MTL ingestion.
 //! Importing a scene does not imply that the desktop renderer supports it.
 mod accessors;
+mod animation;
 mod container;
 mod decode;
 mod frozen;
@@ -9,6 +10,7 @@ pub mod obj;
 mod resources;
 mod schema;
 
+pub use animation::{Animation, AnimationSample};
 pub use frozen::import_frozen;
 pub use import::{import, ImportContext, ImportLimits};
 pub use resources::{AssetResolver, DirectoryResolver, Resource, ResourceKind};
@@ -79,6 +81,7 @@ pub struct Node {
     pub local: [f32; 16],
     pub mesh: Option<usize>,
     pub children: Vec<usize>,
+    pub(crate) rest: Option<animation::Transform>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -185,6 +188,7 @@ pub struct Scene {
     pub(crate) materials: Vec<Material>,
     pub(crate) meshes: Vec<Mesh>,
     pub(crate) nodes: Vec<Node>,
+    pub(crate) animations: Vec<Animation>,
     pub(crate) scenes: Vec<Vec<usize>>,
     pub(crate) default_scene: Option<usize>,
     pub(crate) ignored_optional_extensions: Vec<String>,
@@ -225,6 +229,9 @@ impl Scene {
     pub fn nodes(&self) -> &[Node] {
         &self.nodes
     }
+    pub fn animations(&self) -> &[Animation] {
+        &self.animations
+    }
     pub fn scenes(&self) -> &[Vec<usize>] {
         &self.scenes
     }
@@ -242,6 +249,16 @@ impl Scene {
     /// World matrices in glTF's right-handed, +Y-up metre coordinates.
     /// Traverses only the selected scene; a mesh library is not implicitly instanced.
     pub fn instances(&self, scene: usize, pixels_per_metre: f32) -> Result<Vec<(usize, Mat4)>> {
+        self.instances_at(scene, pixels_per_metre, None)
+    }
+
+    /// Explicit clip and time; no implicit autoplay, looping, or blending of clips.
+    pub fn instances_at(
+        &self,
+        scene: usize,
+        pixels_per_metre: f32,
+        sample: Option<AnimationSample>,
+    ) -> Result<Vec<(usize, Mat4)>> {
         if !pixels_per_metre.is_finite() || pixels_per_metre <= 0. {
             return Err(invalid(
                 "instances",
@@ -253,12 +270,16 @@ impl Scene {
             .scenes
             .get(scene)
             .ok_or_else(|| invalid("instances", scene, "scene index out of range"))?;
+        let locals = sample
+            .map(|sample| self.sample_animation(sample))
+            .transpose()?;
         let scale = Mat4::from_scale(Vec3::splat(pixels_per_metre));
         let mut pending: Vec<_> = roots.iter().rev().map(|&n| (n, scale)).collect();
         let mut out = Vec::new();
         while let Some((index, parent)) = pending.pop() {
             let node = &self.nodes[index];
-            let world = parent * Mat4::from_cols_array(&node.local);
+            let local = locals.as_ref().map_or(node.local, |locals| locals[index]);
+            let world = parent * Mat4::from_cols_array(&local);
             if !world.is_finite() {
                 return Err(invalid("instances", index, "world transform overflow"));
             }

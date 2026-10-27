@@ -32,6 +32,7 @@ pub enum SceneLight {
 }
 pub struct SceneFrame<'a> {
     pub scene: usize,
+    pub animation: Option<motion_scene::AnimationSample>,
     pub camera: motion_model::CameraPose,
     pub pixels_per_metre: f32,
     pub world: Mat4,
@@ -47,6 +48,7 @@ impl SceneFrame<'static> {
     pub fn new(camera: motion_model::CameraPose, scene: usize, pixels_per_metre: f32) -> Self {
         Self {
             scene,
+            animation: None,
             camera,
             pixels_per_metre,
             world: Mat4::IDENTITY,
@@ -271,12 +273,20 @@ impl GpuScene {
             .try_normalize()
             .ok_or_else(|| invalid("camera", 0, "camera eye and target must define a direction"))?;
         let lights = lights(frame)?;
-        let instances = self.source.instances(frame.scene, frame.pixels_per_metre)?;
+        let instances = self.source.instances_at(frame.scene, frame.pixels_per_metre, frame.animation)?;
         let mut items = Vec::new();
         let mut needed = HashSet::new();
         for (mesh, matrix) in instances {
             let world = frame.world * matrix;
             let determinant = world.determinant();
+            // A fully collapsed animated hierarchy has no visible geometry.
+            // Other singular transforms retain the explicit shading refusal below.
+            if frame.animation.is_some() && world.is_finite()
+                && [world.x_axis, world.y_axis, world.z_axis].iter()
+                    .all(|axis| axis.truncate() == Vec3::ZERO)
+            {
+                continue;
+            }
             if !world.is_finite() || !determinant.is_finite() || determinant == 0. {
                 return Err(invalid(
                     "transform",

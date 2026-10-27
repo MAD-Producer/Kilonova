@@ -55,6 +55,7 @@ fn fixture(root: &std::path::Path) {
             pixels_per_metre: 80.,
             pivot: [0.; 3],
             samples: 4,
+            animation: None,
         },
     };
     layer

@@ -352,6 +352,11 @@ pub(crate) fn nodes(root: &schema::Root, limits: &ImportLimits) -> Result<Vec<No
             local: local.to_cols_array(),
             mesh: n.mesh,
             children: n.children.clone(),
+            rest: n.matrix.is_none().then(|| crate::animation::Transform {
+                translation: n.translation.unwrap_or([0.; 3]),
+                rotation: n.rotation.unwrap_or([0., 0., 0., 1.]),
+                scale: n.scale.unwrap_or([1.; 3]),
+            }),
         });
     }
     // Iterative traversal over the whole forest catches disconnected cycles as well.

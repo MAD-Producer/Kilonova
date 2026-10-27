@@ -32,11 +32,38 @@ pub(crate) struct Root {
     #[serde(default)]
     pub extensions_required: Vec<String>,
     #[serde(default)]
-    pub animations: Vec<serde_json::Value>,
+    pub animations: Vec<Animation>,
     #[serde(default)]
     pub skins: Vec<serde_json::Value>,
     #[serde(default)]
     pub cameras: Vec<serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct Animation {
+    pub name: Option<String>,
+    pub channels: Vec<AnimationChannel>,
+    pub samplers: Vec<AnimationSampler>,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationChannel {
+    pub sampler: usize,
+    pub target: AnimationTarget,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationTarget {
+    pub node: Option<usize>,
+    pub path: String,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationSampler {
+    pub input: usize,
+    pub output: usize,
+    #[serde(default = "linear")]
+    pub interpolation: String,
+}
+fn linear() -> String {
+    "LINEAR".into()
 }
 
 #[derive(Deserialize)]

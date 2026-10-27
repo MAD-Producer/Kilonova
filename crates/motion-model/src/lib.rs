@@ -23,7 +23,7 @@ pub mod geometry;
 pub mod hierarchy;
 mod model;
 pub mod model_assets;
-pub use model_assets::{ModelAsset, ModelClip};
+pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
 pub mod particle_history;
