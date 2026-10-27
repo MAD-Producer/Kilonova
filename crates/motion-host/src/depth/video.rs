@@ -2,7 +2,10 @@
 //! coordinate is not a frame PTS: the managed index and decoder must agree before
 //! an exact PTS can enter the inference input or depth result.
 use super::{image::rgb_from_rgba, Cancellation, Error, Input, Key, Result, VideoKey};
-use crate::{video_frame::VideoPixels, Platform};
+use crate::{
+    video_frame::{RgbEncoding, VideoPixels},
+    Platform,
+};
 use motion_core::VideoAsset;
 use motion_model::depth::{DepthSource, DepthTime};
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
@@ -75,6 +78,7 @@ impl VideoInput {
         });
         cancellation.check()?;
         let frame = decoded?;
+        let encoding = decoder.rgb_encoding()?;
         drop(decoder);
         if frame.pts != expected_pts
             || frame.end != expected_end
@@ -117,6 +121,38 @@ impl VideoInput {
             geometry: self.key.geometry,
             model: self.key.model,
         };
-        rgb_from_rgba(key, &rgba, cancellation)
+        let mut input = rgb_from_rgba(key, &rgba, cancellation)?;
+        if encoding == RgbEncoding::Bt709 {
+            let lut = bt709_to_srgb();
+            for row in Arc::make_mut(&mut input.rgb).chunks_mut(input.size[0] as usize * 3) {
+                cancellation.check()?;
+                for channel in row {
+                    *channel = lut[usize::from(*channel)];
+                }
+            }
+        }
+        Ok(input)
     }
+}
+
+fn bt709_to_srgb() -> &'static [u8; 256] {
+    static LUT: std::sync::OnceLock<[u8; 256]> = std::sync::OnceLock::new();
+    LUT.get_or_init(|| {
+        std::array::from_fn(|i| {
+            // ITU-R BT.709 inverse OETF, then IEC sRGB encoding. These primaries
+            // coincide; no implicit wide-gamut or unknown-primary conversion.
+            let encoded = i as f64 / 255.;
+            let linear = if encoded < 0.081 {
+                encoded / 4.5
+            } else {
+                ((encoded + 0.099) / 1.099).powf(1. / 0.45)
+            };
+            let srgb = if linear <= 0.0031308 {
+                linear * 12.92
+            } else {
+                1.055 * linear.powf(1. / 2.4) - 0.055
+            };
+            (srgb * 255.).round().clamp(0., 255.) as u8
+        })
+    })
 }

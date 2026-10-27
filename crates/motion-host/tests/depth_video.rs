@@ -56,6 +56,9 @@ enum Mode {
     WrongSize,
     WrongColor,
     WrongRotation,
+    UnknownEncoding,
+    GrayBt709,
+    GraySrgb,
 }
 #[derive(Debug)]
 enum Event {
@@ -161,6 +164,16 @@ struct Decoder {
     local: Rc<()>,
 }
 impl VideoDecoder for Decoder {
+    fn rgb_encoding(&self) -> motion_media::Result<motion_host::video_frame::RgbEncoding> {
+        if self.mode == Mode::UnknownEncoding {
+            return Err("controlled unknown transfer metadata".into());
+        }
+        Ok(if self.mode == Mode::GrayBt709 {
+            motion_host::video_frame::RgbEncoding::Bt709
+        } else {
+            motion_host::video_frame::RgbEncoding::Srgb
+        })
+    }
     fn frame(
         &mut self,
         target: u64,
@@ -205,6 +218,8 @@ impl VideoDecoder for Decoder {
                 uv: vec![128; 4],
                 chroma_layout: motion_render::ChromaLayout::Uv,
             })
+        } else if matches!(self.mode, Mode::GrayBt709 | Mode::GraySrgb) {
+            VideoPixels::Rgba(vec![128, 128, 128, 255].repeat(6))
         } else {
             VideoPixels::Rgba(
                 (0..6)
@@ -718,4 +733,37 @@ fn replacing_same_path_video_document_rejects_old_backend_success() {
     let status = f.session.depth_status().unwrap().unwrap();
     assert_eq!(status.counts.canceled, 1);
     assert!(!status.installed && status.in_flight.is_none() && status.queue_depth == 0);
+}
+
+#[test]
+fn video_bt709_transfer_is_converted_to_model_srgb_and_declared_srgb_is_preserved() {
+    for (mode, expected) in [(Mode::GrayBt709, 140u8), (Mode::GraySrgb, 128u8)] {
+        let mut f = fixture(mode);
+        request(&mut f.session).unwrap();
+        let seen = f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(seen.rgb, vec![expected; 18]);
+        done(&mut f.session, 1);
+        assert_eq!(
+            f.session.poll_depth().unwrap().unwrap().resource.values(),
+            &[f32::from(expected); 6]
+        );
+    }
+}
+
+#[test]
+fn video_with_unknown_transfer_is_rejected_before_inference_and_keeps_cause() {
+    let mut f = fixture(Mode::UnknownEncoding);
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 1);
+    let error = f.session.poll_depth().unwrap_err();
+    assert!(matches!(
+        error,
+        motion_host::Error::Depth(motion_host::depth::Error::Media(_))
+    ));
+    assert!(error
+        .to_string()
+        .contains("controlled unknown transfer metadata"));
+    assert!(matches!(f.seen.try_recv(), Err(mpsc::TryRecvError::Empty)));
+    assert_eq!(f.session.depth_status().unwrap().unwrap().counts.failed, 1);
+    assert!(f.session.poll_depth().unwrap().is_none());
 }

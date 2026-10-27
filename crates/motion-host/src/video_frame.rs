@@ -2,6 +2,14 @@ use motion_render::{Renderer, Yuv420Frame};
 use crate::Result;
 use std::{borrow::Cow, sync::Arc};
 
+/// Encoding of RGB after YUV matrix/range conversion, with BT.709/sRGB
+/// primaries. Matrix coefficients alone do not establish this transfer curve.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RgbEncoding {
+    Srgb,
+    Bt709,
+}
+
 /// Immutable required PTS pair. Raw decoder APIs still expose source frames;
 /// composition preview/capture and frozen composition readers use this sample.
 #[derive(Clone)]
