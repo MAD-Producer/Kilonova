@@ -598,6 +598,7 @@ pub(super) fn readout(
     let row = styles.metric("row.height", 22.);
     let width = styles.metric("graph.readout.width", 232.).min(plot.width());
     let height = (row * 2. + pad * 2.).min(plot.height());
+    if width<=pad*2. || height<=pad*2. {return;}
     let x = if mouse[0] + pad + width > plot.max[0] {
         mouse[0] - width - pad
     } else {

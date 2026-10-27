@@ -2,7 +2,9 @@
 use std::fmt;
 use std::cell::Cell;
 
-const MAX_DEPTH: u8 = 32;
+// A clamped derivative can jump between adjacent f64 composition times.
+// Keep the stack finite while allowing that one-sided boundary to be retained.
+const MAX_DEPTH: u8 = 64;
 const MAX_POINTS: usize = 65_536;
 
 /// Merge existing view-density seeds with authored shape/discontinuity seeds.
@@ -131,13 +133,23 @@ pub(super) fn sample<E>(
             let m=evaluate(middle)?;
             let left=evaluate(a.frame+(b.frame-a.frame)*0.25)?;
             let right=evaluate(a.frame+(b.frame-a.frame)*0.75)?;
-            let error=[left,m,right].into_iter().map(|p|distance(p,a,b,scale))
+            // Neighboring samples also define quadratic control envelopes.
+            // Their control values expose a narrow turning peak between probes
+            // even when every sampled ordinate appears almost collinear.
+            let envelope=|before:Point,probe:Point,after:Point|Point {frame:probe.frame,
+                value:probe.value+(probe.value-before.value)*0.5+(probe.value-after.value)*0.5};
+            let maximum_error=|points:[Point;3]|points.into_iter().map(|p|distance(p,a,b,scale))
                 .try_fold(0f64,|maximum,error| {
                     if error.is_finite() {Ok(maximum.max(error))} else {Err(Failure::InvalidGeometry)}
-                })?;
+                });
+            let error=maximum_error([left,m,right])?;
+            let envelope_error=maximum_error([envelope(a,left,m),envelope(left,m,right),envelope(m,right,b)])?;
             // Probes are finite samples, not a continuous supremum. Reserve
             // half the error budget for inter-probe extrema and step edges.
-            if error <= tolerance*0.5 {
+            // Do not accept a merely narrow time bracket: immediately after a
+            // clamp jump the actual ordinate may exceed both endpoint values.
+            // The adjacent-time branch above retains that one-sided limit.
+            if error <= tolerance*0.5 && envelope_error<=tolerance*0.5 {
                 if output.len() >= MAX_POINTS {return Err(Failure::Budget {evaluations:evaluations.get(),points:output.len()});}
                 output.push((b.frame,b.value));
                 emitted.set(output.len());
@@ -185,6 +197,36 @@ mod tests {
         let points=sample((0..=32).map(|i|f64::from(i)/32.),scale,0.35,|t|Ok::<_,String>(curve(t))).unwrap();
         assert!(oracle(&points,scale,curve)<=0.36);
         assert!(points.iter().any(|p|p.1>1.8));
+    }
+
+    #[test]
+    fn quadratic_envelopes_refine_narrow_velocity_peaks_between_ordinary_probes() {
+        let w=std::f64::consts::TAU*8.;let damping=0.5f64;
+        let norm=1.-(-damping).exp();
+        let curve=|frame:f64| {
+            if !(17. ..=77.).contains(&frame) {return 0.;}
+            let t=(frame-17.)/60.;
+            let progress=(1.-(-damping*t).exp()*((w*t).cos()+damping/w*(w*t).sin()))/norm;
+            if !(0. ..=1.).contains(&(0.25+0.5*progress)) {return 0.;}
+            0.25*(-damping*t).exp()*(w+damping*damping/w)*(w*t).sin()/norm
+        };
+        let seeds=merge_knots((0..=256).map(|i|10.+80.*f64::from(i)/256.),
+            (0..=32).map(|i|17.+60.*f64::from(i)/32.));
+        let scale=[10.,500.];
+        let points=sample(seeds,scale,0.35,|frame|Ok::<_,String>(curve(frame))).unwrap();
+        if oracle(&points,scale,curve)>0.36 {
+            let mut worst=(0f64,(0.,0.),(0.,0.),0.,0.);
+            for segment in points.windows(2) {for i in 0..=128 {
+                let frame=segment[0].0+(segment[1].0-segment[0].0)*f64::from(i)/128.;
+                let value=curve(frame);
+                let error=distance(Point {frame,value},Point {frame:segment[0].0,value:segment[0].1},
+                    Point {frame:segment[1].0,value:segment[1].1},scale);
+                if error>worst.0 {worst=(error,segment[0],segment[1],frame,value);}
+            }}
+            eprintln!("dense worst={worst:?} points={}",points.len());
+        }
+        assert!(oracle(&points,scale,curve)<=0.36);
+        assert!(points.len()<65536);
     }
     #[test]
     fn key_boundaries_preserve_hold_steps_without_diagonal_interpolation() {
