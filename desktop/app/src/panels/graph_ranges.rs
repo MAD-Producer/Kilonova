@@ -448,7 +448,13 @@ impl Controls {
                 operation = Some(item);
             }
         }
-        let hint = if menu.options.selection.is_none() {
+        let hint = if menu.options.all.is_none() {
+            if zh {
+                "曲线范围不可用"
+            } else {
+                "Curve range unavailable"
+            }
+        } else if menu.options.selection.is_none() {
             if zh {
                 "请先选择关键帧"
             } else {
@@ -495,6 +501,10 @@ impl Controls {
                     }
                 } else {
                     self.entries[index].x.automatic();
+                }
+                if time && !lock_y {
+                    timeline.graph_y_zoom = 1.;
+                    timeline.graph_y_offset = 0.;
                 }
                 self.entries[index].y.automatic();
                 return;

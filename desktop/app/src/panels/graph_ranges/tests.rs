@@ -351,7 +351,7 @@ fn actual_property_graph_menu_fits_composition_time_once_and_owned_empty_does_no
 }
 
 #[test]
-fn time_lock_blocks_navigation_and_lru_views_are_bounded_and_reset_on_document_change() {
+fn time_lock_blocks_navigation_and_channel_views_are_bounded_and_reset_on_document_change() {
     let (_, state, mut p) = fixture();
     let mut atlas = TextAtlas::from_system(12.).unwrap();
     open(&mut p, &state, None, options());
@@ -403,4 +403,85 @@ fn time_lock_blocks_navigation_and_lru_views_are_bounded_and_reset_on_document_c
     p.timeline.graph_ranges.sync(&next);
     assert!(p.timeline.graph_ranges.entries.is_empty());
     assert!(!p.timeline.graph_ranges.locked_x());
+}
+
+#[test]
+fn automatic_fit_resets_old_vertical_navigation_and_preserves_a_locked_axis() {
+    let (_, state, mut p) = fixture();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    p.timeline.graph_y_zoom = 8.;
+    p.timeline.graph_y_offset = 100.;
+    open(&mut p, &state, None, options());
+    draw(&mut p, &state, &Input::default(), &mut atlas);
+    choose(&mut p, &state, 2, &mut atlas);
+    assert_eq!(
+        (p.timeline.graph_y_zoom, p.timeline.graph_y_offset),
+        (1., 0.)
+    );
+    open(&mut p, &state, None, options());
+    draw(&mut p, &state, &Input::default(), &mut atlas);
+    choose(&mut p, &state, 4, &mut atlas);
+    p.timeline.graph_y_zoom = 4.;
+    p.timeline.graph_y_offset = 25.;
+    choose(&mut p, &state, 2, &mut atlas);
+    assert_eq!(
+        (p.timeline.graph_y_zoom, p.timeline.graph_y_offset),
+        (4., 25.)
+    );
+    assert_eq!(
+        p.timeline
+            .graph_ranges
+            .displayed(&state, &id(), bounds([0., 120.], [-1000., 1000.]))
+            .y,
+        options().displayed.y
+    );
+}
+
+#[test]
+fn actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key() {
+    let (engine, state, mut p) = fixture();
+    let before = serde_json::to_vec(engine.project()).unwrap();
+    let history = (engine.revision(), engine.can_undo(), engine.can_redo());
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for locale in [Locale::En, Locale::Zh] {
+        for window in [None, Some(Panel::Timeline)] {
+            p.locale = locale;
+            open(&mut p, &state, window, options());
+            let render = |p: &mut Panels, input: &Input, atlas: &mut TextAtlas| {
+                let mut list = PaintList::default();
+                if window.is_some() {
+                    super::super::floating_chrome(
+                        &mut list,
+                        atlas,
+                        Panel::Timeline,
+                        [720., 520.],
+                        p,
+                        &state,
+                        input,
+                    )
+                } else {
+                    super::super::chrome(
+                        &mut list,
+                        atlas,
+                        [900., 600.],
+                        &Node::dock(Panel::Timeline.dock()),
+                        p,
+                        &state,
+                        input,
+                    )
+                }
+            };
+            assert!(render(&mut p, &Input::default(), &mut atlas).is_empty());
+            assert!(p.timeline.graph_ranges.editing());
+            assert!(render(&mut p, &key(Key::Delete), &mut atlas).is_empty());
+            assert!(p.timeline.graph_ranges.editing());
+            assert!(render(&mut p, &key(Key::Escape), &mut atlas).is_empty());
+            assert!(!p.timeline.graph_ranges.editing());
+        }
+    }
+    assert_eq!(serde_json::to_vec(engine.project()).unwrap(), before);
+    assert_eq!(
+        (engine.revision(), engine.can_undo(), engine.can_redo()),
+        history
+    );
 }
