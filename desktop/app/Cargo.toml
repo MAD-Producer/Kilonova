@@ -29,6 +29,7 @@ motion-desktop-media = { path = "../../crates/motion-desktop-media", default-fea
 motion-ui = { path = "../ui", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
+arboard = { version = "=3.7.0", default-features = false, features = ["wayland-data-control"] }
 wgpu.workspace = true
 pollster.workspace = true
 raw-window-handle = "0.6"
@@ -43,4 +44,6 @@ winit = "0.30"
 
 [dev-dependencies]
 motion-model = { path = "../../crates/motion-model" }
+motion-scene = { path = "../../crates/motion-scene" }
+sha2 = "0.10"
 tempfile = "3"

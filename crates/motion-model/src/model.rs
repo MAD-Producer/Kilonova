@@ -30,6 +30,7 @@ pub struct FontAsset {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Content {
+    Model { model: crate::ModelClip },
     /// Independent, non-pixel camera in the composition layer stack.
     Camera { camera: Box<Camera> },
     Adjustment,
@@ -283,6 +284,7 @@ pub struct Project {
     pub guides: Vec<crate::Guide>,
     pub background: [f32; 4],
     pub assets: Vec<Asset>,
+    pub model_assets: Vec<crate::ModelAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fonts: Vec<FontAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -314,6 +316,7 @@ impl Project {
             guides: Vec::new(),
             background: [0.05, 0.06, 0.09, 1.0],
             assets: Vec::new(),
+            model_assets: Vec::new(),
             fonts: Vec::new(),
             audio_assets: Vec::new(),
             video_assets: Vec::new(),
@@ -410,9 +413,13 @@ impl Project {
             crate::storage::validate_relative_path(&asset.path)?;
         }
         ensure(
-            self.audio_assets.len() + self.video_assets.len() + self.assets.len() <= MAX_LAYERS * 2,
+            self.audio_assets.len() + self.video_assets.len() + self.assets.len() + self.model_assets.len() <= MAX_LAYERS * 2,
             "asset limit exceeded",
         )?;
+        for asset in &self.model_assets {
+            ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
+            asset.validate()?;
+        }
         for asset in &self.audio_assets {
             ensure(
                 asset.id != 0 && asset_ids.insert(asset.id),
@@ -598,6 +605,11 @@ impl Project {
                     ensure(layer.three_d && layer.transform == Transform::new([0.; 3]),
                         "camera spatial properties belong to the camera tracks")?;
                     camera.validate_local()?;
+                }
+                Content::Model { model } => {
+                    model.validate()?;
+                    ensure(layer.three_d, "model layers require 3D transforms")?;
+                    ensure(self.model_assets.iter().any(|a| a.id == model.asset), "model asset missing")?;
                 }
                 Content::Null => {}
                 Content::Solid { color } => validate_color(*color)?,

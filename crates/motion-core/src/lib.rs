@@ -27,6 +27,7 @@ pub use expressions::{expression_reference_source, expression_source_diagnostic,
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
+pub use motion_model::{ModelAsset, ModelClip, model_assets};
 pub use motion_model::ClipRange;
 pub use motion_model::{FrameScope, WorkArea};
 pub use motion_model::{guides, Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};
@@ -41,6 +42,7 @@ pub use motion_model::{
 };
 pub use motion_model::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use motion_model::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
+pub use motion_model::CurveClipboard;
 pub use motion_model::{
     CurveLut, CurveObject, CurveTrack, SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES,
     EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,

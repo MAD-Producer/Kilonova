@@ -116,7 +116,10 @@ fn blocked_depth_publishes_flight_before_backend_and_retains_only_latest_pending
     entered.recv_timeout(Duration::from_secs(5)).unwrap();
     let flight = jobs.in_flight().unwrap().unwrap();
     assert_eq!(flight.request, first);
-    assert_eq!(flight.source, key().source);
+    assert_eq!(flight.source, Some(key().source));
+    assert_eq!(flight.asset, key().source.asset);
+    assert_eq!(flight.revision, key().source.revision);
+    assert!(flight.target_time_us.is_none());
     assert!(LOG
         .records
         .lock()

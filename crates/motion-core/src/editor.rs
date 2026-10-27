@@ -206,6 +206,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
+        Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,
         Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
         Command::EaseKeyframes { selections, incoming, outgoing } => motion_model::keyframe_clipboard::ease_keys(project, &selections, incoming, outgoing)?,
         Command::DeleteKeyframes { selections } => motion_model::keyframe_clipboard::delete_keys(project, &selections)?,
@@ -722,6 +723,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let l=project.layer_mut(object)?;if l.locked{return Err(Error::Locked(object));}l.track_matte=matte;
         }
         Command::RegisterAsset { asset } => project.assets.push(asset),
+        Command::RegisterModelAsset { asset } => project.model_assets.push(asset),
         Command::RegisterFontAsset { asset } => project.fonts.push(asset),
         Command::Content {
             object,

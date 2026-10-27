@@ -4,6 +4,7 @@ use crate::effect_gpu::FxTexture;
 
 fn constant_receiver(scene: &Scene, layer: &crate::DrawLayer) -> bool {
     layer.asset.is_none()
+        && layer.model_source.is_none()
         && layer.video.is_none()
         && layer.vector.is_none()
         && !layer.composition

@@ -118,7 +118,7 @@ mod descriptor_tests {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TextureCategory {
-    StaticImages, VideoRgba, VideoPlanes, NestedCompositions, VectorSources,
+    StaticImages, VideoRgba, VideoPlanes, NestedCompositions, VectorSources, ModelSources,
     EffectScratch, PluginResources, CurveLuts, VectorRasterScratch,
     VectorGroupScratch, LayerCompositingScratch, MaskScratch, MaskOutputs,
     EffectInputSnapshots, MatteBlendScratch, SystemTextures, PreviewTargets,

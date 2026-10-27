@@ -149,6 +149,9 @@ pub(super) fn capture(read: Read, cache: &Path, cancel: &AtomicBool) -> Result<F
     for asset in &view.assets {
         sources.insert(&asset.path, (64 * 1024 * 1024, None, false));
     }
+    for asset in &view.model_assets {
+        sources.insert(&asset.path, (motion_core::model_assets::MAX_MODEL_ASSET_BYTES, Some(asset.bytes), false));
+    }
     for font in &view.fonts {
         sources.insert(&font.path, (32 * 1024 * 1024, None, true));
     }
@@ -239,7 +242,7 @@ pub(super) fn capture(read: Read, cache: &Path, cancel: &AtomicBool) -> Result<F
         entries.push(Entry {
             source: relative.into(),
             cached,
-            destination: format!("assets/{}{name}", if font { "fonts/" } else { "" }),
+            destination: format!("assets/{}{name}", if font { "fonts/" } else if relative.starts_with("assets/models/") { "models/" } else { "" }),
             bytes: before.len(),
         });
     }
@@ -314,6 +317,7 @@ pub(super) fn prepare(
         .chain(project.fonts.iter().map(|a| a.path.as_str()))
         .chain(project.audio_assets.iter().map(|a| a.path.as_str()))
         .chain(project.video_assets.iter().map(|a| a.path.as_str()))
+        .chain(project.model_assets.iter().map(|a| a.path.as_str()))
         .collect();
     for entry in &frozen.entries {
         check(cancel)?;
@@ -348,6 +352,7 @@ pub(super) fn prepare(
             .chain(source.fonts.iter_mut().map(|a| &mut a.path))
             .chain(source.audio_assets.iter_mut().map(|a| &mut a.path))
             .chain(source.video_assets.iter_mut().map(|a| &mut a.path))
+            .chain(source.model_assets.iter_mut().map(|a| &mut a.path))
         {
             if *path == entry.source {
                 *path = entry.destination.clone();

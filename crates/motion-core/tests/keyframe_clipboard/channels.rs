@@ -356,6 +356,41 @@ fn effects_fixture(effect: &str) -> (Engine, KeyframeTarget) {
 }
 
 #[test]
+fn easing_clipboard_preserves_nested_vector_effect_and_color_curve_payloads() {
+    let mut fixtures = vec![vector_fixture(false), vector_fixture(true)];
+    for effect in ["posterize", "curves"] {
+        let (engine, target) = effects_fixture(effect);
+        fixtures.push((engine, vec![target]));
+    }
+    for (mut engine, targets) in fixtures {
+        let selected: Vec<_> = targets.iter().cloned().map(|t| selection(t, &[10])).collect();
+        let source = KeyframeClipboard::capture(engine.project(), &selected).unwrap();
+        engine.apply(Command::PasteKeyframes { clipboard: Box::new(source), targets: targets.clone(), at_frame: Some(20) }).unwrap();
+        let mut engine = Engine::new(engine.snapshot()).unwrap();
+        let before = engine.snapshot();
+        let clipboard = motion_core::CurveClipboard::new(motion_core::Easing { ease: Ease::Out, curve: None }).unwrap();
+        engine.apply(Command::PasteEasing { clipboard: Box::new(clipboard), selections: selected.clone() }).unwrap();
+        let after = engine.snapshot();
+        let mut expected = serde_json::to_value(KeyframeClipboard::capture(&before, &selected).unwrap()).unwrap();
+        for track in expected["tracks"].as_array_mut().unwrap() {
+            for key in track["data"]["keys"].as_array_mut().unwrap() {
+                key["ease"] = "out".into();
+                key.as_object_mut().unwrap().remove("curve");
+            }
+        }
+        assert_eq!(serde_json::to_value(KeyframeClipboard::capture(engine.project(), &selected).unwrap()).unwrap(), expected);
+        let terminal: Vec<_> = targets.into_iter().map(|t| selection(t, &[20])).collect();
+        assert_eq!(KeyframeClipboard::capture(engine.project(), &terminal).unwrap(), KeyframeClipboard::capture(&before, &terminal).unwrap());
+        assert_eq!(after.layers[1], before.layers[1]);
+        engine.undo().unwrap();
+        assert_eq!(engine.project(), &before);
+        assert!(!engine.can_undo());
+        engine.redo().unwrap();
+        assert_eq!(engine.project(), &after);
+    }
+}
+
+#[test]
 fn effect_and_color_curve_keys_preserve_values_and_reject_foreign_parameter_schema() {
     for effect in ["posterize", "curves"] {
         let (mut e, target) = effects_fixture(effect);
