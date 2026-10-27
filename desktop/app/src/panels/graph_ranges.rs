@@ -701,7 +701,7 @@ pub(super) fn readout(
     value: f64,
     unit: &str,
 ) {
-    readout_lines(list, atlas, plot, mouse, &format!("{title} · {frame:.2} f"),
+    readout_lines(list, atlas, plot, mouse, &format!("{frame:.2} f · {title}"),
         &[value_label(value, unit)]);
 }
 

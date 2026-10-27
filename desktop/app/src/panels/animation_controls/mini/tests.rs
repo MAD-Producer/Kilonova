@@ -407,3 +407,47 @@ fn mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints(
         .unwrap();
     assert_eq!(choose(&state, &selected, &mut ranges), Some(all));
 }
+
+#[test]
+fn physical_readout_keeps_component_values_and_units_visible_with_long_layer_names() {
+    let engine = crate::panels::curve_comparison::tests::fixture();
+    let mut project = engine.project().clone();
+    project.layers[0].name = "A very long layer name · 范围验收".into();
+    let engine = Engine::new(project).unwrap();
+    let state = crate::panels::curve_comparison::tests::state(&engine);
+    let target = KeyframeTarget::Property {
+        object: 7,
+        property: Property::Position,
+        axis: None,
+    };
+    let mut atlas = TextAtlas::from_system_language(12., true).unwrap();
+    let styles = PaintList::default().styles();
+    let available =
+        styles.metric("graph.readout.width", 232.) - 2. * styles.metric("padding.panel", 8.);
+    for locale in [Locale::En, Locale::Zh] {
+        for ratio in [1., 1.5, 2.] {
+            atlas.set_pixel_ratio(ratio);
+            let mut view = View::default();
+            let (_, lines) = view.actual_readout(
+                &state,
+                locale,
+                &target,
+                15,
+                Some(45),
+                0.5,
+                false,
+                "t=0.5".into(),
+                vec![],
+            );
+            assert_eq!(lines.len(), 2);
+            assert!(lines[0].contains("X: 50.0000 px") && lines[1].contains("Y: 10.0000 px"));
+            for line in lines {
+                assert!(!line.contains("A very long layer"));
+                assert!(
+                    atlas.measure(&line) <= available,
+                    "actual numeric value/unit would be ellipsized at ratio={ratio}: {line}"
+                );
+            }
+        }
+    }
+}

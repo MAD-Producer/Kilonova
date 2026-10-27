@@ -570,7 +570,7 @@ impl View {
                 data.sample(frame, component, fps, speed).map(|value| {
                     format!(
                         "{}: {}",
-                        data.title(component),
+                        data.readout_title(component),
                         graph_ranges::value_label(f64::from(value), &data.unit.title(speed))
                     )
                 })

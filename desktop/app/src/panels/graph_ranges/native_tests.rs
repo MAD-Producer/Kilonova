@@ -729,6 +729,7 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
                     }
                     fitted = probe(&p, case);
                     assert!(fitted.bounds.x.span() < 0.002);
+                    paint = step(&engine, &mut p, &mut atlas, case, Input::default());
                 }
                 capture(
                     &mut events,

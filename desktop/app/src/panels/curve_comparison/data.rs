@@ -43,6 +43,7 @@ pub(in crate::panels) struct Data {
     pub frames: Vec<u32>,
     pub unit: Unit,
     pub title: String,
+    channel_title: String,
     pub offset: i64,
     scales: [f32; 4],
     limits: Option<[f32; 2]>,
@@ -148,6 +149,7 @@ pub(in crate::panels) fn load(
             label: "value".into(),
         },
         title: layer_name.into(),
+        channel_title: String::new(),
         offset,
         scales: [1.; 4],
         limits: None,
@@ -306,6 +308,7 @@ pub(in crate::panels) fn load(
         }
     };
     data.title = format!("{layer_name} · {title}");
+    data.channel_title = title;
     Ok(data)
 }
 impl Data {
@@ -399,10 +402,16 @@ impl Data {
         self.limits
     }
     pub fn title(&self, component: usize) -> String {
+        self.component_title(&self.title,component)
+    }
+    pub fn readout_title(&self, component: usize) -> String {
+        self.component_title(&self.channel_title,component)
+    }
+    fn component_title(&self, title: &str, component: usize) -> String {
         if self.dimensions.len() > 1 {
             format!(
                 "{} {}",
-                self.title,
+                title,
                 if self.unit == Unit::Rgba {
                     ["R", "G", "B", "A"][component]
                 } else {
@@ -410,7 +419,7 @@ impl Data {
                 }
             )
         } else {
-            self.title.clone()
+            title.into()
         }
     }
     pub fn scale(&self, component: usize) -> f32 {
