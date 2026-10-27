@@ -258,3 +258,70 @@ fn comparison_menu_cancels_mode_and_collection_changes_and_consumes_delete_escap
         comparison_fixture().history_diagnostics()
     );
 }
+
+#[test]
+fn comparison_more_button_owns_left_press_without_starting_marquee_or_changing_key_context() {
+    let engine = comparison_fixture();
+    let state = comparison_state(&engine);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for locale in [Locale::En, Locale::Zh] {
+        for window in [None, Some(Panel::Timeline)] {
+            let mut p = comparison_panels(&state, locale);
+            p.selected_keys
+                .apply(
+                    &state,
+                    [key_selection::Key {
+                        target: KeyframeTarget::Property {
+                            object: 7,
+                            property: Property::Opacity,
+                            axis: None,
+                        },
+                        frame: 45,
+                    }],
+                    key_selection::Mode::Replace,
+                )
+                .unwrap();
+            assert!(render(&mut p, &state, &Input::default(), window, &mut atlas).is_empty());
+            let before = p.selected_keys.clone();
+            let legacy = p.animation_controls.user_key();
+            let header = p.timeline.comparison.test_range_header("%");
+            let styles = PaintList::default().styles();
+            let point = [
+                header.max[0]
+                    - styles.metric("padding.panel", 8.)
+                    - styles.metric("graph.control.height", 24.) * 0.5,
+                (header.min[1] + header.max[1]) * 0.5,
+            ];
+            assert!(render(
+                &mut p,
+                &state,
+                &Input {
+                    mouse: point,
+                    pressed: Some((MouseButton::Left, point)),
+                    ..Default::default()
+                },
+                window,
+                &mut atlas
+            )
+            .is_empty());
+            assert!(p.timeline.graph_ranges.editing());
+            assert!(!p.key_gestures.active());
+            assert!(p.selected_keys.same_selection(&before));
+            assert_eq!(p.animation_controls.user_key(), legacy);
+            assert!(render(&mut p, &state, &Input::default(), window, &mut atlas).is_empty());
+            assert!(
+                p.timeline.graph_ranges.menu_card.is_some(),
+                "the actual left-click launcher must retain its menu"
+            );
+            assert!(p
+                .timeline
+                .graph_ranges
+                .menu
+                .as_ref()
+                .unwrap()
+                .options
+                .selection
+                .is_some());
+        }
+    }
+}

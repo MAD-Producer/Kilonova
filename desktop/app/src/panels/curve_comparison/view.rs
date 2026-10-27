@@ -638,6 +638,10 @@ pub(in crate::panels) fn render(
                 menu_input,
                 panels.timeline.graph_ranges.ready() && !busy,
             ) {
+                // Group headers live inside the comparison selection viewport.
+                // The range launcher owns this press, including its opening
+                // frame; it must not begin a background marquee afterward.
+                super::super::key_selection::ui::block_background(panels);
                 let (all_interval, selection_interval) =
                     intervals(&controls, &indices, panels, state);
                 let began = std::time::Instant::now();

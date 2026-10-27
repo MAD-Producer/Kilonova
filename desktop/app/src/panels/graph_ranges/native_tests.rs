@@ -365,7 +365,11 @@ fn open(engine: &DesktopEngine, p: &mut Panels, atlas: &mut TextAtlas, case: Cas
         case.name()
     );
     step(engine, p, atlas, case, Input::default());
-    assert!(p.timeline.graph_ranges.menu_card.is_some());
+    assert!(
+        p.timeline.graph_ranges.menu_card.is_some(),
+        "case={} range menu disappeared after its real launcher press",
+        case.name()
+    );
 }
 fn choose(
     engine: &DesktopEngine,
