@@ -58,7 +58,49 @@ a seek or asset/model/geometry change. Cancel on changes even if no replacement
 is submitted. One in-flight job and one replaceable pending input bound retained
 work; canceled and stale results cannot install. `in_flight`, `queue_depth` and
 lifetime saturating counts expose activity. A backend panic stops that backend.
-This prototype does not automatically attach a result to Session or a layer.
+This lower-level API does not automatically attach a result to a layer. The
+optional Session path below owns its installation guard.
+
+## Session-managed static images
+
+With `motion-host/ai-depth`, an owning-thread Session can opt in once using
+`configure_depth(backend)`. Passing an `Onnx` uses the same external runtime and
+hash-identified model described above. A normal Session creates neither a depth
+worker nor an inference runtime. Reconfiguration is rejected; canceling does not
+restart a failed backend.
+
+`request_image_depth(asset_id, geometry, model)` resolves the registered image
+metadata, then enqueues its managed path. File opening, bounded reading, image
+decoding, crop, clockwise rotation, horizontal mirror and inference run on the
+depth worker after its Info start and in-flight publication. PNG/JPEG inputs
+must be opaque sRGB8 in the declared crop. ICC-tagged, high-bit-depth and
+transparent inputs require explicit conversion/compositing and are refused.
+No implicit EXIF rotation is applied: geometry describes raw source pixels.
+Untagged sources follow the managed-image sRGB convention; arbitrary input color
+management is not established by this path.
+
+The encoded file is capped at 64 MiB and source dimensions at 4096 per axis.
+Decoded staging checks `8 * source_pixels + 3 * crop_pixels` against the lower
+of the Session decoded-image policy and 128 MiB, before decoding. This is a
+conservative pixel-payload allowance, not a process-wide codec/RSS measurement.
+Static source PTS is exactly `0/1`; composition frame is checked separately.
+The source revision is the conservative edit-engine revision. Managed-source
+relinking must go through the project edit API; external same-path file writes
+are not watched or represented as new project revisions.
+
+`poll_depth()` derives the live identity from Session itself, without taking a
+caller-supplied key. Document generation, root, active composition, edit revision,
+frame, registered asset metadata and decoded budget must still match. Sampling
+also invalidates old requests. Seek, relink, undo, project replacement and budget
+changes therefore discard pending/installed results. A new request carries its
+own ticket even when the static-image key is identical. `cancel_depth()` clears
+ownership; `depth_status()` exposes the bounded worker's flight, pending count,
+request, installation flag and saturating lifetime counters.
+
+The installed immutable `Estimate` retains provider, timings and the original
+DepthResource semantics. It is not silently attached to a renderer depth buffer.
+This native static-image Session API does not implement video decoder-PTS
+staging, a desktop control, automatic layer effects, or metric calibration.
 
 The output is an owned R32Float **unitless relative** resource, with larger
 values nearer. Confidence/validity planes remain absent when the model does not
