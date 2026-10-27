@@ -1,37 +1,51 @@
-//! First project consumer for homogeneous spatial model compositions. Authored
-//! plane, effect, matte, sampling and opacity boundaries retain their own path.
+//! Contiguous model runs share geometry depth inside ordinary 2D compositions.
+//! Authored plane, effect, matte, sampling and opacity boundaries remain intact.
 use super::*;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance};
 
-fn candidate(scene: &Scene) -> bool {
-    let Some(samples) = scene
-        .layers
-        .first()
-        .and_then(|l| l.model_source.as_ref())
-        .map(|c| c.samples)
-    else {
-        return false;
-    };
-    scene.layers.len() >= 2
-        && scene.layers.len() <= MAX_LAYERS
-        && scene.effects.is_empty()
-        && scene.nested.is_empty()
-        && scene.layers.iter().all(|layer| {
-            layer
-                .model_source
-                .as_ref()
-                .is_some_and(|clip| clip.samples == samples)
-                && layer.three_d
-                && layer.opacity == 1.
-                && layer.color == [1.; 4]
-                && layer.masks.is_empty()
-                && layer.track_matte.is_none()
-                && layer.blend == motion_model::compositing::LayerBlend::default()
-                && layer.composite_visible
-                && !layer.adjustment
-                && !layer.composition
-                && layer.sampling.is_default()
+fn samples(layer: &crate::DrawLayer) -> Option<u32> {
+    let samples = layer.model_source.as_ref()?.samples;
+    (matches!(samples, 1 | 4)
+        && layer.three_d
+        && layer.opacity == 1.
+        && layer.color == [1.; 4]
+        && layer.sampling.is_default())
+    .then_some(samples)
+}
+
+fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
+    // Effects/receivers still consume independent layer images. Do not replace
+    // their source with a combined raster or silently cross those boundaries.
+    if scene.layers.len() > MAX_LAYERS
+        || !scene.effects.is_empty()
+        || !scene.nested.is_empty()
+        || scene.layers.iter().any(|layer| {
+            !layer.masks.is_empty()
+                || layer.track_matte.is_some()
+                || layer.blend != motion_model::compositing::LayerBlend::default()
+                || !layer.composite_visible
+                || layer.adjustment
+                || layer.composition
         })
+    {
+        return Vec::new();
+    }
+    let mut blocks = Vec::new();
+    let mut start = 0;
+    while start < scene.layers.len() {
+        let Some(count) = samples(&scene.layers[start]) else {
+            start += 1;
+            continue;
+        };
+        let end = (start + 1..scene.layers.len())
+            .find(|&index| samples(&scene.layers[index]) != Some(count))
+            .unwrap_or(scene.layers.len());
+        if end - start >= 2 {
+            blocks.push(start..end);
+        }
+        start = end;
+    }
+    blocks
 }
 
 impl Renderer {
@@ -42,9 +56,50 @@ impl Renderer {
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<Option<(Scene, RenderStats)>> {
-        if !candidate(scene) {
+        let blocks = blocks(scene);
+        if blocks.is_empty() {
             return Ok(None);
         }
+        let mut grouped = vec![false; scene.layers.len()];
+        let mut keep = vec![true; scene.layers.len()];
+        for block in &blocks {
+            grouped[block.clone()].fill(true);
+            keep[block.start + 1..block.end].fill(false);
+        }
+        // Reuse one bounded scene scratch for isolated models and each run.
+        // Every run is encoded in the enclosing command stream; no shared
+        // raster is submitted early or reused across an authored 2D boundary.
+        let mut scratch = scene.clone();
+        scratch.layers = scene
+            .layers
+            .iter()
+            .enumerate()
+            .filter(|(index, layer)| !grouped[*index] && layer.model_source.is_some())
+            .map(|(_, layer)| layer.clone())
+            .collect();
+        let mut stats = self.prepare_models(&scratch, width, height)?;
+        for block in blocks {
+            scratch.layers.clear();
+            scratch.layers.extend_from_slice(&scene.layers[block]);
+            stats.add(self.prepare_shared_model_block(&scratch, width, height, encoder)?);
+        }
+        let mut output = scene.clone();
+        let mut index = 0;
+        output.layers.retain(|_| {
+            let retain = keep[index];
+            index += 1;
+            retain
+        });
+        Ok(Some((output, stats)))
+    }
+
+    fn prepare_shared_model_block(
+        &mut self,
+        scene: &Scene,
+        width: u32,
+        height: u32,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Result<RenderStats> {
         let began = Instant::now();
         let anchor = &scene.layers[0];
         let clip = anchor
@@ -126,7 +181,10 @@ impl Renderer {
                 ),
             ));
         }
-        let mut pass = match self.models.shared.take() {
+        // Exactly two validated sample counts; alternating blocks must not
+        // rebuild and retire each other's native depth/MSAA attachments.
+        let slot = usize::from(clip.samples == 4);
+        let mut pass = match self.models.shared[slot].take() {
             Some(pass) => pass,
             None => {
                 ScenePass::new(self, SceneGpuLimits::default().max_draws).map_err(scene_error)?
@@ -146,7 +204,7 @@ impl Renderer {
                     if let Some(previous) = previous {
                         self.models.targets.insert(anchor.id, previous);
                     }
-                    self.models.shared = Some(pass);
+                    self.models.shared[slot] = Some(pass);
                     return Err(error);
                 }
             },
@@ -206,7 +264,7 @@ impl Renderer {
             .map_err(scene_error)
         })();
         self.models.gpu = owned.into_iter().collect();
-        self.models.shared = Some(pass);
+        self.models.shared[slot] = Some(pass);
         let stats = match result {
             Ok(stats) => stats,
             Err(error) => {
@@ -252,14 +310,12 @@ impl Renderer {
             self.effect_gpu.invalidate();
         }
         self.models.targets.insert(anchor.id, target);
-        let mut output = scene.clone();
-        output.layers.truncate(1);
         let report = RenderStats {
             draw_calls: stats.draws as u32,
             parameter_upload_bytes: stats.parameter_bytes,
             cpu_prepare_us: began.elapsed().as_micros() as u64,
             ..Default::default()
         };
-        Ok(Some((output, report)))
+        Ok(report)
     }
 }

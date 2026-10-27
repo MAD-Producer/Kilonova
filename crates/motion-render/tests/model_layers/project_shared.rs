@@ -152,6 +152,279 @@ fn shared_project_blended_models_sort_globally_across_sources() {
     }
 }
 
+fn flat(id: u64, size: [f32; 2], position: [f32; 2], color: [f32; 4]) -> Layer {
+    Layer::solid(
+        id,
+        "Authored 2D boundary",
+        size,
+        [position[0], position[1], 0.],
+        color,
+    )
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn model_blocks_keep_shared_depth_between_ordinary_background_and_foreground() {
+    for samples in [1, 4] {
+        for blended in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let mut project = crossing_project(root.path(), samples, blended);
+            project
+                .layers
+                .insert(0, flat(20, [96., 64.], [48., 32.], [0., 1., 0., 1.]));
+            project
+                .layers
+                .push(flat(21, [12., 8.], [12., 10.], [1., 1., 0., 1.]));
+            project.validate().unwrap();
+            let authored = project.clone();
+            let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+            renderer.configure_assets(&project, root.path()).unwrap();
+            let first = capture(&mut renderer, &project);
+            assert_eq!(&first[(10 * 96 + 12) * 4..][..4], &[255, 255, 0, 255]);
+            assert_eq!(&first[(50 * 96 + 8) * 4..][..4], &[0, 255, 0, 255]);
+            if !blended {
+                assert_eq!(
+                    pixel(&first, 40),
+                    &[0, 0, 255, 255],
+                    "mixed left ray must use shared model depth"
+                );
+                assert_eq!(
+                    pixel(&first, 56),
+                    &[255, 0, 0, 255],
+                    "mixed right ray must use shared model depth"
+                );
+            } else {
+                let center = pixel(&first, 48);
+                assert!(center[0] > center[2] && center[2] > 0 && center[1] > 0 && center[3] == 255,
+                    "globally sorted model transparency must retain the ordinary background: {center:?}");
+            }
+            project.layers[1..3].reverse();
+            assert_eq!(first, capture(&mut renderer, &project),
+                "2D surroundings must not disable global model ordering, samples={samples} blended={blended}");
+            project.layers[1..3].reverse();
+            assert_eq!(project, authored);
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn model_blocks_share_each_contiguous_run_without_crossing_an_authored_2d_boundary() {
+    for samples in [1, 4] {
+        let root = tempfile::tempdir().unwrap();
+        let mut project = crossing_project(root.path(), samples, false);
+        for layer in &mut project.layers {
+            // Keep both perspective-expanded quads outside the unchanged
+            // background and separator rays, while retaining all four model rays.
+            layer.transform.scale.set_at(0, [70.; 3]).unwrap();
+            layer.transform.position.set_at(0, [32., 32., 0.]).unwrap();
+        }
+        let mut second = project.layers.clone();
+        for layer in &mut second {
+            layer.id += 2;
+            layer.transform.position.set_at(0, [64., 32., 0.]).unwrap();
+        }
+        project
+            .layers
+            .insert(0, flat(20, [96., 64.], [48., 32.], [0., 1., 0., 1.]));
+        project
+            .layers
+            .push(flat(21, [8., 64.], [48., 32.], [1., 1., 0., 1.]));
+        project.layers.extend(second);
+        project.validate().unwrap();
+        let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+        renderer.configure_assets(&project, root.path()).unwrap();
+        let scene = sampled(&project, 0.);
+        let target = renderer.capture_target(96, 64).unwrap();
+        let (first, stats) = renderer.capture(&scene, &target).unwrap();
+        for (x, expected) in [
+            (24, [0, 0, 255, 255]),
+            (40, [255, 0, 0, 255]),
+            (56, [0, 0, 255, 255]),
+            (72, [255, 0, 0, 255]),
+            (48, [255, 255, 0, 255]),
+            (8, [0, 255, 0, 255]),
+        ] {
+            assert_eq!(
+                pixel(&first, x),
+                &expected,
+                "each model block and 2D boundary must keep its own depth/order: x={x}"
+            );
+        }
+        assert_eq!(
+            stats.draw_calls, 8,
+            "four meshes, two shared rasters and two ordinary layers"
+        );
+        project.layers[1..3].reverse();
+        project.layers[4..6].reverse();
+        assert_eq!(first, capture(&mut renderer, &project));
+    }
+}
+
+fn two_blocks(root: &std::path::Path, first_samples: u32, second_samples: u32) -> Project {
+    let mut project = crossing_project(root, first_samples, false);
+    for layer in &mut project.layers {
+        layer.transform.scale.set_at(0, [70.; 3]).unwrap();
+        layer.transform.position.set_at(0, [32., 32., 0.]).unwrap();
+    }
+    let mut second = project.layers.clone();
+    for layer in &mut second {
+        layer.id += 2;
+        layer.transform.position.set_at(0, [64., 32., 0.]).unwrap();
+        let Content::Model { model } = &mut layer.content else {
+            unreachable!()
+        };
+        model.samples = second_samples;
+    }
+    project
+        .layers
+        .insert(0, flat(20, [96., 64.], [48., 32.], [0., 1., 0., 1.]));
+    project
+        .layers
+        .push(flat(21, [8., 64.], [48., 32.], [1., 1., 0., 1.]));
+    project.layers.extend(second);
+    project.validate().unwrap();
+    project
+}
+
+fn block_depth_targets(renderer: &Renderer) -> Vec<(u32, String)> {
+    let mut targets: Vec<_> = renderer
+        .texture_resource_ledger()
+        .resources()
+        .filter(|r| r.references.iter().any(|v| v.owner == "scene/depth"))
+        .map(|r| (r.samples, r.id.clone()))
+        .collect();
+    targets.sort();
+    targets
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn model_blocks_cache_both_sample_counts_and_retire_all_depth_on_deletion() {
+    let root = tempfile::tempdir().unwrap();
+    let mut project = two_blocks(root.path(), 1, 4);
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&project, root.path()).unwrap();
+    let first = capture(&mut renderer, &project);
+    let targets = block_depth_targets(&renderer);
+    assert_eq!(targets.iter().map(|v| v.0).collect::<Vec<_>>(), vec![1, 4]);
+    for x in [24, 56] {
+        assert_eq!(pixel(&first, x), &[0, 0, 255, 255]);
+    }
+    for x in [40, 72] {
+        assert_eq!(pixel(&first, x), &[255, 0, 0, 255]);
+    }
+    for _ in 0..2 {
+        assert_eq!(capture(&mut renderer, &project), first);
+        assert_eq!(
+            block_depth_targets(&renderer),
+            targets,
+            "alternating 1x/4x model runs must reuse both admitted depth targets"
+        );
+    }
+    project
+        .layers
+        .retain(|l| !matches!(l.content, Content::Model { .. }));
+    project.model_assets.clear();
+    renderer.configure_assets(&project, root.path()).unwrap();
+    capture(&mut renderer, &project);
+    assert!(block_depth_targets(&renderer).is_empty());
+    assert_eq!(renderer.texture_memory_breakdown().model_sources, 0);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn model_blocks_never_merge_models_on_opposite_sides_of_a_2d_layer() {
+    let root = tempfile::tempdir().unwrap();
+    let mut project = crossing_project(root.path(), 4, false);
+    project
+        .layers
+        .insert(1, flat(20, [96., 64.], [48., 32.], [0., 1., 0., 1.]));
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&project, root.path()).unwrap();
+    let blue_on_top = capture(&mut renderer, &project);
+    for x in [40, 56] {
+        assert_eq!(pixel(&blue_on_top, x), &[0, 0, 255, 255]);
+    }
+    project.layers.swap(0, 2);
+    let red_on_top = capture(&mut renderer, &project);
+    for x in [40, 56] {
+        assert_eq!(pixel(&red_on_top, x), &[255, 0, 0, 255]);
+    }
+    assert_eq!(pixel(&red_on_top, 8), &[0, 255, 0, 255]);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn model_blocks_pending_frames_keep_both_rasters_and_poses_in_reverse_submission() {
+    let root = tempfile::tempdir().unwrap();
+    let mut project = two_blocks(root.path(), 1, 4);
+    project.layers[1]
+        .transform
+        .position
+        .set_animated(0, true)
+        .unwrap();
+    project.layers[1]
+        .transform
+        .position
+        .set_at(60, [36., 32., 0.])
+        .unwrap();
+    project.layers[4]
+        .transform
+        .position
+        .set_animated(0, true)
+        .unwrap();
+    project.layers[4]
+        .transform
+        .position
+        .set_at(60, [60., 32., 0.])
+        .unwrap();
+    let authored = project.clone();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&project, root.path()).unwrap();
+    let first_scene = sampled(&project, 0.);
+    let last_scene = sampled(&project, 60.);
+    let first = renderer.capture_target(96, 64).unwrap();
+    let last = renderer.capture_target(96, 64).unwrap();
+    let expected_first = renderer.capture(&first_scene, &first).unwrap().0;
+    let expected_last = renderer.capture(&last_scene, &last).unwrap().0;
+    assert_ne!(expected_first, expected_last);
+    let mut first_encoder = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&first_scene, &first.view, 96, 64, &mut first_encoder, None)
+        .unwrap();
+    let mut last_encoder = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&last_scene, &last.view, 96, 64, &mut last_encoder, None)
+        .unwrap();
+    renderer
+        .submit_allocated(last_encoder.finish(), |_| {})
+        .unwrap();
+    renderer
+        .submit_allocated(first_encoder.finish(), |_| {})
+        .unwrap();
+    assert_eq!(renderer.read_target(&first).unwrap(), expected_first);
+    assert_eq!(renderer.read_target(&last).unwrap(), expected_last);
+    let reserved = renderer.allocation_budget().info().unwrap().admitted_bytes;
+    let mut abandoned = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&last_scene, &last.view, 96, 64, &mut abandoned, None)
+        .unwrap();
+    drop(abandoned);
+    assert_eq!(renderer.read_target(&last).unwrap(), expected_last);
+    assert_eq!(
+        renderer.allocation_budget().info().unwrap().admitted_bytes,
+        reserved
+    );
+    assert_eq!(project, authored);
+}
+
 fn sampled(project: &Project, frame: f64) -> Scene {
     let mut scene = Scene::new(project).unwrap();
     scene
