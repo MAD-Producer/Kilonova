@@ -1922,6 +1922,7 @@ pub(super) fn render(
         && !panels.path_controls.mask_menu()
         && !panels.expressions.menu_open()
         && !panels.effect_timeline.menu_open()
+        && !panels.timeline.graph_ranges.editing()
     {
         panels.layer_actions.open(None, input.mouse, state);
     }

@@ -52,7 +52,8 @@ fn launch(p: &mut Panels, state: &Value, unit: &str, window: Option<Panel>, atla
         atlas
     )
     .is_empty());
-    assert!(p.timeline.graph_ranges.editing());
+    assert!(p.timeline.graph_ranges.editing(),"window={window:?} unit={unit} point={point:?} focused={:?} layer_popup={} range_trace={:?}",
+        p.focused,p.layer_actions.editing(),p.timeline.comparison.test_range_debug());
     assert!(render(p, state, &Input::default(), window, atlas).is_empty());
     assert!(
         p.timeline.graph_ranges.editing(),

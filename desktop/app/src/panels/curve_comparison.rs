@@ -106,6 +106,8 @@ pub(super) struct Controls {
     legend_hits: Vec<(usize, Rect)>,
     #[cfg(test)]
     range_hits: Vec<(String, Rect)>,
+    #[cfg(test)]
+    range_debug:Vec<String>,
 }
 impl Clone for Controls {
     fn clone(&self) -> Self {
@@ -191,6 +193,8 @@ impl Controls {
             .expect("visible group header")
             .1
     }
+    #[cfg(test)]
+    pub(super) fn test_range_debug(&self)->&[String] {&self.range_debug}
     pub(super) fn range_context(&self) -> RangeContext {
         RangeContext {
             enabled: self.enabled,

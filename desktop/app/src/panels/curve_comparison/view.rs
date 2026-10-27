@@ -136,6 +136,7 @@ pub(in crate::panels) fn render(
         controls.marks.clear();
         controls.legend_hits.clear();
         controls.range_hits.clear();
+        controls.range_debug.clear();
     }
     let mut body = list.child();
     paint::rect(&mut body, area, styles.color("well"));
@@ -622,6 +623,10 @@ pub(in crate::panels) fn render(
             } else {
                 &neutral_menu
             };
+            #[cfg(test)]
+            controls.range_debug.push(format!("unit={} header={menu_row:?} viewport={:?} press={:?} mouse={:?} ready={} busy={} scrub={} keygesture={} hdrag={}",
+                unit.title(false),scroll.viewport,menu_input.pressed,menu_input.mouse,panels.timeline.graph_ranges.ready(),busy,
+                panels.timeline.scrubbing,panels.key_gestures.active(),panels.timeline.horizontal_drag.is_some()));
             if let Some(point) = graph_ranges::launch(
                 &mut graph,
                 atlas,
