@@ -100,6 +100,13 @@ fn project_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
         for entry in std::fs::read_dir(folder).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
+            // Engine::ProjectLock owns this zero-byte OS mutex for the entire
+            // session. It is not persisted authored data and Windows forbids
+            // even a second read handle; all other files must remain readable.
+            if path == root.join(".motion-editor.lock") {
+                assert_eq!(entry.metadata().unwrap().len(), 0);
+                continue;
+            }
             if entry.file_type().unwrap().is_dir() {
                 walk(root, &path, out);
             } else {
@@ -109,7 +116,9 @@ fn project_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
                         .unwrap()
                         .to_string_lossy()
                         .replace('\\', "/"),
-                    std::fs::read(path).unwrap(),
+                    std::fs::read(&path).unwrap_or_else(|cause| {
+                        panic!("reading saved project file {}: {cause}", path.display())
+                    }),
                 );
             }
         }
@@ -924,6 +933,6 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
     .unwrap();
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({"cases":evidence,"saved_files_byte_equal":true,"reopened_project_equal":true,
         "actual_worker_revision_cancel":true,"external_edit_undo_separate_from_view_invariant":true,"package_source":"independently authored builtin graph soft_sphere_motion","package_hash":package_hash,
-        "physical_os_input":false,"system_dpi_setting_changed":false,"input":"production chrome Input injection on hidden native windows; controlled scale ratios"})).unwrap()).unwrap();
+        "physical_os_input":false,"system_dpi_setting_changed":false,"excluded_runtime_file":"root/.motion-editor.lock: zero-byte process mutex, not authored saved data","input":"production chrome Input injection on hidden native windows; controlled scale ratios"})).unwrap()).unwrap();
     engine.request_shutdown().unwrap();
 }
