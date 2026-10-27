@@ -386,5 +386,10 @@
     "en-character-min.png",
     "en-paragraph-dpi2.png",
     "en-float-applied.png"
-  ]
+  ],
+  "expression_preparation_followup": {
+    "record": "text-style-expression-preparation-results.json",
+    "sha256": "7aada4c2f5fedb2a33cc79c3731ecc53e199c326230bde005b76d2feb680db8c",
+    "archive_sha256": "abfabb2630ffb4f7d70d97fa3c59c766d3f9599dd42f6da048c85b405b47f4fb"
+  }
 }

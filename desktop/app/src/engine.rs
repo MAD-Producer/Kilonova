@@ -34,6 +34,8 @@ mod native_test_evidence;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
+mod expression_startup_tests;
+#[cfg(test)]
 mod parent_policy_tests;
 #[cfg(test)]
 mod animation_action_tests;

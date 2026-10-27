@@ -213,6 +213,16 @@ pub trait ProjectExpressions {
     fn evaluated_at_cancellable(&self, frame: f64, cancel: Arc<AtomicBool>) -> Result<Cow<'_, Project>>;
     fn expression_values(&self, frame: f64) -> Result<Vec<ExpressionValue>>;
 }
+/// Compile enabled sources on the owning thread before starting a frame's
+/// clock. Compilation does not execute user code; the existing frame and
+/// execution deadlines still apply to every later invocation.
+pub fn prepare_expression_sources(project: &Project) -> Result<()> {
+    for expression in project.expressions.iter().filter(|e| active(project, e)) {
+        runtime::compile(&expression.source)
+            .map_err(|cause| error(&expression.target, 0., cause))?;
+    }
+    Ok(())
+}
 impl ProjectExpressions for Project {
     /// Expression-free frames keep the existing allocation-free animation path.
     fn evaluated_at(&self, frame: f64) -> Result<Cow<'_, Project>> {

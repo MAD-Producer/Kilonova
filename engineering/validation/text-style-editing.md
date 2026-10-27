@@ -8,7 +8,7 @@
 
 ## 需求与证据
 
-已同步主线 `da2fd4af`；生产实现提交为 `c75d06a9`。最终结果见 [结果 JSON](text-style-editing-results.json)，原始日志、23 张原生截图、独立进程回复、PNG／MP4 和重现脚本见 [证据包](text-style-editing-evidence.zip)（SHA-256：`df731efe8581d19a2c786798735a005166262a2df7b0edeacf2bf8ce49663ed0`）。包内保留首轮失败，不含字体二进制和效果包。
+已同步主线 `da2fd4af`；生产实现提交为 `c75d06a9`。最终结果见 [结果 JSON](text-style-editing-results.json)，原始日志、23 张原生截图、独立进程回复、PNG／MP4 和重现脚本见 [证据包](text-style-editing-evidence.zip)（SHA-256：`abfabb2630ffb4f7d70d97fa3c59c766d3f9599dd42f6da048c85b405b47f4fb`）。包内保留首轮失败，不含字体二进制和效果包。
 
 最终模型／核心 85 组共 461 项通过，媒体像素 4 项、桌面文字 6 项、辅助面板 4 项通过；原生夹具先通过 20 图版本，再通过增加中文完整样式后的 23 图版本。默认错误信道在独立进程核验 3 条真实失败的文件／stderr／stdout 边界。以上均没有失败。
 
@@ -73,6 +73,24 @@ run `40338183964` 的 Rust/GPU job `121625294774` 在既有 `receiver_time_drive
 修正前、后分别执行完整曝光场景回归，均为 8 项通过；两份记录分开保留，前者不作为修正后的证明。新提交 CI 仍需重新验证。
 
 同时对独立进程重开的中文 PNG 二次比较全部 RGBA 字节，结果完全相同；证据脚本改为直接比较字节，避免 Pillow 的默认 alpha 边界判定遗漏 RGB 差异。
+
+## 新会话首帧表达式准备与第二轮 CI
+
+`cb756518` 的 run `40342990827` 中，依赖审计、Rust/GPU、Linux 和 Windows 通过；macOS Intel job `121643256287` 在既有 `negative_time_segment_handles_are_read_only_and_authored_keys_survive_graph_views` 失败：初始位置应为表达式的 `500`，实际为原轨道的 `50`。原始完整 job 日志保留为 `text-style-ci-macos-cb756518-job.log`。该片段没有给出实际运行时原因，不能据此断言是某个具体毫秒期限。
+
+源码核查发现该测试保存带表达式的工程，随后在新 worker 中创建 `Session`。新会话原先直接进入带整帧期限的第一次求值，未执行编辑命令已有的源码准备；表达式失败时，既有逻辑会保留作者工程、采样不带表达式的临时副本并发布 `last_error`。冷编译影响首帧是依据该调用路径作出的判断。
+
+现在 `Session::new` 在首次采样前、同一拥有线程上编译活动表达式；编译不执行用户代码。语法失败仍进入原有可编辑的错误状态，保留完整作者工程及原始 typed cause。20ms 用户代码执行、100ms 整帧、取消和缓存上限均保持原值；不添加容错重试、线程重启或旧格式迁移。生产功能变更仅覆盖新会话的初始准备，没有宣称重写所有工程替换及后续求值路径。原属性测试、初始位置断言和负时间编辑断言完全保留。
+
+验证分阶段记录，不把此前文字像素或截图冒充此修正的重新运行：
+
+- 核心全部 67 组 390 项通过、1 项原有 ignored：`text-style-core-preparation-resumed.log`。其中新增 3 项证明编译不执行抛错代码、语法 typed cause、禁用源码跳过、实际首帧值、取消和无限循环执行期限。
+- 宿主全部 16 组 165 项通过：`text-style-host-preparation.log`。
+- 既有 `property_followup_tests` 10 项全部通过：`text-style-property-followups-prepared.log`，含原始 macOS 失败项。
+- 新增真实 Engine 子进程回归 1 项通过：`text-style-startup-preparation-bundled.log`。独立线程打开有效及语法错误工程，核对首次位置、作者数据、移除表达式后的恢复、撤销和磁盘工程不变；默认 Info 文件及 Error stderr 均包含第 60 次保留错误，stdout 无诊断泄漏。三个原始输出在 `text-style-expression-startup-default/`。
+- 首次本地桌面测试未启动，Windows loader 返回 `0xc0000135 / STATUS_DLL_NOT_FOUND`，保留失败记录。将现有固定 FFmpeg 的 7 个 DLL 放到测试程序旁后重新运行通过；没有修改产品代码以绕过运行库加载。完整桌面回归和新的跨平台 CI 另行记录，不以尚在运行的结果宣称通过。
+
+观测处置：新增的是实际首帧失败及默认信道测试；非 Present 启动的 in-flight／Info start、Session 的有界保留错误阈值、文件 Error 和 stderr 继续复用既有机制。正常禁用表达式不当作故障。没有新增逐帧文件 IO、健康 Present 日志、阈值或清空错误来制造成功；原始语法错误继续可编辑和撤销。
 
 ## DESIGN §0.7 逐项处置
 

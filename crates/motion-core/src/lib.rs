@@ -23,7 +23,7 @@ pub use motion_model::{compositing, composition, color_curves, particle_history,
 pub use motion_model::render_sampling;
 pub use motion_model::lens;
 pub use editor::{parse_commands, Engine};
-pub use expressions::{expression_reference_source, expression_source_diagnostic, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
+pub use expressions::{expression_reference_source, expression_source_diagnostic, prepare_expression_sources, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};

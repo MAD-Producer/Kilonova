@@ -1,0 +1,104 @@
+{
+  "base_commit": "cb756518ea671a415563588338b14e427e7fb0af",
+  "ci_failure": {
+    "run": 40342990827,
+    "job": 121643256287,
+    "test": "negative_time_segment_handles_are_read_only_and_authored_keys_survive_graph_views",
+    "expected_position": 500,
+    "actual_position": 50,
+    "cold_compilation": "inference from source path, not measured macOS deadline"
+  },
+  "scope": "Session::new prepares active sources on the owning thread before initial sampling; no user-code execution during preparation",
+  "source_sha256": {
+    "crates/motion-core/src/expressions/mod.rs": "9f23d7b0c39be167691440d1760c45f9563858ac069dd5ce511ad1b7c785f516",
+    "crates/motion-core/src/lib.rs": "764419911be0a01741a274be8f48e2b81bd8869f9c09455aca37d0a5275bcaec",
+    "crates/motion-host/src/session.rs": "8ab9a01ec691af9bb35ac332983314002fe9190894b542016f6e29a7ac138022",
+    "crates/motion-core/tests/expression_preparation.rs": "feb46328fb3d5b10c14edfd9f09320fba866aaf83e0ff35649bd42ddaa980b78",
+    "desktop/app/src/engine/expression_startup_tests.rs": "25db534c871784396494f4333189c8bfa7107060787d313901f4a2ace9500f62"
+  },
+  "checks": {
+    "core": {
+      "passed": 390,
+      "failed": 0,
+      "ignored": 1,
+      "suites": 67
+    },
+    "host": {
+      "passed": 165,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 16
+    },
+    "property_followups": {
+      "passed": 10,
+      "failed": 0
+    },
+    "default_error_startup": {
+      "passed": 1,
+      "failed": 0
+    },
+    "ffmpeg_build": true,
+    "full_desktop": "running; not claimed as passed",
+    "new_ci": "pending push"
+  },
+  "original_budgets_unchanged": {
+    "user_execution_ms": 20,
+    "frame_ms": 100,
+    "bytecode_cache_entries": 256
+  },
+  "logs": {
+    "text-style-ci-macos-cb756518-job.log": "2d3acc975c72a654446880157cbb2bd5c333337548e0194be363d89a81e8cd37",
+    "text-style-core-preparation-resumed.log": "e65c39b5437bddd853b378da0458dd46e8dcd69974e5515cb91e684ffa776a0a",
+    "text-style-host-preparation.log": "d6051431f28a3c4bf932d141f6648f328e03382fed96024fae331e6059cdff53",
+    "text-style-property-followups-prepared.log": "6022d3faabe978bbd4efb0421a90c4d342cb24f35ff6f6691ef0a93b1a54337f",
+    "text-style-startup-preparation-resumed.log": "d9203fa77d7af6c83379e7dcf475454c6bc775b6d6445595e194be9eec9a1d5a",
+    "text-style-startup-preparation-direct.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text-style-startup-preparation-runtime.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text-style-startup-preparation-currentdir.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text-style-startup-preparation-bundled.log": "4269f25d539554eb39ee2aca93a1c73abc36b299ba5e32dc064d5389c47efb86",
+    "text-style-preparation-build.log": "586418a1a49a204ec6ce3a9e24de19e02a618c1711d9c59f589ff82952d4f24b"
+  },
+  "current_preview": {
+    "production_source": "cb756518 + Session::new expression preparation (source SHA-256 below)",
+    "executable_sha256": "4f7b231c6a11e751343ef507faaa0d4d56cbaba428fa72091b18d5ae23a8258a",
+    "ffmpeg_runtime": [
+      {
+        "file": "avcodec-62.dll",
+        "sha256": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a"
+      },
+      {
+        "file": "avdevice-62.dll",
+        "sha256": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e"
+      },
+      {
+        "file": "avfilter-11.dll",
+        "sha256": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172"
+      },
+      {
+        "file": "avformat-62.dll",
+        "sha256": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef"
+      },
+      {
+        "file": "avutil-60.dll",
+        "sha256": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5"
+      },
+      {
+        "file": "swresample-6.dll",
+        "sha256": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b"
+      },
+      {
+        "file": "swscale-9.dll",
+        "sha256": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+      }
+    ],
+    "minimal_path": "E:\\Dev\\aem\\artifacts\\text-style-preview;C:\\WINDOWS\\System32",
+    "command_list_json_stdout": true,
+    "command_list_empty_stderr": true,
+    "source_sha256": {
+      "crates/motion-core/src/expressions/mod.rs": "9f23d7b0c39be167691440d1760c45f9563858ac069dd5ce511ad1b7c785f516",
+      "crates/motion-core/src/lib.rs": "764419911be0a01741a274be8f48e2b81bd8869f9c09455aca37d0a5275bcaec",
+      "crates/motion-host/src/session.rs": "8ab9a01ec691af9bb35ac332983314002fe9190894b542016f6e29a7ac138022"
+    },
+    "previous_validation_phase": "c75d06a9 screenshots, media pixels and CJK reopening are retained historical evidence, not rerun by this preparation build"
+  }
+}

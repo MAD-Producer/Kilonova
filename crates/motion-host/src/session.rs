@@ -166,7 +166,12 @@ impl Session {
         let engine = Engine::new(project).map_err(crate::Error::from)?;
         let project = engine.project();
         let mut scene = Scene::new(project)?;
-        let initial_error = match scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator) {
+        // A newly opened project has no compiled expressions on this worker.
+        // Prepare source bytecode before the first frame's unchanged deadline,
+        // just as SetExpression already does before evaluating an edit.
+        let initial_sample = motion_core::prepare_expression_sources(project)
+            .and_then(|()| scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator));
+        let initial_error = match initial_sample {
             Ok(()) => None,
             Err(error @ motion_core::Error::Expression { .. }) => {
                 let mut base = project.clone();
