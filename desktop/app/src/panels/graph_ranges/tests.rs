@@ -3,6 +3,7 @@ use motion_core::{Engine, Keyframe, Layer, Project};
 use motion_ui::input::Modifiers;
 mod comparison;
 mod effect;
+mod faults;
 mod mini;
 
 fn fixture() -> (Engine, Value, Panels) {
