@@ -9,6 +9,7 @@ mod error;
 mod examples;
 mod export;
 mod groups;
+mod images;
 mod input_defaults;
 mod ports;
 mod runtime_data;
@@ -28,6 +29,8 @@ pub use examples::{
 };
 pub use export::{compiled_package_bytes, export_msfx, ExportReport};
 pub use groups::scope_topological_order;
+pub use images::{GraphImage, IMAGE_ASSETS_FORMAT_VERSION, MAX_GRAPH_IMAGES, MAX_GRAPH_IMAGE_BYTES,
+    MAX_IMAGE_SOURCE_BYTES, MAX_GRAPH_METADATA_BYTES};
 pub use input_defaults::authoring_input_defaults;
 pub use ports::{
     check_connection, node_description, node_port_specs, port_semantics_compatible,

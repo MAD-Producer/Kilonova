@@ -10,6 +10,7 @@ motion-model = { path = "../motion-model" }
 motion-effects = { path = "../motion-effects" }
 serde.workspace = true
 serde_json.workspace = true
+sha2 = "=0.10.9"
 glam.workspace = true
 thiserror.workspace = true
 zip = { version = "9.0.5", default-features = false, features = ["deflate"] }

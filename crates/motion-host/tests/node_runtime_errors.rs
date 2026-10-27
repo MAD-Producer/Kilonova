@@ -26,7 +26,7 @@ impl Platform for NoMedia {
     }
 }
 
-fn project(encoded: &str, already_registered: bool) -> Project {
+fn project(root: &Path, already_registered: bool) -> Project {
     let package = motion_effects::builtin::package().unwrap();
     let mut project = Project::new(64, 64, 30, 120).unwrap();
     let mut layer = Layer::solid(1, "Runtime", [32.; 2], [32., 32., 0.], [1.; 4]);
@@ -36,7 +36,13 @@ fn project(encoded: &str, already_registered: bool) -> Project {
         ("test.native-runtime-error".into(), "1.0.0".into(), "0".repeat(64))
     };
     let mut effect = EffectInstance::new(1, &plugin, &version, &hash, &package.manifest.effects[0], [64.; 2]);
-    effect.node_graph = Some(json!({"format_version":1,"key":"runtime-errors","document":{},"options":{},"runtime":{"package_hex":encoded}}));
+    let bytes = [0, 0];
+    let sha256 = motion_core::storage::resource_sha256(&bytes);
+    let resource = motion_core::NodeResource {path:format!("assets/node-{sha256}.msfx"),bytes:2,sha256};
+    let mut stage = motion_core::storage::NodeResourceStage::new(root).unwrap();
+    stage.stage(&resource, &bytes).unwrap();
+    stage.keep_resources();
+    effect.node_graph = Some(json!({"format_version":2,"key":"runtime-errors","document":{},"options":{},"runtime":resource}));
     layer.effects.push(effect);
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
@@ -53,12 +59,13 @@ fn zip_cause(error: &Error) -> &motion_effects::Error {
 }
 
 #[test]
-fn session_creation_preserves_real_embedded_archive_failure() {
+fn session_creation_preserves_real_owned_archive_failure() {
     let root = tempfile::tempdir().unwrap();
-    let candidate = project("0000", false);
+    let directory = directory(root.path(), "project");
+    let candidate = project(&directory, false);
     let before = serde_json::to_value(&candidate).unwrap();
-    let error = match Session::new(candidate.clone(), directory(root.path(), "project"), Arc::new(NoMedia)) {
-        Ok(_) => panic!("invalid embedded archive unexpectedly opened"),
+    let error = match Session::new(candidate.clone(), directory, Arc::new(NoMedia)) {
+        Ok(_) => panic!("invalid owned archive unexpectedly opened"),
         Err(error) => error,
     };
     let cause = zip_cause(&error);
@@ -86,7 +93,8 @@ fn rejected_runtime_replacement_preserves_live_session_then_explicit_replacement
     let before = session.engine.snapshot();
     let history = session.engine.history_diagnostics();
     let registry = session.effects.registry.clone();
-    let error = session.replace_project(Engine::new(project("0000", false)).unwrap(), directory(root.path(), "rejected")).unwrap_err();
+    let rejected = directory(root.path(), "rejected");
+    let error = session.replace_project(Engine::new(project(&rejected, false)).unwrap(), rejected).unwrap_err();
     zip_cause(&error);
     assert_eq!(session.engine.snapshot(), before);
     assert_eq!(session.engine.revision(), 0);
@@ -109,15 +117,20 @@ fn rejected_runtime_replacement_preserves_live_session_then_explicit_replacement
 }
 
 #[test]
-fn validation_text_and_already_registered_runtime_keep_their_existing_behavior() {
+fn invalid_reference_and_already_registered_runtime_keep_their_defined_behavior() {
     let root = tempfile::tempdir().unwrap();
-    let error = match Session::new(project("zz", false), directory(root.path(), "invalid"), Arc::new(NoMedia)) {
-        Ok(_) => panic!("invalid runtime encoding unexpectedly opened"),
+    let invalid_root = directory(root.path(), "invalid");
+    let mut invalid = project(&invalid_root, false);
+    invalid.layers[0].effects[0].node_graph.as_mut().unwrap()["runtime"]["path"] = "../foreign.msfx".into();
+    let error = match Session::new(invalid, invalid_root, Arc::new(NoMedia)) {
+        Ok(_) => panic!("invalid runtime reference unexpectedly opened"),
         Err(error) => error,
     };
-    assert!(matches!(error, Error::Message(ref message) if message == "invalid compiled node runtime archive encoding"));
-    let cached = project("zz", true);
-    let session = Session::new(cached.clone(), directory(root.path(), "cached"), Arc::new(NoMedia)).unwrap();
+    assert!(matches!(error, Error::Model(motion_core::Error::Invalid(ref message)) if message == "invalid project-owned node resource"));
+    let cached_root = directory(root.path(), "cached");
+    let cached = project(&cached_root, true);
+    for resource in cached.node_resources().unwrap() { std::fs::remove_file(cached_root.join(resource.path)).unwrap(); }
+    let session = Session::new(cached.clone(), cached_root, Arc::new(NoMedia)).unwrap();
     assert_eq!(session.engine.project(), &cached);
     assert!(session.last_error.is_none());
 }

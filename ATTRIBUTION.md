@@ -147,7 +147,7 @@ the exact registry checksums are recorded in `Cargo.lock`.
 
 | Component | Author and source revision | License | Modification scope |
 | --- | --- | --- | --- |
-| base64 | Marshall Pierce and contributors; [rust-base64](https://github.com/marshallpierce/rust-base64), 0.23.1 | MIT OR Apache-2.0 | Unmodified Cargo dependency for data URIs |
+| base64 | Marshall Pierce and contributors; [rust-base64](https://github.com/marshallpierce/rust-base64), 0.23.1 | MIT OR Apache-2.0 | Unmodified Cargo dependency for data URIs and portable node-image payloads; exact package checksum in Cargo.lock |
 | percent-encoding | rust-url developers; [rust-url](https://github.com/servo/rust-url), 2.3.2 | MIT OR Apache-2.0 | Unmodified Cargo dependency for local URI decoding |
 | sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity |
 

@@ -6,6 +6,8 @@ use motion_graph::{
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 mod runtime_reuse;
+mod resources;
+pub use resources::{source_document, load_document};
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Target {
     pub root: PathBuf,
@@ -66,7 +68,7 @@ fn source_session(snapshot: &node_editor::EditorSnapshot) -> String {
 }
 pub fn source(snapshot: &node_editor::EditorSnapshot, target: &Target) -> Result<Value, String> {
     Ok(
-        serde_json::json!({"format_version":1,"key":target.key,"document":snapshot.document,"options":snapshot.options,"session":source_session(snapshot),"revision":snapshot.revision,"semantic_revision":snapshot.semantic_revision}),
+        serde_json::json!({"format_version":motion_core::node_resources::NODE_SOURCE_VERSION,"key":target.key,"document":source_document(&snapshot.document)?,"options":snapshot.options,"session":source_session(snapshot),"revision":snapshot.revision,"semantic_revision":snapshot.semantic_revision}),
     )
 }
 pub fn package(compiled: &CompiledGraph, target: &Target) -> Result<Vec<u8>, String> {
@@ -152,7 +154,8 @@ pub fn persist(
     }) {
         return s.snapshot();
     }
-    s.apply_command_batch(vec![Command::Effect {
+    let staged = resources::stage_images(&s.root, &snapshot.document, effect.node_graph.as_ref())?;
+    resources::commit_owned(s, staged, vec![Command::Effect {
         object: target.object,
         action: EffectAction::SetNodeGraph {
             effect: target.effect,
@@ -225,7 +228,7 @@ pub fn apply(
         }
         if let Some(value) = &old.node_graph {
             if (value["document"]
-                == serde_json::to_value(&snapshot.document).map_err(|e| e.to_string())?
+                == source_value["document"]
                 && value["options"]
                     == serde_json::to_value(&snapshot.options).map_err(|e| e.to_string())?)
                 || (value["session"] == source_session(snapshot)
@@ -236,15 +239,8 @@ pub fn apply(
             }
         }
     }
-    source_value["runtime"] = if bytes.is_none() {
-        old.as_ref()
-            .and_then(|old| old.node_graph.as_ref())
-            .and_then(|source| source.get("runtime"))
-            .cloned()
-            .unwrap_or_else(|| runtime_reuse::source(&packaged.bytes))
-    } else {
-        runtime_reuse::source(bytes.as_ref().unwrap())
-    };
+    let runtime = resources::runtime_resource(&packaged.bytes);
+    source_value["runtime"] = serde_json::to_value(&runtime)?;
     instance.node_graph = Some(source_value);
     instance
         .validate(s.engine.project().frames)
@@ -252,24 +248,14 @@ pub fn apply(
     if old.as_ref() == Some(&instance) {
         return s.snapshot();
     }
-    if let Some(bytes) = bytes {
-        let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_nanos();
-        let staged = s.root.join(format!(".node-runtime-{stamp}.msfx"));
-        let mut file = crate::owned_file::OwnedFile::create(&staged).map_err(|e| e.to_string())?;
-        use std::io::Write;
-        file.file()
-            .write_all(&bytes)
-            .map_err(|error| error.to_string())?;
-        file.close();
-        let install =
-            s.plugin_request(&serde_json::json!({"op":"install","path":staged}).to_string());
-        drop(file);
-        install?;
+    let mut staged = resources::stage_images(&s.root, &snapshot.document, old.as_ref().and_then(|e| e.node_graph.as_ref()))?;
+    if old.as_ref().and_then(|e| e.node_graph.as_ref()).and_then(|source| source.get("runtime")) != instance.node_graph.as_ref().and_then(|source| source.get("runtime")) {
+        staged.stage(&runtime, &packaged.bytes)?;
     }
-    s.apply_command_batch(vec![Command::Effect {
+    if bytes.is_some() {
+        s.plugin_request(&serde_json::json!({"op":"install","path":s.root.join(&runtime.path)}).to_string())?;
+    }
+    resources::commit_owned(s, staged, vec![Command::Effect {
         object: target.object,
         action: if old.is_some() {
             EffectAction::Replace { instance }
@@ -284,6 +270,7 @@ mod tests {
     use super::*;
     mod numeric;
     mod numeric_precision;
+    mod images;
     fn setup() -> (
         tempfile::TempDir,
         motion_host::Session,
@@ -503,7 +490,7 @@ mod tests {
         assert_ne!(snapshot.preview_stamp(), first.stamp());
     }
     #[test]
-    fn invalid_embedded_runtime_is_rejected_when_no_cached_package_exists() {
+    fn invalid_owned_runtime_identity_is_rejected_when_no_cached_package_exists() {
         let (folder, mut session, editor) = setup();
         let snapshot = editor.snapshot();
         apply(&mut session, &snapshot, &snapshot.compile().unwrap()).unwrap();
@@ -512,6 +499,12 @@ mod tests {
         project.rebuild_plugin_dependencies();
         let root = folder.path().join("empty-cache/project");
         std::fs::create_dir_all(&root).unwrap();
+        let mut stage = motion_core::storage::NodeResourceStage::new(&root).unwrap();
+        for resource in project.node_resources().unwrap() {
+            let bytes = motion_core::storage::read_node_resource(&session.root, &resource).unwrap();
+            stage.stage(&resource, &bytes).unwrap();
+        }
+        stage.keep_resources();
         let result = motion_host::Session::new(project, root, motion_desktop_media::platform());
         assert!(matches!(result,Err(message)if message.to_string().contains("does not match")));
     }

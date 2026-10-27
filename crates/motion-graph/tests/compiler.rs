@@ -12,6 +12,7 @@ fn graph_for(operation: NodeOp) -> GraphDocument {
         nodes: vec![],
         connections: vec![],
         public_parameters: vec![],
+        images: Default::default(),
     };
     for (id, ty, default, min, max) in [
         (

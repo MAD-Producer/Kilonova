@@ -1,17 +1,24 @@
-//! Restore last valid node runtimes embedded with project-owned authoring data.
+//! Restore last valid node runtimes referenced by project-owned authoring data.
 //! No node compiler or GPU access is needed to reopen an unfinished graph.
 use motion_effects::{EffectPackage, Registry};
 use std::sync::Arc;
 pub(crate) fn restore(
     project: &motion_core::Project,
+    root: &std::path::Path,
     registry: &mut Registry,
 ) -> crate::Result<()> {
-    for effect in project
+    restore_effects(project
         .layers
         .iter()
         .chain(project.compositions.iter().flat_map(|c| &c.layers))
-        .flat_map(|l| &l.effects)
-    {
+        .flat_map(|l| &l.effects), root, registry)
+}
+pub(crate) fn restore_effects<'a>(
+    effects: impl IntoIterator<Item = &'a motion_core::EffectInstance>,
+    root: &std::path::Path,
+    registry: &mut Registry,
+) -> crate::Result<()> {
+    for effect in effects {
         let Some(runtime) = effect.node_graph.as_ref().and_then(|s| s.get("runtime")) else {
             continue;
         };
@@ -21,23 +28,10 @@ pub(crate) fn restore(
         {
             continue;
         }
-        let encoded = runtime["package_hex"]
-            .as_str()
-            .ok_or("missing compiled node runtime archive")?;
-        if encoded.len() % 2 != 0 || encoded.len() > 32 * 1024 * 1024 {
-            return Err("invalid compiled node runtime archive length".into());
-        }
-        let mut bytes = Vec::with_capacity(encoded.len() / 2);
-        for pair in encoded.as_bytes().chunks_exact(2) {
-            let digit = |byte: u8| match byte {
-                b'0'..=b'9' => Some(byte - b'0'),
-                b'a'..=b'f' => Some(byte - b'a' + 10),
-                _ => None,
-            };
-            let high = digit(pair[0]).ok_or("invalid compiled node runtime archive encoding")?;
-            let low = digit(pair[1]).ok_or("invalid compiled node runtime archive encoding")?;
-            bytes.push((high << 4) | low);
-        }
+        let resource: motion_core::NodeResource = serde_json::from_value(runtime.clone())?;
+        resource.validate("msfx")?;
+        let bytes = motion_core::storage::read_node_resource(root, &resource)
+            .map_err(|e| crate::Error::with_context("read compiled node runtime", e))?;
         let package = EffectPackage::from_bytes(bytes)
             .map_err(|e| crate::Error::with_context("invalid compiled node runtime", e))?;
         if package.manifest.id != effect.plugin

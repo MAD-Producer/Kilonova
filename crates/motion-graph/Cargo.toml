@@ -11,6 +11,8 @@ default = ["gpu-tests"]
 gpu-tests = []
 
 [dependencies]
+base64 = "=0.23.1"
+sha2 = "=0.10.9"
 log.workspace = true
 motion-effects = { path = "../motion-effects" }
 image.workspace = true

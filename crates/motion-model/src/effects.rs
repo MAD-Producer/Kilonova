@@ -422,13 +422,7 @@ impl EffectInstance {
             "too many effect parameters",
         )?;
         if let Some(source) = &self.node_graph {
-            ensure(
-                source["format_version"] == 1
-                    && source["key"].as_str().is_some_and(|key| !key.trim().is_empty() && key.len() <= 128)
-                    && source["document"].is_object()
-                    && source["options"].is_object(),
-                "invalid editable node effect source",
-            )?;
+            crate::node_resources::source_resources(source)?;
             ensure(serde_json::to_vec(source)?.len() <= 4 * 1024 * 1024,
                 "node effect source exceeds 4 MiB")?;
         }

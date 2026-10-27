@@ -16,6 +16,7 @@ pub(crate) mod media_assets;
 mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;
+mod node_image_drop;
 mod presentation;
 pub(crate) mod pointer_position;
 #[cfg(all(test, target_os = "windows"))]
@@ -52,3 +53,6 @@ mod timeline_key_drag_acceptance;
 mod path_selection_acceptance;
 #[cfg(all(test, target_os = "windows"))]
 mod retired_effect_tests;
+
+#[cfg(all(test, target_os = "windows"))]
+mod node_image_drop_tests;
