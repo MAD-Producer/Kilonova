@@ -546,10 +546,13 @@ impl ScenePass {
                 pass.draw(0..3, 0..1);
             }
             if let Some(planes) = &planes {
-                pass.set_pipeline(&planes.pipeline);
-                pass.set_vertex_buffer(0, planes.vertices.slice(..));
-                for index in 0..planes.count as u32 {
-                    pass.draw(index * 6..(index + 1) * 6, 0..1);
+                for draw in &planes.draws {
+                    pass.set_pipeline(&draw.pipeline);
+                    if let Some(group) = &draw.group {
+                        pass.set_bind_group(0, group, &[]);
+                    }
+                    pass.set_vertex_buffer(0, planes.vertices.slice(draw.vertices.clone()));
+                    pass.draw(0..6, 0..1);
                 }
             }
             for (instance_index, item_index, group) in order {

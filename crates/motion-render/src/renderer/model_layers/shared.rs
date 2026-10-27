@@ -1,4 +1,4 @@
-//! Contiguous meshes and opaque solid planes share actual geometry depth.
+//! Contiguous meshes and proven opaque planes share actual geometry depth.
 //! Ordinary 2D, effect, matte, sampling and transparency boundaries stay intact.
 use super::*;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance, ScenePlane};
@@ -13,9 +13,14 @@ fn samples(layer: &crate::DrawLayer) -> Option<u32> {
     .then_some(samples)
 }
 
-fn solid_plane(layer: &crate::DrawLayer) -> bool {
+fn opaque_plane(renderer: &Renderer, layer: &crate::DrawLayer) -> bool {
     layer.model_source.is_none()
-        && layer.asset.is_none()
+        && layer.asset.is_none_or(|asset| {
+            renderer
+                .images
+                .get(&TextureKey::Static(asset))
+                .is_some_and(|image| image.plane_image.is_some_and(|state| state.opaque))
+        })
         && layer.video.is_none()
         && layer.vector.is_none()
         && layer.three_d
@@ -25,7 +30,7 @@ fn solid_plane(layer: &crate::DrawLayer) -> bool {
         && layer.sampling.is_default()
 }
 
-fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
+fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // Effects/receivers still consume independent layer images. Do not replace
     // their source with a combined raster or silently cross those boundaries.
     if scene.layers.len() > MAX_LAYERS
@@ -45,7 +50,8 @@ fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        if samples(&scene.layers[start]).is_none() && !solid_plane(&scene.layers[start]) {
+        if samples(&scene.layers[start]).is_none() && !opaque_plane(renderer, &scene.layers[start])
+        {
             start += 1;
             continue;
         }
@@ -57,7 +63,7 @@ fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
                     break;
                 }
                 count = Some(current);
-            } else if !solid_plane(&scene.layers[end]) {
+            } else if !opaque_plane(renderer, &scene.layers[end]) {
                 break;
             }
             end += 1;
@@ -79,7 +85,7 @@ impl Renderer {
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<Option<(Scene, RenderStats)>> {
-        let blocks = blocks(scene);
+        let blocks = blocks(self, scene);
         if blocks.is_empty() {
             return Ok(None);
         }
@@ -295,13 +301,19 @@ impl Renderer {
                 .layers
                 .iter()
                 .filter(|layer| layer.model_source.is_none())
-                .map(|layer| ScenePlane {
+                .map(|layer| Ok(ScenePlane {
                     object: layer.id,
                     world: layer.model,
                     size: layer.size,
                     color: layer.color,
-                })
-                .collect();
+                    texture: layer.asset.map(|asset| {
+                        self.images.get(&TextureKey::Static(asset))
+                            .ok_or_else(|| RenderError::Invalid(format!(
+                                "scene plane object={} source={asset} phase=shared_plane_image: prepared image is missing", layer.id
+                            )))?._texture.admitted_view()
+                    }).transpose()?,
+                }))
+                .collect::<Result<Vec<_>>>()?;
             pass.encode_composition(
                 self,
                 SceneRequest {
@@ -330,6 +342,17 @@ impl Renderer {
                 return Err(error);
             }
         };
+        // The allocation encoder owns the prior revisions until submission or
+        // abandonment. Uploading a referenced static source must not mutate it.
+        for asset in scene.layers.iter().filter_map(|layer| layer.asset) {
+            if let Some(state) = self
+                .images
+                .get_mut(&TextureKey::Static(asset))
+                .and_then(|image| image.plane_image.as_mut())
+            {
+                state.frozen = true;
+            }
+        }
         if self
             .images
             .get(&key)
@@ -358,6 +381,7 @@ impl Renderer {
                     bytes,
                     size: (w, h),
                     video_stamp: None,
+                    plane_image: None,
                 },
             );
             self.texture_bytes = self.texture_bytes - previous_bytes + bytes;

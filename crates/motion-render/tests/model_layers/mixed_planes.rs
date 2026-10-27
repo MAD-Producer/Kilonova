@@ -1,6 +1,9 @@
 //! Actual project mesh/plane intersections, with an independent f64 ray oracle.
 use super::*;
 
+#[path = "textured_planes.rs"]
+mod textured_planes;
+
 fn mixed_project(root: &std::path::Path, samples: u32) -> Project {
     let mut project = crossing_project(root, samples, false);
     project.layers.truncate(1);
