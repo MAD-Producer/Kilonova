@@ -143,7 +143,7 @@ impl NodeEditor {
                     let cutting = matches!(&self.drag, Some(Drag::Cut { inputs, .. }) if inputs.contains(&edge.to));
                     paint::line(
                         &mut canvas,
-                        points.clone(),
+                        points,
                         if cutting {
                             INVALID_WIRE
                         } else {
