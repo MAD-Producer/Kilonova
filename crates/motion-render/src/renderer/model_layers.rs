@@ -1,6 +1,7 @@
-//! Native model layers rasterize in composition space with their sampled camera
-//! and world transforms. This isolated layer pass does not share mesh depth with
-//! another layer or with the plane compositor.
+//! Native model layers use their sampled camera and world transforms. Plain
+//! all-model compositions share mesh depth; authored compositing boundaries
+//! retain the isolated receiver path and do not share depth with flat planes.
+mod shared;
 use super::*;
 use crate::scene_gpu::{GpuScene, SceneFrame, SceneGpuLimits, SceneRenderStats, SceneRequest};
 use motion_model::ModelAsset;
@@ -23,20 +24,25 @@ pub(super) struct Models {
     sources: HashMap<u64, Source>,
     gpu: HashMap<u64, GpuScene>,
     targets: HashMap<u64, RenderTarget>,
+    shared: Option<crate::scene_gpu::ScenePass>,
 }
 impl Models {
     pub fn clear_gpu(&mut self) {
         self.gpu.clear();
         self.targets.clear();
+        self.shared = None;
     }
     pub fn clear_targets(&mut self) {
         self.targets.clear();
+        self.shared = None;
     }
     pub fn retain_targets(&mut self, live: &std::collections::HashSet<u64>) {
         self.targets.retain(|id, _| live.contains(id));
+        if self.targets.is_empty() { self.shared = None; }
     }
     pub fn texture_bytes(&self) -> u64 {
-        self.gpu.values().map(GpuScene::texture_bytes).sum()
+        self.gpu.values().map(GpuScene::texture_bytes).sum::<u64>()
+            + self.shared.as_ref().map_or(0, crate::scene_gpu::ScenePass::attachment_bytes)
     }
     pub fn source_texture_bytes(&self) -> u64 {
         self.gpu.values().map(GpuScene::source_texture_bytes).sum()
@@ -49,12 +55,14 @@ impl Models {
                 .is_some_and(|(old, new)| old.asset == new.asset && old.root == new.root)
         });
         self.targets.clear();
+        self.shared = None;
         self.sources = sources;
     }
     pub fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
         for gpu in self.gpu.values() {
             ledger.merge(gpu.texture_resource_ledger());
         }
+        if let Some(pass) = &self.shared { ledger.merge(pass.texture_resource_ledger()); }
     }
 }
 

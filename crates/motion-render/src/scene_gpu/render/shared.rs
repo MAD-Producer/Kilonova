@@ -108,6 +108,11 @@ impl ScenePass {
         }
         ledger
     }
+    /// Cached native depth/MSAA attachments; an optional explicit depth input
+    /// is a separate resource reported by texture_resource_ledger.
+    pub(crate) fn attachment_bytes(&self) -> u64 {
+        self.targets.as_ref().map_or(0, Targets::bytes)
+    }
     /// Actual hardware depth in the common camera's projected [0,1] space.
     /// Single-sample storage permits COPY_SRC; multisample storage has no implicit
     /// depth resolve. Retain an admitted clone/view, never an untracked raw alias.
@@ -241,7 +246,30 @@ impl ScenePass {
         depth: Option<&depth_seed::SceneDepthInput<'_>>,
     ) -> Result<SceneRenderStats> {
         let began = Instant::now();
-        let result = self.encode_inner(renderer, encoder, target, sources, instances, frame, depth);
+        let result = encoder
+            .check_owner(&renderer.allocation_owner)
+            .map_err(super::super::SceneGpuError::from)
+            .and_then(|()| {
+                self.encode_inner(renderer, encoder, target, sources, instances, frame, depth)
+            });
+        self.observe(request, began, &result);
+        result
+    }
+    /// Internal bridge for Renderer::encode's existing encoder contract. The
+    /// enclosing allocation encoder remains alive while all native resources
+    /// are admitted; no intermediate submission or mutable raster upload occurs.
+    pub(crate) fn encode_composition(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+    ) -> Result<SceneRenderStats> {
+        let began = Instant::now();
+        let result = self.encode_inner(renderer, encoder, target, sources, instances, frame, None);
         self.observe(request, began, &result);
         result
     }
@@ -288,7 +316,7 @@ impl ScenePass {
     fn encode_inner(
         &mut self,
         renderer: &Renderer,
-        encoder: &mut AllocationEncoder,
+        encoder: &mut wgpu::CommandEncoder,
         target: &RenderTarget,
         sources: &mut [&mut GpuScene],
         instances: &[ScenePassInstance<'_>],
@@ -297,7 +325,6 @@ impl ScenePass {
     ) -> Result<SceneRenderStats> {
         self.check_owner(renderer)?;
         renderer.check_health()?;
-        encoder.check_owner(&renderer.allocation_owner)?;
         target.check_owner(renderer)?;
         let texture: &wgpu::Texture = target.texture();
         if target.width != texture.width()

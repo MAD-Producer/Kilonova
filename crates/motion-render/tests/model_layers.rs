@@ -7,6 +7,8 @@ use std::io;
 
 #[path = "model_layers/exposure.rs"]
 mod exposure;
+#[path = "model_layers/project_shared.rs"]
+mod project_shared;
 
 struct Material;
 impl AssetResolver for Material {
