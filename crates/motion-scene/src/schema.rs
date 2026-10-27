@@ -36,7 +36,30 @@ pub(crate) struct Root {
     #[serde(default)]
     pub skins: Vec<serde_json::Value>,
     #[serde(default)]
-    pub cameras: Vec<serde_json::Value>,
+    pub cameras: Vec<Camera>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct Camera {
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub perspective: Option<Perspective>,
+    pub orthographic: Option<Orthographic>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Perspective {
+    pub aspect_ratio: Option<f32>,
+    pub yfov: f32,
+    pub znear: f32,
+    pub zfar: Option<f32>,
+}
+#[derive(Deserialize)]
+pub(crate) struct Orthographic {
+    pub xmag: f32,
+    pub ymag: f32,
+    pub znear: f32,
+    pub zfar: f32,
 }
 
 #[derive(Deserialize)]

@@ -46,6 +46,8 @@ pub struct SceneFrame<'a> {
     pub background: [f32; 4],
     /// Explicit 1 or 4, with refusal rather than an implicit MSAA fallback.
     pub samples: u32,
+    /// Native-pixel camera viewport; None uses the complete target.
+    pub viewport: Option<[f32; 4]>,
 }
 impl SceneFrame<'static> {
     pub fn new(camera: motion_model::CameraPose, scene: usize, pixels_per_metre: f32) -> Self {
@@ -59,7 +61,30 @@ impl SceneFrame<'static> {
             ambient: [0.03; 3],
             background: [0.; 4],
             samples: 1,
+            viewport: None,
         }
+    }
+}
+impl SceneFrame<'static> {
+    pub fn from_imported_camera(
+        camera: &motion_scene::CameraView,
+        scene: usize,
+        pixels_per_metre: f32,
+    ) -> Self {
+        let mut frame = Self::new(imported_camera_pose(camera), scene, pixels_per_metre);
+        frame.viewport = Some(camera.viewport);
+        frame
+    }
+}
+fn imported_camera_pose(camera: &motion_scene::CameraView) -> motion_model::CameraPose {
+    motion_model::CameraPose {
+        eye: camera.eye,
+        target: camera.target,
+        view_projection: camera.view_projection,
+        projection: match camera.kind {
+            motion_scene::CameraKind::Perspective => motion_model::ProjectionKind::Perspective,
+            motion_scene::CameraKind::Orthographic => motion_model::ProjectionKind::Orthographic,
+        },
     }
 }
 #[derive(Debug, Default)]
@@ -247,6 +272,7 @@ impl GpuScene {
         {
             return Err(invalid("target", 0, "target metadata/view was changed"));
         }
+        validate_viewport(frame.viewport, target)?;
         let items = self.prepare_items(
             renderer,
             request,
@@ -302,6 +328,9 @@ impl GpuScene {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
+            if let Some([x, y, w, h]) = frame.viewport {
+                pass.set_viewport(x, y, w, h, 0., 1.);
+            }
             if let Some(group) = &group {
                 for (i, item) in items.iter().enumerate() {
                     let p = &self.meshes[item.mesh][item.primitive];
@@ -671,6 +700,24 @@ fn validate_frame(frame: &SceneFrame<'_>) -> Result<(Vec3, [Light; MAX_LIGHTS])>
         .ok_or_else(|| invalid("camera", 0, "camera eye and target must define a direction"))?;
     let lights = lights(frame)?;
     Ok((forward, lights))
+}
+fn validate_viewport(viewport: Option<[f32; 4]>, target: &RenderTarget) -> Result<()> {
+    if viewport.is_some_and(|[x, y, w, h]| {
+        [x, y, w, h].iter().any(|v| !v.is_finite())
+            || x < 0.
+            || y < 0.
+            || w <= 0.
+            || h <= 0.
+            || x + w > target.width as f32
+            || y + h > target.height as f32
+    }) {
+        return Err(invalid(
+            "viewport",
+            0,
+            "camera viewport exceeds target or has invalid components",
+        ));
+    }
+    Ok(())
 }
 fn features(renderer: &Renderer, format: wgpu::TextureFormat) -> wgpu::TextureFormatFeatures {
     if renderer

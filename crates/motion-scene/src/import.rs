@@ -124,6 +124,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         root.materials.len(),
         root.meshes.len(),
         root.animations.len(),
+        root.cameras.len(),
         root.nodes.len(),
         root.scenes.len(),
     ] {
@@ -156,7 +157,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
             root.extensions_required.join(", "),
         ));
     }
-    for (feature, count) in [("skins", root.skins.len()), ("cameras", root.cameras.len())] {
+    for (feature, count) in [("skins", root.skins.len())] {
         if count != 0 {
             return Err(unsupported(
                 "profile",
@@ -351,6 +352,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         meshes.push(Mesh { primitives });
     }
     let nodes = nodes(&root, limits)?;
+    let cameras = crate::camera::decode(&root, &mut budget, limits)?;
     let animations = crate::animation::decode(&reader, &mut budget)?;
     let mut scenes = Vec::with_capacity(root.scenes.len());
     let mut parents = vec![false; nodes.len()];
@@ -387,6 +389,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         meshes,
         nodes,
         animations,
+        cameras,
         scenes,
         default_scene: root.scene,
         ignored_optional_extensions: root.extensions_used,

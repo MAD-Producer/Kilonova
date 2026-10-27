@@ -17,6 +17,8 @@ const SIZE: u32 = 65;
 
 #[path = "scene_gpu/shared.rs"]
 mod shared;
+#[path = "scene_gpu/cameras.rs"]
+mod cameras;
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]

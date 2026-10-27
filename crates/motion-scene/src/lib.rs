@@ -2,6 +2,7 @@
 //! Importing a scene does not imply that the desktop renderer supports it.
 mod accessors;
 mod animation;
+mod camera;
 mod container;
 mod decode;
 mod frozen;
@@ -11,6 +12,7 @@ mod resources;
 mod schema;
 
 pub use animation::{Animation, AnimationSample};
+pub use camera::{Camera, CameraKind, CameraView};
 pub use frozen::import_frozen;
 pub use import::{import, ImportContext, ImportLimits};
 pub use resources::{AssetResolver, DirectoryResolver, Resource, ResourceKind};
@@ -80,6 +82,7 @@ pub struct Node {
     /// Column-major local transform, retained as authored; never decomposed to Euler angles.
     pub local: [f32; 16],
     pub mesh: Option<usize>,
+    pub camera: Option<usize>,
     pub children: Vec<usize>,
     pub(crate) rest: Option<animation::Transform>,
 }
@@ -189,6 +192,7 @@ pub struct Scene {
     pub(crate) meshes: Vec<Mesh>,
     pub(crate) nodes: Vec<Node>,
     pub(crate) animations: Vec<Animation>,
+    pub(crate) cameras: Vec<Camera>,
     pub(crate) scenes: Vec<Vec<usize>>,
     pub(crate) default_scene: Option<usize>,
     pub(crate) ignored_optional_extensions: Vec<String>,
@@ -232,6 +236,9 @@ impl Scene {
     pub fn animations(&self) -> &[Animation] {
         &self.animations
     }
+    pub fn cameras(&self) -> &[Camera] {
+        &self.cameras
+    }
     pub fn scenes(&self) -> &[Vec<usize>] {
         &self.scenes
     }
@@ -259,6 +266,19 @@ impl Scene {
         pixels_per_metre: f32,
         sample: Option<AnimationSample>,
     ) -> Result<Vec<(usize, Mat4)>> {
+        let mut out = Vec::new();
+        self.visit_node_instances_at(scene, pixels_per_metre, sample, |index, world| {
+            if let Some(mesh) = self.nodes[index].mesh { out.push((mesh, world)); }
+        })?;
+        Ok(out)
+    }
+    fn visit_node_instances_at(
+        &self,
+        scene: usize,
+        pixels_per_metre: f32,
+        sample: Option<AnimationSample>,
+        mut visit: impl FnMut(usize, Mat4),
+    ) -> Result<()> {
         if !pixels_per_metre.is_finite() || pixels_per_metre <= 0. {
             return Err(invalid(
                 "instances",
@@ -275,7 +295,6 @@ impl Scene {
             .transpose()?;
         let scale = Mat4::from_scale(Vec3::splat(pixels_per_metre));
         let mut pending: Vec<_> = roots.iter().rev().map(|&n| (n, scale)).collect();
-        let mut out = Vec::new();
         while let Some((index, parent)) = pending.pop() {
             let node = &self.nodes[index];
             let local = locals.as_ref().map_or(node.local, |locals| locals[index]);
@@ -283,11 +302,9 @@ impl Scene {
             if !world.is_finite() {
                 return Err(invalid("instances", index, "world transform overflow"));
             }
-            if let Some(mesh) = node.mesh {
-                out.push((mesh, world));
-            }
+            visit(index, world);
             pending.extend(node.children.iter().rev().map(|&child| (child, world)));
         }
-        Ok(out)
+        Ok(())
     }
 }

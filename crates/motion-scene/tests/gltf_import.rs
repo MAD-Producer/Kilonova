@@ -468,8 +468,8 @@ fn optional_extensions_are_reported_and_required_features_are_explicit_errors() 
     let error = load(&root, bytes.clone()).unwrap_err();
     assert!(matches!(error.cause, Cause::Unsupported(_)));
     root.as_object_mut().unwrap().remove("extensionsRequired");
-    // Transform clips are supported; skinning and cameras still require another profile.
-    for feature in ["skins", "cameras"] {
+    // Transform clips and cameras are supported; skinning requires another profile.
+    for feature in ["skins"] {
         let mut bad = root.clone();
         bad[feature] = json!([{}]);
         let error = load(&bad, bytes.clone()).unwrap_err();

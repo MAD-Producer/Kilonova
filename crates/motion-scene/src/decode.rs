@@ -290,8 +290,11 @@ pub(crate) fn nodes(root: &schema::Root, limits: &ImportLimits) -> Result<Vec<No
     let mut parents = vec![None; root.nodes.len()];
     let mut out = Vec::with_capacity(root.nodes.len());
     for (id, n) in root.nodes.iter().enumerate() {
-        if n.skin.is_some() || n.camera.is_some() || n.weights.is_some() {
-            return Err(unsupported("node", id, "skin, camera or morph weights"));
+        if n.skin.is_some() || n.weights.is_some() {
+            return Err(unsupported("node", id, "skin or morph weights"));
+        }
+        if n.camera.is_some_and(|c| c >= root.cameras.len()) {
+            return Err(invalid("node", id, "camera index out of range"));
         }
         if n.mesh.is_some_and(|m| m >= root.meshes.len()) {
             return Err(invalid("node", id, "mesh index out of range"));
@@ -351,6 +354,7 @@ pub(crate) fn nodes(root: &schema::Root, limits: &ImportLimits) -> Result<Vec<No
         out.push(Node {
             local: local.to_cols_array(),
             mesh: n.mesh,
+            camera: n.camera,
             children: n.children.clone(),
             rest: n.matrix.is_none().then(|| crate::animation::Transform {
                 translation: n.translation.unwrap_or([0.; 3]),

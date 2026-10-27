@@ -16,7 +16,7 @@ fn upload(renderer: &Renderer, materials: Vec<Value>, primitives: &[(f32, usize)
     )
     .unwrap()
 }
-fn depth(renderer: &Renderer, texture: &motion_render::AdmittedTexture) -> Vec<f32> {
+pub(super) fn depth(renderer: &Renderer, texture: &motion_render::AdmittedTexture) -> Vec<f32> {
     assert_eq!(texture.sample_count(), 1);
     let stride = (SIZE * 4).div_ceil(256) * 256;
     let buffer = renderer

@@ -36,6 +36,7 @@ pub struct ScenePassFrame {
     pub camera: motion_model::CameraPose,
     pub background: [f32; 4],
     pub samples: u32,
+    pub viewport: Option<[f32; 4]>,
 }
 impl ScenePassFrame {
     pub fn new(camera: motion_model::CameraPose) -> Self {
@@ -43,6 +44,15 @@ impl ScenePassFrame {
             camera,
             background: [0.; 4],
             samples: 1,
+            viewport: None,
+        }
+    }
+    pub fn from_imported_camera(camera: &motion_scene::CameraView) -> Self {
+        Self {
+            camera: imported_camera_pose(camera),
+            background: [0.; 4],
+            samples: 1,
+            viewport: Some(camera.viewport),
         }
     }
 }
@@ -215,6 +225,7 @@ impl ScenePass {
         common.samples = frame.samples;
         common.background = frame.background;
         validate_frame(&common)?;
+        validate_viewport(frame.viewport, target)?;
         if instances.len() > self.max_draws {
             return Err(invalid(
                 "shared_instances",
@@ -252,6 +263,7 @@ impl ScenePass {
                 ambient: instance.ambient,
                 background: frame.background,
                 samples: frame.samples,
+                viewport: frame.viewport,
             };
             let items = source
                 .prepare_items(
@@ -355,6 +367,9 @@ impl ScenePass {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
+            if let Some([x, y, w, h]) = frame.viewport {
+                pass.set_viewport(x, y, w, h, 0., 1.);
+            }
             for (instance_index, item_index, group) in order {
                 let prepared = &prepared[instance_index];
                 let item = &prepared.items[item_index];
