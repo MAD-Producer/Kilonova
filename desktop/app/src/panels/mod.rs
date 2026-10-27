@@ -59,6 +59,8 @@ mod graph_adaptive;
 mod graph_view;
 mod graph_ranges;
 mod curve_comparison;
+#[cfg(all(test, target_os = "windows"))]
+mod graph_native_performance_tests;
 mod graph_notice;
 mod graph_workspace;
 mod helpers;
