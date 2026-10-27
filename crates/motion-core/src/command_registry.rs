@@ -169,6 +169,7 @@ registry! {
     Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
+    Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];
     Command::KeyframeTiming { .. } => "keyframe_timing" [("selections","Vec<KeyframeSelection>",true),("settings","TimingSettings",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];
     Command::DeleteKeyframes { .. } => "delete_keyframes" [("selections","Vec<KeyframeSelection>",true)];
@@ -177,6 +178,7 @@ registry! {
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
+    Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
     Command::SetVector { .. } => "set_vector" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value",[f32; 3],true)];

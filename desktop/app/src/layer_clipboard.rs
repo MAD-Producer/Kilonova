@@ -8,6 +8,7 @@ pub(crate) mod controller;
 #[cfg(test)]
 mod tests;
 pub(crate) mod worker;
+pub(crate) mod curves;
 
 use motion_core::LayerClipboard;
 use motion_host::session::Session;
@@ -71,6 +72,12 @@ pub(crate) fn read(session: &Session, objects: Vec<u64>) -> motion_host::Result<
 }
 
 pub(crate) enum Edit {
+    PasteEasing {
+        stamp: Stamp,
+        clipboard: motion_core::CurveClipboard,
+        selections: Vec<motion_core::KeyframeSelection>,
+        cancel: Arc<AtomicBool>,
+    },
     CutPaths {
         stamp: Stamp,
         clipboard: Arc<motion_core::PathClipboard>,
@@ -109,6 +116,7 @@ pub(crate) enum Edit {
 }
 pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<Value> {
     let (stamp, cancel) = match &edit {
+        Edit::PasteEasing { stamp, cancel, .. } => (stamp, cancel),
         Edit::CutPaths { stamp, cancel, .. }
         | Edit::PastePaths { stamp, cancel, .. }
         | Edit::CutKeyframes { stamp, cancel, .. }
@@ -128,6 +136,9 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
         return Ok(serde_json::json!({"clipboard_status":"superseded"}));
     }
     let result = match edit {
+        Edit::PasteEasing { clipboard, selections, .. } => session.apply_command_batch(vec![
+            motion_core::Command::PasteEasing { clipboard: Box::new(clipboard), selections },
+        ]),
         Edit::CutPaths { clipboard, .. } => session.apply_command_batch(vec![
             motion_core::Command::RemovePaths { clipboard: Box::new((*clipboard).clone()) },
         ]),

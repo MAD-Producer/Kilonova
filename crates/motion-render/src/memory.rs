@@ -11,6 +11,7 @@ pub struct TextureMemoryBreakdown {
     pub video_planes: u64,
     pub nested_compositions: u64,
     pub vector_sources: u64,
+    pub model_sources: u64,
     pub effect_scratch: u64,
     pub plugin_resources: u64,
     pub curve_luts: u64,
@@ -30,6 +31,7 @@ impl TextureMemoryBreakdown {
             + self.video_planes
             + self.nested_compositions
             + self.vector_sources
+            + self.model_sources
             + self.effect_scratch
             + self.plugin_resources
             + self.curve_luts

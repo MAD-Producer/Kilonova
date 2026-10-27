@@ -275,6 +275,7 @@ impl Project {
             layers: body.layers.to_vec(),
             expressions: body.expressions.to_vec(),
             assets: self.assets.clone(),
+            model_assets: self.model_assets.clone(),
             fonts: self.fonts.clone(),
             audio_assets: self.audio_assets.clone(),
             video_assets: self.video_assets.clone(),

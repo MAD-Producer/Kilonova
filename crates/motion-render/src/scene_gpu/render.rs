@@ -57,7 +57,7 @@ impl SceneFrame<'static> {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SceneRenderStats {
     pub draws: usize,
     pub triangles: u64,
@@ -100,8 +100,12 @@ pub(super) struct Targets {
     _depth: AdmittedTexture,
     color: Option<AdmittedTextureView>,
     _color: Option<AdmittedTexture>,
+    bytes: u64,
 }
 impl Targets {
+    pub fn bytes(&self) -> u64 {
+        self.bytes
+    }
     pub fn collect(&self, ledger: &mut crate::TextureResourceLedger) {
         self._depth
             .collect_texture_resources(ledger, "scene/depth", crate::TextureState::Retained);
@@ -134,6 +138,18 @@ pub(super) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     })
 }
 impl GpuScene {
+    fn check_owner(&self, renderer: &Renderer) -> Result<()> {
+        // SessionRegistry stores Renderer behind a Mutex, requiring Send. This
+        // identity is movable metadata; native access remains owner-thread-only.
+        // AllocationContext itself retains its compile-time !Send contract.
+        if std::thread::current().id() != self.thread {
+            return Err(invalid("thread", 0, "scene access requires its owning thread"));
+        }
+        if !std::sync::Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
+            return Err(invalid("owner", 0, "scene belongs to another renderer"));
+        }
+        Ok(())
+    }
     /// Encode and submit one scene. Healthy frames perform no file IO/logging.
     pub fn draw(
         &mut self,
@@ -144,6 +160,7 @@ impl GpuScene {
     ) -> Result<SceneRenderStats> {
         let began = Instant::now();
         let result = (|| {
+            self.check_owner(renderer)?;
             let mut encoder = renderer.allocation_command_encoder_for(
                 crate::gpu_commands::CommandStage::Composition,
                 &wgpu::CommandEncoderDescriptor {
@@ -210,10 +227,8 @@ impl GpuScene {
         target: &RenderTarget,
         frame: &SceneFrame<'_>,
     ) -> Result<SceneRenderStats> {
+        self.check_owner(renderer)?;
         renderer.check_health()?;
-        if !self.context.same_owner(&renderer.allocation_context()) {
-            return Err(invalid("owner", 0, "scene belongs to another renderer"));
-        }
         encoder.check_owner(&renderer.allocation_owner)?;
         target.check_owner(renderer)?;
         let texture: &wgpu::Texture = target.texture();
@@ -373,8 +388,8 @@ impl GpuScene {
                 let bytes = bytemuck::bytes_of(&item.uniform);
                 staging[start..start + bytes.len()].copy_from_slice(bytes);
             }
-            let buffer = self
-                .context
+            let buffer = renderer
+                .allocation_context()
                 .buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("immutable scene frame transforms"),
                     contents: &staging,
@@ -537,18 +552,26 @@ impl GpuScene {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         };
-        let depth = self.context.texture_in(
+        let context = renderer.allocation_context();
+        let depth = context.texture_in(
             &descriptor(wgpu::TextureFormat::Depth32Float, "scene depth"),
             TextureCategory::LayerCompositingScratch,
         )?;
         let color = if samples == 4 {
-            Some(self.context.texture_in(
+            Some(context.texture_in(
                 &descriptor(format, "scene MSAA color"),
                 TextureCategory::LayerCompositingScratch,
             )?)
         } else {
             None
         };
+        let depth_bytes = crate::resource_ledger::logical_bytes(&depth)
+            .ok_or_else(|| invalid("targets", 0, "cannot account scene depth storage"))?;
+        let color_bytes = color.as_ref().map(|texture| crate::resource_ledger::logical_bytes(texture)
+            .ok_or_else(|| invalid("targets", 0, "cannot account scene multisample storage")))
+            .transpose()?.unwrap_or(0);
+        let bytes = depth_bytes.checked_add(color_bytes)
+            .ok_or_else(|| invalid("targets", 0, "scene target capacity overflow"))?;
         self.targets = Some(Targets {
             size,
             format,
@@ -557,6 +580,7 @@ impl GpuScene {
             _depth: depth,
             color: color.as_ref().map(|c| c.view()).transpose()?,
             _color: color,
+            bytes,
         });
         Ok(())
     }

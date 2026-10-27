@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 mod channels;
 mod interpolation;
 mod easing;
+pub mod curve_clipboard;
 mod transform;
 pub mod timing;
 pub use easing::{delete_keys, ease_keys};

@@ -44,6 +44,7 @@ pub(super) fn render(
         timeline.is_some()
     );
     if let (Some(sample), Some(timeline)) = (sample, timeline) {
+        panels.animation_controls.clipboard_busy = panels.clipboard_busy;
         panels.animation_controls.expanded = true;
         panels.animation_controls.render(
             list,

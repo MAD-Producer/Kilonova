@@ -31,6 +31,7 @@ pub(crate) enum Status {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Domain {
+    Curves,
     Layers,
     Keyframes,
     Paths,
@@ -42,6 +43,8 @@ pub(crate) struct Completion {
     pub state: Option<Value>,
 }
 enum Stage {
+    ReadingCurves(Receiver<Result<super::curves::Read, String>>, Vec<motion_core::KeyframeSelection>),
+    CurveIO(super::curves::Job, super::Stamp, Vec<motion_core::KeyframeSelection>),
     ReadingPaths(Receiver<Result<super::PathRead, String>>, Option<motion_core::PathDestination>),
     Reading(Receiver<Result<Read, String>>, PathBuf),
     ReadingKeyframes(
@@ -60,6 +63,7 @@ struct Pending {
 }
 #[derive(Default)]
 pub(crate) struct Clipboard {
+    curves: super::curves::Service,
     frozen: Option<Arc<Frozen>>,
     keyframes: Option<Arc<motion_core::KeyframeClipboard>>,
     paths: Option<Arc<motion_core::PathClipboard>>,
@@ -92,6 +96,8 @@ impl Clipboard {
                 return "cancelling";
             }
             match &pending.stage {
+                Stage::ReadingCurves(..) => "reading",
+                Stage::CurveIO(job, ..) => job.status().1,
                 Stage::Reading(..) | Stage::ReadingKeyframes(..) | Stage::ReadingPaths(..) => "reading",
                 Stage::Working(job, _) => job.status().1,
                 Stage::Ready(_) => "ready",
@@ -103,6 +109,22 @@ impl Clipboard {
         if let Some(pending) = &self.pending {
             pending.cancel.store(true, Ordering::Release);
         }
+    }
+    pub(crate) fn start_curves(
+        &mut self, engine: &Engine, intent: Intent, source: super::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+    ) -> Result<bool, String> {
+        if self.busy() || selections.is_empty() || intent == Intent::Cut { return Ok(false); }
+        let selection = if intent == Intent::Copy {
+            if selections.len() != 1 || selections[0].frames.len() != 1 {
+                return Err("copy easing requires one source interval".into());
+            }
+            Some(selections[0].clone())
+        } else { None };
+        let receive = engine.request(|reply| Command::CurveClipboardRead { source, selection, reply })?;
+        self.pending = Some(Pending { domain: Domain::Curves, intent,
+            cancel: Arc::new(AtomicBool::new(false)), stage: Stage::ReadingCurves(receive, selections) });
+        Ok(true)
     }
     pub(crate) fn start(
         &mut self,
@@ -203,6 +225,47 @@ impl Clipboard {
             }))
         };
         let stage = match pending.stage {
+            Stage::ReadingCurves(receive, selections) => {
+                let Some(result) = engine.poll_reply(&receive, "curve_clipboard_read") else {
+                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingCurves(receive, selections) });
+                    return None;
+                };
+                let source = match result { Ok(source) => source, Err(cause) => return Some(Err(cause)) };
+                if cancelled() { return done(Status::Cancelled, None); }
+                if source.superseded { return done(Status::Superseded, None); }
+                let work = if intent == Intent::Copy {
+                    let Some(clipboard) = source.clipboard else {
+                        log::error!("curve clipboard capture failed phase=reading reason=engine returned no easing");
+                        return Some(Err("curve clipboard capture returned no easing".into()));
+                    };
+                    super::curves::Work::Copy(clipboard)
+                } else { super::curves::Work::Paste };
+                log::info!("curve clipboard source phase=validated generation={} revision={} composition={} objects={:?} channels={}",
+                    source.stamp.generation, source.stamp.revision,
+                    source.stamp.composition.chars().take(128).collect::<String>(),
+                    selections.iter().take(8).map(|s| s.target.object()).collect::<Vec<_>>(), selections.len());
+                match self.curves.submit(work, cancel.clone()) {
+                    Ok(job) => Stage::CurveIO(job, source.stamp, selections),
+                    Err(cause) => return Some(Err(cause)),
+                }
+            }
+            Stage::CurveIO(job, stamp, selections) => {
+                let Some(result) = job.poll() else {
+                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::CurveIO(job, stamp, selections) });
+                    return None;
+                };
+                let result = match result { Ok(value) => value, Err(cause) => return Some(Err(cause)) };
+                // A native write that already completed remains a successful
+                // copy even if cancellation arrived while the OS owned it.
+                match result {
+                    super::curves::Output::Copied => return done(Status::Copied, None),
+                    super::curves::Output::Cancelled => return done(Status::Cancelled, None),
+                    super::curves::Output::Paste(clipboard) => {
+                        if cancelled() { return done(Status::Cancelled, None); }
+                        Stage::Ready(Edit::PasteEasing { stamp, clipboard, selections, cancel: cancel.clone() })
+                    }
+                }
+            }
             Stage::ReadingPaths(receive, target) => {
                 let Some(result) = engine.poll_reply(&receive, "path_clipboard_read") else {
                     self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingPaths(receive, target) });

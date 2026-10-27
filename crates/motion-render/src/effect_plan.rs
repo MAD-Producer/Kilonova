@@ -281,6 +281,9 @@ impl EffectFramePlan {
         if self.passes.iter().any(|pass| pass.instance_data != 0) {
             return Err("packed plan v12 cannot transport instance_shader_data textures; use a native consumer with instance_shader_data_v1".into());
         }
+        if scene.layers.iter().any(|layer| layer.model_source.is_some()) {
+            return Err(RenderError::Invalid("portable packed plans do not carry native model layers; bake them explicitly before export".into()));
+        }
         if self.precision != ChannelPrecision::Unorm8 && scene.curve_sources.len() != scene.curve_luts.len() {
             return Err(RenderError::Invalid(format!(
                 "packed high-precision curve sources={} do not match LUTs={}",
@@ -1010,6 +1013,7 @@ impl PlanBuilder {
         layer.color = [1.; 4];
         layer.asset = None;
         layer.video = None;
+        layer.model_source = None;
         layer.vector = None;
         layer.masks = Default::default();
         layer.track_matte = None;
@@ -1607,7 +1611,7 @@ impl PlanBuilder {
             words[21] = region[3];
             words[22] = layer.opacity;
             words[23] = if additive { 1. } else { 0. };
-            words[24] = if layer.video.is_some() || layer.composition {
+            words[24] = if layer.video.is_some() || layer.composition || layer.model_source.is_some() {
                 -(layer.order as f32 + 1.0)
             } else {
                 asset as f32
@@ -1617,7 +1621,7 @@ impl PlanBuilder {
             words[27] = if materialized { 0.0 } else { -1.0 };
             words[28] = pass_start as f32;
             words[29] = self.frame.passes.len() as f32;
-            words[30] = if layer.composition { 2. } else if layer.video.is_some() { 1. } else { 0. };
+            words[30] = if layer.model_source.is_some() { 3. } else if layer.composition { 2. } else if layer.video.is_some() { 1. } else { 0. };
             words[31] = if layer.adjustment {
                 2.
             } else if layer.vector.is_some() {

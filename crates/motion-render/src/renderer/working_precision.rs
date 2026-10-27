@@ -108,7 +108,7 @@ impl Renderer {
             .keys()
             .copied()
             .filter(|key| match key {
-                TextureKey::Vector(_) | TextureKey::Mask(_) | TextureKey::EffectInput(_) => true,
+                TextureKey::Vector(_) | TextureKey::Mask(_) | TextureKey::EffectInput(_) | TextureKey::Model(_) => true,
                 TextureKey::Video(id) => self.composition_images.contains(id),
                 _ => false,
             })
@@ -119,6 +119,7 @@ impl Renderer {
             }
         }
         self.composition_images.clear();
+        self.models.clear_targets();
         let (pipeline, additive_pipeline, masked_pipeline) = change.pipelines;
         self.pipeline = pipeline;
         self.additive_pipeline = additive_pipeline;

@@ -3,6 +3,7 @@
 use crate::*;
 use motion_core::{Ease, Layer, Project};
 use winit::platform::{pump_events::EventLoopExtPumpEvents, windows::EventLoopBuilderExtWindows};
+mod curve_clipboard_native;
 
 struct DrawFloat<'a> {
     shell: &'a mut Shell,

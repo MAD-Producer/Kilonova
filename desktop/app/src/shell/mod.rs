@@ -21,6 +21,8 @@ pub(crate) mod pointer_position;
 mod native_input_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod project_precision_tests;
+#[cfg(all(test, target_os = "windows", feature = "gpu-tests"))]
+mod model_layer_tests;
 pub(crate) mod presentation_observation;
 
 pub(crate) mod styles;

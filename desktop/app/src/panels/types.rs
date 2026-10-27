@@ -27,6 +27,11 @@ pub enum Action {
     ImportPath(std::path::PathBuf),
     CancelImport,
     LayerClipboard(crate::layer_clipboard::controller::Intent),
+    CurveClipboard {
+        intent: crate::layer_clipboard::controller::Intent,
+        source: crate::layer_clipboard::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+    },
     KeyframeClipboard {
         intent: crate::layer_clipboard::controller::Intent,
         source: crate::layer_clipboard::KeyframeSource,

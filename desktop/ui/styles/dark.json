@@ -124,6 +124,8 @@
       "shadow.offset_y": 3,
       "motion.drag_threshold": 3,
       "graph.curve_width": 2,
+      "graph.control.height": 24,
+      "graph.control.gap": 2,
       "graph.handle_width": 1,
       "graph.handle_radius": 4,
       "graph.key_radius": 5,

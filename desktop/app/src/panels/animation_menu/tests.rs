@@ -57,6 +57,33 @@ fn commands(actions: Vec<Action>) -> Vec<Command> {
 }
 
 #[test]
+fn curve_clipboard_menu_captures_same_explicit_interval_in_both_locales_and_rejects_busy_or_stale() {
+    let (engine, state) = fixture();
+    let mut captured = Vec::new();
+    for locale in [Locale::Zh, Locale::En] {
+        let mut panels = context(&state, locale);
+        for operation in [Operation::CopyEasing, Operation::PasteEasing] {
+            assert!(enabled(&panels, &state, operation));
+            let mut out = Vec::new();
+            apply(&mut panels, &state, operation, &mut out);
+            let [Action::CurveClipboard { intent, source, selections }] = out.as_slice() else { panic!("curve clipboard did not capture one action"); };
+            assert_eq!(selections.len(), 1);
+            assert_eq!(selections[0].frames, vec![22]);
+            captured.push((*intent, source.clone(), selections.clone()));
+        }
+        panels.clipboard_busy = true;
+        assert!(!enabled(&panels, &state, Operation::CopyEasing));
+        assert!(!enabled(&panels, &state, Operation::PasteEasing));
+        panels.clipboard_busy = false;
+        panels.focused = Some(Panel::Project);
+        assert!(!enabled(&panels, &state, Operation::PasteEasing));
+        assert!(!engine.can_undo());
+    }
+    assert_eq!(captured[0], captured[2]);
+    assert_eq!(captured[1], captured[3]);
+}
+
+#[test]
 fn timing_menu_and_shortcut_freeze_the_same_selection_without_editing_or_changing_view_mode() {
     let (engine,state)=fixture();
     for locale in [Locale::Zh,Locale::En] {for owner in [None,Some(Panel::Timeline)] {

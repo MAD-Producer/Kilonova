@@ -50,6 +50,7 @@ fn remap_content(
 ) -> Result<()> {
     match &mut layer.content {
         Content::Image { asset } => *asset = mapped(assets, *asset, "image")?,
+        Content::Model { model } => model.asset = mapped(assets, model.asset, "model")?,
         Content::Text {
             font, raster_asset, ..
         } => {
@@ -145,6 +146,7 @@ pub(crate) fn paste(
         .map(|a| a.id)
         .chain(project.audio_assets.iter().map(|a| a.id))
         .chain(project.video_assets.iter().map(|a| a.id))
+        .chain(project.model_assets.iter().map(|a| a.id))
         .max()
         .unwrap_or(0);
     // A same-document paste reuses an identical registered source. A host
@@ -172,6 +174,7 @@ pub(crate) fn paste(
         };
     }
     import_assets!(assets);
+    import_assets!(model_assets);
     import_assets!(audio_assets);
     for source in &view.video_assets {
         let mut asset = (*source).clone();

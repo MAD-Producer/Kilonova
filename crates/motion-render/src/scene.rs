@@ -45,6 +45,7 @@ pub struct DrawLayer {
     pub color: [f32; 4],
     pub opacity: f32,
     pub asset: Option<u64>,
+    pub model_source: Option<motion_model::ModelClip>,
     pub video: Option<motion_model::VideoSample>,
     pub vector: Option<std::sync::Arc<motion_model::vector::SampledVector>>,
     pub masks: std::sync::Arc<Vec<motion_model::masks::SampledMask>>,
@@ -143,6 +144,7 @@ pub struct NestedScene {
 }
 impl Scene {
     pub fn is_screen_overlay(&self, layer: u64) -> bool {
+        if self.layers.iter().any(|l| l.id == layer && l.model_source.is_some()) { return true; }
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
     pub fn new(project: &Project) -> motion_model::Result<Self> {
@@ -475,6 +477,7 @@ impl Scene {
                 Content::Video { .. } => ([1.0; 4], None),
                 Content::Vector { .. } | Content::Adjustment => ([1.0; 4], None),
                 Content::Composition { .. } => ([1.0;4],None),
+                Content::Model { .. } => ([1.0;4],None),
                 Content::Image { asset } => ([1.0; 4], Some(*asset)),
                 Content::Text {
                     color,
@@ -569,7 +572,7 @@ impl Scene {
                     }
                 }
             }
-            let screen_overlay = self.is_screen_overlay(layer.id);
+            let screen_overlay = matches!(layer.content, Content::Model { .. }) || self.is_screen_overlay(layer.id);
             self.layers.push(DrawLayer {
                 id: layer.id,
                 model: self.node_world[order] * geometry_offset(layer, frame)? * Mat4::from_translation(vector_center),
@@ -584,6 +587,7 @@ impl Scene {
                 color,
                 opacity,
                 asset,
+                model_source: if let Content::Model { model } = &layer.content { Some(model.clone()) } else { None },
                 video,
                 vector,
                 masks,

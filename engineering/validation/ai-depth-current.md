@@ -42,8 +42,9 @@ start before entering its backend. Tickets, exact rational source PTS, asset
 revision, geometry and full model identity are checked before output can cross
 the installation boundary. Cancellation and superseded inputs remain normal
 discards. An observable backend panic stops that backend; it is never restarted.
-Callers must explicitly cancel on a seek or supply the new live key when taking
-output. This API does not yet integrate depth into Session or the desktop UI.
+Callers of this lower-level API must explicitly cancel on a seek or supply the
+new live key when taking output. The Session milestone below adds ownership for
+static images; desktop UI integration remains open.
 
 Six source-frozen tests (`issue74-jobs-v1`) passed with no failures or ignores:
 controlled blocking proves flight publication before backend entry; 97 queued
@@ -267,8 +268,8 @@ earlier real numerical/reference evaluations remain separate evidence.
 Evidence: [main integration regression and source receipts](data/ai-depth-main-integration-bb498256.zip),
 SHA-256 `86f6a01600df10b7c37742b042016a366101fd40cee91a72dedce177a3162024`;
 203,421 bytes, ten entries, every entry read back and hashed. Remote native
-feature CI remains pending. Session/UI installation and the remaining issue
-#74 acceptance are still open; this integration does not close the issue.
+feature CI remained pending at this checkpoint. The later Session milestone
+below is separate; this integration does not close the issue.
 
 The first remote main-based check identified missing tool-inventory entries for
 the two optional Python helpers. Both are now classified with explicit external
@@ -276,3 +277,250 @@ model/runtime requirements and invocation commands. The unchanged tool-policy
 suite passes all 106 discovered tests locally (one existing Windows platform
 skip); this metadata correction does not enable model downloads in CI or alter
 the inference procedure. Remote checks on the corrected head remain pending.
+
+## Session-managed image jobs
+
+Executable-source head `b358db06ebd775b5e05b3c45fd72df85a227fafd` adds optional
+Session ownership without changing UI, project serialization or renderer depth.
+The default Session has no depth worker. Opt-in creates one bounded worker;
+image opening/decoding and crop/orientation happen there after published
+in-flight state and the default-visible Info start.
+
+Installation independently reads live document generation, engine revision,
+composition, frame, root, registered image metadata and decoded budget. Sampling
+invalidates changes, and polling repeats the check even without sampling. A
+same-path/same-revision reopened document cannot receive the old completion.
+Static images carry source PTS `0/1`; the composition-frame guard is separate.
+Ticket checks reject an old canceled success even when the static source key
+matches a replacement. Counters are saturating worker-lifetime counts.
+
+Source-frozen acceptance passes 18 tests, zero failures and zero ignores: eight
+new Session tests, the six original job tests and four original ONNX protocol
+tests. A no-default-feature host check also passes. Actual PNG pixels prove
+crop/clockwise-rotation/mirror order on a worker distinct from the owner thread.
+Controlled blocking, seek, relink, undo, direct revision changes, pre-install and
+post-install invalidation, and same-path document replacement exercise rejection
+and recovery. Actual corrupt-image, alpha, 16-bit, metadata and decoded-budget
+failures occur before backend entry and retain their native errors. No existing
+assertion, timeout or numerical bound is changed.
+
+A separate native process uses the actual Session and product file logger with
+`MOTION_LOG` unset. Its corrupt registered PNG produces Info start before Error;
+the Error and original cause reach both file and console stderr, stdout is
+empty, and no ONNX scratch/runtime is entered. This is a real decode-failure
+probe, **not** a real Session inference or desktop UI acceptance. The earlier
+real-model numerical evaluations remain lower-level inference evidence.
+
+Evidence: [Session sources, CPU regression, native failure outputs and receipts](data/ai-depth-session-b358db06.zip),
+SHA-256 `448c8688379ed0db2d78229d819017919975280ea753dcb0c28d30f109d2a08a`;
+884,745 bytes, 39 entries, each read back and verified. Remote CI for this
+milestone and actual Session ONNX/reference execution remain pending.
+
+Limits: the native entry point currently stages registered static opaque sRGB8
+PNG/JPEG images. Profile/HDR/alpha conversion and automatic watching of external
+same-path writes are not supplied. Staging has explicit encoded, dimension and
+decoded-payload caps, but does not measure total process memory. Video input
+must use actual decoder PTS in a later stage. Desktop UI, rendering consumers,
+calibration/shared depth, natural portrait/illustration quality and the remaining
+issue #74 acceptance are still open. Android remains retired and unvalidated.
+
+## Session image and original-video checkpoint
+
+Executable-source head `8af6ebfc9499dc95ccbfd0191b4b977ff65768fe` adds
+`Session::request_video_depth(object, geometry, model)`. It derives the requested
+source coordinate from the current original video layer and timeline. Outside
+the clip/source interval is a normal `Ok(None)` without a submission or fault.
+It does not sample frame blending, effects or other composition output.
+
+The existing bounded depth worker now opens the managed source/index, creates,
+uses and drops its decoder on the same worker, converts supported SDR YUV to
+RGB8, applies the declared display-coordinate crop/orientation and performs
+inference. No decoder or GPU handle crosses threads. In-flight state and Info
+start precede source IO and decoder opening. Video PTS remains unknown during
+preparation; only the actual frame matching the managed index can publish it.
+A source-ready record identifies that PTS before inference. Errors retain the
+request, asset/revision, requested coordinate, available actual PTS, execution
+stage, duration and native cause. Observation locks are released before logging.
+
+Requested source time and actual frame PTS are separate identities. Polling
+independently checks the live document/root/revision/composition/frame, video
+layer, registered source, source coordinate and decoded budget. A seek to another
+coordinate within the same VFR sample still invalidates the previous ticket.
+The tests reject a deliberately late successful backend result, direct relink,
+same-path/same-revision document replacement and mismatched decoded PTS/end,
+dimensions, coded orientation or colour metadata. Packet cancellation releases
+the non-Send decoder before inference; native decoder opening is cooperative
+only after the factory returns and has no added timeout/restart.
+
+Video staging conservatively admits index and decoded pixel payloads under the
+lesser of the Session decoded-image budget and 128 MiB, with a maximum source
+axis of 4096. The index is at most one million timestamps under the existing
+asset contract. These are retained/pixel payload limits, not codec/process RSS
+measurements. Preparation time and RGB input bytes are measured separately;
+worker total time includes source preparation. Static source PTS stays `0/1`.
+Video PTS uses the existing managed-source microsecond timeline, not raw signed
+container/codec time bases.
+
+Source-frozen CPU acceptance passes 28 tests with zero failures or ignores:
+ten new video checks, eight image Session checks, six job checks and four ONNX
+child-protocol checks. The no-default-feature host check and native FFmpeg/ONNX
+probe build pass. Initial fixture failures (an overlong clip and the wrong video
+replacement operation) were corrected in the new fixture without changing any
+assertion, numerical bound or deadline.
+
+Separate real native Session probes now verify image inference and recovery
+after corrupt PNG and wrong-model SHA failures. Both match the official pinned
+PyTorch reference: maximum normalized error `1.11188685e-6`, mean
+`1.23109749e-7`, below the unchanged `2e-4` / `2e-5` bounds. Seek invalidates the
+installed result and temporary inference directories are removed.
+
+The video probe uses an independently authored colour/edge animation encoded
+with the existing pinned LGPL FFmpeg/OpenH264 runtime. Independent ffprobe and
+the product decoder agree on VFR PTS `[10000, 50000, 130000, 170000]` microseconds.
+A request at `76667` installs actual sample `50000`, after crop, clockwise
+rotation and mirroring to `52 x 80`. RGB differs from independent FFmpeg
+conversion by at most three code values (bound four). Actual ONNX execution
+reports `CPUExecutionProvider`; maximum/mean normalized reference errors are
+`1.02766060e-6` / `1.52193406e-7`, within the same numerical bounds. Missing-index
+failure precedes decoder/inference; repairing the index and submitting once
+recovers. Product stdout remains empty. With `MOTION_LOG` unset, Info start
+precedes Error, and the original Error reaches file and console stderr. The
+external reference driver's own stdout is separate from the product process.
+
+The first external video fixture attempt requested an unavailable encoder;
+the second lacked explicit runtime DLL staging. Both failed outputs are retained.
+The accepted attempt uses the existing OpenH264 encoder and stages hash-verified
+pinned FFmpeg DLLs beside the external executable, as the application build does.
+Neither failure is presented as a product defect or numerical acceptance.
+
+Evidence: [image/video Session sources, CPU contracts, real inference, recovery and references](data/ai-depth-session-video-8af6ebfc.zip),
+SHA-256 `d5ecd7c128fca7d0886a8edb6571514c4612cafd4122dc6f6358b5186cfa9529`;
+3,499,008 bytes, 163 entries, each read back and verified. External model weights,
+runtime binaries and third-party source trees are not bundled in this archive;
+their existing provenance and exact revisions/hashes remain recorded.
+
+This checkpoint does not bind relative AI estimates as hardware depth and does
+not provide desktop controls, calibration/shared depth or natural-domain quality
+acceptance. Native FFmpeg SDR support does not expand the model's explicit RGB8
+input to HDR/alpha or change the renderer's working precision. Remote CI and the
+combined maintained-main model/depth regression remain pending. #74 remains open;
+Android is retired and unvalidated.
+
+## Explicit original-video RGB encoding
+
+Executable-source head `a0641ff8aaa92a3aed51f5cd0053bf8f909e34d5` closes a
+colour-contract gap found after the preceding checkpoint. YUV matrix/range
+conversion alone does not make RGB bytes sRGB. The pinned OpenH264 fixture also
+did not actually preserve its requested primary/transfer declarations. The
+earlier real video ONNX/reference agreement remains numerical evidence for
+those exact input bytes; it **does not establish correct sRGB preparation**.
+
+The native decoder now exposes the actual returned frame's primaries and
+transfer metadata. Depth staging requires BT.709 primaries with an explicit
+sRGB or BT.709 transfer declaration. It leaves sRGB unchanged, and explicitly
+applies the inverse BT.709 OETF followed by IEC sRGB encoding to BT.709 bytes.
+This is the selected signal-conversion policy, without a display viewing OOTF;
+it does not infer mastering intent or establish a general colour-management
+system. Unknown declarations, HDR and other primaries are refused before the
+backend. Preview decoding and its existing pixel values are unchanged.
+
+The policy follows [ITU-R BT.709-6](https://www.itu.int/rec/R-REC-BT.709-6-201506-I/en)
+and the [sRGB encoding equations](https://www.w3.org/TR/css-color-4/#color-conversion-code).
+It must not be confused with a display-referred conversion: zimg explicitly
+[selects BT.1886 for display-referred BT.709](https://github.com/sekrit-twc/zimg/blob/master/src/zimg/colorspace/gamma.cpp#L325-L343).
+
+Source-frozen acceptance passes **31 tests, zero failures and zero ignores**:
+the previous 28, two new Session transfer/rejection cases and one native
+metadata contract. The no-default host check and native probe build also pass.
+BT.709 gray 128 becomes sRGB 140; declared sRGB gray 128 remains 128. Unknown
+metadata retains its native cause, increments the failure count, never enters
+the backend and causes no retry. Existing assertions and deadlines are unchanged.
+
+Separate actual native decoder/Session probes verify the owned fixture's
+bitstream and container tags with independent ffprobe before use. They validate
+the original matrix conversion against FFmpeg at maximum byte error 3 (bound 4)
+and the complete declared conversion with FFmpeg's independent expression
+evaluator at maximum byte error 6 (predeclared nonlinear bound 13). The prepared
+bytes also match the normative byte LUT exactly. A second real fixture has its
+tags removed and is rejected before backend entry. With `MOTION_LOG` unset,
+both probes preserve Info start before Error, Error in file and stderr, empty
+product stdout and no inference scratch directory.
+
+Two rejected probe attempts are retained. The first exposed absent fixture
+tags. The second used zscale as an unsuitable oracle: it applies the different
+display transfer above and reconstructs sharp YUV chroma differently; its
+full-pipeline maximum difference was 125. A same-RGB diagnostic isolates a
+maximum transfer difference of 29, while a no-conversion RGB round trip is
+exact. The corrected independent evaluator implements the declared signal
+policy and retains the original raw-matrix bound. These are reference/fixture
+corrections, not relaxed product tests or hidden successful inferences.
+
+Evidence: [colour sources, CPU contracts, actual staging/rejection and rejected references](data/ai-depth-video-color-a0641ff8.zip),
+SHA-256 `68d377ad5ee153cbe5b4c4e543e47b1d0f94c8f53c10cb1bbbc51c8730bae5b8`;
+2,504,409 bytes, 145 entries, each read back and verified. External runtimes,
+weights and third-party source trees are not bundled. The two staging probes
+deliberately perform **no model inference**: the accepted input probe records
+RGB then returns a controlled backend error; unknown metadata never reaches it.
+Actual ONNX/reference acceptance with the corrected input and final combined
+source remains pending. Existing natural-domain evaluations remain the separate
+evidence recorded above; this small owned fixture adds no domain-quality claim.
+
+The maintained-main combined gate on `653dc205` does not yet include this later
+colour fix. Its eventual result cannot be reported as a full regression of this
+later source. The current-source integration checks and remote CI remain pending;
+#74 and the remaining #87 pipeline work are open. Android remains retired.
+
+## Maintained-main combined and final-source acceptance (2026-10-27)
+
+This checkpoint supersedes the pending integration checks above. The frozen
+combined source `653dc2056a2f12d0cdc6fbb6907d2a2a44b60376`, based on maintained
+main `7bb54085242f2ca6d5eefe823a01b7ac7044239c`, passes 3,213 tests,
+zero failures and 15 existing manual ignores across 317
+targets, with native GPU, FFmpeg and optional AI depth features enabled.
+Desktop check, provenance, panel-style guard, actual FFmpeg desktop binary build
+and JSON command catalogue also pass. The catalogue includes
+`register_model_asset` and produces no stderr. Android is excluded.
+
+The original controller stops after successful tests because it carries the
+previous checkpoint's 14-ignore inventory. Maintained main adds the manual native
+character/paragraph capture test. An independent continuation verifies all
+15 ignored test files have identical Git blobs at the frozen head and main base,
+verifies source/log hashes and all named execution requirements, and performs
+the remaining build/catalogue checks. The original controller, its stale
+inventory failure and raw exit receipt are retained without changes. No test
+assertion, timeout, numerical bound or ignore annotation is changed.
+
+The final executable source is `06d1c71675de2e29a93d88bae520bdb341977169`.
+It adds the later video colour fix to that frozen combined source. Its 31
+affected contracts pass with zero failures/ignores; no-default host and native
+FFmpeg/AI desktop checks and the exact-source native probe build also pass.
+The frozen full workspace result is **not** represented as a full regression of
+the later five changed Rust files. Remote merge-source CI remains separate.
+
+Actual final-source Session/FFmpeg/CPU ONNX inference consumes exactly the sRGB
+bytes accepted by the independent native colour-staging probe. The VFR request
+uses requested 76,667 us and actual decoded 50,000 us. The pinned official
+PyTorch reference has normalized maximum error 7.78702453293e-07 and mean error
+1.20205951624e-07, within the unchanged bounds 2e-4 and 2e-5. The live missing-index
+failure, explicit repaired recovery, stale-result invalidation and scratch
+cleanup pass. With MOTION_LOG unset, Info start precedes failure, Error reaches
+both file and stderr, and product stdout stays empty.
+
+The separate final-source staging/rejection checks perform no inference: known
+BT.709 tags are independently verified, native matrix maximum byte error is 3
+(bound 4), sRGB reference error is 6 (bound 13), the signal-transfer LUT matches
+exactly, and unknown metadata is rejected before backend entry. Those controlled
+backend probes are distinguished from the actual ONNX execution above.
+
+Evidence: [combined maintained-main regression and final-source native depth](data/model-depth-integration-06d1c716.zip),
+SHA-256 `8359eddf745c936ce406ffbd48cbd5c498f4a267db0ebfc8ce407495ad8e3ddd`; 3,774,343 bytes,
+192 entries, every entry read back and verified. The archive
+contains sources, raw logs, receipts and authored fixtures; no model weights,
+third-party source trees, native runtime binaries or executables are bundled.
+
+
+This accepts the registered image/video Session pipeline and explicit colour
+input contract. It does not claim calibrated physical depth, direct hardware
+depth merging, GPU providers, zero-copy transport or a new UI/node workflow.
+Existing natural-domain evidence remains separately scoped. #74 and #87 are
+tracked as staged work; Android remains retired.
