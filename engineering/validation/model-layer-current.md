@@ -111,3 +111,34 @@ failures and zero ignores. They include all sixteen native scene checks,
 source-pool refusal for both new and resident models, recovery without changing
 pixels, visible model keyframes, catalog failure preservation and CPU retained
 payload admission. Full source-frozen regression remains pending.
+
+## Full maintained workspace checkpoint
+
+Executable-source head `b572d7e7b5320a8a74af8a5453f21674b7d0f60d` completes
+the native workspace regression: 3,164 passed, zero failures, 14 existing manual
+ignores across 311 test targets. The real editor keyframe capture, retained model
+catalog admission, combined material texture budget and foreign-thread rejection
+checks all execute and pass. Desktop check, provenance, panel style consumers,
+FFmpeg binary build and actual JSON command catalogue also pass. The catalogue
+contains `register_model_asset`; its stderr is empty. Android is excluded.
+
+The first controller stops after successful tests because its ignore inventory
+was copied from the earlier #78 checkpoint (12). The two additional entries are
+manual expression-editor capture tests already present in merged baseline
+`eb2e8c8cc158beb37d539cc95d0a33b13f60332e`. A separate continuation verifies
+all fourteen ignored test files have identical Git blobs at that baseline and
+the frozen model head, verifies the completed output hashes and source guard,
+then performs the remaining binary/catalogue checks. No product/test source,
+assertion, timeout or numerical bound changes to obtain this result. The original
+controller failure and the baseline inventory audit are both retained.
+
+Evidence: [frozen full regression, inventory audit and native editor captures](data/model-layer-b572d7e7.zip),
+SHA-256 `7605dda879cb516dd644e71eab6488568ccb6c7ef19aa6b80ada0d2e8cfc7700`;
+1,736,773 bytes, 78 entries, each read back and verified.
+
+This checkpoint precedes rebasing the model commits onto the latest maintained
+main. The combined regression after that rebase must include the optional
+`motion-host/ai-depth` contracts as well as the native GPU and FFmpeg features.
+Shared mesh/plane depth, imported skin/morph/animation/camera and the remaining
+compositing acceptance stay open; the keyframe demo animates whole-model layer
+properties rather than imported skeletal animation. This does not close #87.
