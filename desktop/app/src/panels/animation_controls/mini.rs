@@ -239,7 +239,8 @@ impl View {
                 "curve.mini.fit_all",
                 automatic(easing, size, tolerance),
                 "target={target:?} start={start} end={end:?}"
-            );
+            )
+            .ok();
             self.shape = Some(Shape {
                 easing,
                 size,
@@ -383,7 +384,8 @@ impl View {
                     "curve.mini.adaptive",
                     sample(easing, bounds, size, tolerance),
                     "target={target:?} start={start} end={end:?} bounds={bounds:?}"
-                );
+                )
+                .ok();
                 self.tessellation = Some(Tessellation { bounds, points });
             }
             if let Some(points) = self
@@ -434,7 +436,12 @@ impl View {
                 .x
                 .at(f64::from((input.mouse[0] - graph.min[0]) / graph.width()));
             if (0. ..=1.).contains(&time) {
-                let normalized = normalized(easing, time).ok();
+                let normalized = observe!(
+                    "curve.mini.normalized_readout",
+                    normalized(easing, time),
+                    "target={target:?} t={time}"
+                )
+                .ok();
                 if let Some(value) = normalized {
                     let title = format!("t={time:.4}");
                     let lines = vec![graph_ranges::value_label(
@@ -485,11 +492,13 @@ impl View {
                 .map(Arc::new)
                 .map_err(Arc::new);
             if let Err(cause) = &data {
-                let _ = observe!(
-                    "curve.mini.readout_load",
-                    Err::<(), _>(cause),
-                    "target={target:?} frame={frame}"
-                );
+                if matches!(cause.as_ref(), Unavailable::Fault(_)) {
+                    let _ = observe!(
+                        "curve.mini.readout_load",
+                        Err::<(), _>(cause),
+                        "target={target:?} frame={frame}"
+                    );
+                }
             }
             self.readout = Some(Readout {
                 source,
@@ -546,11 +555,11 @@ impl View {
             values,
             "target={target:?} frame={frame} speed={speed}"
         ) {
-            Some(values) => {
+            Ok(values) => {
                 title.push_str(&format!(" · {frame:.2} f"));
                 lines.extend(values);
             }
-            None => lines.push(
+            Err(_) => lines.push(
                 if locale == Locale::Zh {
                     "实际读数不可用"
                 } else {
