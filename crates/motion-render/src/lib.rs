@@ -54,6 +54,7 @@ mod renderer;
 pub mod image_resources;
 pub mod preview_input;
 pub mod scene_generator;
+pub mod scene_gpu;
 mod particle_emitter;
 mod timing;
 pub mod gpu_commands;

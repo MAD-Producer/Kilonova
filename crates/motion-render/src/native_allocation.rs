@@ -26,10 +26,15 @@ pub struct AllocationContext {
 pub struct AdmittedTexture {
     texture: OwnedTexture,
     owner: Arc<()>,
+    category: crate::TextureCategory,
 }
 impl AdmittedTexture {
     pub fn view(&self) -> Result<AdmittedTextureView, RenderError> {
         self.texture.admitted_view()
+    }
+    pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger,
+        owner: &str, state: crate::TextureState) {
+        ledger.add(&self.texture, self.category, owner.into(), state);
     }
 }
 impl Deref for AdmittedTexture {
@@ -108,6 +113,7 @@ impl AllocationContext {
                     error.with_diagnostic(message)
                 })?,
             owner: self.owner.clone(),
+            category,
         })
     }
     pub fn buffer_init(
@@ -135,12 +141,26 @@ impl AllocationContext {
         layout: wgpu::TexelCopyBufferLayout,
         size: wgpu::Extent3d,
     ) -> Result<(), RenderError> {
+        self.write_texture_mip(texture, 0, data, layout, size)
+    }
+    /// Upload one explicitly selected mip while preserving owner/admission retirement.
+    pub fn write_texture_mip(
+        &self,
+        texture: &AdmittedTexture,
+        mip_level: u32,
+        data: &[u8],
+        layout: wgpu::TexelCopyBufferLayout,
+        size: wgpu::Extent3d,
+    ) -> Result<(), RenderError> {
         self.check_owner(&texture.owner)?;
+        if mip_level >= texture.mip_level_count() {
+            return Err(RenderError::Invalid("native texture mip is out of range".into()));
+        }
         self.uploads.track(texture.texture.allocation())?;
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture,
-                mip_level: 0,
+                mip_level,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },

@@ -132,3 +132,44 @@ upstream implementation is bundled. Motion Studio's WGSL kernel, typed node,
 CPU oracle and example are independently authored under the repository MIT
 license. Bounded Add, Subtract and Divide transfers are arithmetic extensions,
 not claims of W3C blend-mode conformance. No layer compositing behavior is changed.
+
+## Scene ingestion dependencies and external references
+
+The CPU-only `motion-scene` importer is independently authored from the public
+[Khronos glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html),
+document revision `8e798b02d254cea97659a333cfcb20875b62bdd4`. No specification text,
+upstream loader implementation, screenshots or product assets are copied.
+
+Three existing, locked registry components become direct dependencies of this
+crate. Their unmodified implementations and notices remain in their packages;
+the exact registry checksums are recorded in `Cargo.lock`.
+
+| Component | Author and source revision | License | Modification scope |
+| --- | --- | --- | --- |
+| base64 | Marshall Pierce and contributors; [rust-base64](https://github.com/marshallpierce/rust-base64), 0.23.1 | MIT OR Apache-2.0 | Unmodified Cargo dependency for data URIs |
+| percent-encoding | rust-url developers; [rust-url](https://github.com/servo/rust-url), 2.3.2 | MIT OR Apache-2.0 | Unmodified Cargo dependency for local URI decoding |
+| sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity |
+
+External validation uses unmodified `Avocado` (Microsoft, public 2017) and
+`BoxVertexColors` (Marco Hutter, public 2023) from
+[Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/8f492390ddc7a2ae221a1369ef560589cf8c70fb),
+revision `8f492390ddc7a2ae221a1369ef560589cf8c70fb`. Both model-specific `LICENSE.md`
+and metadata identify CC0-1.0. Original glTF/GLB files, buffers, textures and
+licenses stay in the external validation directory. Source URLs and individual
+SHA-256 values are recorded in its manifest. Only local, owned frozen bundles
+and numerical reports are generated; no model or texture enters the product,
+node examples or release artwork. This records technical evaluation, not
+endorsement by the authors or Khronos.
+
+The independently authored OBJ/MTL importer references Library of Congress,
+Digital Formats descriptions [fdd000507 (OBJ)](https://www.loc.gov/preservation/digital/formats/fdd/fdd000507.shtml),
+last significant revision 2025-02-18, and
+[fdd000508 (MTL)](https://www.loc.gov/preservation/digital/formats/fdd/fdd000508.shtml),
+last significant revision 2019-10-04, accessed 2026-10-26. These are reference
+links only: no source text, loader code, illustration or model is copied or
+redistributed, and rights to the references remain with their authors. Wavefront
+names identify the documented interchange format, not a product affiliation.
+The OBJ/MTL/glTF comparison geometry and PNG pixels used by the added tests and
+local probe are authored by Motion Studio contributors and encoded locally;
+they are covered by this repository's MIT license. No extra dependency or
+third-party model/texture is introduced for OBJ.

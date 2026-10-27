@@ -2191,6 +2191,7 @@ dependencies = [
  "motion-effects",
  "motion-media",
  "motion-model",
+ "motion-scene",
  "objc2-metal 0.3.2",
  "png",
  "pollster",
@@ -2200,6 +2201,21 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "wgpu",
+]
+
+[[package]]
+name = "motion-scene"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "glam",
+ "log",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
