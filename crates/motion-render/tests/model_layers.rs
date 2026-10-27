@@ -5,6 +5,9 @@ use motion_scene::{AssetResolver, ImportContext, ImportLimits, ResourceKind};
 use sha2::{Digest, Sha256};
 use std::io;
 
+#[path = "model_layers/exposure.rs"]
+mod exposure;
+
 struct Material;
 impl AssetResolver for Material {
     fn read(&mut self, path: &str, _: ResourceKind, _: usize) -> io::Result<Vec<u8>> {
