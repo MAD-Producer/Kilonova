@@ -323,3 +323,85 @@ decoded-payload caps, but does not measure total process memory. Video input
 must use actual decoder PTS in a later stage. Desktop UI, rendering consumers,
 calibration/shared depth, natural portrait/illustration quality and the remaining
 issue #74 acceptance are still open. Android remains retired and unvalidated.
+
+## Session image and original-video checkpoint
+
+Executable-source head `8af6ebfc9499dc95ccbfd0191b4b977ff65768fe` adds
+`Session::request_video_depth(object, geometry, model)`. It derives the requested
+source coordinate from the current original video layer and timeline. Outside
+the clip/source interval is a normal `Ok(None)` without a submission or fault.
+It does not sample frame blending, effects or other composition output.
+
+The existing bounded depth worker now opens the managed source/index, creates,
+uses and drops its decoder on the same worker, converts supported SDR YUV to
+RGB8, applies the declared display-coordinate crop/orientation and performs
+inference. No decoder or GPU handle crosses threads. In-flight state and Info
+start precede source IO and decoder opening. Video PTS remains unknown during
+preparation; only the actual frame matching the managed index can publish it.
+A source-ready record identifies that PTS before inference. Errors retain the
+request, asset/revision, requested coordinate, available actual PTS, execution
+stage, duration and native cause. Observation locks are released before logging.
+
+Requested source time and actual frame PTS are separate identities. Polling
+independently checks the live document/root/revision/composition/frame, video
+layer, registered source, source coordinate and decoded budget. A seek to another
+coordinate within the same VFR sample still invalidates the previous ticket.
+The tests reject a deliberately late successful backend result, direct relink,
+same-path/same-revision document replacement and mismatched decoded PTS/end,
+dimensions, coded orientation or colour metadata. Packet cancellation releases
+the non-Send decoder before inference; native decoder opening is cooperative
+only after the factory returns and has no added timeout/restart.
+
+Video staging conservatively admits index and decoded pixel payloads under the
+lesser of the Session decoded-image budget and 128 MiB, with a maximum source
+axis of 4096. The index is at most one million timestamps under the existing
+asset contract. These are retained/pixel payload limits, not codec/process RSS
+measurements. Preparation time and RGB input bytes are measured separately;
+worker total time includes source preparation. Static source PTS stays `0/1`.
+Video PTS uses the existing managed-source microsecond timeline, not raw signed
+container/codec time bases.
+
+Source-frozen CPU acceptance passes 28 tests with zero failures or ignores:
+ten new video checks, eight image Session checks, six job checks and four ONNX
+child-protocol checks. The no-default-feature host check and native FFmpeg/ONNX
+probe build pass. Initial fixture failures (an overlong clip and the wrong video
+replacement operation) were corrected in the new fixture without changing any
+assertion, numerical bound or deadline.
+
+Separate real native Session probes now verify image inference and recovery
+after corrupt PNG and wrong-model SHA failures. Both match the official pinned
+PyTorch reference: maximum normalized error `1.11188685e-6`, mean
+`1.23109749e-7`, below the unchanged `2e-4` / `2e-5` bounds. Seek invalidates the
+installed result and temporary inference directories are removed.
+
+The video probe uses an independently authored colour/edge animation encoded
+with the existing pinned LGPL FFmpeg/OpenH264 runtime. Independent ffprobe and
+the product decoder agree on VFR PTS `[10000, 50000, 130000, 170000]` microseconds.
+A request at `76667` installs actual sample `50000`, after crop, clockwise
+rotation and mirroring to `52 x 80`. RGB differs from independent FFmpeg
+conversion by at most three code values (bound four). Actual ONNX execution
+reports `CPUExecutionProvider`; maximum/mean normalized reference errors are
+`1.02766060e-6` / `1.52193406e-7`, within the same numerical bounds. Missing-index
+failure precedes decoder/inference; repairing the index and submitting once
+recovers. Product stdout remains empty. With `MOTION_LOG` unset, Info start
+precedes Error, and the original Error reaches file and console stderr. The
+external reference driver's own stdout is separate from the product process.
+
+The first external video fixture attempt requested an unavailable encoder;
+the second lacked explicit runtime DLL staging. Both failed outputs are retained.
+The accepted attempt uses the existing OpenH264 encoder and stages hash-verified
+pinned FFmpeg DLLs beside the external executable, as the application build does.
+Neither failure is presented as a product defect or numerical acceptance.
+
+Evidence: [image/video Session sources, CPU contracts, real inference, recovery and references](data/ai-depth-session-video-8af6ebfc.zip),
+SHA-256 `d5ecd7c128fca7d0886a8edb6571514c4612cafd4122dc6f6358b5186cfa9529`;
+3,499,008 bytes, 163 entries, each read back and verified. External model weights,
+runtime binaries and third-party source trees are not bundled in this archive;
+their existing provenance and exact revisions/hashes remain recorded.
+
+This checkpoint does not bind relative AI estimates as hardware depth and does
+not provide desktop controls, calibration/shared depth or natural-domain quality
+acceptance. Native FFmpeg SDR support does not expand the model's explicit RGB8
+input to HDR/alpha or change the renderer's working precision. Remote CI and the
+combined maintained-main model/depth regression remain pending. #74 remains open;
+Android is retired and unvalidated.
