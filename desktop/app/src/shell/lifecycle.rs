@@ -12,6 +12,13 @@ impl Shell {
         }
     }
     pub(crate) fn finish_close(&mut self) {
+        let project_view=&self.panels.project.browser.view;
+        if project_view.valid() && self.workspace.project_view!=*project_view {
+            self.workspace.project_view=project_view.clone();
+            if let Err(error)=self.workspace.save(&self.layout_path){
+                log::error!("save project browser preferences phase=close path={} reason={error}",self.layout_path.display());
+            }
+        }
         self.render_queue.shutdown();
         self.cancel_layer_clipboard();
         self.cancel_audio_analysis();

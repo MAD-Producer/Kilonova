@@ -920,6 +920,15 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.request(|reply|
                     engine::Command::EditorAction { source, commands, reply })?));
             }
+            Action::ProjectViewChanged(view) => {
+                if !view.valid() { return Err("project browser preferences exceed their bounds".into()); }
+                self.workspace.project_view=view;
+                self.workspace.save(&self.layout_path).map_err(|error|format!("save project browser preferences path={} reason={error}",self.layout_path.display()))?;
+            }
+            Action::ProjectOpen {source,composition} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectOpen{source,composition,reply})?));
+            }
             Action::ExpressionCheck { ticket, target, text } => {
                 let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });
                 self.start_expression_task(ticket, false, receive)?;

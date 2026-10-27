@@ -28,6 +28,8 @@ pub enum Action {
     Save,
     ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
+    ProjectViewChanged(super::project::ViewPreferences),
+    ProjectOpen { source: crate::layer_clipboard::KeyframeSource, composition: String },
     MediaAsset { source: crate::media_assets::Source, intent: crate::media_assets::Intent },
     ImportEffectPackage,
     ImportEffectPath(std::path::PathBuf),
@@ -488,6 +490,7 @@ pub(crate) enum Tool {
 
 #[derive(Default)]
 pub(crate) struct ProjectState {
+    pub browser: super::project::Controls,
     pub search_field: motion_ui::widgets::SearchField,
     pub query: String,
     pub search: bool,

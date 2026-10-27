@@ -1,6 +1,147 @@
+//! Project inventory, independent of layer selection and the active composition.
 use super::*;
-use motion_ui::style::{box_style, text_style, State, States};
+use motion_core::project_library::{LibraryAction, ProjectItem};
+use motion_ui::{
+    style::{box_style, text_style, State, States},
+    widgets::{ScrollArea, TextEditor},
+};
+mod catalogue;
+mod popup;
+#[cfg(test)]
+mod tests;
+use catalogue::{Catalogue, RowKey};
+use popup::Popup;
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct ViewPreferences {
+    pub root: String,
+    pub folder: Option<u64>,
+    pub query: String,
+    pub search_all: bool,
+}
+impl ViewPreferences {
+    pub(crate) fn valid(&self) -> bool {
+        self.root.len() <= 4096 && self.query.len() <= 256
+    }
+}
+#[derive(Default)]
+pub(crate) struct Controls {
+    pub view: ViewPreferences,
+    cache: Option<Result<Catalogue, String>>,
+    stamp: Option<crate::layer_clipboard::KeyframeSource>,
+    selected: Option<RowKey>,
+    scroll: ScrollArea,
+    popup: Option<Popup>,
+    popup_fresh: bool,
+    context: Option<RowKey>,
+    context_focus: usize,
+    owner: Option<Panel>,
+    last_click: Option<(RowKey, std::time::Instant)>,
+    document: Option<(String, u64)>,
+    persisted: Option<ViewPreferences>,
+    #[cfg(test)]
+    rows: Vec<(RowKey, Rect)>,
+    #[cfg(test)]
+    buttons: Vec<Rect>,
+}
+pub(super) fn word<'a>(locale: Locale, zh: &'a str, en: &'a str) -> &'a str {
+    if locale == Locale::Zh {
+        zh
+    } else {
+        en
+    }
+}
+impl Controls {
+    pub(crate) fn modal(&self) -> bool {
+        self.popup.is_some()
+    }
+    pub fn cancel(&mut self) {
+        self.popup = None;
+        self.context = None;
+        self.popup_fresh = false;
+    }
+    fn refresh(&mut self, state: &Value) {
+        let source = crate::layer_clipboard::KeyframeSource::of(state);
+        if self.stamp.as_ref() == Some(&source) {
+            return;
+        }
+        let root = state["root"].as_str().unwrap_or_default();
+        let document = (
+            root.to_owned(),
+            state["document_generation"].as_u64().unwrap_or_default(),
+        );
+        if self
+            .document
+            .as_ref()
+            .is_some_and(|previous| previous != &document)
+        {
+            self.selected = None;
+            self.last_click = None;
+            self.cancel();
+        }
+        self.document = Some(document);
+        if self.view.root != root {
+            self.view = ViewPreferences {
+                root: root.into(),
+                ..Default::default()
+            };
+            self.scroll = Default::default();
+            self.selected = None;
+            self.cancel();
+        }
+        let cache = Catalogue::read(state);
+        if let Err(error) = &cache {
+            log::error!(
+                "project inventory revision={} reason={error}",
+                state["revision"]
+            );
+        }
+        if let Ok(catalogue) = &cache {
+            if self
+                .view
+                .folder
+                .is_some_and(|id| catalogue.folder(id).is_none())
+            {
+                self.view.folder = None;
+                self.scroll.offset = 0.;
+            }
+            if self
+                .selected
+                .as_ref()
+                .is_some_and(|key| !catalogue.entries.iter().any(|entry| &entry.key == key))
+            {
+                self.selected = None;
+            }
+        }
+        self.stamp = Some(source);
+        self.cache = Some(cache);
+    }
+}
+/// A popup owns its entire closing frame, including input from another window.
+pub(super) fn prepare(
+    panels: &mut Panels,
+    owner: Option<Panel>,
+    state: &Value,
+    input: &Input,
+) -> bool {
+    let controls = &mut panels.project.browser;
+    let owned = controls.modal() || panels.project.context_menu.is_some();
+    let source = crate::layer_clipboard::KeyframeSource::of(state);
+    let stale = controls
+        .stamp
+        .as_ref()
+        .is_some_and(|stamp| stamp != &source);
+    let other = controls.owner != owner
+        && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty());
+    if owned && (stale || other || controls.owner == owner && input.focus_lost) {
+        controls.cancel();
+        panels.project.context_menu = None;
+    }
+    if !owned {
+        controls.owner = owner;
+    }
+    owned
+}
 pub(super) fn render(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -8,71 +149,70 @@ pub(super) fn render(
     panels: &mut Panels,
     state: &Value,
     input: &Input,
+    out: &mut Vec<Action>,
 ) {
     let styles = list.styles();
     let colors = styles.colors();
-
-    paint::rect(list, area, colors.PANEL);
     let locale = panels.locale;
+    paint::rect(list, area, colors.PANEL);
     let pad = styles.metric("padding.panel", 8.);
+    let row = styles.metric("row.height", 22.);
+    let tool = styles.metric("project.toolbar.height", 26.);
     let border = styles.metric("border", 1.);
-    let composition_height = styles.metric("project.composition.height", 32.);
-    let p = &state["project"];
-    let raw_name = p["name"].as_str().unwrap_or(locale.t(T::Untitled));
-    let name = if raw_name == "Untitled Project" {
-        locale.t(T::Untitled)
-    } else {
-        raw_name
+    let action = styles.metric("project.action.width", 64.);
+    let slot = styles.metric("icon.slot", 20.);
+    let browser = &mut panels.project.browser;
+    let old_root = browser.view.root.clone();
+    browser.refresh(state);
+    if old_root != browser.view.root {
+        panels.project.query.clone_from(&browser.view.query);
+        browser.persisted = Some(browser.view.clone());
+    }
+    if browser.persisted.is_none() {
+        browser.persisted = Some(browser.view.clone());
+    }
+    let before = browser.view.clone();
+    let Some(cache) = browser.cache.as_ref() else {
+        return;
     };
-    let thumb = Rect::new(area.min[0] + 8.0, area.min[1] + 16.0, 80.0, 48.0);
-    paint::rect(list, thumb, colors.SUNKEN);
-    paint::stroke(list, thumb, colors.BORDER, 1.0);
-    let x = thumb.max[0] + 10.0;
-    let width = (area.max[0] - x - 10.0).max(1.0);
-    label(
-        list,
-        atlas,
-        Rect::new(x, thumb.min[1], width, 24.0),
-        name,
-        false,
+    let catalogue = match cache {
+        Ok(c) => c,
+        Err(error) => {
+            label(list, atlas, area, &locale.error(error), true);
+            return;
+        }
+    };
+    let bar = Rect::new(
+        area.min[0] + pad,
+        area.min[1] + pad,
+        (area.width() - pad * 2.).max(0.),
+        tool,
     );
-    let fps = p["fps"].as_u64().unwrap_or(30) as u32;
+    let up = Rect::new(bar.min[0], bar.min[1], tool, tool);
+    let parent = browser
+        .view
+        .folder
+        .and_then(|id| catalogue.folder(id))
+        .and_then(|f| f.parent);
+    if ui::button(list, atlas, up, "<", input, browser.view.folder.is_some()).clicked {
+        browser.view.folder = parent;
+        browser.scroll.offset = 0.;
+        browser.selected = None;
+    }
+    let path = Rect::new(
+        up.max[0] + pad,
+        bar.min[1],
+        (bar.width() - tool - pad).max(0.),
+        tool,
+    );
     label(
         list,
         atlas,
-        Rect::new(x, thumb.min[1] + 20.0, width, 22.0),
-        &format!("{} × {}", p["width"], p["height"]),
+        path,
+        &catalogue.breadcrumb(browser.view.folder, locale),
         true,
     );
-    label(
-        list,
-        atlas,
-        Rect::new(x, thumb.min[1] + 36.0, width, 22.0),
-        &format!("{} {}", fps, locale.t(T::Fps)),
-        true,
-    );
-    label(
-        list,
-        atlas,
-        Rect::new(
-            area.min[0] + 12.0,
-            area.min[1] + 80.0,
-            area.width() - 24.0,
-            22.0,
-        ),
-        &format!(
-            "{} {}",
-            locale.t(T::Duration),
-            timecode(p["frames"].as_f64().unwrap_or(0.0), fps)
-        ),
-        true,
-    );
-    let search = Rect::new(
-        area.min[0] + 12.0,
-        area.min[1] + 108.0,
-        area.width() - 24.0,
-        28.0,
-    );
+    let search = Rect::new(bar.min[0], bar.max[1] + pad, bar.width(), tool);
     let response = panels.project.search_field.draw(
         list,
         atlas,
@@ -83,214 +223,325 @@ pub(super) fn render(
         true,
     );
     panels.project.search = response.active;
-    if response.changed {
-        panels.media_assets.reset_project_scroll();
+    while panels.project.query.len() > 256 {
+        panels.project.query.pop();
     }
-    let header = Rect::new(area.min[0], search.max[1] + 4.0, area.width(), 28.0);
-    paint::rect(list, header, colors.CHROME);
-    label(
+    if browser.view.query != panels.project.query {
+        browser.view.query.clone_from(&panels.project.query);
+        browser.scroll.offset = 0.;
+    }
+    let scope = Rect::new(bar.min[0], search.max[1] + border, bar.width(), row);
+    ui::checkbox(
         list,
         atlas,
-        Rect::new(
-            header.min[0] + 14.0,
-            header.min[1],
-            header.width() * 0.62,
-            28.0,
-        ),
-        locale.t(T::SourceName),
-        true,
+        scope,
+        word(locale, "搜索所有目录", "Search all folders"),
+        &mut browser.view.search_all,
+        input,
     );
-    label(
-        list,
-        atlas,
-        Rect::new(
-            header.min[0] + header.width() * 0.64,
-            header.min[1],
-            header.width() * 0.34,
-            28.0,
-        ),
-        locale.t(T::Type),
-        true,
+    let footer_height = styles.metric("project.footer.height", 44.);
+    let footer = Rect::new(
+        area.min[0] + pad,
+        (area.max[1] - footer_height - pad).max(scope.max[1]),
+        bar.width(),
+        footer_height,
     );
-    if name
-        .to_lowercase()
-        .contains(&panels.project.query.to_lowercase())
+    let controls = Rect::new(bar.min[0], scope.max[1] + pad, bar.width(), tool);
+    let add = Rect::new(
+        controls.min[0],
+        controls.min[1],
+        action.min(controls.width()),
+        tool,
+    );
+    let mv = Rect::new(
+        add.max[0] + pad,
+        controls.min[1],
+        action.min((controls.max[0] - add.max[0] - pad).max(0.)),
+        tool,
+    );
+    let import = Rect::new(
+        mv.max[0] + pad,
+        controls.min[1],
+        (controls.max[0] - mv.max[0] - pad).max(0.),
+        tool,
+    );
+    #[cfg(test)]
     {
-        let row = Rect::new(
-            area.min[0] + 8.0,
-            header.max[1] + 1.0,
-            area.width() - 16.0,
-            composition_height,
-        );
-        paint::rect(list, row, colors.CHROME.with_alpha(0.45));
-        paint::rect(
-            list,
-            Rect::new(row.min[0] + 6.0, row.min[1] + 9.0, 12.0, 14.0),
-            colors.ACCENT,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(
-                row.min[0] + 26.0,
-                row.min[1],
-                row.width() * 0.59 - 26.0,
-                composition_height,
-            ),
-            name,
-            false,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(
-                row.min[0] + row.width() * 0.64,
-                row.min[1],
-                row.width() * 0.34,
-                composition_height,
-            ),
-            locale.t(T::Composition),
-            true,
-        );
-        if right_clicked(input, row) {
-            panels.media_assets.cancel();
-            panels.project.context_owner = panels.media_assets.window();
-            panels.project.context_menu = Some(input.mouse);
+        browser.buttons = vec![up, add, mv, import, scope];
+        browser.rows.clear();
+        panels.media_assets.rows.clear();
+    }
+    let folder = browser.view.folder;
+    if ui::button(
+        list,
+        atlas,
+        add,
+        word(locale, "新目录", "Folder +"),
+        input,
+        true,
+    )
+    .clicked
+    {
+        browser.popup = Some(Popup::name(catalogue, None, folder, locale));
+        browser.popup_fresh = true;
+    }
+    if ui::button(
+        list,
+        atlas,
+        mv,
+        word(locale, "移动…", "Move…"),
+        input,
+        browser.selected.is_some(),
+    )
+    .clicked
+    {
+        browser.popup = browser
+            .selected
+            .clone()
+            .map(|key| Popup::moving(catalogue, key));
+        browser.popup_fresh = true;
+    }
+    if ui::button(
+        list,
+        atlas,
+        import,
+        word(locale, "导入…", "Import…"),
+        input,
+        true,
+    )
+    .clicked
+    {
+        out.push(Action::ImportMedia);
+    }
+    let viewport = Rect::new(
+        bar.min[0],
+        controls.max[1] + pad,
+        bar.width(),
+        (footer.min[1] - controls.max[1] - pad * 2.).max(0.),
+    );
+    let entries = catalogue.visible(&browser.view, &browser.view.query);
+    let focused = panels.focused == Some(Panel::Project) && !panels.project.search;
+    let mut activate_key = None;
+    let mut menu_key = None;
+    if focused {
+        let current = browser
+            .selected
+            .as_ref()
+            .and_then(|key| entries.iter().position(|entry| &entry.key == key));
+        for (key, _, repeat) in input.key_presses() {
+            let next = match key {
+                Key::Down => {
+                    Some(current.map_or(0, |i| (i + 1).min(entries.len().saturating_sub(1))))
+                }
+                Key::Up => Some(current.unwrap_or(0).saturating_sub(1)),
+                _ => None,
+            };
+            if let Some((i, entry)) = next.and_then(|i| entries.get(i).map(|entry| (i, entry))) {
+                browser.selected = Some(entry.key.clone());
+                browser.scroll.offset = browser
+                    .scroll
+                    .offset
+                    .min(i as f32 * row)
+                    .max(((i + 1) as f32 * row - viewport.height()).max(0.));
+            }
+            if key == Key::Enter && !repeat {
+                activate_key = current
+                    .and_then(|i| entries.get(i))
+                    .map(|entry| entry.key.clone());
+            }
         }
     }
-    let footer = Rect::new(area.min[0], area.max[1] - 30.0, area.width(), 30.0);
-    let assets: Vec<_> = [
-        ("assets", "Image"),
-        ("video_assets", "Video"),
-        ("audio_assets", "Audio"),
-    ]
-    .into_iter()
-    .flat_map(|(key, kind)| {
-        p[key]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(move |a| (a, kind))
-    })
-    .collect();
-    let list_area = Rect::new(
-        area.min[0] + pad, header.max[1] + composition_height + border * 2.,
-        (area.width() - pad * 2.).max(0.),
-        (footer.min[1] - header.max[1] - composition_height - border * 2.).max(0.),
-    );
-    let query = panels.project.query.clone();
-    super::media_assets::render_list(list, atlas, list_area, panels, state, input, Panel::Project, &query);
-    paint::rect(list, footer, colors.CHROME);
+    let frame =
+        browser
+            .scroll
+            .begin_view(list, viewport, entries.len() as f32 * row, input, focused);
+    let mut child = list.child();
+    let first = (browser.scroll.offset / row).floor() as usize;
+    let type_width = styles.metric("project.type.width", 72.);
+    let narrow = viewport.width() < styles.metric("project.browser.min_width", 240.);
+    for (i, entry) in entries
+        .iter()
+        .enumerate()
+        .skip(first)
+        .take((viewport.height() / row).ceil() as usize + 1)
+    {
+        let rect = Rect::new(
+            frame.content.min[0],
+            frame.content.min[1] + i as f32 * row,
+            frame.content.width(),
+            row,
+        );
+        let mut states = States::default();
+        if rect.contains(input.mouse) && frame.viewport.contains(input.mouse) {
+            states = states.with(State::Hovered);
+        }
+        if browser.selected.as_ref() == Some(&entry.key) {
+            states = states.with(State::Selected);
+        }
+        let style = styles.resolve("row", states).expect("row style");
+        box_style(&mut child, rect, style);
+        motion_ui::icons::draw(
+            &mut child,
+            Rect::new(rect.min[0], rect.min[1], slot, row),
+            entry.key.icon(),
+            styles.metric("project.item.icon_size", 14.),
+            style.foreground,
+        );
+        let width = if narrow {
+            rect.width() - slot - pad
+        } else {
+            rect.width() - slot - type_width - pad
+        };
+        text_style(
+            &mut child,
+            atlas,
+            Rect::new(rect.min[0] + slot, rect.min[1], width.max(0.), row),
+            if entry.name == "Untitled Project" {
+                locale.t(T::Untitled)
+            } else {
+                &entry.name
+            },
+            style,
+            Align::Left,
+        );
+        if !narrow {
+            label(
+                &mut child,
+                atlas,
+                Rect::new(rect.max[0] - type_width, rect.min[1], type_width, row),
+                entry.key.caption(locale),
+                true,
+            );
+        }
+        #[cfg(test)]
+        {
+            browser.rows.push((entry.key.clone(), rect));
+            if let Some(target) = entry.key.media() {
+                panels.media_assets.rows.push((target, rect));
+            }
+        }
+        if frame.viewport.contains(input.mouse)
+            && input.pressed.is_some_and(|(_, p)| rect.contains(p))
+        {
+            browser.selected = Some(entry.key.clone());
+            if let Some(target) = entry.key.media() {
+                panels.media_assets.select(target);
+            }
+            if right_clicked(input, rect) {
+                menu_key = Some(entry.key.clone());
+            } else if input
+                .pressed
+                .is_some_and(|(button, _)| button == MouseButton::Left)
+            {
+                let now = std::time::Instant::now();
+                if browser.last_click.as_ref().is_some_and(|(key, last)| {
+                    key == &entry.key
+                        && now.duration_since(*last).as_millis()
+                            < u128::from(styles.metric("project.double_click_ms", 400.) as u32)
+                }) {
+                    activate_key = Some(entry.key.clone());
+                    browser.last_click = None;
+                } else {
+                    browser.last_click = Some((entry.key.clone(), now));
+                }
+            }
+        }
+    }
+    child.clip_to(frame.viewport);
+    list.append(child);
+    if let Some(key) = activate_key {
+        activate(browser, &key, state, out);
+    }
+    if let Some(key) = menu_key {
+        if let Some(target) = key.media() {
+            match panels.media_assets.open_for(state, target, input.mouse) {
+                Ok(()) => {
+                    panels.project.context_menu = None;
+                    browser.context = None;
+                }
+                Err(error) => {
+                    log::error!("project asset menu target={target:?} reason={error}");
+                    panels.message = Some(locale.error(&error));
+                }
+            }
+        } else {
+            panels.media_assets.cancel();
+            browser.context = Some(key);
+            browser.context_focus = 0;
+            panels.project.context_menu = Some(input.mouse);
+            panels.project.context_owner = browser.owner;
+        }
+    } else if right_clicked(input, viewport) {
+        browser.context = None;
+        browser.context_focus = 0;
+        panels.media_assets.cancel();
+        panels.project.context_menu = Some(input.mouse);
+        panels.project.context_owner = browser.owner;
+    }
     label(
         list,
         atlas,
-        footer.shrink(10.0),
+        Rect::new(footer.min[0], footer.min[1], footer.width(), row),
         &format!(
-            "{} {}   ·   {} {}",
-            1 + assets.len(),
+            "{} {} · {} {}",
+            entries.len(),
             locale.t(T::Items),
-            p["layers"].as_array().map_or(0, Vec::len),
+            state["project"]["layers"].as_array().map_or(0, Vec::len),
             locale.t(T::Layers)
         ),
         true,
     );
-}
-
-fn pword(locale: Locale, zh: &str, en: &str) -> String {
-    if locale == Locale::Zh {
-        zh.into()
-    } else {
-        en.into()
+    let p = &state["project"];
+    let fps = p["fps"].as_u64().unwrap_or(30) as u32;
+    label(
+        list,
+        atlas,
+        Rect::new(footer.min[0], footer.min[1] + row, footer.width(), row),
+        &format!(
+            "{} × {} · {} {} · {}",
+            p["width"],
+            p["height"],
+            fps,
+            locale.t(T::Fps),
+            timecode(p["frames"].as_f64().unwrap_or(0.), fps)
+        ),
+        true,
+    );
+    if (before.folder != browser.view.folder
+        || before.search_all != browser.view.search_all
+        || !panels.project.search)
+        && browser.persisted.as_ref() != Some(&browser.view)
+    {
+        browser.persisted = Some(browser.view.clone());
+        out.push(Action::ProjectViewChanged(browser.view.clone()));
     }
 }
-
+fn activate(browser: &mut Controls, key: &RowKey, state: &Value, out: &mut Vec<Action>) {
+    match key {
+        RowKey::Folder(id) => {
+            browser.view.folder = Some(*id);
+            browser.scroll.offset = 0.;
+            browser.selected = None;
+        }
+        RowKey::Item(ProjectItem::Composition { id }) => out.push(Action::ProjectOpen {
+            source: crate::layer_clipboard::KeyframeSource::of(state),
+            composition: id.clone(),
+        }),
+        _ => {}
+    }
+}
 pub(super) fn finish_context_menu(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     bounds: Rect,
     panels: &mut Panels,
+    state: &Value,
     input: &Input,
     locale: Locale,
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) {
-    if panels.project.context_owner != owner { return; }
-    let Some(anchor) = panels.project.context_menu else {
-        return;
-    };
-    let styles = list.styles();
-    let entries = [("合成设置...", "Composition Settings...", true, Some(Action::CompositionSettings), false)];
-    let row = styles.metric("context.row.height", 20.);
-    let pad = styles.metric("padding", 5.);
-    let width = styles.metric("context.menu.width", 220.).min(bounds.width());
-    let height = entries.len() as f32 * row + pad * 2.;
-    let card = Rect::new(
-        anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
-        (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
-        width,
-        height,
+    popup::finish(
+        list, atlas, bounds, panels, state, input, locale, owner, out,
     );
-    if input.focus_lost
-        || input.keys.iter().any(|(key, _)| *key == Key::Escape)
-        || input
-            .pressed
-            .is_some_and(|(_, point)| !card.contains(point))
-    {
-        panels.project.context_menu = None;
-        return;
-    }
-    box_style(
-        list,
-        card,
-        styles.resolve("context_menu", States::default()).unwrap(),
-    );
-    let mut chosen = None;
-    for (index, (zh, en, enabled, _action, _arrow)) in entries.iter().enumerate() {
-        let area = Rect::new(
-            card.min[0] + pad,
-            card.min[1] + pad + index as f32 * row,
-            width - pad * 2.,
-            row,
-        );
-        let mut states = States::default();
-        if *enabled && area.contains(input.mouse) {
-            states = states.with(State::Selected);
-        }
-        if !*enabled {
-            states = states.with(State::Disabled);
-        }
-        let style = styles.resolve("context_menu.row", states).unwrap();
-        box_style(list, area, style);
-        text_style(
-            list,
-            atlas,
-            Rect::new(
-                area.min[0] + pad,
-                area.min[1],
-                area.width() - pad * 2.,
-                area.height(),
-            ),
-            &pword(locale, zh, en),
-            style,
-            Align::Left,
-        );
-        if *enabled
-            && input
-                .pressed
-                .is_some_and(|(button, point)| button == MouseButton::Left && area.contains(point))
-        {
-            chosen = Some(index);
-        }
-
-    }
-    if let Some(index) = chosen {
-        panels.project.context_menu = None;
-        if let Some(action) = entries[index].3.as_ref() {
-            match action {
-                Action::CompositionSettings => out.push(Action::CompositionSettings),
-                Action::ShowPanel(dock) => out.push(Action::ShowPanel(*dock)),
-                _ => {}
-            }
-        }
-    }
 }

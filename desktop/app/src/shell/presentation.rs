@@ -7,6 +7,11 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if state["editorAction"]["operation"]=="project_open" && state["editorAction"]["cancelled"]==false {
+            self.frame=state["frame"].as_f64().unwrap_or(0.);
+            self.panels.normalize_selection(&state);
+            self.panels.select_only(None);
+        }
         if state["editorAction"]["cancelled"]==true && state["editorAction"]["operation"]=="keyframe_timing" {
             self.reject_stale_keyframe_timing();
         }

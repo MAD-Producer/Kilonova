@@ -83,7 +83,7 @@ pub(crate) mod layer_sampling;
 pub(crate) mod playback_switches;
 pub(crate) mod path_controls;
 mod paths;
-mod project;
+pub(crate) mod project;
 mod media_assets;
 mod properties;
 mod property_focus;
@@ -368,6 +368,10 @@ pub fn chrome(
     let effect_context_neutral = Input::default();
     let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, None);
+    let project_input = input;
+    let project_owned = project::prepare(panels, None, state, input);
+    let project_neutral = Input::default();
+    let input = if project_owned { &project_neutral } else { input };
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(None, state, input);
     let asset_neutral = Input::default();
@@ -1015,7 +1019,8 @@ pub fn chrome(
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         panels,
-        input,
+        state,
+        project_input,
         panels.locale,
         None,
         &mut out,
@@ -1068,6 +1073,10 @@ pub fn floating_chrome(
     let effect_context_neutral = Input::default();
     let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, Some(panel));
+    let project_input = input;
+    let project_owned = project::prepare(panels, Some(panel), state, input);
+    let project_neutral = Input::default();
+    let input = if project_owned { &project_neutral } else { input };
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
     let asset_neutral = Input::default();
@@ -1356,7 +1365,8 @@ pub fn floating_chrome(
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         panels,
-        input,
+        state,
+        project_input,
         panels.locale,
         Some(panel),
         &mut out,
@@ -2156,7 +2166,7 @@ fn render_panel(
     }
     let input = &local;
     match panel {
-        Panel::Project => project(list, atlas, area, panels, state, input),
+        Panel::Project => project(list, atlas, area, panels, state, input, out),
         Panel::Composition => composition(list, atlas, area, panels, state, input, out),
         Panel::Properties => properties(list, atlas, area, panels, state, input, out),
         Panel::EffectControls | Panel::Effects => {
