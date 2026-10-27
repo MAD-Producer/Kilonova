@@ -247,3 +247,25 @@ media, audio, weights, the upstream implementation and runtime binaries remain
 external. The failed first extraction (an unsupported pixel-format negotiation)
 is retained separately; it produced no accepted frames. Explicit planar RGB
 negotiation fixed extraction without changing inference or numerical bounds.
+
+## Main integration after the render-graph merge
+
+The five prototype commits were replayed onto main
+`eb2e8c8cc158beb37d539cc95d0a33b13f60332e`, which contains the final issue #78
+render-graph implementation. The resulting executable-source head is
+`bb4982564623ecc6ef4b4c51416512b061556456`; range-diff confirms that all five
+patches are unchanged. This removes the dependency on the former feature-branch
+base rather than merging the prototype into that branch.
+
+Post-integration native validation passes 91 tests, zero failures and zero
+ignored tests: four optional ONNX unit tests, six asynchronous depth-job
+integration tests and all 81 model regressions. Every step records the source
+hashes before and after execution and confirms they are unchanged. Model
+weights and an inference runtime are not installed by this regression; the
+earlier real numerical/reference evaluations remain separate evidence.
+
+Evidence: [main integration regression and source receipts](data/ai-depth-main-integration-bb498256.zip),
+SHA-256 `86f6a01600df10b7c37742b042016a366101fd40cee91a72dedce177a3162024`;
+203,421 bytes, ten entries, every entry read back and hashed. Remote native
+feature CI remains pending. Session/UI installation and the remaining issue
+#74 acceptance are still open; this integration does not close the issue.
