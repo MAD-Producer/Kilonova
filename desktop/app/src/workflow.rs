@@ -159,7 +159,8 @@ pub fn create_text(
         } else {
             motion_media::fonts::FontStore::builtin_id()
         };
-        let raster=session.plugin_request(&serde_json::json!({"op":"font_text","font":font_id,"text":text,"size":size,"width":width}).to_string())?;
+        let style = motion_core::TextStyle::new(size, width);
+        let raster=session.plugin_request(&serde_json::json!({"op":"font_text","font":font_id,"text":text,"size":size,"width":width,"style":style}).to_string())?;
         let asset =
             serde_json::from_value::<Asset>(raster["asset"].clone()).map_err(|e| e.to_string())?;
         let id = next_layer_id(&session.snapshot()?)?;
@@ -174,6 +175,7 @@ pub fn create_text(
         layer.content = Content::Text {
             text,
             font: font_id,
+            style,
             color: [1.; 4],
             raster_asset: asset.id,
         };

@@ -59,6 +59,12 @@ pub enum Action {
         position: [f32; 3],
     },
     NewText,
+    TextChooseFont { ticket: super::auxiliary::text_style::Ticket },
+    TextApply {
+        ticket: super::auxiliary::text_style::Ticket,
+        source: crate::layer_clipboard::KeyframeSource,
+        request: Value,
+    },
     CompositionSettings,
     ProjectPrecisionSettings,
     KeyframeTimingSettings {

@@ -183,7 +183,9 @@ jobs:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
           MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
           MOTION_POINT_SELECTION_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/path-selection
-        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests -- --test-threads=1
+        # Exercise the optional depth contract/process tests without installing
+        # a model or Python inference runtime on the native matrix.
+        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests -- --test-threads=1
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache

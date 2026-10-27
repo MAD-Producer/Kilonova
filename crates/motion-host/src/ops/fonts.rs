@@ -45,7 +45,7 @@ impl Session {
             .chain(p.video_assets.iter().map(|a| a.id))
             .max()
             .unwrap_or(0)
-            + 1;
+            .checked_add(1).ok_or("asset ID space exhausted")?;
         let asset = motion_core::Asset {
             id,
             path,
@@ -57,6 +57,7 @@ impl Session {
     pub(super) fn font_request(&mut self, v: &Value) -> Result<Value> {
         let op = v["op"].as_str().ok_or("missing font operation")?;
         match op {
+            "font_edit_text" => return self.edit_text_layout(v),
             "font_catalogue" => {
                 let fonts = self.fonts()?.catalogue()?;
                 return Ok(
@@ -113,7 +114,9 @@ impl Session {
                     let width = u32::try_from(v["width"].as_u64().unwrap_or(1024))
                         .map_err(|_| "invalid text width")?;
                     (
-                        self.fonts()?.raster_text(&id, text, size, width)?,
+                        if let Some(style) = v.get("style") {
+                            self.fonts()?.raster_styled_text(&id, text, &serde_json::from_value(style.clone())?)?
+                        } else { self.fonts()?.raster_text(&id, text, size, width)? },
                         json!({"layout":"ltr_kerning_wrap","font":id}),
                     )
                 };
@@ -173,5 +176,45 @@ impl Session {
             }
             _ => return Err("unknown font operation".into()),
         }
+    }
+
+    fn edit_text_layout(&mut self, v: &Value) -> Result<Value> {
+        let object = v["object"].as_u64().ok_or("missing text layer")?;
+        let revision = v["revision"].as_u64().ok_or("missing text revision")?;
+        if revision != self.engine.revision() {
+            return Ok(json!({"cancelled":true,"reason":"context_changed"}));
+        }
+        let layer = self.engine.project().layers.iter().find(|l| l.id == object)
+            .ok_or_else(|| format!("text layout object={object}: layer does not exist"))?;
+        if layer.locked { return Err(format!("text layout object={object}: layer is locked").into()); }
+        let motion_core::Content::Text { font, color, .. } = &layer.content else {
+            return Err(format!("text layout object={object}: layer is not text").into());
+        };
+        let color = *color;
+        let font = v["font"].as_str().unwrap_or(font).to_owned();
+        if font.len() > 256 { return Err("text font identifier exceeds 256 bytes".into()); }
+        let text = v["text"].as_str().ok_or("missing text draft")?.to_owned();
+        let style: motion_core::TextStyle = serde_json::from_value(v["style"].clone())?;
+        style.validate()?;
+        if text.chars().count() > 4096 { return Err("text layout exceeds 4096 characters".into()); }
+        let info = if let Some(path) = v["font_path"].as_str() {
+            let index = u32::try_from(v["face_index"].as_u64().unwrap_or(0)).map_err(|_|"invalid font face index")?;
+            self.fonts()?.import_face(&PathBuf::from(path), "User-selected font; original licensing applies", index)
+                .map_err(|e| crate::Error::Context { context: format!("text layout object={object} phase=font_import path={path}"), cause: Box::new(e.into()) })?
+        } else {
+            self.fonts()?.catalogue()?.into_iter().find(|f| f.id == font)
+                .ok_or_else(||format!("text layout object={object} phase=font_lookup font={font}: font is not imported"))?
+        };
+        let raster = self.fonts()?.raster_styled_text(&info.id, &text, &style)
+            .map_err(|e| crate::Error::Context { context: format!("text layout object={object} phase=raster font={}",info.id), cause: Box::new(e.into()) })?;
+        let (asset, mut commands) = self.raster_asset(&raster)
+            .map_err(|e| crate::Error::Context { context: format!("text layout object={object} phase=publish_raster"), cause: Box::new(e) })?;
+        commands.extend(self.font_commands(&info));
+        commands.push(Command::Content { object,
+            content: motion_core::Content::Text { text, font: info.id, style, color, raster_asset: asset.id },
+            size: [raster.width as f32, raster.height as f32],
+        });
+        self.apply_command_batch(commands)?;
+        Ok(json!({"cancelled":false,"revision":self.engine.revision(),"object":object}))
     }
 }

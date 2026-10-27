@@ -282,6 +282,23 @@ The audit reports four motion-duration tokens (`90/90/100/140ms`) plus `motion.e
 
 ---
 
+### 5.6 Character and paragraph editing
+
+Character and Paragraph share one selected text layer draft. Put each numeric
+property or enum on one existing token-sized row; font and alignment use native
+dropdowns. Keep idle values transparent. The authored multiline source uses
+`text.style.source.height`; Apply and Cancel use `text.style.action.width`.
+Reserve a stable feedback row so a validation error cannot move either action.
+Include the actual helper/control heights in the panel's scroll extent. A source
+editor or open dropdown owns its wheel input, without also scrolling the panel.
+
+Apply reflows and preflights on the existing engine worker, then publishes one
+transaction. Cancel, focus changes and local text undo cannot implicitly apply
+the draft. A native-window focus change releases field ownership but retains
+the draft. Layout values use source pixels, independent of UI DPI. Keep the
+existing fill popup and its independent transaction; unfinished layout drafts
+must first be applied or cancelled before changing fill.
+
 ## 6. Screenshot-specific remediation: Masks and Path
 
 This is the first visual acceptance target. Preserve actual Masks/Path functionality; do not change rendering algorithms or the project model.

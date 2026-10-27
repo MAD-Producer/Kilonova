@@ -57,6 +57,8 @@
       "panel.header.height": 24,
       "row.height": 22,
       "text.editor.line.height": 22,
+      "text.style.source.height": 88,
+      "text.style.action.width": 80,
       "text.editor.gutter.width": 44,
       "text.editor.tab.columns": 4,
       "text.editor.scrollbar.width": 8,

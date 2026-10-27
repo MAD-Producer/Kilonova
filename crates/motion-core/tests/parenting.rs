@@ -69,6 +69,7 @@ fn every_entity_type_can_parent_other_entities_without_rewriting_animation() {
     p.layers[2].content = Content::Text {
         text: "标题".into(),
         font: "sans-serif".into(),
+        style: motion_core::TextStyle::new(32., 256),
         color: [1.0; 4],
         raster_asset: 1,
     };
