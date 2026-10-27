@@ -1014,6 +1014,7 @@ impl PlanBuilder {
         layer.asset = None;
         layer.video = None;
         layer.model_source = None;
+        layer.model_animation = None;
         layer.vector = None;
         layer.masks = Default::default();
         layer.track_matte = None;

@@ -15,6 +15,11 @@ use std::{collections::BTreeMap, io, sync::Arc};
 
 const SIZE: u32 = 65;
 
+#[path = "scene_gpu/shared.rs"]
+mod shared;
+#[path = "scene_gpu/cameras.rs"]
+mod cameras;
+
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn scene_native_access_rejects_a_foreign_thread_before_allocation_and_recovers() {

@@ -181,6 +181,13 @@ fn prepare_sources_with_limit(
                         layer.id, model.asset, model.scene
                     )));
                 }
+                if let Some(animation) = &model.animation {
+                    if sources.get(&model.asset).is_none_or(|s| animation.clip as usize >= s.scene.animations().len()) {
+                        return Err(RenderError::Invalid(format!(
+                            "model object={} source={} animation={} missing", layer.id, model.asset, animation.clip
+                        )));
+                    }
+                }
             }
         }
         Ok(sources)
@@ -317,6 +324,7 @@ impl Renderer {
                 -glam::Vec3::from_array(clip.pivot) * clip.pixels_per_metre,
             );
         frame.samples = clip.samples;
+        frame.animation = layer.model_animation;
         let result = if frame.world.determinant().abs() <= 1e-12 {
             // A zero-scale key is an ordinary empty visual, not a corrupt scene.
             let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {

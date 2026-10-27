@@ -28,6 +28,8 @@ pub struct ImportLimits {
     pub max_vertices: usize,
     pub max_indices: usize,
     pub max_node_depth: usize,
+    /// Total decoded key timestamps across channels, including shared-sampler copies.
+    pub max_animation_keys: usize,
 }
 impl Default for ImportLimits {
     fn default() -> Self {
@@ -40,6 +42,7 @@ impl Default for ImportLimits {
             max_vertices: 1_000_000,
             max_indices: 3_000_000,
             max_node_depth: 128,
+            max_animation_keys: 1_000_000,
         }
     }
 }
@@ -120,6 +123,8 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         root.samplers.len(),
         root.materials.len(),
         root.meshes.len(),
+        root.animations.len(),
+        root.cameras.len(),
         root.nodes.len(),
         root.scenes.len(),
     ] {
@@ -152,16 +157,12 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
             root.extensions_required.join(", "),
         ));
     }
-    for (feature, count) in [
-        ("animations", root.animations.len()),
-        ("skins", root.skins.len()),
-        ("cameras", root.cameras.len()),
-    ] {
+    for (feature, count) in [("skins", root.skins.len())] {
         if count != 0 {
             return Err(unsupported(
                 "profile",
                 feature,
-                format!("{feature} are not implemented by the static import profile"),
+                format!("{feature} are not implemented by the import profile"),
             ));
         }
     }
@@ -351,6 +352,8 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         meshes.push(Mesh { primitives });
     }
     let nodes = nodes(&root, limits)?;
+    let cameras = crate::camera::decode(&root, &mut budget, limits)?;
+    let animations = crate::animation::decode(&reader, &mut budget)?;
     let mut scenes = Vec::with_capacity(root.scenes.len());
     let mut parents = vec![false; nodes.len()];
     for node in &nodes {
@@ -385,6 +388,8 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         materials,
         meshes,
         nodes,
+        animations,
+        cameras,
         scenes,
         default_scene: root.scene,
         ignored_optional_extensions: root.extensions_used,

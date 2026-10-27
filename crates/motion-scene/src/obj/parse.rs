@@ -398,7 +398,9 @@ pub(super) fn load(
         .map(|id| Node {
             local: Mat4::IDENTITY.to_cols_array(),
             mesh: Some(id),
+            camera: None,
             children: Vec::new(),
+            rest: None,
         })
         .collect();
     Ok(Scene {
@@ -419,6 +421,8 @@ pub(super) fn load(
         default_scene: Some(0),
         meshes,
         nodes,
+        animations: Vec::new(),
+        cameras: Vec::new(),
         ignored_optional_extensions: Vec::new(),
         retained_bytes: budget.bytes,
     })

@@ -1,5 +1,7 @@
 //! Stable project data, validation and deterministic sampling; no editing runtime or GPU APIs.
 mod animation;
+pub mod animation_presets;
+pub use animation_presets::{AnimationPreset, PresetProperty};
 mod audio;
 pub mod audio_levels;
 pub mod audio_edit;
@@ -25,7 +27,7 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
-pub use model_assets::{ModelAsset, ModelClip};
+pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
 pub mod particle_history;

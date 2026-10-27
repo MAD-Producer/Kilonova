@@ -1,0 +1,201 @@
+{
+  "baseCommit": "06fa8cf533760fea69cbc28533469bc93bb7f6d5",
+  "branch": "feat/animation-presets",
+  "issues": [
+    225,
+    265
+  ],
+  "projectFormat": 28,
+  "presetFormat": 1,
+  "pixelPolicy": "Preserve original pixel values; anchor converted between normalized model and pixels",
+  "coreModel": {
+    "passed": 495,
+    "failed": 0,
+    "ignored": 1,
+    "resultBlocks": 92
+  },
+  "desktop": {
+    "binary": "E:\\Dev\\aem\\target\\host-error-contract-verified\\debug\\deps\\motion_studio-d703189a9401f042.exe",
+    "exeSha256": "7ef48d309727562f4ee1c4b59787c722ece8eedb8da8f449f4254b7ddfee5828",
+    "sourceHashes": {
+      "crates/motion-core/src/command_registry.rs": "74e92f671d73625a7ed4d103032e33517122e92d780277f60302e275ec50f885",
+      "crates/motion-core/src/editor.rs": "44cb0fe54c722fca86de6c08714a3465f211865ffd410ac539fd71e5209774bb",
+      "crates/motion-core/src/lib.rs": "fbdd0f5d021d5baf58c5d8ecbca8858f958f2896ea31ba8edfb06f3c60d4c63b",
+      "crates/motion-core/src/storage.rs": "342c5065b0486bab300bd69ffc35087dfea967b0241ff58da739ca70f5c65d1c",
+      "crates/motion-core/src/storage/animation_presets.rs": "f37a93e48308fa1c03ed573045396f8f71eba67cac465933dd03d3f7fdea94d1",
+      "crates/motion-core/src/storage/publication.rs": "84409669f4679b969069f547a3ebc97cbc4fb031034e8d41b1a5dd3bcf355ae1",
+      "crates/motion-core/tests/animation_presets.rs": "eda1c307e94d480e325ccf36ab657bad27632a24803f7e62cc363517ae73af52",
+      "crates/motion-host/src/ops/editing.rs": "983f8ae37b5c56af0ff75b7b673ad149d859a1e8193487259adb3fe0580b9cff",
+      "crates/motion-model/src/animation_presets.rs": "a9b30a6b0df9b8cacefab3af498b45639dd85ed84a029d3004f2be17af953727",
+      "crates/motion-model/src/commands.rs": "91ccd1b9a3352c27853a60c56eda9dd68c85a6793979917f15ae29f4eb06be99",
+      "crates/motion-model/src/lib.rs": "76b46917ac648b741d0375d9f0f5f8a027b9beffc56a42901e1112b0cec57427",
+      "desktop/app/src/animation_presets.rs": "70ebba1dda7bebe8d1623555c2352271ac9dd8856d9bd9cf7e4555257d6c64af",
+      "desktop/app/src/animation_presets/tests.rs": "d8edda837473c1360ba166abaead267db26bdb07180cdbf01fe3eb2338857bdd",
+      "desktop/app/src/animation_presets/tests/native.rs": "7cf9606f11fde6fe56b708dfb709b10138655e4b5e7c0ecda7c190649587af71",
+      "desktop/app/src/layer_clipboard.rs": "da2e4a689ad1272b918bcd455950877c18fc981f853334ee8ca3a0236efb7648",
+      "desktop/app/src/layer_clipboard/keyframes.rs": "6e1a12536620f03f203200dbb40bf7b9b874aeb1cf91628573ef85a22fa2fe48",
+      "desktop/app/src/main.rs": "f09d2303f0704875eb06d12c4a68236e372a3b9ca464239c7bcf369d3669eec5",
+      "desktop/app/src/panels/effect_controls.rs": "165c0554977bf670e018dd490cf1d16d30753b9dfe5d00903cfdeb5f4cfc61ce",
+      "desktop/app/src/panels/effect_controls/library.rs": "2862b16dfe1fc93b6a89a3469633dbb92e4a29be41383448f58dc22be9251e9e",
+      "desktop/app/src/panels/effect_controls/library_actions.rs": "afd762e1e3f824fc813f52ee5a117bdbff6c84d38cb05dae6d7881692b2fd006",
+      "desktop/app/src/panels/effect_controls/removal_tests.rs": "02dd713e6ab78729915b0322b5e44f2a6184361020fd4411a270f100b6a1ac90",
+      "desktop/app/src/panels/effects.rs": "a68c0308ca0b15fc7166d823a32f323fc0e143fbbc907c873842892bd41b57fc",
+      "desktop/app/src/panels/keyboard.rs": "03799c78b28a24e32883c72b09484485c0816d8aa99e063406602926f50fb93f",
+      "desktop/app/src/panels/mod.rs": "e06b467ea80daab87665f5559f45944b07b711f6d36c157fd54383883cba7211",
+      "desktop/app/src/panels/types.rs": "d2b2e05e0e25fda1b84b457eff73631b582ee829ae3fe57087a6464b6c853020",
+      "desktop/app/src/shell/actions.rs": "012ed14078ee62a03239ac362c992ead968aca913556673fe6600d135a1c4d5d",
+      "desktop/app/src/shell/animation_presets.rs": "a999182aca2cac1444c1b8ebe7da6cc64d11e545985e358bec24aaea446c9598",
+      "desktop/app/src/shell/mod.rs": "0d3486b5cba77f5b3b4bfe488f86bc6445551fa90d800903b355ec38deaa5569"
+    },
+    "rows": [
+      {
+        "name": "desktop-functional",
+        "returncode": 0,
+        "elapsedSeconds": 40.12,
+        "summary": [
+          "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 1216 filtered out; finished in 38.83s"
+        ],
+        "exeUnchanged": true
+      },
+      {
+        "name": "native-ui",
+        "returncode": 0,
+        "elapsedSeconds": 20.64,
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1221 filtered out; finished in 20.56s"
+        ],
+        "exeUnchanged": true
+      },
+      {
+        "name": "effect-controls-regression",
+        "returncode": 0,
+        "elapsedSeconds": 48.99,
+        "summary": [
+          "test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 1183 filtered out; finished in 48.91s"
+        ],
+        "exeUnchanged": true
+      },
+      {
+        "name": "recent-menu-regression",
+        "returncode": 0,
+        "elapsedSeconds": 0.86,
+        "summary": [
+          "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 1215 filtered out; finished in 0.82s"
+        ],
+        "exeUnchanged": true
+      },
+      {
+        "name": "library-recent-shell-regression",
+        "returncode": 0,
+        "elapsedSeconds": 23.5,
+        "summary": [
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1220 filtered out; finished in 23.43s"
+        ],
+        "exeUnchanged": true
+      }
+    ]
+  },
+  "screenshots": {
+    "en-float-effect-instance-menu.png": "e8acff3539f71213e7560b93514900e40b39ce18a7f0a73272ecc305f81c10da",
+    "en-float-effect-library-menu.png": "4872429195ae0787098db8f7e9c84d8f3fcf9af61d5fed0dd241ea08cd95f94d",
+    "en-float-preset-list.png": "1ee91876b74c186ee8d57e61d49299ba6eecd17048cdab5e2722522ffb7b313b",
+    "en-float-preset-menu.png": "ed1ec3c649d22111ad9eb6a6b18497cf5bd9b3ffa0cfa0c5e2512d723727f140",
+    "zh-main-effect-instance-menu.png": "7531492233e24ec40966b3bd3369cb385520858b095b93bec7dfb226a99560ce",
+    "zh-main-effect-library-menu.png": "f10c641ffa6a4a8a1541797aa07eabe1f2dc9ed1b9cebc9c72cfa77a18218685",
+    "zh-main-preset-list.png": "ec534bf729ad6d65ef5b7d6646f1aa2959f9394827c6d4543c279f5e8c7eadd5",
+    "zh-main-preset-menu.png": "d3f8fcf11640d32899266d849118464578566a40fb95559ca8c4388c7510607f"
+  },
+  "product": {
+    "executableSha256": "d7b93fb677c1b22dcc25c570b6e5d55a3062cb6cbeae45b9fe3f8be0f581a8c4",
+    "features": [
+      "ffmpeg"
+    ],
+    "buildProfile": "debug, Windows x86_64, portable MSVC, one cargo job",
+    "existingCompilerWarnings": 23,
+    "standaloneHelpExit": 0,
+    "commandListExit": 0,
+    "applyPresetCommand": {
+      "batch_atomic": true,
+      "id": "apply_animation_preset",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "at_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "composition": {
+            "description": "Stable composition ID; omitted means comp-main",
+            "type": "string"
+          },
+          "objects": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 128,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "op": {
+            "const": "apply_animation_preset"
+          },
+          "preset": {
+            "description": "Typed core AnimationPreset payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "op",
+          "preset",
+          "objects",
+          "at_frame"
+        ],
+        "type": "object"
+      },
+      "undoable": true
+    },
+    "smokeExit": 0,
+    "smokeReportSha256": "42e359f0ad7518cab56315636b300143b9811a5c5a3815484adb781c85511561",
+    "smokeChecks": [
+      "create_layer",
+      "animate",
+      "seek",
+      "save",
+      "reopen",
+      "single_surface_preview",
+      "chrome",
+      "floating_properties",
+      "floating_composition",
+      "resize",
+      "redock",
+      "layer_context_menu"
+    ],
+    "runtimeFiles": {
+      "avcodec-62.dll": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a",
+      "avdevice-62.dll": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e",
+      "avfilter-11.dll": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172",
+      "avformat-62.dll": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef",
+      "avutil-60.dll": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5",
+      "swresample-6.dll": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b",
+      "swscale-9.dll": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+    },
+    "ffmpegSourceSha256": "fa48e2edcf3bdeeb2346398aa2d6e8154423d9ef2c2165d9d8d20eafcada4270",
+    "observedExistingEnvironmentErrors": [
+      "Epic EOS Vulkan overlay JSON Win32/Win64 missing"
+    ]
+  },
+  "failureHistory": [
+    "Initial native selection fixture changed primary to 9; fixed explicit primary 7, retained [7,9] assertion.",
+    "Native fixture did not dispatch queued ShowPanel through Shell; fixed real action dispatch, retained 30s deadline and commit guard.",
+    "Legacy removal fixture manually constructed owner=None in float; fixed owner=controls.context_window, retained all existing assertions."
+  ],
+  "limits": [
+    "No OS-level physical mouse/keyboard, file dialog, or IME automation.",
+    "No animation capture for masks, vector paths, audio, or expressions in preset v1.",
+    "No injected OS unlink failure; actual cancellation/decode-failure cleanup tested.",
+    "All 19 panels/five workspaces/full DESIGN matrix not reaccepted by this scoped change.",
+    "Cross-platform PR CI pending at evidence creation."
+  ]
+}
