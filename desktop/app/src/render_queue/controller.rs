@@ -20,7 +20,6 @@ pub(crate) struct Presentation {
 }
 #[derive(Debug)]
 pub(crate) enum Intent {
-    Open,
     Reload,
     Add(Template),
     Start,

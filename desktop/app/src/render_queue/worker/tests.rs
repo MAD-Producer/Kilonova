@@ -298,7 +298,9 @@ fn render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_re
         let _logger = crate::logging::init(root.clone()).unwrap();
         let queue = Queue::open(root.clone()).unwrap();
         ready(&queue);
-        let mut invalid = queue.view().document.templates[0].clone();
+        let valid = queue.view().document.templates[0].clone();
+        reply(queue.save_template(valid.clone()).unwrap()).unwrap();
+        let mut invalid = valid;
         invalid.pattern = "../outside.mp4".into();
         assert!(reply(queue.save_template(invalid).unwrap()).is_err());
         let state = queue.shared.clone();
@@ -325,6 +327,23 @@ fn render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_re
         release.send(()).unwrap();
         assert!(blocked.join().unwrap().is_err());
         assert!(queue.view().flight.is_none());
+        let saved = fs::read(root.join(".motion-render-queue/queue.json")).unwrap();
+        let panic_ticket = queue.request(Command::Panic).unwrap();
+        wait(|| queue.view().stopped);
+        assert!(reply(panic_ticket).is_err());
+        let stopped = queue.view();
+        assert!(stopped.flight.is_none());
+        assert!(!stopped.running);
+        assert!(stopped
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("controlled render queue handler panic"));
+        assert!(queue.pause().is_err(), "a stopped worker must not restart");
+        assert_eq!(
+            fs::read(root.join(".motion-render-queue/queue.json")).unwrap(),
+            saved
+        );
         drop(queue);
         fs::write(
             root.join(".motion-render-queue/queue.json"),
@@ -345,7 +364,7 @@ fn render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_re
     }
     let root = tempfile::tempdir().unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "render_queue::worker::tests::render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_returns"])
+        .args(["--exact", "render_queue::worker::tests::render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_returns", "--nocapture"])
         .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
     assert!(
         output.status.success(),
@@ -381,6 +400,19 @@ fn render_queue_default_error_sinks_and_inflight_are_visible_before_a_handler_re
         log.contains("controlled original IO cause")
             && stderr.contains("controlled original IO cause")
     );
+    assert!(log.contains("render queue start request=3 operation=test_panic"));
+    assert!(!stderr.contains("render queue start request=3 operation=test_panic"));
+    assert!(log.contains("panic command="), "the logging hook must run");
+    for sink in [&log[..], &stderr[..]] {
+        assert!(sink.contains("phase=worker request=Some(3) operation=Some(\"test_panic\")"));
+        assert!(
+            sink.contains("render queue worker panicked: controlled render queue handler panic")
+        );
+    }
+    assert!(stderr.lines().any(|line| {
+        line.starts_with("thread 'motion-render-queue'") && line.contains("panicked at")
+    }));
+    assert!(!stdout.contains("controlled render queue handler panic"));
     assert!(
         !log.contains("done request="),
         "routine completion stays Debug at default Info"

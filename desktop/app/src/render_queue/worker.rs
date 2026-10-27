@@ -114,6 +114,8 @@ enum Command {
     Cancel(u64),
     Retry(u64, Option<PathBuf>),
     Remove(u64),
+    #[cfg(test)]
+    Panic,
 }
 impl Command {
     fn operation(&self) -> &'static str {
@@ -126,6 +128,8 @@ impl Command {
             Self::Cancel(_) => "cancel",
             Self::Retry(..) => "retry",
             Self::Remove(_) => "remove",
+            #[cfg(test)]
+            Self::Panic => "test_panic",
         }
     }
     fn job(&self) -> Option<u64> {
@@ -394,6 +398,8 @@ impl Worker<'_> {
                 Command::Cancel(id) => self.store.cancel(id).map(|_| None),
                 Command::Retry(id, output) => self.store.retry(id, output).map(|()| None),
                 Command::Remove(id) => self.store.remove(id).map(|()| None),
+                #[cfg(test)]
+                Command::Panic => panic!("controlled render queue handler panic"),
             }
         });
         self.shared.update(|p| p.preparing = None);
