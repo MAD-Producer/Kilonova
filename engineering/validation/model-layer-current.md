@@ -142,3 +142,57 @@ main. The combined regression after that rebase must include the optional
 Shared mesh/plane depth, imported skin/morph/animation/camera and the remaining
 compositing acceptance stay open; the keyframe demo animates whole-model layer
 properties rather than imported skeletal animation. This does not close #87.
+
+## Maintained-main combined and final-source acceptance (2026-10-27)
+
+This checkpoint supersedes the pending integration checks above. The frozen
+combined source `653dc2056a2f12d0cdc6fbb6907d2a2a44b60376`, based on maintained
+main `7bb54085242f2ca6d5eefe823a01b7ac7044239c`, passes 3,213 tests,
+zero failures and 15 existing manual ignores across 317
+targets, with native GPU, FFmpeg and optional AI depth features enabled.
+Desktop check, provenance, panel-style guard, actual FFmpeg desktop binary build
+and JSON command catalogue also pass. The catalogue includes
+`register_model_asset` and produces no stderr. Android is excluded.
+
+The original controller stops after successful tests because it carries the
+previous checkpoint's 14-ignore inventory. Maintained main adds the manual native
+character/paragraph capture test. An independent continuation verifies all
+15 ignored test files have identical Git blobs at the frozen head and main base,
+verifies source/log hashes and all named execution requirements, and performs
+the remaining build/catalogue checks. The original controller, its stale
+inventory failure and raw exit receipt are retained without changes. No test
+assertion, timeout, numerical bound or ignore annotation is changed.
+
+The final executable source is `06d1c71675de2e29a93d88bae520bdb341977169`.
+It adds the later video colour fix to that frozen combined source. Its 31
+affected contracts pass with zero failures/ignores; no-default host and native
+FFmpeg/AI desktop checks and the exact-source native probe build also pass.
+The frozen full workspace result is **not** represented as a full regression of
+the later five changed Rust files. Remote merge-source CI remains separate.
+
+Actual final-source Session/FFmpeg/CPU ONNX inference consumes exactly the sRGB
+bytes accepted by the independent native colour-staging probe. The VFR request
+uses requested 76,667 us and actual decoded 50,000 us. The pinned official
+PyTorch reference has normalized maximum error 7.78702453293e-07 and mean error
+1.20205951624e-07, within the unchanged bounds 2e-4 and 2e-5. The live missing-index
+failure, explicit repaired recovery, stale-result invalidation and scratch
+cleanup pass. With MOTION_LOG unset, Info start precedes failure, Error reaches
+both file and stderr, and product stdout stays empty.
+
+The separate final-source staging/rejection checks perform no inference: known
+BT.709 tags are independently verified, native matrix maximum byte error is 3
+(bound 4), sRGB reference error is 6 (bound 13), the signal-transfer LUT matches
+exactly, and unknown metadata is rejected before backend entry. Those controlled
+backend probes are distinguished from the actual ONNX execution above.
+
+Evidence: [combined maintained-main regression and final-source native depth](data/model-depth-integration-06d1c716.zip),
+SHA-256 `8359eddf745c936ce406ffbd48cbd5c498f4a267db0ebfc8ce407495ad8e3ddd`; 3,774,343 bytes,
+192 entries, every entry read back and verified. The archive
+contains sources, raw logs, receipts and authored fixtures; no model weights,
+third-party source trees, native runtime binaries or executables are bundled.
+
+
+Model layer transforms/keyframes, save/freeze/export and source budgets are
+accepted for this stage. The already delivered model movie is not rerendered.
+Shared mesh/plane depth, imported animation/skin/morph/camera and remaining
+composition acceptance stay open under #87.
