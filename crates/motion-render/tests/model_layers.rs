@@ -210,6 +210,9 @@ fn model_materials_obey_shared_source_budget_and_mesh_draws_are_reported() {
 }
 
 fn animated_project(root: &std::path::Path) -> Project {
+    animated_project_kind(root, false)
+}
+fn animated_project_kind(root: &std::path::Path, morph: bool) -> Project {
     struct Bytes(Vec<u8>);
     impl AssetResolver for Bytes {
         fn read(&mut self, path: &str, _: ResourceKind, limit: usize) -> io::Result<Vec<u8>> {
@@ -218,14 +221,14 @@ fn animated_project(root: &std::path::Path) -> Project {
             Ok(self.0.clone())
         }
     }
-    let data: Vec<u8> = [
+    let mut data: Vec<u8> = [
         -0.8f32, -0.6, 0., 0.7, -0.6, 0., -0.4, 0.8, 0., 0., 2., 0., 0., 0., 0.5, 0., 0., 1., 1.,
         1., 0., 0., 0.,
     ]
     .into_iter()
     .flat_map(f32::to_le_bytes)
     .collect();
-    let source = serde_json::to_vec(&serde_json::json!({"asset":{"version":"2.0"},
+    let mut document = serde_json::json!({"asset":{"version":"2.0"},
         "buffers":[{"uri":"owned.bin","byteLength":data.len()}],
         "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36},
             {"buffer":0,"byteOffset":36,"byteLength":8},{"buffer":0,"byteOffset":44,"byteLength":24},
@@ -238,7 +241,33 @@ fn animated_project(root: &std::path::Path) -> Project {
         "meshes":[{"primitives":[{"attributes":{"POSITION":0},"material":0}]}],
         "nodes":[{"mesh":0}],"scenes":[{"nodes":[0]}],"scene":0,
         "animations":[{"name":"Translate","channels":[{"sampler":0,"target":{"node":0,"path":"translation"}}],"samplers":[{"input":1,"output":2}]},
-            {"name":"Hide","channels":[{"sampler":0,"target":{"node":0,"path":"scale"}}],"samplers":[{"input":1,"output":3}]}]})).unwrap();
+            {"name":"Hide","channels":[{"sampler":0,"target":{"node":0,"path":"scale"}}],"samplers":[{"input":1,"output":3}]}]});
+    if morph {
+        data[44..52].copy_from_slice(
+            &[0.0f32, 1.]
+                .into_iter()
+                .flat_map(f32::to_le_bytes)
+                .collect::<Vec<_>>(),
+        );
+        let offset = data.len();
+        data.extend(
+            [0.5f32, 0., 0., 0.5, 0., 0., 0.5, 0., 0.]
+                .into_iter()
+                .flat_map(f32::to_le_bytes),
+        );
+        document["buffers"][0]["byteLength"] = serde_json::json!(data.len());
+        document["bufferViews"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({"buffer":0,"byteOffset":offset,"byteLength":36}));
+        document["accessors"].as_array_mut().unwrap().push(serde_json::json!({"bufferView":4,"componentType":5126,"count":3,"type":"VEC3","min":[0.5,0,0],"max":[0.5,0,0]}));
+        document["accessors"][2]["type"] = serde_json::json!("SCALAR");
+        document["meshes"][0]["primitives"][0]["targets"] = serde_json::json!([{"POSITION":4}]);
+        document["meshes"][0]["weights"] = serde_json::json!([0.]);
+        document["animations"][0]["name"] = serde_json::json!("Displace");
+        document["animations"][0]["channels"][0]["target"]["path"] = serde_json::json!("weights");
+    }
+    let source = serde_json::to_vec(&document).unwrap();
     let scene = motion_scene::import(
         ImportContext {
             request: 8708,
@@ -367,4 +396,32 @@ fn imported_gltf_clips_render_from_saved_owned_data_and_reject_missing_selection
     );
     renderer.configure_assets(&project, root.path()).unwrap();
     assert_eq!(first, render(&mut renderer, &project, 0.));
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn imported_morph_weights_render_from_saved_owned_project_without_reopening_the_asset() {
+    let root = tempfile::tempdir().unwrap();
+    let project = animated_project_kind(root.path(), true);
+    motion_core::storage::save(root.path(), &project).unwrap();
+    let reopened = motion_core::storage::load(root.path()).unwrap();
+    assert_eq!(reopened, project);
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&reopened, root.path()).unwrap();
+    std::fs::remove_file(root.path().join(&reopened.model_assets[0].path)).unwrap();
+    let first = render(&mut renderer, &reopened, 0.);
+    let last = render(&mut renderer, &reopened, 60.);
+    assert!(
+        (center(&last) - center(&first) - 40.).abs() < 0.25,
+        "saved layer moves 30 pixels; owned morph displacement adds 10 pixels"
+    );
+    assert_eq!(
+        first,
+        render(&mut renderer, &reopened, 0.),
+        "seeking backward must restore the first authored morph sample"
+    );
+    assert_eq!(
+        reopened, project,
+        "rendering must not mutate saved model animation or layer keys"
+    );
 }

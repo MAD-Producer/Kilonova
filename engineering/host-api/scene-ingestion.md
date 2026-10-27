@@ -29,7 +29,7 @@ decoding. This is not image validity, pixel-budget, texture upload or PBR
 acceptance. Color/emissive texture transfers are sRGB; the other texture slots
 and vertex multipliers are linear. No material shader is claimed here.
 
-Skins, morphs, nontriangle topology, unsupported attribute semantics and required
+Skins, nontriangle topology, unsupported attribute semantics and required
 extensions produce explicit `Unsupported` errors. Core transform clips and
 cameras follow the supported profiles below. An
 optional extension uses its core fallback and appears in the scene's bounded
@@ -267,6 +267,29 @@ is no implicit multisample-depth resolve or AI-depth calibration.
 
 Project model layers still rasterize separately. The shared native pass does
 not complete mixed mesh/plane/BSP, nested/matte/effect composition or calibrated
-AI depth. Skin/morph support and camera-selection UI also remain outside this
+AI depth. Skin support and camera-selection UI also remain outside this
 checkpoint. Standalone native acceptance is distinguished from the separate
 saved-project/editor/export evidence; #87 remains open.
+
+
+## Morph targets and weight animation
+
+`Primitive::morph_attributes` evaluates owned POSITION/NORMAL/TANGENT deltas
+before transforms. Mesh defaults and per-node overrides remain independent;
+`mesh_instances_at` borrows static defaults and owns animated weight samples.
+Weight channels use flattened SCALAR groups for STEP/LINEAR/CUBICSPLINE without
+clamping or probability normalization. Weight-only animation preserves authored
+node matrices while matrix-authored TRS channels remain invalid.
+
+The native consumer admits immutable per-encode vertex buffers, preserving
+pending frames and abandonment accounting. Displaced bounds determine global
+blend order; tangent handedness and actual projected depth remain intact.
+Directions normalize before interpolation; canceled shading directions and
+finite-range overflow fail explicitly. Evaluation is currently CPU-side with
+per-encode uploads, without a fixed frame-rate claim. Saved project layers
+consume the same owned samples without reopening source assets during frames.
+
+[The morph ledger](../validation/gltf-morph-current.md) records 121 targeted
+passes, strict scene lint, final source identities and remaining whole-workspace
+and cross-platform gates. Skinning, mixed project composition, calibrated AI
+depth and camera-selection UI remain unfinished; #87 is open.

@@ -150,6 +150,23 @@ impl Reader<'_> {
         self.float_data(id, !rotation, false, rotation, budget)
     }
 
+    pub fn animation_weight_floats(&self, id: usize, budget: &mut Budget) -> Result<Vec<[f32; 1]>> {
+        let a = self.accessor(id, "SCALAR", false)?;
+        if a.buffer_view
+            .and_then(|v| self.root.buffer_views.get(v))
+            .is_some_and(|v| v.target.is_some())
+        {
+            return Err(invalid(
+                "animation",
+                id,
+                "morph animation buffer cannot have a GPU target",
+            ));
+        }
+        // Scalar count includes every target and tangent. The accessor index
+        // bound and retained-byte budget apply before allocation, unlike key count.
+        self.float_data(id, false, false, true, budget)
+    }
+
     fn float_data<const N: usize>(
         &self,
         id: usize,
