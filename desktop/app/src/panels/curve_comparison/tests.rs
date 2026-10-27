@@ -5,6 +5,12 @@ use motion_ui::input::Modifiers;
 mod error_tests;
 mod ranges;
 
+pub(in crate::panels) fn collect_targets(p: &mut Panels, state: &Value, targets: &[KeyframeTarget]) {
+    p.timeline.comparison.sync(state, p.locale);
+    p.timeline.comparison.add(state, p.locale, targets).unwrap();
+    p.timeline.comparison.enabled = true;
+}
+
 fn property(property: Property) -> KeyframeTarget {
     KeyframeTarget::Property {
         object: 7,

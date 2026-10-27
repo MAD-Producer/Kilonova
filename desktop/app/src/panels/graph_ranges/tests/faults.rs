@@ -50,12 +50,7 @@ impl Graph {
             }
             Self::Effect => effect_timeline::project_key(&mut p, state, 7, 1, "speed", 10),
             Self::Comparison => {
-                p.timeline.comparison.sync(state, Locale::En);
-                p.timeline
-                    .comparison
-                    .add(state, Locale::En, &[self.target()])
-                    .unwrap();
-                p.timeline.comparison.enabled = true;
+                curve_comparison::tests::collect_targets(&mut p, state, &[self.target()]);
             }
         }
         p.selected_keys
