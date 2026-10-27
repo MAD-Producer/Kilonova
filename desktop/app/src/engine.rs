@@ -40,6 +40,8 @@ mod parent_policy_tests;
 #[cfg(test)]
 mod animation_action_tests;
 #[cfg(test)]
+mod project_library_tests;
+#[cfg(test)]
 mod keyframe_timing_tests;
 #[cfg(test)]
 mod text_style_tests;

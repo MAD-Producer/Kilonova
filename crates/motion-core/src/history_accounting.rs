@@ -33,6 +33,7 @@ pub(crate) fn serialized_visit_bytes() -> usize {
 #[derive(Clone, Default)]
 pub(crate) struct Changes {
     all: bool,
+    library: bool,
     nodes: HashMap<String, NodeChanges>,
 }
 #[derive(Clone, Default)]
@@ -51,6 +52,10 @@ impl Changes {
                 command,
             } => {
                 self.note(command, composition);
+                return;
+            }
+            Command::ProjectLibrary { .. } => {
+                self.library = true;
                 return;
             }
             Command::SetVector { object, .. }
@@ -114,6 +119,7 @@ impl Changes {
             self.nodes.clear();
             return;
         }
+        self.library |= other.library;
         for (id, changes) in other.nodes {
             let node = self.nodes.entry(id).or_default();
             node.camera |= changes.camera;
@@ -209,6 +215,7 @@ impl ProjectSize {
             );
         }
         let globals = HashMap::from([
+            ("library", counted(&project.library)),
             ("assets", counted(&project.assets)),
             ("model_assets", counted(&project.model_assets)),
             ("fonts", counted(&project.fonts)),
@@ -232,6 +239,9 @@ impl ProjectSize {
             return Self::new(project);
         }
         let mut next = self.clone();
+        if changes.library {
+            Arc::make_mut(&mut next.globals).insert("library", counted(&project.library));
+        }
         if !changes.nodes.is_empty() {
             let nodes = Arc::make_mut(&mut next.nodes);
             for (id, changed) in &changes.nodes {
