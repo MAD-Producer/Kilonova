@@ -217,16 +217,16 @@ impl Controls {
         self.menu.is_some() && owned
     }
 
-    fn entry(&mut self, id: &Identity) -> &mut Entry {
+    fn entry(&mut self, id: &Identity) -> Option<&mut Entry> {
         let index = if let Some(index) = self.entries.iter().position(|entry| entry.id == *id) {
             index
         } else {
             if self.entries.len() >= MAX_VIEWS {
-                let index = self
-                    .entries
-                    .iter()
-                    .position(|entry| self.menu.as_ref().is_none_or(|m| m.id != entry.id))
-                    .unwrap_or(0);
+                let index = self.entries.iter().position(|entry| {
+                    !entry.x.locked()
+                        && !entry.y.locked()
+                        && self.menu.as_ref().is_none_or(|m| m.id != entry.id)
+                })?;
                 self.entries.remove(index);
             }
             self.entries.push(Entry {
@@ -236,7 +236,7 @@ impl Controls {
             });
             self.entries.len() - 1
         };
-        &mut self.entries[index]
+        Some(&mut self.entries[index])
     }
 
     pub(super) fn displayed(&mut self, state: &Value, id: &Identity, automatic: Bounds) -> Bounds {
@@ -252,7 +252,9 @@ impl Controls {
         }) {
             self.menu = None;
         }
-        let entry = self.entry(id);
+        let Some(entry) = self.entry(id) else {
+            return automatic;
+        };
         Bounds {
             x: if id.surface.time_axis() {
                 automatic.x
@@ -270,7 +272,9 @@ impl Controls {
         factor: f64,
         anchor: f64,
     ) -> bool {
-        let entry = self.entry(id);
+        let Some(entry) = self.entry(id) else {
+            return false;
+        };
         let mut next = entry.y;
         if !next.zoom(factor, anchor, automatic) || !renderable_y(next.range(automatic)) {
             return false;
@@ -280,7 +284,7 @@ impl Controls {
     }
 
     pub(super) fn locked_y(&mut self, id: &Identity) -> bool {
-        self.entry(id).y.locked()
+        self.entry(id).is_some_and(|entry| entry.y.locked())
     }
 
     pub(super) fn open(
@@ -300,7 +304,7 @@ impl Controls {
         if !self.ready() {
             return;
         }
-        self.entry(&id);
+        let _ = self.entry(&id);
         let options = Options {
             all: options.all.filter(|bounds| renderable_y(bounds.y)),
             selection: options.selection.filter(|bounds| renderable_y(bounds.y)),
@@ -346,9 +350,8 @@ impl Controls {
         if menu.source != KeyframeSource::of(state) {
             return;
         }
-        let Some(index) = self.entries.iter().position(|entry| entry.id == menu.id) else {
-            return;
-        };
+        let index = self.entries.iter().position(|entry| entry.id == menu.id);
+        let available = index.is_some();
         let styles = list.styles();
         let pad = styles.metric("padding.panel", 8.);
         let row = styles.metric("row.height", 22.);
@@ -387,15 +390,15 @@ impl Controls {
         let lock_x = if time {
             self.time_locked
         } else {
-            self.entries[index].x.locked()
+            index.is_some_and(|index| self.entries[index].x.locked())
         };
-        let lock_y = self.entries[index].y.locked();
+        let lock_y = index.is_some_and(|index| self.entries[index].y.locked());
         let enabled = [
-            (!lock_x || !lock_y) && menu.options.all.is_some(),
-            (!lock_x || !lock_y) && menu.options.selection.is_some(),
-            !lock_x || !lock_y,
-            true,
-            true,
+            available && (!lock_x || !lock_y) && menu.options.all.is_some(),
+            available && (!lock_x || !lock_y) && menu.options.selection.is_some(),
+            available && (!lock_x || !lock_y),
+            available,
+            available,
         ];
         if !enabled[menu.focus] {
             menu.focus = enabled.iter().position(|enabled| *enabled).unwrap_or(3);
@@ -497,7 +500,13 @@ impl Controls {
                 operation = Some(item);
             }
         }
-        let hint = if menu.options.all.is_none() {
+        let hint = if !available {
+            if zh {
+                "锁定范围已满，请先解锁其他视图"
+            } else {
+                "Unlock another view to edit ranges"
+            }
+        } else if menu.options.all.is_none() {
             if zh {
                 "曲线范围不可用"
             } else {
@@ -523,6 +532,10 @@ impl Controls {
             hint,
             true,
         );
+        let Some(index) = index else {
+            self.menu = Some(menu);
+            return;
+        };
         match operation {
             Some(item @ 0..=1) => {
                 let fitted = if item == 0 {

@@ -1,8 +1,8 @@
 use super::*;
 use motion_core::{Engine, Keyframe, Layer, Project};
 use motion_ui::input::Modifiers;
-mod effect;
 mod comparison;
+mod effect;
 
 fn fixture() -> (Engine, Value, Panels) {
     let mut project = Project::new(640, 480, 30, 120).unwrap();
@@ -490,4 +490,90 @@ fn actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key(
         (engine.revision(), engine.can_undo(), engine.can_redo()),
         history
     );
+}
+
+#[test]
+fn locked_ranges_survive_scrolling_through_more_views_than_the_cache_limit() {
+    let (_, state, mut p) = fixture();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    open(&mut p, &state, None, options());
+    draw(&mut p, &state, &Input::default(), &mut atlas);
+    choose(&mut p, &state, 4, &mut atlas);
+    p.timeline.graph_ranges.cancel();
+    for n in 0..MAX_VIEWS * 3 {
+        let mut next = id();
+        next.unit = format!("other-unit-{n}");
+        p.timeline
+            .graph_ranges
+            .displayed(&state, &next, bounds([0., 120.], [-1000., 1000.]));
+    }
+    assert_eq!(p.timeline.graph_ranges.entries.len(), MAX_VIEWS);
+    assert!(p.timeline.graph_ranges.locked_y(&id()));
+    assert_eq!(
+        p.timeline
+            .graph_ranges
+            .displayed(&state, &id(), bounds([0., 120.], [-1000., 1000.]))
+            .y,
+        options().displayed.y
+    );
+}
+
+#[test]
+fn a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_view_is_unlocked() {
+    let (_, state, mut p) = fixture();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    prepare(&mut p, &state, None, &Input::default());
+    for n in 0..MAX_VIEWS {
+        let mut next = id();
+        next.unit = format!("locked-unit-{n}");
+        p.timeline
+            .graph_ranges
+            .displayed(&state, &next, options().displayed);
+        p.timeline
+            .graph_ranges
+            .entry(&next)
+            .unwrap()
+            .y
+            .lock(true, options().displayed.y);
+    }
+    open(&mut p, &state, None, options());
+    draw(&mut p, &state, &Input::default(), &mut atlas);
+    assert!(p.timeline.graph_ranges.editing());
+    assert!(!p
+        .timeline
+        .graph_ranges
+        .entries
+        .iter()
+        .any(|entry| entry.id == id()));
+    choose(&mut p, &state, 4, &mut atlas);
+    assert!(p.timeline.graph_ranges.editing());
+    assert_eq!(p.timeline.graph_ranges.entries.len(), MAX_VIEWS);
+    assert!(p
+        .timeline
+        .graph_ranges
+        .entries
+        .iter()
+        .all(|entry| entry.y.locked()));
+    assert!(!p
+        .timeline
+        .graph_ranges
+        .navigate_y(&id(), options().displayed.y, 2., 50.));
+    let first = p.timeline.graph_ranges.entries[0].id.clone();
+    p.timeline
+        .graph_ranges
+        .entry(&first)
+        .unwrap()
+        .y
+        .lock(false, options().displayed.y);
+    open(&mut p, &state, None, options());
+    draw(&mut p, &state, &Input::default(), &mut atlas);
+    choose(&mut p, &state, 4, &mut atlas);
+    assert!(p.timeline.graph_ranges.locked_y(&id()));
+    assert_eq!(p.timeline.graph_ranges.entries.len(), MAX_VIEWS);
+    assert!(p
+        .timeline
+        .graph_ranges
+        .entries
+        .iter()
+        .all(|entry| entry.y.locked()));
 }

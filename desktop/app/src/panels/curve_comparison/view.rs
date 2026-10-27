@@ -76,7 +76,8 @@ fn fitted(
     let mut high = f64::NEG_INFINITY;
     for index in indices {
         let entry = &controls.entries[*index];
-        let data = entry.data.as_ref().map_err(|_| Failure::InvalidGeometry)?;
+        let data = entry.data.as_ref().map_err(|cause|Failure::Sample {frame:interval[0],
+            cause:motion_core::Error::Invalid(format!("comparison fit channel unavailable: {cause}"))})?;
         let bounds = data.fitted(
             interval,
             entry.channel.component,
