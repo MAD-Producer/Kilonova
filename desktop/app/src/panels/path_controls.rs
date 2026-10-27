@@ -666,6 +666,12 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) -> bool {
+        self.draw_with_handles(list,atlas,clip,view,state,selected,input,locale,true,out)
+    }
+    pub(super) fn draw_with_handles(
+        &mut self, list:&mut PaintList, atlas:&mut TextAtlas, clip:Rect, view:Rect,
+        state:&Value, selected:Option<u64>, input:&Input, locale:Locale, handles_visible:bool, out:&mut Vec<Action>,
+    ) -> bool {
         let styles = list.styles();
         let colors = styles.colors();
 
@@ -735,11 +741,15 @@ impl Controls {
             self.selected = None;
             self.selected_item = None;
         }
+        // Keep source/selection validation, but never pick hidden authored grips.
+        // The pen's own local draft remains available for new authoring.
+        let sampled = if handles_visible {sampled} else {vec![]};
         let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
         let context_neutral = Input { mouse: input.mouse, ..Default::default() };
         let input = if context_owned { &context_neutral } else { input };
         let pen_owned = self.pen_tool_input(clip, &sampled, projection.as_ref(), offset,
-            target.as_ref(), state, selected, input, locale, out);
+            target.as_ref(), state, selected, input, locale, out)
+            || !handles_visible && self.draft.is_none() && input.modifiers.control;
         if self.focus && self.parameter.is_none() && !input.composing {
             for (key, mods) in &input.keys {
                 if mods.control && *key == Key::S {
@@ -897,7 +907,7 @@ impl Controls {
             } else {
                 self.selected = None;
                 self.selected_item = None;
-                let handled = self.draft.is_none() && target.as_ref().is_some_and(|l| !l.locked)
+                let handled = handles_visible && self.draft.is_none() && target.as_ref().is_some_and(|l| !l.locked)
                     && projection.as_ref().is_some_and(|base| self.point_selection.blank_press(
                         &sampled,base,offset,point,input,state["frame"].as_f64().unwrap_or(0.).floor() as u32,
                         selected.unwrap_or(0)));
@@ -929,7 +939,7 @@ impl Controls {
                     }
                     if let Some(d) = self.draft.as_mut() {
                         if let Some(local) = d.projection.local(point) {
-                            let closes = d.path.nodes.len() >= 3
+                            let closes = handles_visible && d.path.nodes.len() >= 3
                                 && d.path
                                     .nodes
                                     .first()
@@ -1133,6 +1143,7 @@ impl Controls {
         if let Some(d) = &self.draft {
             let draft_color=list.styles().color("path.draft");
             let nodes: Vec<_> = d.path.nodes.iter().map(|n| n.geometry.value).collect();
+            if handles_visible {
             paint_path(
                 list,
                 &d.projection,
@@ -1144,6 +1155,9 @@ impl Controls {
                 draft_color,
                 None,
             );
+            } else {
+                paint_path_curve(list,&d.projection,&nodes,false,d.offset,draft_color);
+            }
         }
         let padding = styles.metric("padding.panel", 8.);
         label(
@@ -1641,27 +1655,7 @@ fn paint_path(
     hovered: Option<(usize, Option<usize>)>,
 ) {
     let colors = list.styles().colors();
-    let edges = nodes.len().saturating_sub(1) + usize::from(closed && nodes.len() > 2);
-    for i in 0..edges {
-        let a = nodes[i];
-        let b = nodes[(i + 1) % nodes.len()];
-        let mut points = vec![];
-        for step in 0..=20 {
-            let t = step as f32 / 20.;
-            let u = 1. - t;
-            let xy = std::array::from_fn(|axis| {
-                u * u * u * a[axis]
-                    + 3. * u * u * t * (a[axis] + a[axis + 4])
-                    + 3. * u * t * t * (b[axis] + b[axis + 2])
-                    + t * t * t * b[axis]
-                    - offset[axis]
-            });
-            if let Some(p) = projection.screen(xy) {
-                points.push(p);
-            }
-        }
-        paint::line(list, points, color);
-    }
+    paint_path_curve(list,projection,nodes,closed,offset,color);
     for (i, g) in nodes.iter().enumerate() {
         let Some(p) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
             continue;
@@ -1697,6 +1691,30 @@ fn paint_path(
     }
 }
 
+fn paint_path_curve(list:&mut PaintList,projection:&Projection,nodes:&[[f32;6]],closed:bool,offset:[f32;2],color:Color) {
+    let edges = nodes.len().saturating_sub(1) + usize::from(closed && nodes.len() > 2);
+    for i in 0..edges {
+        let a = nodes[i];
+        let b = nodes[(i + 1) % nodes.len()];
+        let mut points = vec![];
+        for step in 0..=20 {
+            let t = step as f32 / 20.;
+            let u = 1. - t;
+            let xy = std::array::from_fn(|axis| {
+                u * u * u * a[axis]
+                    + 3. * u * u * t * (a[axis] + a[axis + 4])
+                    + 3. * u * t * t * (b[axis] + b[axis + 2])
+                    + t * t * t * b[axis]
+                    - offset[axis]
+            });
+            if let Some(p) = projection.screen(xy) {
+                points.push(p);
+            }
+        }
+        paint::line(list, points, color);
+    }
+}
+
 #[cfg(test)]
 mod pen_tests;
 #[cfg(test)]
@@ -1705,6 +1723,8 @@ mod drag_lifecycle_tests;
 mod resize_tests;
 #[cfg(test)]
 mod handle_visibility_tests;
+#[cfg(test)]
+mod hidden_handles_tests;
 
 #[cfg(test)]
 mod hover_tests {

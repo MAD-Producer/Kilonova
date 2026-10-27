@@ -173,14 +173,33 @@ All drawing, ruler labels, hit testing and snapping share the viewer's existing
 
 The compact viewer footer opens a window-owned overlay menu with explicit
 checkboxes. At narrow widths optional footer readouts yield to complete controls.
-Rulers occupy an overlay strip without changing the preview mapping. Pull from
-the left ruler for a vertical guide or the top ruler for a horizontal guide.
+Rulers occupy an overlay strip without changing the preview mapping.
+Both axes have composition-pixel captions; ruler increments adapt from unit
+spacing independently of the fixed composition grid. Use the ruler width,
+height, base and label-spacing tokens for drawing and the same hit strips.
+
+Pull from the left ruler for a vertical guide or the top ruler for a horizontal guide.
 Drag a guide back to either ruler to remove it; releasing outside the viewer,
 Escape, focus loss, a changed document/revision/view, or input in another window
 cancels its local preview. Release commits one version-checked guide-list edit.
-Guide lock and visibility are ephemeral viewer preferences. Ctrl+Shift+H toggles
-editing handles in Viewer scope, preserving project data and rendered output;
+Guide lock and visibility are ephemeral viewer preferences.
+When visible guides or the grid provide targets, Move snaps the layer anchor and
+Scale snaps the held grip using `viewer.overlay.snap.distance` in logical pixels.
+Alt bypasses snapping and retains its existing scale-proportion meaning. Uniform
+scaling preserves its constraint; unreachable targets do not snap. Hidden guides
+do not contribute targets, and no overlays means the original transform behavior.
+Existing transform grips retain their full hit tolerance and take priority where
+a guide crosses them. Canvas guide dragging belongs to the selection tool;
+other tools keep their canvas input. Ruler strips can begin a guide without
+changing the active tool.
+
+Ctrl+Shift+H toggles editing handles in Viewer scope, preserving project data and rendered output;
 hidden handles do not accept new gestures.
+Pen and mask authoring remains available with handles hidden: show the local
+draft curve, keep authored grips out of picking, and close drafts explicitly
+with the existing keyboard command. An active gesture retains input until it
+finishes or cancels; handle toggles defer while it is active. Ruler strips clip
+editing decoration and tool hit regions while preserving the full preview mapping.
 
 ## 5. Consistent panel visual grammar
 
@@ -365,7 +384,7 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
   1. **segment trim** — targets: `0`/`total`, playhead, other layers' in/out/keyframe/reference, work-area bounds; excludes the dragged layer
   2. **segment move** — excludes the moved layer; either edge can snap while the opposite edge preserves `duration`
   3. **ruler drag** — all layers, excludes the current playhead, targets within `[0, total-1]`
-- The guide is currently 1px and hardcoded `Color::rgb(255,210,60)`, **not** a `dark.json` token. Node canvas, graph box, transform handles, and numeric input do **not** inherit equivalent snapping.
+- The timeline guide is currently 1px and hardcoded `Color::rgb(255,210,60)`, **not** a `dark.json` token. Node canvas, graph box and numeric input do **not** inherit equivalent snapping. Viewer transforms use the separate overlay targets and token described in §4.2.
 
 ---
 

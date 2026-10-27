@@ -6,6 +6,8 @@ use motion_core::{Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};
 use std::sync::Arc;
 
 const MAX_GRID_LINES: usize = 2048;
+mod snapping;
+pub(super) use snapping::Snapping;
 
 #[derive(Clone, Copy)]
 pub(super) struct Visibility {
@@ -38,6 +40,12 @@ pub(crate) struct Controls {
     cache: Option<(KeyframeSource, Option<Arc<Vec<Guide>>>)>,
     snapshot_fault: Option<String>,
     invalid_attempts: u8,
+    notice: Option<Notice>,
+}
+enum Notice {
+    Unavailable,
+    Limit,
+    ReadOnly,
 }
 struct Menu {
     window: Option<Panel>,
@@ -59,13 +67,13 @@ fn axis_index(axis: GuideAxis) -> usize {
     usize::from(axis == GuideAxis::Y)
 }
 fn identified(state: &Value) -> bool {
-    state["root"].as_str().is_some()
+    state["root"].as_str().is_some_and(|v| !v.is_empty())
         && state["document_generation"].as_u64().is_some()
         && state["revision"].as_u64().is_some()
         && state["composition"]
             .as_str()
             .or_else(|| state["project"]["composition_id"].as_str())
-            .is_some()
+            .is_some_and(|v| !v.is_empty())
 }
 fn guides(state: &Value) -> Result<Vec<Guide>, String> {
     let Some(value) = state["project"].get("guides") else {
@@ -178,16 +186,31 @@ pub(super) fn snap_axis(
     grid: Option<f64>,
     excluded: Option<u64>,
 ) -> f64 {
+    nearest_axis(
+        position, axis, guides, canvas, mapping, tolerance, grid, excluded,
+    )
+    .unwrap_or(position)
+}
+fn nearest_axis(
+    position: f64,
+    axis: GuideAxis,
+    guides: &[Guide],
+    canvas: [f64; 2],
+    mapping: Mapping,
+    tolerance: f64,
+    grid: Option<f64>,
+    excluded: Option<u64>,
+) -> Option<f64> {
     if !position.is_finite() || !tolerance.is_finite() || tolerance < 0. {
-        return position;
+        return None;
     }
     let index = axis_index(axis);
-    let mut best = position;
+    let mut best = None;
     let mut distance = tolerance / mapping.scale;
     let mut consider = |candidate: f64| {
         let delta = (candidate - position).abs();
         if candidate.is_finite() && delta <= distance {
-            best = candidate;
+            best = Some(candidate);
             distance = delta;
         }
     };
@@ -207,6 +230,60 @@ pub(super) fn snap_axis(
 }
 
 impl Controls {
+    pub(super) fn canvas(&self, viewport: Rect, styles: &motion_ui::style::StyleSheet) -> Rect {
+        if !self.visibility.rulers {
+            return viewport;
+        }
+        Rect {
+            min: [
+                (viewport.min[0] + styles.metric("viewer.overlay.ruler.width", 48.).max(0.))
+                    .min(viewport.max[0]),
+                (viewport.min[1] + styles.metric("viewer.overlay.ruler.height", 22.).max(0.))
+                    .min(viewport.max[1]),
+            ],
+            max: viewport.max,
+        }
+    }
+    pub(super) fn ruler_hit(
+        &self,
+        viewport: Rect,
+        point: [f32; 2],
+        styles: &motion_ui::style::StyleSheet,
+    ) -> bool {
+        let [top, left] = ruler_rects(viewport, styles);
+        self.visibility.rulers
+            && viewport.contains(point)
+            && (top.contains(point) || left.contains(point))
+    }
+    pub(super) fn take_notice(&mut self, locale: Locale) -> Option<String> {
+        let zh = locale == Locale::Zh;
+        Some(
+            match self.notice.take()? {
+                Notice::Unavailable => {
+                    if zh {
+                        "参考线数据暂不可用，请重新打开工程后重试"
+                    } else {
+                        "Guides are unavailable; reopen the project before editing"
+                    }
+                }
+                Notice::Limit => {
+                    if zh {
+                        "每个合成最多支持 512 条参考线"
+                    } else {
+                        "A composition supports at most 512 guides"
+                    }
+                }
+                Notice::ReadOnly => {
+                    if zh {
+                        "请回到合成视图后编辑参考线"
+                    } else {
+                        "Return to the composition view to edit guides"
+                    }
+                }
+            }
+            .into(),
+        )
+    }
     pub(super) fn editing(&self) -> bool {
         self.drag.is_some() || self.menu.is_some()
     }
@@ -328,21 +405,13 @@ impl Controls {
         out: &mut Vec<Action>,
     ) -> bool {
         let styles = list.styles();
-        let ruler = styles.metric("viewer.overlay.ruler.height", 22.);
-        let top = Rect::new(
-            viewport.min[0] + ruler,
-            viewport.min[1],
-            (viewport.width() - ruler).max(0.),
-            ruler,
-        );
-        let left = Rect::new(
-            viewport.min[0],
-            viewport.min[1] + ruler,
-            ruler,
-            (viewport.height() - ruler).max(0.),
-        );
+        let [top, left] = ruler_rects(viewport, &styles);
         let rulers_visible = self.visibility.rulers;
-        let in_ruler = |point| rulers_visible && (top.contains(point) || left.contains(point));
+        let in_ruler = |point| {
+            rulers_visible
+                && viewport.contains(point)
+                && (top.contains(point) || left.contains(point))
+        };
         let before = self.snapshot(state);
         if identified(state) && before.is_some() {
             self.invalid_attempts = 0;
@@ -397,7 +466,9 @@ impl Controls {
                 if creating || hit.is_some() {
                     let began = std::time::Instant::now();
                     consumed = true;
-                    if identified(state) && before.is_some() && state["observing"] != true {
+                    if state["observing"] == true {
+                        self.notice = Some(Notice::ReadOnly);
+                    } else if identified(state) && before.is_some() {
                         let before = before.clone().unwrap_or_default();
                         let guide = if creating && before.len() < MAX_GUIDES {
                             let axis = if left.contains(point) {
@@ -411,6 +482,7 @@ impl Controls {
                                 position: mapping.local(point)[axis_index(axis)],
                             })
                         } else if creating {
+                            self.notice = Some(Notice::Limit);
                             None
                         } else {
                             hit
@@ -430,6 +502,7 @@ impl Controls {
                         }
                     } else {
                         self.invalid(state, began.elapsed());
+                        self.notice = Some(Notice::Unavailable);
                     }
                 }
             }
@@ -545,8 +618,14 @@ impl Controls {
             .min(bounds.width());
         let height = row * 10. + padding * 2.;
         let x = menu.point[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
-        let y = (menu.point[1] - height)
-            .clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1]));
+        let top = (bounds.min[1]
+            + if self.window.is_some() {
+                styles.metric("viewer.floating.top", 30.)
+            } else {
+                CHROME_HEIGHT
+            })
+        .min(bounds.max[1]);
+        let y = (menu.point[1] - height).clamp(top, (bounds.max[1] - height).max(top));
         let card = Rect::new(x, y, width, height);
         let opened = menu.opened;
         menu.opened = false;
@@ -636,7 +715,15 @@ impl Controls {
                         s.len() < MAX_GUIDES
                     }
                 });
-            if motion_ui::ui::button(list, atlas, rect, label, events, enabled).clicked {
+            let caption = if index == 2 {
+                snapshot.as_ref().map_or_else(
+                    || label.to_owned(),
+                    |guides| format!("{label} ({}/{MAX_GUIDES})", guides.len()),
+                )
+            } else {
+                label.to_owned()
+            };
+            if motion_ui::ui::button(list, atlas, rect, &caption, events, enabled).clicked {
                 let mut after = snapshot.as_deref().cloned().unwrap_or_default();
                 if index == 2 {
                     after.clear();
@@ -667,11 +754,19 @@ impl Controls {
                 }
             }
         }
-        let hint = format!(
-            "{}{}",
-            if zh { "手柄：" } else { "Handles: " },
-            shortcut_hint
-        );
+        let hint = if snapshot.is_none() {
+            if zh {
+                "参考线数据不可用".into()
+            } else {
+                "Guides unavailable".into()
+            }
+        } else {
+            format!(
+                "{}{}",
+                if zh { "手柄：" } else { "Handles: " },
+                shortcut_hint
+            )
+        };
         label(
             list,
             atlas,
@@ -752,6 +847,7 @@ impl Controls {
         }
         if self.visibility.rulers {
             let ruler = styles.metric("viewer.overlay.ruler.height", 22.);
+            let ruler_width = styles.metric("viewer.overlay.ruler.width", 48.);
             let tick = styles.metric("viewer.overlay.ruler.tick", 6.);
             paint::rect(
                 &mut layer,
@@ -760,40 +856,87 @@ impl Controls {
             );
             paint::rect(
                 &mut layer,
-                Rect::new(viewport.min[0], viewport.min[1], ruler, viewport.height()),
+                Rect::new(
+                    viewport.min[0],
+                    viewport.min[1],
+                    ruler_width,
+                    viewport.height(),
+                ),
                 styles.color("panel"),
             );
-            if let Some(step) = step {
+            let base = styles.metric("viewer.overlay.ruler.base", 1.) as f64;
+            let ruler_step = grid_step(
+                mapping,
+                base,
+                styles.metric("viewer.overlay.grid.min_spacing", 24.) as f64,
+            );
+            let label_step = grid_step(
+                mapping,
+                base,
+                styles.metric("viewer.overlay.ruler.label.spacing", 64.) as f64,
+            );
+            if let (Some(step), Some(label_step)) = (ruler_step, label_step) {
                 for axis in 0..2 {
+                    let mut labels = list.child();
                     for value in ticks(mapping, viewport, axis, step) {
                         let point =
                             mapping.screen(if axis == 0 { [value, 0.] } else { [0., value] });
                         let cross = 1 - axis;
                         let mut a = point;
                         let mut b = point;
-                        a[cross] = viewport.min[cross] + ruler - tick;
-                        b[cross] = viewport.min[cross] + ruler;
+                        let extent = if axis == 0 { ruler } else { ruler_width };
+                        a[cross] = viewport.min[cross] + extent - tick;
+                        b[cross] = viewport.min[cross] + extent;
                         paint::line_with_width(
                             &mut layer,
                             vec![a, b],
                             styles.color("muted"),
                             width,
                         );
-                        if axis == 0 {
-                            label(
-                                &mut layer,
-                                atlas,
+                        if (value / label_step - (value / label_step).round()).abs() < 1e-6 {
+                            let rect = if axis == 0 {
                                 Rect::new(
                                     point[0],
                                     viewport.min[1],
-                                    step as f32 * mapping.scale as f32,
+                                    label_step as f32 * mapping.scale as f32,
                                     ruler - tick,
-                                ),
-                                &format!("{value:.0}"),
-                                false,
+                                )
+                            } else {
+                                Rect::new(viewport.min[0], point[1], ruler_width - tick, ruler)
+                            };
+                            let caption = if value.abs() >= 10_000. {
+                                format!("{value:.0e}")
+                            } else {
+                                format!("{value:.0}")
+                            };
+                            motion_ui::ui::text_sized(
+                                &mut labels,
+                                atlas,
+                                rect,
+                                &caption,
+                                styles.color("muted"),
+                                Align::Left,
+                                styles.metric("font.caption", 10.),
                             );
                         }
                     }
+                    let strip = if axis == 0 {
+                        Rect::new(
+                            viewport.min[0] + ruler_width,
+                            viewport.min[1],
+                            (viewport.width() - ruler_width).max(0.),
+                            ruler,
+                        )
+                    } else {
+                        Rect::new(
+                            viewport.min[0],
+                            viewport.min[1] + ruler,
+                            ruler_width,
+                            (viewport.height() - ruler).max(0.),
+                        )
+                    };
+                    labels.clip_to(strip);
+                    layer.append(labels);
                 }
             }
         }
@@ -802,5 +945,25 @@ impl Controls {
     }
 }
 
+#[cfg(all(test, target_os = "windows"))]
+mod native_tests;
 #[cfg(test)]
 mod tests;
+fn ruler_rects(viewport: Rect, styles: &motion_ui::style::StyleSheet) -> [Rect; 2] {
+    [
+        Rect::new(
+            viewport.min[0],
+            viewport.min[1],
+            viewport.width(),
+            styles.metric("viewer.overlay.ruler.height", 22.),
+        ),
+        Rect::new(
+            viewport.min[0],
+            viewport.min[1],
+            styles.metric("viewer.overlay.ruler.width", 48.),
+            viewport.height(),
+        ),
+    ]
+}
+#[cfg(test)]
+mod worker_tests;

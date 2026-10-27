@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn hidden_handles_leave_pen_creation_available_and_do_not_toggle_during_its_active_draft() {
+    let folder=tempfile::tempdir().unwrap();let engine=crate::engine::Engine::start(folder.path().join("project"),motion_desktop_media::platform(),8<<30).unwrap();
+    let state=engine.state().unwrap();let mut atlas=TextAtlas::from_system(18.).unwrap();
+    for locale in [Locale::En,Locale::Zh] {
+        let mut panels=Panels::default();panels.locale=locale;panels.focused=Some(Panel::Composition);let mut out=vec![];
+        super::super::tools::choose(&mut panels,super::super::tools::Active::Pen,&state,&mut out);assert!(out.is_empty());
+        panels.viewer_guides.visibility.handles=false;panels.viewer_guides.visibility.rulers=true;
+        let area=Rect::new(0.,0.,900.,600.);render(&mut PaintList::default(),&mut atlas,area,&mut panels,&state,&Input::default(),&mut out);
+        let view=styled_viewer(area,&PaintList::default().styles());let map=panels.composition.navigation.mapping(view,[1920.,1080.]).unwrap();let point=map.screen([600.,400.]);
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&state,&Input {mouse:point,pressed:Some((MouseButton::Left,point)),held:Some(MouseButton::Left),..Default::default()},&mut out);
+        assert!(panels.path_controls.editing());assert_eq!(out.len(),1);
+        let Some(Action::Seek(frame))=out.pop() else {panic!("new draft must keep the existing view-only seek action")};
+        assert_eq!(frame,state["frame"].as_f64().unwrap());engine.seek(frame).unwrap();assert!(out.is_empty());
+        let key=Input {keys:vec![(Key::H,motion_ui::input::Modifiers {control:true,shift:true,alt:false})],..Default::default()};
+        super::super::keyboard::route(&key,&mut panels,&state,false,None,&mut out);assert!(!panels.viewer_guides.visibility.handles);assert!(out.is_empty());
+        // The native window bridge cancels panel interactions before forwarding
+        // FocusLost; the leaf composition renderer does not own that boundary.
+        out.extend(super::super::cancel_interaction(&mut panels));
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&state,&Input {focus_lost:true,..Default::default()},&mut out);
+        assert!(!panels.path_controls.editing());assert!(out.is_empty());assert_eq!(engine.state().unwrap()["project"],state["project"]);
+    }
+}
+
+#[test]
 fn collapsed_viewers_never_submit_a_fabricated_pixel_outside_the_window() {
     let styles = PaintList::default().styles();
     for width in [1.,8.,16.,17.,64.,900.,1600.] {

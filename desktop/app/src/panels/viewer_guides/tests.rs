@@ -5,7 +5,7 @@ fn state(guides: Vec<Guide>) -> Value {
     serde_json::json!({"root":"viewer-guide-fixture", "document_generation":4, "revision":7,
         "composition":"comp-main", "project":{"composition_id":"comp-main", "width":640, "height":480, "guides":guides}})
 }
-fn draw(
+pub(super) fn draw(
     controls: &mut Controls,
     state: &Value,
     input: &Input,
@@ -33,7 +33,7 @@ fn draw(
     );
     (owned || consumed, out)
 }
-fn press(point: [f32; 2]) -> Input {
+pub(super) fn press(point: [f32; 2]) -> Input {
     Input {
         pressed: Some((MouseButton::Left, point)),
         mouse: point,
@@ -41,7 +41,7 @@ fn press(point: [f32; 2]) -> Input {
         ..Default::default()
     }
 }
-fn release(point: [f32; 2]) -> Input {
+pub(super) fn release(point: [f32; 2]) -> Input {
     // The coalesced release position is authoritative, not an older mouse sample.
     Input {
         released: Some((MouseButton::Left, point)),
@@ -837,4 +837,78 @@ fn guide_metadata_and_viewer_overlay_paint_leave_headless_scene_capture_rgba_unc
     let path = folder.path().join("guide-capture.png");
     image::save_buffer(&path, &after, 64, 64, image::ColorType::Rgba8).unwrap();
     assert_eq!(image::open(path).unwrap().to_rgba8().as_raw(), &before);
+}
+
+#[test]
+fn ruler_corner_capacity_and_readonly_feedback_do_not_fall_through_or_count_normal_branches_as_faults(
+) {
+    let mut atlas = TextAtlas::from_system(18.).unwrap();
+    let nav = Navigation::default();
+    for locale in [Locale::En, Locale::Zh] {
+        let healthy = state(vec![]);
+        let mut controls = Controls::default();
+        controls.visibility.rulers = true;
+        let (owned, actions) = draw(
+            &mut controls,
+            &healthy,
+            &press([32., 72.]),
+            None,
+            nav,
+            locale,
+            &mut atlas,
+        );
+        assert!(owned && actions.is_empty() && controls.dragging());
+        controls.cancel();
+        let full = state(
+            (1..=MAX_GUIDES as u64)
+                .map(|id| Guide {
+                    id,
+                    axis: GuideAxis::X,
+                    position: id as f64,
+                })
+                .collect(),
+        );
+        let (owned, actions) = draw(
+            &mut controls,
+            &full,
+            &press([38., 370.]),
+            None,
+            nav,
+            locale,
+            &mut atlas,
+        );
+        assert!(owned && actions.is_empty() && !controls.dragging());
+        assert!(controls.take_notice(locale).unwrap().contains("512"));
+        assert_eq!(controls.invalid_attempts, 0);
+        let mut observing = healthy.clone();
+        observing["observing"] = true.into();
+        for _ in 0..120 {
+            assert!(draw(
+                &mut controls,
+                &observing,
+                &press([38., 370.]),
+                None,
+                nav,
+                locale,
+                &mut atlas
+            )
+            .1
+            .is_empty());
+        }
+        assert_eq!(controls.invalid_attempts, 0);
+        assert!(controls.take_notice(locale).is_some());
+        let mut missing = healthy.clone();
+        missing["root"] = "".into();
+        let (owned, actions) = draw(
+            &mut controls,
+            &missing,
+            &press([38., 370.]),
+            None,
+            nav,
+            locale,
+            &mut atlas,
+        );
+        assert!(owned && actions.is_empty() && !controls.dragging());
+        assert!(controls.take_notice(locale).is_some());
+    }
 }
