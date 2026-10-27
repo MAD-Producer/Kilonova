@@ -11,6 +11,7 @@ pub use camera::lens;
 pub mod composition;
 mod curve;
 pub mod color_curves;
+pub mod depth;
 mod commands;
 pub mod layer_clipboard;
 pub mod keyframe_clipboard;

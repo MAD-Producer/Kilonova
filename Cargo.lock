@@ -2131,6 +2131,7 @@ dependencies = [
  "motion-core",
  "motion-effects",
  "motion-media",
+ "motion-model",
  "motion-render",
  "pollster",
  "raw-window-handle",
