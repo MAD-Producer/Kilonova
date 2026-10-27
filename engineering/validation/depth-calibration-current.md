@@ -161,3 +161,12 @@ persistence, authored calibration, automatic current-frame routing, arbitrary
 transformed image-plane reprojection, mixed project composition and camera
 selection remain pending. Android is retired and excluded. No panels, dependency
 or third-party asset changes are introduced, and the delivered movie is retained.
+
+
+## Subsequent maintained-main combined acceptance
+
+The calibration and receiver union now passes 496 targeted tests and all 6,144
+actual inference/native pixel checks on source proven identical after rebasing
+onto merged main `f6e7dbb2`. See [the exact combined acceptance and remaining
+boundaries](depth-model-main-current.md). This does not claim acceptance of
+later shared project consumer changes or completed cross-platform merge-ref CI.

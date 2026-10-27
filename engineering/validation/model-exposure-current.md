@@ -93,3 +93,12 @@ correction proof](data/model-exposure-native-v3.zip), SHA-256
 attempts remain distinguishable from compiled-only and accepted runs. Runtime
 binaries are excluded. This checkpoint retains the mixed project composition,
 calibration/routing and cross-platform limits listed above.
+
+
+## Subsequent maintained-main combined acceptance
+
+The calibration and receiver union now passes 496 targeted tests and all 6,144
+actual inference/native pixel checks on source proven identical after rebasing
+onto merged main `f6e7dbb2`. See [the exact combined acceptance and remaining
+boundaries](depth-model-main-current.md). This does not claim acceptance of
+later shared project consumer changes or completed cross-platform merge-ref CI.
