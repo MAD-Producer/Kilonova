@@ -27,7 +27,9 @@ pub struct Controls {
     track_scope: Option<(String, String)>,
     row_probe: Option<selection::RowProbe>,
     selection_intent: bool,
-    clipboard: Option<Easing>,
+    pub(super) clipboard_busy: bool,
+    #[cfg(test)]
+    clipboard_hits: Option<[Rect; 2]>,
     dragging: Option<(usize, Easing, [f64; 2])>,
 }
 fn key(property: Property) -> &'static str {
@@ -81,6 +83,8 @@ fn button(
     enabled && pressed(input, rect)
 }
 impl Controls {
+    #[cfg(test)]
+    pub(crate) fn clipboard_test_rects(&self) -> Option<[Rect; 2]> { self.clipboard_hits }
     pub(crate) fn choose_track(&mut self, object: u64, property: Property, axis: Option<Axis>) {
         self.selection_intent = true;
         self.track_explicit = true;
@@ -148,6 +152,8 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        #[cfg(test)]
+        { self.clipboard_hits = None; }
         let styles = list.styles();
         let colors = styles.colors();
 
@@ -514,26 +520,45 @@ impl Controls {
                 changed = true;
             }
         }
+        let copy_rect = Rect::new(start + width / 2., *y,
+            width / 4. - styles.metric("graph.control.gap", 2.), styles.metric("graph.control.height", 24.));
+        let paste_rect = Rect::new(start + width * 0.75, *y, width / 4., styles.metric("graph.control.height", 24.));
+        #[cfg(test)]
+        { self.clipboard_hits = Some([copy_rect, paste_rect]); }
         if button(
             list,
             atlas,
             input,
-            Rect::new(start + width / 2., *y, width / 4. - 2., 24.),
+            copy_rect,
             locale.t(T::CopyCurve),
-            true,
+            selected_frame >= 0 && selected + 1 < keys.len() && key_valid
+                && !self.clipboard_busy && self.dragging.is_none() && !input.focus_lost && !input.composing && !input.ime_consumed,
         ) {
-            self.clipboard = Some(easing);
+            out.push(Action::CurveClipboard {
+                intent: crate::layer_clipboard::controller::Intent::Copy,
+                source: crate::layer_clipboard::KeyframeSource::of(state),
+                selections: vec![motion_core::KeyframeSelection {
+                    target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
+                    frames: vec![selected_frame as u32],
+                }],
+            });
         }
         if button(
             list,
             atlas,
             input,
-            Rect::new(start + width * 0.75, *y, width / 4., 24.),
+            paste_rect,
             locale.t(T::PasteCurve),
-            editable && self.clipboard.is_some() && self.dragging.is_none(),
+            editable && !self.clipboard_busy && self.dragging.is_none() && !input.focus_lost && !input.composing && !input.ime_consumed,
         ) {
-            easing = self.clipboard.unwrap();
-            changed = true;
+            out.push(Action::CurveClipboard {
+                intent: crate::layer_clipboard::controller::Intent::Paste { in_place: true },
+                source: crate::layer_clipboard::KeyframeSource::of(state),
+                selections: vec![motion_core::KeyframeSelection {
+                    target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
+                    frames: vec![selected_frame as u32],
+                }],
+            });
         }
         *y += 30.;
         *y += super::graph_notice::draw(list, atlas,
