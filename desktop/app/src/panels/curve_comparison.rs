@@ -4,7 +4,7 @@ use super::*;
 use motion_core::KeyframeTarget;
 use motion_ui::widgets::{Checkbox, Dropdown, DropdownItem, ScrollArea};
 use std::sync::Arc;
-mod data;
+pub(in crate::panels) mod data;
 #[cfg(test)]
 pub(super) mod tests;
 mod toolbar;

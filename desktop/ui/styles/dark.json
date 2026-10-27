@@ -144,6 +144,8 @@
       "graph.readout.width": 232,
       "graph.control.height": 24,
       "graph.control.gap": 2,
+      "graph.mini.height": 130,
+      "graph.mini.handle.hit_radius": 10,
       "graph.handle_width": 1,
       "graph.handle_radius": 4,
       "graph.key_radius": 5,

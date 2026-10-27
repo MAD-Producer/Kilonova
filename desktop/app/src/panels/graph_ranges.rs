@@ -88,6 +88,7 @@ struct Menu {
     legacy: Option<super::types::KeySelection>,
     effect_key: Option<super::key_selection::Key>,
     comparison: Option<super::curve_comparison::RangeContext>,
+    mini: Option<(KeyframeTarget, i64)>,
     selected: Option<u64>,
     focused: Option<Panel>,
     track: Option<(Value, i64)>,
@@ -175,6 +176,7 @@ impl Controls {
         legacy: Option<super::types::KeySelection>,
         effect_key: Option<super::key_selection::Key>,
         comparison: &super::curve_comparison::Controls,
+        mini: Option<(KeyframeTarget, i64)>,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
@@ -197,6 +199,7 @@ impl Controls {
                 || m.comparison
                     .as_ref()
                     .is_some_and(|context| !comparison.matches_range_context(context))
+                || m.mini.as_ref().is_some_and(|context| Some(context) != mini.as_ref())
                 || m.selected != selected
                 || m.focused != focused
                 || match (&m.track, snapshot(state, &m.id)) {
@@ -287,6 +290,32 @@ impl Controls {
         self.entry(id).is_some_and(|entry| entry.y.locked())
     }
 
+    /// Mini axes stay in normalized authoring coordinates and never navigate
+    /// the composition time axis used by the timeline/comparison surfaces.
+    pub(super) fn navigate_mini(
+        &mut self, id: &Identity, automatic: Bounds, axis: usize,
+        factor: f64, anchor: f64, distance: f64,
+    ) -> bool {
+        if !matches!(id.surface, Surface::Mini(_)) || axis > 1 {
+            return false;
+        }
+        let Some(entry) = self.entry(id) else { return false; };
+        let current = if axis == 0 { &mut entry.x } else { &mut entry.y };
+        let automatic = if axis == 0 { automatic.x } else { automatic.y };
+        let mut next = *current;
+        let changed = if distance != 0. {
+            next.pan(distance, automatic)
+        } else {
+            next.zoom(factor, anchor, automatic)
+        };
+        if changed && renderable_y(next.range(automatic)) {
+            *current = next;
+            true
+        } else {
+            false
+        }
+    }
+
     pub(super) fn open(
         &mut self,
         point: [f32; 2],
@@ -324,10 +353,19 @@ impl Controls {
             legacy,
             effect_key,
             comparison,
+            mini: None,
             selected,
             focused,
             track,
         });
+    }
+
+    pub(super) fn capture_mini(&mut self, target: KeyframeTarget, frame: i64) {
+        if let Some(menu) = &mut self.menu {
+            if matches!(menu.id.surface, Surface::Mini(_)) {
+                menu.mini = Some((target, frame));
+            }
+        }
     }
 
     fn draw_menu(
@@ -434,7 +472,7 @@ impl Controls {
             styles.resolve("popup", Default::default()).unwrap(),
         );
         let zh = locale == Locale::Zh;
-        let labels = if zh {
+        let mut labels = if zh {
             [
                 "适配全部",
                 "适配选区",
@@ -451,6 +489,10 @@ impl Controls {
                 "Lock value axis Y",
             ]
         };
+        if matches!(menu.id.surface, Surface::Mini(_)) {
+            labels[3] = if zh { "锁定归一化时间 X" } else { "Lock normalized time X" };
+            labels[4] = if zh { "锁定归一化数值 Y" } else { "Lock normalized value Y" };
+        }
         let mut operation = None;
         for item in 0..5 {
             let rect = Rect::new(
@@ -640,11 +682,31 @@ pub(super) fn readout(
     value: f64,
     unit: &str,
 ) {
+    readout_lines(list, atlas, plot, mouse, &format!("{title} · {frame:.2} f"),
+        &[value_label(value, unit)]);
+}
+
+pub(super) fn value_label(value: f64, unit: &str) -> String {
+    let number = if value != 0. && !(1e-4..1e7).contains(&value.abs()) {
+        format!("{value:.4e}")
+    } else {
+        format!("{value:.4}")
+    };
+    format!("{number} {unit}")
+}
+
+/// A normalized graph can show actual interval samples without pretending its
+/// authoring axes are composition frames or physical values.
+pub(super) fn readout_lines(
+    list: &mut PaintList, atlas: &mut TextAtlas, plot: Rect, mouse: [f32; 2],
+    title: &str, values: &[String],
+) {
     let styles = list.styles();
     let pad = styles.metric("padding.panel", 8.);
     let row = styles.metric("row.height", 22.);
     let width = styles.metric("graph.readout.width", 232.).min(plot.width());
-    let height = (row * 2. + pad * 2.).min(plot.height());
+    let count = values.len().min(4);
+    let height = (row * (1 + count) as f32 + pad * 2.).min(plot.height());
     if width <= pad * 2. || height <= pad * 2. {
         return;
     }
@@ -680,27 +742,24 @@ pub(super) fn readout(
             (width - pad * 2.).max(0.),
             row,
         ),
-        &format!("{title} · {frame:.2} f"),
+        title,
         true,
     );
-    let number = if value != 0. && !(1e-4..1e7).contains(&value.abs()) {
-        format!("{value:.4e}")
-    } else {
-        format!("{value:.4}")
-    };
-    motion_ui::style::text_style(
+    for (index, value) in values.iter().take(count).enumerate() {
+      motion_ui::style::text_style(
         &mut text,
         atlas,
         Rect::new(
             card.min[0] + pad,
-            card.min[1] + pad + row,
+            card.min[1] + pad + row * (index + 1) as f32,
             (width - pad * 2.).max(0.),
             row,
         ),
-        &format!("{number} {unit}"),
+        value,
         styles.resolve("label.accent", Default::default()).unwrap(),
         Align::Left,
     );
+    }
     text.clip_to(card.shrink(pad));
     paint.append(text);
     paint.clip_to(plot);

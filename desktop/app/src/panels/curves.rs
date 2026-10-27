@@ -33,7 +33,9 @@ pub(super) fn render(
         .into_iter()
         .flatten()
         .find(|l| l["object"].as_u64() == object);
-    let mut y = auxiliary::body_y(&styles, Panel::Curves, area, 850., panels, input);
+    let neutral_scroll = Input::default();
+    let scroll_input = if panels.animation_controls.mini_owns_wheel(input) { &neutral_scroll } else { input };
+    let mut y = auxiliary::body_y(&styles, Panel::Curves, area, 850., panels, scroll_input);
     let _ = observe!(
         "curves.snapshot",
         (sample.is_some() && timeline.is_some())
@@ -58,6 +60,12 @@ pub(super) fn render(
             input,
             panels.locale,
             out,
+            Some(animation_controls::mini::Context {
+                ranges: &mut panels.timeline.graph_ranges,
+                selection: &panels.selected_keys,
+                effect_key: panels.effect_timeline.range_key(),
+                focused: panels.focused,
+            }),
         );
     }
 }

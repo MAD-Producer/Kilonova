@@ -4,7 +4,7 @@ use super::*;
 use motion_core::{masks::MaskProperty, AudioChannel, Track, Tween};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum Unit {
+pub(in crate::panels) enum Unit {
     Pixels,
     Percent,
     Degrees,
@@ -37,7 +37,7 @@ enum Samples {
     Vec4(Track<[f32; 4]>),
 }
 #[derive(Clone)]
-pub(super) struct Data {
+pub(in crate::panels) struct Data {
     samples: Samples,
     pub dimensions: Vec<usize>,
     pub frames: Vec<u32>,
@@ -49,7 +49,7 @@ pub(super) struct Data {
     discrete: bool,
 }
 #[derive(Debug)]
-pub(super) enum Unavailable {
+pub(in crate::panels) enum Unavailable {
     Missing,
     Unsupported,
     Limit,
@@ -102,7 +102,7 @@ fn property_title(property: Property, locale: Locale) -> &'static str {
         Property::Elevation => T::CameraElevation,
     })
 }
-pub(super) fn load(
+pub(in crate::panels) fn load(
     state: &Value,
     target: &KeyframeTarget,
     locale: Locale,

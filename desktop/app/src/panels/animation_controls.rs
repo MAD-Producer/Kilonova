@@ -13,6 +13,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 mod selection;
+pub(in crate::panels) mod mini;
 pub(super) use selection::{highlight_row, SelectedTrack, TrackSelection};
 
 #[derive(Default)]
@@ -30,7 +31,8 @@ pub struct Controls {
     pub(super) clipboard_busy: bool,
     #[cfg(test)]
     clipboard_hits: Option<[Rect; 2]>,
-    dragging: Option<(usize, Easing, [f64; 2])>,
+    dragging: Option<(usize, Easing, super::graph_ranges::Bounds)>,
+    mini: mini::View,
 }
 fn key(property: Property) -> &'static str {
     match property {
@@ -83,8 +85,24 @@ fn button(
     enabled && pressed(input, rect)
 }
 impl Controls {
+    pub(in crate::panels) fn mini_owns_wheel(&self, input: &Input) -> bool {
+        self.mini.owns_wheel(input)
+    }
+    pub(in crate::panels) fn mini_context(&self) -> Option<(motion_core::KeyframeTarget, i64)> {
+        let (object, property, axis) = self.key_context?;
+        if self.property != Some(property) || self.axis != axis { return None; }
+        Some((motion_core::KeyframeTarget::Property { object, property, axis }, self.selected_key?))
+    }
     #[cfg(test)]
     pub(crate) fn clipboard_test_rects(&self) -> Option<[Rect; 2]> { self.clipboard_hits }
+    #[cfg(test)]
+    pub(in crate::panels) fn mini_test_geometry(&self) -> Option<(Rect, Rect, super::graph_ranges::Bounds)> {
+        self.mini.geometry
+    }
+    #[cfg(test)]
+    pub(in crate::panels) fn mini_test_readout(&self) -> Option<&(String, Vec<String>)> {
+        self.mini.last_readout.as_ref()
+    }
     pub(crate) fn choose_track(&mut self, object: u64, property: Property, axis: Option<Axis>) {
         self.selection_intent = true;
         self.track_explicit = true;
@@ -151,6 +169,7 @@ impl Controls {
         input: &Input,
         locale: Locale,
         out: &mut Vec<Action>,
+        ranges: Option<mini::Context<'_>>,
     ) {
         #[cfg(test)]
         { self.clipboard_hits = None; }
@@ -564,69 +583,23 @@ impl Controls {
         *y += super::graph_notice::draw(list, atlas,
             Rect::new(start, *y, width, styles.metric("row.height", 22.)), locale,
             super::graph_notice::has_negative(track));
-        let graph = Rect::new(start, *y, width, 130.);
-        paint::rect(list, graph, colors.SUNKEN);
-        paint::stroke(list, graph, colors.BORDER, 1.);
         if let Some((_, value, _)) = self.dragging {
             easing = value;
         }
-        let definition_scale = if velocity {
-            easing.curve.map_or(1., |c| c.definition_scale())
-        } else {
-            1.
-        };
-        let values: Vec<_> = (0..=80)
-            .map(|i| {
-                let s = easing.sample(i as f64 / 80.);
-                if velocity {
-                    s.velocity / definition_scale
-                } else {
-                    s.progress
-                }
-            })
-            .collect();
-        let mut minimum = values.iter().copied().fold(0f64, f64::min);
-        let mut maximum = values.iter().copied().fold(1f64, f64::max);
-        if let Some(curve) = easing.curve {
-            let controls = match curve.shape {
-                CurveShape::Cubic {
-                    control1, control2, ..
-                } => vec![control1[1], control2[1]],
-                CurveShape::Quadratic { control, .. } => vec![control[1]],
-                _ => vec![],
-            };
-            for value in controls {
-                minimum = minimum.min(value);
-                maximum = maximum.max(value);
-            }
-        }
-        let margin = (maximum - minimum).max(1.) * 0.1;
-        let bounds = self
-            .dragging
-            .map_or([minimum - margin, maximum + margin], |(_, _, bounds)| {
-                bounds
-            });
+        let legacy = self.user_key();
+        let (graph, bounds) = self.mini.draw(list,atlas,
+            Rect::new(start,*y,width,styles.metric("graph.mini.height",130.)),
+            state,input,locale,easing,
+            motion_core::KeyframeTarget::Property {object,property,axis:self.axis},
+            selected_frame,keys.get(selected+1).and_then(|key|key["frame"].as_i64()),
+            legacy,self.dragging.map(|(_,_,bounds)|bounds),ranges);
         let point = |p: [f64; 2]| {
             [
-                graph.min[0] + p[0] as f32 * graph.width(),
-                graph.max[1]
-                    - ((p[1] - bounds[0]) / (bounds[1] - bounds[0])) as f32 * graph.height(),
+                graph.min[0] + bounds.x.fraction(p[0]) as f32 * graph.width(),
+                graph.max[1] - bounds.y.fraction(p[1]) as f32 * graph.height(),
             ]
         };
-        for i in 0..=4 {
-            let x = graph.min[0] + graph.width() * i as f32 / 4.;
-            paint::line(
-                list,
-                vec![[x, graph.min[1]], [x, graph.max[1]]],
-                colors.BORDER,
-            );
-        }
-        let samples: Vec<_> = values
-            .into_iter()
-            .enumerate()
-            .map(|(i, value)| point([i as f64 / 80., value]))
-            .collect();
-        paint::line(list, samples, colors.ACCENT);
+        let mut handles = list.child();
         if let Some(curve) = easing.curve {
             let controls = match curve.shape {
                 CurveShape::Cubic {
@@ -637,23 +610,24 @@ impl Controls {
             };
             for (i, p) in controls.into_iter().enumerate() {
                 let p = point(p);
-                paint::diamond(list, p, 5., colors.KEYFRAME);
-                if editable && pressed(input, Rect::new(p[0] - 10., p[1] - 10., 20., 20.)) {
+                if !graph.contains(p) { continue; }
+                paint::diamond(&mut handles, p, styles.metric("graph.key_radius",5.), colors.KEYFRAME);
+                let hit = styles.metric("graph.mini.handle.hit_radius",10.);
+                if editable && pressed(input, Rect::new(p[0]-hit,p[1]-hit,hit*2.,hit*2.)) {
                     self.select_key_in(state, object, property, self.axis, selected_frame);
                     self.dragging = Some((i, easing, bounds));
                     out.push(Action::History(2));
                 }
             }
         }
+        handles.clip_to(graph);
+        list.append(handles);
         let ended = self.dragging.is_some() && input.released.is_some();
         if let Some((index, mut current, bounds)) = self.dragging {
             if input.dragging() || input.released.is_some() {
                 let p = [
-                    ((input.mouse[0] - graph.min[0]) / graph.width()).clamp(0., 1.) as f64,
-                    (bounds[0]
-                        + (graph.max[1] - input.mouse[1]) as f64 / graph.height() as f64
-                            * (bounds[1] - bounds[0]))
-                        .clamp(-8., 8.),
+                    bounds.x.at(f64::from((input.mouse[0]-graph.min[0])/graph.width())).clamp(0.,1.),
+                    bounds.y.at(f64::from((graph.max[1]-input.mouse[1])/graph.height())).clamp(-8.,8.),
                 ];
                 if let Some(curve) = &mut current.curve {
                     match &mut curve.shape {
@@ -693,7 +667,7 @@ impl Controls {
         if ended {
             out.push(Action::History(3));
         }
-        *y += 138.;
+        *y += styles.metric("row.height",22.)+graph.height()+styles.metric("padding.panel",8.);
     }
 }
 
@@ -731,6 +705,7 @@ mod tests {
             &input,
             Locale::En,
             &mut out,
+            None,
         );
         let command = out
             .into_iter()
