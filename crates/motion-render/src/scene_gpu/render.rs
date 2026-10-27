@@ -8,7 +8,9 @@ use glam::{Mat4, Vec3};
 use motion_scene::AlphaMode;
 use std::{collections::HashSet, time::Instant};
 
+mod depth_seed;
 mod shared;
+pub use depth_seed::SceneDepthInput;
 pub use shared::{ScenePass, ScenePassFrame, ScenePassInstance};
 
 const MAX_LIGHTS: usize = 4;
@@ -96,6 +98,8 @@ pub struct SceneRenderStats {
     pub resident_bytes: u64,
     /// Immutable per-node displaced vertices, separately admitted per encode.
     pub deformation_bytes: u64,
+    /// Immutable calibrated clip-depth/validity texture and viewport constants.
+    pub depth_input_bytes: u64,
 }
 
 #[repr(C)]
@@ -300,6 +304,7 @@ impl GpuScene {
             triangles: 0,
             blended_draws: 0,
             parameter_bytes: size,
+            depth_input_bytes: 0,
             resident_bytes: self.resident_bytes,
             deformation_bytes: items
                 .iter()

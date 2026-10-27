@@ -414,6 +414,7 @@ fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
         crate::scene_gpu::SceneGpuError::Render(error) => error,
         crate::scene_gpu::SceneGpuError::Deformation { cause, .. }
         | crate::scene_gpu::SceneGpuError::SkinDeformation { cause, .. }
+        | crate::scene_gpu::SceneGpuError::DepthInput { cause, .. }
         | crate::scene_gpu::SceneGpuError::PassInstance { cause, .. } => {
             scene_error(*cause).with_diagnostic(message)
         }
@@ -424,6 +425,63 @@ fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn wrapped_native_calibrated_depth_keeps_original_typed_resource_refusal() {
+        use crate::scene_gpu::SceneGpuError;
+        use motion_model::depth::{DepthSource, DepthTime};
+        let source = DepthSource {
+            asset: 74,
+            revision: 2,
+            pts: DepthTime {
+                ticks: 12,
+                timescale: 24,
+            },
+        };
+        let wrapped = SceneGpuError::DepthInput {
+            expected: source.clone(),
+            actual: source,
+            cause: Box::new(SceneGpuError::Render(RenderError::budget(
+                ResourceBudgetScope::RenderAllocations,
+                24,
+                23,
+                "original calibrated depth refusal",
+            ))),
+        };
+        let error = scene_error(wrapped);
+        assert_eq!(
+            error.resource_rejection(),
+            Some(&ResourceRejection::Budget {
+                scope: ResourceBudgetScope::RenderAllocations,
+                required_bytes: 24,
+                budget_bytes: 23,
+            })
+        );
+        for part in [
+            "phase=calibrated_depth",
+            "asset: 74",
+            "revision: 2",
+            "ticks: 12",
+            "timescale: 24",
+            "original calibrated depth refusal",
+        ] {
+            assert!(error.to_string().contains(part), "{error}");
+        }
+        let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&error);
+        let mut original = false;
+        while let Some(error) = cause {
+            let render = error
+                .downcast_ref::<RenderError>()
+                .or_else(|| error.downcast_ref::<Box<RenderError>>().map(Box::as_ref));
+            if let Some(RenderError::Resource { message, .. }) = render {
+                original |= message == "original calibrated depth refusal";
+            }
+            cause = error.source();
+        }
+        assert!(
+            original,
+            "original typed cause must remain reachable through the adapter"
+        );
+    }
     struct NoResources;
     impl motion_scene::AssetResolver for NoResources {
         fn read(

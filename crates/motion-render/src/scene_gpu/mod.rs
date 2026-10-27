@@ -7,7 +7,8 @@ mod render;
 use crate::{AdmittedBuffer, RenderError, Renderer};
 use bytemuck::{Pod, Zeroable};
 pub use render::{
-    SceneFrame, SceneLight, ScenePass, ScenePassFrame, ScenePassInstance, SceneRenderStats,
+    SceneDepthInput, SceneFrame, SceneLight, ScenePass, ScenePassFrame, ScenePassInstance,
+    SceneRenderStats,
 };
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
@@ -44,6 +45,13 @@ impl Default for SceneGpuLimits {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SceneGpuError {
+    #[error("scene phase=calibrated_depth expected={expected:?} actual={actual:?}: {cause}")]
+    DepthInput {
+        expected: motion_model::depth::DepthSource,
+        actual: motion_model::depth::DepthSource,
+        #[source]
+        cause: Box<SceneGpuError>,
+    },
     #[error("scene node={node} mesh={mesh} primitive={primitive} phase=skin: {cause}")]
     SkinDeformation {
         node: usize,
@@ -103,7 +111,8 @@ impl SceneGpuError {
             Self::Render(cause) => cause.resource_rejection(),
             Self::PassInstance { cause, .. }
             | Self::Deformation { cause, .. }
-            | Self::SkinDeformation { cause, .. } => cause.resource_rejection(),
+            | Self::SkinDeformation { cause, .. }
+            | Self::DepthInput { cause, .. } => cause.resource_rejection(),
             _ => None,
         }
     }
