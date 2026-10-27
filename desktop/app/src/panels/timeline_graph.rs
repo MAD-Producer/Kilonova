@@ -10,6 +10,17 @@ enum Samples {
     Vector(Track<[f32; 3]>),
 }
 impl Samples {
+    fn adaptive(
+        &self, start: f64, end: f64, layer_offset: f64, scale: [f64;2], tolerance: f64,
+        value: impl FnMut(f64)->motion_core::Result<f64>,
+    ) -> Result<Vec<(f64,f32)>,super::graph_adaptive::Failure<motion_core::Error>> {
+        let points=match self {
+            Self::Anchor(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
+            Self::Scalar(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
+            Self::Vector(track)=>super::graph_adaptive::sample(super::graph_sampling::knots(track,start,end,layer_offset),scale,tolerance,value),
+        }?;
+        Ok(points.into_iter().map(|(frame,value)|(frame,value as f32)).collect())
+    }
     fn velocity(&self, frame: f64, component: usize, fps: f64) -> f32 {
         match self {
             Self::Anchor(track) => super::graph_sampling::velocity(track,frame,fps,|v|v[component] as f64) as f32,
@@ -330,6 +341,16 @@ pub(super) fn render(
         .or_else(|| panels.timeline.graph_box.bounds());
     let low = fixed.map_or(center - half, |b| b[0]);
     let high = fixed.map_or(center + half, |b| b[1]);
+    let adaptive = components.iter().map(|component|samples.adaptive(
+        offset,end,layer_offset as f64,
+        [f64::from(ppf),f64::from(plot.height())/f64::from(high-low)],
+        f64::from(styles.metric("graph.sample.error",0.35)),
+        |frame|sample(frame,*component).map(f64::from),
+    )).collect::<Result<Vec<_>,_>>();
+    let Ok(points)=observe!("timeline.graph_adaptive",adaptive,
+        "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end} phase=screen_subdivision") else {
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,"adaptive_sampling_failed");return;
+    };
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
     for i in 0..5 {
         let value = low + (high - low) * i as f32 / 4.;

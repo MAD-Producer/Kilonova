@@ -55,6 +55,7 @@ mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
+mod graph_adaptive;
 mod curve_comparison;
 mod graph_notice;
 mod graph_workspace;
