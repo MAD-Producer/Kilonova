@@ -56,6 +56,12 @@ pub enum Error {
         #[source]
         cause: Box<motion_effects::Error>,
     },
+    #[error("{diagnostic}")]
+    ImageEncoding {
+        diagnostic: Diagnostic,
+        #[source]
+        cause: base64::DecodeError,
+    },
     #[error("graph I/O: {0}")]
     Io(#[from] std::io::Error),
     #[error("graph JSON: {0}")]
@@ -67,7 +73,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Error {
     pub fn diagnostic(&self) -> Diagnostic {
         match self {
-            Self::Invalid(d) | Self::Effect { diagnostic: d, .. } => d.clone(),
+            Self::Invalid(d) | Self::Effect { diagnostic: d, .. }
+                | Self::ImageEncoding { diagnostic: d, .. } => d.clone(),
             Self::Io(e) => Diagnostic {
                 code: ErrorCode::Io,
                 node: None,

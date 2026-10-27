@@ -107,15 +107,27 @@ impl Shell {
             next.view_preferences = self.workspace.node_view;
             next.shortcut_bindings = self.panels.shortcut_bindings.clone();
             next.recent_nodes = self.workspace.node_recents.clone();
-            if let Some(source) = &source {
-                next.load_layer_source(source, target.clone())?;
-            } else {
+            if source.is_none() {
                 next.layer_target = Some(target.clone());
+            }
+            // Metadata rejection or a saturated worker must leave the current
+            // editor and its standalone draft intact. Publish the replacement
+            // only after the owned request has actually entered the queue.
+            if let Some(source) = &source {
+                self.node_tasks.open_bound(next.snapshot(), source.clone(), target.clone(), self.workspace.locale)?;
             }
             next.take_clipboard_from(&mut self.panels.node_editor);
             let old = std::mem::replace(&mut self.panels.node_editor, next);
             if old.layer_target.is_none() {
                 self.node_standalone = Some(old);
+            }
+            if source.is_some() {
+                self.node_compile_due = None;
+                self.panels.selected = Some(object);
+                self.switch_workspace(workspace::Preset::Nodes, event_loop)?;
+                self.panels.node_editor.report_status(self.workspace.locale.t(T::NodeWorking));
+                self.dirty = true;
+                return Ok(());
             }
         } else {
             self.panels.node_editor.renew_session();
@@ -213,12 +225,11 @@ impl Shell {
             if let Some(source) = effect.and_then(|e| e.get("node_graph")) {
                 let current = self.panels.node_editor.snapshot();
                 if source["document"]
-                    != serde_json::to_value(&current.document).map_err(|e| e.to_string())?
+                    != crate::node_layer::source_document(&current.document)?
                     || source["options"]
                         != serde_json::to_value(&current.options).map_err(|e| e.to_string())?
                 {
-                    self.panels.node_editor.load_layer_source(source, target)?;
-                    self.schedule_node_compile()?;
+                    self.node_tasks.open_bound(current, source.clone(), target, self.workspace.locale)?;
                 }
             }
         }
@@ -329,7 +340,8 @@ impl Shell {
             | node_editor::Action::SaveAs(s)
             | node_editor::Action::Validate(s)
             | node_editor::Action::Compile(s)
-            | node_editor::Action::ExportMsfx(s) => s.clone(),
+            | node_editor::Action::ExportMsfx(s)
+            | node_editor::Action::ImportImage { snapshot: s, .. } => s.clone(),
             _ => unreachable!(),
         };
         if matches!(&action, node_editor::Action::Compile(_)) {
@@ -358,6 +370,7 @@ impl Shell {
         // Publish the clipboard acknowledgement before starting another node
         // install/save that can publish a newer project snapshot.
         if self.layer_clipboard.committing() { return Ok(()); }
+        self.node_tasks.reconcile_bound_open(&mut self.panels.node_editor, &self.state, self.workspace.locale);
         self.reconcile_node_target()?;
         let before = self.panels.node_editor.stamp();
         let (changed, ready) = self

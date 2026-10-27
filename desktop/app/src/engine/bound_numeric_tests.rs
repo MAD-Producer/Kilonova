@@ -210,9 +210,9 @@ fn node_bound_worker_reuses_canonical_and_native_programs_with_default_failure_c
         let mut ready = super::numeric_reuse_tests::compile(&mut tasks, &mut editor);
         let canonical = ready.canonical.as_mut().unwrap();
         if bad_shader {
-            canonical.shader.wgsl = "not valid WGSL".into();
+            canonical.source_for_test().shader.wgsl = "not valid WGSL".into();
         } else {
-            canonical.manifest.effects[0]
+            canonical.source_for_test().manifest.effects[0]
                 .shader_data
                 .as_mut()
                 .unwrap()

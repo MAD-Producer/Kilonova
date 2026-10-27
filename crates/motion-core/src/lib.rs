@@ -8,6 +8,7 @@ mod editor;
 mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
 pub use motion_model::{animation_presets, AnimationPreset, PresetProperty};
+pub use motion_model::{node_resources, NodeResource, NodeImageReference};
 pub use motion_model::{TextAlign, TextStyle};
 pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use motion_model::KeyframeValueOffset;

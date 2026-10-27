@@ -34,7 +34,7 @@ pub fn compiled_package_bytes(
 
 impl crate::CompiledGraph {
     pub fn resource(&self, path: &str) -> Option<&[u8]> {
-        self.resources.get(path).map(Vec::as_slice)
+        self.resources.get(path).map(|bytes| bytes.as_ref())
     }
     /// Package code and its declared numeric data together, including when a
     /// bound instance supplies a different package identity.
@@ -44,7 +44,7 @@ impl crate::CompiledGraph {
 }
 
 fn package_with_resources(manifest: &motion_effects::PluginManifest, source: &str,
-    resources: &std::collections::BTreeMap<String, Vec<u8>>) -> Result<Vec<u8>> {
+    resources: &std::collections::BTreeMap<String, Arc<[u8]>>) -> Result<Vec<u8>> {
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let settings = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
@@ -76,7 +76,7 @@ pub fn export_msfx(
     }
     let compiled = compile(document, options)?;
     let source = document.to_json()?;
-    let bytes = compiled_package_bytes(&compiled.manifest, &compiled.source)?;
+    let bytes = compiled.package_bytes(&compiled.manifest)?;
     let package = Arc::new(EffectPackage::from_bytes(bytes.clone()).map_err(|e| {
         Error::effect(
             ErrorCode::Manifest,
@@ -142,7 +142,7 @@ pub fn export_msfx(
                 ErrorCode::Publication,
                 None,
                 None,
-                "existing sibling source exceeds its 4 MiB limit",
+                "existing sibling source exceeds the graph metadata and image budget",
             ));
         }
         Some(StagedFile::new(&source_path, &fs::read(&source_path)?)?)

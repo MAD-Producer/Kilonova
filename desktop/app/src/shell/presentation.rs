@@ -901,13 +901,15 @@ impl Shell {
             }
             #[cfg(target_os = "windows")]
             WindowEvent::CursorEntered { .. } => f.pointer_position.entered(f.scale),
-            WindowEvent::DroppedFile(path)
-                if path
-                    .extension()
-                    .is_some_and(|ext| ext.to_string_lossy().eq_ignore_ascii_case("msfx")) =>
-            {
-                self.actions
-                    .push_back(panels::Action::ImportEffectPath(path));
+            WindowEvent::DroppedFile(path) => {
+                if f.panel == dock::Panel::Nodes && super::node_image_drop::node_image_path(&path) {
+                    let position = f.pointer_position.dropped(&f.window, f.scale);
+                    let key = f.key;
+                    self.drop_node_image(path.clone(), position, key);
+                }
+                if path.extension().is_some_and(|ext| ext.to_string_lossy().eq_ignore_ascii_case("msfx")) {
+                    self.actions.push_back(panels::Action::ImportEffectPath(path));
+                }
                 self.dirty = true;
                 self.redraw();
                 return;

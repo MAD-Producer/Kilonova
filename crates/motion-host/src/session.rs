@@ -193,7 +193,7 @@ impl Session {
             .ok_or("project directory has no parent")?
             .join("plugins");
         let mut registry=registry_observation::load(&plugin_root).map_err(crate::Error::from)?;
-        crate::node_effects::restore(project,&mut registry)?;
+        crate::node_effects::restore(project,&root,&mut registry)?;
         let mut effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
         effects.set_precision(project.working_precision);
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
@@ -341,7 +341,7 @@ impl Session {
         let document_generation = next_document_generation()?;
         let next_scene = Scene::new(engine.project())?;
         let mut registry=self.effects.registry.clone();
-        crate::node_effects::restore(engine.project(),&mut registry)?;
+        crate::node_effects::restore(engine.project(),&root,&mut registry)?;
         let platform = self.platform.clone();
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;

@@ -224,3 +224,32 @@ The subsequent [transform animation](gltf-transform-animation-current.md),
 unsupported animation/camera boundary above. Their maintained-main full
 regression and exact source-equivalence evidence are recorded in those ledgers.
 Project mixed composition, skin/morph and calibrated AI depth remain open.
+
+
+## Later morph checkpoint
+
+The [morph target and weight-animation checkpoint](gltf-morph-current.md)
+supersedes the earlier unsupported-morph boundary above. Its final source passes
+121 targeted CPU/native/project/editor tests and strict scene lint. Full
+workspace/cross-platform morph acceptance remains separate. Skinning, actual
+mixed project composition and calibrated AI depth remain unfinished; #87 stays
+open. This adds no panels or repeated model-movie demonstration.
+
+## Later skin checkpoint
+
+The [linear blend skin checkpoint](gltf-skin-current.md) supersedes the static
+skin boundary above with owned joint/inverse-bind/influence data, sampled
+palettes, actual native deformation and saved-project seek acceptance. The
+ledger distinguishes final targeted evidence from pending whole-workspace and
+cross-platform gates. Mixed project composition and calibrated AI depth remain
+unfinished; #87 is open and Android remains excluded.
+
+## Later morph/skin full regression
+
+The combined morph/skin milestone is now rebased onto maintained main
+`4184f0c8`. Its [skin acceptance ledger](gltf-skin-current.md) records
+3347 passed / 0 failed across the complete maintained workspace,
+20 audited unchanged manual fixtures, an actual desktop binary and clean
+command-catalogue transport. The full evidence also covers main sources brought
+in by the rebase. Cross-platform merge-ref CI remains separate. Mixed project
+composition, calibrated AI depth and camera selection still keep #87 open.

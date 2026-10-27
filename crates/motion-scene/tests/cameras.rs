@@ -203,8 +203,10 @@ fn malformed_camera_descriptors_references_and_budgets_are_explicit_errors() {
     .unwrap_err()
     .to_string()
     .contains("camera index"));
-    let mut limits = ImportLimits::default();
-    limits.max_retained_bytes = 1;
+    let limits = ImportLimits {
+        max_retained_bytes: 1,
+        ..Default::default()
+    };
     assert!(import(
         CONTEXT,
         &serde_json::to_vec(&root(perspective())).unwrap(),

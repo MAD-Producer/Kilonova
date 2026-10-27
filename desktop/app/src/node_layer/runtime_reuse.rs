@@ -23,10 +23,6 @@ pub(super) fn values(compiled: &CompiledGraph) -> Result<Option<ShaderDataValues
         .transpose()
 }
 
-pub(super) fn source(bytes: &[u8]) -> Value {
-    serde_json::json!({"package_hex":bytes.iter().map(|byte|format!("{byte:02x}")).collect::<String>()})
-}
-
 pub(super) fn package(
     registry: &Registry,
     compiled: &CompiledGraph,

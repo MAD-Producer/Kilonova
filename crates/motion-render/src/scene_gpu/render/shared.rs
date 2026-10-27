@@ -278,6 +278,13 @@ impl ScenePass {
                 .uniforms(renderer, &items)
                 .map_err(|cause| instance_error(index, instance, cause))?;
             stats.draws += items.len();
+            stats.deformation_bytes = items
+                .iter()
+                .filter_map(|item| item.vertices.as_ref())
+                .try_fold(stats.deformation_bytes, |n, v| n.checked_add(v.size()))
+                .ok_or_else(|| {
+                    invalid("shared_morph", index, "combined vertex capacity overflow")
+                })?;
             stats.parameter_bytes = stats
                 .parameter_bytes
                 .checked_add(uniforms.size)
@@ -382,7 +389,13 @@ impl ScenePass {
                     &[(item_index as u64 * prepared.uniforms.stride) as u32],
                 );
                 pass.set_bind_group(1, &source.materials[primitive.material].group, &[]);
-                pass.set_vertex_buffer(0, primitive.vertices.slice(..));
+                pass.set_vertex_buffer(
+                    0,
+                    item.vertices
+                        .as_ref()
+                        .unwrap_or(&primitive.vertices)
+                        .slice(..),
+                );
                 pass.set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..primitive.index_count, 0, 0..1);
                 stats.triangles += u64::from(primitive.index_count / 3);

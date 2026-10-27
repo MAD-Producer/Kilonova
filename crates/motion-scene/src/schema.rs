@@ -34,9 +34,17 @@ pub(crate) struct Root {
     #[serde(default)]
     pub animations: Vec<Animation>,
     #[serde(default)]
-    pub skins: Vec<serde_json::Value>,
+    pub skins: Vec<Skin>,
     #[serde(default)]
     pub cameras: Vec<Camera>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Skin {
+    pub joints: Vec<usize>,
+    pub inverse_bind_matrices: Option<usize>,
+    pub skeleton: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -254,7 +262,7 @@ pub(crate) struct Primitive {
     pub material: Option<usize>,
     pub mode: Option<u32>,
     #[serde(default)]
-    pub targets: Vec<serde_json::Value>,
+    pub targets: Vec<BTreeMap<String, usize>>,
 }
 
 #[derive(Deserialize)]

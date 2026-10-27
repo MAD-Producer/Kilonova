@@ -94,6 +94,8 @@ pub struct SceneRenderStats {
     pub blended_draws: usize,
     pub parameter_bytes: u64,
     pub resident_bytes: u64,
+    /// Immutable per-node displaced vertices, separately admitted per encode.
+    pub deformation_bytes: u64,
 }
 
 #[repr(C)]
@@ -150,6 +152,7 @@ struct Item {
     uniform: Draw,
     key: PipelineKey,
     distance: f32,
+    vertices: Option<crate::AdmittedBuffer>,
 }
 
 pub(super) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
@@ -298,6 +301,11 @@ impl GpuScene {
             blended_draws: 0,
             parameter_bytes: size,
             resident_bytes: self.resident_bytes,
+            deformation_bytes: items
+                .iter()
+                .filter_map(|item| item.vertices.as_ref())
+                .map(|v| v.size())
+                .sum(),
         };
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -338,7 +346,10 @@ impl GpuScene {
                     pass.set_pipeline(&self.pipelines[&item.key]);
                     pass.set_bind_group(0, group, &[(i as u64 * stride) as u32]);
                     pass.set_bind_group(1, &material.group, &[]);
-                    pass.set_vertex_buffer(0, p.vertices.slice(..));
+                    pass.set_vertex_buffer(
+                        0,
+                        item.vertices.as_ref().unwrap_or(&p.vertices).slice(..),
+                    );
                     pass.set_index_buffer(p.indices.slice(..), wgpu::IndexFormat::Uint32);
                     pass.draw_indexed(0..p.index_count, 0, 0..1);
                     stats.triangles += u64::from(p.index_count / 3);
@@ -358,36 +369,51 @@ impl GpuScene {
         max_draws: usize,
     ) -> Result<Vec<Item>> {
         let (forward, lights) = validate_frame(frame)?;
-        let instances =
-            self.source
-                .instances_at(frame.scene, frame.pixels_per_metre, frame.animation)?;
+        let sampled = self.source.mesh_instances_with_skins_at(
+            frame.scene,
+            frame.pixels_per_metre,
+            frame.animation,
+        )?;
         let mut items = Vec::new();
         let mut needed = HashSet::new();
-        for (mesh, matrix) in instances {
-            let world = frame.world * matrix;
-            let determinant = world.determinant();
-            // A fully collapsed animated hierarchy has no visible geometry.
-            // Other singular transforms retain the explicit shading refusal below.
-            if frame.animation.is_some()
-                && world.is_finite()
-                && [world.x_axis, world.y_axis, world.z_axis]
-                    .iter()
-                    .all(|axis| axis.truncate() == Vec3::ZERO)
-            {
-                continue;
-            }
-            if !world.is_finite() || !determinant.is_finite() || determinant == 0. {
-                return Err(invalid(
-                    "transform",
-                    mesh,
-                    "singular or overflowing world transform cannot shade a mesh",
-                ));
-            }
-            let normal_world = world.inverse().transpose();
-            if !normal_world.is_finite() {
-                return Err(invalid("transform", mesh, "normal transform overflow"));
-            }
+        let mut frame_bytes = self.resident_bytes;
+        for instance in sampled.meshes {
+            let mesh = instance.mesh;
             for (primitive, p) in self.meshes[mesh].iter().enumerate() {
+                let primitive_source = &self.source.meshes()[mesh].primitives[primitive];
+                let palette = if primitive_source.joint_influences.is_empty() {
+                    None
+                } else {
+                    instance.skin.and_then(|s| sampled.skins[s].as_deref())
+                };
+                let world = frame.world
+                    * if palette.is_some() {
+                        Mat4::from_scale(Vec3::splat(frame.pixels_per_metre))
+                    } else {
+                        instance.world
+                    };
+                let determinant = world.determinant();
+                // A fully collapsed animated hierarchy has no visible geometry.
+                // Other singular transforms retain the explicit shading refusal below.
+                if frame.animation.is_some()
+                    && world.is_finite()
+                    && [world.x_axis, world.y_axis, world.z_axis]
+                        .iter()
+                        .all(|axis| axis.truncate() == Vec3::ZERO)
+                {
+                    continue;
+                }
+                if !world.is_finite() || !determinant.is_finite() || determinant == 0. {
+                    return Err(invalid(
+                        "transform",
+                        mesh,
+                        "singular or overflowing world transform cannot shade a mesh",
+                    ));
+                }
+                let normal_world = world.inverse().transpose();
+                if !normal_world.is_finite() {
+                    return Err(invalid("transform", mesh, "normal transform overflow"));
+                }
                 if items.len() >= self.limits.max_draws.min(max_draws) {
                     return Err(invalid(
                         "instances",
@@ -396,7 +422,41 @@ impl GpuScene {
                     ));
                 }
                 let m = &self.materials[p.material];
-                let center = world.transform_point3(p.center);
+                let (vertices, local_center) = if instance.has_active_morph() || palette.is_some() {
+                    let cost = (primitive_source.positions.len() as u64)
+                        .checked_mul(std::mem::size_of::<Vertex>() as u64)
+                        .ok_or_else(|| invalid("morph", mesh, "vertex capacity overflow"))?;
+                    let (buffer, center) = (|| {
+                        super::charge(&mut frame_bytes, cost, self.limits)?;
+                        super::meshes::deformed(
+                            &renderer.allocation_context(),
+                            primitive_source,
+                            &instance.weights,
+                            palette,
+                        )
+                    })()
+                    .map_err(|cause| {
+                        if palette.is_some() {
+                            super::SceneGpuError::SkinDeformation {
+                                node: instance.node,
+                                mesh,
+                                primitive,
+                                cause: Box::new(cause),
+                            }
+                        } else {
+                            super::SceneGpuError::Deformation {
+                                node: instance.node,
+                                mesh,
+                                primitive,
+                                cause: Box::new(cause),
+                            }
+                        }
+                    })?;
+                    (Some(buffer), center)
+                } else {
+                    (None, p.center)
+                };
+                let center = world.transform_point3(local_center);
                 let distance = (center - frame.camera.eye).dot(forward);
                 if !center.is_finite() || !distance.is_finite() {
                     return Err(invalid("sort", mesh, "primitive depth overflow"));
@@ -434,6 +494,7 @@ impl GpuScene {
                     uniform,
                     key,
                     distance,
+                    vertices,
                 });
             }
         }

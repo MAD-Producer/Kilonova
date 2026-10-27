@@ -6,7 +6,8 @@ dependencies. The native consumer below and the separate project `ModelClip`
 adapter use its owned data. Successful parsing alone does not establish PBR or
 mixed 3D composition support. Current project and native acceptance is recorded
 in the [model layer](../validation/model-layer-current.md) and
-[camera](../validation/gltf-cameras-current.md) ledgers.
+[camera](../validation/gltf-cameras-current.md) and
+[skin](../validation/gltf-skin-current.md) ledgers.
 
 The independent implementation follows the [Khronos glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html),
 sections 3.4–3.9 and 4, revision `8e798b02d254cea97659a333cfcb20875b62bdd4`.
@@ -29,9 +30,9 @@ decoding. This is not image validity, pixel-budget, texture upload or PBR
 acceptance. Color/emissive texture transfers are sRGB; the other texture slots
 and vertex multipliers are linear. No material shader is claimed here.
 
-Skins, morphs, nontriangle topology, unsupported attribute semantics and required
-extensions produce explicit `Unsupported` errors. Core transform clips and
-cameras follow the supported profiles below. An
+Nontriangle topology, unsupported attribute semantics and required extensions
+produce explicit `Unsupported` errors. Core transform clips, cameras, morph
+targets and skins follow the supported profiles below. An
 optional extension uses its core fallback and appears in the scene's bounded
 `ignored_optional_extensions` list and one import warning. It must not be
 presented as full-fidelity extension support. A library without scenes remains
@@ -267,6 +268,49 @@ is no implicit multisample-depth resolve or AI-depth calibration.
 
 Project model layers still rasterize separately. The shared native pass does
 not complete mixed mesh/plane/BSP, nested/matte/effect composition or calibrated
-AI depth. Skin/morph support and camera-selection UI also remain outside this
+AI depth. Skin support and camera-selection UI also remain outside this
 checkpoint. Standalone native acceptance is distinguished from the separate
 saved-project/editor/export evidence; #87 remains open.
+
+
+## Morph targets and weight animation
+
+`Primitive::morph_attributes` evaluates owned POSITION/NORMAL/TANGENT deltas
+before transforms. Mesh defaults and per-node overrides remain independent;
+`mesh_instances_at` borrows static defaults and owns animated weight samples.
+Weight channels use flattened SCALAR groups for STEP/LINEAR/CUBICSPLINE without
+clamping or probability normalization. Weight-only animation preserves authored
+node matrices while matrix-authored TRS channels remain invalid.
+
+The native consumer admits immutable per-encode vertex buffers, preserving
+pending frames and abandonment accounting. Displaced bounds determine global
+blend order; tangent handedness and actual projected depth remain intact.
+Directions normalize before interpolation; canceled shading directions and
+finite-range overflow fail explicitly. Evaluation is currently CPU-side with
+per-encode uploads, without a fixed frame-rate claim. Saved project layers
+consume the same owned samples without reopening source assets during frames.
+
+[The morph ledger](../validation/gltf-morph-current.md) records 121 targeted
+passes, strict scene lint, final source identities and remaining whole-workspace
+and cross-platform gates. That ledger predates the skin checkpoint below.
+Mixed project composition, calibrated AI depth and camera-selection UI remain
+unfinished; #87 is open.
+
+## Linear blend skins
+
+Typed skins and every consecutive paired JOINTS_n/WEIGHTS_n VEC4 influence set
+are retained. `mesh_instances_with_skins_at` returns node-aware instances and
+one metre-space palette per used skin. `Primitive::skin_attributes` applies
+morph first, then weighted joint-world and inverse-bind matrices. Skinned
+primitives ignore their mesh-node transform; unskinned primitives keep it.
+
+The native consumer shares morph's immutable admitted per-encode buffer path,
+global blend sorting and hardware depth. Nonuniform positive effective
+transforms use inverse-transpose normals and forward tangents. Singular or
+reflected effective skin transforms, canceled directions and overflow refuse
+before recording without bind-pose substitution. CPU deformation and per-encode
+uploads remain performance limits.
+
+[The skin checkpoint](../validation/gltf-skin-current.md) distinguishes tested
+CPU/native/saved-project behavior from pending whole-workspace/cross-platform
+acceptance and the remaining #87 composition, depth and camera work.
