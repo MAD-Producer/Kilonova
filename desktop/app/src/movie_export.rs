@@ -31,6 +31,21 @@ impl MovieExport {
         output: PathBuf,
         control: ExportControl,
     ) -> Result<Self, String> {
+        Self::start_with_mode(snapshot, output, control, false)
+    }
+    pub fn start_new_file_with_control(
+        snapshot: FrozenMovie,
+        output: PathBuf,
+        control: ExportControl,
+    ) -> Result<Self, String> {
+        Self::start_with_mode(snapshot, output, control, true)
+    }
+    fn start_with_mode(
+        snapshot: FrozenMovie,
+        output: PathBuf,
+        control: ExportControl,
+        new_file: bool,
+    ) -> Result<Self, String> {
         if !cfg!(feature = "ffmpeg") {
             return Err("MP4 export requires a build with --ffmpeg".into());
         }
@@ -55,7 +70,7 @@ impl MovieExport {
             .name("motion-movie-export".into())
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    snapshot.export(&output, &cancel, |progress| {
+                    let progress = |progress| {
                         static FAILURES: crate::fallback_observation::Counter =
                             crate::fallback_observation::Counter::new();
                         crate::fallback_observation::recovered(
@@ -64,7 +79,12 @@ impl MovieExport {
                             "movie.status.progress",
                             |value| value.progress = progress,
                         );
-                    })
+                    };
+                    if new_file {
+                        snapshot.export_new_file(&output, &cancel, progress)
+                    } else {
+                        snapshot.export(&output, &cancel, progress)
+                    }
                 }))
                 .unwrap_or_else(|payload| {
                     Err(format!(
@@ -141,6 +161,15 @@ impl MovieExport {
     }
     pub fn finished(&self) -> bool {
         self.status().state != "running"
+    }
+    pub(crate) fn cancel_and_join(self) -> ExportStatus {
+        let status = self.status.clone();
+        drop(self);
+        static FAILURES: crate::fallback_observation::Counter =
+            crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&status, &FAILURES, "movie.status.joined", |value| {
+            value.clone()
+        })
     }
 }
 impl Drop for MovieExport {

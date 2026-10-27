@@ -248,6 +248,9 @@ impl Shell {
                 self.open_keyframe_timing(source, selections)?;
             }
             Action::ExportMovie => {
+                if self.render_queue.preparing() {
+                    return Err("render queue is preparing a task".into());
+                }
                 if self.freezing_movie.is_some()
                     || self.exporting_frame.is_some()
                     || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
@@ -279,6 +282,7 @@ impl Shell {
                     control.cancel();
                 }
             }
+            Action::RenderQueue(intent) => self.render_queue_action(intent)?,
             Action::EditBatch(commands) => {
                 self.stop();
                 self.editing = Some((

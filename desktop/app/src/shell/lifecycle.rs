@@ -12,6 +12,7 @@ impl Shell {
         }
     }
     pub(crate) fn finish_close(&mut self) {
+        self.render_queue.shutdown();
         self.cancel_layer_clipboard();
         self.cancel_audio_analysis();
         self.node_tasks.cancel(&mut self.panels.node_editor);
