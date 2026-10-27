@@ -188,6 +188,8 @@ pub(in crate::panels) fn render(
         return true;
     };
     let styles = list.styles();
+    let generation = state["document_generation"].as_u64();
+    let revision = state["revision"].as_u64();
     let row = styles.metric("row.height", 22.);
     let pad = styles.metric("padding.panel", 8.);
     let slot = styles.metric("icon.slot", 20.);
@@ -374,7 +376,7 @@ pub(in crate::panels) fn render(
     let Ok(automatic) = observe!(
         "effect.graph_view_bounds",
         automatic.ok_or("unrepresentable effect graph range"),
-        "object={} effect={} param={} component={component} phase=display",
+        "object={} effect={} param={} component={component} generation={generation:?} revision={revision:?} phase=display",
         target.object,
         target.effect,
         target.param
@@ -446,7 +448,7 @@ pub(in crate::panels) fn render(
         |frame| sample_value(&parameter, frame, layer_offset, speed, fps, component),
     );
     let Ok(points)=observe!("effect.graph_adaptive",points,
-        "object={} effect={} param={} component={component} frame_start={offset} frame_end={end} phase=screen_subdivision",target.object,target.effect,target.param) else {
+        "object={} effect={} param={} component={component} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision",target.object,target.effect,target.param) else {
         graph.clip_to(area);list.append(graph);panels.timeline.graph_ranges.no_timeline_plot();return true;
     };
     let y_of = |v: f32| plot.max[1] - (v - bounds[0]) / (bounds[1] - bounds[0]) * plot.height();
@@ -723,7 +725,7 @@ pub(in crate::panels) fn render(
         if let Ok(value) = observe!(
             "effect.graph_readout",
             sample_value(&parameter, frame, layer_offset, speed, fps, component),
-            "object={} effect={} param={} component={component} frame={frame} phase=readout",
+            "object={} effect={} param={} component={component} frame={frame} generation={generation:?} revision={revision:?} phase=readout",
             target.object,
             target.effect,
             target.param
@@ -772,12 +774,12 @@ pub(in crate::panels) fn render(
         let tolerance = f64::from(styles.metric("graph.sample.error", 0.35));
         let started = std::time::Instant::now();
         let all=observe!("effect.graph_fit_all",fitted(&parameter,all_interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
-            "object={} effect={} param={} component={component} frame_start={} frame_end={} elapsed_ms={} phase=fit_all",
+            "object={} effect={} param={} component={component} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_all",
             target.object,target.effect,target.param,all_interval[0],all_interval[1],started.elapsed().as_millis()).ok();
         let selection=selection_interval.and_then(|interval| {
             let started=std::time::Instant::now();
             observe!("effect.graph_fit_selection",fitted(&parameter,interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
-                "object={} effect={} param={} component={component} frame_start={} frame_end={} elapsed_ms={} phase=fit_selection",
+                "object={} effect={} param={} component={component} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_selection",
                 target.object,target.effect,target.param,interval[0],interval[1],started.elapsed().as_millis()).ok()
         });
         panels.timeline.graph_ranges.open(

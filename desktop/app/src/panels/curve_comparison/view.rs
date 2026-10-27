@@ -127,6 +127,8 @@ pub(in crate::panels) fn render(
     });
     let input = neutral.as_ref().unwrap_or(input);
     let styles = list.styles();
+    let generation = state["document_generation"].as_u64();
+    let revision = state["revision"].as_u64();
     let row = styles.metric("row.height", 22.);
     let pad = styles.metric("padding.panel", 8.);
     let gap = styles.metric("padding", 5.);
@@ -400,7 +402,7 @@ pub(in crate::panels) fn render(
             let Ok(automatic) = observe!(
                 "curve.comparison.view_bounds",
                 automatic.ok_or("unrepresentable comparison range"),
-                "phase=display unit={unit:?} curves={}",
+                "phase=display unit={unit:?} generation={generation:?} revision={revision:?} curves={}",
                 indices.len()
             ) else {
                 continue;
@@ -504,7 +506,7 @@ pub(in crate::panels) fn render(
                     {entry.tessellation_attempts=entry.tessellation_attempts.saturating_add(1);}
                     let points=observe!("curve.comparison.adaptive",data.adaptive([offset,end],entry.channel.component,fps,speed,
                         [f64::from(ppf),f64::from(plot.height())/(high-low)],tolerance),
-                        "object={} component={} unit={unit:?} frame_start={offset} frame_end={end} phase=screen_subdivision",entry.channel.target.object(),entry.channel.component)
+                        "object={} component={} unit={unit:?} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision",entry.channel.target.object(),entry.channel.component)
                         .ok().map(Arc::new);
                     entry.tessellation = Some(Tessellation {
                         key: tessellation_key,
@@ -532,7 +534,7 @@ pub(in crate::panels) fn render(
                     if let Ok(value) = observe!(
                         "curve.comparison.readout",
                         data.sample(frame, entry.channel.component, fps, speed),
-                        "object={} component={} frame={frame} phase=readout",
+                        "object={} component={} frame={frame} generation={generation:?} revision={revision:?} phase=readout",
                         entry.channel.target.object(),
                         entry.channel.component
                     ) {
@@ -646,11 +648,11 @@ pub(in crate::panels) fn render(
                     intervals(&controls, &indices, panels, state);
                 let began = std::time::Instant::now();
                 let all=observe!("curve.comparison.fit_all",fitted(&controls,&indices,all_interval,fps,speed,[plot.width(),plot.height()],tolerance),
-                        "unit={unit:?} curves={} frame_start={} frame_end={} elapsed_ms={} phase=fit_all",indices.len(),all_interval[0],all_interval[1],began.elapsed().as_millis()).ok();
+                        "unit={unit:?} curves={} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_all",indices.len(),all_interval[0],all_interval[1],began.elapsed().as_millis()).ok();
                 let selection=selection_interval.and_then(|interval| {
                         let began=std::time::Instant::now();
                         observe!("curve.comparison.fit_selection",fitted(&controls,&indices,interval,fps,speed,[plot.width(),plot.height()],tolerance),
-                            "unit={unit:?} curves={} frame_start={} frame_end={} elapsed_ms={} phase=fit_selection",indices.len(),interval[0],interval[1],began.elapsed().as_millis()).ok()
+                            "unit={unit:?} curves={} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_selection",indices.len(),interval[0],interval[1],began.elapsed().as_millis()).ok()
                     });
                 panels.timeline.graph_ranges.open(
                     point,

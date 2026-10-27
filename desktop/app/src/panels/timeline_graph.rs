@@ -160,6 +160,8 @@ pub(super) fn render(
     }
     let styles = list.styles();
     let colors = styles.colors();
+    let generation = state["document_generation"].as_u64();
+    let revision = state["revision"].as_u64();
 
     // A project/selection/channel transition cancels the old transaction once.
     // It must not leave a live drag behind a normal empty-selection projection.
@@ -389,7 +391,7 @@ pub(super) fn render(
         .zip(Range::new(f64::from(initial_center-initial_half),f64::from(initial_center+initial_half)))
         .map(|(x,y)|Bounds {x,y});
     let Ok(automatic)=observe!("timeline.graph_view_bounds",automatic.ok_or("unrepresentable graph range"),
-        "object={object} property={property:?} axis={axis:?} phase=display") else {
+        "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} phase=display") else {
         graph.clip_to(area);list.append(graph);observe_early_return(panels,"invalid_view_bounds");return;
     };
     let before_view=panels.timeline.graph_ranges.displayed(state,&identity,automatic);
@@ -441,7 +443,7 @@ pub(super) fn render(
         |frame|sample(frame,*component).map(f64::from),
     )).collect::<Result<Vec<_>,_>>();
     let Ok(points)=observe!("timeline.graph_adaptive",adaptive,
-        "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end} phase=screen_subdivision") else {
+        "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision") else {
         graph.clip_to(area);list.append(graph);observe_early_return(panels,"adaptive_sampling_failed");return;
     };
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
@@ -705,12 +707,12 @@ pub(super) fn render(
             let started=std::time::Instant::now();
             let all=observe!("timeline.graph_fit_all",samples.fit_bounds(all_interval,layer_offset as f64,
                 &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
-                "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_all",started.elapsed().as_millis()).ok();
+                "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_all",started.elapsed().as_millis()).ok();
             let selection=selection_interval.and_then(|interval| {
                 let started=std::time::Instant::now();
                 observe!("timeline.graph_fit_selection",samples.fit_bounds(interval,layer_offset as f64,
                     &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
-                    "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
+                    "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
             });
             panels.timeline.graph_ranges.open(point,identity,super::graph_ranges::Options {displayed,all,selection},
                 state,&panels.selected_keys,panels.animation_controls.user_key(),panels.effect_timeline.range_key(),None,panels.selected,panels.focused);

@@ -338,6 +338,8 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
             assert!(lines
                 .iter()
                 .all(|line| line.contains(cause) && line.contains("phase=")));
+            assert!(lines.iter().all(|line| line.contains("generation=Some(1)")
+                && line.contains("revision=Some(0)")));
             if !site.starts_with("curve.comparison") {
                 assert!(lines.iter().all(|line| line.contains("object=7")));
             }
