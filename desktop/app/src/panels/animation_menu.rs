@@ -27,6 +27,8 @@ pub(super) enum Operation {
     Shortcut(Shortcut),
     Interpolation(Ease),
     TimingSettings,
+    CopyEasing,
+    PasteEasing,
     CompareCurves,
     Sequence,
     ReverseTime,
@@ -112,6 +114,9 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                         }))
         }
         Operation::Interpolation(_) | Operation::TimingSettings => interpolation_selection(panels, state).is_some(),
+        Operation::CopyEasing => !panels.clipboard_busy && super::keyframe_clipboard::selection(panels, state)
+            .is_some_and(|s| s.selections.len() == 1 && s.selections[0].frames.len() == 1),
+        Operation::PasteEasing => !panels.clipboard_busy && interpolation_selection(panels, state).is_some(),
         Operation::CompareCurves => true,
         Operation::Sequence => sequence_plan(panels, state).is_some_and(|edits| !edits.is_empty()),
         Operation::ReverseTime | Operation::Shortcut(_) => false,
@@ -152,6 +157,17 @@ pub(super) fn apply(
         Operation::TimingSettings => {
             if let Some(selected) = interpolation_selection(panels, state) {
                 out.push(Action::KeyframeTimingSettings {
+                    source: crate::layer_clipboard::KeyframeSource::of(state),
+                    selections: selected.selections,
+                });
+            }
+        }
+        Operation::CopyEasing | Operation::PasteEasing => {
+            if let Some(selected) = super::keyframe_clipboard::selection(panels, state) {
+                out.push(Action::CurveClipboard {
+                    intent: if matches!(operation, Operation::CopyEasing) {
+                        crate::layer_clipboard::controller::Intent::Copy
+                    } else { crate::layer_clipboard::controller::Intent::Paste { in_place: true } },
                     source: crate::layer_clipboard::KeyframeSource::of(state),
                     selections: selected.selections,
                 });
@@ -248,6 +264,8 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
         if zh { "关键帧插值与速度…" } else { "Keyframe interpolation and velocity…" },
         Scope::Animation, Shortcut::KeyframeTiming), Operation::TimingSettings));
     rows.push(((if zh {"多通道曲线比较"} else {"Compare multiple curves"}).into(),Operation::CompareCurves));
+    rows.push(((if zh { "复制所选区间的缓动曲线" } else { "Copy easing from selected interval" }).into(), Operation::CopyEasing));
+    rows.push(((if zh { "将缓动曲线粘贴到所选区间" } else { "Paste easing to selected intervals" }).into(), Operation::PasteEasing));
     rows.push((
         (if zh {
             "序列图层 · 保留首层起点，整帧移动"

@@ -41,6 +41,7 @@ pub use motion_model::{
 };
 pub use motion_model::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use motion_model::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
+pub use motion_model::CurveClipboard;
 pub use motion_model::{
     CurveLut, CurveObject, CurveTrack, SampledColorCurve, HIGH_PRECISION_CURVE_SAMPLES,
     EffectAction, EffectImageInput, EffectImageStage, EffectInstance, EffectParam, PluginDependency,

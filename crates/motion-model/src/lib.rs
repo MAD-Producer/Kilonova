@@ -44,6 +44,7 @@ pub use commands::{Command, EditResult, Property};
 pub use layer_clipboard::LayerClipboard;
 pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use keyframe_clipboard::KeyframeValueOffset;
+pub use keyframe_clipboard::curve_clipboard::CurveClipboard;
 pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use audio::{AudioAsset, AudioClip};
