@@ -59,6 +59,8 @@ mod work_area_tests;
 mod precision_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod keyframe_timing_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod publication_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
@@ -957,10 +959,31 @@ impl FrozenMovie {
         control: &ExportControl,
         progress: impl FnMut(f64),
     ) -> Result<MovieResult> {
+        self.export_with_policy(output, control, progress, true)
+    }
+
+    /// Queue publication must atomically refuse an existing destination, even
+    /// when another writer creates it after validation or during encoding.
+    pub fn export_new_file(
+        self,
+        output: &Path,
+        control: &ExportControl,
+        progress: impl FnMut(f64),
+    ) -> Result<MovieResult> {
+        self.export_with_policy(output, control, progress, false)
+    }
+
+    fn export_with_policy(
+        self,
+        output: &Path,
+        control: &ExportControl,
+        progress: impl FnMut(f64),
+        overwrite: bool,
+    ) -> Result<MovieResult> {
         let budget = self.allocation_budget.clone();
         allocation_observation::run(
             &budget, self.observation_request, motion_render::FrameOperation::ExportJob, None,
-            || self.export_inner(output, control, progress),
+            || self.export_inner(output, control, progress, overwrite),
         )
     }
 
@@ -970,6 +993,7 @@ impl FrozenMovie {
         _output: &Path,
         _control: &ExportControl,
         _progress: impl FnMut(f64),
+        _overwrite: bool,
     ) -> Result<MovieResult> {
         Err("MP4 export requires a build with --ffmpeg".into())
     }
@@ -980,6 +1004,7 @@ impl FrozenMovie {
         output: &Path,
         control: &ExportControl,
         mut progress: impl FnMut(f64),
+        overwrite: bool,
     ) -> Result<MovieResult> {
         use motion_render::Scene;
         use motion_render::{image_resources::Resolution, Renderer};
@@ -990,6 +1015,9 @@ impl FrozenMovie {
             progress(value);
         };
         let output = export_destination(output, &self.source_paths)?;
+        if !overwrite && output.try_exists().map_err(|e| format!("inspect MP4 destination: {e}"))? {
+            return Err(format!("MP4 output already exists: {}", output.display()));
+        }
         let temporary = tempfile::Builder::new()
             .prefix(".motion-movie-")
             .suffix(".mp4")
@@ -1134,8 +1162,12 @@ impl FrozenMovie {
             if state.cancelled {
                 return Err("movie export cancelled".into());
             }
-            temporary
-                .persist(&output)
+            let published = if overwrite {
+                temporary.persist(&output)
+            } else {
+                temporary.persist_noclobber(&output)
+            };
+            published
                 .map_err(|e| format!("publish MP4: {}", e.error))?;
             state.published = true;
         }

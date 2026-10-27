@@ -11,6 +11,19 @@ const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
 const MAX_FILES: usize = 8192;
 const MAX_PACKAGE_FILE: u64 = 16 * 1024 * 1024;
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotInfo {
+    pub composition: String,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub fps: u32,
+    pub frames: u32,
+    pub range: motion_core::WorkArea,
+    pub revision: u64,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Manifest {
@@ -35,10 +48,14 @@ struct Entry {
 pub struct PreparedMovie {
     directory: Option<tempfile::TempDir>,
     path: PathBuf,
+    info: SnapshotInfo,
 }
 impl PreparedMovie {
     pub fn path(&self) -> &Path {
         &self.path
+    }
+    pub fn info(&self) -> &SnapshotInfo {
+        &self.info
     }
     pub fn publish(mut self) -> Result<PathBuf> {
         let directory = self
@@ -62,6 +79,18 @@ impl Drop for PreparedMovie {
 }
 
 impl FrozenMovie {
+    pub fn snapshot_info(&self) -> SnapshotInfo {
+        SnapshotInfo {
+            composition: self.project.composition_id.clone(),
+            name: self.project.name.clone(),
+            width: self.project.width,
+            height: self.project.height,
+            fps: self.project.fps,
+            frames: self.project.frames,
+            range: self.range,
+            revision: self.revision,
+        }
+    }
     /// Copy already frozen sources, PCM/PTS caches and exact effect packages.
     /// Queue publication happens separately; a failed queue save drops this tree.
     pub fn prepare_persistent(
@@ -84,6 +113,7 @@ impl FrozenMovie {
                 let prepared = PreparedMovie {
                     path: directory.path().to_owned(),
                     directory: Some(directory),
+                    info: self.snapshot_info(),
                 };
                 let mut files = Vec::new();
                 let mut paths = Vec::new();
