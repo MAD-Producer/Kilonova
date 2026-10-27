@@ -167,13 +167,14 @@ fn native_shy_switches_persist_and_keep_output_with_default_error_evidence() {
             };
             assert!(draw(&mut paint, &mut shell, &Input::default()).is_empty());
             let gutter = 640f32.min(bounds.width() * 0.52);
-            let columns = ColumnRects::with_sampling(
+            let columns = ColumnRects::with_output_switches(
                 &paint.styles(),
                 bounds.min[0],
                 gutter,
                 shell.panels.timeline.column_visibility,
                 shell.panels.timeline.sampling_visibility,
                 super::super::super::layer_sampling::available(&shell.state),
+                super::super::super::playback_switches::available(&shell.state),
             );
             let slot = columns.shy.unwrap();
             let point = [

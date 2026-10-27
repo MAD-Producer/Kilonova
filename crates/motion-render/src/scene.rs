@@ -287,7 +287,7 @@ impl Scene {
                 }
                 let sampled = &mut self.effects[effect_index];
                 sampled.local_frame = layer.local_frame(frame);
-                sampled.enabled = e.enabled;
+                sampled.enabled = e.enabled && layer.effects_enabled;
                 sampled.seed = e.seed;
                 sampled.image_input = e.image_input;
                 if !match (&sampled.shader_data, &e.shader_data) {
@@ -304,7 +304,7 @@ impl Scene {
                         motion_effects::MAX_PARAMS
                     )));
                 }
-                if e.enabled && e.scene.as_ref().is_some_and(|s| s.particle_space.is_some()) {
+                if sampled.enabled && e.scene.as_ref().is_some_and(|s| s.particle_space.is_some()) {
                     let raw_layer = original.layers.iter().find(|l| l.id == layer.id).ok_or_else(|| {
                         motion_model::Error::Invalid(format!(
                             "particle effect layer {} is missing from the source project",
@@ -329,7 +329,7 @@ impl Scene {
                 }
                 for (i, p) in e.params.values().enumerate() {
                     sampled.values[i] = p.sample(sampled.local_frame)?;
-                    if let Some(c) = p.curve.as_ref().filter(|_| e.enabled) {
+                    if let Some(c) = p.curve.as_ref().filter(|_| sampled.enabled) {
                         let source = c.sampled_curve_with_budget(
                             sampled.local_frame,
                             previous_curve_sources.get(self.curve_sources.len()),
@@ -411,13 +411,15 @@ impl Scene {
         );
         let matte_sources=motion_model::compositing::matte_sources(&project.layers);
         let hidden_sources=motion_model::compositing::hidden_sources(&project.layers);
+        let solo_active = project.solo_active();
         for (order, layer) in project.layers.iter().enumerate() {
             if matches!(layer.content, Content::Null | Content::Camera { .. } | Content::Audio { .. }) {
                 continue;
             }
             let referenced = matte_sources.contains(&layer.id) || self.effects.iter().any(|e| e.enabled && e.image_input.and_then(motion_model::EffectImageInput::layer) == Some(layer.id));
             let clip=layer.interval(project.frames);
-            if frame<clip.in_frame||frame>=clip.out_frame||(!layer.visible&&!referenced) {
+            let output_enabled = layer.visible && (!solo_active || layer.solo);
+            if frame<clip.in_frame||frame>=clip.out_frame||(!output_enabled&&!referenced) {
                 continue;
             }
             let opacity = layer
@@ -527,7 +529,7 @@ impl Scene {
                     let world = self.node_world[order] * geometry_offset(layer, frame)?;
                     let m = glam::Mat3::from_cols(world.x_axis.truncate().truncate().extend(0.),
                         world.y_axis.truncate().truncate().extend(0.),world.w_axis.truncate().truncate().extend(1.));
-                    let spatial_input = layer.effects.iter().any(|e|e.enabled) || !layer.masks.is_empty() || dependencies;
+                    let spatial_input = (layer.effects_enabled && layer.effects.iter().any(|e|e.enabled)) || !layer.masks.is_empty() || dependencies;
                     if !layer.three_d && !spatial_input && m.determinant().abs()>1e-8
                         && world.x_axis.w.abs()<1e-8 && world.y_axis.w.abs()<1e-8 && (world.w_axis.w-1.).abs()<1e-8 {
                         let inverse=m.inverse();let mut min=glam::Vec2::splat(f32::INFINITY);let mut max=glam::Vec2::splat(f32::NEG_INFINITY);
@@ -586,7 +588,7 @@ impl Scene {
                 vector,
                 masks,
                 blend:layer.blend,track_matte:layer.track_matte,
-                composite_visible:layer.visible&&!hidden_sources.contains(&layer.id),
+                composite_visible:output_enabled&&!hidden_sources.contains(&layer.id),
                 adjustment: matches!(layer.content, Content::Adjustment),
                 composition: matches!(layer.content,Content::Composition {..}),
                 depth: (center - self.camera.eye).dot(forward),

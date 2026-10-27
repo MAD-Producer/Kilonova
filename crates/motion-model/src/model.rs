@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 27;
+pub const CURRENT_PROJECT_VERSION: u32 = 28;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -149,6 +149,10 @@ pub struct Layer {
     pub transform: Transform,
     pub visible: bool,
     pub locked: bool,
+    /// Output isolation within this composition, shared by preview and export.
+    pub solo: bool,
+    /// Bypass the chain without changing any individual effect's enabled state.
+    pub effects_enabled: bool,
     /// Editor list organization only; never affects render visibility.
     pub shy: bool,
     /// New layers are flat until the user explicitly enables spatial transforms.
@@ -184,6 +188,8 @@ impl Layer {
             transform: Transform::new(position),
             visible: true,
             locked: false,
+            solo: false,
+            effects_enabled: true,
             shy: false,
             three_d: false,
             sampling: Default::default(),
@@ -517,6 +523,7 @@ impl Project {
                     }
                 }
             }
+            crate::layer_switches::validate(layer)?;
             match &layer.content {
                 Content::Adjustment => {
                     ensure(!layer.three_d, "adjustment layers must be 2D")?;

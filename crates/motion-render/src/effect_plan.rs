@@ -683,6 +683,7 @@ impl PlanBuilder {
     }
     pub fn preflight_project(&self, project: &motion_model::Project) -> Result<(), RenderError> {
         for layer in &project.layers {
+            if !layer.effects_enabled { continue; }
             for (chain_index, e) in layer.effects.iter().filter(|e| e.enabled).enumerate() {
                 let location = format!("layer {}, effect {} ({})", layer.id, e.id, e.effect);
                 let package = self

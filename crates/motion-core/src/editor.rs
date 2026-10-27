@@ -173,6 +173,7 @@ fn video_audio_layer(project: &Project, source: &Layer, id: u64) -> Result<Layer
     layer.audio_markers = source.audio_markers.clone();
     layer.audio_source_channel = source.audio_source_channel;
     layer.visible = source.visible;
+    layer.solo = source.solo;
     // Video and audio tracks can have different durations. Preserve the source
     // clock and intersect the video clip with recoverable audio samples.
     let span = source.interval(project.frames);
@@ -831,6 +832,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             if layer.locked { return Err(Error::Locked(object)); }
             layer.shy = shy;
         }
+        Command::SetLayerSwitch { object, switch, enabled } => project.set_layer_switch(object, switch, enabled)?,
         Command::Reorder { object, index } => {
             ensure(index < project.layers.len(), "invalid layer destination")?;
             let from = project

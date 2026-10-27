@@ -74,6 +74,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "f32" | "f64" => json!({"type":"number"}),
             "bool" => json!({"type":"boolean"}),
             "String" => json!({"type":"string"}),
+            "LayerSwitch" => json!({"type":"string","enum":["solo","effects","video","audio"]}),
             "Property" => {
                 json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
             }
@@ -191,6 +192,7 @@ registry! {
     Command::Reorder { .. } => "reorder" [("object","u64",true), ("index","usize",true)];
     Command::Flags { .. } => "flags" [("object","u64",true), ("visible","bool",true), ("locked","bool",true)];
     Command::SetLayerShy { .. } => "set_layer_shy" [("object","u64",true), ("shy","bool",true)];
+    Command::SetLayerSwitch { .. } => "set_layer_switch" [("object","u64",true), ("switch","LayerSwitch",true), ("enabled","bool",true)];
     Command::SetWorkArea { .. } => "set_work_area" [("in_frame","u32",true), ("out_frame","u32",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];

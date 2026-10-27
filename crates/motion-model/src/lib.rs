@@ -22,6 +22,8 @@ pub mod path_conversion;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
+pub mod layer_switches;
+pub use layer_switches::LayerSwitch;
 mod observability;
 mod clip_range;
 pub mod particle_history;
