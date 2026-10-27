@@ -405,3 +405,67 @@ acceptance. Native FFmpeg SDR support does not expand the model's explicit RGB8
 input to HDR/alpha or change the renderer's working precision. Remote CI and the
 combined maintained-main model/depth regression remain pending. #74 remains open;
 Android is retired and unvalidated.
+
+## Explicit original-video RGB encoding
+
+Executable-source head `a0641ff8aaa92a3aed51f5cd0053bf8f909e34d5` closes a
+colour-contract gap found after the preceding checkpoint. YUV matrix/range
+conversion alone does not make RGB bytes sRGB. The pinned OpenH264 fixture also
+did not actually preserve its requested primary/transfer declarations. The
+earlier real video ONNX/reference agreement remains numerical evidence for
+those exact input bytes; it **does not establish correct sRGB preparation**.
+
+The native decoder now exposes the actual returned frame's primaries and
+transfer metadata. Depth staging requires BT.709 primaries with an explicit
+sRGB or BT.709 transfer declaration. It leaves sRGB unchanged, and explicitly
+applies the inverse BT.709 OETF followed by IEC sRGB encoding to BT.709 bytes.
+This is the selected signal-conversion policy, without a display viewing OOTF;
+it does not infer mastering intent or establish a general colour-management
+system. Unknown declarations, HDR and other primaries are refused before the
+backend. Preview decoding and its existing pixel values are unchanged.
+
+The policy follows [ITU-R BT.709-6](https://www.itu.int/rec/R-REC-BT.709-6-201506-I/en)
+and the [sRGB encoding equations](https://www.w3.org/TR/css-color-4/#color-conversion-code).
+It must not be confused with a display-referred conversion: zimg explicitly
+[selects BT.1886 for display-referred BT.709](https://github.com/sekrit-twc/zimg/blob/master/src/zimg/colorspace/gamma.cpp#L325-L343).
+
+Source-frozen acceptance passes **31 tests, zero failures and zero ignores**:
+the previous 28, two new Session transfer/rejection cases and one native
+metadata contract. The no-default host check and native probe build also pass.
+BT.709 gray 128 becomes sRGB 140; declared sRGB gray 128 remains 128. Unknown
+metadata retains its native cause, increments the failure count, never enters
+the backend and causes no retry. Existing assertions and deadlines are unchanged.
+
+Separate actual native decoder/Session probes verify the owned fixture's
+bitstream and container tags with independent ffprobe before use. They validate
+the original matrix conversion against FFmpeg at maximum byte error 3 (bound 4)
+and the complete declared conversion with FFmpeg's independent expression
+evaluator at maximum byte error 6 (predeclared nonlinear bound 13). The prepared
+bytes also match the normative byte LUT exactly. A second real fixture has its
+tags removed and is rejected before backend entry. With `MOTION_LOG` unset,
+both probes preserve Info start before Error, Error in file and stderr, empty
+product stdout and no inference scratch directory.
+
+Two rejected probe attempts are retained. The first exposed absent fixture
+tags. The second used zscale as an unsuitable oracle: it applies the different
+display transfer above and reconstructs sharp YUV chroma differently; its
+full-pipeline maximum difference was 125. A same-RGB diagnostic isolates a
+maximum transfer difference of 29, while a no-conversion RGB round trip is
+exact. The corrected independent evaluator implements the declared signal
+policy and retains the original raw-matrix bound. These are reference/fixture
+corrections, not relaxed product tests or hidden successful inferences.
+
+Evidence: [colour sources, CPU contracts, actual staging/rejection and rejected references](data/ai-depth-video-color-a0641ff8.zip),
+SHA-256 `68d377ad5ee153cbe5b4c4e543e47b1d0f94c8f53c10cb1bbbc51c8730bae5b8`;
+2,504,409 bytes, 145 entries, each read back and verified. External runtimes,
+weights and third-party source trees are not bundled. The two staging probes
+deliberately perform **no model inference**: the accepted input probe records
+RGB then returns a controlled backend error; unknown metadata never reaches it.
+Actual ONNX/reference acceptance with the corrected input and final combined
+source remains pending. Existing natural-domain evaluations remain the separate
+evidence recorded above; this small owned fixture adds no domain-quality claim.
+
+The maintained-main combined gate on `653dc205` does not yet include this later
+colour fix. Its eventual result cannot be reported as a full regression of this
+later source. The current-source integration checks and remote CI remain pending;
+#74 and the remaining #87 pipeline work are open. Android remains retired.

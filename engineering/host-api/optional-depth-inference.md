@@ -99,8 +99,50 @@ request, installation flag and saturating lifetime counters.
 
 The installed immutable `Estimate` retains provider, timings and the original
 DepthResource semantics. It is not silently attached to a renderer depth buffer.
-This native static-image Session API does not implement video decoder-PTS
-staging, a desktop control, automatic layer effects, or metric calibration.
+
+## Session-managed original video
+
+`request_video_depth(object, geometry, model)` resolves an original video layer
+and derives its requested source coordinate from the current composition frame,
+clip interval and source offset. Outside the clip/source interval is a normal
+`Ok(None)`: no inference is submitted and no error is recorded. This path does
+not sample frame blending, effects or composition output.
+
+The depth worker reads the managed source and PTS index, then creates, uses and
+drops the native decoder on that same worker. The factory can return a non-Send
+decoder. Cancellation is checked between packets; a blocked decoder factory is
+observable before entry but cannot be interrupted until it returns. There is no
+added thread timeout or restart.
+
+The actual decoded frame must agree with the managed index on PTS, sample end,
+dimensions, coded orientation, YUV matrix and range. Geometry uses **display
+pixel coordinates** after the decoder's coded rotation; crop, the requested
+clockwise quarter-turn and horizontal mirror are then applied. The source PTS
+is the actual decoded sample in managed microseconds, not the requested
+coordinate or the raw container time base. A seek to another requested coordinate
+inside the same VFR sample still invalidates the earlier request ticket.
+
+Native RGB encoding must be explicitly declared for the returned frame. The
+initial supported contract requires BT.709 primaries and either IEC sRGB or
+BT.709 transfer metadata. sRGB bytes pass through. BT.709 bytes are converted
+using the inverse BT.709 OETF followed by IEC sRGB encoding, with one final byte
+rounding. This is an explicit signal conversion; it does not apply a display
+viewing OOTF or infer mastering intent. A different display-referred conversion
+requires a separate policy. Unknown primaries/transfer, HDR and wide-gamut input
+are refused before inference; matrix/range alone do not establish the encoding.
+The decoder's existing preview pixels are unchanged.
+
+Video staging admits the bounded PTS index and decoded pixel payloads under the
+lesser of the Session decoded-image policy and 128 MiB. Source axes are capped
+at 4096 and the existing asset contract caps the index at one million timestamps.
+These are payload limits, not total codec/process RSS measurements. Polling
+independently rechecks document/root, revision, active composition/frame, video
+layer, registered metadata, requested source coordinate and budget. Relink and
+document replacement therefore reject stale results without a caller-supplied
+live key. External same-path writes are not watched; use the project edit API.
+
+These Session APIs do not provide a desktop control, automatic layer effect,
+metric calibration or a shared hardware depth binding.
 
 The output is an owned R32Float **unitless relative** resource, with larger
 values nearer. Confidence/validity planes remain absent when the model does not
@@ -116,19 +158,24 @@ as proof of GPU execution. Internal provider fallback diagnostics remain visible
 the host does not retry failed inference. Only CPU and an unavailable-CUDA to CPU
 fallback have been accepted locally; accelerated providers need their own run.
 
-Cost fields separately measure parent-side staging/serialization/output ownership,
-load, preprocessing, host tensor input/output copies, inference and postprocessing.
-Total backend wall time also includes child startup and temporary cleanup; the
-phase fields do not claim to exhaust every orchestration cost.
+Cost fields separately measure source preparation, prepared RGB bytes,
+parent-side staging/serialization/output ownership, load, preprocessing, host
+tensor input/output copies, inference and postprocessing. For managed image/video
+jobs, total worker wall time includes source preparation. Direct backend calls
+have no source preparation; their total includes child startup and temporary
+cleanup. The phase fields do not claim to exhaust every orchestration cost.
 Provider-internal transfers are included in
 inference time. There is no I/O Binding, zero-copy or persistent session claim:
 each cancellable child owns its model/runtime and is killed and reaped on cancel.
 This bounds ownership but adds Python/model startup cost per request. It is an
 optional correctness prototype, not a real-time playback implementation.
 
-The job layer publishes in-flight state and Info start before entering the
-backend. Errors retain request/source identity, phases and bounded original
-causes. Use the desktop's existing logger so Error reaches file and stderr and
+The job layer publishes in-flight state and Info start before source IO, decoder
+opening or backend entry. Actual video PTS remains unknown until the decoded
+sample is validated; source-ready then records it before inference. Errors
+retain request/source identity, requested source coordinate, available actual
+PTS, phases, elapsed time and bounded original causes. Use the desktop's existing
+logger so Error reaches file and stderr and
 stdout stays available for CLI/MCP. Normal pending polls and cancellation are
 quiet. Child stdout is a bounded private protocol; native diagnostics go to a
 separate bounded stderr tail. Temporary files use the explicit scratch root.
