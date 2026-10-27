@@ -43,6 +43,7 @@ enum Path {
     Translation,
     Rotation,
     Scale,
+    Weights,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 enum Interpolation {
@@ -54,6 +55,7 @@ enum Interpolation {
 enum Values {
     Vector(Vec<[f32; 3]>),
     Rotation(Vec<[f32; 4]>),
+    Weights { width: usize, values: Vec<[f32; 1]> },
 }
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct Channel {
@@ -93,11 +95,12 @@ pub(crate) fn decode(reader: &Reader<'_>, budget: &mut Budget) -> Result<Vec<Ani
                 "translation" => Path::Translation,
                 "rotation" => Path::Rotation,
                 "scale" => Path::Scale,
+                "weights" => Path::Weights,
                 _ => {
                     return Err(unsupported(
                         "animation",
                         object,
-                        "only TRS targets are supported",
+                        "only TRS and morph weight targets are supported",
                     ))
                 }
             };
@@ -110,7 +113,7 @@ pub(crate) fn decode(reader: &Reader<'_>, budget: &mut Budget) -> Result<Vec<Ani
                 .nodes
                 .get(node)
                 .ok_or_else(|| invalid("animation", &object, "target node out of range"))?;
-            if target.matrix.is_some() || !targets.insert((node, path)) {
+            if (path != Path::Weights && target.matrix.is_some()) || !targets.insert((node, path)) {
                 return Err(invalid(
                     "animation",
                     &object,
@@ -155,6 +158,26 @@ pub(crate) fn decode(reader: &Reader<'_>, budget: &mut Budget) -> Result<Vec<Ani
                     1
                 })
                 .ok_or_else(|| invalid("animation", &object, "output count overflow"))?;
+            let width = if path == Path::Weights {
+                target
+                    .mesh
+                    .and_then(|mesh| reader.root.meshes.get(mesh))
+                    .and_then(|mesh| mesh.primitives.first())
+                    .map(|p| p.targets.len())
+                    .filter(|&count| count > 0)
+                    .ok_or_else(|| {
+                        invalid(
+                            "animation",
+                            &object,
+                            "weights target requires a mesh with morph targets",
+                        )
+                    })?
+            } else {
+                1
+            };
+            let expected = expected
+                .checked_mul(width)
+                .ok_or_else(|| invalid("animation", &object, "weight output count overflow"))?;
             if output.count != expected {
                 return Err(invalid(
                     "animation",
@@ -162,7 +185,12 @@ pub(crate) fn decode(reader: &Reader<'_>, budget: &mut Budget) -> Result<Vec<Ani
                     "output count does not match interpolation",
                 ));
             }
-            let values = if path == Path::Rotation {
+            let values = if path == Path::Weights {
+                Values::Weights {
+                    width,
+                    values: reader.animation_weight_floats(sampler.output, budget)?,
+                }
+            } else if path == Path::Rotation {
                 let mut values = reader.animation_floats::<4>(sampler.output, true, budget)?;
                 // Integer quantization perturbs unit length; retain tangents unchanged.
                 let tolerance = if matches!(output.component_type, 5120 | 5121) {
@@ -230,6 +258,9 @@ impl Scene {
         })?;
         let mut poses: Vec<Option<Transform>> = vec![None; self.nodes.len()];
         for (id, channel) in animation.channels.iter().enumerate() {
+            if channel.path == Path::Weights {
+                continue;
+            }
             let failure = |reason| {
                 invalid(
                     "animation_sample",
@@ -253,13 +284,18 @@ impl Scene {
                     match channel.path {
                         Path::Translation => pose.translation = value,
                         Path::Scale => pose.scale = value,
-                        Path::Rotation => return Err(failure("rotation storage mismatch")),
+                        Path::Rotation | Path::Weights => {
+                            return Err(failure("vector storage mismatch"))
+                        }
                     }
                 }
                 Values::Rotation(values) => {
                     pose.rotation = channel
                         .rotation(values, sample.seconds)
                         .ok_or_else(|| failure("zero or non-finite quaternion"))?;
+                }
+                Values::Weights { .. } => {
+                    return Err(failure("weight storage in transform channel"))
                 }
             }
         }
@@ -286,6 +322,63 @@ impl Scene {
                 Ok(local.to_cols_array())
             })
             .collect()
+    }
+    pub(crate) fn sample_morph_weights(
+        &self,
+        sample: AnimationSample,
+    ) -> Result<Vec<Option<Vec<f32>>>> {
+        if !sample.seconds.is_finite() {
+            return Err(invalid(
+                "morph_sample",
+                sample.animation,
+                "time must be finite",
+            ));
+        }
+        let clip = self
+            .animations
+            .get(sample.animation)
+            .ok_or_else(|| invalid("morph_sample", sample.animation, "clip index out of range"))?;
+        let mut out = vec![None; self.nodes.len()];
+        for (id, channel) in clip.channels.iter().enumerate() {
+            if let Values::Weights { width, values } = &channel.values {
+                let (a, b, t, dt) = channel.segment(sample.seconds);
+                let mut weights = Vec::new();
+                weights
+                    .try_reserve_exact(*width)
+                    .map_err(|_| invalid("morph_sample", id, "weight staging allocation failed"))?;
+                for c in 0..*width {
+                    let stride = if channel.interpolation == Interpolation::Cubic {
+                        3
+                    } else {
+                        1
+                    };
+                    let at = |key: usize, slot: usize| {
+                        f64::from(values[(key * stride + slot) * width + c][0])
+                    };
+                    let value = match channel.interpolation {
+                        Interpolation::Cubic => {
+                            let (t2, t3) = (t * t, t * t * t);
+                            (2. * t3 - 3. * t2 + 1.) * at(a, 1)
+                                + dt * (t3 - 2. * t2 + t) * at(a, 2)
+                                + (-2. * t3 + 3. * t2) * at(b, 1)
+                                + dt * (t3 - t2) * at(b, 0)
+                        }
+                        Interpolation::Step => at(a, 0),
+                        Interpolation::Linear => (1. - t) * at(a, 0) + t * at(b, 0),
+                    } as f32;
+                    if !value.is_finite() {
+                        return Err(invalid(
+                            "morph_sample",
+                            format!("clip={}/channel={id}", sample.animation),
+                            "weight interpolation overflow",
+                        ));
+                    }
+                    weights.push(value);
+                }
+                out[channel.node] = Some(weights);
+            }
+        }
+        Ok(out)
     }
 }
 

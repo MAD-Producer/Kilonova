@@ -79,9 +79,6 @@ pub(crate) fn primitive(
     materials: &[Material],
     budget: &mut Budget,
 ) -> Result<Primitive> {
-    if !p.targets.is_empty() {
-        return Err(unsupported("primitive", id, "morph targets"));
-    }
     if p.mode.unwrap_or(4) != 4 {
         return Err(unsupported(
             "primitive",
@@ -102,11 +99,13 @@ pub(crate) fn primitive(
             "COLOR_0",
         ]
         .contains(&name.as_str())
+            && !name.starts_with("JOINTS_")
+            && !name.starts_with("WEIGHTS_")
         {
             return Err(unsupported(
                 "primitive",
                 id,
-                "attribute outside static import profile",
+                "attribute outside import profile",
             ));
         }
     }
@@ -275,7 +274,10 @@ pub(crate) fn primitive(
             }
         }
     }
+    let joint_influences = crate::skin::decode_influences(id, p, reader, budget, positions.len())?;
     Ok(Primitive {
+        joint_influences,
+        morph_targets: crate::morph::decode_targets(id, p, reader, budget, positions.len())?,
         positions,
         normals,
         tangents,
@@ -286,18 +288,34 @@ pub(crate) fn primitive(
     })
 }
 
-pub(crate) fn nodes(root: &schema::Root, limits: &ImportLimits) -> Result<Vec<Node>> {
+pub(crate) fn nodes(
+    root: &schema::Root,
+    limits: &ImportLimits,
+    budget: &mut Budget,
+) -> Result<Vec<Node>> {
     let mut parents = vec![None; root.nodes.len()];
     let mut out = Vec::with_capacity(root.nodes.len());
     for (id, n) in root.nodes.iter().enumerate() {
-        if n.skin.is_some() || n.weights.is_some() {
-            return Err(unsupported("node", id, "skin or morph weights"));
+        if n.skin.is_some_and(|s| s >= root.skins.len()) || (n.skin.is_some() && n.mesh.is_none()) {
+            return Err(invalid(
+                "node",
+                id,
+                "skin index out of range or skin without mesh",
+            ));
         }
         if n.camera.is_some_and(|c| c >= root.cameras.len()) {
             return Err(invalid("node", id, "camera index out of range"));
         }
         if n.mesh.is_some_and(|m| m >= root.meshes.len()) {
             return Err(invalid("node", id, "mesh index out of range"));
+        }
+        if let Some(weights) = &n.weights {
+            let count = n
+                .mesh
+                .map(|m| root.meshes[m].primitives[0].targets.len())
+                .ok_or_else(|| invalid("node", id, "morph weights require a mesh"))?;
+            crate::morph::validate_weights("node", id, weights, count)?;
+            budget.reserve(weights.len(), std::mem::size_of::<f32>(), limits)?;
         }
         if n.children.len() > limits.max_items {
             return Err(invalid("node", id, "child count limit exceeded"));
@@ -355,6 +373,8 @@ pub(crate) fn nodes(root: &schema::Root, limits: &ImportLimits) -> Result<Vec<No
             local: local.to_cols_array(),
             mesh: n.mesh,
             camera: n.camera,
+            skin: n.skin,
+            weights: n.weights.clone(),
             children: n.children.clone(),
             rest: n.matrix.is_none().then(|| crate::animation::Transform {
                 translation: n.translation.unwrap_or([0.; 3]),
