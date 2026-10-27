@@ -79,6 +79,18 @@ impl Graph {
             pressed: press.map(|point| (MouseButton::Right, point)),
             ..Default::default()
         };
+        self.paint(p, state, atlas, styles, offset, 100., &input);
+    }
+    fn paint(
+        self,
+        p: &mut Panels,
+        state: &Value,
+        atlas: &mut TextAtlas,
+        styles: &Arc<motion_ui::style::StyleSheet>,
+        offset: f64,
+        ppf: f32,
+        input: &Input,
+    ) -> PaintList {
         prepare(p, state, None, &Input::default());
         let mut list = PaintList::with_styles(styles.clone());
         let mut actions = vec![];
@@ -90,9 +102,9 @@ impl Graph {
                 area,
                 p,
                 state,
-                &input,
+                input,
                 offset,
-                100.,
+                ppf,
                 &mut actions,
             ),
             Self::Effect => assert!(effect_timeline::graph::render(
@@ -101,9 +113,9 @@ impl Graph {
                 area,
                 p,
                 state,
-                &input,
+                input,
                 offset,
-                100.,
+                ppf,
                 &mut actions
             )),
             Self::Comparison => curve_comparison::render(
@@ -112,15 +124,153 @@ impl Graph {
                 area,
                 p,
                 state,
-                &input,
+                input,
                 offset,
-                100.,
+                ppf,
                 &mut actions,
             ),
         }
         assert!(
             actions.is_empty(),
             "view operations must not submit edits: {self:?}"
+        );
+        list
+    }
+}
+
+#[test]
+fn effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve() {
+    const CHILD: &str = "MOTION_CURVE_READOUT_FAULT_CHILD";
+    const NAME: &str = "panels::graph_ranges::tests::faults::effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve";
+    const SITES: [&str; 2] = ["effect.graph_readout", "curve.comparison.readout"];
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let (engine, catalogue) = effect_timeline::tests::fixture();
+        let original = serde_json::to_vec(engine.project()).unwrap();
+        let history = (engine.revision(), engine.can_undo(), engine.can_redo());
+        // This deliberately degraded provider snapshot shortens the composition
+        // after its authored keys. The visible viewport still extends past the
+        // composition-capped sampling interval, so hover must check its own result.
+        let mut good = effect_timeline::tests::state(&engine);
+        good["project"]["frames"] = 1.into();
+        let mut bad = good.clone();
+        bad["project"]["fps"] = serde_json::json!(1e308);
+        bad["revision"] = 91.into();
+        let target = Graph::Effect.target();
+        let mut effect = Graph::Effect.panels(&good, &catalogue);
+        let mut comparison = effect_timeline::tests::setup(&catalogue, Locale::En);
+        comparison.timeline.set_graph_mode(true);
+        curve_comparison::tests::collect_targets(&mut comparison, &good, &[target]);
+        effect.timeline.speed_graph = true;
+        comparison.timeline.speed_graph = true;
+        let styles = PaintList::default().styles();
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let hover = Input {
+            mouse: [30., 200.],
+            ..Default::default()
+        };
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let file = root.join("motion-studio.log");
+        for (graph, p) in [
+            (Graph::Effect, &mut effect),
+            (Graph::Comparison, &mut comparison),
+        ] {
+            graph.paint(p, &good, &mut atlas, &styles, 0., 1., &hover);
+            assert!(!p.timeline.graph_ranges.probes.is_empty());
+        }
+        crate::logging::flush();
+        assert_eq!(std::fs::read_to_string(&file).unwrap().lines().count(), 1);
+        for (index, (graph, p)) in [
+            (Graph::Effect, &mut effect),
+            (Graph::Comparison, &mut comparison),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            for occurrence in 1..=120 {
+                graph.paint(p, &bad, &mut atlas, &styles, 0., 1., &hover);
+                assert!(
+                    !p.timeline.graph_ranges.probes.is_empty(),
+                    "curve remains available: {graph:?}"
+                );
+                graph.paint(p, &good, &mut atlas, &styles, 0., 1., &hover);
+                assert!(!p.timeline.graph_ranges.probes.is_empty());
+                if [1, 59, 60, 120].contains(&occurrence) {
+                    assert_eq!(
+                        records(&file, SITES[index]).len(),
+                        if occurrence < 60 { 1 } else { 2 }
+                    );
+                }
+            }
+        }
+        let text = std::fs::read_to_string(&file).unwrap();
+        for site in SITES {
+            let lines = records(&file, site);
+            assert_eq!(lines.len(), 2);
+            assert!(lines[0].contains("WARN") && lines[0].contains("count=1 "));
+            assert!(lines[1].contains("ERROR") && lines[1].contains("count=60 "));
+            assert!(lines.iter().all(|line| line.contains("object=7")
+                && line.contains("generation=Some(1)")
+                && line.contains("revision=Some(91)")
+                && line.contains("frame=30")
+                && line.contains("phase=readout")
+                && line.contains("not finite")));
+        }
+        assert_eq!(
+            text.lines().count(),
+            5,
+            "only initialization and the two bounded sites: {text}"
+        );
+        assert_eq!(serde_json::to_vec(engine.project()).unwrap(), original);
+        assert_eq!(
+            (engine.revision(), engine.can_undo(), engine.can_redo()),
+            history
+        );
+        std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
+            "sites":SITES,"actualHoverConsumers":true,"normalCurveStaysAvailable":true,
+            "firstWarnAndErrorAtLifetime60":true,"suppressedAfter60":true,
+            "recoveryPreservesCounterScope":true,"noEditsOrHistory":true,
+            "limits":"fps1e308 and shortened composition are intentionally degraded provider snapshots, not a legal saved project."
+        })).unwrap()).unwrap();
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::env::var_os("MOTION_CURVE_READOUT_FAULT_ARTIFACTS")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| temp.path().into());
+    for name in ["first-process", "reset-process"] {
+        let child = root.join(name);
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+            .env_remove("MOTION_LOG")
+            .env(CHILD, &child)
+            .output()
+            .unwrap();
+        std::fs::create_dir_all(&child).unwrap();
+        std::fs::write(child.join("stdout.log"), &result.stdout).unwrap();
+        std::fs::write(child.join("stderr.log"), &result.stderr).unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        let stdout = String::from_utf8_lossy(&result.stdout);
+        assert_eq!(stderr.lines().count(), 2, "{stderr}");
+        for site in SITES {
+            assert_eq!(
+                stderr
+                    .lines()
+                    .filter(|line| line.contains(&format!("site={site} ")))
+                    .count(),
+                1
+            );
+        }
+        assert!(
+            !stderr.contains("WARN")
+                && !stdout.contains("panel degradation")
+                && !stdout.contains("ERROR")
         );
     }
 }
@@ -338,8 +488,9 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
             assert!(lines
                 .iter()
                 .all(|line| line.contains(cause) && line.contains("phase=")));
-            assert!(lines.iter().all(|line| line.contains("generation=Some(1)")
-                && line.contains("revision=Some(0)")));
+            assert!(lines.iter().all(
+                |line| line.contains("generation=Some(1)") && line.contains("revision=Some(0)")
+            ));
             if !site.starts_with("curve.comparison") {
                 assert!(lines.iter().all(|line| line.contains("object=7")));
             }

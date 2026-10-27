@@ -1,5 +1,239 @@
 use super::*;
 
+#[test]
+fn adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet()
+{
+    const CHILD: &str = "MOTION_MINI_ADAPTIVE_GUARD_CHILD";
+    const NAME: &str="panels::animation_controls::mini::tests::fault_tests::adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet";
+    const SITE: &str = "curve.mini.adaptive";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let state = scalar_state(0.2, 0.8, 60);
+        let original = state.clone();
+        let target = KeyframeTarget::Property {
+            object: 7,
+            property: Property::Opacity,
+            axis: None,
+        };
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let file = root.join("motion-studio.log");
+        let mut draw = |view: &mut View, easing: Easing, hover: bool, frozen: Option<Bounds>| {
+            view.draw(
+                &mut PaintList::default(),
+                &mut atlas,
+                Rect::new(0., 0., 500., 130.),
+                &state,
+                &Input {
+                    mouse: if hover { [250., 87.] } else { [-1.; 2] },
+                    ..Default::default()
+                },
+                Locale::En,
+                easing,
+                target.clone(),
+                17,
+                Some(77),
+                None,
+                frozen,
+                None,
+            );
+        };
+        let mut easings = vec![];
+        for ease in [Ease::Linear, Ease::In, Ease::Out, Ease::InOut, Ease::Hold] {
+            easings.push(Easing { ease, curve: None });
+        }
+        for y in [-8., 8.] {
+            for x in [0., 1.] {
+                easings.push(Easing {
+                    ease: Ease::Linear,
+                    curve: Some(Curve {
+                        space: CurveSpace::Progress,
+                        shape: CurveShape::Quadratic {
+                            control: [x, y],
+                            start: 0.,
+                            end: 1.,
+                        },
+                    }),
+                });
+            }
+            easings.push(Easing {
+                ease: Ease::Linear,
+                curve: Some(Curve {
+                    space: CurveSpace::Progress,
+                    shape: CurveShape::Cubic {
+                        control1: [0., y],
+                        control2: [1., -y],
+                        start: 0.,
+                        end: 1.,
+                    },
+                }),
+            });
+        }
+        for value in [-8., 0.051, 8.] {
+            easings.push(Easing {
+                ease: Ease::Linear,
+                curve: Some(Curve {
+                    space: CurveSpace::Velocity,
+                    shape: CurveShape::Quadratic {
+                        control: [0.5, value],
+                        start: value,
+                        end: value,
+                    },
+                }),
+            });
+        }
+        for space in [CurveSpace::Progress, CurveSpace::Velocity] {
+            for oscillations in [0.5, 8.] {
+                for damping in [0.5, 20.] {
+                    easings.push(Easing {
+                        ease: Ease::Linear,
+                        curve: Some(Curve {
+                            space,
+                            shape: CurveShape::Elastic {
+                                oscillations,
+                                damping,
+                            },
+                        }),
+                    });
+                }
+            }
+        }
+        // Boundary cases support the source-derived finite-range disposition;
+        // they are not represented as an exhaustive proof over all curves.
+        let mut normalized_samples = 0;
+        for &easing in &easings {
+            easing.validate().unwrap();
+            for i in 0..=1024 {
+                assert!(normalized(easing, f64::from(i) / 1024.)
+                    .unwrap()
+                    .is_finite());
+                normalized_samples += 1;
+            }
+            let mut view = View::default();
+            draw(&mut view, easing, true, None);
+            assert!(
+                view.shape.as_ref().unwrap().automatic.is_some(),
+                "{easing:?}"
+            );
+            assert!(
+                view.last_readout.is_some(),
+                "actual normalized hover: {easing:?}"
+            );
+        }
+        crate::logging::flush();
+        let healthy = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(
+            healthy.lines().count(),
+            1,
+            "valid curves/hover must stay quiet: {healthy}"
+        );
+        let mut view = View::default();
+        let frozen = Bounds {
+            x: Range::new(0., 1.).unwrap(),
+            y: Range::new(0., 1e-310).unwrap(),
+        };
+        // A positive finite retained range can still overflow pixels/unit.
+        // This is injected presentation state, not ordinary wheel navigation.
+        draw(&mut view, Easing::default(), false, Some(frozen));
+        assert!(view.shape.as_ref().unwrap().automatic.is_some());
+        assert!(view.tessellation.as_ref().unwrap().points.is_none());
+        for _ in 0..120 {
+            draw(&mut view, Easing::default(), false, Some(frozen));
+        }
+        crate::logging::flush();
+        assert_eq!(
+            count(&file, SITE).len(),
+            1,
+            "unchanged failed geometry is negatively cached"
+        );
+        for occurrence in 2..=120 {
+            draw(&mut view, Easing::default(), false, None);
+            assert!(view.tessellation.as_ref().unwrap().points.is_some());
+            draw(&mut view, Easing::default(), false, Some(frozen));
+            assert!(view.tessellation.as_ref().unwrap().points.is_none());
+            if [59, 60, 120].contains(&occurrence) {
+                crate::logging::flush();
+                assert_eq!(
+                    count(&file, SITE).len(),
+                    if occurrence < 60 { 1 } else { 2 }
+                );
+            }
+        }
+        draw(&mut view, Easing::default(), false, None);
+        assert!(view.tessellation.as_ref().unwrap().points.is_some());
+        // Malformed easing fails automatic fitting before reaching the hover
+        // guard. Do not fabricate an impossible normalized-readout callback.
+        let invalid = Easing {
+            ease: Ease::Linear,
+            curve: Some(Curve {
+                space: CurveSpace::Progress,
+                shape: CurveShape::Quadratic {
+                    control: [0.5, f64::NAN],
+                    start: 0.,
+                    end: 1.,
+                },
+            }),
+        };
+        assert!(invalid.validate().is_err());
+        draw(&mut view, invalid, true, None);
+        assert!(view.shape.as_ref().unwrap().automatic.is_none());
+        assert!(view.last_readout.is_none());
+        crate::logging::flush();
+        let lines = count(&file, SITE);
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("WARN") && lines[0].contains("count=1 "));
+        assert!(lines[1].contains("ERROR") && lines[1].contains("count=60 "));
+        assert!(lines.iter().all(|line| line.contains("phase=adaptive")
+            && line.contains("generation=Some(1)")
+            && line.contains("revision=Some(0)")
+            && line.contains("object: 7")
+            && line.contains("graph sampling geometry is invalid")));
+        assert!(count(&file, "curve.mini.normalized_readout").is_empty());
+        assert_eq!(count(&file, "curve.mini.fit_all").len(), 1);
+        assert_eq!(state, original);
+        std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
+            "sites":[SITE],"actualViewConsumer":true,"retainedGeometryNegativeCache":true,
+            "firstWarnAndErrorAtLifetime60":true,"suppressedAfter60":true,"recoveryPreservesCounterScope":true,
+            "validEasingCases":easings.len(),"finiteNormalizedSamples":normalized_samples,
+            "validActualHoverQuiet":true,"malformedEasingRejectedBeforeHover":true,"noEdits":true,
+            "guardedBoundary":"curve.mini.normalized_readout: valid finite t is gated to0..1; validated Core Bezier/elastic definitions have finite bounded coefficients/normalization. Boundary cases plus actual hover are evidence, not an exhaustive injected-failure test.",
+            "limits":"Frozen range1e-310 is an intentionally degraded presentation snapshot; not claimed reachable through ordinary wheel input. Normalized readout is a defensive guard disposition, not a newly reproduced/fixed defect."
+        })).unwrap()).unwrap();
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::env::var_os("MOTION_MINI_ADAPTIVE_GUARD_ARTIFACTS")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| temp.path().into());
+    for name in ["first-process", "reset-process"] {
+        let child = root.join(name);
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+            .env_remove("MOTION_LOG")
+            .env(CHILD, &child)
+            .output()
+            .unwrap();
+        std::fs::create_dir_all(&child).unwrap();
+        std::fs::write(child.join("stdout.log"), &result.stdout).unwrap();
+        std::fs::write(child.join("stderr.log"), &result.stderr).unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        let stdout = String::from_utf8_lossy(&result.stdout);
+        assert_eq!(stderr.lines().count(), 1, "{stderr}");
+        assert!(stderr.contains(&format!("site={SITE} ")));
+        assert!(
+            !stderr.contains("WARN")
+                && !stdout.contains("panel degradation")
+                && !stdout.contains("ERROR")
+        );
+    }
+}
+
 fn read(
     view: &mut View,
     state: &Value,
