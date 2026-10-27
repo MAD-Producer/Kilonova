@@ -107,7 +107,7 @@ fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget
 }
 
 fn observe_early_return(panels: &mut Panels, reason: &'static str) {
-    panels.timeline.graph_ranges.no_property_plot();
+    panels.timeline.graph_ranges.no_timeline_plot();
     let active = panels
         .timeline
         .graph_drag
@@ -144,7 +144,7 @@ pub(super) fn render(
         let body=Rect::new(area.min[0],area.min[1],area.width(),(area.height()-footer).max(0.));
         let content=super::curve_comparison::toolbar(list, atlas, body, panels, state, input, out);
         if panels.timeline.comparison.enabled {
-            panels.timeline.graph_ranges.no_property_plot();
+            panels.timeline.graph_ranges.no_timeline_plot();
             let neutral=Input::default();
             let graph_input=if panels.timeline.comparison.popup_open(){&neutral}else{input};
             super::curve_comparison::render(list, atlas, content, panels, state, graph_input, offset, ppf, out);
@@ -646,39 +646,7 @@ pub(super) fn render(
             list.append(graph);
             return;
         };
-        let width = 168.;
-        let height = 50.;
-        let x = if input.mouse[0] + 16. + width > plot.max[0] {
-            input.mouse[0] - width - 16.
-        } else {
-            input.mouse[0] + 16.
-        };
-        let y = if input.mouse[1] + 16. + height > plot.max[1] {
-            input.mouse[1] - height - 16.
-        } else {
-            input.mouse[1] + 16.
-        };
-        let card = Rect::new(x.max(plot.min[0]), y.max(plot.min[1]), width, height);
-        motion_ui::style::box_style(
-            &mut graph,
-            card,
-            styles.resolve("popup", Default::default()).unwrap(),
-        );
-        label(
-            &mut graph,
-            atlas,
-            Rect::new(card.min[0] + 8., card.min[1] + 4., 152., 20.),
-            panels.locale.t(title),
-            true,
-        );
-        motion_ui::style::text_style(
-            &mut graph,
-            atlas,
-            Rect::new(card.min[0] + 8., card.min[1] + 24., 152., 20.),
-            &format!("{value:.1} {unit}"),
-            styles.resolve("label.accent", Default::default()).unwrap(),
-            Align::Left,
-        );
+        super::graph_ranges::readout(&mut graph,atlas,plot,input.mouse,panels.locale.t(title),frame,f64::from(value),unit);
     }
     let mut last_mode=None;
     for (index, speed) in [true, false].into_iter().enumerate() {
@@ -742,7 +710,7 @@ pub(super) fn render(
                     "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
             });
             panels.timeline.graph_ranges.open(point,identity,super::graph_ranges::Options {displayed,all,selection},
-                state,&panels.selected_keys,panels.animation_controls.user_key(),panels.selected,panels.focused);
+                state,&panels.selected_keys,panels.animation_controls.user_key(),panels.effect_timeline.range_key(),panels.selected,panels.focused);
         }
     }
     let step = (plot.width() / ppf / 4.).max(1.);

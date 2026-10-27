@@ -375,7 +375,7 @@ pub fn chrome(
     let input = if guide_owned { &guide_neutral } else { input };
     let graph_range_input = input;
     let graph_range_owned = panels.timeline.graph_ranges.prepare(None,state,input,&panels.selected_keys,
-        panels.animation_controls.user_key(),panels.selected,panels.focused);
+        panels.animation_controls.user_key(),panels.effect_timeline.range_key(),panels.selected,panels.focused);
     let graph_range_neutral = Input::default();
     let input = if graph_range_owned { &graph_range_neutral } else { input };
     tools::prepare(panels,None,input);
@@ -1069,7 +1069,7 @@ pub fn floating_chrome(
     let input = if guide_owned { &guide_neutral } else { input };
     let graph_range_input = input;
     let graph_range_owned = panels.timeline.graph_ranges.prepare(Some(panel),state,input,&panels.selected_keys,
-        panels.animation_controls.user_key(),panels.selected,panels.focused);
+        panels.animation_controls.user_key(),panels.effect_timeline.range_key(),panels.selected,panels.focused);
     let graph_range_neutral = Input::default();
     let input = if graph_range_owned { &graph_range_neutral } else { input };
     // The toolbar belongs to the main native window. Moving input to a float

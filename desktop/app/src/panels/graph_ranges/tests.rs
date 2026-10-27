@@ -1,6 +1,7 @@
 use super::*;
 use motion_core::{Engine, Keyframe, Layer, Project};
 use motion_ui::input::Modifiers;
+mod effect;
 
 fn fixture() -> (Engine, Value, Panels) {
     let mut project = Project::new(640, 480, 30, 120).unwrap();
@@ -70,6 +71,7 @@ fn prepare(p: &mut Panels, state: &Value, window: Option<Panel>, input: &Input) 
         input,
         &p.selected_keys,
         p.animation_controls.user_key(),
+        p.effect_timeline.range_key(),
         p.selected,
         p.focused,
     )
@@ -86,6 +88,7 @@ fn open(p: &mut Panels, state: &Value, window: Option<Panel>, options: Options) 
         state,
         &p.selected_keys,
         p.animation_controls.user_key(),
+        p.effect_timeline.range_key(),
         p.selected,
         p.focused,
     );

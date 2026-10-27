@@ -80,6 +80,7 @@ struct Menu {
     mouse: Option<[f32; 2]>,
     selection: super::key_selection::Set,
     legacy: Option<super::types::KeySelection>,
+    effect_key: Option<super::key_selection::Key>,
     selected: Option<u64>,
     focused: Option<Panel>,
     track: Option<(Value, i64)>,
@@ -125,6 +126,15 @@ impl Controls {
             self.cancel();
         }
     }
+    pub(super) fn no_timeline_plot(&mut self) {
+        if self
+            .menu
+            .as_ref()
+            .is_some_and(|menu| menu.id.surface == Surface::Timeline)
+        {
+            self.cancel();
+        }
+    }
     pub(super) fn locked_x(&self) -> bool {
         self.time_locked
     }
@@ -136,6 +146,7 @@ impl Controls {
         input: &Input,
         selection: &super::key_selection::Set,
         legacy: Option<super::types::KeySelection>,
+        effect_key: Option<super::key_selection::Key>,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
@@ -153,6 +164,8 @@ impl Controls {
             m.source != KeyframeSource::of(state)
                 || !m.selection.same_selection(selection)
                 || m.legacy != legacy
+                || matches!(m.id.target, Some(KeyframeTarget::Effect { .. }))
+                    && m.effect_key != effect_key
                 || m.selected != selected
                 || m.focused != focused
                 || match (&m.track, snapshot(state, &m.id)) {
@@ -246,6 +259,7 @@ impl Controls {
         state: &Value,
         selection: &super::key_selection::Set,
         legacy: Option<super::types::KeySelection>,
+        effect_key: Option<super::key_selection::Key>,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) {
@@ -271,6 +285,7 @@ impl Controls {
             mouse: None,
             selection: selection.clone(),
             legacy,
+            effect_key,
             selected,
             focused,
             track,
@@ -564,6 +579,82 @@ pub(super) fn launch(
         .pressed
         .filter(|(button, point)| enabled && *button == MouseButton::Right && row.contains(*point))
         .map(|(_, point)| point)
+}
+
+/// Shared composition-time/value readout. Callers evaluate their actual model;
+/// normalized easing coordinates must be mapped before reaching this helper.
+pub(super) fn readout(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    plot: Rect,
+    mouse: [f32; 2],
+    title: &str,
+    frame: f64,
+    value: f64,
+    unit: &str,
+) {
+    let styles = list.styles();
+    let pad = styles.metric("padding.panel", 8.);
+    let row = styles.metric("row.height", 22.);
+    let width = styles.metric("graph.readout.width", 232.).min(plot.width());
+    let height = (row * 2. + pad * 2.).min(plot.height());
+    let x = if mouse[0] + pad + width > plot.max[0] {
+        mouse[0] - width - pad
+    } else {
+        mouse[0] + pad
+    };
+    let y = if mouse[1] + pad + height > plot.max[1] {
+        mouse[1] - height - pad
+    } else {
+        mouse[1] + pad
+    };
+    let card = Rect::new(
+        x.clamp(plot.min[0], (plot.max[0] - width).max(plot.min[0])),
+        y.clamp(plot.min[1], (plot.max[1] - height).max(plot.min[1])),
+        width,
+        height,
+    );
+    let mut paint = list.child();
+    motion_ui::style::box_style(
+        &mut paint,
+        card,
+        styles.resolve("popup", Default::default()).unwrap(),
+    );
+    let mut text = list.child();
+    label(
+        &mut text,
+        atlas,
+        Rect::new(
+            card.min[0] + pad,
+            card.min[1] + pad,
+            (width - pad * 2.).max(0.),
+            row,
+        ),
+        &format!("{title} · {frame:.2} f"),
+        true,
+    );
+    let number = if value != 0. && !(1e-4..1e7).contains(&value.abs()) {
+        format!("{value:.4e}")
+    } else {
+        format!("{value:.4}")
+    };
+    motion_ui::style::text_style(
+        &mut text,
+        atlas,
+        Rect::new(
+            card.min[0] + pad,
+            card.min[1] + pad + row,
+            (width - pad * 2.).max(0.),
+            row,
+        ),
+        &format!("{number} {unit}"),
+        styles.resolve("label.accent", Default::default()).unwrap(),
+        Align::Left,
+    );
+    text.clip_to(card.shrink(pad));
+    paint.append(text);
+    paint.clip_to(plot);
+    list.append(paint);
 }
 
 pub(super) fn overlay(

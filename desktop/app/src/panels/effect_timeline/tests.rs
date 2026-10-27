@@ -2,7 +2,7 @@ use super::*;
 use motion_core::{EffectInstance, Engine, Layer, Project};
 use motion_ui::input::Modifiers;
 
-fn fixture() -> (Engine, Value) {
+pub(in crate::panels) fn fixture() -> (Engine, Value) {
     let graph = motion_graph::builtin_examples()
         .iter()
         .find(|e| e.id == "soft_sphere_motion")
@@ -50,10 +50,10 @@ fn fixture() -> (Engine, Value) {
         serde_json::json!({"packages":[{"hash":package.hash,"manifest":package.manifest}]});
     (Engine::new(project).unwrap(), catalogue)
 }
-fn state(engine: &Engine) -> Value {
+pub(in crate::panels) fn state(engine: &Engine) -> Value {
     serde_json::json!({"root":"effect-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"document_generation":1,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()})
 }
-fn setup(catalogue: &Value, locale: Locale) -> Panels {
+pub(in crate::panels) fn setup(catalogue: &Value, locale: Locale) -> Panels {
     let mut p = Panels {
         locale,
         focused: Some(Panel::Timeline),

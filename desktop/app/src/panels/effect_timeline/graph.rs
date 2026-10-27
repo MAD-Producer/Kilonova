@@ -1,6 +1,119 @@
 //! The value/speed graph reads real effect tracks and writes EffectAction.
+use super::super::{graph_adaptive, graph_ranges, graph_view::Range};
 use super::*;
 use motion_core::{Curve, CurveShape, CurveSpace};
+
+#[cfg(test)]
+mod tests;
+
+fn knots(
+    parameter: &EffectParam,
+    start: f64,
+    end: f64,
+    offset: f64,
+) -> impl Iterator<Item = f64> + '_ {
+    let steps = parameter
+        .track
+        .keys
+        .iter()
+        .flat_map(move |key| {
+            let frame = f64::from(key.frame) + offset;
+            [frame.next_down(), frame]
+        })
+        .filter(move |frame| parameter.kind.discrete() && *frame >= start && *frame <= end);
+    graph_adaptive::merge_knots(
+        graph_sampling::knots(&parameter.track, start, end, offset),
+        steps,
+    )
+}
+
+fn sample_value(
+    parameter: &EffectParam,
+    frame: f64,
+    offset: f64,
+    speed: bool,
+    fps: f64,
+    component: usize,
+) -> motion_core::Result<f64> {
+    Ok(f64::from(if speed {
+        speed_value(parameter, frame - offset, fps, component)?
+    } else {
+        parameter.sample(frame - offset)?[component]
+    }))
+}
+
+fn fitted(
+    parameter: &EffectParam,
+    interval: [f64; 2],
+    offset: f64,
+    size: [f32; 2],
+    tolerance: f64,
+    speed: bool,
+    fps: f64,
+    component: usize,
+) -> Result<graph_ranges::Bounds, graph_adaptive::Failure<motion_core::Error>> {
+    use graph_adaptive::Failure;
+    let [start, end] = interval;
+    let x = Range::fitted(start, end, 0.05, 1.).ok_or(Failure::InvalidGeometry)?;
+    let value = |frame| sample_value(parameter, frame, offset, speed, fps, component);
+    let [low, high] = graph_adaptive::extrema(knots(parameter, start, end, offset), value)?
+        .ok_or(Failure::InvalidGeometry)?;
+    let provisional = Range::fitted(low, high, 0.1, 1.).ok_or(Failure::InvalidGeometry)?;
+    let points = graph_adaptive::sample(
+        knots(parameter, start, end, offset),
+        [
+            f64::from(size[0]) / x.span(),
+            f64::from(size[1]) / provisional.span(),
+        ],
+        tolerance,
+        value,
+    )?;
+    let low = points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+    let high = points.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
+    let y = Range::fitted(low, high, 0.1, 1.).ok_or(Failure::InvalidGeometry)?;
+    Ok(graph_ranges::Bounds { x, y })
+}
+
+fn intervals(
+    panels: &Panels,
+    state: &Value,
+    target: &Target,
+    parameter: &EffectParam,
+    offset: f64,
+) -> ([f64; 2], Option<[f64; 2]>) {
+    let mut all: Option<[f64; 2]> = None;
+    let mut selection: Option<[f64; 2]> = None;
+    let key_target = motion_core::KeyframeTarget::Effect {
+        object: target.object,
+        effect: target.effect,
+        param: target.param.clone(),
+    };
+    let status = panels.selected_keys.status(state);
+    for key in &parameter.track.keys {
+        let time = f64::from(key.frame) + offset;
+        let Some(frame) = composition_frame(time, state) else {
+            continue;
+        };
+        all = Some(all.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]));
+        let selected = match status {
+            key_selection::Status::Current => panels.selected_keys.contains(&key_selection::Key {
+                target: key_target.clone(),
+                frame,
+            }),
+            key_selection::Status::Unowned => panels
+                .effect_timeline
+                .key
+                .as_ref()
+                .is_some_and(|(before, f)| before == target && *f == frame),
+            _ => false,
+        };
+        if selected {
+            selection =
+                Some(selection.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]));
+        }
+    }
+    (all.unwrap_or([0., last_frame(state) + 1.]), selection)
+}
 
 fn dimensions(parameter: &EffectParam) -> usize {
     match parameter.kind {
@@ -11,7 +124,12 @@ fn dimensions(parameter: &EffectParam) -> usize {
     }
 }
 // Differentiate the actual bounded parameter, not its unclamped track.
-pub(super) fn speed_value(parameter: &EffectParam, frame: f64, fps: f64, component: usize) -> motion_core::Result<f32> {
+pub(super) fn speed_value(
+    parameter: &EffectParam,
+    frame: f64,
+    fps: f64,
+    component: usize,
+) -> motion_core::Result<f32> {
     if parameter.kind.discrete() {
         return Ok(0.);
     }
@@ -66,6 +184,7 @@ pub(in crate::panels) fn render(
         return false;
     };
     let Some(parameter) = target.parameter(state) else {
+        panels.timeline.graph_ranges.no_timeline_plot();
         return true;
     };
     let styles = list.styles();
@@ -77,12 +196,13 @@ pub(in crate::panels) fn render(
     let plot = Rect::new(
         area.min[0],
         area.min[1] + header,
-        (area.width() - pad).max(0.),
+        area.width().max(0.),
         (area.height() - header - footer).max(0.),
     );
     let mut graph = list.child();
     paint::rect(&mut graph, area, styles.color("well"));
     if parameter.curve.is_some() {
+        panels.timeline.graph_ranges.no_timeline_plot();
         label(
             &mut graph,
             atlas,
@@ -99,6 +219,7 @@ pub(in crate::panels) fn render(
         return true;
     }
     if !ppf.is_finite() || ppf <= 0. || plot.width() <= 0. || plot.height() <= 0. {
+        panels.timeline.graph_ranges.no_timeline_plot();
         graph.clip_to(area);
         list.append(graph);
         return true;
@@ -107,6 +228,7 @@ pub(in crate::panels) fn render(
     panels.timeline.graph_component = panels.timeline.graph_component.min(count - 1);
     let component = panels.timeline.graph_component;
     let mode_width = styles.metric("graph.mode.width", 100.);
+    let mut occupied_end = area.min[0] + pad;
     for (i, speed) in [false, true].into_iter().enumerate() {
         let rect = Rect::new(
             area.min[0] + pad + i as f32 * mode_width,
@@ -114,6 +236,7 @@ pub(in crate::panels) fn render(
             mode_width,
             row,
         );
+        occupied_end = rect.max[0];
         let title = match (panels.locale, speed) {
             (Locale::Zh, false) => "数值图表",
             (Locale::Zh, true) => "速度图表",
@@ -154,6 +277,9 @@ pub(in crate::panels) fn render(
         } else {
             ["X", "Y", "Z", "W"][i]
         };
+        if count > 1 {
+            occupied_end = rect.max[0];
+        }
         let mut states = motion_ui::style::States::default();
         if i == component {
             states = states.with(motion_ui::style::State::Selected);
@@ -176,10 +302,30 @@ pub(in crate::panels) fn render(
         }
     }
     let speed = panels.timeline.speed_graph;
+    let unit = match (parameter.kind == motion_effects::ParamKind::Color, speed) {
+        (true, false) => "RGBA",
+        (true, true) => "RGBA/s",
+        (false, false) => "value",
+        (false, true) => "value/s",
+    };
+    let key_target = motion_core::KeyframeTarget::Effect {
+        object: target.object,
+        effect: target.effect,
+        param: target.param.clone(),
+    };
+    let identity = graph_ranges::Identity {
+        surface: graph_ranges::Surface::Timeline,
+        target: Some(key_target),
+        component: Some(component),
+        speed,
+        unit: format!("{}:{unit}", target.hash),
+    };
     let fps = state["project"]["fps"].as_f64().unwrap_or(30.);
-    let layer_offset = target.source(state).unwrap().0["timeline"]["offset_frame"]
-        .as_f64()
-        .unwrap_or(0.);
+    let Some((layer, _)) = target.source(state) else {
+        panels.timeline.graph_ranges.no_timeline_plot();
+        return true;
+    };
+    let layer_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0) as f64;
     let value = |frame: f64| -> motion_core::Result<f32> {
         if speed {
             speed_value(&parameter, frame - layer_offset, fps, component)
@@ -194,37 +340,94 @@ pub(in crate::panels) fn render(
             value(f).map(|value| (f, value))
         })
         .collect::<motion_core::Result<Vec<_>>>();
-    let Ok(points) = observe!("effect.graph_samples", points,
-        "object={} effect={} param={} frame_start={offset} frame_end={end}", target.object, target.effect, target.param) else {
+    let Ok(points) = observe!(
+        "effect.graph_samples",
+        points,
+        "object={} effect={} param={} frame_start={offset} frame_end={end}",
+        target.object,
+        target.effect,
+        target.param
+    ) else {
         graph.clip_to(area);
         list.append(graph);
+        panels.timeline.graph_ranges.no_timeline_plot();
         return true;
     };
     let min = points.iter().map(|p| p.1).fold(f32::INFINITY, f32::min);
     let max = points.iter().map(|p| p.1).fold(f32::NEG_INFINITY, f32::max);
     let margin = ((max - min) * 0.1).max(1.);
     let auto = [min - margin, max + margin];
-    let mut zoom = if panels.timeline.graph_y_zoom > 0. {
+    let mut zoom = if panels.timeline.graph_y_zoom.is_finite() && panels.timeline.graph_y_zoom > 0.
+    {
         panels.timeline.graph_y_zoom
     } else {
         1.
     };
+    let half = (auto[1] - auto[0]) * 0.5 / zoom;
+    let center = (auto[0] + auto[1]) * 0.5 + panels.timeline.graph_y_offset;
+    let automatic = Range::new(offset, offset + f64::from(plot.width()) / f64::from(ppf))
+        .zip(Range::new(
+            f64::from(center - half),
+            f64::from(center + half),
+        ))
+        .map(|(x, y)| graph_ranges::Bounds { x, y });
+    let Ok(automatic) = observe!(
+        "effect.graph_view_bounds",
+        automatic.ok_or("unrepresentable effect graph range"),
+        "object={} effect={} param={} component={component} phase=display",
+        target.object,
+        target.effect,
+        target.param
+    ) else {
+        graph.clip_to(area);
+        list.append(graph);
+        panels.timeline.graph_ranges.no_timeline_plot();
+        return true;
+    };
+    let before_view = panels
+        .timeline
+        .graph_ranges
+        .displayed(state, &identity, automatic);
     if plot.contains(input.mouse)
         && input.modifiers.control
         && input.modifiers.alt
         && input.wheel[1].is_finite()
         && input.wheel[1] != 0.
         && !panels.effect_timeline.editing()
+        && !panels.key_gestures.active()
+        && !panels.timeline.scrubbing
+        && !panels.timeline.graph_ranges.locked_y(&identity)
     {
         let previous = zoom;
-        zoom = (zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
+        let next = (zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
         let fraction = (plot.max[1] - input.mouse[1]) / plot.height() - 0.5;
-        panels.timeline.graph_y_offset +=
-            fraction * (auto[1] - auto[0]) * (1. / previous - 1. / zoom);
-        panels.timeline.graph_y_zoom = zoom;
+        let offset = panels.timeline.graph_y_offset
+            + fraction * (auto[1] - auto[0]) * (1. / previous - 1. / next);
+        if offset.is_finite()
+            && panels.timeline.graph_ranges.navigate_y(
+                &identity,
+                before_view.y,
+                f64::from(next / previous),
+                before_view.y.at(f64::from(fraction + 0.5)),
+            )
+        {
+            zoom = next;
+            panels.timeline.graph_y_offset = offset;
+            panels.timeline.graph_y_zoom = zoom;
+        }
     }
     let half = (auto[1] - auto[0]) * 0.5 / zoom;
     let center = (auto[0] + auto[1]) * 0.5 + panels.timeline.graph_y_offset;
+    let legacy_y =
+        Range::new(f64::from(center - half), f64::from(center + half)).unwrap_or(before_view.y);
+    let displayed = panels.timeline.graph_ranges.displayed(
+        state,
+        &identity,
+        graph_ranges::Bounds {
+            x: automatic.x,
+            y: legacy_y,
+        },
+    );
     let bounds = panels
         .effect_timeline
         .handle
@@ -232,7 +435,20 @@ pub(in crate::panels) fn render(
         .map(|d| d.bounds)
         .or_else(|| panels.effect_timeline.drag.as_ref().and_then(|d| d.bounds))
         .or_else(|| panels.key_gestures.drag_bounds())
-        .unwrap_or([center - half, center + half]);
+        .unwrap_or([displayed.y.low as f32, displayed.y.high as f32]);
+    let points = graph_adaptive::sample(
+        knots(&parameter, offset, end, layer_offset),
+        [
+            f64::from(ppf),
+            f64::from(plot.height()) / f64::from(bounds[1] - bounds[0]),
+        ],
+        f64::from(styles.metric("graph.sample.error", 0.35)),
+        |frame| sample_value(&parameter, frame, layer_offset, speed, fps, component),
+    );
+    let Ok(points)=observe!("effect.graph_adaptive",points,
+        "object={} effect={} param={} component={component} frame_start={offset} frame_end={end} phase=screen_subdivision",target.object,target.effect,target.param) else {
+        graph.clip_to(area);list.append(graph);panels.timeline.graph_ranges.no_timeline_plot();return true;
+    };
     let y_of = |v: f32| plot.max[1] - (v - bounds[0]) / (bounds[1] - bounds[0]) * plot.height();
     let x_of = |f: f64| plot.min[0] + (f - offset) as f32 * ppf;
     for i in 0..=4 {
@@ -260,7 +476,10 @@ pub(in crate::panels) fn render(
     let mut lines = list.child();
     paint::line_with_width(
         &mut lines,
-        points.iter().map(|(f, v)| [x_of(*f), y_of(*v)]).collect(),
+        points
+            .iter()
+            .map(|(f, v)| [x_of(*f), y_of(*v as f32)])
+            .collect(),
         styles.color("curve"),
         styles.metric("graph.curve_width", 2.),
     );
@@ -274,21 +493,36 @@ pub(in crate::panels) fn render(
     let mut hit_key = false;
     key_selection::ui::plot(panels, plot, bounds[0], bounds[1]);
     if key_selection::ui::selecting_all(panels) {
-        key_selection::ui::all(panels,parameter.track.keys.iter().filter_map(|key| {
-            let time=f64::from(key.frame)+layer_offset;
-            (time>=0.&&time<=last_frame(state)).then(||key_selection::Key {
-                target:motion_core::KeyframeTarget::Effect {object:target.object,effect:target.effect,param:target.param.clone()},frame:time as u32,
-            })
-        }));
+        key_selection::ui::all(
+            panels,
+            parameter.track.keys.iter().filter_map(|key| {
+                let time = f64::from(key.frame) + layer_offset;
+                (time >= 0. && time <= last_frame(state)).then(|| key_selection::Key {
+                    target: motion_core::KeyframeTarget::Effect {
+                        object: target.object,
+                        effect: target.effect,
+                        param: target.param.clone(),
+                    },
+                    frame: time as u32,
+                })
+            }),
+        );
     }
     for key in &parameter.track.keys {
         let time = key.frame as f64 + layer_offset;
         if time < offset || time > end {
             continue;
         }
-        let Ok(sampled) = observe!("effect.graph_key_sample", value(time),
-            "object={} effect={} param={} frame={time}", target.object, target.effect, target.param)
-            else { continue; };
+        let Ok(sampled) = observe!(
+            "effect.graph_key_sample",
+            value(time),
+            "object={} effect={} param={} frame={time}",
+            target.object,
+            target.effect,
+            target.param
+        ) else {
+            continue;
+        };
         let point = [x_of(time), y_of(sampled)];
         let selected = selected_key.is_some_and(|f| f as f64 == time);
         paint::diamond(
@@ -300,10 +534,28 @@ pub(in crate::panels) fn render(
         let hit = styles.metric("timeline.key.hit_radius", 5.);
         let rect = Rect::new(point[0] - hit, point[1] - hit, hit * 2., hit * 2.);
         if let Some(frame) = composition_frame(time, state) {
-            key_selection::ui::graph_mark(&mut lines, panels, key_selection::Key {
-                target: motion_core::KeyframeTarget::Effect { object: target.object, effect: target.effect, param: target.param.clone() }, frame,
-            }, point, styles.metric("graph.handle_radius", 4.), rect,component,
-                if speed || parameter.kind.discrete() {0.} else {(bounds[1]-bounds[0])/plot.height()},Some([parameter.min,parameter.max]));
+            key_selection::ui::graph_mark(
+                &mut lines,
+                panels,
+                key_selection::Key {
+                    target: motion_core::KeyframeTarget::Effect {
+                        object: target.object,
+                        effect: target.effect,
+                        param: target.param.clone(),
+                    },
+                    frame,
+                },
+                point,
+                styles.metric("graph.handle_radius", 4.),
+                rect,
+                component,
+                if speed || parameter.kind.discrete() {
+                    0.
+                } else {
+                    (bounds[1] - bounds[0]) / plot.height()
+                },
+                Some([parameter.min, parameter.max]),
+            );
         }
         #[cfg(test)]
         panels
@@ -464,6 +716,81 @@ pub(in crate::panels) fn render(
             &mut graph,
             Rect::new(x, plot.min[1], styles.metric("border", 1.), plot.height()),
             styles.color("focus"),
+        );
+    }
+    if plot.contains(input.mouse) {
+        let frame = offset + f64::from(input.mouse[0] - plot.min[0]) / f64::from(ppf);
+        if let Ok(value) = observe!(
+            "effect.graph_readout",
+            sample_value(&parameter, frame, layer_offset, speed, fps, component),
+            "object={} effect={} param={} component={component} frame={frame} phase=readout",
+            target.object,
+            target.effect,
+            target.param
+        ) {
+            graph_ranges::readout(
+                &mut graph,
+                atlas,
+                plot,
+                input.mouse,
+                &target.param,
+                frame,
+                value,
+                unit,
+            );
+        }
+    }
+    let unit_left = occupied_end + pad;
+    let unit_right = area.max[0]
+        - pad
+        - styles.metric("graph.control.height", 24.)
+        - styles.metric("graph.control.gap", 2.);
+    if unit_right - unit_left >= styles.metric("value.min_width", 64.) {
+        let rect = Rect::new(unit_left, area.min[1], unit_right - unit_left, row);
+        let mut caption = graph.child();
+        label(&mut caption, atlas, rect, unit, true);
+        caption.clip_to(rect);
+        graph.append(caption);
+    }
+    let busy = panels.effect_timeline.editing()
+        || panels.key_gestures.active()
+        || panels.timeline.horizontal_drag.is_some()
+        || panels.timeline.scrubbing;
+    if let Some(point) = graph_ranges::launch(
+        &mut graph,
+        atlas,
+        Rect::new(area.min[0], area.min[1], area.width(), row),
+        occupied_end,
+        input,
+        panels.timeline.graph_ranges.ready() && !busy,
+    ) {
+        let (all_interval, selection_interval) =
+            intervals(panels, state, &target, &parameter, layer_offset);
+        let tolerance = f64::from(styles.metric("graph.sample.error", 0.35));
+        let started = std::time::Instant::now();
+        let all=observe!("effect.graph_fit_all",fitted(&parameter,all_interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
+            "object={} effect={} param={} component={component} frame_start={} frame_end={} elapsed_ms={} phase=fit_all",
+            target.object,target.effect,target.param,all_interval[0],all_interval[1],started.elapsed().as_millis()).ok();
+        let selection=selection_interval.and_then(|interval| {
+            let started=std::time::Instant::now();
+            observe!("effect.graph_fit_selection",fitted(&parameter,interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
+                "object={} effect={} param={} component={component} frame_start={} frame_end={} elapsed_ms={} phase=fit_selection",
+                target.object,target.effect,target.param,interval[0],interval[1],started.elapsed().as_millis()).ok()
+        });
+        panels.timeline.graph_ranges.open(
+            point,
+            identity,
+            graph_ranges::Options {
+                displayed,
+                all,
+                selection,
+            },
+            state,
+            &panels.selected_keys,
+            panels.animation_controls.user_key(),
+            panels.effect_timeline.range_key(),
+            panels.selected,
+            panels.focused,
         );
     }
     graph_notice::draw(
