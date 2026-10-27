@@ -5,6 +5,25 @@ use std::cell::Cell;
 const MAX_DEPTH: u8 = 32;
 const MAX_POINTS: usize = 65_536;
 
+/// Merge existing view-density seeds with authored shape/discontinuity seeds.
+/// Only adjacent equal times are removed; malformed ordering is never sorted
+/// into an apparently valid track. Sampling still enforces its input budget.
+pub(super) fn merge_knots(
+    first: impl IntoIterator<Item=f64>, second: impl IntoIterator<Item=f64>,
+) -> impl Iterator<Item=f64> {
+    let mut first=first.into_iter().peekable();
+    let mut second=second.into_iter().peekable();
+    std::iter::from_fn(move ||match (first.peek().copied(),second.peek().copied()) {
+        (Some(a),Some(b))=>if a<=b {first.next()} else {second.next()},
+        (Some(_),None)=>first.next(),
+        (None,Some(_))=>second.next(),
+        (None,None)=>None,
+    }).scan(None,|previous:&mut Option<f64>,frame| {
+        let duplicate=previous.replace(frame)==Some(frame);
+        Some((!duplicate).then_some(frame))
+    }).flatten()
+}
+
 #[derive(Debug)]
 pub(super) enum Failure<E> {
     Sample { frame: f64, cause: E },
@@ -99,7 +118,9 @@ pub(super) fn sample<E>(
                 .try_fold(0f64,|maximum,error| {
                     if error.is_finite() {Ok(maximum.max(error))} else {Err(Failure::InvalidGeometry)}
                 })?;
-            if error <= tolerance {
+            // Probes are finite samples, not a continuous supremum. Reserve
+            // half the error budget for inter-probe extrema and step edges.
+            if error <= tolerance*0.5 {
                 if output.len() >= MAX_POINTS {return Err(Failure::Budget {evaluations:evaluations.get(),points:output.len()});}
                 output.push((b.frame,b.value));
                 emitted.set(output.len());

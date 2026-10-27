@@ -7,7 +7,7 @@ use motion_core::{Easing, Track, Tween};
 pub(super) fn knots<T: Tween>(
     track: &Track<T>, start: f64, end: f64, layer_offset: f64,
 ) -> impl Iterator<Item=f64> + '_ {
-    std::iter::once(start).chain(track.keys.windows(2).flat_map(move |pair| {
+    let authored=std::iter::once(start).chain(track.keys.windows(2).flat_map(move |pair| {
         let a=f64::from(pair[0].frame)+layer_offset;
         let b=f64::from(pair[1].frame)+layer_offset;
         let hold=pair[0].ease==motion_core::Ease::Hold;
@@ -19,7 +19,11 @@ pub(super) fn knots<T: Tween>(
         } else {4};
         (0..sections).map(move |i|a+(b-a)*f64::from(i)/f64::from(sections))
             .chain(hold.then(||b.next_down())).chain(std::iter::once(b))
-    }).filter(move |frame|*frame>start && *frame<end)).chain(std::iter::once(end))
+    }).filter(move |frame|*frame>start && *frame<end)).chain(std::iter::once(end));
+    // Retain the established centerline density and augment it by measured
+    // screen error; the former fixed grid is no longer the final resolution.
+    let baseline=(0..=256).map(move |i|start+(end-start)*f64::from(i)/256.);
+    super::graph_adaptive::merge_knots(baseline,authored)
 }
 pub(super) fn velocity<T: Tween>(
     track: &Track<T>,
@@ -102,10 +106,11 @@ mod tests {
             Some(Curve {space:CurveSpace::Progress,shape:CurveShape::Cubic {control1:[0.001,-1.],control2:[0.999,2.],start:0.,end:1.}}),
             Some(Curve {space:CurveSpace::Progress,shape:CurveShape::Elastic {oscillations:8.,damping:0.5}}),
         ];
-        for curve in shapes {
+        for (ease,curve) in shapes.into_iter().map(|curve|(if curve.is_none(){Ease::InOut}else{Ease::Linear},curve))
+            .chain(std::iter::once((Ease::Hold,None))) {
             let mut track=Track::constant(-50f32);
             track.keys=vec![
-                Keyframe {frame:0,value:-50.,ease:if curve.is_none(){Ease::InOut}else{Ease::Linear},curve,spatial:None},
+                Keyframe {frame:0,value:-50.,ease,curve,spatial:None},
                 Keyframe {frame:60,value:150.,ease:Ease::Linear,curve:None,spatial:None},
             ];
             track.validate_local().unwrap();
@@ -124,7 +129,7 @@ mod tests {
                             let probe=[(frame-segment[0].0)*scale[0],(value(frame)-segment[0].1)*scale[1]];
                             let t=if squared>0. {((probe[0]*delta[0]+probe[1]*delta[1])/squared).clamp(0.,1.)} else {0.};
                             let error=(probe[0]-t*delta[0]).hypot(probe[1]-t*delta[1]);
-                            assert!(error<=0.36,"curve={curve:?} speed={speed} range={start}..{end} frame={frame} error={error}");
+                            assert!(error<=0.36,"ease={ease:?} curve={curve:?} speed={speed} range={start}..{end} frame={frame} error={error}");
                         }
                     }
                 }
