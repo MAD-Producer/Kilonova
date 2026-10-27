@@ -215,3 +215,12 @@ SHA-256 `adabdb1acbf409fe261934e68e8e5846adb4f580187447fcae1cbddbdbfe0e0e`; 718,
 Only maintained desktop targets are in delivery scope. Android is retired and
 is not implemented or validated. Static import success is not full scene,
 PBR, animation, depth-compositing or real-time performance support.
+
+## Later #87 pipeline checkpoint
+
+The subsequent [transform animation](gltf-transform-animation-current.md),
+[shared native depth](gltf-shared-depth-current.md) and
+[imported camera](gltf-cameras-current.md) checkpoints supersede the earlier
+unsupported animation/camera boundary above. Their maintained-main full
+regression and exact source-equivalence evidence are recorded in those ledgers.
+Project mixed composition, skin/morph and calibrated AI depth remain open.

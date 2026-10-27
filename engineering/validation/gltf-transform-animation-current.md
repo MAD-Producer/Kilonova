@@ -98,3 +98,47 @@ depth, calibration and the remaining composition acceptance are separate work.
 There is no new clip-selector UI in this stage. Android is retired and excluded
 by user instruction. Fixtures contain only authored geometry and binary data;
 no third-party assets, dependencies or product artwork are added.
+
+## Maintained-main full regression
+
+The later animation, shared-depth and camera changes are now replayed over the
+maintained main source `bcaeb8d0`. Frozen executable source `b2005f5e` passes
+3,291 tests across 319 result targets, with zero failures and
+18 existing manual ignores. All 18 literal
+manual annotations are inventoried before execution; each observed ignore maps
+uniquely to an identical whole-file main Git blob. Platform-uncompiled manual
+tests are listed separately in the receipt. No tests, assertions, tolerances,
+timeouts or ignore annotations are weakened.
+
+The run excludes retired Android and enables desktop FFmpeg, AI-depth and the
+native GPU features for render, host, UI, desktop media and graph. Style-consumer
+and provenance guards, desktop check/build and the actual binary command listing
+also pass. The listing is valid JSON containing `register_model_asset`, with
+empty stderr. Every stage verifies unchanged source and a clean frozen tree.
+
+Parent PR #522 is merged as `650d0a01`, with its Chinese squash title verified
+from the actual GitHub commit. The publication branch replays only the three
+later feature commits over that parent. Every tracked non-documentation input
+matches the frozen full-regression tree; the three original differences are
+parent completion documentation/archive files. This proves source equivalence,
+not bit-identical binaries across different build paths. Final documentation is
+added after testing and does not modify Rust, Cargo or runtime inputs.
+
+Main advanced to `06fa8cf5` while this frozen gate was running, introducing
+layer playback switches in model, snapshot and renderer inputs. Those later
+changes are not covered by this local source identity. The PR merge-ref CI
+must independently validate their combination with this stack; the archive
+records this boundary without attributing old-tree success to untested code.
+
+Evidence: [exact inputs, patch, raw outputs, manual inventory and publication
+equivalence](data/gltf-maintained-main-b2005f5e.zip), SHA-256
+`cfbf544dd6d2fa379ab5e1dc20a6234a5252a2051cf41b88f3095832ebff90c5`; 1,745,005 bytes, 107 entries,
+each read back and verified. The archive excludes weights and native runtime
+binaries. Cross-platform CI for this later PR remains a separate gate.
+
+This supersedes the earlier local-only/full-regression-pending checkpoint, not
+the remaining product scope: project mixed mesh/plane/nested/matte/effect
+composition, skin/morph, calibrated AI depth and camera-selection UI remain open
+under #87. Imported transform animation and native camera selection/projection
+are implemented as described in the linked checkpoint ledgers. The delivered
+model movie is not rerendered; no panels or UI behavior change.

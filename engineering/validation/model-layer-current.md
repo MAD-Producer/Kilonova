@@ -196,3 +196,12 @@ Model layer transforms/keyframes, save/freeze/export and source budgets are
 accepted for this stage. The already delivered model movie is not rerendered.
 Shared mesh/plane depth, imported animation/skin/morph/camera and remaining
 composition acceptance stay open under #87.
+
+## Later #87 pipeline checkpoint
+
+The subsequent [transform animation](gltf-transform-animation-current.md),
+[shared native depth](gltf-shared-depth-current.md) and
+[imported camera](gltf-cameras-current.md) checkpoints supersede the earlier
+unsupported animation/camera boundary above. Their maintained-main full
+regression and exact source-equivalence evidence are recorded in those ledgers.
+Project mixed composition, skin/morph and calibrated AI depth remain open.
