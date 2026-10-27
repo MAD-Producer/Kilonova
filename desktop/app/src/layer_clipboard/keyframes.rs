@@ -30,7 +30,7 @@ impl KeyframeSource {
             revision: state["revision"].as_u64(),
         }
     }
-    pub(super) fn matches(&self, stamp: &Stamp) -> bool {
+    pub(crate) fn matches(&self, stamp: &Stamp) -> bool {
         self.root == stamp.root
             && self.composition == stamp.composition
             && self.generation == Some(stamp.generation)
