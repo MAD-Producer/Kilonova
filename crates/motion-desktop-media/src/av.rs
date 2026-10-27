@@ -5,7 +5,7 @@ use motion_core::VideoAsset;
 use motion_host::{
     platform::VideoDecoder,
     video_decode_policy,
-    video_frame::{DecodedFrame, VideoPixels},
+    video_frame::{DecodedFrame, RgbEncoding, VideoPixels},
 };
 use motion_media::{Error as MediaError, Result, VideoProbe};
 use motion_render::{VideoPlane, Yuv420Frame};
@@ -319,6 +319,7 @@ pub struct Decoder {
     draining: bool,
     last_decoded: Option<i64>,
     seeks: u64,
+    last_rgb_encoding: Option<(color::Primaries, color::TransferCharacteristic)>,
 }
 impl Decoder {
     pub fn open(path: &Path, asset: VideoAsset, timestamps: Vec<u64>) -> Result<Self> {
@@ -345,6 +346,7 @@ impl Decoder {
             draining: false,
             last_decoded: None,
             seeks: 0,
+            last_rgb_encoding: None,
         })
     }
     fn next(&mut self, check: &dyn Fn() -> Result<()>) -> Result<Option<frame::Video>> {
@@ -419,6 +421,10 @@ impl Decoder {
             .saturating_sub(1);
         let wanted = self.timestamps[index];
         let decoded = self.decode_to(wanted, check)?;
+        self.last_rgb_encoding = Some((
+            decoded.color_primaries(),
+            decoded.color_transfer_characteristic(),
+        ));
         let codec_us = began.elapsed().as_micros() as u64;
         let packed = Instant::now();
         let pixels = convert(&decoded, &self.asset)?;
@@ -448,6 +454,70 @@ impl VideoDecoder for Decoder {
     }
     fn seeks(&self) -> u64 {
         self.seeks
+    }
+    fn rgb_encoding(&self) -> Result<RgbEncoding> {
+        let (primaries, transfer) = self
+            .last_rgb_encoding
+            .ok_or("decoder has no completed colour metadata")?;
+        rgb_encoding(primaries, transfer)
+    }
+}
+fn rgb_encoding(
+    primaries: color::Primaries,
+    transfer: color::TransferCharacteristic,
+) -> Result<RgbEncoding> {
+    if primaries == color::Primaries::BT709 {
+        match transfer {
+            color::TransferCharacteristic::BT709 => return Ok(RgbEncoding::Bt709),
+            color::TransferCharacteristic::IEC61966_2_1 => return Ok(RgbEncoding::Srgb),
+            _ => {}
+        }
+    }
+    Err(format!("depth RGB requires declared BT.709 primaries and BT.709/sRGB transfer; primaries={primaries:?} transfer={transfer:?}").into())
+}
+
+#[cfg(test)]
+mod rgb_encoding_tests {
+    use super::*;
+    #[test]
+    fn depth_encoding_requires_explicit_primaries_and_transfer() {
+        assert_eq!(
+            rgb_encoding(
+                color::Primaries::BT709,
+                color::TransferCharacteristic::BT709
+            )
+            .unwrap(),
+            RgbEncoding::Bt709
+        );
+        assert_eq!(
+            rgb_encoding(
+                color::Primaries::BT709,
+                color::TransferCharacteristic::IEC61966_2_1
+            )
+            .unwrap(),
+            RgbEncoding::Srgb
+        );
+        for (primaries, transfer) in [
+            (
+                color::Primaries::Unspecified,
+                color::TransferCharacteristic::BT709,
+            ),
+            (
+                color::Primaries::BT2020,
+                color::TransferCharacteristic::IEC61966_2_1,
+            ),
+            (
+                color::Primaries::BT709,
+                color::TransferCharacteristic::Unspecified,
+            ),
+            (
+                color::Primaries::BT709,
+                color::TransferCharacteristic::SMPTE2084,
+            ),
+        ] {
+            let cause = rgb_encoding(primaries, transfer).unwrap_err().to_string();
+            assert!(cause.contains(&format!("primaries={primaries:?} transfer={transfer:?}")));
+        }
     }
 }
 fn colors(frame: &frame::Video) -> Result<(u32, u32)> {

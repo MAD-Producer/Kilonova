@@ -425,6 +425,7 @@ impl VideoJobs {
                 .map(|a| a.id)
                 .chain(project.audio_assets.iter().map(|a| a.id))
                 .chain(project.video_assets.iter().map(|a| a.id))
+                .chain(project.model_assets.iter().map(|a| a.id))
                 .max()
                 .unwrap_or(0)
                 .checked_add(1);

@@ -984,6 +984,7 @@ impl GpuState {
                 })?;
                 if p.uniform.params[30][1]>0.5 {TextureKey::EffectInput(draw.layer)}
                 else if draw.words[31]==1. {TextureKey::Vector(draw.layer)}
+                else if draw.words[30]==3. {TextureKey::Model(draw.layer)}
                 else if draw.words[24]<0. {TextureKey::Video(draw.layer)}
                 else {
                     let asset_index = usize::try_from(draw.words[24] as i64).map_err(|_| {

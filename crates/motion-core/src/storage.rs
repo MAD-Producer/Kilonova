@@ -38,6 +38,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
         .assets
         .iter()
         .map(|a| (&a.path, MAX_ASSET, None))
+        .chain(project.model_assets.iter().map(|a| (&a.path, crate::model_assets::MAX_MODEL_ASSET_BYTES, Some(a.bytes))))
         .chain(project.fonts.iter().map(|a| (&a.path, 32*1024*1024, None)))
         .chain(
             project
@@ -192,6 +193,7 @@ impl PackageSnapshot {
             .assets
             .iter()
             .map(|a| (&a.path, MAX_ASSET, None))
+            .chain(project.model_assets.iter().map(|a| (&a.path, crate::model_assets::MAX_MODEL_ASSET_BYTES, Some(a.bytes))))
         .chain(project.fonts.iter().map(|a| (&a.path, 32*1024*1024, None)))
             .chain(
                 project
@@ -441,6 +443,7 @@ pub fn import_package_with_progress(
         .map(|a| a.path.to_lowercase())
         .chain(project.audio_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.video_assets.iter().map(|a| a.path.to_lowercase()))
+        .chain(project.model_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.fonts.iter().map(|a| a.path.to_lowercase()))
         .chain(std::iter::once("project.json".into()))
         .collect();

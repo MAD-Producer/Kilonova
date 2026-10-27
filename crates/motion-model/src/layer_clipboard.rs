@@ -21,6 +21,7 @@ pub struct LayerClipboardView<'a> {
     pub layers: Vec<&'a Layer>,
     pub compositions: Vec<&'a Composition>,
     pub assets: Vec<&'a Asset>,
+    pub model_assets: Vec<&'a crate::ModelAsset>,
     pub fonts: Vec<&'a FontAsset>,
     pub audio_assets: Vec<&'a AudioAsset>,
     pub video_assets: Vec<&'a VideoAsset>,
@@ -103,6 +104,7 @@ impl LayerClipboard {
         }
 
         let mut images = BTreeSet::new();
+        let mut models = BTreeSet::new();
         let mut fonts = BTreeSet::new();
         let mut audio = BTreeSet::new();
         let mut video = BTreeSet::new();
@@ -112,6 +114,7 @@ impl LayerClipboard {
             .chain(compositions.iter().flat_map(|c| &c.layers))
         {
             match &layer.content {
+                Content::Model { model } => { models.insert(model.asset); }
                 Content::Image { asset } => {
                     images.insert(*asset);
                 }
@@ -150,6 +153,7 @@ impl LayerClipboard {
         Ok(LayerClipboardView {
             layers,
             compositions,
+            model_assets: self.source.model_assets.iter().filter(|a| models.contains(&a.id)).collect(),
             assets: self
                 .source
                 .assets

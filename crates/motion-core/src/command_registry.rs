@@ -177,6 +177,7 @@ registry! {
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
+    Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
     Command::SetVector { .. } => "set_vector" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value",[f32; 3],true)];
