@@ -200,6 +200,13 @@ fn fixture(root: &Path) -> (Project, String) {
     project.validate().unwrap();
     (project, package.hash)
 }
+fn retain_files(root: &Path, files: &BTreeMap<String, Vec<u8>>) {
+    for (path, bytes) in files {
+        let path = root.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, bytes).unwrap();
+    }
+}
 fn panels(state: &Value, catalogue: &Value, case: Case) -> Panels {
     let mut p = Panels {
         locale: case.locale,
@@ -596,6 +603,7 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
     let before = engine.state().unwrap();
     let files_before = project_files(&project_root);
     assert!(files_before.contains_key("project.json"));
+    retain_files(&root.join("saved-before"), &files_before);
     let mut atlas = TextAtlas::from_family(
         motion_ui::style::default_stylesheet_arc().font_family(),
         12.,
@@ -674,9 +682,41 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
                 assert!(p.timeline.graph_ranges.editing());
                 choose(&engine, &mut p, &mut atlas, case, 1, speed);
                 assert!(!p.timeline.graph_ranges.editing());
-                let paint = step(&engine, &mut p, &mut atlas, case, Input::default());
-                let fitted = probe(&p, case);
+                let mut paint = step(&engine, &mut p, &mut atlas, case, Input::default());
+                let mut fitted = probe(&p, case);
                 assert!(fitted.bounds.x.span() < initial.bounds.x.span());
+                if matches!(kind, Kind::Mini) {
+                    let mouse = [
+                        (fitted.plot.min[0] + fitted.plot.max[0]) * 0.5,
+                        (fitted.plot.min[1] + fitted.plot.max[1]) * 0.5,
+                    ];
+                    for modifiers in [
+                        Modifiers {
+                            control: true,
+                            ..Default::default()
+                        },
+                        Modifiers {
+                            control: true,
+                            alt: true,
+                            ..Default::default()
+                        },
+                    ] {
+                        paint = step(
+                            &engine,
+                            &mut p,
+                            &mut atlas,
+                            case,
+                            Input {
+                                mouse,
+                                wheel: [0., 32.],
+                                modifiers,
+                                ..Default::default()
+                            },
+                        );
+                    }
+                    fitted = probe(&p, case);
+                    assert!(fitted.bounds.x.span() < 0.002);
+                }
                 capture(
                     &mut events,
                     &engine,
@@ -787,6 +827,12 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
                     assert!(lines
                         .iter()
                         .any(|s| s.ends_with(if speed { "px/s" } else { "%" })));
+                    if speed {
+                        assert!(
+                            lines[1].contains('-'),
+                            "negative outgoing physical speed must retain its sign: {lines:?}"
+                        );
+                    }
                 }
                 open(&engine, &mut p, &mut atlas, case);
                 step(
@@ -812,7 +858,7 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
                     assert_eq!(after[field], baseline[field], "case={name} changed {field}");
                 }
                 evidence.push(serde_json::json!({"case":name,"window":window,"logical_size":size,"pixel_ratio":ratio,"speed":speed,
-                "pixel_measurements":measurements,"fit_selection":true,"lock_x_y_playhead_wheel":true,"pointer_and_keyboard":true,
+                "pixel_measurements":measurements,"fit_selection":true,"high_zoom_x_span":fitted.bounds.x.span(),"high_zoom_y_span":fitted.bounds.y.span(),"lock_x_y_playhead_wheel":true,"pointer_and_keyboard":true,
                 "ime_repeat_gated":true,"focus_and_foreign_cancel":true,"history_revision_project_unchanged":true}));
             }
         }
@@ -868,6 +914,7 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
     save(&mut events, &engine);
     assert_eq!(engine.state().unwrap()["project"], before["project"]);
     assert_eq!(project_files(&project_root), files_before);
+    retain_files(&root.join("saved-after"), &project_files(&project_root));
     let reopened = motion_core::storage::load(&project_root).unwrap();
     assert_eq!(serde_json::to_value(reopened).unwrap(), before["project"]);
     std::fs::write(
