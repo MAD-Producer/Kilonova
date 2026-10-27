@@ -309,6 +309,92 @@ pub(super) fn load(
     Ok(data)
 }
 impl Data {
+    fn knots(&self, start: f64, end: f64) -> impl Iterator<Item = f64> + '_ {
+        let offset = self.offset as f64;
+        let base: Box<dyn Iterator<Item = f64> + '_> = match &self.samples {
+            Samples::Scalar(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
+            Samples::Vec2(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
+            Samples::Vec3(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
+            Samples::Vec4(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
+        };
+        let steps = self
+            .frames
+            .iter()
+            .flat_map(|frame| {
+                let frame = f64::from(*frame);
+                [frame.next_down(), frame]
+            })
+            .filter(move |frame| self.discrete && *frame >= start && *frame <= end);
+        super::super::graph_adaptive::merge_knots(base, steps)
+    }
+    pub fn adaptive(
+        &self,
+        interval: [f64; 2],
+        component: usize,
+        fps: f64,
+        speed: bool,
+        scale: [f64; 2],
+        tolerance: f64,
+    ) -> Result<Vec<(f64, f32)>, super::super::graph_adaptive::Failure<motion_core::Error>> {
+        super::super::graph_adaptive::sample(
+            self.knots(interval[0], interval[1]),
+            scale,
+            tolerance,
+            |frame| self.sample(frame, component, fps, speed).map(f64::from),
+        )
+        .map(|points| {
+            points
+                .into_iter()
+                .map(|(frame, value)| (frame, value as f32))
+                .collect()
+        })
+    }
+    pub fn fitted(
+        &self,
+        interval: [f64; 2],
+        component: usize,
+        fps: f64,
+        speed: bool,
+        size: [f32; 2],
+        tolerance: f64,
+    ) -> Result<
+        super::super::graph_ranges::Bounds,
+        super::super::graph_adaptive::Failure<motion_core::Error>,
+    > {
+        use super::super::{
+            graph_adaptive::{self, Failure},
+            graph_ranges::Bounds,
+            graph_view::Range,
+        };
+        let [start, end] = interval;
+        let x = Range::fitted(start, end, 0.05, 1.).ok_or(Failure::InvalidGeometry)?;
+        let [low, high] = graph_adaptive::extrema(self.knots(start, end), |frame| {
+            self.sample(frame, component, fps, speed).map(f64::from)
+        })?
+        .ok_or(Failure::InvalidGeometry)?;
+        let initial = Range::fitted(low, high, 0.1, 1.).ok_or(Failure::InvalidGeometry)?;
+        let points = self.adaptive(
+            interval,
+            component,
+            fps,
+            speed,
+            [
+                f64::from(size[0]) / x.span(),
+                f64::from(size[1]) / initial.span(),
+            ],
+            tolerance,
+        )?;
+        let low = points
+            .iter()
+            .map(|p| f64::from(p.1))
+            .fold(f64::INFINITY, f64::min);
+        let high = points
+            .iter()
+            .map(|p| f64::from(p.1))
+            .fold(f64::NEG_INFINITY, f64::max);
+        let y = Range::fitted(low, high, 0.1, 1.).ok_or(Failure::InvalidGeometry)?;
+        Ok(Bounds { x, y })
+    }
     pub fn value_limits(&self) -> Option<[f32; 2]> {
         self.limits
     }

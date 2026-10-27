@@ -10,7 +10,13 @@ const MAX_VIEWS: usize = 128;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Surface {
     Timeline,
+    Comparison,
     Mini(Panel),
+}
+impl Surface {
+    fn time_axis(self) -> bool {
+        matches!(self, Self::Timeline | Self::Comparison)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,6 +87,7 @@ struct Menu {
     selection: super::key_selection::Set,
     legacy: Option<super::types::KeySelection>,
     effect_key: Option<super::key_selection::Key>,
+    comparison: Option<super::curve_comparison::RangeContext>,
     selected: Option<u64>,
     focused: Option<Panel>,
     track: Option<(Value, i64)>,
@@ -135,6 +142,26 @@ impl Controls {
             self.cancel();
         }
     }
+    pub(super) fn no_comparison_plot(&mut self) {
+        if self
+            .menu
+            .as_ref()
+            .is_some_and(|menu| menu.id.surface == Surface::Comparison)
+        {
+            self.cancel();
+        }
+    }
+    pub(super) fn comparison_groups(&mut self, groups: impl IntoIterator<Item = Identity>) {
+        if let Some(menu) = self
+            .menu
+            .as_ref()
+            .filter(|menu| menu.id.surface == Surface::Comparison)
+        {
+            if !groups.into_iter().any(|id| id == menu.id) {
+                self.cancel();
+            }
+        }
+    }
     pub(super) fn locked_x(&self) -> bool {
         self.time_locked
     }
@@ -147,6 +174,7 @@ impl Controls {
         selection: &super::key_selection::Set,
         legacy: Option<super::types::KeySelection>,
         effect_key: Option<super::key_selection::Key>,
+        comparison: &super::curve_comparison::Controls,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
@@ -166,6 +194,9 @@ impl Controls {
                 || m.legacy != legacy
                 || matches!(m.id.target, Some(KeyframeTarget::Effect { .. }))
                     && m.effect_key != effect_key
+                || m.comparison
+                    .as_ref()
+                    .is_some_and(|context| !comparison.matches_range_context(context))
                 || m.selected != selected
                 || m.focused != focused
                 || match (&m.track, snapshot(state, &m.id)) {
@@ -213,16 +244,17 @@ impl Controls {
         if !self.ready() {
             return automatic;
         }
-        if self
-            .menu
-            .as_ref()
-            .is_some_and(|m| m.window == self.window && m.id.surface == id.surface && m.id != *id)
-        {
+        if self.menu.as_ref().is_some_and(|m| {
+            m.window == self.window
+                && m.id.surface == id.surface
+                && id.surface != Surface::Comparison
+                && m.id != *id
+        }) {
             self.menu = None;
         }
         let entry = self.entry(id);
         Bounds {
-            x: if id.surface == Surface::Timeline {
+            x: if id.surface.time_axis() {
                 automatic.x
             } else {
                 entry.x.range(automatic.x)
@@ -260,6 +292,7 @@ impl Controls {
         selection: &super::key_selection::Set,
         legacy: Option<super::types::KeySelection>,
         effect_key: Option<super::key_selection::Key>,
+        comparison: Option<super::curve_comparison::RangeContext>,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) {
@@ -286,6 +319,7 @@ impl Controls {
             selection: selection.clone(),
             legacy,
             effect_key,
+            comparison,
             selected,
             focused,
             track,
@@ -349,7 +383,7 @@ impl Controls {
         {
             return;
         }
-        let time = menu.id.surface == Surface::Timeline;
+        let time = menu.id.surface.time_axis();
         let lock_x = if time {
             self.time_locked
         } else {
@@ -517,7 +551,7 @@ impl Controls {
                 } else {
                     self.entries[index].x.automatic();
                 }
-                if time && !lock_y {
+                if menu.id.surface == Surface::Timeline && !lock_y {
                     timeline.graph_y_zoom = 1.;
                     timeline.graph_y_offset = 0.;
                 }
@@ -598,7 +632,9 @@ pub(super) fn readout(
     let row = styles.metric("row.height", 22.);
     let width = styles.metric("graph.readout.width", 232.).min(plot.width());
     let height = (row * 2. + pad * 2.).min(plot.height());
-    if width<=pad*2. || height<=pad*2. {return;}
+    if width <= pad * 2. || height <= pad * 2. {
+        return;
+    }
     let x = if mouse[0] + pad + width > plot.max[0] {
         mouse[0] - width - pad
     } else {

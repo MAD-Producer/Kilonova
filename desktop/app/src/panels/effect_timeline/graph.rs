@@ -789,6 +789,7 @@ pub(in crate::panels) fn render(
             &panels.selected_keys,
             panels.animation_controls.user_key(),
             panels.effect_timeline.range_key(),
+            None,
             panels.selected,
             panels.focused,
         );

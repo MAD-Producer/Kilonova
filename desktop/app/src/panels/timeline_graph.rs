@@ -139,6 +139,7 @@ pub(super) fn render(
     ppf: f32,
     out: &mut Vec<Action>,
 ) {
+    if !panels.timeline.comparison.enabled {panels.timeline.graph_ranges.no_comparison_plot();}
     if panels.timeline.comparison.enabled {
         let footer=list.styles().metric("field.height",18.).min(area.height());
         let body=Rect::new(area.min[0],area.min[1],area.width(),(area.height()-footer).max(0.));
@@ -710,7 +711,7 @@ pub(super) fn render(
                     "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
             });
             panels.timeline.graph_ranges.open(point,identity,super::graph_ranges::Options {displayed,all,selection},
-                state,&panels.selected_keys,panels.animation_controls.user_key(),panels.effect_timeline.range_key(),panels.selected,panels.focused);
+                state,&panels.selected_keys,panels.animation_controls.user_key(),panels.effect_timeline.range_key(),None,panels.selected,panels.focused);
         }
     }
     let step = (plot.width() / ppf / 4.).max(1.);

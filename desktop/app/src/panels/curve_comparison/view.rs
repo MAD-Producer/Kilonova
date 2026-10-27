@@ -1,6 +1,98 @@
 //! Unit groups have independent ordinate ranges and one composition-time axis.
+use super::super::{graph_adaptive::Failure, graph_ranges, graph_view::Range};
 use super::*;
 use std::collections::BTreeMap;
+
+fn identity(unit: &data::Unit, speed: bool) -> graph_ranges::Identity {
+    graph_ranges::Identity {
+        surface: graph_ranges::Surface::Comparison,
+        target: None,
+        component: None,
+        speed,
+        unit: format!("comparison:{unit:?}"),
+    }
+}
+fn intervals(
+    controls: &Controls,
+    indices: &[usize],
+    panels: &Panels,
+    state: &Value,
+) -> ([f64; 2], Option<[f64; 2]>) {
+    let mut all: Option<[f64; 2]> = None;
+    let mut selected: Option<[f64; 2]> = None;
+    let status = panels.selected_keys.status(state);
+    let property = panels
+        .animation_controls
+        .user_key_in(state, panels.selected);
+    let effect = panels.effect_timeline.range_key();
+    for index in indices {
+        let entry = &controls.entries[*index];
+        let Ok(data) = &entry.data else {
+            continue;
+        };
+        for frame in data.frames.iter().copied() {
+            let time = f64::from(frame);
+            all = Some(all.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]));
+            let key = key_selection::Key {
+                target: entry.channel.target.clone(),
+                frame,
+            };
+            let chosen = match status {
+                key_selection::Status::Current => panels.selected_keys.contains(&key),
+                key_selection::Status::Unowned => {
+                    effect.as_ref() == Some(&key)
+                        || property.is_some_and(|p| {
+                            p.frame == frame
+                                && entry.channel.target
+                                    == (KeyframeTarget::Property {
+                                        object: p.object,
+                                        property: p.property,
+                                        axis: p.axis,
+                                    })
+                        })
+                }
+                _ => false,
+            };
+            if chosen {
+                selected = Some(
+                    selected.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]),
+                );
+            }
+        }
+    }
+    (all.unwrap_or([0., last_frame(state) + 1.]), selected)
+}
+fn fitted(
+    controls: &Controls,
+    indices: &[usize],
+    interval: [f64; 2],
+    fps: f64,
+    speed: bool,
+    size: [f32; 2],
+    tolerance: f64,
+) -> Result<graph_ranges::Bounds, Failure<motion_core::Error>> {
+    let x = Range::fitted(interval[0], interval[1], 0.05, 1.).ok_or(Failure::InvalidGeometry)?;
+    let mut low = f64::INFINITY;
+    let mut high = f64::NEG_INFINITY;
+    for index in indices {
+        let entry = &controls.entries[*index];
+        let data = entry.data.as_ref().map_err(|_| Failure::InvalidGeometry)?;
+        let bounds = data.fitted(
+            interval,
+            entry.channel.component,
+            fps,
+            speed,
+            size,
+            tolerance,
+        )?;
+        low = low.min(bounds.y.low);
+        high = high.max(bounds.y.high);
+    }
+    Ok(graph_ranges::Bounds {
+        x,
+        y: Range::new(low, high).ok_or(Failure::InvalidGeometry)?,
+    })
+}
 
 pub(super) fn color(
     styles: &motion_ui::style::StyleSheet,
@@ -43,6 +135,7 @@ pub(in crate::panels) fn render(
     {
         controls.marks.clear();
         controls.legend_hits.clear();
+        controls.range_hits.clear();
     }
     let mut body = list.child();
     paint::rect(&mut body, area, styles.color("well"));
@@ -96,6 +189,22 @@ pub(in crate::panels) fn render(
                 color(&styles, index),
             );
             let title = match &entry.data {
+                Ok(_)
+                    if entry
+                        .tessellation
+                        .as_ref()
+                        .is_some_and(|cache| cache.points.is_none()) =>
+                {
+                    format!(
+                        "{} · {}",
+                        entry.label,
+                        words(
+                            panels.locale,
+                            "绘制不可用，请检查日志",
+                            "Cannot draw; check log"
+                        )
+                    )
+                }
                 Ok(data) => format!(
                     "{} · {}",
                     entry.label,
@@ -162,6 +271,11 @@ pub(in crate::panels) fn render(
             .or_else(|| groups.keys().next().cloned());
         groups.retain(|unit, _| Some(unit) == chosen.as_ref());
     }
+    panels.timeline.graph_ranges.comparison_groups(
+        groups
+            .keys()
+            .map(|unit| identity(unit, panels.timeline.speed_graph)),
+    );
     let min_height = if controls.single_group {
         plots.height()
     } else {
@@ -207,13 +321,16 @@ pub(in crate::panels) fn render(
             if lane.max[1] <= scroll.viewport.min[1] || lane.min[1] >= scroll.viewport.max[1] {
                 continue;
             }
-            let heading = if controls.single_group { 0. } else { row };
+            let heading = row;
             let plot = Rect::new(
                 lane.min[0],
                 top + heading + row * 0.5,
                 lane.width(),
                 (lane.height() - heading - row - pad).max(0.),
             );
+            if plot.height() <= 0. {
+                continue;
+            }
             let mut low = f64::INFINITY;
             let mut high = f64::NEG_INFINITY;
             for index in &indices {
@@ -274,17 +391,62 @@ pub(in crate::panels) fn render(
             let margin = ((high - low) * 0.1).max(1.);
             low -= margin;
             high += margin;
+            let id = identity(&unit, speed);
+            let automatic = Range::new(offset, offset + f64::from(plot.width()) / f64::from(ppf))
+                .zip(Range::new(low, high))
+                .map(|(x, y)| graph_ranges::Bounds { x, y });
+            let Ok(automatic) = observe!(
+                "curve.comparison.view_bounds",
+                automatic.ok_or("unrepresentable comparison range"),
+                "phase=display unit={unit:?} curves={}",
+                indices.len()
+            ) else {
+                continue;
+            };
+            let before = panels
+                .timeline
+                .graph_ranges
+                .displayed(state, &id, automatic);
+            if plot.contains(input.mouse)
+                && scroll.viewport.contains(input.mouse)
+                && input.modifiers.control
+                && input.modifiers.alt
+                && input.wheel[1].is_finite()
+                && input.wheel[1] != 0.
+                && !panels.key_gestures.active()
+                && !panels.timeline.scrubbing
+                && panels.timeline.horizontal_drag.is_none()
+            {
+                let factor = (-f64::from(input.wheel[1]) / 240.).exp().clamp(0.25, 64.);
+                let anchor = before
+                    .y
+                    .at(f64::from((plot.max[1] - input.mouse[1]) / plot.height()));
+                panels
+                    .timeline
+                    .graph_ranges
+                    .navigate_y(&id, before.y, factor, anchor);
+            }
+            let displayed = panels
+                .timeline
+                .graph_ranges
+                .displayed(state, &id, automatic);
+            low = displayed.y.low;
+            high = displayed.y.high;
             let y_of =
                 |v: f32| plot.max[1] - ((f64::from(v) - low) / (high - low)) as f32 * plot.height();
             let mut graph = list.child();
-            if !controls.single_group {
-                label(
-                    &mut graph,
-                    atlas,
-                    Rect::new(lane.min[0] + pad, top, lane.width() - pad, row),
-                    &unit.title(speed),
-                    true,
+            {
+                let caption = Rect::new(
+                    lane.min[0] + pad,
+                    top,
+                    (lane.width() - pad * 2. - styles.metric("graph.control.height", 24.) - gap)
+                        .max(0.),
+                    row,
                 );
+                let mut text = list.child();
+                label(&mut text, atlas, caption, &unit.title(speed), true);
+                text.clip_to(caption);
+                graph.append(text);
             }
             let steps = (plot.height() / row).floor().clamp(1., 4.) as usize;
             for i in 0..=steps {
@@ -309,12 +471,49 @@ pub(in crate::panels) fn render(
                 );
             }
             let mut curves = list.child();
-            for index in indices {
-                let entry = &controls.entries[index];
+            let tolerance = f64::from(styles.metric("graph.sample.error", 0.35));
+            let tessellation_key = [
+                offset,
+                end,
+                fps,
+                if speed { 1. } else { 0. },
+                f64::from(ppf),
+                f64::from(plot.width()),
+                f64::from(plot.height()),
+                low,
+                high,
+                tolerance,
+            ];
+            let mut hovered = None;
+            for index in indices.iter().copied() {
+                let entry = &mut controls.entries[index];
                 let Ok(data) = &entry.data else {
                     continue;
                 };
-                let Some((_, points)) = &entry.points else {
+                if entry.points.is_none() {
+                    continue;
+                }
+                if entry
+                    .tessellation
+                    .as_ref()
+                    .is_none_or(|cache| cache.key != tessellation_key)
+                {
+                    #[cfg(test)]
+                    {entry.tessellation_attempts=entry.tessellation_attempts.saturating_add(1);}
+                    let points=observe!("curve.comparison.adaptive",data.adaptive([offset,end],entry.channel.component,fps,speed,
+                        [f64::from(ppf),f64::from(plot.height())/(high-low)],tolerance),
+                        "object={} component={} unit={unit:?} frame_start={offset} frame_end={end} phase=screen_subdivision",entry.channel.target.object(),entry.channel.component)
+                        .ok().map(Arc::new);
+                    entry.tessellation = Some(Tessellation {
+                        key: tessellation_key,
+                        points,
+                    });
+                }
+                let Some(points) = entry
+                    .tessellation
+                    .as_ref()
+                    .and_then(|cache| cache.points.as_ref())
+                else {
                     continue;
                 };
                 paint::line_with_width(
@@ -326,6 +525,25 @@ pub(in crate::panels) fn render(
                     color(&styles, index),
                     styles.metric("graph.curve_width", 2.),
                 );
+                if plot.contains(input.mouse) && scroll.viewport.contains(input.mouse) {
+                    let frame = offset + f64::from(input.mouse[0] - plot.min[0]) / f64::from(ppf);
+                    if let Ok(value) = observe!(
+                        "curve.comparison.readout",
+                        data.sample(frame, entry.channel.component, fps, speed),
+                        "object={} component={} frame={frame} phase=readout",
+                        entry.channel.target.object(),
+                        entry.channel.component
+                    ) {
+                        let distance = (y_of(value) - input.mouse[1]).abs();
+                        if hovered
+                            .as_ref()
+                            .is_none_or(|(before, _, _, _)| distance < *before)
+                        {
+                            hovered =
+                                Some((distance, frame, f64::from(value), entry.label.clone()));
+                        }
+                    }
+                }
                 for frame in data
                     .frames
                     .iter()
@@ -378,6 +596,67 @@ pub(in crate::panels) fn render(
             }
             curves.clip_to(plot);
             graph.append(curves);
+            if let Some((_, frame, value, title)) = hovered {
+                graph_ranges::readout(
+                    &mut graph,
+                    atlas,
+                    plot,
+                    input.mouse,
+                    &title,
+                    frame,
+                    value,
+                    &unit.title(speed),
+                );
+            }
+            let busy = panels.key_gestures.active()
+                || panels.timeline.horizontal_drag.is_some()
+                || panels.timeline.scrubbing;
+            let menu_row = Rect::new(lane.min[0], top, lane.width(), row);
+            #[cfg(test)]
+            controls.range_hits.push((unit.title(false),menu_row));
+            // The caption is flexible; the dedicated range slot never shrinks
+            // the existing key/handle targets or overlaps a scroll scrollbar.
+            let neutral_menu = Input::default();
+            let menu_input = if scroll.viewport.contains(input.mouse) {
+                input
+            } else {
+                &neutral_menu
+            };
+            if let Some(point) = graph_ranges::launch(
+                &mut graph,
+                atlas,
+                menu_row,
+                menu_row.min[0],
+                menu_input,
+                panels.timeline.graph_ranges.ready() && !busy,
+            ) {
+                let (all_interval, selection_interval) =
+                    intervals(&controls, &indices, panels, state);
+                let began = std::time::Instant::now();
+                let all=observe!("curve.comparison.fit_all",fitted(&controls,&indices,all_interval,fps,speed,[plot.width(),plot.height()],tolerance),
+                        "unit={unit:?} curves={} frame_start={} frame_end={} elapsed_ms={} phase=fit_all",indices.len(),all_interval[0],all_interval[1],began.elapsed().as_millis()).ok();
+                let selection=selection_interval.and_then(|interval| {
+                        let began=std::time::Instant::now();
+                        observe!("curve.comparison.fit_selection",fitted(&controls,&indices,interval,fps,speed,[plot.width(),plot.height()],tolerance),
+                            "unit={unit:?} curves={} frame_start={} frame_end={} elapsed_ms={} phase=fit_selection",indices.len(),interval[0],interval[1],began.elapsed().as_millis()).ok()
+                    });
+                panels.timeline.graph_ranges.open(
+                    point,
+                    id,
+                    graph_ranges::Options {
+                        displayed,
+                        all,
+                        selection,
+                    },
+                    state,
+                    &panels.selected_keys,
+                    panels.animation_controls.user_key(),
+                    panels.effect_timeline.range_key(),
+                    Some(controls.range_context()),
+                    panels.selected,
+                    panels.focused,
+                );
+            }
             graph.clip_to(scroll.viewport);
             body.append(graph);
         }

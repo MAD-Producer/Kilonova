@@ -3,6 +3,7 @@ use motion_core::{Ease, Engine, Layer, Project};
 use motion_ui::input::Modifiers;
 #[path = "error_tests.rs"]
 mod error_tests;
+mod ranges;
 
 fn property(property: Property) -> KeyframeTarget {
     KeyframeTarget::Property {
@@ -11,7 +12,7 @@ fn property(property: Property) -> KeyframeTarget {
         axis: None,
     }
 }
-fn fixture() -> Engine {
+pub(in crate::panels) fn fixture() -> Engine {
     let mut project = Project::new(640, 360, 30, 120).unwrap();
     let mut layer = Layer::solid(7, "Comparison", [100., 50.], [0.; 3], [1.; 4]);
     layer.timeline = Some(motion_core::LayerTimeline {
@@ -30,12 +31,12 @@ fn fixture() -> Engine {
     project.layers.push(layer);
     Engine::new(project).unwrap()
 }
-fn state(engine: &Engine) -> Value {
+pub(in crate::panels) fn state(engine: &Engine) -> Value {
     serde_json::json!({"root":"comparison-fixture","composition":motion_core::composition::MAIN_COMPOSITION,
         "document_generation":1,"revision":engine.revision(),"frame":30,"project":engine.project(),
         "timeline_layers":engine.project().timeline_layers(30.).unwrap()})
 }
-fn setup(state: &Value, locale: Locale) -> Panels {
+pub(in crate::panels) fn setup(state: &Value, locale: Locale) -> Panels {
     let mut p = Panels {
         locale,
         focused: Some(Panel::Timeline),
