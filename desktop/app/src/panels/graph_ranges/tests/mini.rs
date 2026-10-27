@@ -392,3 +392,90 @@ fn mini_control_drag_inverts_zoomed_axes_and_escape_cancels_the_existing_transac
         );
     }
 }
+
+#[test]
+fn mini_modifier_zoom_and_pan_are_pointer_anchored_and_do_not_scroll_or_move_timeline() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for locale in [Locale::En, Locale::Zh] {
+        for window in [None, Some(Panel::Curves)] {
+            let (_, state, mut p) = scene();
+            p.locale = locale;
+            p.timeline.zoom = 4.;
+            p.timeline.offset = 20.;
+            assert!(render(&mut p, &state, &Input::default(), window, &mut atlas).is_empty());
+            let (_, graph, initial) = p.animation_controls.mini_test_geometry().unwrap();
+            let mouse = [
+                graph.min[0] + graph.width() * 0.5,
+                graph.min[1] + graph.height() * 0.5,
+            ];
+            let input = |modifiers| Input {
+                mouse,
+                modifiers,
+                wheel: [0., 4.],
+                ..Default::default()
+            };
+            let scroll = p
+                .auxiliary
+                .scroll
+                .get(&(Panel::Curves as u32))
+                .copied()
+                .unwrap_or(0.);
+            assert!(render(
+                &mut p,
+                &state,
+                &input(Modifiers {
+                    control: true,
+                    ..Default::default()
+                }),
+                window,
+                &mut atlas
+            )
+            .is_empty());
+            let x = p.animation_controls.mini_test_geometry().unwrap().2;
+            let factor = 1.15f64.powf(4.);
+            assert!((x.x.span() - initial.x.span() / factor).abs() < 1e-7);
+            assert!((x.x.at(0.5) - initial.x.at(0.5)).abs() < 1e-7);
+            assert_eq!(x.y, initial.y);
+            assert!(render(
+                &mut p,
+                &state,
+                &input(Modifiers {
+                    control: true,
+                    alt: true,
+                    ..Default::default()
+                }),
+                window,
+                &mut atlas
+            )
+            .is_empty());
+            let y = p.animation_controls.mini_test_geometry().unwrap().2;
+            assert_eq!(x.x, y.x);
+            assert!((y.y.span() - x.y.span() / factor).abs() < 1e-7);
+            assert!((y.y.at(0.5) - x.y.at(0.5)).abs() < 1e-7);
+            assert!(render(
+                &mut p,
+                &state,
+                &input(Modifiers {
+                    shift: true,
+                    ..Default::default()
+                }),
+                window,
+                &mut atlas
+            )
+            .is_empty());
+            let pan = p.animation_controls.mini_test_geometry().unwrap().2;
+            assert!((pan.x.at(0.5) - (y.x.at(0.5) - y.x.span() * 0.4)).abs() < 1e-7);
+            assert!((pan.x.span() - y.x.span()).abs() < 1e-7);
+            assert_eq!(pan.y, y.y);
+            assert_eq!((p.timeline.zoom, p.timeline.offset), (4., 20.));
+            assert_eq!(
+                p.auxiliary
+                    .scroll
+                    .get(&(Panel::Curves as u32))
+                    .copied()
+                    .unwrap_or(0.),
+                scroll
+            );
+        }
+    }
+}

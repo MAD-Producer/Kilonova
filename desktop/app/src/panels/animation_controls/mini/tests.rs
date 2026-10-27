@@ -1,5 +1,7 @@
 use super::*;
 use motion_core::{Engine, Layer, Project};
+#[path = "fault_tests.rs"]
+mod fault_tests;
 
 #[test]
 fn adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples() {
@@ -259,4 +261,149 @@ fn coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_
         &old,
         view.readout.as_ref().unwrap().data.as_ref().unwrap()
     ));
+}
+
+#[test]
+fn unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache() {
+    let state = scalar_state(0.2, 0.8, 60);
+    let target = KeyframeTarget::Property {
+        object: 7,
+        property: Property::Opacity,
+        axis: None,
+    };
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut view = View::default();
+    let mut draw = |view: &mut View, size: [f32; 2], easing: Easing, frozen: Option<Bounds>| {
+        view.draw(
+            &mut PaintList::default(),
+            &mut atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            &state,
+            &Input::default(),
+            Locale::En,
+            easing,
+            target.clone(),
+            17,
+            Some(77),
+            None,
+            frozen,
+            None,
+        )
+    };
+    let (_, original) = draw(&mut view, [800., 130.], Easing::default(), None);
+    for _ in 0..120 {
+        draw(&mut view, [800., 130.], Easing::default(), None);
+    }
+    assert_eq!((view.shape_builds, view.tessellation_builds), (1, 1));
+    let zoomed = Bounds {
+        x: Range::new(0.49, 0.51).unwrap(),
+        y: original.y,
+    };
+    draw(&mut view, [800., 130.], Easing::default(), Some(zoomed));
+    assert_eq!((view.shape_builds, view.tessellation_builds), (1, 2));
+    let points = view.tessellation.as_ref().unwrap().points.as_ref().unwrap();
+    assert_eq!(points.first().unwrap().0, 0.49);
+    assert_eq!(points.last().unwrap().0, 0.51);
+    draw(&mut view, [400., 130.], Easing::default(), Some(zoomed));
+    assert_eq!((view.shape_builds, view.tessellation_builds), (2, 3));
+    let velocity = Easing {
+        ease: Ease::Linear,
+        curve: Some(Curve {
+            space: CurveSpace::Velocity,
+            shape: CurveShape::Quadratic {
+                control: [0.3, 2.],
+                start: 0.,
+                end: 1.,
+            },
+        }),
+    };
+    draw(&mut view, [400., 130.], velocity, None);
+    assert_eq!((view.shape_builds, view.tessellation_builds), (3, 4));
+    let outside = Bounds {
+        x: Range::new(2., 3.).unwrap(),
+        y: original.y,
+    };
+    draw(&mut view, [400., 130.], velocity, Some(outside));
+    assert!(
+        view.tessellation
+            .as_ref()
+            .unwrap()
+            .points
+            .as_ref()
+            .unwrap()
+            .is_empty(),
+        "panning outside the normalized domain is normal, not failed sampling"
+    );
+    assert_eq!((view.shape_builds, view.tessellation_builds), (3, 5));
+}
+
+#[test]
+fn mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints() {
+    let state = scalar_state(0.2, 0.8, 60);
+    let target = KeyframeTarget::Property {
+        object: 7,
+        property: Property::Opacity,
+        axis: None,
+    };
+    let legacy = Some(KeySelection {
+        object: 7,
+        property: Property::Opacity,
+        axis: None,
+        frame: 17,
+    });
+    let all = automatic(Easing::default(), [800., 130.], 0.35).unwrap();
+    let mut ranges = graph_ranges::Controls::default();
+    let mut selected = Set::default();
+    let choose = |state: &Value, selected: &Set, ranges: &mut graph_ranges::Controls| {
+        selection(
+            state,
+            &target,
+            17,
+            Some(77),
+            &Context {
+                ranges,
+                selection: selected,
+                effect_key: None,
+                focused: Some(Panel::Curves),
+            },
+            legacy,
+            Easing::default(),
+            all,
+        )
+    };
+    assert_eq!(
+        choose(&state, &selected, &mut ranges).unwrap().x,
+        Range::fitted(0., 0., 0.05, 0.1).unwrap()
+    );
+    selected.clear(&state);
+    assert!(choose(&state, &selected, &mut ranges).is_none());
+    selected
+        .apply(
+            &state,
+            [key_selection::Key {
+                target: target.clone(),
+                frame: 77,
+            }],
+            key_selection::Mode::Replace,
+        )
+        .unwrap();
+    assert_eq!(
+        choose(&state, &selected, &mut ranges).unwrap().x,
+        Range::fitted(1., 1., 0.05, 0.1).unwrap()
+    );
+    let mut stale = state.clone();
+    stale["document_generation"] = 2.into();
+    assert_eq!(selected.status(&stale), Status::Stale);
+    assert!(choose(&stale, &selected, &mut ranges).is_none());
+    selected
+        .apply(
+            &state,
+            [key_selection::Key {
+                target: target.clone(),
+                frame: 17,
+            }],
+            key_selection::Mode::Add,
+        )
+        .unwrap();
+    assert_eq!(choose(&state, &selected, &mut ranges), Some(all));
 }

@@ -44,6 +44,10 @@ pub(super) struct View {
     pub(in crate::panels) geometry: Option<(Rect, Rect, Bounds)>,
     #[cfg(test)]
     pub(in crate::panels) last_readout: Option<(String, Vec<String>)>,
+    #[cfg(test)]
+    shape_builds: u32,
+    #[cfg(test)]
+    tessellation_builds: u32,
 }
 
 pub(super) fn normalized(easing: Easing, time: f64) -> Result<f64, motion_core::Error> {
@@ -235,10 +239,16 @@ impl View {
         if self.shape.as_ref().is_none_or(|shape| {
             shape.easing != easing || shape.size != size || shape.tolerance != tolerance
         }) {
+            #[cfg(test)]
+            {
+                self.shape_builds = self.shape_builds.saturating_add(1);
+            }
+            let started = std::time::Instant::now();
             let automatic = observe!(
                 "curve.mini.fit_all",
                 automatic(easing, size, tolerance),
-                "target={target:?} start={start} end={end:?}"
+                "phase=fit target={target:?} start={start} end={end:?} generation={:?} revision={:?} elapsed_us={}",
+                state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
             )
             .ok();
             self.shape = Some(Shape {
@@ -380,10 +390,16 @@ impl View {
                 .as_ref()
                 .is_none_or(|cache| cache.bounds != bounds)
             {
+                #[cfg(test)]
+                {
+                    self.tessellation_builds = self.tessellation_builds.saturating_add(1);
+                }
+                let started = std::time::Instant::now();
                 let points = observe!(
                     "curve.mini.adaptive",
                     sample(easing, bounds, size, tolerance),
-                    "target={target:?} start={start} end={end:?} bounds={bounds:?}"
+                    "phase=adaptive target={target:?} start={start} end={end:?} bounds={bounds:?} generation={:?} revision={:?} elapsed_us={}",
+                    state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
                 )
                 .ok();
                 self.tessellation = Some(Tessellation { bounds, points });
@@ -439,7 +455,8 @@ impl View {
                 let normalized = observe!(
                     "curve.mini.normalized_readout",
                     normalized(easing, time),
-                    "target={target:?} t={time}"
+                    "phase=normalized_readout target={target:?} t={time} generation={:?} revision={:?}",
+                    state["document_generation"].as_u64(),state["revision"].as_u64()
                 )
                 .ok();
                 if let Some(value) = normalized {
@@ -488,6 +505,7 @@ impl View {
             .as_ref()
             .is_none_or(|r| r.source != source || r.target != *target || r.locale != locale)
         {
+            let started = std::time::Instant::now();
             let data = data::load(state, target, locale)
                 .map(Arc::new)
                 .map_err(Arc::new);
@@ -496,7 +514,8 @@ impl View {
                     let _ = observe!(
                         "curve.mini.readout_load",
                         Err::<(), _>(cause),
-                        "target={target:?} frame={frame}"
+                        "phase=load target={target:?} frame={frame} generation={:?} revision={:?} elapsed_us={}",
+                        state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
                     );
                 }
             }
@@ -525,7 +544,9 @@ impl View {
             let _ = observe!(
                 "curve.mini.readout_fps",
                 Err::<(), _>("composition fps unavailable"),
-                "target={target:?} frame={frame}"
+                "phase=fps target={target:?} frame={frame} generation={:?} revision={:?}",
+                state["document_generation"].as_u64(),
+                state["revision"].as_u64()
             );
             lines.push(
                 if locale == Locale::Zh {
@@ -537,6 +558,7 @@ impl View {
             );
             return (title, lines);
         };
+        let started = std::time::Instant::now();
         let values = data
             .dimensions
             .iter()
@@ -553,7 +575,8 @@ impl View {
         match observe!(
             "curve.mini.readout_sample",
             values,
-            "target={target:?} frame={frame} speed={speed}"
+            "phase=sample target={target:?} frame={frame} speed={speed} generation={:?} revision={:?} elapsed_us={}",
+            state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
         ) {
             Ok(values) => {
                 title.push_str(&format!(" · {frame:.2} f"));
