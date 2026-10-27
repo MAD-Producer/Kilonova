@@ -99,11 +99,13 @@ pub(crate) fn primitive(
             "COLOR_0",
         ]
         .contains(&name.as_str())
+            && !name.starts_with("JOINTS_")
+            && !name.starts_with("WEIGHTS_")
         {
             return Err(unsupported(
                 "primitive",
                 id,
-                "attribute outside static import profile",
+                "attribute outside import profile",
             ));
         }
     }
@@ -272,7 +274,9 @@ pub(crate) fn primitive(
             }
         }
     }
+    let joint_influences = crate::skin::decode_influences(id, p, reader, budget, positions.len())?;
     Ok(Primitive {
+        joint_influences,
         morph_targets: crate::morph::decode_targets(id, p, reader, budget, positions.len())?,
         positions,
         normals,
@@ -292,8 +296,12 @@ pub(crate) fn nodes(
     let mut parents = vec![None; root.nodes.len()];
     let mut out = Vec::with_capacity(root.nodes.len());
     for (id, n) in root.nodes.iter().enumerate() {
-        if n.skin.is_some() {
-            return Err(unsupported("node", id, "skin"));
+        if n.skin.is_some_and(|s| s >= root.skins.len()) || (n.skin.is_some() && n.mesh.is_none()) {
+            return Err(invalid(
+                "node",
+                id,
+                "skin index out of range or skin without mesh",
+            ));
         }
         if n.camera.is_some_and(|c| c >= root.cameras.len()) {
             return Err(invalid("node", id, "camera index out of range"));
@@ -365,6 +373,7 @@ pub(crate) fn nodes(
             local: local.to_cols_array(),
             mesh: n.mesh,
             camera: n.camera,
+            skin: n.skin,
             weights: n.weights.clone(),
             children: n.children.clone(),
             rest: n.matrix.is_none().then(|| crate::animation::Transform {

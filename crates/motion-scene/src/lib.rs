@@ -11,13 +11,15 @@ mod morph;
 pub mod obj;
 mod resources;
 mod schema;
+mod skin;
 
 pub use animation::{Animation, AnimationSample};
 pub use camera::{Camera, CameraKind, CameraView};
 pub use frozen::import_frozen;
 pub use import::{import, ImportContext, ImportLimits};
-pub use morph::{MeshInstance, MorphAttributes, MorphTarget};
+pub use morph::{MeshInstance, MorphAttributes, MorphTarget, SceneInstances};
 pub use resources::{AssetResolver, DirectoryResolver, Resource, ResourceKind};
+pub use skin::{JointInfluences, Skin, SkinPalettes};
 
 use glam::{Mat4, Vec3};
 use serde::{Deserialize, Serialize};
@@ -74,6 +76,8 @@ pub struct Primitive {
     pub material: Option<usize>,
     /// Linear displacements in object space, applied before node transforms.
     pub morph_targets: Vec<MorphTarget>,
+    /// All indexed influence sets, in order; no silent four-influence truncation.
+    pub joint_influences: Vec<JointInfluences>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -88,6 +92,7 @@ pub struct Node {
     pub local: [f32; 16],
     pub mesh: Option<usize>,
     pub camera: Option<usize>,
+    pub skin: Option<usize>,
     pub weights: Option<Vec<f32>>,
     pub children: Vec<usize>,
     pub(crate) rest: Option<animation::Transform>,
@@ -199,6 +204,7 @@ pub struct Scene {
     pub(crate) nodes: Vec<Node>,
     pub(crate) animations: Vec<Animation>,
     pub(crate) cameras: Vec<Camera>,
+    pub(crate) skins: Vec<Skin>,
     pub(crate) scenes: Vec<Vec<usize>>,
     pub(crate) default_scene: Option<usize>,
     pub(crate) ignored_optional_extensions: Vec<String>,
@@ -244,6 +250,9 @@ impl Scene {
     }
     pub fn cameras(&self) -> &[Camera] {
         &self.cameras
+    }
+    pub fn skins(&self) -> &[Skin] {
+        &self.skins
     }
     pub fn scenes(&self) -> &[Vec<usize>] {
         &self.scenes

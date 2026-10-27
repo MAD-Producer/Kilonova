@@ -4,12 +4,17 @@ use glam::Vec3;
 
 /// One immutable vertex buffer for this node and sample. Pending encodes never
 /// observe a later frame's displacement through shared queue writes.
-pub(super) fn morphed(
+pub(super) fn deformed(
     context: &AllocationContext,
     source: &motion_scene::Primitive,
     weights: &[f32],
+    palette: Option<&[glam::Mat4]>,
 ) -> Result<(crate::AdmittedBuffer, Vec3)> {
-    let mut attributes = source.morph_attributes(weights)?;
+    let mut attributes = if let Some(palette) = palette {
+        source.skin_attributes(weights, palette)?
+    } else {
+        source.morph_attributes(weights)?
+    };
     // Normalize directions before interpolation, with f64 magnitude evaluation
     // so large but finite deltas cannot overflow a native dot product.
     let unit = |v: [f32; 3], vertex| -> Result<[f32; 3]> {
@@ -57,7 +62,11 @@ pub(super) fn morphed(
     }
     let center = Vec3::from_array(std::array::from_fn(|c| ((min[c] + max[c]) * 0.5) as f32));
     let buffer = context.buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("immutable scene morph vertices"),
+        label: Some(if palette.is_some() {
+            "immutable scene skin vertices"
+        } else {
+            "immutable scene morph vertices"
+        }),
         contents: bytemuck::cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     })?;

@@ -1,7 +1,7 @@
 use super::*;
 use motion_render::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance};
 
-fn floats(
+pub(super) fn floats(
     doc: &mut Value,
     resources: &mut BTreeMap<String, Vec<u8>>,
     shape: &str,

@@ -24,6 +24,7 @@ pub struct MorphAttributes {
 pub struct MeshInstance<'a> {
     pub node: usize,
     pub mesh: usize,
+    pub skin: Option<usize>,
     pub world: Mat4,
     pub weights: Cow<'a, [f32]>,
     active: bool,
@@ -32,6 +33,10 @@ impl MeshInstance<'_> {
     pub fn has_active_morph(&self) -> bool {
         self.active
     }
+}
+pub struct SceneInstances<'a> {
+    pub meshes: Vec<MeshInstance<'a>>,
+    pub skins: crate::SkinPalettes,
 }
 
 pub(crate) fn validate_weights(
@@ -239,6 +244,27 @@ impl Scene {
         pixels_per_metre: f32,
         sample: Option<AnimationSample>,
     ) -> Result<Vec<MeshInstance<'_>>> {
+        Ok(self
+            .sampled_instances_at(scene, pixels_per_metre, sample, false)?
+            .meshes)
+    }
+    /// Samples the hierarchy once for mesh transforms and shared skin palettes.
+    pub fn mesh_instances_with_skins_at(
+        &self,
+        scene: usize,
+        pixels_per_metre: f32,
+        sample: Option<AnimationSample>,
+    ) -> Result<SceneInstances<'_>> {
+        self.sampled_instances_at(scene, pixels_per_metre, sample, true)
+    }
+    fn sampled_instances_at(
+        &self,
+        scene: usize,
+        pixels_per_metre: f32,
+        sample: Option<AnimationSample>,
+        palettes: bool,
+    ) -> Result<SceneInstances<'_>> {
+        let palettes = palettes && !self.skins.is_empty();
         let mut animated = sample.map(|s| self.sample_morph_weights(s)).transpose()?;
         // Shared meshes must not multiply the retained default-weight allocation
         // or rescan it for every instance.
@@ -248,8 +274,29 @@ impl Scene {
             .map(|mesh| mesh.weights.iter().any(|&w| w != 0.))
             .collect();
         let mut out = Vec::new();
-        self.visit_node_instances_at(scene, pixels_per_metre, sample, |node, world| {
+        let mut worlds = if palettes {
+            vec![None; self.nodes.len()]
+        } else {
+            Vec::new()
+        };
+        let mut used = vec![false; self.skins.len()];
+        let scale = Mat4::from_scale(glam::Vec3::splat(pixels_per_metre));
+        // Keep palette computation in metres; scale only ordinary mesh worlds.
+        if !pixels_per_metre.is_finite() || pixels_per_metre <= 0. {
+            return Err(invalid(
+                "instances",
+                scene,
+                "pixels per metre must be finite and positive",
+            ));
+        }
+        self.visit_node_instances_at(scene, 1., sample, |node, world| {
+            if palettes {
+                worlds[node] = Some(world);
+            }
             if let Some(mesh) = self.nodes[node].mesh {
+                if let Some(skin) = self.nodes[node].skin {
+                    used[skin] = true;
+                }
                 let (weights, active) =
                     if let Some(weights) = animated.as_mut().and_then(|a| a[node].take()) {
                         let active = weights.iter().any(|&w| w != 0.);
@@ -268,12 +315,21 @@ impl Scene {
                 out.push(MeshInstance {
                     node,
                     mesh,
-                    world,
+                    skin: self.nodes[node].skin,
+                    world: scale * world,
                     weights,
                     active,
                 });
             }
         })?;
-        Ok(out)
+        if out.iter().any(|i| !i.world.is_finite()) {
+            return Err(invalid("instances", scene, "world transform overflow"));
+        }
+        let skins = if palettes {
+            self.skin_matrices_from_worlds(&worlds, &used)?
+        } else {
+            Vec::new()
+        };
+        Ok(SceneInstances { meshes: out, skins })
     }
 }

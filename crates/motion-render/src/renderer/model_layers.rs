@@ -182,9 +182,13 @@ fn prepare_sources_with_limit(
                     )));
                 }
                 if let Some(animation) = &model.animation {
-                    if sources.get(&model.asset).is_none_or(|s| animation.clip as usize >= s.scene.animations().len()) {
+                    if sources
+                        .get(&model.asset)
+                        .is_none_or(|s| animation.clip as usize >= s.scene.animations().len())
+                    {
                         return Err(RenderError::Invalid(format!(
-                            "model object={} source={} animation={} missing", layer.id, model.asset, animation.clip
+                            "model object={} source={} animation={} missing",
+                            layer.id, model.asset, animation.clip
                         )));
                     }
                 }
@@ -409,6 +413,7 @@ fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
     match error {
         crate::scene_gpu::SceneGpuError::Render(error) => error,
         crate::scene_gpu::SceneGpuError::Deformation { cause, .. }
+        | crate::scene_gpu::SceneGpuError::SkinDeformation { cause, .. }
         | crate::scene_gpu::SceneGpuError::PassInstance { cause, .. } => {
             scene_error(*cause).with_diagnostic(message)
         }
@@ -475,9 +480,9 @@ mod tests {
         while let Some(error) = cause {
             // Thiserror exposes boxed sources as Box<RenderError>, as at the
             // existing mask/composition error boundaries.
-            let render_error = error.downcast_ref::<RenderError>().or_else(|| {
-                error.downcast_ref::<Box<RenderError>>().map(Box::as_ref)
-            });
+            let render_error = error
+                .downcast_ref::<RenderError>()
+                .or_else(|| error.downcast_ref::<Box<RenderError>>().map(Box::as_ref));
             if let Some(RenderError::Resource { message, .. }) = render_error {
                 original_retained |= message == "original native vertex refusal";
             }
@@ -486,6 +491,61 @@ mod tests {
         assert!(
             original_retained,
             "context must retain the original typed error, not reconstruct only its fields"
+        );
+    }
+
+    #[test]
+    fn wrapped_native_skin_keeps_original_typed_resource_refusal() {
+        use crate::scene_gpu::SceneGpuError;
+        let wrapped = SceneGpuError::PassInstance {
+            instance: 6,
+            request: 8709,
+            source_id: 8,
+            cause: Box::new(SceneGpuError::SkinDeformation {
+                node: 4,
+                mesh: 2,
+                primitive: 1,
+                cause: Box::new(SceneGpuError::Render(RenderError::budget(
+                    ResourceBudgetScope::RenderAllocations,
+                    216,
+                    215,
+                    "original skin vertex refusal",
+                ))),
+            }),
+        };
+        let error = scene_error(wrapped);
+        assert_eq!(
+            error.resource_rejection(),
+            Some(&ResourceRejection::Budget {
+                scope: ResourceBudgetScope::RenderAllocations,
+                required_bytes: 216,
+                budget_bytes: 215,
+            })
+        );
+        let message = error.to_string();
+        for part in [
+            "instance=6",
+            "request=#8709",
+            "source=8",
+            "node=4 mesh=2 primitive=1 phase=skin",
+            "original skin vertex refusal",
+        ] {
+            assert!(message.contains(part), "missing {part}: {message}");
+        }
+        let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&error);
+        let mut original = false;
+        while let Some(error) = cause {
+            let render_error = error
+                .downcast_ref::<RenderError>()
+                .or_else(|| error.downcast_ref::<Box<RenderError>>().map(Box::as_ref));
+            if let Some(RenderError::Resource { message, .. }) = render_error {
+                original |= message == "original skin vertex refusal";
+            }
+            cause = error.source();
+        }
+        assert!(
+            original,
+            "skin context must retain the original typed source"
         );
     }
 

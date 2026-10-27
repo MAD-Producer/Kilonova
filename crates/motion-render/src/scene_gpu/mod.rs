@@ -44,6 +44,14 @@ impl Default for SceneGpuLimits {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SceneGpuError {
+    #[error("scene node={node} mesh={mesh} primitive={primitive} phase=skin: {cause}")]
+    SkinDeformation {
+        node: usize,
+        mesh: usize,
+        primitive: usize,
+        #[source]
+        cause: Box<SceneGpuError>,
+    },
     #[error("scene node={node} mesh={mesh} primitive={primitive} phase=morph: {cause}")]
     Deformation {
         node: usize,
@@ -93,9 +101,9 @@ impl SceneGpuError {
     pub fn resource_rejection(&self) -> Option<&crate::ResourceRejection> {
         match self {
             Self::Render(cause) => cause.resource_rejection(),
-            Self::PassInstance { cause, .. } | Self::Deformation { cause, .. } => {
-                cause.resource_rejection()
-            }
+            Self::PassInstance { cause, .. }
+            | Self::Deformation { cause, .. }
+            | Self::SkinDeformation { cause, .. } => cause.resource_rejection(),
             _ => None,
         }
     }

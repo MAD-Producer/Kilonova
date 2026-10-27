@@ -234,3 +234,12 @@ supersedes the earlier unsupported-morph boundary above. Its final source passes
 workspace/cross-platform morph acceptance remains separate. Skinning, actual
 mixed project composition and calibrated AI depth remain unfinished; #87 stays
 open. This adds no panels or repeated model-movie demonstration.
+
+## Later skin checkpoint
+
+The [linear blend skin checkpoint](gltf-skin-current.md) supersedes the static
+skin boundary above with owned joint/inverse-bind/influence data, sampled
+palettes, actual native deformation and saved-project seek acceptance. The
+ledger distinguishes final targeted evidence from pending whole-workspace and
+cross-platform gates. Mixed project composition and calibrated AI depth remain
+unfinished; #87 is open and Android remains excluded.

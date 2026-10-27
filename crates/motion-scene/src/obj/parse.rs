@@ -303,6 +303,7 @@ pub(super) fn load(
             .transpose()?;
         let normals_present = block.normal || block.state.smooth.is_some();
         let mut primitive = Primitive {
+            joint_influences: Vec::new(),
             morph_targets: Vec::new(),
             positions: Vec::new(),
             normals: normals_present.then(Vec::new),
@@ -401,6 +402,7 @@ pub(super) fn load(
             local: Mat4::IDENTITY.to_cols_array(),
             mesh: Some(id),
             camera: None,
+            skin: None,
             weights: None,
             children: Vec::new(),
             rest: None,
@@ -426,6 +428,7 @@ pub(super) fn load(
         nodes,
         animations: Vec::new(),
         cameras: Vec::new(),
+        skins: Vec::new(),
         ignored_optional_extensions: Vec::new(),
         retained_bytes: budget.bytes,
     })

@@ -125,6 +125,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         root.meshes.len(),
         root.animations.len(),
         root.cameras.len(),
+        root.skins.len(),
         root.nodes.len(),
         root.scenes.len(),
     ] {
@@ -156,15 +157,6 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
             "required",
             root.extensions_required.join(", "),
         ));
-    }
-    for (feature, count) in [("skins", root.skins.len())] {
-        if count != 0 {
-            return Err(unsupported(
-                "profile",
-                feature,
-                format!("{feature} are not implemented by the import profile"),
-            ));
-        }
     }
     let mut budget = Budget {
         bytes: 0,
@@ -328,6 +320,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
     let mut meshes = Vec::with_capacity(root.meshes.len());
     let mut primitive_count = 0usize;
     let mut target_count = 0usize;
+    let mut influence_count = 0usize;
     for (mesh_id, mesh) in root.meshes.iter().enumerate() {
         primitive_count = primitive_count
             .checked_add(mesh.primitives.len())
@@ -335,6 +328,23 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
             .ok_or_else(|| invalid("budget", "primitives", "primitive count limit exceeded"))?;
         if mesh.primitives.is_empty() {
             return Err(invalid("mesh", mesh_id, "empty primitive list"));
+        }
+        for p in &mesh.primitives {
+            influence_count = influence_count
+                .checked_add(
+                    p.attributes
+                        .keys()
+                        .filter(|n| n.starts_with("JOINTS_") || n.starts_with("WEIGHTS_"))
+                        .count(),
+                )
+                .filter(|&n| n <= limits.max_items)
+                .ok_or_else(|| {
+                    invalid(
+                        "budget",
+                        "skin attributes",
+                        "influence descriptor limit exceeded",
+                    )
+                })?;
         }
         let count = mesh.primitives[0].targets.len();
         if mesh.primitives.iter().any(|p| p.targets.len() != count) {
@@ -373,6 +383,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         });
     }
     let nodes = nodes(&root, limits, &mut budget)?;
+    let skins = crate::skin::decode(&reader, &mut budget)?;
     let cameras = crate::camera::decode(&root, &mut budget, limits)?;
     let animations = crate::animation::decode(&reader, &mut budget)?;
     let mut scenes = Vec::with_capacity(root.scenes.len());
@@ -397,7 +408,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
     if root.scene.is_some_and(|n| n >= scenes.len()) {
         return Err(invalid("scene", "default", "scene index out of range"));
     }
-    Ok(Scene {
+    let scene = Scene {
         format: crate::SourceFormat::Gltf,
         obj_metadata: None,
         extra_resources: Vec::new(),
@@ -411,11 +422,14 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         nodes,
         animations,
         cameras,
+        skins,
         scenes,
         default_scene: root.scene,
         ignored_optional_extensions: root.extensions_used,
         retained_bytes: budget.bytes,
-    })
+    };
+    crate::skin::validate(&scene)?;
+    Ok(scene)
 }
 
 pub(crate) fn image_mime(

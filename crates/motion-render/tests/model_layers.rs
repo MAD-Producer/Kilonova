@@ -213,6 +213,9 @@ fn animated_project(root: &std::path::Path) -> Project {
     animated_project_kind(root, false)
 }
 fn animated_project_kind(root: &std::path::Path, morph: bool) -> Project {
+    animated_project_features(root, morph, false)
+}
+fn animated_project_features(root: &std::path::Path, morph: bool, skin: bool) -> Project {
     struct Bytes(Vec<u8>);
     impl AssetResolver for Bytes {
         fn read(&mut self, path: &str, _: ResourceKind, limit: usize) -> io::Result<Vec<u8>> {
@@ -266,6 +269,36 @@ fn animated_project_kind(root: &std::path::Path, morph: bool) -> Project {
         document["meshes"][0]["weights"] = serde_json::json!([0.]);
         document["animations"][0]["name"] = serde_json::json!("Displace");
         document["animations"][0]["channels"][0]["target"]["path"] = serde_json::json!("weights");
+    }
+    if skin {
+        use serde_json::json;
+        let offset = data.len();
+        data.extend_from_slice(&[0u8, 1, 0, 0].repeat(3));
+        let views = document["bufferViews"].as_array_mut().unwrap();
+        let jv = views.len();
+        views.push(json!({"buffer":0,"byteOffset":offset,"byteLength":12}));
+        let offset = data.len();
+        data.extend(
+            [0.25f32, 0.75, 0., 0.]
+                .repeat(3)
+                .iter()
+                .flat_map(|v| v.to_le_bytes()),
+        );
+        let wv = views.len();
+        views.push(json!({"buffer":0,"byteOffset":offset,"byteLength":48}));
+        let accessors = document["accessors"].as_array_mut().unwrap();
+        let j = accessors.len();
+        accessors.push(json!({"bufferView":jv,"componentType":5121,"count":3,"type":"VEC4"}));
+        let w = accessors.len();
+        accessors.push(json!({"bufferView":wv,"componentType":5126,"count":3,"type":"VEC4"}));
+        document["meshes"][0]["primitives"][0]["attributes"]["JOINTS_0"] = json!(j);
+        document["meshes"][0]["primitives"][0]["attributes"]["WEIGHTS_0"] = json!(w);
+        document["buffers"][0]["byteLength"] = json!(data.len());
+        document["skins"] = json!([{"joints":[1,2],"skeleton":1}]);
+        document["nodes"] =
+            json!([{"mesh":0,"skin":0,"translation":[100.,0.,0.]},{"children":[2]},{}]);
+        document["scenes"][0]["nodes"] = json!([0, 1]);
+        document["animations"][0]["channels"][0]["target"]["node"] = json!(1);
     }
     let source = serde_json::to_vec(&document).unwrap();
     let scene = motion_scene::import(
@@ -423,5 +456,30 @@ fn imported_morph_weights_render_from_saved_owned_project_without_reopening_the_
     assert_eq!(
         reopened, project,
         "rendering must not mutate saved model animation or layer keys"
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn imported_joint_animation_renders_from_saved_owned_project_and_seeks_without_source_files() {
+    let root = tempfile::tempdir().unwrap();
+    let project = animated_project_features(root.path(), false, true);
+    motion_core::storage::save(root.path(), &project).unwrap();
+    let reopened = motion_core::storage::load(root.path()).unwrap();
+    assert_eq!(reopened, project);
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&reopened, root.path()).unwrap();
+    std::fs::remove_file(root.path().join(&reopened.model_assets[0].path)).unwrap();
+    let first = render(&mut renderer, &reopened, 0.);
+    let last = render(&mut renderer, &reopened, 60.);
+    assert!((center(&last)-center(&first)-40.).abs()<0.25,"layer moves 30 pixels and owned joint hierarchy moves 10 pixels, ignoring mesh-node offset");
+    assert_eq!(
+        first,
+        render(&mut renderer, &reopened, 0.),
+        "backward seeks restore the authored first skin pose"
+    );
+    assert_eq!(
+        reopened, project,
+        "skin rendering must not mutate authored data"
     );
 }
