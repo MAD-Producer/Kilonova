@@ -303,6 +303,7 @@ pub(super) fn load(
             .transpose()?;
         let normals_present = block.normal || block.state.smooth.is_some();
         let mut primitive = Primitive {
+            morph_targets: Vec::new(),
             positions: Vec::new(),
             normals: normals_present.then(Vec::new),
             tangents: None,
@@ -378,6 +379,7 @@ pub(super) fn load(
         let mesh = *object_meshes.entry(block.state.object).or_insert_with(|| {
             meshes.push(Mesh {
                 primitives: Vec::new(),
+                weights: Vec::new(),
             });
             meshes.len() - 1
         });
@@ -399,6 +401,7 @@ pub(super) fn load(
             local: Mat4::IDENTITY.to_cols_array(),
             mesh: Some(id),
             camera: None,
+            weights: None,
             children: Vec::new(),
             rest: None,
         })

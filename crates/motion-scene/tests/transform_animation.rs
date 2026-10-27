@@ -415,11 +415,16 @@ fn invalid_animation_structure_and_unsupported_targets_remain_typed_failures() {
     let mut f = linear();
     f.root["animations"] = json!([{}]);
     assert!(matches!(f.load().unwrap_err().cause, Cause::Json(_)));
-    for path in ["weights", "visibility"] {
-        let mut f = linear();
-        f.root["animations"][0]["channels"][0]["target"]["path"] = json!(path);
-        assert!(matches!(f.load().unwrap_err().cause, Cause::Unsupported(_)));
-    }
+    let mut f = linear();
+    f.root["animations"][0]["channels"][0]["target"]["path"] = json!("visibility");
+    assert!(matches!(f.load().unwrap_err().cause, Cause::Unsupported(_)));
+    let mut f = linear();
+    f.root["animations"][0]["channels"][0]["target"]["path"] = json!("weights");
+    let error = f.load().unwrap_err();
+    assert!(matches!(error.cause, Cause::Invalid(_)));
+    assert!(error
+        .to_string()
+        .contains("requires a mesh with morph targets"));
     let mut f = linear();
     f.root["animations"][0]["channels"][0]["target"]
         .as_object_mut()

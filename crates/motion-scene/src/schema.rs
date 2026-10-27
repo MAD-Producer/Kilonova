@@ -254,7 +254,7 @@ pub(crate) struct Primitive {
     pub material: Option<usize>,
     pub mode: Option<u32>,
     #[serde(default)]
-    pub targets: Vec<serde_json::Value>,
+    pub targets: Vec<BTreeMap<String, usize>>,
 }
 
 #[derive(Deserialize)]

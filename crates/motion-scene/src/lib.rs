@@ -7,6 +7,7 @@ mod container;
 mod decode;
 mod frozen;
 mod import;
+mod morph;
 pub mod obj;
 mod resources;
 mod schema;
@@ -15,6 +16,7 @@ pub use animation::{Animation, AnimationSample};
 pub use camera::{Camera, CameraKind, CameraView};
 pub use frozen::import_frozen;
 pub use import::{import, ImportContext, ImportLimits};
+pub use morph::{MeshInstance, MorphAttributes, MorphTarget};
 pub use resources::{AssetResolver, DirectoryResolver, Resource, ResourceKind};
 
 use glam::{Mat4, Vec3};
@@ -70,11 +72,14 @@ pub struct Primitive {
     /// Triangle list in canonical right-handed coordinates, retaining authored front faces.
     pub indices: Vec<u32>,
     pub material: Option<usize>,
+    /// Linear displacements in object space, applied before node transforms.
+    pub morph_targets: Vec<MorphTarget>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Mesh {
     pub primitives: Vec<Primitive>,
+    pub weights: Vec<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -83,6 +88,7 @@ pub struct Node {
     pub local: [f32; 16],
     pub mesh: Option<usize>,
     pub camera: Option<usize>,
+    pub weights: Option<Vec<f32>>,
     pub children: Vec<usize>,
     pub(crate) rest: Option<animation::Transform>,
 }
@@ -268,7 +274,9 @@ impl Scene {
     ) -> Result<Vec<(usize, Mat4)>> {
         let mut out = Vec::new();
         self.visit_node_instances_at(scene, pixels_per_metre, sample, |index, world| {
-            if let Some(mesh) = self.nodes[index].mesh { out.push((mesh, world)); }
+            if let Some(mesh) = self.nodes[index].mesh {
+                out.push((mesh, world));
+            }
         })?;
         Ok(out)
     }

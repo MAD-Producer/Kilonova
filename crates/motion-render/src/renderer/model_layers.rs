@@ -405,9 +405,14 @@ impl Renderer {
     }
 }
 fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
+    let message = error.to_string();
     match error {
         crate::scene_gpu::SceneGpuError::Render(error) => error,
-        other => RenderError::Invalid(other.to_string()),
+        crate::scene_gpu::SceneGpuError::Deformation { cause, .. }
+        | crate::scene_gpu::SceneGpuError::PassInstance { cause, .. } => {
+            scene_error(*cause).with_diagnostic(message)
+        }
+        _ => RenderError::Invalid(message),
     }
 }
 
@@ -424,6 +429,64 @@ mod tests {
         ) -> std::io::Result<Vec<u8>> {
             Err(std::io::Error::other("fixture has no external resources"))
         }
+    }
+
+    #[test]
+    fn wrapped_native_deformation_keeps_context_and_original_resource_refusal() {
+        use crate::scene_gpu::SceneGpuError;
+        let original = RenderError::budget(
+            ResourceBudgetScope::RenderAllocations,
+            216,
+            215,
+            "original native vertex refusal",
+        );
+        let wrapped = SceneGpuError::PassInstance {
+            instance: 5,
+            request: 8704,
+            source_id: 7,
+            cause: Box::new(SceneGpuError::Deformation {
+                node: 2,
+                mesh: 3,
+                primitive: 4,
+                cause: Box::new(SceneGpuError::Render(original)),
+            }),
+        };
+        let error = scene_error(wrapped);
+        assert_eq!(
+            error.resource_rejection(),
+            Some(&ResourceRejection::Budget {
+                scope: ResourceBudgetScope::RenderAllocations,
+                required_bytes: 216,
+                budget_bytes: 215,
+            })
+        );
+        let message = error.to_string();
+        for part in [
+            "instance=5",
+            "request=#8704",
+            "source=7",
+            "node=2 mesh=3 primitive=4 phase=morph",
+            "original native vertex refusal",
+        ] {
+            assert!(message.contains(part), "missing {part}: {message}");
+        }
+        let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&error);
+        let mut original_retained = false;
+        while let Some(error) = cause {
+            // Thiserror exposes boxed sources as Box<RenderError>, as at the
+            // existing mask/composition error boundaries.
+            let render_error = error.downcast_ref::<RenderError>().or_else(|| {
+                error.downcast_ref::<Box<RenderError>>().map(Box::as_ref)
+            });
+            if let Some(RenderError::Resource { message, .. }) = render_error {
+                original_retained |= message == "original native vertex refusal";
+            }
+            cause = error.source();
+        }
+        assert!(
+            original_retained,
+            "context must retain the original typed error, not reconstruct only its fields"
+        );
     }
 
     #[test]

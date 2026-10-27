@@ -327,10 +327,8 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         .collect::<Result<Vec<_>>>()?;
     let mut meshes = Vec::with_capacity(root.meshes.len());
     let mut primitive_count = 0usize;
+    let mut target_count = 0usize;
     for (mesh_id, mesh) in root.meshes.iter().enumerate() {
-        if mesh.weights.is_some() {
-            return Err(unsupported("mesh", mesh_id, "morph weights"));
-        }
         primitive_count = primitive_count
             .checked_add(mesh.primitives.len())
             .filter(|&n| n <= limits.max_items)
@@ -338,6 +336,26 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         if mesh.primitives.is_empty() {
             return Err(invalid("mesh", mesh_id, "empty primitive list"));
         }
+        let count = mesh.primitives[0].targets.len();
+        if mesh.primitives.iter().any(|p| p.targets.len() != count) {
+            return Err(invalid("mesh", mesh_id, "inconsistent morph target counts"));
+        }
+        target_count = mesh.primitives.iter().try_fold(target_count, |n, p| {
+            n.checked_add(p.targets.len())
+                .filter(|&n| n <= limits.max_items)
+                .ok_or_else(|| {
+                    invalid(
+                        "budget",
+                        "morph targets",
+                        "target descriptor limit exceeded",
+                    )
+                })
+        })?;
+        if let Some(weights) = &mesh.weights {
+            crate::morph::validate_weights("mesh", mesh_id, weights, count)?;
+        }
+        budget.reserve(count, std::mem::size_of::<f32>(), limits)?;
+        let weights = mesh.weights.clone().unwrap_or_else(|| vec![0.; count]);
         let primitives = mesh
             .primitives
             .iter()
@@ -349,9 +367,12 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        meshes.push(Mesh { primitives });
+        meshes.push(Mesh {
+            primitives,
+            weights,
+        });
     }
-    let nodes = nodes(&root, limits)?;
+    let nodes = nodes(&root, limits, &mut budget)?;
     let cameras = crate::camera::decode(&root, &mut budget, limits)?;
     let animations = crate::animation::decode(&reader, &mut budget)?;
     let mut scenes = Vec::with_capacity(root.scenes.len());

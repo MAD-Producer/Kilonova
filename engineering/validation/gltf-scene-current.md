@@ -224,3 +224,13 @@ The subsequent [transform animation](gltf-transform-animation-current.md),
 unsupported animation/camera boundary above. Their maintained-main full
 regression and exact source-equivalence evidence are recorded in those ledgers.
 Project mixed composition, skin/morph and calibrated AI depth remain open.
+
+
+## Later morph checkpoint
+
+The [morph target and weight-animation checkpoint](gltf-morph-current.md)
+supersedes the earlier unsupported-morph boundary above. Its final source passes
+121 targeted CPU/native/project/editor tests and strict scene lint. Full
+workspace/cross-platform morph acceptance remains separate. Skinning, actual
+mixed project composition and calibrated AI depth remain unfinished; #87 stays
+open. This adds no panels or repeated model-movie demonstration.
