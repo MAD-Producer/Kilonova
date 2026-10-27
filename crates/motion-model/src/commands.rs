@@ -26,6 +26,7 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
     /// Zero edits the active composition background. Visual layer source
     /// colors remain static; animated color uses a color effect or vector paint.
@@ -306,11 +307,13 @@ impl Command {
             | Self::Content { .. }
             | Self::Add { .. }
             | Self::PasteLayers { .. }
+            | Self::ApplyAnimationPreset { .. }
             | Self::Composition { .. } => true,
             _ => false,
         }
     }
     pub fn composition_transaction(&self) -> bool {
+        if matches!(self, Self::ApplyAnimationPreset { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

@@ -516,6 +516,18 @@ impl Shell {
                     self.workspace.save(&self.layout_path)?;
                 }
             }
+            action @ (Action::SaveAnimationPreset { .. } | Action::ApplyAnimationPreset { .. } | Action::OpenAnimationPreset | Action::RefreshAnimationPresets | Action::CancelAnimationPreset) => {
+                self.animation_preset_action(action)?;
+            }
+            Action::LocateLibraryEffect(key) => {
+                self.panels.browser.locate_library_effect(key);
+                self.action(Action::ShowPanel(motion_ui::dock::Panel::Effects.dock()), event_loop)?;
+            }
+            Action::RevealLibraryEffect { object, effect } => {
+                self.panels.select_only(Some(object));
+                self.panels.effect_controls.reveal_effect(object, effect);
+                self.action(Action::ShowPanel(motion_ui::dock::Panel::EffectControls.dock()), event_loop)?;
+            }
             Action::ReloadStyle => {
                 self.reload_styles()?;
             }

@@ -7,6 +7,7 @@ pub(crate) mod actions;
 pub(crate) mod text_style;
 mod render_queue;
 mod layer_clipboard;
+mod animation_presets;
 mod effect_application;
 mod effect_drag;
 mod lifecycle;

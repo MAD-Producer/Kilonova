@@ -59,6 +59,20 @@ impl ProjectPublication {
 }
 
 #[cfg(not(windows))]
+pub(super) fn publish_preset(temporary: &Path, destination: &Path) -> Result<()> {
+    replace(temporary, destination).map_err(|e| failure("preset_publish", destination, false, e))?;
+    let parent = destination.parent().ok_or_else(|| failure("preset_sync_directory", destination, true,
+        io::Error::new(io::ErrorKind::InvalidInput, "preset parent missing")))?;
+    fs::File::open(parent).and_then(|file| file.sync_all())
+        .map_err(|e| failure("preset_sync_directory", parent, true, e))?;
+    Ok(())
+}
+#[cfg(windows)]
+pub(super) fn publish_preset(temporary: &Path, destination: &Path) -> Result<()> {
+    replace(temporary, destination).map_err(|e| failure("preset_publish", destination, false, e))
+}
+
+#[cfg(not(windows))]
 fn replace(source: &Path, destination: &Path) -> io::Result<()> {
     fs::rename(source, destination)
 }

@@ -269,6 +269,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
     let effect = effect_timeline | panels.effect_controls.cancel()
+        | panels.browser.cancel()
         | panels.properties.effects.cancel()
         | panels.properties.anchor.cancel()
         | panels.timeline_anchor.cancel();
@@ -364,6 +365,12 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let effect_context_input = input;
+    let effect_context_owned = panels.browser.prepare_context_window(None, input)
+        | panels.effect_controls.prepare_context_window(None, input)
+        | panels.properties.effects.prepare_context_window(None, input);
+    let effect_context_neutral = Input::default();
+    let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, None);
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(None, state, input);
@@ -555,7 +562,9 @@ pub fn chrome(
         || panels.parent_controls.open
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
-    let effect_owner = if panels.effect_timeline.editing() {
+    let effect_owner = if panels.browser.editing() {
+        Panel::Effects
+    } else if panels.effect_timeline.editing() {
         Panel::Timeline
     } else if panels.properties.effects.editing() {
         Panel::Properties
@@ -563,6 +572,7 @@ pub fn chrome(
         Panel::EffectControls
     };
     let effect_modal = panels.effect_controls.editing()
+        || panels.browser.editing()
         || panels.properties.effects.editing()
         || panels.effect_timeline.editing();
     let audio_modal = panels.audio_controls.editing();
@@ -967,12 +977,15 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    if frames(layout, size).iter().any(|frame| frame.panel == Panel::Effects) {
+        panels.browser.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, effect_context_input, panels.locale, &mut out);
+    }
     panels.effect_controls.finish_context_menu(
         list,
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         state,
-        input,
+        effect_context_input,
         panels.locale,
         &mut out,
     );
@@ -987,7 +1000,7 @@ pub fn chrome(
             atlas,
             Rect::new(0., 0., size[0], size[1]),
             state,
-            input,
+            effect_context_input,
             panels.locale,
             &mut out,
         );
@@ -1058,6 +1071,12 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    let effect_context_input = input;
+    let effect_context_owned = panels.browser.prepare_context_window(Some(panel), input)
+        | panels.effect_controls.prepare_context_window(Some(panel), input)
+        | panels.properties.effects.prepare_context_window(Some(panel), input);
+    let effect_context_neutral = Input::default();
+    let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, Some(panel));
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
@@ -1311,12 +1330,15 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    if panel == Panel::Effects {
+        panels.browser.finish_context_menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, effect_context_input, panels.locale, &mut out);
+    }
     panels.effect_controls.finish_context_menu(
         list,
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         state,
-        input,
+        effect_context_input,
         panels.locale,
         &mut out,
     );
@@ -1328,7 +1350,7 @@ pub fn floating_chrome(
             atlas,
             Rect::new(0., 0., size[0], size[1]),
             state,
-            input,
+            effect_context_input,
             panels.locale,
             &mut out,
         );

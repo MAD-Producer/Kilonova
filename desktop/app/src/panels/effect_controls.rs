@@ -19,6 +19,7 @@ mod curve;
 mod dropdown_cache;
 mod key_navigation;
 mod library;
+mod library_actions;
 mod track_cache;
 #[cfg(test)]
 mod track_cache_tests;
@@ -47,6 +48,13 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    pub(crate) presets: Vec<crate::animation_presets::Entry>,
+    pub(crate) presets_busy: bool,
+    pub(crate) library_targets: Vec<u64>,
+    pub(crate) library_selection_editable: bool,
+    library_context: Option<library_actions::Context>,
+    context_window: Option<motion_ui::dock::Panel>,
+    preset_collapsed: std::collections::BTreeSet<String>,
     pub(super) property_filter: super::types::PropertyFilter,
     pub(crate) selection_probe: super::property_focus::HitProbe,
     pub(super) expressions: super::expressions::Controls,
@@ -104,6 +112,7 @@ struct ColorPopup {
     opened: bool,
 }
 struct EffectContextMenu {
+    owner: Option<motion_ui::dock::Panel>,
     anchor: [f32; 2],
     object: u64,
     control: String,
@@ -293,6 +302,7 @@ impl Controls {
             || self.choosing
             || self.enum_owner.is_some()
             || self.context_menu.is_some()
+            || self.library_context.is_some()
             || self.color_popup.is_some()
             || self
                 .curve_editors
@@ -314,6 +324,7 @@ impl Controls {
         self.choosing = false;
         self.enum_owner = None;
         self.context_menu = None;
+        self.library_context = None;
         self.color_popup = None;
         self.dropdowns.close();
         begun
@@ -461,6 +472,10 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        self.finish_library_context(list, atlas, bounds, state, input, locale, out);
+        if self.context_menu.as_ref().is_some_and(|menu| menu.owner != self.context_window) {
+            return;
+        }
         let categories = if self
             .context_menu
             .as_ref()
@@ -478,7 +493,7 @@ impl Controls {
         let expression = menu.expression.clone();
         let expression_supported = menu.expression_supported;
         let neutral = Input::default();
-        let input = if opened { &neutral } else { input };
+        let input = if opened || input.composing { &neutral } else { input };
         let anchor = menu.anchor;
         let object = menu.object;
         let control = menu.control.clone();
@@ -487,7 +502,7 @@ impl Controls {
         let styles = list.styles();
         let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
         let width = 250f32.min(bounds.width());
-        let action_count = if instance.is_some() { 3 } else { 0 };
+        let action_count = if instance.is_some() { 6 } else { 0 };
         let height =
             (4 + action_count + categories.len() + usize::from(expression.is_some())) as f32 * row
                 + 6.;
@@ -562,6 +577,20 @@ impl Controls {
                 word(locale, "表达式不可用：需连续可动画参数", "Expressions: continuous params only")
             }, !locked && expression_supported, None));
             index
+        });
+        let instance_value = instance.and_then(|(id, _)| state["project"]["layers"].as_array()?.iter()
+            .find(|layer| layer["id"] == object)?["effects"].as_array()?.iter().find(|effect| effect["id"] == id));
+        let key = instance_value.and_then(|effect| Some(format!("{}/{}", effect["plugin"].as_str()?, effect["effect"].as_str()?)));
+        let preset_index = instance.map(|_| {
+            let index = header.len();
+            header.push((word(locale, "仅保存此效果为预设…", "Save this effect as preset…"), !locked && !self.presets_busy, None)); index
+        });
+        let locate_index = instance.map(|_| {
+            let index = header.len(); header.push((word(locale, "在效果库中定位", "Locate in Effects library"), key.is_some(), None)); index
+        });
+        let favorite_index = instance.map(|_| {
+            let index = header.len(); let favorite = key.as_ref().is_some_and(|key| self.favorites.contains(key));
+            header.push((word(locale, if favorite { "取消收藏" } else { "加入收藏" }, if favorite { "Remove from favorites" } else { "Add to favorites" }), key.is_some(), None)); index
         });
         let header_count = header.len();
         for (index, (label, enabled, _)) in header.iter().enumerate() {
@@ -657,7 +686,16 @@ impl Controls {
         if let Some(menu) = self.context_menu.as_mut() {
             menu.category = active_category;
         }
-        if chosen.is_some() && chosen == expression_index {
+        if chosen.is_some() && chosen == preset_index {
+            if let Some((id, _)) = instance { out.push(Action::SaveAnimationPreset { object, effects: Some(vec![id]) }); }
+            self.context_menu = None;
+        } else if chosen.is_some() && chosen == locate_index {
+            if let Some(key) = key { out.push(Action::LocateLibraryEffect(key)); }
+            self.context_menu = None;
+        } else if chosen.is_some() && chosen == favorite_index {
+            if let Some(key) = key { if !self.favorites.remove(&key) { self.favorites.insert(key); } }
+            out.push(Action::Favorites(self.favorites.clone())); self.context_menu = None;
+        } else if chosen.is_some() && chosen == expression_index {
             self.expressions.open(
                 state,
                 expression.unwrap(),
@@ -817,6 +855,12 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let neutral = Input::default();
+        let input = if self.library_context.is_some() { &neutral } else { input };
+        let background_top = area.min[1] + list.styles().metric("panel.header.height", 24.) * 2. + list.styles().metric("padding.panel", 8.);
+        if input.pressed.is_some_and(|(button, point)| button == MouseButton::Right && area.contains(point) && point[1] >= background_top) {
+            self.library_context = Some(library_actions::Context::background(input.mouse, self.library_targets.clone(), self.context_window));
+        }
         self.draw_library(list, atlas, area, layer, input, locale, out);
         *y = area.max[1];
     }
@@ -1275,6 +1319,7 @@ impl Controls {
                 button == MouseButton::Right && header_rect.contains(point)
             }) {
                 self.context_menu = Some(EffectContextMenu {
+                    owner: self.context_window,
                     anchor: input.mouse,
                     object,
                     control: word(locale, "效果控件", "Effect Controls"),
@@ -1361,6 +1406,7 @@ impl Controls {
             let more = Rect::new(actions_x, *y + (header - action) * 0.5, action, action);
             if press_icon(list, input, more, Icon::More, !locked) {
                 self.context_menu = Some(EffectContextMenu {
+                    owner: self.context_window,
                     anchor: [more.min[0], more.max[1]],
                     object,
                     control: word(locale, "效果操作", "Effect Actions"),
@@ -1479,6 +1525,7 @@ impl Controls {
                     button == MouseButton::Right && parameter_row.contains(point)
                 }) {
                     self.context_menu = Some(EffectContextMenu {
+                        owner: self.context_window,
                         anchor: input.mouse,
                         object,
                         control: name.into(),

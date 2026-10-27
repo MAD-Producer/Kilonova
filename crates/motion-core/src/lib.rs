@@ -7,6 +7,7 @@ pub use command_registry::CommandRegistry;
 mod editor;
 mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
+pub use motion_model::{animation_presets, AnimationPreset, PresetProperty};
 pub use motion_model::{TextAlign, TextStyle};
 pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use motion_model::KeyframeValueOffset;
@@ -28,7 +29,7 @@ pub use expressions::{expression_reference_source, expression_source_diagnostic,
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
-pub use motion_model::{ModelAsset, ModelClip, model_assets};
+pub use motion_model::{ModelAnimation, ModelAsset, ModelClip, model_assets};
 pub use motion_model::ClipRange;
 pub use motion_model::{FrameScope, WorkArea};
 pub use motion_model::{guides, Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};

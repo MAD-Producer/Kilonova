@@ -157,6 +157,7 @@ fn effect_menu_removes_selected_layers_atomically_and_one_undo_restores_all() {
 
 fn context(controls: &mut Controls) {
     controls.context_menu = Some(EffectContextMenu {
+        owner: controls.context_window,
         anchor: [100., 400.],
         object: 7,
         control: "Effect controls".into(),

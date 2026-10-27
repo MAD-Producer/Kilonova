@@ -3,6 +3,49 @@ use crate::session::{Result, Session};
 use motion_core::Command;
 use serde_json::{json, Value};
 
+fn validate_presets(registry: &motion_effects::Registry, project: &motion_core::Project, command: &Command) -> Result<()> {
+    match command {
+        Command::InComposition { composition, command } => {
+            let mut scoped = project.clone(); scoped.activate_composition(composition)?;
+            validate_presets(registry, &scoped, command)
+        }
+        Command::ApplyAnimationPreset { preset, objects, .. } => {
+            preset.validate()?;
+            for effect in &preset.effects {
+                let package = registry.resolve(&effect.plugin, &effect.version, &effect.hash)?;
+                let definition = package.manifest.effects.iter().find(|d| d.id == effect.effect)
+                    .ok_or("preset effect definition missing")?;
+                if definition.compatibility == motion_effects::Compatibility::Unsupported {
+                    return Err("preset effect is unsupported".into());
+                }
+                if effect.params.len() != definition.params.len() {
+                    return Err("preset public parameter set does not match installed definition".into());
+                }
+                for schema in &definition.params {
+                    let param = effect.params.get(&schema.id).ok_or("preset public parameter missing")?;
+                    if param.kind != schema.kind || param.animatable != schema.animatable
+                        || param.min != schema.min || param.max != schema.max || param.implemented != schema.implemented {
+                        return Err(format!("preset public parameter schema mismatch: plugin={} effect={} parameter={}",
+                            effect.plugin, effect.effect, schema.id).into());
+                    }
+                }
+                if effect.image_input.is_some() && !definition.required_capabilities.iter().any(|c| c == "image_input") {
+                    return Err("preset effect does not accept an image input".into());
+                }
+                for object in objects {
+                    let layer = project.layers.iter().find(|l| l.id == *object).ok_or("preset target layer missing")?;
+                    if matches!(layer.content, motion_core::Content::Adjustment)
+                        && definition.renderer != motion_effects::RendererKind::Image {
+                        return Err("adjustment layers support image presets only".into());
+                    }
+                }
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 // The model rolls back before returning a failed preparation. Keep the host's
 // native error separately rather than flattening it to the model callback type.
 fn apply_prepared(
@@ -27,6 +70,7 @@ impl Session {
         self.apply_command_batch(commands)
     }
     pub fn apply_command_batch(&mut self, commands: Vec<Command>) -> Result<Value> {
+        for command in &commands { validate_presets(&self.effects.registry, self.engine.project(), command)?; }
         let resources = commands.iter().any(Command::changes_resources);
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());

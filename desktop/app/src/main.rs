@@ -21,6 +21,7 @@ mod node_tasks;
 mod owned_file;
 mod layer_clipboard;
 mod panels;
+mod animation_presets;
 mod project_lifecycle;
 mod preview_playback;
 mod shell;
@@ -257,6 +258,7 @@ struct Shell {
     window: Option<Arc<Window>>,
     // Cancel queued clipboard transactions before the engine's shutdown/drop.
     layer_clipboard: layer_clipboard::controller::Clipboard,
+    animation_presets: animation_presets::Controller,
     render_queue: render_queue::controller::Controller,
     engine: Arc<Engine>,
     atlas: TextAtlas,
@@ -408,6 +410,7 @@ impl Shell {
             next_window: 1,
             panels: Default::default(),
             layer_clipboard: Default::default(),
+            animation_presets: Default::default(),
             node_tasks: node_tasks::NodeTasks::start()?,
             node_standalone:None,
             node_save_project:None,
@@ -782,6 +785,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         self.poll_effect_import();
         self.poll_layer_clipboard();
+        self.poll_animation_presets();
         if let Err(error) = self.poll_file_location() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -879,6 +883,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.expression_task.is_none() && self.text_style_task.is_none()
             && self.project_pending.is_none()
             && !self.layer_clipboard.committing()
+            && !self.animation_presets.committing()
             && self.actions.is_empty()
         {
             event_loop.exit();
@@ -891,6 +896,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.expression_task.is_none() && self.text_style_task.is_none()
             && self.project_pending.is_none()
             && !self.layer_clipboard.committing()
+            && !self.animation_presets.committing()
             && (!self.present_due || self.closing)
         {
             while let Some(action) = shell::actions::pop_action(&mut self.actions) {
@@ -1044,6 +1050,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let busy = self.attaching.is_some()
             || self.layer_clipboard.busy()
+            || self.animation_presets.busy()
             || self.diagnostics_export.is_some()
             || self.present_due
             || self.editing.is_some()
