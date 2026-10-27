@@ -1,12 +1,14 @@
 # 渲染队列与输出模板（#240）验收记录
 
-分支 `feat/render-task-queue` 接续字符／段落编辑 #517。开始实现前核对了本地分支和开放 PR，没有发现另一项渲染队列实现；本轮不审阅或改动其他人的工作。此前冻结层和 Shell 的分阶段记录保留在 [render-task-queue-progress.md](render-task-queue-progress.md)，不将当时尚未完成的检查倒记为通过。
+分支 `feat/render-task-queue` 接续字符／段落编辑 #517。#517 在五项必需检查通过后已合并，#239 已关闭、路线图已同步；队列随后接到 main `2308323b761b5ce47c248891b49a3ec63f31c552`，整合结果单独记录。开始实现前核对了本地分支和开放 PR，没有发现另一项渲染队列实现；本轮不审阅其他人的 PR。此前冻结层和 Shell 的分阶段记录保留在 [render-task-queue-progress.md](render-task-queue-progress.md)，不将当时尚未完成的检查倒记为通过。
 
 ## 最终行为与边界
 
 渲染队列面板提供加入、开始、暂停、逐任务取消、明确重试、另存重试和移除。暂停停止调度后续任务，当前任务的取消由独立取消控制完成。每个任务持有合成、修订、范围、素材、PCM/PTS 缓存和确切效果包的不可变副本；修改编辑器工程或模板不会改变已接受的任务。
 
-队列与模板保存在工程的 `.motion-render-queue/queue.json`，冻结输入放在该目录的私有 `snapshots/` 子目录。未使用队列的工程不自动建立目录。只接受当前文档／manifest 版本；工程版本字段及当前版本检查保留，没有旧版迁移。正常重新打开可恢复队列、模板和完成状态；上次中途退出的活动任务变为 Interrupted，需用户明确重试。
+队列与模板保存在工程的 `.motion-render-queue/queue.json`，冻结输入放在该目录的私有 `snapshots/` 子目录。Shell 观察到活动队列标签或浮窗可见后才按需打开；被动绘制不产生 IO 意图，未使用队列的工程不自动建立目录。只接受当前文档／manifest 版本；工程版本字段及当前版本检查保留，没有旧版迁移。正常重新打开可恢复队列、模板和完成状态；上次中途退出的活动任务变为 Interrupted，需用户明确重试。
+
+模板保存使用真实 worker 的请求／ID 成功回执。等待或失败不丢弃草稿；新模板保存成功后关闭草稿并选中新 ID，避免重复创建。切换工程／文档世代取消旧草稿。失败后修正重存不会清空已有错误记录，面板明确标为“最近错误”；新的成功回执与保留的原始失败分别验证。
 
 目前实际支持 MP4 / H.264 / AAC，使用冻结合成的像素尺寸、帧率及整段／工作范围。模板编辑名称、文件名模式和范围；模式仅接受 `{composition}`、`{id}`、`{revision}`。没有展示尚未实现的格式、码率、分辨率和质量选择。缺少 FFmpeg 或观察模式禁用新增／开始；当前合成的非偶数尺寸只禁用新增，不阻止此前冻结的有效任务开始。面板分别解释这些能力条件。原有单次 PNG、MP4、打包及取消导出入口保留。
 
@@ -40,20 +42,28 @@
 | 原生队列实际输出 | 显式运行 `render_queue_native_tasks_templates_and_actual_output -- --ignored --test-threads=1`，1 项通过。`render-queue-native-final.log`。两份 3 帧 MP4 均实际解码，另有真实冲突失败；没有仅以模拟成功返回作为证明。 |
 | 带 FFmpeg 编译 | `cargo build -p motion-desktop --bin motion-studio --features ffmpeg` 通过。`render-queue-build-final.log`；既有警告保留，不宣称零警告。 |
 | 独立预览运行库 | 使用仅预览目录及 System32 的 PATH，`--command-list` 返回有效 JSON 且 stderr 为空；`--video-smoke` 实际使用 libav 解码 3 帧输出。`render-queue-preview-commands.json`、`render-queue-preview-video.json`。 |
-| 完整桌面回归 | 正在运行；完成后记录实际汇总与日志哈希。此阶段不声明通过。 |
+| 整合前完整桌面回归 | 1172 项通过、1 项失败、11 项 ignored。原生工作范围夹具的被动浮窗绘制发现本轮自动 Open 意图；修正生命周期归属后，原断言不变，原项重新运行通过。`render-queue-desktop-full.log` 原始失败保留。 |
+| main 整合后回归 | `render-queue-main-*` 独立记录模板回执修正前的整合；媒体完整回归 62 项通过、1 项原有 ignored，之后媒体生产代码未变。该阶段完整桌面测试为补上真实模板回执而主动停止，当时未出现断言失败，停止原因原件保留。它既不计成功，也不计新的产品失败。 |
+| 最后模板回执与错误保留 | `render-queue-final-*` 对应最后源码：无 FFmpeg、队列专项、辅助面板、原工作范围断言、原生实际输出、默认错误输出和带 FFmpeg 构建。专项明确检查非法保存不确认成功、后续真实成功更新请求／ID、原错误仍保留；原生点击新建／保存仅增加一个模板，成功后没有再次保存入口。结果以结构化清单为准。 |
+| 最后完整桌面 | `render-queue-final-desktop-full.log` 在最后生产代码冻结后运行；完成前保持 pending。源码哈希另存，不把主动停止的旧运行或窄专项当作完整通过。 |
 | 样式及来源 | `verify_style_consumers()` 和 `tools/validate_provenance.py` 通过。只代表各自守卫范围，不等于整个 DESIGN 合规。 |
 | 跨平台 CI | 尚待提交当前队列改动后验证；不复用父 PR 的绿色状态作为本 PR 的证明。 |
 
-原生验收命令通过环境变量 `MOTION_RENDER_QUEUE_NATIVE_ARTIFACTS` 指定保存目录，实际截图在 `render-queue-native-final/`：
+最后源码的已完成结果：队列专项 22 通过／1 原生 ignored，辅助面板 17 通过／2 原有 ignored，显式原生队列 1 通过，原工作范围断言 1 通过，无 FFmpeg 15 通过／3 能力或原生 ignored。默认三路错误输出、FFmpeg 构建和独立 PATH 命令 JSON／libav 解码均通过。已有 ignored 数量不当作成功，重叠过滤不累加。
+
+验收脚本首次误给非 ignored 的原工作范围用例加了 `--ignored`，得到 0 匹配；原日志保存为 `render-queue-final-work-area-empty-selection.log`，随后直接运行当前实际测试程序，原用例 1 项通过。证据打包首次因环境变量字典的 `SystemRoot`／`SYSTEMROOT` 大小写读取失败；修正的是本地打包脚本，原始日志保留为 `render-queue-final-package-missing-env.log`。未修改产品、测试断言或预算来绕过这些检查。
+
+原生验收命令通过环境变量 `MOTION_RENDER_QUEUE_NATIVE_ARTIFACTS` 指定保存目录，最后源码的截图在 `render-queue-native-final-recovery/`；此前 `render-queue-native-final/`、`render-queue-native-main/`、`render-queue-native-final-source/` 是分别保留的阶段证据：
 
 - `zh-queue.png`、`en-queue.png`：900×600 的主窗、队列任务与选择状态。
 - `zh-template.png`、`en-template.png`：名称、文件名和范围的真实模板编辑。
 - `zh-floating-dpi15.png`、`en-floating-dpi15.png`：300×460 逻辑尺寸、150% DPI 的原生浮窗。
 - `zh-default.png`：1600×1000 主窗；`zh-main-dpi2.png`：900×600 逻辑尺寸、200% DPI。
 - `en-completed.png`、`zh-failed.png`：实际成功和已有目标冲突失败。
+- `en-template-created.png`：原生点击新增并实际保存后选中新 ID，草稿关闭且模板数仅增加一项。
 - `saved-queue.json`、`saved-queue-final.json`、两份 MP4 和原始 stdout／stderr 一并保留。
 
-截图来自原生窗口和实际 GPU 呈现；输入回放使用生产 `Input`，没有冒称前台 OS 键盘／IME 注入或其他平台手动验收。本轮没有改动右键菜单。长路径／原因在窄面板可能省略显示，完整原因保留在 journal 和日志；尚未增加完整文本 tooltip。
+截图来自原生窗口和实际 GPU 呈现；输入回放使用生产 `Input`，没有冒称前台 OS 键盘／IME 注入或其他平台手动验收。本轮没有改动右键菜单。窄面板省略的任务名称、输出路径和任务失败原因可悬停换行显示，复用 tooltip 样式和现有尺寸 token；超出单个面板显示容量的内容仍以 journal 和日志为准。`zh-floating-tooltip.png`、`en-floating-tooltip.png` 在实际 GPU 图像中验证悬停新增像素；没有用 PaintList 自我比较代替实际呈现。
 
 ## 错误与观测处置
 
@@ -73,6 +83,8 @@
 保留首轮 durable 夹具误用固定 6 帧助手、队列状态／move 编译错误和面板 ScrollArea／WorkArea API 编译错误原日志。修正新夹具与真实 API 后重跑；没有修改既有主线断言、运行时预算或期限来制造通过。第一轮原生截图误用浅色菜单行样式，最终改用现有深色 `row`；初轮截图作为过程记录，不作为最终样式展示。
 
 新增 panic 夹具首轮错误地要求 Info start 也出现在 stderr，导致本地无 FFmpeg 检查失败；下一轮又把文件 hook 的格式错误地当成原 stderr hook 的格式。两份失败日志 `render-queue-without-ffmpeg.log`、`render-queue-without-ffmpeg-corrected.log` 和真实三路输出 `render-queue-default-panic-initial/` 保留。最终新夹具按既有契约检查：Info start 只在文件；带请求上下文的 worker Error 同时在文件及 stderr；文件含记录 backtrace 的日志 hook，stderr 含原 hook 的 thread/panicked 行。另断言 stderr 不泄漏 Info，stdout 不泄漏诊断。生产 sink 未改。原 hook 的检查兼容 Rust 在 thread 名之后附带线程 ID，仍要求实际原 hook 的 thread/panicked 行。无 FFmpeg 时新面板夹具明确断言开始被禁用，不把缺少后端当成成功。
+
+完整桌面首轮暴露的被动绘制冲突来自本轮新增队列打开意图。未改动已有 `native_work_area_drag_save_undo_main_float_bilingual` 的 `.is_empty()` 断言，改为 Shell 在主窗活动标签／浮窗可见时按需打开，并新增未激活标签不建立目录及纯绘制不产生 IO 意图的回归。移除不再使用的 Open UI 意图。补接生命周期时遗漏 Panel 导入的编译失败保存在 `render-queue-panel-lifecycle-initial.log`，按真实类型修复。接续前专项 21 项、辅助面板 16 项、原浮窗失败项 1 项、原生实际输出 1 项通过；完整媒体为 62 项通过、1 项原有 ignored；无 FFmpeg 为 14 项通过、3 项能力／原生 ignored。整合到 main 后另行重跑，不把这些阶段混为同一代码版本。
 
 ## DESIGN §0.7 逐项处置及 §12 范围
 
