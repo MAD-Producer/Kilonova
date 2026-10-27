@@ -1,0 +1,267 @@
+{
+  "local_head": "583a954d2fdbf212bd76984b2698611c10efe5ce",
+  "base_main": "2227a195fb21d765b24abdb45f1759d7fe06c0ec",
+  "binary_sha256": "9e6bee6eead0dc871efda97caaed57935b7379c6e6276ff68a7781a3a5a2fdbd",
+  "targeted": [
+    {
+      "name": "guides",
+      "filter": "panels::viewer_guides::",
+      "exit_code": 0,
+      "seconds": 20.55,
+      "summary": [
+        [
+          "ok",
+          "15",
+          "0",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "transforms",
+      "filter": "panels::transform_controls::",
+      "exit_code": 0,
+      "seconds": 8.66,
+      "summary": [
+        [
+          "ok",
+          "24",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "composition",
+      "filter": "panels::composition::tests::",
+      "exit_code": 0,
+      "seconds": 6.58,
+      "summary": [
+        [
+          "ok",
+          "5",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "paths",
+      "filter": "panels::path_controls::",
+      "exit_code": 0,
+      "seconds": 22.11,
+      "summary": [
+        [
+          "ok",
+          "86",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "native",
+      "filter": "panels::viewer_guides::native_tests::viewer_guides_native_main_float_dpi_transactions_pixels_and_export",
+      "exit_code": 0,
+      "seconds": 14.47,
+      "summary": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  ],
+  "native": {
+    "binary_sha256": "9e6bee6eead0dc871efda97caaed57935b7379c6e6276ff68a7781a3a5a2fdbd",
+    "native_cases": 4,
+    "png_count": 22,
+    "maximum_line_centroid_error_physical_pixels": 0.199951171875,
+    "export_rgba_equal": true,
+    "controlled_pixel_ratios": [
+      1.0,
+      1.5,
+      2.0
+    ],
+    "physical_os_input": false,
+    "pngs": [
+      {
+        "path": "en-main-fit-overlays.png",
+        "sha256": "67e2b1acc38147cd491b3387caf2cf5fc7535204e295d1d0965d8603f302daa3",
+        "width": 900,
+        "height": 600
+      },
+      {
+        "path": "en-main-fit-menu.png",
+        "sha256": "b999d36556a5347fe6c8599cb979f48ea61a0a3dd9e2f7ef8369715b832653ee",
+        "width": 900,
+        "height": 600
+      },
+      {
+        "path": "en-main-fit-preview.png",
+        "sha256": "125ad0b1ce3ab2675864ddf6210f22a9795bfbbcfcf99116bdfca7989dd9fac0",
+        "width": 900,
+        "height": 600
+      },
+      {
+        "path": "en-main-fit-scale.png",
+        "sha256": "cfece9c6361d5dd14f37fe0d685bcaafccda41eb185fd23b377012428a244205",
+        "width": 900,
+        "height": 600
+      },
+      {
+        "path": "en-main-fit-handles.png",
+        "sha256": "4c5e50c083894d4cc53f187e589c87b558736c955d1d434faa225e325b869a7f",
+        "width": 900,
+        "height": 600
+      },
+      {
+        "path": "zh-main-zoom-overlays.png",
+        "sha256": "eae370217931984890b4f29c9a158c11f3418582dab17c998c0b17a439fe669c",
+        "width": 2400,
+        "height": 1500
+      },
+      {
+        "path": "zh-main-zoom-menu.png",
+        "sha256": "2c67f6e1d802062653305ec5f90d8ae4d8280e3f49db936469a4f619e1e51e2a",
+        "width": 2400,
+        "height": 1500
+      },
+      {
+        "path": "zh-main-zoom-preview.png",
+        "sha256": "7e0af2eb33b488c3d291d3512c0eba5373b4b25cf7dc94d2300b1eb30e4a432d",
+        "width": 2400,
+        "height": 1500
+      },
+      {
+        "path": "zh-main-zoom-scale.png",
+        "sha256": "50cbdd81edfb8fc4b511d3d55c536a348bd5e73a796d35c4e1f92cf96f4f43a9",
+        "width": 2400,
+        "height": 1500
+      },
+      {
+        "path": "zh-main-zoom-handles.png",
+        "sha256": "c25bb8f1cfd05d13ba95b7ccee9e068ed5ffe9cebf906d9e74d6a229cc99eaaf",
+        "width": 2400,
+        "height": 1500
+      },
+      {
+        "path": "en-float-min-overlays.png",
+        "sha256": "d32572bc66f2d5c299b75f52c215dd51945bd85eb5b13049e0f3e4f3a1fef486",
+        "width": 720,
+        "height": 640
+      },
+      {
+        "path": "en-float-min-menu.png",
+        "sha256": "9de66b6d9b1fab31ef47a2b4d7bf8cafa95c70194dacee25584875a5f1b24458",
+        "width": 720,
+        "height": 640
+      },
+      {
+        "path": "en-float-min-preview.png",
+        "sha256": "8b3f8ca870d6043b9212fe59af55051ff6e812c93b4b09a1325f5ee0df2f2bb8",
+        "width": 720,
+        "height": 640
+      },
+      {
+        "path": "en-float-min-scale.png",
+        "sha256": "b038b95c7dbaf94ca23e910cc4f09ddc9b7e22aabbe8c241177611476dfd0c96",
+        "width": 720,
+        "height": 640
+      },
+      {
+        "path": "en-float-min-handles.png",
+        "sha256": "1d6293bf478f024d6e285cdce900f9058641e3935352c35e14034f3baa2efa8f",
+        "width": 720,
+        "height": 640
+      },
+      {
+        "path": "zh-float-zoom-overlays.png",
+        "sha256": "ccdb12e0848cb86f7bc269a53496f5c5d7b81f07f90ccade80fc55a956126f4d",
+        "width": 720,
+        "height": 520
+      },
+      {
+        "path": "zh-float-zoom-menu.png",
+        "sha256": "bb5a58071c151524802bdd3c46a0e3593bb230eb7b5445d2d6444a59f0210928",
+        "width": 720,
+        "height": 520
+      },
+      {
+        "path": "zh-float-zoom-preview.png",
+        "sha256": "b34b188b1284c6919d4510c772acffcb70a800cbcb56e51f101b6de2cfc86a12",
+        "width": 720,
+        "height": 520
+      },
+      {
+        "path": "zh-float-zoom-scale.png",
+        "sha256": "2ac1eabbc56c38dd722a8f5d903511ee02f3eea9c6d61b8c735c0c2829c9b7da",
+        "width": 720,
+        "height": 520
+      },
+      {
+        "path": "zh-float-zoom-handles.png",
+        "sha256": "a1b553b1bcba84231c95b837aee2fd9fe0a383abe4ad78e162d1f8b3ddf1ba3f",
+        "width": 720,
+        "height": 520
+      },
+      {
+        "path": "export-before.png",
+        "sha256": "fcb65bdf58711a0c2e5df5c76b2acd311cea17912d9f9dd481d60238413d0ed5",
+        "width": 640,
+        "height": 480
+      },
+      {
+        "path": "export-after.png",
+        "sha256": "fcb65bdf58711a0c2e5df5c76b2acd311cea17912d9f9dd481d60238413d0ed5",
+        "width": 640,
+        "height": 480
+      }
+    ],
+    "scope": "Actual hidden native main/floating surfaces with shared presentation, chrome Input routing and production capture export. Controlled scale ratios; no physical OS mouse or foreground input."
+  },
+  "all_targets": {
+    "head": "583a954d2fdbf212bd76984b2698611c10efe5ce",
+    "base_main": "2227a195fb21d765b24abdb45f1759d7fe06c0ec",
+    "binary_sha256": "9e6bee6eead0dc871efda97caaed57935b7379c6e6276ff68a7781a3a5a2fdbd",
+    "style_consumers_passed": true,
+    "exit_code": 0,
+    "seconds": 134.94,
+    "command": [
+      "cargo",
+      "check",
+      "--workspace",
+      "--exclude",
+      "motion-android",
+      "--all-targets",
+      "--features",
+      "motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop/ffmpeg,motion-desktop-media/gpu-tests,motion-graph/gpu-tests,motion-render/gpu-tests",
+      "--config",
+      "profile.dev.package.motion-desktop.debug=0",
+      "--config",
+      "profile.dev.package.motion-desktop.codegen-units=256",
+      "--locked",
+      "--offline",
+      "-j1"
+    ],
+    "source_unchanged": true,
+    "scope": "Current2227 renderqueue plus guides all-targets compilation; native11 actual worker/pixels/export evidence separate. Unchanged model persistence/history runs remain historical at their recorded commits."
+  },
+  "old_ci": {
+    "head": "02e56f478ee8cbb66fe7c3c76d71e18921559c85",
+    "all_five_success": true,
+    "checkout": "738cf70524f98adabafdf0d2f572cd34520a7639",
+    "tree": "7afc86238ee41016ed35aee71cb39c6219cf5b2e",
+    "three_desktop_jobs_130_cases_confirmed": true,
+    "scope": "Actual old head all-five successful; excluded as authorization to merge the later renderqueue main combination."
+  },
+  "status": "LOCAL_QUEUE_INTEGRATION_PASSED; new exact-head CI required before merge",
+  "archive": {
+    "path": "data/viewer-guides-queue-integration-583a954d.zip",
+    "bytes": 1088531,
+    "entries": 54,
+    "sha256": "7e52badfc0841b688c1339db33e32f2b7c58345e69dc00eff6bcd691fa3e89d7"
+  }
+}

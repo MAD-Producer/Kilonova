@@ -70,3 +70,5 @@
 
 ![主窗辅助显示](viewer-guides/en-main-fit-overlays.png)
 ![最小浮窗菜单](viewer-guides/en-float-min-menu.png)
+
+后续接续渲染队列主分支的实际重验、旧CI排除与新CI责任边界见[组合验收](viewer-guides-queue-integration.md)。
