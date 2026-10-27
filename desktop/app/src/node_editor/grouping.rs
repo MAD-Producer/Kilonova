@@ -104,6 +104,7 @@ impl NodeEditor {
                 graph.english_name = current.english_name;
             }
             outer.public_parameters = current.public_parameters;
+            outer.images = current.images;
             current = outer;
         }
         current.format_version = current.format_version.max(current.minimum_format_version());
@@ -197,6 +198,8 @@ impl NodeEditor {
             graph.english_name = self.document.english_name.clone();
         }
         outer.public_parameters = self.document.public_parameters.clone();
+        outer.images = self.document.images.clone();
+        outer.format_version = outer.format_version.max(outer.minimum_format_version());
         self.document = outer;
         self.view = parent.view;
         self.selected = parent.selection;
@@ -211,6 +214,7 @@ impl NodeEditor {
     pub(super) fn checked_structure(&self, document: &GraphDocument) -> Result<(), Diagnostic> {
         let root = self.root_with(document);
         self.check_nested_budget(document)?;
+        root.validate_metadata_budget().map_err(|e| e.diagnostic())?;
         match motion_graph::validate(&root, &self.options) {
             Ok(_) => Ok(()),
             Err(error)

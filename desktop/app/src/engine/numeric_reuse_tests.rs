@@ -157,9 +157,9 @@ fn node_numeric_reuse_records_real_faults_and_restores_preview() {
         let mut ready = compile(&mut tasks, &mut editor);
         assert_eq!(ready.compiled.report.portable_compilations, 0);
         if bad_shader {
-            ready.compiled.shader.wgsl = "this is not valid WGSL".into();
+            ready.compiled.source_for_test().shader.wgsl = "this is not valid WGSL".into();
         } else {
-            ready.compiled.manifest.effects[0]
+            ready.compiled.source_for_test().manifest.effects[0]
                 .shader_data
                 .as_mut()
                 .unwrap()

@@ -1,4 +1,7 @@
 //! Native desktop editor. One worker owns the session, GPU and swapchain.
+#[cfg(test)]
+#[path = "../../../crates/motion-graph/tests/support/image_fixture.rs"]
+mod node_image_fixture;
 mod audio_output;
 mod cursors;
 mod diagnostics;
@@ -634,6 +637,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.lose_focus();
             }
             WindowEvent::DroppedFile(path) => {
+                if self.main_node_image_drop(&path) { self.redraw(); return; }
                 let ext = path
                     .extension()
                     .and_then(|s| s.to_str())

@@ -47,7 +47,7 @@ fn old_documents_stay_v1_and_typed_defaults_round_trip_as_v2() {
         ErrorCode::DocumentVersion
     );
     let mut future = serde_json::to_value(&graph).unwrap();
-    future["format_version"] = 3.into();
+    future["format_version"] = (IMAGE_ASSETS_FORMAT_VERSION + 1).into();
     future["future_payload"] = true.into();
     assert_eq!(
         GraphDocument::from_json(&future.to_string())

@@ -85,6 +85,12 @@ impl NodeEditor {
                         self.notice = Some(error.to_string());
                     }
                 }
+                Command::AddTextureMapping if !input.composing && !input.ime_consumed && !input.focus_lost => {
+                    if let Err(error) = self.add_texture_mapping(language) {
+                        log::debug!("node texture mapping rejected epoch={} revision={} reason={error}", self.epoch, self.revision);
+                        self.notice = Some(error.to_string());
+                    }
+                }
                 Command::Ungroup => {
                     if let Err(error) = self.ungroup_selected() {
                         self.notice = Some(error.to_string());

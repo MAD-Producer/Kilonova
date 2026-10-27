@@ -8,6 +8,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
+use sha2::{Digest, Sha256};
 const MANIFEST: &str = "animation-preset.json";
 const MAX_IMAGE: u64 = 64 * 1024 * 1024;
 const MAX_PACKAGE: u64 = 256 * 1024 * 1024;
@@ -55,17 +56,19 @@ impl Drop for OwnedPaths {
 pub struct StagedAnimationPreset {
     pub preset: AnimationPreset,
     files: OwnedPaths,
+    nodes: Option<super::NodeResourceStage>,
 }
 impl StagedAnimationPreset {
     /// Call after a revision has actually committed, including a later snapshot
     /// failure. Undo/redo may still reference the newly imported files.
     pub fn keep_resources(self) {
         self.files.keep();
+        if let Some(nodes) = self.nodes { nodes.keep_resources(); }
     }
 }
 fn read_manifest(archive: &mut ZipArchive<File>) -> Result<AnimationPreset> {
     ensure(
-        archive.len() <= motion_effects::MAX_EFFECTS_PER_LAYER * 2 + 1,
+        archive.len() <= motion_effects::MAX_EFFECTS_PER_LAYER * 35 + 1,
         "too many preset package entries",
     )?;
     let mut seen = BTreeSet::new();
@@ -103,6 +106,7 @@ fn read_manifest(archive: &mut ZipArchive<File>) -> Result<AnimationPreset> {
     let preset = AnimationPreset::from_json(&bytes)?;
     let expected: BTreeSet<_> = std::iter::once(MANIFEST.to_owned())
         .chain(preset.assets.iter().map(|a| a.path.clone()))
+        .chain(preset.node_resources()?.into_iter().map(|a| a.path))
         .collect();
     ensure(
         seen == expected,
@@ -126,9 +130,11 @@ fn copy(
     output: &mut impl Write,
     size: u64,
     cancel: &AtomicBool,
+    expected_hash: Option<&str>,
 ) -> Result<()> {
     let mut buffer = [0; super::TRANSFER_BUFFER_BYTES];
     let mut copied = 0u64;
+    let mut hash = expected_hash.map(|_| Sha256::new());
     loop {
         check(cancel)?;
         let n = input.read(&mut buffer)?;
@@ -138,8 +144,11 @@ fn copy(
         copied += n as u64;
         ensure(copied <= size, "preset resource grew during transfer")?;
         output.write_all(&buffer[..n])?;
+        if let Some(hash) = &mut hash { hash.update(&buffer[..n]); }
     }
-    ensure(copied == size, "preset resource changed during transfer")
+    ensure(copied == size, "preset resource changed during transfer")?;
+    if let Some(hash) = hash { ensure(expected_hash == Some(format!("{:x}",hash.finalize()).as_str()), "preset node resource changed during transfer")?; }
+    Ok(())
 }
 pub fn save_animation_preset(
     root: &Path,
@@ -200,12 +209,22 @@ pub fn save_animation_preset(
             "preset resource budget exceeded",
         )?;
         zip.start_file(&asset.path, options)?;
-        copy(&mut source, &mut zip, before.len(), cancel)?;
+        copy(&mut source, &mut zip, before.len(), cancel, None)?;
         let after = source.metadata()?;
         ensure(
             before.len() == after.len() && before.modified()? == after.modified()?,
             "preset source changed during transfer",
         )?;
+    }
+    for resource in preset.node_resources()? {
+        check(cancel)?;
+        let mut source = super::open_node_resource(&root, &resource)?;
+        ensure(root.join(&resource.path) != destination, "preset output would overwrite its source")?;
+        total = total.checked_add(resource.bytes).ok_or_else(|| Error::Invalid("preset size overflow".into()))?;
+        ensure(total <= MAX_PACKAGE - crate::animation_presets::MAX_ANIMATION_PRESET_BYTES as u64, "preset resource budget exceeded")?;
+        ensure(names.insert(resource.path.clone()), "conflicting preset resource path")?;
+        zip.start_file(&resource.path, options)?;
+        copy(&mut source, &mut zip, resource.bytes, cancel, Some(&resource.sha256))?;
     }
     let file = zip.finish()?;
     file.sync_all()?;
@@ -223,11 +242,13 @@ pub fn stage_animation_preset(
     check(cancel)?;
     let mut archive = open(input)?;
     let mut preset = read_manifest(&mut archive)?;
-    if preset.assets.is_empty() {
+    let resources = preset.node_resources()?;
+    if preset.assets.is_empty() && resources.is_empty() {
         check(cancel)?;
         return Ok(StagedAnimationPreset {
             preset,
             files: OwnedPaths::default(),
+            nodes: None,
         });
     }
     let root = root.canonicalize()?;
@@ -242,6 +263,13 @@ pub fn stage_animation_preset(
     )?;
     let token = token()?;
     let mut files = OwnedPaths::default();
+    let mut nodes = super::NodeResourceStage::new(&root)?;
+    for resource in &resources {
+        check(cancel)?;
+        let mut bytes = Vec::new();
+        archive.by_name(&resource.path)?.take(resource.bytes + 1).read_to_end(&mut bytes)?;
+        nodes.stage(resource, &bytes)?;
+    }
     let mut paths: BTreeMap<String, String> = BTreeMap::new();
     for asset in &mut preset.assets {
         check(cancel)?;
@@ -263,7 +291,7 @@ pub fn stage_animation_preset(
         files.paths.push(path);
         let mut source = archive.by_name(&source_path)?;
         let bytes = source.size();
-        copy(&mut source, &mut output, bytes, cancel)?;
+        copy(&mut source, &mut output, bytes, cancel, None)?;
         output.sync_all()?;
         drop(output);
         asset.path = format!("assets/{name}");
@@ -271,7 +299,7 @@ pub fn stage_animation_preset(
     }
     check(cancel)?;
     preset.validate()?;
-    Ok(StagedAnimationPreset { preset, files })
+    Ok(StagedAnimationPreset { preset, files, nodes: Some(nodes) })
 }
 
 use std::collections::BTreeMap;

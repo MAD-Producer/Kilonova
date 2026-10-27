@@ -14,6 +14,37 @@ mod noise_gpu;
 mod blend_gpu;
 #[path = "support/compact_examples_gpu.rs"]
 mod compact_examples_gpu;
+#[path = "support/uv_mapping_fixture.rs"]
+mod uv_mapping_fixture;
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn uv_mapping_matches_cpu_coordinates_for_rotation_scale_pivot_and_mirror() {
+    let folder = tempfile::tempdir().unwrap();
+    for (index, (translation, rotation, scale, pivot)) in [
+        ([0.; 2], 0., [1.; 2], [0.5; 2]),
+        ([0.; 2], 90., [1.; 2], [0.5; 2]),
+        ([0.15, -0.1], 37.5, [-0.5, 1.2], [0.2, 0.8]),
+        ([0.1, 0.], -90., [0., 1.], [0.5; 2]),
+    ].into_iter().enumerate() {
+        let graph = uv_mapping_fixture::graph(translation, rotation, scale, pivot);
+        let (project, mut renderer, target) = setup(&graph, &folder.path().join(format!("uv-{index}.msfx")));
+        let pixels = render(&project, &mut renderer, &target, 0.);
+        let (sin, cos) = (rotation as f64).to_radians().sin_cos();
+        for y in 0..64 {
+            for x in 0..64 {
+                let dx = ((x as f64 + 0.5) / 64. - pivot[0] as f64) * scale[0] as f64;
+                let dy = ((y as f64 + 0.5) / 64. - pivot[1] as f64) * scale[1] as f64;
+                let u = cos * dx - sin * dy + pivot[0] as f64 + translation[0] as f64;
+                let expected = (u.clamp(0., 1.) * 255.).round() as u8;
+                let actual = pixel(&pixels, x, y);
+                assert!(actual[..3].iter().all(|c| c.abs_diff(expected) <= 2),
+                    "case={index} pixel=({x},{y}) actual={actual:?} expected={expected}");
+                assert_eq!(actual[3], 255);
+            }
+        }
+    }
+}
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
@@ -663,6 +694,7 @@ fn frame_index_and_seconds_remain_fractional_in_the_actual_gpu_uniforms() {
         working_space: WorkingSpace::Srgb,
         alpha_mode: AlphaMode::Straight,
         public_parameters: vec![],
+        images: Default::default(),
         nodes: vec![
             Node::new("time", NodeOp::Time),
             Node::new("frame", NodeOp::FrameIndex),
