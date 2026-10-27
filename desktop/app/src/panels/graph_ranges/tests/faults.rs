@@ -180,11 +180,14 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
         );
         assert_eq!(invalid_styles.metric("graph.sample.error", 0.35), 0.);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
+        // Collection creation is an explicit command with an expected Info
+        // start record. Finish setup before measuring passive render silence.
+        let mut renderers = [Graph::Property, Graph::Effect, Graph::Comparison]
+            .map(|graph| (graph, graph.panels(&state, &catalogue)));
         let _logger = crate::logging::init(root.clone()).unwrap();
         let file = root.join("motion-studio.log");
-        for graph in [Graph::Property, Graph::Effect, Graph::Comparison] {
-            let mut p = graph.panels(&state, &catalogue);
-            graph.render(&mut p, &state, &mut atlas, &styles, 0., None);
+        for (graph, p) in &mut renderers {
+            graph.render(p, &state, &mut atlas, &styles, 0., None);
             assert!(
                 !p.timeline.graph_ranges.probes.is_empty(),
                 "healthy renderer: {graph:?}"
@@ -199,8 +202,7 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
         );
         assert!(healthy.contains("logging initialized level=INFO"));
 
-        for graph in [Graph::Property, Graph::Effect, Graph::Comparison] {
-            let mut p = graph.panels(&state, &catalogue);
+        for (graph, mut p) in renderers {
             let site = SITES[match graph {
                 Graph::Property => 0,
                 Graph::Effect => 1,
