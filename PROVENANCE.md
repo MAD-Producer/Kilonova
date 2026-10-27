@@ -3,6 +3,8 @@
 **状态 / Status:** 仓库政策与发布证据 / Repository policy and release evidence
 **生效日期 / Effective date:** 2026-10-14
 
+曲线剪贴板采用官方 arboard 3.7.0 的系统文本接口，不修改上游源码，不引入图像或字体资产。曲线 JSON、单位契约、异步命令和界面文案由本项目独立实现。来源、固定 revision 和许可见 ATTRIBUTION.md；随发布包分发的 NOTICE 保留 arboard 的 MIT 许可文本。
+
 The optional desktop depth prototype uses independently authored host/process
 code and a separately installed, hash-verified Apache-2.0 Small model. The export
 tool requires the pinned official reference checkout and retains its original

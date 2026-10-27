@@ -6,6 +6,20 @@ use crate::{
 mod tests;
 
 impl Shell {
+    pub(crate) fn request_curve_clipboard(
+        &mut self, intent: Intent, source: crate::layer_clipboard::KeyframeSource,
+        selections: Vec<motion_core::KeyframeSelection>,
+    ) -> Result<(), String> {
+        if self.project_modal() || self.closing { return Ok(()); }
+        if self.layer_clipboard.start_curves(&self.engine, intent, source, selections)? {
+            if intent != Intent::Copy { self.stop(); }
+            self.panels.message = Some(if self.workspace.locale == crate::i18n::Locale::Zh {
+                "正在读取系统曲线剪贴板…"
+            } else { "Preparing system easing clipboard…" }.into());
+            self.dirty = true;
+        }
+        Ok(())
+    }
     pub(crate) fn request_path_clipboard(
         &mut self, intent: Intent, source: crate::layer_clipboard::PathSource,
         selections: Vec<motion_core::PathSelection>, target: motion_core::PathDestination,
@@ -127,7 +141,9 @@ impl Shell {
                 self.panels.message = Some(
                     match completed.status {
                         Status::Copied => {
-                            if completed.domain == Domain::Paths {
+                            if completed.domain == Domain::Curves {
+                                if zh { "已复制缓动曲线到系统剪贴板" } else { "Easing copied to system clipboard" }
+                            } else if completed.domain == Domain::Paths {
                                 if zh { "已复制路径" } else { "Paths copied" }
                             } else if completed.domain == Domain::Keyframes {
                                 if zh {
@@ -158,7 +174,9 @@ impl Shell {
                             }
                         }
                         Status::Applied => {
-                            if completed.domain == Domain::Paths {
+                            if completed.domain == Domain::Curves {
+                                if zh { "已将缓动曲线粘贴到选定区间" } else { "Easing pasted to selected intervals" }
+                            } else if completed.domain == Domain::Paths {
                                 if zh { "已粘贴路径" } else { "Paths pasted" }
                             } else if completed.domain == Domain::Keyframes {
                                 if zh {

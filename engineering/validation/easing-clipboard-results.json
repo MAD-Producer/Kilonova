@@ -1,0 +1,886 @@
+{
+  "exeSha256": "f3ec66dde165c93e6d29115c662f3c977cc6c77fd6d7cc72b6b0c8b278494490",
+  "base": "2227a195fb21d765b24abdb45f1759d7fe06c0ec",
+  "rows": [
+    {
+      "name": "system-clipboard",
+      "returncode": 0,
+      "elapsedSeconds": 2.56,
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1207 filtered out; finished in 0.96s"
+      ],
+      "exeUnchanged": true
+    },
+    {
+      "name": "native-ui",
+      "returncode": 0,
+      "elapsedSeconds": 15.86,
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1207 filtered out; finished in 15.10s"
+      ],
+      "exeUnchanged": true
+    },
+    {
+      "name": "clipboard-regression",
+      "returncode": 0,
+      "elapsedSeconds": 201.86,
+      "summary": [
+        "test result: ok. 52 passed; 0 failed; 1 ignored; 0 measured; 1155 filtered out; finished in 201.38s"
+      ],
+      "exeUnchanged": true
+    },
+    {
+      "name": "menu-regression",
+      "returncode": 0,
+      "elapsedSeconds": 0.67,
+      "summary": [
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1198 filtered out; finished in 0.47s"
+      ],
+      "exeUnchanged": true
+    },
+    {
+      "name": "mini-regression",
+      "returncode": 0,
+      "elapsedSeconds": 0.26,
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1207 filtered out; finished in 0.11s"
+      ],
+      "exeUnchanged": true
+    }
+  ],
+  "recordedAt": "2026-10-27T04:35:13.820179+00:00",
+  "scope": [
+    "261"
+  ],
+  "excludedScope": [
+    "259"
+  ],
+  "model": {
+    "passed": 56,
+    "failed": 0,
+    "sourceUnchanged": true
+  },
+  "productionFfmpegBuild": {
+    "exitCode": 0,
+    "log": "final/production-build.log"
+  },
+  "audit": {
+    "toolVersion": "0.22.2",
+    "advisoryRevision": "3279c99911354c400e1d41e47c7d60e39258b147",
+    "lockfileSha256": "e4c848ecbe72c55782ac3e9218bca7e68515dc19d19634c77089783e917d19bb",
+    "exitCode": 0,
+    "vulnerabilities": 0,
+    "warnings": {
+      "unmaintained": [
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "ttf-parser",
+            "version": "0.25.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31",
+            "dependencies": [
+              {
+                "name": "core_maths",
+                "version": "0.1.1",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0192",
+            "package": "ttf-parser",
+            "title": "`ttf-parser` is unmaintained",
+            "description": "The author of `ttf-parser` has stated that the crate is unmaintained and will not receive further fixes (see the referenced issue).\r\n\r\n## Alternative(s)\r\n\r\n- [`skrifa`](https://crates.io/crates/skrifa), an actively maintained TrueType and OpenType font parsing crate, part of the Google Fonts \"oxidize\" (`fontations`) project.",
+            "date": "2026-06-28",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/harfbuzz/ttf-parser/issues/217",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        },
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zbus_names",
+            "version": "4.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "d8bf88b4a3ff53e883001e0e0115b297a9d53c31b9c1edd2bfdd853e3428624e",
+            "dependencies": [
+              {
+                "name": "serde",
+                "version": "1.0.229",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "winnow",
+                "version": "1.0.4",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant",
+                "version": "5.15.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0371",
+            "package": "zbus_names",
+            "title": "`zbus_names` is unmaintained",
+            "description": "The `zbus_names` crate is no longer maintained as a standalone crate.\r\n\r\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `names` module.\r\n\r\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus name types.",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        },
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zvariant",
+            "version": "5.15.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "c1d34c27cc6cdd1f458427519dd6b8612f7b7e3f7b9a0b2355d041dda9869147",
+            "dependencies": [
+              {
+                "name": "endi",
+                "version": "1.1.1",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "enumflags2",
+                "version": "0.7.12",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "serde",
+                "version": "1.0.229",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "url",
+                "version": "2.5.8",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "winnow",
+                "version": "1.0.4",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zcheapstr",
+                "version": "1.1.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant_derive",
+                "version": "5.15.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant_utils",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0370",
+            "package": "zvariant",
+            "title": "`zvariant` is unmaintained",
+            "description": "The `zvariant` crate is no longer maintained as a standalone crate.\r\n\r\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `wire` module.\r\n\r\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format. Users of the GVariant format should migrate to [`zgvariant`](https://crates.io/crates/zgvariant).",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        },
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zvariant_derive",
+            "version": "5.15.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "864155e69b4352db0c7f374917bf45d1e0c8d17659c8b3dbf9795f3673f8c497",
+            "dependencies": [
+              {
+                "name": "proc-macro-crate",
+                "version": "3.5.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "proc-macro2",
+                "version": "1.0.107",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "quote",
+                "version": "1.0.47",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "syn",
+                "version": "3.0.6",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant_utils",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0372",
+            "package": "zvariant_derive",
+            "title": "`zvariant_derive` is unmaintained",
+            "description": "The `zvariant_derive` crate is no longer maintained as a standalone crate.\r\n\r\nIts derive macros are provided by [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`.\r\n\r\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format.",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        }
+      ],
+      "unsound": [
+        {
+          "kind": "unsound",
+          "package": {
+            "name": "tokio",
+            "version": "1.53.2",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "e95f91fcc7a621e8b030f6aa23c71fe9838ae2fb4d8118b75602a328f5144044",
+            "dependencies": [
+              {
+                "name": "bytes",
+                "version": "1.12.1",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "libc",
+                "version": "0.2.190",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "mio",
+                "version": "1.2.4",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "pin-project-lite",
+                "version": "0.2.17",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "socket2",
+                "version": "0.6.5",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "windows-sys",
+                "version": "0.61.2",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0386",
+            "package": "tokio",
+            "title": "`AsyncFd::new` and related constructors violate I/O safety",
+            "description": "`tokio::io::unix::AsyncFd` provides safe constructors (`new`, `with_interest`, `try_new`, and `try_with_interest`) that accept any `T: AsRawFd` rather than requiring proof of ownership or validity of the file descriptor. Because `RawFd` implements `AsRawFd`, safe code can construct an `AsyncFd` from an arbitrary or closed file descriptor, or close/replace the underlying file descriptor while the `AsyncFd` is still alive.\r\n\r\nThis violates I/O safety in two ways:\r\n\r\n1. `AsyncFd<T>` implements `AsFd` for all `T: AsRawFd` by calling `BorrowedFd::borrow_raw(self.as_raw_fd())`, allowing safe code to obtain an arbitrary `BorrowedFd<'_>` without owning the file descriptor.\r\n2. Tokio's I/O driver stores a pointer to an internal allocation in the `epoll`/`kqueue` user data for registered file descriptors. If the underlying file descriptor is duplicated and then closed while an `AsyncFd` is alive, and the OS reuses that file descriptor number for a another IO resource on the same runtime, dropping the first `AsyncFd` deregisters the reused file descriptor number and frees the first while the original file description remains registered in `epoll`, leading to a use-after-free when a readiness event fires.\r\n\r\nStarting in Tokio 1.51.6, 1.53.3, and 1.54.0, `AsyncFd::new`, `AsyncFd::with_interest`, `AsyncFd::try_new`, and `AsyncFd::try_with_interest` are deprecated in favor of the `unsafe` constructors `AsyncFd::register` and `AsyncFd::register_with_interest`. Callers must ensure that the file descriptor remains valid, open, and unchanged for the lifetime of the `AsyncFd`.",
+            "date": "2026-10-13",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [
+              "memory-corruption"
+            ],
+            "keywords": [
+              "io-safety",
+              "use-after-free"
+            ],
+            "cvss": null,
+            "informational": "unsound",
+            "references": [
+              "https://github.com/tokio-rs/tokio/issues/8538",
+              "https://github.com/tokio-rs/tokio/issues/8539"
+            ],
+            "source": null,
+            "url": "https://github.com/tokio-rs/tokio/pull/8587",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": {
+            "arch": [],
+            "os": [],
+            "functions": {
+              "tokio::io::unix::AsyncFd::new": [
+                ">=0.3.2"
+              ],
+              "tokio::io::unix::AsyncFd::try_new": [
+                ">=1.37.0"
+              ],
+              "tokio::io::unix::AsyncFd::try_with_interest": [
+                ">=1.37.0"
+              ],
+              "tokio::io::unix::AsyncFd::with_interest": [
+                ">=0.3.2"
+              ]
+            }
+          },
+          "versions": {
+            "patched": [
+              ">=1.51.6, <1.52.0",
+              ">=1.53.3"
+            ],
+            "unaffected": [
+              "<0.3.2"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "path": "crates/motion-core/tests/keyframe_clipboard/curve_clipboard.rs",
+      "sha256": "a66f655ad08c86ad7612ea5362bea82e51aa3c31e2394d1478b19fa113858a8e"
+    },
+    {
+      "path": "crates/motion-model/src/keyframe_clipboard/curve_clipboard.rs",
+      "sha256": "71b0cc15130ff573dba9f90a19a490f5a9af7f210395a6f7246f3b7fa21afe60"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/curves.rs",
+      "sha256": "f3d92674c64990f8cb8d161ae4a74f299690814431f4ec3a9fab322378d46112"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/curves/tests.rs",
+      "sha256": "555a3ad9fb7d26b944b384c5aaefb048641c478b2112d40f65fcd6cd4584350e"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/tests/curve_bridge.rs",
+      "sha256": "15d662b693cf8ed362fa1fc2986d22c46d3f5f968605d72916aac36c85766434"
+    },
+    {
+      "path": "desktop/app/src/shell/curve_comparison_tests/curve_clipboard_native.rs",
+      "sha256": "529f336dfe71d94f8619bd8d0d21176a07119a1520142edaf48a5272ef1bddba"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "c74765e57887b8eb0111868be183e555ed6d4428218de3f2097f8b139b369e47"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "e4c848ecbe72c55782ac3e9218bca7e68515dc19d19634c77089783e917d19bb"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "f7d0606664e78bf4ba8b721a2f61f35113700ed2c5f09d7fcc24bd28a0f16201"
+    },
+    {
+      "path": "PROVENANCE.md",
+      "sha256": "026a55055142b17b4d759b0276165a4f7c4b10ebad6726787bc3494b8a7c70d2"
+    },
+    {
+      "path": "crates/motion-core/src/command_registry.rs",
+      "sha256": "35492acff5126da4c6a95be81c8c146cdebf5a9dde2d8a51aada1242d5a6db59"
+    },
+    {
+      "path": "crates/motion-core/src/editor.rs",
+      "sha256": "808b635a9c3b7be675f27c6b86613f80ada1317f1c0d225d02b85fa73c9aefbd"
+    },
+    {
+      "path": "crates/motion-core/src/lib.rs",
+      "sha256": "24d6d592fe87920401427809e2c244a45e32fac5a3e80b2fcb63703cd1637c97"
+    },
+    {
+      "path": "crates/motion-core/tests/keyframe_clipboard.rs",
+      "sha256": "d9db6276a1dc2a6dcfa1e60a6cf4cfaa6bab082b4ed7ff39a1664cd8b953e475"
+    },
+    {
+      "path": "crates/motion-core/tests/keyframe_clipboard/channels.rs",
+      "sha256": "c0ac411f3bd089409df988c27f75b6679019af8d00a80fac49f40e38c083a90e"
+    },
+    {
+      "path": "crates/motion-model/src/commands.rs",
+      "sha256": "1f6b16a6d9e3580adb0451e057f40a82b203b322a95362a889de6b305203a119"
+    },
+    {
+      "path": "crates/motion-model/src/keyframe_clipboard.rs",
+      "sha256": "b6083cb5ace324ca45f6a0d4891c33e0267b32d37784a667ba2c355c315e9b2b"
+    },
+    {
+      "path": "crates/motion-model/src/lib.rs",
+      "sha256": "8eafc3028292b8bcd7de8b7c12c44150f82f571eb9cb7fbb8d3d0647778e2e6f"
+    },
+    {
+      "path": "desktop/app/Cargo.toml",
+      "sha256": "e989e5611adfedfa0278ac72372bf234d5847dc112783022935369029ce5f012"
+    },
+    {
+      "path": "desktop/app/src/engine.rs",
+      "sha256": "de60c2c5a563ceaea2d9b6cabad0a7b1ce7a7df028e9442c51925d8c11afe7c3"
+    },
+    {
+      "path": "desktop/app/src/engine/diagnostic_names.rs",
+      "sha256": "0d362a93cc19c0743de91fdb69653d603047f332bca37954eeeb4941a291ef63"
+    },
+    {
+      "path": "desktop/app/src/engine/failure.rs",
+      "sha256": "9c62c2c1393fd4f0233d2bb035d5446cf876378258944cde1b315300f8b33674"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard.rs",
+      "sha256": "322498bc135d5bd05df80d5c17a3db89841addae10786a207c60717807bb4e01"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/controller.rs",
+      "sha256": "cc8814a0e7ef7fcae649f3602bfd4acb89857b3ad1691472f173145608e3812e"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/tests.rs",
+      "sha256": "95cadb46d422412aca1e65893c0a1251b3daf6822dfe288efbbbfcddb08f1507"
+    },
+    {
+      "path": "desktop/app/src/panels/animation_controls.rs",
+      "sha256": "2beed4daea466f6fcbd469b7d0228faf7e92581dda1ed28101a0b73b07e7bf7e"
+    },
+    {
+      "path": "desktop/app/src/panels/animation_menu.rs",
+      "sha256": "8d91f3736943cffb6f74d8ffb6f59b82bd89a21ec09c65d86f766742c31a46b3"
+    },
+    {
+      "path": "desktop/app/src/panels/animation_menu/tests.rs",
+      "sha256": "aa72def42e06d69a4c8cb0fd148f47103032c6025b743c5ba9799bf5c546b520"
+    },
+    {
+      "path": "desktop/app/src/panels/curves.rs",
+      "sha256": "de103019ecd72f1c8ae365b96ae3501fa5caaad8237298d889b8427eb1c382c2"
+    },
+    {
+      "path": "desktop/app/src/panels/types.rs",
+      "sha256": "b143ef76d6ba7d484d307761b5e885e113506b4c9bfe27a949948da8ac9e2b77"
+    },
+    {
+      "path": "desktop/app/src/shell/actions.rs",
+      "sha256": "15e9506d6e94de626d997e3887595e390b4e511251473e232cf2e3467777e929"
+    },
+    {
+      "path": "desktop/app/src/shell/curve_comparison_tests.rs",
+      "sha256": "a1d4c295101b68a522e541798e540143c75efbf22a5feb3670d7f05874600165"
+    },
+    {
+      "path": "desktop/app/src/shell/layer_clipboard.rs",
+      "sha256": "6b813290f7016f8359839b4f5c9600eb124373e15f5cedeb2330d05ab37cfb40"
+    },
+    {
+      "path": "desktop/ui/styles/dark.json",
+      "sha256": "44df85ff8aaae6deee8f12bfd534c64aa55dbd7de7a46ec6092e87fbe9ba9610"
+    }
+  ],
+  "native": {
+    "focusLossAndImeCancel": true,
+    "input": "production Input injection; physical OS events not tested",
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "nativeMainAndFloat": true,
+    "projectRevisionHistoryUnchanged": true,
+    "routing": "copy/paste capture explicit source and outgoing interval",
+    "screenshots": 6,
+    "systemClipboard": "verified separately in the process roundtrip test"
+  },
+  "initialBlockedFailureRetained": true,
+  "crossPlatformNativeSession": "Windows verified; macOS/Linux pending; Linux persistence after exit depends on clipboard manager",
+  "workspaceFullRegression": "not run for this PR",
+  "evidenceFiles": [
+    {
+      "path": "audit/audit.json",
+      "sha256": "dbff40bd49d96d8e5c9f3200975f8753cb6675045bdaacbf121661093d9f5598",
+      "bytes": 9759
+    },
+    {
+      "path": "audit/audit.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "audit/receipt.json",
+      "sha256": "319ea796683cc7420099c60e60e524e34c2f45ec8ec4159b2b96f45905804333",
+      "bytes": 14209
+    },
+    {
+      "path": "final/clipboard-regression.log",
+      "sha256": "8e57a24d098020f4c0c33b18e671a59b58467dd9a3ce3310b1f9de496a63a52b",
+      "bytes": 6766
+    },
+    {
+      "path": "final/menu-regression.log",
+      "sha256": "ea7d33dec0282fd3137c8d0b3494061e9b7c06419a299a1d94ccfd933082eac0",
+      "bytes": 1369
+    },
+    {
+      "path": "final/mini-regression.log",
+      "sha256": "ea50056a7ae7b061d17deb67549db58602aa5603a4ea1b75120a6d00e30df491",
+      "bytes": 241
+    },
+    {
+      "path": "final/model.log",
+      "sha256": "4f8308aba821d76df2b4da8eedde98723b73fb487041ee1d69592f1202978002",
+      "bytes": 7514
+    },
+    {
+      "path": "final/native-ui.log",
+      "sha256": "05e635663052bf32d91a1c8dca10e8d15dcfee0e402f4255bc01cf350e1cd6b3",
+      "bytes": 851
+    },
+    {
+      "path": "final/native/en-animation-menu.png",
+      "sha256": "883e61ccea1bdcf4c456e22edf542ec0e5bf51d896aad7b827339ea05168408a",
+      "bytes": 138998
+    },
+    {
+      "path": "final/native/en-float-clipboard-ratio1.5.png",
+      "sha256": "b78e3e4af31715939b4ed56e933005a88e4585a249df607e5b3e31a0eb5260d6",
+      "bytes": 91226
+    },
+    {
+      "path": "final/native/en-main-clipboard.png",
+      "sha256": "89dc0e2ec7ca3eba44a3ede8b5b84eac30ea6d1b71be3d5cb42b2f903f803750",
+      "bytes": 101563
+    },
+    {
+      "path": "final/native/logs/motion-studio.log",
+      "sha256": "650ce4f2eecc2be8998b803a74d8399a319537344a74f05ff42e08540beafab9",
+      "bytes": 4953
+    },
+    {
+      "path": "final/native/project/project.json",
+      "sha256": "a6f3244bf47321d491875acbb4c18dee2896d92745a5adb7ab39a80abd6f1ca0",
+      "bytes": 3156
+    },
+    {
+      "path": "final/native/result.json",
+      "sha256": "813eb9cba13daf1daf47a3294a895f05820538ea435c18eeaf516a05f9a30a11",
+      "bytes": 386
+    },
+    {
+      "path": "final/native/zh-animation-menu.png",
+      "sha256": "80c587a4d380ff4a4410643de8d1c5b9ca0f98fa808f57c355f05b9a2e8d6e54",
+      "bytes": 137329
+    },
+    {
+      "path": "final/native/zh-float-clipboard-ratio1.5.png",
+      "sha256": "6a684149a0fb23823d1db7c436d01c14808a9dd566561baec7f77bf776a13416",
+      "bytes": 82003
+    },
+    {
+      "path": "final/native/zh-main-clipboard.png",
+      "sha256": "061ee49ec49d674020fead845401172859a4c1ae5a49f1ad78f3a98059f9f11c",
+      "bytes": 100939
+    },
+    {
+      "path": "final/production-build.log",
+      "sha256": "a44c9fbdc15a73da2c7b24c5aae4b90096ec38fde681827827144a52ff713e5f",
+      "bytes": 10662
+    },
+    {
+      "path": "final/result.json",
+      "sha256": "598c0552df2b23c2ca27d6b1689cfd748d066174a849b303a3bcf715fabc98a9",
+      "bytes": 1518
+    },
+    {
+      "path": "final/source.json",
+      "sha256": "e8a7ca26ea68c97c07648106f8d84d93ddffbb43a680769a476a8ceb71957b45",
+      "bytes": 5360
+    },
+    {
+      "path": "final/system-clipboard.log",
+      "sha256": "04b7524f8bb47e7741f52a45e13ca7837dffe2edf4660e044d4afbd7c24ed740",
+      "bytes": 240
+    },
+    {
+      "path": "final/system/blocked/logs/motion-studio.log",
+      "sha256": "dfd1204d7486bc6cddff4130d2da9dfa2dfec46524031dccc40d12f9c79dc2e3",
+      "bytes": 426
+    },
+    {
+      "path": "final/system/blocked/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "final/system/blocked/stdout.log",
+      "sha256": "a8b7acc368fc8dcf9487702db6ab657ae662822dac591f9158f1578aaca9091a",
+      "bytes": 240
+    },
+    {
+      "path": "final/system/invalid/logs/motion-studio.log",
+      "sha256": "13824199cde30ed6182951f3a5c7e37a544b403e3fba224a9dcf71a211497d7a",
+      "bytes": 678
+    },
+    {
+      "path": "final/system/invalid/stderr.log",
+      "sha256": "17a1570370486e9ffe57c2e9883863dd51ad0177d1b9cbef0ef72f6e1bd11e04",
+      "bytes": 212
+    },
+    {
+      "path": "final/system/invalid/stdout.log",
+      "sha256": "a8b7acc368fc8dcf9487702db6ab657ae662822dac591f9158f1578aaca9091a",
+      "bytes": 240
+    },
+    {
+      "path": "final/system/panic/logs/motion-studio.log",
+      "sha256": "2ea8f6e357c3f97b92d635813e60885871c8fdb0f533fca8dc0a04a0a4441bbf",
+      "bytes": 5148
+    },
+    {
+      "path": "final/system/panic/stderr.log",
+      "sha256": "437537eec655e5a11059377755f865df6323b7bf63ebb05d90f5effe41ff1e2b",
+      "bytes": 411
+    },
+    {
+      "path": "final/system/panic/stdout.log",
+      "sha256": "ad6367fdbdf0c18b591cedfd4bbd6cc4a5d5287ac75e72c741cf531a6aea9527",
+      "bytes": 240
+    },
+    {
+      "path": "final/system/parent/logs/motion-studio.log",
+      "sha256": "4c6293747c9a9279cecc4660cbeaeb8ddffcc77fd952e8fa01da48771b2b0d5d",
+      "bytes": 190
+    },
+    {
+      "path": "final/system/read/logs/motion-studio.log",
+      "sha256": "5870419593dcb264843859a095ff649c84ed318ae4895bef396ec942ae5ee33b",
+      "bytes": 426
+    },
+    {
+      "path": "final/system/read/project/project.json",
+      "sha256": "32f40ce08819b0a6ccba0bd131de57505657d69138f6a544f965e3b825a92484",
+      "bytes": 2442
+    },
+    {
+      "path": "final/system/read/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "final/system/read/stdout.log",
+      "sha256": "9d7eafee84dfa2ad5dd3ffc4bb78a3322271abf7a6f6d3e59b4b56de80ef76e5",
+      "bytes": 240
+    },
+    {
+      "path": "final/system/write/logs/motion-studio.log",
+      "sha256": "9480c7ca3829f967b33a63455a7c6bd06d4923f4bc478a931c6bc9ffa88b7297",
+      "bytes": 425
+    },
+    {
+      "path": "final/system/write/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "final/system/write/stdout.log",
+      "sha256": "bbbe1c63338fd56925c6fe0c42d57e3d3df29a8f46af5a204bf3fa11cf7ee351",
+      "bytes": 240
+    },
+    {
+      "path": "final/test-build.log",
+      "sha256": "734d39f8661d7c7db2458b442c74623b39524d7be5759d99adbd8dbb08e046fb",
+      "bytes": 14754
+    },
+    {
+      "path": "initial/audit/audit.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "initial/clipboard-regression.log",
+      "sha256": "39155177aab0b1da92b88d8d75890cda572f7d014c83ef1727a34a36e3859315",
+      "bytes": 6766
+    },
+    {
+      "path": "initial/incorrect-test-history-api-build.log",
+      "sha256": "24ee3a6f88c1a84ee17c2458936c096ff5935c1dbebffcdbaa64c21a1ba3609d",
+      "bytes": 13363
+    },
+    {
+      "path": "initial/menu-regression.log",
+      "sha256": "80eeeb06daf24cca885bf87b466b74632c5e92393d077ba28385f202cfb614c1",
+      "bytes": 1369
+    },
+    {
+      "path": "initial/mini-regression.log",
+      "sha256": "86f6e68e946ee8da71e709ca421c2c44ccfbeceed14fc85da14e1ef925da94c1",
+      "bytes": 241
+    },
+    {
+      "path": "initial/missing-panic-reply-build.log",
+      "sha256": "acb125bbbe4fecace7762ceda6472645fb1c3d0d9ae67355b38a3416d17afa2d",
+      "bytes": 5880
+    },
+    {
+      "path": "initial/source.json",
+      "sha256": "2d41378e11fbaddc806abf77c9097eddf36343ffef4ac77ec809dd479b6d639e",
+      "bytes": 5427
+    },
+    {
+      "path": "initial/system-clipboard.log",
+      "sha256": "b99724d366d95b116be3514cac4a263561f0863a89306a55c0d3cd72063a0a48",
+      "bytes": 1209
+    },
+    {
+      "path": "initial/system/blocked/logs/motion-studio.log",
+      "sha256": "03e1f78a12cbb024bfdf785d88c1ae71d1a6742204925cdd34e5718e49b9fd95",
+      "bytes": 9686
+    },
+    {
+      "path": "initial/system/blocked/stderr.log",
+      "sha256": "8dd27fb0221ffda297a892185a6c0a11e70c786e8acb285f039c2e7cb6f90d99",
+      "bytes": 531
+    },
+    {
+      "path": "initial/system/blocked/stdout.log",
+      "sha256": "67fbff2ec0eed16efa4b7eccab28807a5912c70f0398fd4746f3a828fe8c7d6f",
+      "bytes": 387
+    },
+    {
+      "path": "initial/system/invalid/logs/motion-studio.log",
+      "sha256": "d6157412662b1e14136c1350a20e811fcea870b0753f96f1afe71be2b73c125a",
+      "bytes": 679
+    },
+    {
+      "path": "initial/system/invalid/stderr.log",
+      "sha256": "ed28c70224382573e601b8065f9be643f5205a7c7655f1f8d142b93fff255d7e",
+      "bytes": 213
+    },
+    {
+      "path": "initial/system/invalid/stdout.log",
+      "sha256": "7f5f53f545d611591ee696cf12e1fd40bf0d34625027708a883c530dd7ba07dc",
+      "bytes": 240
+    },
+    {
+      "path": "initial/system/panic/logs/motion-studio.log",
+      "sha256": "823c7def4628db5e8267e53ce1c37a67760bec6bf81f189df93ee7a3cd49f629",
+      "bytes": 5125
+    },
+    {
+      "path": "initial/system/panic/stderr.log",
+      "sha256": "51c9d8579460a4d66ac27348922279b8c6ef809364763f3f2a1ce86559bf9d38",
+      "bytes": 411
+    },
+    {
+      "path": "initial/system/panic/stdout.log",
+      "sha256": "92c4b0238836416cb8366955eeecfce8362318113b8f57e0f43b84c9b97fd7b5",
+      "bytes": 240
+    },
+    {
+      "path": "initial/system/parent/logs/motion-studio.log",
+      "sha256": "b0f628da77741c334ca448709b48f58497bada13809dbb04646fdf5bf7a97fac",
+      "bytes": 5161
+    },
+    {
+      "path": "initial/system/read/logs/motion-studio.log",
+      "sha256": "eb14b623dbae07313c1317fc51630cb9bd9764d73fc6e74dfa3ebd5312423a2d",
+      "bytes": 426
+    },
+    {
+      "path": "initial/system/read/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "initial/system/read/stdout.log",
+      "sha256": "9d7eafee84dfa2ad5dd3ffc4bb78a3322271abf7a6f6d3e59b4b56de80ef76e5",
+      "bytes": 240
+    },
+    {
+      "path": "initial/system/write/logs/motion-studio.log",
+      "sha256": "8be0a6eee9c5fc36791f64f4ceb9fc15fb7dbe24bd041b0f5068393e134f66ff",
+      "bytes": 425
+    },
+    {
+      "path": "initial/system/write/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "initial/system/write/stdout.log",
+      "sha256": "a8b7acc368fc8dcf9487702db6ab657ae662822dac591f9158f1578aaca9091a",
+      "bytes": 240
+    }
+  ],
+  "archive": {
+    "path": "data/easing-clipboard-evidence.zip",
+    "sha256": "f28835b47ef13cf943ddb2db7d4ab1ebf1261048362bd33ebfe45930f620e073",
+    "bytes": 379576
+  }
+}

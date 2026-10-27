@@ -561,3 +561,6 @@ fn clipboard_errors_retain_the_original_cause_with_bounded_channel_context() {
         "exceeds metadata limit",
     );
 }
+
+#[path = "keyframe_clipboard/curve_clipboard.rs"]
+mod curve_clipboard;
