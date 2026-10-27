@@ -183,6 +183,11 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         NodeOp::Color { .. } => (vec![], vec![("value", ValueType::Color)]),
         NodeOp::Bool { .. } => (vec![], vec![("value", ValueType::Bool)]),
         NodeOp::Image { .. } => (vec![], vec![("image", ValueType::Image)]),
+        NodeOp::UvMapping => (
+            vec![("coordinate", ValueType::Vec2), ("translation", ValueType::Vec2),
+                ("rotation", ValueType::Float), ("scale", ValueType::Vec2), ("pivot", ValueType::Vec2)],
+            vec![("value", ValueType::Vec2)],
+        ),
         NodeOp::SampleImage { .. } => (
             vec![("image", ValueType::Image), ("coordinate", ValueType::Vec2)],
             vec![("color", ValueType::Color)],
@@ -954,6 +959,9 @@ fn compile_plan(
         builder.input(&plan.output_node, "color").expr
     };
     let mut support = helpers(document.alpha_mode);
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::UvMapping)) {
+        support.push_str(include_str!("uv_mapping.wgsl"));
+    }
     if plan
         .reachable_nodes
         .iter()
@@ -1364,6 +1372,12 @@ impl<'a> Builder<'a> {
                 None,
                 false,
             ),
+            UvMapping => {
+                self.put(node, "value", ValueType::Vec2,
+                    format!("ng_uv_mapping({},{},{},{},{})", input("coordinate").expr,
+                        input("translation").expr, input("rotation").expr,
+                        input("scale").expr, input("pivot").expr), None, false);
+            }
             Image { source } => {
                 self.symbols.insert(
                     PortRef::new(&node.id, "image"),

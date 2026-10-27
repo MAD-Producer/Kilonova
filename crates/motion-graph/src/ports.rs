@@ -108,7 +108,7 @@ fn semantic(
     if output {
         return match op {
             NodeOp::Position => PositionPixels,
-            NodeOp::Uv => Uv,
+            NodeOp::Uv | NodeOp::UvMapping => Uv,
             NodeOp::Resolution => SizePixels,
             NodeOp::Time => Seconds,
             NodeOp::FrameIndex => Frame,
@@ -130,6 +130,7 @@ fn semantic(
         };
     }
     match (op, id) {
+        (NodeOp::UvMapping, "coordinate" | "translation" | "pivot") => Uv,
         (NodeOp::Gradient { .. }, "coordinate" | "start" | "end") => Uv,
         (NodeOp::Noise { .. }, "coordinate" | "offset") => Uv,
         (
@@ -260,6 +261,16 @@ pub(crate) fn check_specs(
 
 type Help = (&'static str, &'static str, &'static str, &'static str);
 fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
+    if matches!(op, NodeOp::UvMapping) {
+        return match (output, id) {
+            (false, "coordinate") => ("采样 UV", "Sample UV", "归一化采样坐标，X 向右、Y 向下；必须显式连接。", "Normalized sample coordinates, X right and Y down; connect explicitly."),
+            (false, "translation") => ("平移 UV", "Translation UV", "在缩放和旋转之后加入的归一化偏移。", "Normalized offset added after scale and rotation."),
+            (false, "rotation") => ("旋转角度", "Rotation (degrees)", "以度为单位绕轴心旋转采样坐标；正角度在向下的 Y 轴中为顺时针。", "Rotate sample coordinates around the pivot in degrees; positive is clockwise with a downward Y axis."),
+            (false, "scale") => ("坐标缩放", "Coordinate scale", "先缩放采样坐标；数值越大纹理越小，负值镜像，零固定该轴。", "Scale sample coordinates first; larger values shrink the texture, negative values mirror, and zero fixes an axis."),
+            (false, "pivot") => ("轴心 UV", "Pivot UV", "缩放和旋转的归一化轴心，默认为图像中心。", "Normalized pivot for scale and rotation, defaulting to image center."),
+            _ => ("映射 UV", "Mapped UV", "映射后的归一化坐标，可连接 UV 模式的采样图像。", "Mapped normalized coordinates for Sample Image in UV mode."),
+        };
+    }
     if matches!(op, NodeOp::Blend { .. }) {
         return match (output, id) {
             (false, "backdrop") => ("底色", "Backdrop", "被覆盖的颜色，遵循图的工作空间与 Alpha 模式；运算限制在 0..1。", "Color below the source, in the graph working space and alpha mode; bounded to 0..1."),
@@ -388,6 +399,7 @@ pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
         NodeOp::Resolution => ("输出原图层逻辑像素尺寸 (宽,高)，不是预览纹理尺寸。","Outputs original layer logical-pixel dimensions (width,height), not preview texture size."),
         NodeOp::Position => ("输出当前片元的图层逻辑像素位置；左上为原点，X 向右、Y 向下。","Outputs the fragment's layer logical-pixel position; top-left origin, X right and Y down."),
         NodeOp::Uv => ("输出 Position / Resolution 的归一化 UV；使用像素距离场时需要显式换算。","Outputs normalized Position / Resolution UV; explicitly convert when using pixel distance fields."),
+        NodeOp::UvMapping => ("对归一化 UV 先绕轴心缩放，再按角度旋转，最后平移；这是采样坐标变换，负缩放可翻转图像。","Scale normalized UV around the pivot, rotate in degrees, then translate. This transforms sample coordinates; negative scale mirrors the image."),
         NodeOp::Image{source:ImageSource::Input} => ("当前效果 pass 的宿主输入图像句柄；通过 Sample Image 读取像素。","Host input-image handle for the current effect pass; read pixels with Sample Image."),
         NodeOp::Image{source:ImageSource::Source} => ("效果链原始图层图像句柄；与当前 pass 输入来源不同。","Original layer-image handle before the effect chain, distinct from the current pass input."),
         NodeOp::SampleImage{coordinates:SampleCoordinates::Pixels} => ("按图层逻辑像素位置采样宿主图像，输出图契约中的 RGBA Color。","Samples a host image at layer logical-pixel positions and returns RGBA Color in the graph contract."),
