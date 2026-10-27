@@ -27,7 +27,7 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
-pub use model_assets::{ModelAsset, ModelClip};
+pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
 pub mod particle_history;

@@ -46,6 +46,7 @@ pub struct DrawLayer {
     pub opacity: f32,
     pub asset: Option<u64>,
     pub model_source: Option<motion_model::ModelClip>,
+    pub model_animation: Option<motion_scene::AnimationSample>,
     pub video: Option<motion_model::VideoSample>,
     pub vector: Option<std::sync::Arc<motion_model::vector::SampledVector>>,
     pub masks: std::sync::Arc<Vec<motion_model::masks::SampledMask>>,
@@ -588,6 +589,10 @@ impl Scene {
                 opacity,
                 asset,
                 model_source: if let Content::Model { model } = &layer.content { Some(model.clone()) } else { None },
+                model_animation: if let Content::Model { model } = &layer.content {
+                    model.animation.as_ref().map(|animation| animation.sample_seconds(layer.local_frame(frame), project.fps)
+                        .map(|seconds| motion_scene::AnimationSample { animation: animation.clip as usize, seconds })).transpose()?
+                } else { None },
                 video,
                 vector,
                 masks,

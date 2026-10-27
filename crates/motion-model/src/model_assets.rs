@@ -1,4 +1,4 @@
-//! Managed immutable static scenes. Geometry stays in a bounded frozen bundle;
+//! Managed immutable scenes. Geometry and imported clips stay in a frozen bundle;
 //! ordinary layer transforms and their tracks remain editable project data.
 use crate::{ensure, Result};
 use serde::{Deserialize, Serialize};
@@ -49,6 +49,41 @@ pub struct ModelClip {
     pub pivot: [f32; 3],
     /// Explicit native MSAA selection; unsupported modes are rejected.
     pub samples: u32,
+    /// Explicit imported clip selection; None preserves the authored rest pose.
+    pub animation: Option<ModelAnimation>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModelAnimation {
+    pub clip: u32,
+    /// Time at layer-local frame zero, in imported animation seconds.
+    pub offset_seconds: f64,
+    /// Signed rate; zero holds a pose. Endpoints clamp, with no implicit loop.
+    pub speed: f64,
+}
+impl ModelAnimation {
+    pub fn validate(&self) -> Result<()> {
+        ensure(
+            self.offset_seconds.is_finite(),
+            "model animation offset must be finite",
+        )?;
+        ensure(
+            self.speed.is_finite(),
+            "model animation speed must be finite",
+        )
+    }
+
+    pub fn sample_seconds(&self, local_frame: f64, fps: u32) -> Result<f64> {
+        self.validate()?;
+        ensure(
+            local_frame.is_finite() && fps != 0,
+            "invalid model animation sample time",
+        )?;
+        let seconds = self.offset_seconds + local_frame / f64::from(fps) * self.speed;
+        ensure(seconds.is_finite(), "model animation sample time overflow")?;
+        Ok(seconds)
+    }
 }
 impl ModelClip {
     pub fn validate(&self) -> Result<()> {
@@ -67,6 +102,10 @@ impl ModelClip {
         ensure(
             matches!(self.samples, 1 | 4),
             "model samples must be 1 or 4",
-        )
+        )?;
+        if let Some(animation) = &self.animation {
+            animation.validate()?;
+        }
+        Ok(())
     }
 }
