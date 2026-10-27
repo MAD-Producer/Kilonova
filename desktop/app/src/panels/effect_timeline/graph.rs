@@ -725,8 +725,12 @@ pub(in crate::panels) fn render(
         if let Ok(value) = observe!(
             "effect.graph_readout",
             sample_value(&parameter, frame, layer_offset, speed, fps, component).and_then(|value| {
-                if value.is_finite() { Ok(value) } else {
-                    Err(motion_core::Error::Invalid("effect graph readout sample is not finite".into()))
+                if value.is_finite() {
+                    Ok(value)
+                } else {
+                    Err(motion_core::Error::Invalid(
+                        "effect graph readout sample is not finite".into(),
+                    ))
                 }
             }),
             "object={} effect={} param={} component={component} frame={frame} generation={generation:?} revision={revision:?} phase=readout",

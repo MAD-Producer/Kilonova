@@ -714,7 +714,7 @@ fn graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_fil
                             ..Default::default()
                         },
                     ] {
-                        paint = step(
+                        step(
                             &engine,
                             &mut p,
                             &mut atlas,
