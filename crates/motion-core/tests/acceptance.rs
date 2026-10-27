@@ -391,6 +391,7 @@ fn a8_project_package_roundtrip_keeps_assets_and_text_metadata() {
     p.layers[1].content = Content::Text {
         text: "你好 Motion Studio".into(),
         font: "Noto Sans SC".into(),
+        style: motion_core::TextStyle::new(32., 256),
         color: [1.0; 4],
         raster_asset: 1,
     };

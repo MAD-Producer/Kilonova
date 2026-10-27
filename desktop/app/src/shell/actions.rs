@@ -219,6 +219,14 @@ impl Shell {
                     self.system_fonts.clone().unwrap_or_default(),
                 ));
             }
+            Action::TextChooseFont {ticket}=>{
+                log::info!("text font chooser start object={}",ticket.object);
+                let began=Instant::now();
+                let file=rfd::FileDialog::new().add_filter("Fonts",&["ttf","otf","ttc"]).pick_file();
+                log::debug!("text font chooser done object={} elapsed_ms={} selected={}",ticket.object,began.elapsed().as_millis(),file.is_some());
+                if let Some(file)=file{self.panels.auxiliary.text_style.choose_font(&ticket,file);}
+            }
+            Action::TextApply {ticket,source,request}=>self.start_text_layout(ticket,source,request)?,
             Action::NewComposition => {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::new_composition(1920, 1080));

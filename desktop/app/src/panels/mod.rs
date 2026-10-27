@@ -34,7 +34,7 @@ pub(crate) mod animation_controls;
 mod animation_data;
 mod audio;
 mod work_area;
-mod auxiliary;
+pub(crate) mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
 mod toolbar_style;

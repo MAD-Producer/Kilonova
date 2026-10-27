@@ -29,6 +29,8 @@ pub mod compositing;
 pub mod render_sampling;
 pub mod storage;
 mod timeline;
+pub mod text;
+pub use text::{TextAlign, TextStyle};
 mod video;
 mod work_area;
 pub use work_area::{FrameScope, WorkArea};

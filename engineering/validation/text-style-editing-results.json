@@ -1,0 +1,395 @@
+{
+  "issue": 239,
+  "production_source": "c75d06a91a80563cb9088499abbe43fe94e77534",
+  "base_main": "da2fd4af0fe10a433a2c2175c132d2f68b3219f8",
+  "checks": {
+    "model-core": {
+      "passed": 461,
+      "failed": 0,
+      "ignored": 1,
+      "suites": 85,
+      "log": "text-style-model-core-final.log",
+      "sha256": "78577f90cb93ec29dbb9545259762f294342535981f0a3f2256eef136b894206"
+    },
+    "media": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "text-style-media-final.log",
+      "sha256": "729cbe10f0fa9f5942de6f2b36934c66a2e21456e81ee60efa98fb9bdd1888b4"
+    },
+    "desktop": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 1,
+      "suites": 1,
+      "log": "text-style-desktop-final.log",
+      "sha256": "bade801932c45a4403c3620fa97ca0fb14208e67c8967677a230fa389293d1b5"
+    },
+    "auxiliary": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "text-style-auxiliary-final.log",
+      "sha256": "36e6784629aeaa9404d67b4025da0c2c0bcc65c41b841c62c3185abc846c8c07"
+    },
+    "native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "suites": 1,
+      "log": "text-style-native-final.log",
+      "sha256": "785a537bde44b6a4abe70004dbc2fdb2f52dea5f2eee12f4fe923377d3b0ba24"
+    },
+    "build": {
+      "success": true,
+      "log": "text-style-build-final.log",
+      "sha256": "cdfe9ceadbf85cb9b2ae97db3db839a3b0c13e6cbc57670d821d19108c6e94f6"
+    },
+    "native_cjk": {
+      "passed": 1,
+      "failed": 0,
+      "log": "text-style-native-cjk-final.log",
+      "sha256": "2394f3b60f005d98ef6f79727b3bbf861840c440daa4d4c2652031f14c85385a"
+    },
+    "exposure_scenes_final": {
+      "passed": 8,
+      "failed": 0,
+      "log": "text-style-exposure-scenes-final.log",
+      "sha256": "502de02945228af047e8533a0a797cb2e2fafd2d4d22ff5d76291689eb337c5f"
+    },
+    "exposure_scenes_authored": {
+      "passed": 8,
+      "failed": 0,
+      "log": "text-style-exposure-scenes-authored.log",
+      "sha256": "488be1e550299fe32d3c54e5be1aa09238e0d30655e67501484740c287cfcd3d"
+    }
+  },
+  "native": {
+    "controlled_input": true,
+    "foreground_os_ime_verified": false,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "main_and_native_float": true,
+    "pixel_ratios": [
+      1,
+      1.5,
+      2
+    ],
+    "images": [
+      {
+        "file": "en-applied.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "a398f3ff58185497868f32b0d1a1ac3417d6f381c885d38389e4a40448bac07b"
+      },
+      {
+        "file": "en-character-default.png",
+        "size": [
+          2400,
+          1500
+        ],
+        "sha256": "276db289ff846c6057b375188f893024030e21baf2f37d10c0ab521bf160ccad"
+      },
+      {
+        "file": "en-character-dpi2.png",
+        "size": [
+          1800,
+          1200
+        ],
+        "sha256": "2179be4cd8d58f8da11ae7ac7d96e68233850d7d444da9607bd6e8cc39879810"
+      },
+      {
+        "file": "en-character-min.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "2b341b2a7fdb905965d92304a8526cd0acc76a936f78c349a4ca89394c834a42"
+      },
+      {
+        "file": "en-float-applied.png",
+        "size": [
+          450,
+          690
+        ],
+        "sha256": "b93bf77e97e26693a8005fd0e8763d8cbf63dbee81aba83e07db82c565db787b"
+      },
+      {
+        "file": "en-font-error.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "87d1ddeac29deaa68fc2da4e1f78ec3789509fc203f4b88e861899c7d9574a77"
+      },
+      {
+        "file": "en-font-menu.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "64c84d47947a013b55588b0498b6cf18855d16a916b6dfd205e8d0d8f439cac8"
+      },
+      {
+        "file": "en-paragraph-default.png",
+        "size": [
+          2400,
+          1500
+        ],
+        "sha256": "37b40989f0774010cee00b910093c97a75c268881cf4d4c8a792d6495c923a53"
+      },
+      {
+        "file": "en-paragraph-dpi2.png",
+        "size": [
+          1800,
+          1200
+        ],
+        "sha256": "cf255d48b6daca8e39d9ff7c8bc8da33ec91d81da713e910d4cb38eb22a08424"
+      },
+      {
+        "file": "en-paragraph-min.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "c48ee44e14023acac1af359fb198273ecf86022a0085b505cc0968ae203a2157"
+      },
+      {
+        "file": "zh-applied.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "4d29731e9846148bfca09d67cd7a3077b8e0069384340ae930aaddaf98a65b88"
+      },
+      {
+        "file": "zh-character-default.png",
+        "size": [
+          2400,
+          1500
+        ],
+        "sha256": "06a1eeabde1a4c015a948bc865edff13c09e3e8b61d0f5ccb982bd1026055c65"
+      },
+      {
+        "file": "zh-character-dpi2.png",
+        "size": [
+          1800,
+          1200
+        ],
+        "sha256": "8faac112f04d3ac36738942212c1660b7b6484193657ec9088218f13dad41c54"
+      },
+      {
+        "file": "zh-character-min.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "709f8b8f60f137fcf00a5bca77c15164cb85d79071b7ac97d4b804274bf310bc"
+      },
+      {
+        "file": "zh-float-applied.png",
+        "size": [
+          450,
+          690
+        ],
+        "sha256": "d9c89ff93cb7e9b84e2272a4b272ae43fdc8a39393777cb5b349b5e229e69fc2"
+      },
+      {
+        "file": "zh-font-error.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "585224fd749ec1a7e140d082c1ab27cc0b4deae9d7a2e56c7990a5220ddf9d30"
+      },
+      {
+        "file": "zh-font-menu.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "a1dc598ed4dcb9a2d0f6dc5c7be01990650a1c5922af4d3ab487bb81f383d10f"
+      },
+      {
+        "file": "zh-paragraph-default.png",
+        "size": [
+          2400,
+          1500
+        ],
+        "sha256": "eafb0dc8eca8d265631ff32dd33f8d233a996c8a7ec6faf0d68263957fffcdbc"
+      },
+      {
+        "file": "zh-paragraph-dpi2.png",
+        "size": [
+          1800,
+          1200
+        ],
+        "sha256": "6563a0788d50bfd964b8cb1a64dc932ed72d71b2dc6a4406e161a1acdedd1cad"
+      },
+      {
+        "file": "zh-paragraph-min.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "fda1b7b1fc463e5d273da1c45d0e2f732a66bc052584507a008a839aebd6c79b"
+      },
+      {
+        "file": "zh-styled-character.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "5b890781353732eb5b7d8aa0c81a5238b5591174c8027020de211b4fc9ecc14b"
+      },
+      {
+        "file": "zh-styled-output.png",
+        "size": [
+          640,
+          360
+        ],
+        "sha256": "c61b5000381b334922e590e9da99a761788632f3b8e854f4a5506f4460584aee"
+      },
+      {
+        "file": "zh-styled-paragraph.png",
+        "size": [
+          900,
+          600
+        ],
+        "sha256": "c38f414b1b133f8a9a8e7120115d66efdd4ee844033b9cdfb1ea6bbc3cf97b57"
+      }
+    ],
+    "apply_undo": true,
+    "actual_missing_glyph_error_and_recovery": true
+  },
+  "default_error_output": {
+    "real_errors": 3,
+    "file_errors": 3,
+    "stderr_errors": 3,
+    "stdout_isolated": true,
+    "draft_not_logged": true,
+    "start_precedes_failure": true
+  },
+  "export": {
+    "decoded_frames": [
+      {
+        "frame": 0,
+        "original_iou": 0.0038147138964577656,
+        "pts": 0,
+        "styled_iou": 0.9948403740728797
+      },
+      {
+        "frame": 1,
+        "original_iou": 0.0038147138964577656,
+        "pts": 33333,
+        "styled_iou": 0.9948403740728797
+      }
+    ],
+    "independent_reopen_exact": true,
+    "movie_frozen_before_undo": true,
+    "png": "styled.png",
+    "style": {
+      "alignment": "center",
+      "font_size": 32.0,
+      "indent_first": 10.0,
+      "indent_left": 4.0,
+      "indent_right": 8.0,
+      "line_height": 50.0,
+      "stroke_width": 1.5,
+      "tracking": 2.0,
+      "width": 240
+    },
+    "undo_exact": true
+  },
+  "standalone": {
+    "production_source": "c75d06a91a80563cb9088499abbe43fe94e77534",
+    "executable_sha256": "c08c7350c5b87e9acc88230df59afe95b3ac6db312d632c17a07dc6489c611d4",
+    "ffmpeg_runtime": [
+      {
+        "file": "avcodec-62.dll",
+        "sha256": "4f817870cfaeaced3e34a083c50a1b4be0389202d7fb821632d47cf9b3f4d82a"
+      },
+      {
+        "file": "avdevice-62.dll",
+        "sha256": "34bc695cfdd3106de29551c6868f1c2cdc0fa36903494506f1708251e6a3075e"
+      },
+      {
+        "file": "avfilter-11.dll",
+        "sha256": "28e202431dc0643af97c307dc6437da13f8c08aa016fc28d1f9ec8fd0336e172"
+      },
+      {
+        "file": "avformat-62.dll",
+        "sha256": "bcf514a394dc5ec43fe64e4f1624ba63b23e9c25967081ea2d03d95b0dc359ef"
+      },
+      {
+        "file": "avutil-60.dll",
+        "sha256": "481620c7b5cd8e831a50762fae55699c821091e96c42226d04fee725a4aae2f5"
+      },
+      {
+        "file": "swresample-6.dll",
+        "sha256": "3baad8ac0c8f0050cfd5742f5104603a27127397521409bf7d1742e6d02f955b"
+      },
+      {
+        "file": "swscale-9.dll",
+        "sha256": "d217a08bcd92b3a4b7ecb02e841724460a5c94a103d957370cfe75e892ac3dc2"
+      }
+    ],
+    "minimal_path": "E:\\Dev\\aem\\artifacts\\text-style-preview;C:\\WINDOWS\\System32",
+    "command_list_json_stdout": true,
+    "command_list_empty_stderr": true,
+    "video_decode": true,
+    "smoke_locales": [
+      "zh",
+      "en"
+    ],
+    "cjk_independent_reopen_exact": true,
+    "cjk_style": {
+      "alignment": "center",
+      "font_size": 48.0,
+      "indent_first": 16.0,
+      "indent_left": 12.0,
+      "indent_right": 12.0,
+      "line_height": 76.0,
+      "stroke_width": 1.5,
+      "tracking": 3.0,
+      "width": 420
+    },
+    "cjk_reopen_comparison": "all RGBA bytes"
+  },
+  "limitations": [
+    "LTR glyph layout without complex shaping",
+    "square-join stroke uses text fill color",
+    "serial engine worker stops playback for layout; no claim of continuous preview while laying out",
+    "no foreground OS IME or macOS/Linux native manual input proof"
+  ],
+  "initial_ci": {
+    "run": 40338183964,
+    "job": 121625294774,
+    "conclusion": "failure",
+    "cause": "exposure_scenes fixture expression execution budget exceeded",
+    "original_log": "text-style-ci-rust-gpu-failed.log",
+    "new_ci_pending": true
+  },
+  "selected_screenshots": [
+    "zh-styled-character.png",
+    "zh-styled-paragraph.png",
+    "zh-float-applied.png",
+    "zh-font-menu.png",
+    "zh-font-error.png",
+    "en-character-min.png",
+    "en-paragraph-dpi2.png",
+    "en-float-applied.png"
+  ],
+  "expression_preparation_followup": {
+    "record": "text-style-expression-preparation-results.json",
+    "sha256": "7aada4c2f5fedb2a33cc79c3731ecc53e199c326230bde005b76d2feb680db8c",
+    "archive_sha256": "abfabb2630ffb4f7d70d97fa3c59c766d3f9599dd42f6da048c85b405b47f4fb"
+  }
+}

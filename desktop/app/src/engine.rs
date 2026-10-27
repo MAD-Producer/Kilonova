@@ -34,11 +34,15 @@ mod native_test_evidence;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
+mod expression_startup_tests;
+#[cfg(test)]
 mod parent_policy_tests;
 #[cfg(test)]
 mod animation_action_tests;
 #[cfg(test)]
 mod keyframe_timing_tests;
+#[cfg(test)]
+mod text_style_tests;
 #[cfg(test)]
 mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
@@ -274,6 +278,11 @@ pub enum Command {
         font: Option<(PathBuf, u32)>,
         reply: Sender<Result<Value, String>>,
     },
+    TextLayout {
+        source: crate::layer_clipboard::KeyframeSource,
+        request: Value,
+        reply: Sender<Result<Value,String>>,
+    },
     FreezeMovie {
         control: motion_desktop_media::movie::ExportControl,
         reply: Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>,
@@ -427,7 +436,7 @@ impl Command {
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
-            | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
+            | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
@@ -1891,6 +1900,16 @@ fn handle(
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
         Command::ReplaceImage {file,asset,revision,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::replace_image(s,&file,asset,revision))),
         Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
+        Command::TextLayout { source, request, reply }=>respond(reply,motion_host::session::with_session(id,|s| {
+            if !source.current(s) {
+                let mut state=s.snapshot()?;
+                state["textEdit"]=serde_json::json!({"cancelled":true,"reason":"context_changed"});
+                return Ok(state);
+            }
+            if motion_core::serialized_bytes(&request)>REQUEST_LIMIT {return Err("text layout request exceeds 256 KiB".into());}
+            let response=s.plugin_request(&request.to_string())?;
+            let mut state=s.snapshot()?;state["textEdit"]=response;Ok(state)
+        })),
         Command::FreezeMovie {control,reply}=> {
             let result = (|| -> motion_host::Result<()> {
                 movie_freeze.available()?;

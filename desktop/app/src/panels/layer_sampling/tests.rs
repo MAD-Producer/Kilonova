@@ -335,6 +335,7 @@ fn declared_sampling_sources_agree_with_model_and_unreferenced_blur_is_not_a_bou
         Content::Text {
             text: "a".into(),
             font: "system".into(),
+            style: motion_core::TextStyle::new(32., 256),
             color: [1.; 4],
             raster_asset: 1,
         },

@@ -1,13 +1,15 @@
 //! Small independent panels backed by the shared project snapshot and commands.
 use super::*;
 use motion_ui::{
-    style::{box_style, text_style, State as WidgetState, States},
+    style::{box_style, text_style, States},
     widgets::{Checkbox, Dropdown, DropdownItem, NumberOptions},
 };
 use std::collections::BTreeMap;
+pub(crate) mod text_style;
 
 #[derive(Default)]
 pub(crate) struct State {
+    pub(crate) text_style: text_style::State,
     pub(super) align: super::align::Controls,
     pub scroll: BTreeMap<u32, f32>,
     color_popup: Option<ColorPopup>,
@@ -34,12 +36,14 @@ struct ColorPopup {
 }
 impl State {
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        self.text_style.text_menu(request);
         if let Some((_, field)) = &mut self.color_field { request.visit(&mut field.editor.text); }
     }
     pub fn editing(&self) -> bool {
         self.owner().is_some()
     }
     pub fn owner(&self) -> Option<Panel> {
+        if let Some(owner) = self.text_style.owner() { return Some(owner); }
         if self.color_popup.is_some() {
             Some(Panel::Character)
         } else if self.preview_quality.open || self.preview_options.iter().any(|d| d.open) {
@@ -53,6 +57,7 @@ impl State {
         }
     }
     pub fn cancel(&mut self) -> bool {
+        self.text_style.cancel_field();
         let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
         self.color_popup = None;
         self.preview_quality.open = false;
@@ -149,47 +154,6 @@ fn label_value(
         Align::Left,
     );
 }
-/// Design-mock field shell for controls whose backend is not wired yet.
-fn placeholder_field(
-    list: &mut PaintList,
-    atlas: &mut TextAtlas,
-    rect: Rect,
-    value: &str,
-    dropdown: bool,
-) {
-    let styles = list.styles();
-    let slot = styles.metric("icon.slot", 20.);
-    let states = States::default().with(WidgetState::Disabled);
-    let style = styles.resolve("field", states).unwrap();
-    box_style(list, rect, style);
-    let text_area = if dropdown {
-        Rect::new(
-            rect.min[0],
-            rect.min[1],
-            (rect.width() - slot).max(0.),
-            rect.height(),
-        )
-    } else {
-        rect
-    };
-    text_style(
-        list,
-        atlas,
-        text_area.shrink(style.padding),
-        value,
-        style,
-        Align::Left,
-    );
-    if dropdown {
-        motion_ui::icons::draw(
-            list,
-            Rect::new(rect.max[0] - slot, rect.min[1], slot, rect.height()),
-            motion_ui::icons::Icon::ChevronDown,
-            styles.metric("icon.small.size", 14.),
-            style.foreground,
-        );
-    }
-}
 pub(super) fn render(
     panel: Panel,
     list: &mut PaintList,
@@ -217,18 +181,16 @@ pub(super) fn render(
     };
 
     paint::rect(list, area, colors.PANEL);
+    if matches!(panel, Panel::Character | Panel::Paragraph) {
+        let input = if panels.auxiliary.color_popup.is_some() { &neutral } else { original_input };
+        text_style::render(list, atlas, area, panels, state, input, panel, out);
+        if panel == Panel::Character { color_overlay(list, atlas, area, panels, &selected(panels, state).cloned(), original_input, out); }
+        return;
+    }
     let locale = panels.locale;
     let layer = selected(panels, state).cloned();
     let height = match panel {
         Panel::Preview => pad * 2. + control * 5. + gap * 6. + row * 4.,
-        Panel::Character
-            if layer
-                .as_ref()
-                .is_some_and(|layer| layer["content"]["kind"] == "text") =>
-        {
-            pad * 3. + control * 5. + gap * 3. + row * 2.
-        }
-        Panel::Character => pad * 2. + control * 2.,
         Panel::Info => {
             pad * 2.
                 + control
@@ -406,227 +368,6 @@ pub(super) fn render(
             }
             y += control + gap * 2.;
             preview_options(list, atlas, area, panels, state, original_input, input, y, out);
-        }
-        Panel::Character => {
-            if let Some(l) = layer.as_ref().filter(|l| l["content"]["kind"] == "text") {
-                let width = (area.width() - pad * 2.).max(0.);
-                let font = l["content"]["font"].as_str().unwrap_or("");
-                let name = state["project"]["fonts"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|f| f["id"] == font)
-                    .and_then(|f| f["name"].as_str())
-                    .unwrap_or(font);
-                placeholder_field(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad, y, width, control),
-                    name,
-                    true,
-                );
-                y += control + gap;
-                let half = (width - gap) * 0.5;
-                placeholder_field(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad, y, half, control),
-                    "—",
-                    true,
-                );
-                placeholder_field(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad + gap + half, y, half, control),
-                    "— px",
-                    false,
-                );
-                y += control + gap;
-                label(
-                    list,
-                    atlas,
-                    Rect::new(
-                        area.min[0] + pad,
-                        y,
-                        styles.metric("label.column", 72.).min(width * 0.34),
-                        row,
-                    ),
-                    locale.t(T::TrackingLeading),
-                    true,
-                );
-                ui::text(
-                    list,
-                    atlas,
-                    Rect::new(
-                        area.min[0] + pad + styles.metric("label.column", 72.).min(width * 0.34),
-                        y,
-                        width - styles.metric("label.column", 72.).min(width * 0.34),
-                        row,
-                    ),
-                    "—  /  — px",
-                    colors.TEXT_MUTED,
-                    Align::Left,
-                );
-                y += control;
-                label(
-                    list,
-                    atlas,
-                    Rect::new(
-                        area.min[0] + pad,
-                        y,
-                        styles.metric("label.column", 72.).min(width * 0.34),
-                        row,
-                    ),
-                    locale.t(T::FillStroke),
-                    true,
-                );
-                let object = l["id"].as_u64().unwrap_or(0);
-                let mut color = [0.; 4];
-                for (i, v) in l["content"]["color"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .take(4)
-                    .enumerate()
-                {
-                    color[i] = v.as_f64().unwrap_or(0.) as f32;
-                }
-                let name_width = styles.metric("label.column", 72.).min(width * 0.34);
-                let value_x = area.min[0] + pad + name_width;
-                let edge = styles.metric("field.height", 18.).min(row);
-                let swatch = Rect::new(value_x, y + (row - edge) * 0.5, edge, edge);
-                let unlocked = l["locked"] != true && state["observing"] != true;
-                color_well::swatch(list, swatch, &color, input, unlocked);
-                let none = format!("/ {}", localized(locale, "无", "None"));
-                let tail = atlas.measure(&none) + gap;
-                let right = area.max[0] - pad;
-                let caption_rect = Rect::new(
-                    swatch.max[0] + gap,
-                    y,
-                    (right - tail - gap - swatch.max[0] - gap).max(0.),
-                    row,
-                );
-                ui::text(
-                    list,
-                    atlas,
-                    caption_rect,
-                    &color_well::caption(&color),
-                    colors.ACCENT,
-                    Align::Left,
-                );
-                ui::text(
-                    list,
-                    atlas,
-                    Rect::new(
-                        (right - tail).max(caption_rect.max[0]),
-                        y,
-                        tail.min((right - caption_rect.max[0]).max(0.)),
-                        row,
-                    ),
-                    &none,
-                    colors.TEXT_MUTED,
-                    Align::Right,
-                );
-                if unlocked && (clicked(input, swatch) || clicked(input, caption_rect)) {
-                    if panels.auxiliary.cancel() {
-                        out.push(Action::History(4));
-                    }
-                    panels.auxiliary.color_popup = Some(ColorPopup {
-                        object,
-                        anchor: swatch,
-                        opened: true,
-                    });
-                }
-                y += row + pad;
-                for (i, icon) in [
-                    motion_ui::icons::Icon::AlignLeft,
-                    motion_ui::icons::Icon::AlignCenter,
-                    motion_ui::icons::Icon::AlignRight,
-                ]
-                .into_iter()
-                .enumerate()
-                {
-                    ui::button_icon(
-                        list,
-                        Rect::new(
-                            area.min[0]
-                                + pad
-                                + i as f32 * (styles.metric("auxiliary.action.width", 28.) + gap),
-                            y,
-                            styles.metric("auxiliary.action.width", 28.),
-                            row,
-                        ),
-                        icon,
-                        input,
-                        false,
-                    );
-                }
-                ui::text(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + pad, y, width, row),
-                    locale.t(T::Reset),
-                    styles.color("disabled"),
-                    Align::Right,
-                );
-                y += row + gap;
-                line(
-                    list,
-                    atlas,
-                    area,
-                    &mut y,
-                    l["content"]["text"].as_str().unwrap_or(""),
-                    true,
-                );
-            } else {
-                line(
-                    list,
-                    atlas,
-                    area,
-                    &mut y,
-                    localized(locale, "选择文字图层", "Select a text layer"),
-                    true,
-                );
-            }
-            button(
-                list,
-                atlas,
-                Rect::new(area.min[0] + pad, y, area.width() - pad * 2., control),
-                locale.t(T::NewText),
-                input,
-                true,
-                Action::NewText,
-                out,
-            );
-        }
-        Panel::Paragraph => {
-            if let Some(l) = layer.as_ref().filter(|l| l["content"]["kind"] == "text") {
-                line(
-                    list,
-                    atlas,
-                    area,
-                    &mut y,
-                    l["content"]["text"].as_str().unwrap_or(""),
-                    false,
-                );
-                line(
-                    list,
-                    atlas,
-                    area,
-                    &mut y,
-                    &format!("{} × {}", l["size"][0], l["size"][1]),
-                    true,
-                );
-            } else {
-                line(
-                    list,
-                    atlas,
-                    area,
-                    &mut y,
-                    localized(locale, "选择文字图层", "Select a text layer"),
-                    true,
-                );
-            }
         }
         Panel::Media => {
             button(

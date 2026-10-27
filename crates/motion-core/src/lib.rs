@@ -7,6 +7,7 @@ pub use command_registry::CommandRegistry;
 mod editor;
 mod layer_clipboard;
 pub use motion_model::{serialized_bytes, LayerClipboard};
+pub use motion_model::{TextAlign, TextStyle};
 pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::timing;
@@ -22,7 +23,7 @@ pub use motion_model::{compositing, composition, color_curves, particle_history,
 pub use motion_model::render_sampling;
 pub use motion_model::lens;
 pub use editor::{parse_commands, Engine};
-pub use expressions::{expression_reference_source, expression_source_diagnostic, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
+pub use expressions::{expression_reference_source, expression_source_diagnostic, prepare_expression_sources, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
