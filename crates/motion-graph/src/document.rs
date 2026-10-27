@@ -1,11 +1,11 @@
 use crate::{ColorBlendMode, Error, ErrorCode, Result};
 use motion_effects::{AlphaMode, WorkingSpace};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 
 pub const GRAPH_FORMAT_VERSION: u32 = 1;
 pub const INPUT_DEFAULTS_FORMAT_VERSION: u32 = 2;
-pub const MAX_DOCUMENT_BYTES: usize = 4 * 1024 * 1024;
+pub const MAX_DOCUMENT_BYTES: usize = crate::images::MAX_GRAPH_FILE_BYTES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -120,6 +120,9 @@ pub enum NodeOp {
     Image {
         source: ImageSource,
     },
+    ImageAsset {
+        image: String,
+    },
     SampleImage {
         coordinates: SampleCoordinates,
     },
@@ -198,6 +201,7 @@ impl NodeOp {
             Self::Uv => "uv",
             Self::UvMapping => "uv_mapping",
             Self::Image { .. } => "image",
+            Self::ImageAsset { .. } => "image_asset",
             Self::SampleImage { .. } => "sample_image",
             Self::Float { .. } => "float",
             Self::Vec2 { .. } => "vec2",
@@ -243,6 +247,7 @@ impl NodeOp {
             Self::Uv => ("UV", "UV"),
             Self::UvMapping => ("UV 映射", "UV Mapping"),
             Self::Image { .. } => ("图层图像", "Image"),
+            Self::ImageAsset { .. } => ("图像资源", "Image Asset"),
             Self::SampleImage { .. } => ("采样图像", "Sample Image"),
             Self::Float { .. } => ("浮点常量", "Float"),
             Self::Vec2 { .. } => ("二维向量", "Vector 2"),
@@ -476,9 +481,14 @@ pub struct GraphDocument {
     pub nodes: Vec<Node>,
     pub connections: Vec<Connection>,
     pub public_parameters: Vec<PublicParameter>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub images: BTreeMap<String, crate::GraphImage>,
 }
 impl GraphDocument {
     pub fn minimum_format_version(&self) -> u32 {
+        if !self.images.is_empty() || !self.referenced_images().is_empty() {
+            return crate::IMAGE_ASSETS_FORMAT_VERSION;
+        }
         fn uses_defaults(nodes: &[Node]) -> bool {
             nodes.iter().any(|node| !node.input_defaults.is_empty()
                 || matches!(&node.operation, NodeOp::Group { graph } if uses_defaults(&graph.nodes)))
@@ -495,19 +505,20 @@ impl GraphDocument {
                 ErrorCode::Budget,
                 None,
                 None,
-                "graph document exceeds 4 MiB",
+                "graph document exceeds its metadata and image file budget",
             ));
         }
-        let value: serde_json::Value = serde_json::from_str(text)?;
+        let mut value: serde_json::Value = serde_json::from_str(text)?;
+        crate::images::preflight_json(&value, text.len())?;
         if let Some(version) = value.get("format_version").and_then(|v| v.as_u64()) {
-            if !(GRAPH_FORMAT_VERSION as u64..=INPUT_DEFAULTS_FORMAT_VERSION as u64)
+            if !(GRAPH_FORMAT_VERSION as u64..=crate::IMAGE_ASSETS_FORMAT_VERSION as u64)
                 .contains(&version)
             {
                 return Err(Error::invalid(
                     ErrorCode::DocumentVersion,
                     None,
                     None,
-                    "supported .msgraph versions are 1 and 2 (typed input defaults)",
+                    "supported .msgraph versions are 1 through 3 (typed input defaults and embedded images)",
                 ));
             }
         }
@@ -526,6 +537,7 @@ impl GraphDocument {
                         "uv",
                         "uv_mapping",
                         "image",
+                        "image_asset",
                         "sample_image",
                         "float",
                         "vec2",
@@ -570,7 +582,11 @@ impl GraphDocument {
                 }
             }
         }
-        let document: Self = serde_json::from_value(value)?;
+        // Preserve native codec/base64 causes across document loading.
+        let images = crate::images::take_json_images(&mut value)?;
+        let mut document: Self = serde_json::from_value(value)?;
+        document.images = images;
+        document.validate_images()?;
         if document.format_version < document.minimum_format_version() {
             return Err(Error::invalid(
                 ErrorCode::DocumentVersion,
@@ -582,17 +598,22 @@ impl GraphDocument {
         Ok(document)
     }
     pub fn load(path: &Path) -> Result<Self> {
-        if fs::metadata(path)?.len() > MAX_DOCUMENT_BYTES as u64 {
+        let file = File::open(path)?;
+        if file.metadata()?.len() > MAX_DOCUMENT_BYTES as u64 {
             return Err(Error::invalid(
                 ErrorCode::Budget,
                 None,
                 None,
-                "graph document exceeds 4 MiB",
+                "graph document exceeds its metadata and image file budget",
             ));
         }
-        Self::from_json(&fs::read_to_string(path)?)
+        let mut text = String::new();
+        file.take(MAX_DOCUMENT_BYTES as u64 + 1).read_to_string(&mut text)?;
+        Self::from_json(&text)
     }
     pub fn to_json(&self) -> Result<String> {
+        self.validate_images()?;
+        self.validate_metadata_budget()?;
         let text = serde_json::to_string_pretty(self)? + "\n";
         // Reject NaN/Infinity serialized as null before touching source files.
         Self::from_json(&text)?;

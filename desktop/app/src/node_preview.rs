@@ -17,6 +17,9 @@ pub const FPS: f64 = 30.;
 #[cfg(test)]
 #[path = "node_preview/admission_tests.rs"]
 mod admission_tests;
+#[cfg(test)]
+#[path = "node_preview/image_tests.rs"]
+mod image_tests;
 #[derive(Clone)]
 pub struct GpuContext {
     pub allocations: AllocationContext,
@@ -285,6 +288,7 @@ pub struct NodePreview {
     _source: AdmittedTexture,
     _lut: AdmittedTexture,
     _data: Option<AdmittedTexture>,
+    _images: Vec<AdmittedTexture>,
     _texture: AdmittedTexture,
     allocations: AllocationContext,
 }
@@ -541,43 +545,36 @@ impl NodePreview {
                 })
             };
             let input_group = bind(&input, &[&source_view, &source_view, &lut_view]);
-            let data = if let Some(data) = compiled.manifest.effects[0]
-                .shader_data
-                .as_ref()
-                .and_then(|data| data.overflow.as_ref())
-            {
-                let bytes = compiled
-                    .resource(&data.path)
-                    .ok_or("node shader data resource is missing")?;
-                let pixels = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
-                    .into_rgba8();
-                let texture = texture(
-                    allocations,
-                    pixels.width(),
-                    pixels.height(),
-                    wgpu::TextureFormat::Rgba8Unorm,
-                )?;
-                upload(
-                    allocations,
-                    &texture,
-                    pixels.width(),
-                    pixels.height(),
-                    pixels.as_raw(),
-                )?;
-                Some(texture)
-            } else {
-                None
-            };
-            let data_view = data.as_ref().map(AdmittedTexture::view).transpose()?;
-            let resource_group = bind(
-                &resources,
-                &[
-                    data_view.as_deref().unwrap_or(&source_view),
-                    &source_view,
-                    &source_view,
-                    &source_view,
-                ],
-            );
+            // Manifest order is the SDK resource0..3 contract. Both numeric
+            // overflow and file images use raw RGBA8; image sampling performs
+            // its own color/alpha conversion before filtering.
+            let numeric = definition.shader_data.as_ref()
+                .and_then(|data| data.overflow.as_ref()).map(|data| data.path.as_str());
+            let mut data = None;
+            let mut images = Vec::new();
+            let mut resource_views = Vec::new();
+            let mut decoded = 0;
+            for path in &definition.resources {
+                let bytes = compiled.resource(path).ok_or("node preview resource is missing")?;
+                let remaining = motion_effects::DEFAULT_DECODED_IMAGE_BUDGET - decoded;
+                let pixels = motion_render::image_resources::decode_png_with_budget(bytes, remaining)
+                    .map_err(|cause| {
+                        let cause = RenderError::from(cause);
+                        RenderError::Context {
+                            message: format!("node preview phase=resource_decode path={path}: {cause}"),
+                            cause: Box::new(cause),
+                        }
+                    })?;
+                decoded += u64::from(pixels.width()) * u64::from(pixels.height()) * 4;
+                let texture = texture(allocations, pixels.width(), pixels.height(), wgpu::TextureFormat::Rgba8Unorm)?;
+                upload(allocations, &texture, pixels.width(), pixels.height(), pixels.as_raw())?;
+                resource_views.push(texture.view()?);
+                if numeric == Some(path.as_str()) { data = Some(texture); }
+                else { images.push(texture); }
+            }
+            let views: Vec<_> = (0..4).map(|slot| resource_views.get(slot)
+                .map_or(&*source_view, |view| &**view)).collect();
+            let resource_group = bind(&resources, &views);
             let size = LOGICAL_SIZE as f32;
             let region = [0., 0., size, size];
             let mut uniform = EffectUniform {
@@ -683,6 +680,7 @@ impl NodePreview {
                 _source: source,
                 _lut: lut,
                 _data: data,
+                _images: images,
                 _texture: texture,
                 view,
                 display,
@@ -1018,7 +1016,7 @@ mod tests {
         );
     }
 
-    fn pixels(
+    pub(super) fn pixels(
         renderer: &motion_render::Renderer,
         preview: &mut NodePreview,
         seconds: f64,

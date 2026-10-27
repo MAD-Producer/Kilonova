@@ -86,7 +86,7 @@ pub struct CompiledGraph {
     pub shader: shader::CompiledShader,
     pub manifest: PluginManifest,
     pub report: CompileReport,
-    pub(crate) resources: BTreeMap<String, Vec<u8>>,
+    pub(crate) resources: BTreeMap<String, std::sync::Arc<[u8]>>,
 }
 
 pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePorts> {
@@ -182,7 +182,7 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         NodeOp::Vec3 { .. } => (vec![], vec![("value", ValueType::Vec3)]),
         NodeOp::Color { .. } => (vec![], vec![("value", ValueType::Color)]),
         NodeOp::Bool { .. } => (vec![], vec![("value", ValueType::Bool)]),
-        NodeOp::Image { .. } => (vec![], vec![("image", ValueType::Image)]),
+        NodeOp::Image { .. } | NodeOp::ImageAsset { .. } => (vec![], vec![("image", ValueType::Image)]),
         NodeOp::UvMapping => (
             vec![("coordinate", ValueType::Vec2), ("translation", ValueType::Vec2),
                 ("rotation", ValueType::Float), ("scale", ValueType::Vec2), ("pivot", ValueType::Vec2)],
@@ -491,16 +491,17 @@ fn validate_root(
     options: &CompileOptions,
     root: Option<&PortRef>,
 ) -> Result<ValidationReport> {
-    if !(GRAPH_FORMAT_VERSION..=INPUT_DEFAULTS_FORMAT_VERSION).contains(&document.format_version)
+    if !(GRAPH_FORMAT_VERSION..=crate::IMAGE_ASSETS_FORMAT_VERSION).contains(&document.format_version)
         || document.format_version < document.minimum_format_version()
     {
         return Err(Error::invalid(
             ErrorCode::DocumentVersion,
             None,
             None,
-            "supported .msgraph versions are 1 and 2; input defaults require version 2",
+            "supported .msgraph versions are 1 through 3; input defaults require 2 and images require 3",
         ));
     }
+    document.validate_images()?;
     if options.target_sdk != 6 {
         return Err(Error::invalid(
             ErrorCode::UnsupportedNode,
@@ -952,7 +953,12 @@ fn compile_plan(
             ValueType::DistancePixels => format!("ng_from_straight(vec4<f32>(vec3<f32>(clamp(0.5+{}/max(max(fx.size.x,fx.size.y),1.0),0.0,1.0)),1.0))", symbol.expr),
             ValueType::Image => {
                 builder.samples += 1;
-                format!("{}(p)", if symbol.image == Some(ImageSource::Input) { "sample_input" } else { "sample_source" })
+                let image = symbol.image.as_ref().expect("validated image symbol");
+                if matches!(image, ImageHandle::Resource { .. }) { builder.samples += 3; }
+                match image {
+                    ImageHandle::Host(_) => image.sample("p", SampleCoordinates::Pixels),
+                    ImageHandle::Resource { .. } => image.sample("(p/fx.size.xy)", SampleCoordinates::Uv),
+                }
             }
         }
     } else {
@@ -995,7 +1001,7 @@ fn compile_plan(
     {
         support.push_str(crate::runtime_data::HELPER);
     }
-    let resources = if let Some(runtime) = runtime {
+    let mut resources: BTreeMap<String, std::sync::Arc<[u8]>> = if let Some(runtime) = runtime {
         let definition = &mut manifest.effects[0];
         definition.shader_data = Some(runtime.declaration);
         definition.resources = runtime.resources.keys().cloned().collect();
@@ -1005,10 +1011,25 @@ fn compile_plan(
         manifest
             .validate()
             .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
-        runtime.resources
+        runtime.resources.into_iter().map(|(path, bytes)| (path, bytes.into())).collect()
     } else {
         BTreeMap::new()
     };
+    let images: BTreeSet<_> = plan.reachable_nodes.iter().filter_map(|id| match &nodes[id.as_str()].operation {
+        NodeOp::ImageAsset { image } => Some(image), _ => None,
+    }).collect();
+    if resources.len() + images.len() > 4 {
+        return Err(Error::invalid(ErrorCode::Budget, None, Some("images"),
+            "reachable images and numeric overflow exceed the four SDK resource slots"));
+    }
+    let first_slot = resources.len();
+    for (slot, id) in images.into_iter().enumerate() {
+        let image = &document.images[id];
+        support.push_str(&crate::images::sample_helper(id, slot + first_slot, document.working_space, document.alpha_mode));
+        resources.insert(image.resource_path(), image.shared_png());
+    }
+    manifest.effects[0].resources = resources.keys().cloned().collect();
+    manifest.validate().map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
     let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",support,builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
@@ -1166,10 +1187,29 @@ fn make_manifest(document: &GraphDocument, options: &CompileOptions) -> Result<P
 }
 
 #[derive(Clone)]
+enum ImageHandle {
+    Host(ImageSource),
+    Resource { id: String, width: u32, height: u32 },
+}
+impl ImageHandle {
+    fn sample(&self, coordinate: &str, mode: SampleCoordinates) -> String {
+        match self {
+            Self::Host(source) => {
+                let p = if mode == SampleCoordinates::Uv { format!("({coordinate}*fx.size.xy)") } else { coordinate.into() };
+                format!("{}({p})", if *source == ImageSource::Input { "sample_input" } else { "sample_source" })
+            }
+            Self::Resource { id, width, height } => {
+                let uv = if mode == SampleCoordinates::Pixels { format!("({coordinate}/vec2<f32>({width}.0,{height}.0))") } else { coordinate.into() };
+                format!("ng_image_{id}({uv})")
+            }
+        }
+    }
+}
+#[derive(Clone)]
 struct Symbol {
     expr: String,
     constant: Option<Vec<f32>>,
-    image: Option<ImageSource>,
+    image: Option<ImageHandle>,
 }
 struct Builder<'a> {
     document: &'a GraphDocument,
@@ -1384,28 +1424,26 @@ impl<'a> Builder<'a> {
                     Symbol {
                         expr: String::new(),
                         constant: None,
-                        image: Some(*source),
+                        image: Some(ImageHandle::Host(*source)),
                     },
                 );
+            }
+            ImageAsset { image } => {
+                let resource = &self.document.images[image];
+                self.symbols.insert(PortRef::new(&node.id, "image"), Symbol {
+                    expr: String::new(), constant: None,
+                    image: Some(ImageHandle::Resource { id: image.clone(), width: resource.width(), height: resource.height() }),
+                });
             }
             SampleImage { coordinates } => {
                 let image = input("image").image.unwrap();
                 let coord = input("coordinate").expr;
-                let coord = if *coordinates == SampleCoordinates::Uv {
-                    format!("({coord}*fx.size.xy)")
-                } else {
-                    coord
-                };
-                let function = if image == ImageSource::Input {
-                    "sample_input"
-                } else {
-                    "sample_source"
-                };
+                if matches!(image, ImageHandle::Resource { .. }) { self.samples += 3; }
                 self.put(
                     node,
                     "color",
                     ValueType::Color,
-                    format!("{function}({coord})"),
+                    image.sample(&coord, *coordinates),
                     None,
                     true,
                 );

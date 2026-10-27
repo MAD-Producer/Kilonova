@@ -997,6 +997,8 @@ impl NodeEditor {
         self.document
             .connections
             .retain(|c| !deleting.contains(&c.from.node) && !deleting.contains(&c.to.node));
+        let images = self.root_document().referenced_images();
+        self.document.images.retain(|id, _| images.contains(id));
         self.selected.retain(|id| protected.contains(id));
         self.primary = self.selected.iter().next().cloned();
         self.finish_edit(before);

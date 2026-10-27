@@ -2,6 +2,8 @@
 //! off the GUI thread and do not stall live preview compilation.
 #[cfg(test)]
 mod graph_native_effect_tests;
+#[cfg(test)]
+mod image_source_tests;
 use crate::{
     i18n::{Locale, Text as T},
     node_editor::{Action, EditorSnapshot, NodeEditor},

@@ -1,4 +1,7 @@
 //! Native desktop editor. One worker owns the session, GPU and swapchain.
+#[cfg(test)]
+#[path = "../../../crates/motion-graph/tests/support/image_fixture.rs"]
+mod node_image_fixture;
 mod audio_output;
 mod cursors;
 mod diagnostics;

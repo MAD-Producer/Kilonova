@@ -2164,6 +2164,7 @@ dependencies = [
 name = "motion-graph"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "image",
  "log",
  "motion-core",
@@ -2172,6 +2173,7 @@ dependencies = [
  "pollster",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 2.0.21",
  "wgpu",

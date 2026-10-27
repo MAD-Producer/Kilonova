@@ -402,6 +402,7 @@ pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
         NodeOp::UvMapping => ("对归一化 UV 先绕轴心缩放，再按角度旋转，最后平移；这是采样坐标变换，负缩放可翻转图像。","Scale normalized UV around the pivot, rotate in degrees, then translate. This transforms sample coordinates; negative scale mirrors the image."),
         NodeOp::Image{source:ImageSource::Input} => ("当前效果 pass 的宿主输入图像句柄；通过 Sample Image 读取像素。","Host input-image handle for the current effect pass; read pixels with Sample Image."),
         NodeOp::Image{source:ImageSource::Source} => ("效果链原始图层图像句柄；与当前 pass 输入来源不同。","Original layer-image handle before the effect chain, distinct from the current pass input."),
+        NodeOp::ImageAsset{..} => ("随节点图携带的 sRGB 图片；通过采样图像读取，像素坐标使用图片自身尺寸。","An sRGB image carried with the graph. Read with Sample Image; pixel coordinates use the image's own dimensions."),
         NodeOp::SampleImage{coordinates:SampleCoordinates::Pixels} => ("按图层逻辑像素位置采样宿主图像，输出图契约中的 RGBA Color。","Samples a host image at layer logical-pixel positions and returns RGBA Color in the graph contract."),
         NodeOp::SampleImage{coordinates:SampleCoordinates::Uv} => ("按归一化 UV 采样宿主图像，输出 RGBA Color；不能直接输入已知像素位置。","Samples a host image with normalized UV and returns RGBA Color; known pixel positions cannot directly feed this mode."),
         NodeOp::Float{..} => ("有限 Float 常量，范围 ±1e6；数值自身未声明单位。","Finite Float literal within ±1e6; the value itself declares no units."),

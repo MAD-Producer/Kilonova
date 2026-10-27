@@ -1,0 +1,119 @@
+{
+  "phase": "Portable image resources, independent preview and clipboard foundation; issues 227/228 remain open",
+  "createdAt": "2026-10-27T09:39:35.262084+00:00",
+  "baseCommit": "06fa8cf533760fea69cbc28533469bc93bb7f6d5",
+  "mappingFoundation": "78bafc0cff7d693790d176300b8ff43ab4e31d88",
+  "verifiedRuns": {
+    "node-image-import-assets-final-verified.log": {
+      "passed": 95,
+      "failed": 0,
+      "ignored": 0,
+      "resultBlocks": 23,
+      "sha256": "c575df5b432a4a7c226c5c0a8552cc6f87b5c5da8d95b68684767491e0b379f9"
+    },
+    "node-image-import-desktop-final-verified.log": {
+      "passed": 229,
+      "failed": 0,
+      "ignored": 0,
+      "resultBlocks": 6,
+      "sha256": "a7fc5d46978d6ea9ad6ceb98081378caa75787e3c8c99475cf15ca079640784e"
+    }
+  },
+  "uniquePassedInVerifiedScopes": 324,
+  "sourceHashes": {
+    "ATTRIBUTION.md": "9849fa22becd3a795cba32a4aa91c45713c2917082add28b1a1f4f042de6457c",
+    "Cargo.lock": "ca8e46e8f5482510484a3f43ca6260eaa7968e6ad7ff5ac9488de48c28063581",
+    "crates/motion-graph/Cargo.toml": "67fd31f5eb31fa51d896a6cf7da5c4ec9958e14922b800385127be786d9320e0",
+    "crates/motion-graph/src/compiler.rs": "99a2e00514ca52bf1b00506d10716c38d53c8c536112f4f4fd30e5bdf239ae92",
+    "crates/motion-graph/src/document.rs": "5710d473c45bc1fc5e4af637b1a15089749583f0812276262bdc38c2851b0ad0",
+    "crates/motion-graph/src/error.rs": "0a54dc3645ddc4829529527774fc612d485fbeac3993ac97064257a66edb0b03",
+    "crates/motion-graph/src/export.rs": "f9169784e333dc54e47750ae8601d6377ea2ace78293c1c48e397bae7a2d8b23",
+    "crates/motion-graph/src/groups.rs": "bf5d2041b8d27305f9de694a937531fba50499101d86e0f45cf5cfe67c2b4c5c",
+    "crates/motion-graph/src/images.rs": "a28426dd0caa6903b83ef358adc77a9c0ffe1142094f71c27318cfac67838916",
+    "crates/motion-graph/src/lib.rs": "881d4e00fda188cd5a0f465f7eaebd0accfae8a33f06bd6b380088f62a3be054",
+    "crates/motion-graph/src/ports.rs": "f665f4521c641c17aaaed3c72107edbc2a252d9ea3e7e09b065186e183203b6d",
+    "crates/motion-graph/tests/compiler.rs": "874505c703d95391218b195e7e02c6a8b2a2445e5587dd2a20cac84a79349e5a",
+    "crates/motion-graph/tests/gpu.rs": "10db2496eaf05203e9872fc669616ee75cc95bec2671503b4b8aab46b6af3653",
+    "crates/motion-graph/tests/images.rs": "a510f9a790c3d419b4be5d08e55d4552ae965f23fdfb4bacb737d199b41d9273",
+    "crates/motion-graph/tests/images_gpu.rs": "c3ab51f9a5738a6cdb7da1322d30f7e42257244e5aa3cc1d0067623474be0719",
+    "crates/motion-graph/tests/input_defaults.rs": "6473ae548483e741b6905d73806611f0875f9fbbad5745fed56960e901ba8289",
+    "crates/motion-graph/tests/support/image_fixture.rs": "b9cd2233ef0c134f970b8e9be9ccb18ea9d67677b75ea93416df27d524ffa9c8",
+    "desktop/app/src/main.rs": "7a726a29af1b0112844b3041fc477cfea6aea0922712d5aefabc9c496c81d1db",
+    "desktop/app/src/node_editor.rs": "b299c7a6ccbed30d7d691a8e1dcc4850870314df65d3f9a207b599d64caf57c5",
+    "desktop/app/src/node_editor/clipboard.rs": "2db4bd3895d415bca40f9715bd51e5cbaf76ff21a9def7c32da21a3317fa125f",
+    "desktop/app/src/node_editor/clipboard/image_tests.rs": "25532be4c6c5ad7747aa4757b1fcc8a6a3590dbdebab37da418826f3b2af86fd",
+    "desktop/app/src/node_editor/clipboard/tests.rs": "25ec9ed9886a44e0ddc861e154aba8f9198431c4381f71d906a2f070b1055eb1",
+    "desktop/app/src/node_editor/grouping.rs": "6239c39a97fdeacef227132e47e5023df8c040fb7071ecc0ead83936215ba2fe",
+    "desktop/app/src/node_preview.rs": "f2ec4f44852afa23007e8a751e3d044ccaf6f43de59e4153a0ffe6bc7dcf0f86",
+    "desktop/app/src/node_preview/image_tests.rs": "fadc8fa3d302b7ffc3df78efddaf53ceac594b868fbd3c95c900b5f84a5eb8f2",
+    "desktop/app/src/node_tasks.rs": "5080f331c3d58e1e470bd34e834b29b06f3d34656107297095e3608a84842e98",
+    "desktop/app/src/node_tasks/image_source_tests.rs": "3b03e8acde994cebb9b0ae44f7d7ed560ffe042b7e984ce9408ed6e001114eae"
+  },
+  "binaryHashes": {
+    "motion_studio-2b547e863f6c5376.exe": "ad24e339f2e23540e146cb9353d328956ba53877084d2d7aa4e6b6160837d38e",
+    "images-99eac601d7eb7023.exe": "c70d5d44e6be8e79cdf76db185e8dd44f8891d1bf4d4ee51ce5d125d87bff681",
+    "images_gpu-7a004e0a70d1a614.exe": "e48b0cbffd5880bada13becb6a5ba8add805e0b7d9498d2381561e3d71e54858"
+  },
+  "logs": {
+    "node-image-import-assets-build-initial.log": "e9437ab9b89a925ded4a6c0c44939d3ab8472deb3848a69d51152251d93abc8f",
+    "node-image-import-assets-core-gpu.log": "e87b8e07ff823d5795623d994d909165f11fbc63eb533b3d809608bf2e9e8b65",
+    "node-image-import-assets-core-initial.log": "9f9e5ea9ed99f9de426f9dbc04e36ed3bb8114825a4abf97d466d31e936fa19c",
+    "node-image-import-assets-final-regression.log": "e81df1593a8fca6d1380f3dee5d7685e5a8d0d35a5b04219f2650eb42acbd915",
+    "node-image-import-assets-final-verified.log": "c575df5b432a4a7c226c5c0a8552cc6f87b5c5da8d95b68684767491e0b379f9",
+    "node-image-import-assets-graph-regression.log": "1da9de85bb76a40e0e23837dce195e6048509a538b0f30318a5002c827726145",
+    "node-image-import-desktop-final-verified.log": "a7fc5d46978d6ea9ad6ceb98081378caa75787e3c8c99475cf15ca079640784e",
+    "node-image-import-desktop-images-initial.log": "1936719f3789a50479b4613b349db26eab2976476a46d5651d513fca0ac20c19",
+    "node-image-import-desktop-images-verified.log": "4db5112e284cc470d48a29d3ed5864d5734ccde52c6dda64ff9806c8239b330f",
+    "node-image-import-desktop-nodes-regression.log": "665b8495347bb24244bc7e5c9ab819416e380612600027c845d10b6e93853768",
+    "node-image-import-source-causes-verified.log": "050821b0e7261356a437e45266ed26a085b14658a6844ebcee2e658b51b72364"
+  },
+  "nativeWorkerEvidence": {
+    "node-image-import-source-worker/worker-1793093691192961500/bad-0.msgraph": "db09e799860086bc5eef9661d530f16a05bd5a3b2ab4849a0c328a84f3abe070",
+    "node-image-import-source-worker/worker-1793093691192961500/bad-1.msgraph": "588125b9314721a002f100293c9195757b3da37dabd4481e76c047bb594e6d29",
+    "node-image-import-source-worker/worker-1793093691192961500/causes.json": "a6afe2a56409039c7005f85e48de197fe413d1bc1c6cf6d3a62c7d39a0c0270c",
+    "node-image-import-source-worker/worker-1793093691192961500/logs/motion-studio.log": "8c1a1e308c9c4157a9b1a94e313510642b9f76318fc8ff7a7c6592870f9e9c04",
+    "node-image-import-source-worker/worker-1793093691192961500/recovered.msgraph": "13bb83ecf39b0ba95df53d4c2084c0b2f784ce0c68fe1fc043d3fe785831e5cd",
+    "node-image-import-source-worker/worker-1793093691192961500/recovery.json": "3c28ddc70f5c534c2465bf8c961d80e96475f1c7200c53f26d198097b272bb45",
+    "node-image-import-source-worker/worker-1793093691192961500/stderr.txt": "807a783db299a6bea0cefcfc6cb42a362760f22c13cffb1e652a7d28ab4ce882",
+    "node-image-import-source-worker/worker-1793093691192961500/stdout.txt": "a114d4acf8acd827dcc777c5bd6a1d2ab1b18ecec47943b461860ccbcb969a16"
+  },
+  "observabilityAudit": [
+    {
+      "id": "G-I1",
+      "status": "new image validation",
+      "evidence": "images.rs: native codec/base64 causes, missing resource identity, independent budgets, recovery"
+    },
+    {
+      "id": "W-S1",
+      "status": "existing worker/sinks exercised with new source failures",
+      "evidence": "image_source_worker: actual broken PNG/base64 files; start before failure, Error in file and stderr, stdout isolation, unchanged editor, explicit valid open"
+    },
+    {
+      "id": "D-P1",
+      "status": "new resource preview integration",
+      "evidence": "image_tests: missing resource, GPU allocation refusal, preserved live pixels, four slots including overflow, full release after submission"
+    },
+    {
+      "id": "D-C1",
+      "status": "new resource ownership integration",
+      "evidence": "clipboard image_tests: immutable sharing, deduplication, transactional rejection, undo/redo and nested outer references"
+    },
+    {
+      "id": "N-S1",
+      "status": "normal paths retained",
+      "evidence": "unused drafts, existing source behavior, stale/cancel behavior and ordinary empty selections in node regression; no new fault classification"
+    },
+    {
+      "id": "P-I1",
+      "status": "pending",
+      "evidence": "new import handler, controlled blocking before decoder, cancellation/stale replies and import panic paths are not implemented or accepted yet"
+    }
+  ],
+  "limitations": [
+    "No OS file-drop routing, Ctrl+T transaction or native screenshots for the new import flow.",
+    "Project lightweight image/runtime references, offline project archive and preset/layer-clipboard dependency collection remain pending.",
+    "Independent preview resource decoding currently runs on the existing engine worker; CPU preparation before NodeInstall remains to be integrated.",
+    "Current evidence is Windows/MSVC; no cross-platform CI is claimed for this unsubmitted branch.",
+    "DESIGN remediation rows retained; no panel or semantic token edit and no full visual acceptance claim."
+  ]
+}

@@ -694,6 +694,7 @@ fn frame_index_and_seconds_remain_fractional_in_the_actual_gpu_uniforms() {
         working_space: WorkingSpace::Srgb,
         alpha_mode: AlphaMode::Straight,
         public_parameters: vec![],
+        images: Default::default(),
         nodes: vec![
             Node::new("time", NodeOp::Time),
             Node::new("frame", NodeOp::FrameIndex),

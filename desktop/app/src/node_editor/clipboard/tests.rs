@@ -1,6 +1,6 @@
 use super::*;
 use motion_ui::input::{Key, Modifiers};
-fn editor() -> NodeEditor {
+pub(super) fn editor() -> NodeEditor {
     let mut e = super::super::tests::simple();
     e.last_canvas = Rect::new(0., 0., 1200., 700.);
     e.document
