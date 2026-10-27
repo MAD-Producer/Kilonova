@@ -419,6 +419,10 @@ impl Session {
             "resampling":false,"on_mismatch":"error_preserves_axes","expressions":"preserved",
             "already_coupled":"no_change","project_format_change":false});
         snapshot["capabilities"]["layer_sampling"]=crate::render_sampling::capabilities();
+        snapshot["capabilities"]["layer_switches"] = json!({"supported":true,
+            "command":"set_layer_switch","project_format":motion_core::CURRENT_PROJECT_VERSION,
+            "solo":"composition_local_preview_and_export","video_audio":"independent",
+            "effects":"bypass_preserves_individual_flags","locked":"reject"});
         snapshot["capabilities"]["composition_api"]["project_format"]=json!(motion_core::CURRENT_PROJECT_VERSION);
         snapshot["capabilities"]["work_area"]=json!({"supported":true,
             "project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_work_area",

@@ -74,13 +74,14 @@ fn key(key: motion_ui::Key) -> Input {
     }
 }
 fn columns(width: f32, panels: &Panels, state: &Value) -> ColumnRects {
-    ColumnRects::with_sampling(
+    ColumnRects::with_output_switches(
         &PaintList::default().styles(),
         0.,
         640f32.min(width * 0.52),
         panels.timeline.column_visibility,
         panels.timeline.sampling_visibility,
         available(state),
+        super::super::playback_switches::available(state),
     )
 }
 fn draw(panels: &mut Panels, state: &Value, input: &Input, locale: Locale) -> Vec<Action> {
@@ -709,13 +710,14 @@ fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens(
                     let (paint, actions) =
                         render(&mut panels, &mut atlas, &state, &Input::default());
                     assert!(actions.is_empty());
-                    let columns = ColumnRects::with_sampling(
+                    let columns = ColumnRects::with_output_switches(
                         &paint.styles(),
                         body.min[0],
                         640f32.min(body.width() * 0.52),
                         panels.timeline.column_visibility,
                         panels.timeline.sampling_visibility,
                         true,
+                        super::super::playback_switches::available(&state),
                     );
                     let slot = columns.sampling[index].unwrap();
                     let rows = crate::panels::timeline::rows(&state);

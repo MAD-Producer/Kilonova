@@ -255,6 +255,7 @@ pub enum Command {
         locked: bool,
     },
     SetLayerShy { object: u64, shy: bool },
+    SetLayerSwitch { object: u64, switch: crate::LayerSwitch, enabled: bool },
     Anchor {
         object: u64,
         anchor: [f32; 2],

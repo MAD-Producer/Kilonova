@@ -12,8 +12,8 @@ pub(super) struct Columns {
 pub(super) fn columns(styles: &motion_ui::style::StyleSheet, area: Rect, gutter: f32) -> Columns {
     // These real-host fixtures expose sampling and use default visible columns.
     // Keep the click target on the same layout path as the production timeline.
-    let plan = super::timeline_columns::ColumnRects::with_sampling(
-        styles, area.min[0], gutter, Default::default(), Default::default(), true,
+    let plan = super::timeline_columns::ColumnRects::with_output_switches(
+        styles, area.min[0], gutter, Default::default(), Default::default(), true, true,
     );
     Columns {
         name: plan.name.rect(area.min[1], area.height()),

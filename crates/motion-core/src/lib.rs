@@ -21,6 +21,7 @@ pub mod storage;
 
 pub use motion_model::{compositing, composition, color_curves, particle_history, masks, vector};
 pub use motion_model::render_sampling;
+pub use motion_model::LayerSwitch;
 pub use motion_model::lens;
 pub use editor::{parse_commands, Engine};
 pub use expressions::{expression_reference_source, expression_source_diagnostic, prepare_expression_sources, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
