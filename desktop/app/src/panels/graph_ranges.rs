@@ -649,7 +649,7 @@ fn fit_time(view: &mut super::types::TimelineState, range: Range, state: &Value)
 
 pub(super) fn launch(
     list: &mut PaintList,
-    atlas: &mut TextAtlas,
+    _atlas: &mut TextAtlas,
     row: Rect,
     occupied_end: f32,
     input: &Input,
@@ -660,7 +660,7 @@ pub(super) fn launch(
     let slot = styles.metric("graph.control.height", 24.);
     let rect = Rect::new(row.max[0] - pad - slot, row.min[1], slot, row.height());
     if rect.min[0] >= occupied_end + styles.metric("graph.control.gap", 2.)
-        && ui::button(list, atlas, rect, "⋯", input, enabled).clicked
+        && ui::button_icon(list, rect, motion_ui::icons::Icon::More, input, enabled).clicked
     {
         return Some([rect.min[0], rect.max[1]]);
     }
