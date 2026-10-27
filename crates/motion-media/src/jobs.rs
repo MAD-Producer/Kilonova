@@ -1,4 +1,5 @@
 use crate::progress::checked_progress;
+use crate::publication::ImportTarget;
 use crate::{cache_path, contained_dir, DecodeAudio, Result};
 use motion_model::{AudioAsset, AudioClip, Command, Content, EditSink, Layer, LayerTimeline};
 use serde::{Deserialize, Serialize};
@@ -518,13 +519,17 @@ impl AudioJobs {
     /// Called on the editor's owning worker. Cancel and commit serialize on the
     /// task lock, so a completed cancellation cannot subsequently publish a layer.
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<TaskStatus> {
-        self.commit_target(id, engine, None)
+        self.commit_target(id, engine, ImportTarget::Layer)
     }
     /// Publish a prepared source under an existing identity, without adding a layer.
     pub fn replace(&self, id: &str, engine: &mut impl EditSink, asset: u64) -> Result<TaskStatus> {
-        self.commit_target(id, engine, Some(asset))
+        self.commit_target(id, engine, ImportTarget::Replace(asset))
     }
-    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<TaskStatus> {
+    /// Register the prepared source in a folder without creating an audio clip.
+    pub fn register(&self, id: &str, engine: &mut impl EditSink, folder: Option<u64>) -> Result<TaskStatus> {
+        self.commit_target(id, engine, ImportTarget::Library(folder))
+    }
+    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: ImportTarget) -> Result<TaskStatus> {
         let request: String = id.chars().take(128).collect();
         let observation = crate::task_logging::TaskLog::new(&request, "commit_audio");
         observation.start();
@@ -539,7 +544,8 @@ impl AudioJobs {
         result.map(|(status, _)| status)
     }
 
-    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<(TaskStatus, bool)> {
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, destination: ImportTarget) -> Result<(TaskStatus, bool)> {
+        let target = destination.replacement();
         let task = self.task(id)?;
         // Declare owned resources before the guard so unwind releases it first.
         let mut prepared;
@@ -576,7 +582,7 @@ impl AudioJobs {
                     return Err("replace the owning video asset instead of its linked audio".into());
                 }
             }
-            let object = if target.is_some() { 0 } else { p
+            let object = if !destination.creates_layer() { 0 } else { p
                 .layers
                 .iter()
                 .map(|l| l.id)
@@ -625,18 +631,25 @@ impl AudioJobs {
                 vec![Command::MediaAsset { action: motion_model::media_assets::AssetAction::Replace {
                     source: motion_model::media_assets::MediaAsset::Audio(prepared.asset.clone()),
                 } }]
-            } else { vec![
-                Command::RegisterAudioAsset {
-                    asset: prepared.asset.clone(),
-                },
-                Command::Add { layer },
-            ] };
+            } else {
+                let mut commands = vec![Command::RegisterAudioAsset { asset: prepared.asset.clone() }];
+                match destination {
+                    ImportTarget::Layer => commands.push(Command::Add { layer }),
+                    ImportTarget::Library(folder) => commands.push(Command::ProjectLibrary {
+                        action: motion_model::project_library::LibraryAction::MoveItems {
+                            items: vec![motion_model::project_library::ProjectItem::Audio { id: asset_id }], folder,
+                        },
+                    }),
+                    ImportTarget::Replace(_) => unreachable!("replacement handled above"),
+                }
+                commands
+            };
             if let Err(error) = engine.apply_batch_saved(commands, &self.root) {
                 let error = publication.rollback_published_cache(error);
                 return Err(publication.rollback_files(error, &[&source]));
             }
             Ok(
-                json!({"op":if target.is_some() {"replace_media"} else {"import_media"}, "kind":"audio", "asset":asset_id,"object":if target.is_some() {None} else {Some(object)},"in_frame":in_frame,"out_frame":out_frame,
+                json!({"op":destination.operation(), "kind":"audio", "asset":asset_id,"object":if destination.creates_layer() {Some(object)} else {None},"in_frame":in_frame,"out_frame":out_frame,
                 "source_offset_us":0,"has_audio":true,"truncated_to_composition": u64::from(out_frame-in_frame) < source_frames}),
             )
         })();

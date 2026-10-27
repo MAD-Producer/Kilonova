@@ -1,6 +1,7 @@
 //! Desktop file and layer operations use the shared session's atomic history.
 #[cfg(test)]
 mod media_asset_tests;
+pub mod library_media;
 use motion_core::{Asset, Command, Content, Layer, LayerTimeline};
 use motion_host::Session;
 use serde_json::Value;
@@ -12,7 +13,18 @@ use std::{
 };
 
 pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result<Value> {
-    import_image_for(session, source, None)
+    import_image_for(session, source, ImageDestination::Layer)
+}
+
+pub fn register_image(session: &mut Session, source: &Path, folder: Option<u64>) -> motion_host::Result<Value> {
+    import_image_for(session, source, ImageDestination::Library(folder))
+}
+
+#[derive(Clone, Copy)]
+enum ImageDestination {
+    Layer,
+    Replace(u64),
+    Library(Option<u64>),
 }
 
 pub fn replace_image(session: &mut Session, source: &Path, asset: u64, revision: u64) -> motion_host::Result<Value> {
@@ -30,11 +42,12 @@ pub fn replace_image(session: &mut Session, source: &Path, asset: u64, revision:
     if !session.engine.project().assets.iter().any(|a| a.id == asset) {
         return Err("replacement image asset no longer exists".into());
     }
-    import_image_for(session, source, Some(asset)).map_err(|cause| motion_host::Error::with_context(
+    import_image_for(session, source, ImageDestination::Replace(asset)).map_err(|cause| motion_host::Error::with_context(
         format!("image replacement asset={asset} revision={revision} phase=replace source={path_context:?}"), cause))
 }
 
-fn import_image_for(session: &mut Session, source: &Path, target: Option<u64>) -> motion_host::Result<Value> {
+fn import_image_for(session: &mut Session, source: &Path, mode: ImageDestination) -> motion_host::Result<Value> {
+    let target = match mode { ImageDestination::Replace(id) => Some(id), _ => None };
     let source_info = motion_host::ops::images::image_info(&source.to_string_lossy())?;
     let width = source_info["width"].as_u64().ok_or("image width missing")? as u32;
     let height = source_info["height"]
@@ -55,7 +68,8 @@ fn import_image_for(session: &mut Session, source: &Path, target: Option<u64>) -
         .unwrap_or(0)
         .checked_add(1)
         .ok_or("asset IDs exhausted")? };
-    let object = if target.is_some() { 0 } else { next_layer_id(&session.snapshot()?)? };
+    let create_layer = matches!(mode, ImageDestination::Layer);
+    let object = if create_layer { next_layer_id(&session.snapshot()?)? } else { 0 };
     let frame = (session.frame.floor() as u32).min(project.frames - 1);
     let position = [project.width as f32 / 2.0, project.height as f32 / 2.0, 0.0];
     let end = project.frames;
@@ -121,12 +135,20 @@ fn import_image_for(session: &mut Session, source: &Path, target: Option<u64>) -
                     width,
                     height,
                 };
-        let commands = if target.is_some() {
-            vec![Command::MediaAsset { action: motion_core::media_assets::AssetAction::Replace {
+        let commands = match mode {
+            ImageDestination::Replace(_) => vec![Command::MediaAsset { action: motion_core::media_assets::AssetAction::Replace {
                 source: motion_core::media_assets::MediaAsset::Image(asset),
-            } }]
-        } else { vec![Command::RegisterAsset { asset }, Command::Add { layer }] };
-        session.apply_command_batch(commands)
+            } }],
+            ImageDestination::Layer => vec![Command::RegisterAsset { asset }, Command::Add { layer }],
+            ImageDestination::Library(folder) => vec![Command::RegisterAsset { asset }, Command::ProjectLibrary {
+                action: motion_core::LibraryAction::MoveItems { items: vec![motion_core::ProjectItem::Image { id: asset_id }], folder },
+            }],
+        };
+        let mut state = session.apply_command_batch(commands)?;
+        if let ImageDestination::Library(folder) = mode {
+            state["assetRegistration"] = serde_json::json!({"cancelled":false,"asset":asset_id,"folder":folder});
+        }
+        Ok(state)
     })();
     if result.is_ok() {
         output.keep();
