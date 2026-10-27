@@ -72,6 +72,13 @@ pub(crate) fn read(session: &Session, objects: Vec<u64>) -> motion_host::Result<
 }
 
 pub(crate) enum Edit {
+    ApplyPreset {
+        staged: motion_core::storage::StagedAnimationPreset,
+        stamp: Stamp,
+        objects: Vec<u64>,
+        at_frame: u32,
+        cancel: Arc<AtomicBool>,
+    },
     PasteEasing {
         stamp: Stamp,
         clipboard: motion_core::CurveClipboard,
@@ -116,6 +123,7 @@ pub(crate) enum Edit {
 }
 pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<Value> {
     let (stamp, cancel) = match &edit {
+        Edit::ApplyPreset { stamp, cancel, .. } => (stamp, cancel),
         Edit::PasteEasing { stamp, cancel, .. } => (stamp, cancel),
         Edit::CutPaths { stamp, cancel, .. }
         | Edit::PastePaths { stamp, cancel, .. }
@@ -136,6 +144,16 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
         return Ok(serde_json::json!({"clipboard_status":"superseded"}));
     }
     let result = match edit {
+        Edit::ApplyPreset { staged, objects, at_frame, .. } => {
+            let before = session.engine.revision();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                session.apply_command_batch(vec![motion_core::Command::ApplyAnimationPreset {
+                    preset: Box::new(staged.preset.clone()), objects, at_frame,
+                }])
+            }));
+            if session.engine.revision() != before { staged.keep_resources(); }
+            match result { Ok(value) => value, Err(payload) => std::panic::resume_unwind(payload) }
+        }
         Edit::PasteEasing { clipboard, selections, .. } => session.apply_command_batch(vec![
             motion_core::Command::PasteEasing { clipboard: Box::new(clipboard), selections },
         ]),

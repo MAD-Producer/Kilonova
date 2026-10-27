@@ -8,6 +8,8 @@ use std::{
 };
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 mod publication;
+mod animation_presets;
+pub use animation_presets::{read_animation_preset, save_animation_preset, stage_animation_preset, StagedAnimationPreset};
 #[cfg(test)]
 mod crash_tests;
 

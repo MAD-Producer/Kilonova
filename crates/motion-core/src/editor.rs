@@ -200,6 +200,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::ApplyAnimationPreset { preset, objects, at_frame } => preset.apply(project, &objects, at_frame)?,
         Command::PasteLayers { clipboard, at_frame, keep_external_references } => {
             result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);
         }

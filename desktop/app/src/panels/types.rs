@@ -6,6 +6,13 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    SaveAnimationPreset { object: u64, effects: Option<Vec<u64>> },
+    ApplyAnimationPreset { path: std::path::PathBuf, objects: Vec<u64> },
+    OpenAnimationPreset,
+    RefreshAnimationPresets,
+    CancelAnimationPreset,
+    LocateLibraryEffect(String),
+    RevealLibraryEffect { object: u64, effect: u64 },
     DistributeLayers {
         objects: Vec<u64>,
         distribution: motion_host::ops::alignment::Distribution,

@@ -23,7 +23,7 @@ impl Entry {
     }
     pub(crate) fn matches(&self, query: &str) -> bool {
         let haystack = format!(
-            "{} {} {} {} {} {} {} {}",
+            "{} {} {} {} {} {} {} {} {}",
             self.name,
             self.english,
             self.original_name,
@@ -31,7 +31,8 @@ impl Entry {
             self.category,
             self.raw_category,
             self.provider,
-            self.plugin
+            self.plugin,
+            self.key
         )
         .to_lowercase();
         query.split_whitespace().all(|term| haystack.contains(term))
@@ -40,7 +41,7 @@ impl Entry {
         self.supported
             && layer["id"].as_u64().is_some_and(|id| id != 0)
             && layer["locked"] != true
-            && !matches!(layer["content"]["kind"].as_str(), Some("audio" | "null"))
+            && !matches!(layer["content"]["kind"].as_str(), Some("audio" | "null" | "camera"))
             && (layer["content"]["kind"] != "adjustment" || self.renderer == "image")
     }
 }
@@ -180,7 +181,9 @@ impl Controls {
                 24.,
             ),
             &mut self.query,
-            locale.t(T::SearchEffects),
+            if self.library_tab == 3 {
+                if zh { "搜索预设" } else { "Search presets" }
+            } else { locale.t(T::SearchEffects) },
             input,
             true,
         );
@@ -195,31 +198,37 @@ impl Controls {
                     "Importing"
                 }
             } else {
+                if self.library_tab == 3 { if zh { "应用文件" } else { "Apply…" } } else {
                 if zh {
                     "导入"
                 } else {
                     "Import"
                 }
+                }
             },
             input,
-            !self.importing_package,
+            !self.importing_package && (self.library_tab != 3
+                || !self.presets_busy && self.library_selection_editable),
             &styles,
             "button.icon",
         )
         .clicked
         {
-            out.push(Action::ImportEffectPackage);
+            out.push(if self.library_tab == 3 { Action::OpenAnimationPreset } else { Action::ImportEffectPackage });
         }
         let tabs_y = top + 30.;
         for (index, title) in [
             if zh { "全部" } else { "All" },
             if zh { "收藏" } else { "Favorites" },
             if zh { "最近" } else { "Recent" },
+            if zh { "预设" } else { "Presets" },
         ]
         .into_iter()
         .enumerate()
         {
             let rect = Rect::new(area.min[0] + pad + index as f32 * 58., tabs_y, 54., 22.);
+            #[cfg(test)]
+            self.library_row_hits.insert(format!("__tab:{index}"), rect);
             ui::text(
                 list,
                 atlas,
@@ -240,9 +249,20 @@ impl Controls {
                 );
             }
             if clicked(input, rect) {
+                if (self.library_tab == 3) != (index == 3) {
+                    self.query.clear();
+                    self.search.editor.cancel();
+                    self.library_last_click = None;
+                }
                 self.library_tab = index;
                 self.library_scroll.offset = 0.;
             }
+        }
+        if self.library_tab == 3 {
+            let pad = styles.metric("padding.panel", 8.);
+            let top = tabs_y + styles.metric("row.height", 22.) + pad;
+            self.draw_presets(list, atlas, Rect::new(area.min[0], top, area.width(), area.max[1] - top), layer, input, locale, out);
+            return;
         }
         let query = self.query.trim().to_lowercase();
         let all = entries(&self.catalogue, locale);
@@ -374,6 +394,10 @@ impl Controls {
                     (scroll.viewport.width() - 8.).max(1.),
                     row,
                 );
+                if child.pressed.is_some_and(|(button, point)| button == MouseButton::Right && rect.contains(point)) {
+                    self.library_context = Some(super::library_actions::Context::effect(e.clone(), child.mouse, self.library_targets.clone(), self.context_window));
+                    self.library_last_click = None;
+                }
                 #[cfg(test)]
                 if rect.min[1] >= scroll.viewport.min[1] && rect.max[1] <= scroll.viewport.max[1] {
                     self.library_row_hits.insert(e.key.clone(), rect);

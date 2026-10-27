@@ -73,6 +73,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "i32" => json!({"type":"integer"}),
             "f32" | "f64" => json!({"type":"number"}),
             "bool" => json!({"type":"boolean"}),
+            "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
             "LayerSwitch" => json!({"type":"string","enum":["solo","effects","video","audio"]}),
             "Property" => {
@@ -127,6 +128,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
         input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
+    Command::ApplyAnimationPreset { .. } => "apply_animation_preset" [("preset","AnimationPreset",true),("objects","Vec<u64>",true),("at_frame","u32",true)];
     Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
     Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];
     Command::AudioLevels { .. } => "audio_levels" [("object","u64",true), ("action","crate::AudioLevelsAction",true)];

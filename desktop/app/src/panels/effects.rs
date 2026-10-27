@@ -26,6 +26,12 @@ pub(super) fn render(
     let fallback = serde_json::json!({"id":0,"locked":true,"effects":[]});
     let layer = selected.unwrap_or(&fallback);
     if panel == Panel::Effects {
+        panels.browser.library_targets = panels.selection_ids();
+        panels.browser.library_selection_editable = state["observing"] != true
+            && !panels.browser.library_targets.is_empty()
+            && panels.browser.library_targets.iter().all(|id| state["project"]["layers"].as_array().into_iter().flatten()
+                .any(|layer| layer["id"].as_u64() == Some(*id) && layer["locked"] != true
+                    && !matches!(layer["content"]["kind"].as_str(), Some("camera" | "audio"))));
         panels.browser.catalogue = panels.effect_controls.catalogue.clone();
         let mut y = area.min[1];
         panels.browser.render_library(

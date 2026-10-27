@@ -65,6 +65,7 @@ fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
+        || panels.browser.editing()
         || panels.properties.effects.editing()
         || panels.effect_timeline.editing()
         || panels.properties.anchor.editing()
