@@ -27,6 +27,7 @@ impl Slot {
 /// Name and optional column slots for one timeline gutter width.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct ColumnRects {
+    pub playback: [Option<Slot>; 3],
     pub shy: Option<Slot>,
     pub sampling: [Option<Slot>; 3],
     pub name: Slot,
@@ -58,6 +59,7 @@ impl ColumnRects {
             .map_or(origin + gutter - 8., |slot| slot.x - 6.);
         let name_x = origin + 112.;
         Self {
+            playback: [None; 3],
             shy: None,
             sampling: [None; 3],
             name: Slot {
@@ -106,19 +108,32 @@ impl ColumnRects {
 
     /// Sampling reserves full existing icon slots. At narrow widths, reclaim
     /// optional text columns first; keep the user's visibility preferences intact.
+    #[cfg(test)]
     pub fn with_sampling(
         styles: &motion_ui::style::StyleSheet,
         origin: f32,
         gutter: f32,
-        mut visibility: ColumnVisibility,
+        visibility: ColumnVisibility,
         sampling: super::layer_sampling::Visibility,
         capable: bool,
     ) -> Self {
+        Self::with_output_switches(styles, origin, gutter, visibility, sampling, capable, false)
+    }
+
+    pub fn with_output_switches(
+        styles: &motion_ui::style::StyleSheet, origin: f32, gutter: f32,
+        mut visibility: ColumnVisibility, sampling: super::layer_sampling::Visibility,
+        capable: bool, playback: bool,
+    ) -> Self {
         let mut plan = Self::styled(styles, origin, gutter, visibility);
-        if !capable { return plan; }
+        if !capable && !playback { return plan; }
         let slot = styles.metric("icon.slot", 20.);
         let minimum = styles.metric("value.min_width", 64.);
-        let desired = sampling.0.iter().filter(|v| **v).count() as f32 * slot;
+        // An unavailable sampling capability hides its controls without moving
+        // output switches into the former hit regions. Preferences may still
+        // explicitly release columns, as before.
+        let sampling_count = if capable || playback { sampling.0.iter().filter(|v| **v).count() } else { 0 };
+        let desired = (sampling_count + if playback { 3 } else { 0 }) as f32 * slot;
         for column in 0..3 {
             if plan.name.width >= minimum + desired {
                 break;
@@ -131,14 +146,20 @@ impl ColumnRects {
             plan = Self::styled(styles, origin, gutter, visibility);
         }
         let count = ((plan.name.width - minimum).max(0.) / slot).floor() as usize;
+        let playback_count = if playback { count.min(3) } else { 0 };
         let visible: Vec<_> = sampling.0.iter().enumerate()
-            .filter(|(_, v)| **v).take(count).map(|(i, _)| i).collect();
-        plan.name.width -= visible.len() as f32 * slot;
-        for (offset, index) in visible.into_iter().enumerate() {
-            plan.sampling[index] = Some(Slot {
-                x: plan.name.max_x() + offset as f32 * slot,
-                width: slot,
-            });
+            .filter(|(_, v)| **v && (capable || playback)).take(count - playback_count).map(|(i, _)| i).collect();
+        plan.name.width -= (visible.len() + playback_count) as f32 * slot;
+        for index in 0..playback_count {
+            plan.playback[index] = Some(Slot { x: plan.name.max_x() + index as f32 * slot, width: slot });
+        }
+        if capable {
+            for (offset, index) in visible.into_iter().enumerate() {
+                plan.sampling[index] = Some(Slot {
+                    x: plan.name.max_x() + (playback_count + offset) as f32 * slot,
+                    width: slot,
+                });
+            }
         }
         plan
     }

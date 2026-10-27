@@ -771,13 +771,14 @@ pub(super) fn render(
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
-    let columns = super::timeline_columns::ColumnRects::with_sampling(
+    let columns = super::timeline_columns::ColumnRects::with_output_switches(
         &list.styles(),
         area.min[0],
         gutter,
         panels.timeline.column_visibility,
         panels.timeline.sampling_visibility,
         super::layer_sampling::available(state),
+        super::playback_switches::available(state),
     );
     let track = Rect::new(
         area.min[0] + gutter,
@@ -1057,6 +1058,7 @@ pub(super) fn render(
         label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
     }
     super::layer_sampling::header(list, atlas, &columns, ruler, locale);
+    super::playback_switches::header(list, atlas, &columns, ruler, locale);
     super::shy_layers::header(list, atlas, &columns, ruler, locale);
     label(
         list,
@@ -1335,6 +1337,7 @@ pub(super) fn render(
         }
         if let Some(layer) = layer {
             super::layer_sampling::row(list, atlas, &columns, layer, state, y, row_height, input, out);
+            super::playback_switches::row(list, atlas, &columns, layer, state, y, row_height, input, out);
         }
         let icon = match layer.map(|l| l["content"]["kind"].as_str().unwrap_or("")) {
             Some("text") => motion_ui::icons::Icon::Text,
@@ -1446,19 +1449,21 @@ pub(super) fn render(
             atlas,
             eye,
             "",
-            row.visible,
+            row.visible && layer.is_some_and(super::playback_switches::video_supported),
             input,
-            row.id != 0,
+            row.id != 0 && !row.locked
+                && layer.is_some_and(super::playback_switches::video_supported)
+                && !input.focus_lost && !input.composing && !input.ime_consumed,
             false,
             Some(motion_ui::icons::Icon::Eye),
         )
         .clicked
         {
-            out.push(Action::Edit(Command::Flags {
-                object: row.id,
-                visible: !row.visible,
-                locked: row.locked,
-            }));
+            if super::playback_switches::available(state) {
+                out.push(super::playback_switches::command(state, row.id, motion_core::LayerSwitch::Video, !row.visible));
+            } else {
+                out.push(Action::Edit(Command::Flags { object: row.id, visible: !row.visible, locked: row.locked }));
+            }
         }
         if motion_ui::widgets::Checkbox::draw(
             list,
@@ -1905,6 +1910,7 @@ pub(super) fn render(
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
+    super::playback_switches::hint(list, atlas, &columns, ruler, area, input, locale);
     super::shy_layers::hint(list, atlas, shy_toolbar, &columns, ruler, area, input, locale, panels.timeline.hide_shy);
     let parent_selection = panels.selection_ids();
     let parent_suspended = panels.menu.is_some() || panels.text_menu.is_some();

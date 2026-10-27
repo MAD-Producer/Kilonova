@@ -83,6 +83,7 @@ mod observation;
 mod observation_tests;
 pub(crate) mod parent_controls;
 pub(crate) mod layer_sampling;
+pub(crate) mod playback_switches;
 pub(crate) mod path_controls;
 mod paths;
 mod project;
