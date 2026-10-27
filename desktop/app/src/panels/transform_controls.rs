@@ -260,7 +260,14 @@ impl Drag {
             angle: 0.,
         })
     }
+    #[cfg(test)]
     fn commands(&mut self, state: &Value, input: &Input) -> Vec<Action> {
+        self.commands_with_guides(state, input, None)
+    }
+    fn commands_with_guides(&mut self, state: &Value, input: &Input,
+        snapping: Option<&super::viewer_guides::Snapping>) -> Vec<Action>
+    {
+        let snapping = snapping.filter(|_| !input.modifiers.alt);
         let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
         if !input.dragging() && !release {
             return vec![];
@@ -276,9 +283,14 @@ impl Drag {
         }
         match self.handle {
             Handle::Move => {
+                let pointer = if let Some(snapping) = snapping {
+                    let predicted = std::array::from_fn(|i| self.pose.pivot[i] + input.mouse[i] - self.seed.point[i]);
+                    let target = snapping.point(predicted);
+                    std::array::from_fn(|i| input.mouse[i] + target[i] - predicted[i])
+                } else { input.mouse };
                 let delta = [
-                    input.mouse[0] - self.last_pointer[0],
-                    input.mouse[1] - self.last_pointer[1],
+                    pointer[0] - self.last_pointer[0],
+                    pointer[1] - self.last_pointer[1],
                 ];
                 if delta[0].abs() + delta[1].abs() > 0.01 {
                     // Host drag works in a canonical composition-sized viewport.
@@ -293,7 +305,7 @@ impl Drag {
                         delta: delta.map(|v| v/scale),
                         size,
                     });
-                    self.last_pointer = input.mouse;
+                    self.last_pointer = pointer;
                 }
             }
             Handle::Rotate | Handle::Scale(..) | Handle::Anchor => {
@@ -360,6 +372,9 @@ impl Drag {
                                 }
                             }
                         }
+                        if let Some(snapping) = snapping {
+                            value = self.snapped_scale(value, uniform, x, y, snapping).unwrap_or(value);
+                        }
                         out.extend(self.vector(Property::Scale, value, state));
                     }
                     Handle::Anchor => {
@@ -379,6 +394,68 @@ impl Drag {
             }
         }
         out
+    }
+    fn scale_grip(&self) -> [f32; 2] {
+        let [w, h] = self.pose.size.map(|v| v * 0.5);
+        let corners = [[-w,-h],[w,-h],[w,h],[-w,h]];
+        match self.handle {
+            Handle::Scale(_, _, Some(i @ 0..=3)) => corners[i],
+            Handle::Scale(_, _, Some(i @ 4..=7)) => mid(corners[i-4], corners[(i-3)%4]),
+            _ => self.local_start,
+        }
+    }
+    fn scaled_grip(&self, value: [f32; 3]) -> Option<[f32; 2]> {
+        if self.pose.scale[..2].iter().any(|v| v.abs() < 1e-6) { return None; }
+        let pivot = self.pose.pivot_local(); let grip = self.scale_grip();
+        let local = std::array::from_fn(|i| pivot[i] + (grip[i]-pivot[i])*value[i]/self.pose.scale[i]);
+        self.pose.projection.screen(local)
+    }
+    /// Intersect the permitted source-space scaling line with the inverse
+    /// projection of a screen guideline. This preserves proportions, rotations,
+    /// camera perspective and the fixed anchor without iterative UI edits.
+    fn snapped_scale(&self, value: [f32; 3], uniform: bool, x: bool, y: bool,
+        snapping: &super::viewer_guides::Snapping) -> Option<[f32; 3]>
+    {
+        let point = self.scaled_grip(value)?;
+        let targets = snapping.targets(point);
+        if targets.iter().all(Option::is_none) { return None; }
+        let pivot = self.pose.pivot_local(); let grip = self.scale_grip();
+        let offset: [f32; 2] = std::array::from_fn(|i| grip[i]-pivot[i]);
+        if !uniform && x && y {
+            let target = snapping.point(point);
+            let local = self.pose.projection.local(target)?;
+            if offset.iter().any(|v| v.abs() < 1e-6) { return None; }
+            let mut adjusted = value;
+            for i in 0..2 { adjusted[i] = self.pose.scale[i]*(local[i]-pivot[i])/offset[i]; }
+            return self.scaled_grip(adjusted).filter(|p| distance(*p,target) <= 0.05).map(|_| adjusted);
+        }
+        let current: [f32;2] = std::array::from_fn(|i| pivot[i]+offset[i]*value[i]/self.pose.scale[i]);
+        let direction = if uniform { offset } else {
+            std::array::from_fn(|i| if [x,y][i] { offset[i]/self.pose.scale[i] } else { 0. })
+        };
+        let cross = |a:[f32;2],b:[f32;2]| f64::from(a[0])*f64::from(b[1])-f64::from(a[1])*f64::from(b[0]);
+        let mut candidates: [Option<(f32,[f32;3])>;2] = [None,None];
+        for axis in 0..2 {
+            let Some(target) = targets[axis] else { continue; };
+            let mut a = point; a[axis] = target;
+            let mut b = a; b[1-axis] += 1.;
+            let (Some(a),Some(b)) = (self.pose.projection.local(a),self.pose.projection.local(b)) else { continue; };
+            let line = [b[0]-a[0],b[1]-a[1]];
+            let divisor = cross(direction,line);
+            if divisor.abs() < 1e-10 { continue; }
+            let delta = (cross([a[0]-current[0],a[1]-current[1]],line)/divisor) as f32;
+            let mut adjusted = value;
+            for i in 0..3 {
+                if uniform && (i < 2 || self.pose.three_d) { adjusted[i] += self.pose.scale[i]*delta; }
+                else if i < 2 && [x,y][i] { adjusted[i] += delta; }
+            }
+            if adjusted.iter().any(|v| !v.is_finite() || v.abs() > 1e7) { continue; }
+            let Some(screen) = self.scaled_grip(adjusted) else { continue; };
+            if (screen[axis]-target).abs() > 0.05
+                || (0..2).any(|i| (screen[i]-point[i]).abs() > snapping.tolerance()+0.05) { continue; }
+            candidates[axis] = Some((distance(screen,point),adjusted));
+        }
+        candidates.into_iter().flatten().min_by(|a,b| a.0.total_cmp(&b.0)).map(|(_,value)|value)
     }
     fn vector(&mut self, property: Property, value: [f32; 3], state: &Value) -> Vec<Action> {
         if value == self.last_value || value.iter().any(|v| !v.is_finite() || v.abs() > 1e7) {
@@ -429,6 +506,9 @@ pub struct Controls {
     pub cursor: Option<motion_ui::cursor::Cursor>,
 }
 impl Controls {
+    pub(super) fn handle_hit(&self,state:&Value,selected:Option<u64>,view:Rect,point:[f32;2],styles:&motion_ui::style::StyleSheet) -> bool {
+        selected.and_then(|id|Pose::new(state,id,view)).is_some_and(|pose|pose.handle(point,self.tool,styles).is_some())
+    }
     pub fn gesture_active(&self) -> bool {
         self.drag.is_some() || self.pick.is_some()
     }
@@ -463,6 +543,12 @@ impl Controls {
         selected: Option<u64>,
         input: &Input,
         out: &mut Vec<Action>,
+    ) -> bool {
+        self.draw_with_guides(list,clip,view,state,selected,input,None,out)
+    }
+    pub(super) fn draw_with_guides(
+        &mut self, list: &mut PaintList, clip: Rect, view: Rect, state: &Value,
+        selected: Option<u64>, input: &Input, snapping: Option<&super::viewer_guides::Snapping>, out: &mut Vec<Action>,
     ) -> bool {
         if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             if self.cancel() {
@@ -544,7 +630,7 @@ impl Controls {
             }
         }
         if let Some(mut d) = self.drag.take() {
-            out.extend(d.commands(state, input));
+            out.extend(d.commands_with_guides(state, input, snapping));
             if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
                 if d.begun {
                     out.push(Action::History(3));
@@ -556,6 +642,13 @@ impl Controls {
         consumed
     }
 }
+
+#[cfg(test)]
+#[path = "transform_guide_tests.rs"]
+mod guide_tests;
+#[cfg(test)]
+#[path = "transform_guide_routing_tests.rs"]
+mod guide_routing_tests;
 
 #[cfg(test)]
 mod tests {

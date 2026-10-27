@@ -2,13 +2,17 @@
 
 `motion-scene` is the CPU ingestion foundation for issue #87. It is a workspace
 library without GPU, window, inference, filesystem-at-render-time or Android
-dependencies. No desktop import command or `Content` variant is advertised by
-this change. Successful parsing does not establish PBR or 3D rendering support.
+dependencies. The native consumer below and the separate project `ModelClip`
+adapter use its owned data. Successful parsing alone does not establish PBR or
+mixed 3D composition support. Current project and native acceptance is recorded
+in the [model layer](../validation/model-layer-current.md) and
+[camera](../validation/gltf-cameras-current.md) and
+[skin](../validation/gltf-skin-current.md) ledgers.
 
 The independent implementation follows the [Khronos glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html),
 sections 3.4–3.9 and 4, revision `8e798b02d254cea97659a333cfcb20875b62bdd4`.
 
-## Static import profile
+## Core import profile
 
 `import(context, source, resolver, limits)` accepts JSON glTF 2.0 and GLB version
 2. It validates container ranges/order/alignment, resource lengths, referenced
@@ -26,8 +30,9 @@ decoding. This is not image validity, pixel-budget, texture upload or PBR
 acceptance. Color/emissive texture transfers are sRGB; the other texture slots
 and vertex multipliers are linear. No material shader is claimed here.
 
-Animations, skins, morphs, cameras, nontriangle topology, unsupported attribute
-semantics and required extensions produce explicit `Unsupported` errors. An
+Nontriangle topology, unsupported attribute semantics and required extensions
+produce explicit `Unsupported` errors. Core transform clips, cameras, morph
+targets and skins follow the supported profiles below. An
 optional extension uses its core fallback and appears in the scene's bounded
 `ignored_optional_extensions` list and one import warning. It must not be
 presented as full-fidelity extension support. A library without scenes remains
@@ -71,7 +76,7 @@ than reversing indices implicitly.
 
 `scene.instances(scene_index, pixels_per_metre)` requires explicit finite,
 positive scale and computes world matrices iteratively. The existing host world
-space also has +Y up. A later composition adapter must apply its camera/layer
+space also has +Y up. The project model adapter applies camera/layer
 placement explicitly; import does not select a screen origin or silently fit a
 model to the viewport. Transform overflow returns an error.
 
@@ -232,6 +237,80 @@ first occurrence and occurrence 60, suppress subsequent repetitions, and reset
 on a successful frame. This instance-local consecutive counter does not measure
 seconds. Frame errors keep their original return values.
 
-This API does not establish mixed 2D/3D BSP depth ownership, camera/AI depth
-calibration, skin/morph/clip animation, editor keyframe integration or movie
-export acceptance. An internal standalone render is not an in-app demonstration.
+## Explicit transform animation, cameras and shared native depth
+
+`AnimationSample` selects a clip and time without autoplay, looping or blending.
+TRS channels support STEP, LINEAR and time-scaled CUBICSPLINE; rotation LINEAR
+uses shortest-arc quaternion interpolation. Endpoint values clamp to the clip's
+key range. Authored matrices on nonanimated nodes and project multi-turn Euler
+tracks remain independent. The project `ModelClip.animation` stores explicit
+clip, offset and signed speed, sampled from layer-local frames and project FPS.
+
+`Scene::camera_view` explicitly selects a reachable camera node, samples hierarchy
+and transform animation, ignores camera scale and converts metres to pixels.
+Finite/infinite perspective and orthographic views use native [0,1] depth.
+Authored aspect is retained through a centered viewport. Collapsed, reflected or
+sheared global camera bases are explicitly refused by the current sampling
+profile. There is no automatic composition-camera replacement or selector UI.
+
+`SceneFrame::from_imported_camera` and `ScenePassFrame::from_imported_camera`
+consume these views. `ScenePass` accepts multiple owned `GpuScene` sources and
+repeated instances, clearing one shared color/depth target once. Common camera,
+viewport and 1x/4x sampling are explicit. Per-instance world, lighting and clip
+samples remain independent. Opaque/masked primitives precede globally sorted
+blended primitives; intersecting transparency still needs a separate OIT policy.
+Targets and immutable uniforms use the shared allocation budget and retain their
+actual encoder/submission lifetime, including abandoned command retirement.
+
+`ScenePass::depth()` is hardware projected depth, not a metric or relative
+`DepthResource`. Its single-sample texture permits exact native readback; there
+is no implicit multisample-depth resolve or AI-depth calibration.
+
+Project model layers still rasterize separately. The shared native pass does
+not complete mixed mesh/plane/BSP, nested/matte/effect composition or calibrated
+AI depth. Skin support and camera-selection UI also remain outside this
+checkpoint. Standalone native acceptance is distinguished from the separate
+saved-project/editor/export evidence; #87 remains open.
+
+
+## Morph targets and weight animation
+
+`Primitive::morph_attributes` evaluates owned POSITION/NORMAL/TANGENT deltas
+before transforms. Mesh defaults and per-node overrides remain independent;
+`mesh_instances_at` borrows static defaults and owns animated weight samples.
+Weight channels use flattened SCALAR groups for STEP/LINEAR/CUBICSPLINE without
+clamping or probability normalization. Weight-only animation preserves authored
+node matrices while matrix-authored TRS channels remain invalid.
+
+The native consumer admits immutable per-encode vertex buffers, preserving
+pending frames and abandonment accounting. Displaced bounds determine global
+blend order; tangent handedness and actual projected depth remain intact.
+Directions normalize before interpolation; canceled shading directions and
+finite-range overflow fail explicitly. Evaluation is currently CPU-side with
+per-encode uploads, without a fixed frame-rate claim. Saved project layers
+consume the same owned samples without reopening source assets during frames.
+
+[The morph ledger](../validation/gltf-morph-current.md) records 121 targeted
+passes, strict scene lint, final source identities and remaining whole-workspace
+and cross-platform gates. That ledger predates the skin checkpoint below.
+Mixed project composition, calibrated AI depth and camera-selection UI remain
+unfinished; #87 is open.
+
+## Linear blend skins
+
+Typed skins and every consecutive paired JOINTS_n/WEIGHTS_n VEC4 influence set
+are retained. `mesh_instances_with_skins_at` returns node-aware instances and
+one metre-space palette per used skin. `Primitive::skin_attributes` applies
+morph first, then weighted joint-world and inverse-bind matrices. Skinned
+primitives ignore their mesh-node transform; unskinned primitives keep it.
+
+The native consumer shares morph's immutable admitted per-encode buffer path,
+global blend sorting and hardware depth. Nonuniform positive effective
+transforms use inverse-transpose normals and forward tangents. Singular or
+reflected effective skin transforms, canceled directions and overflow refuse
+before recording without bind-pose substitution. CPU deformation and per-encode
+uploads remain performance limits.
+
+[The skin checkpoint](../validation/gltf-skin-current.md) distinguishes tested
+CPU/native/saved-project behavior from pending whole-workspace/cross-platform
+acceptance and the remaining #87 composition, depth and camera work.

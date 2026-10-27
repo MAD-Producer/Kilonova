@@ -168,6 +168,7 @@ fn usages_include_unreachable_compositions_and_disabled_layers() {
         fps: 30,
         frames: 60,
         work_area: project.work_area,
+        guides: Vec::new(),
         background: project.background,
         camera: project.camera.clone(),
         layers: project.layers.clone(),

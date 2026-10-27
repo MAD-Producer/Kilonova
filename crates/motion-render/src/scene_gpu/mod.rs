@@ -6,7 +6,9 @@ mod render;
 
 use crate::{AdmittedBuffer, RenderError, Renderer};
 use bytemuck::{Pod, Zeroable};
-pub use render::{SceneFrame, SceneLight, SceneRenderStats};
+pub use render::{
+    SceneFrame, SceneLight, ScenePass, ScenePassFrame, ScenePassInstance, SceneRenderStats,
+};
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
 #[derive(Clone, Copy, Debug)]
@@ -42,6 +44,30 @@ impl Default for SceneGpuLimits {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SceneGpuError {
+    #[error("scene node={node} mesh={mesh} primitive={primitive} phase=skin: {cause}")]
+    SkinDeformation {
+        node: usize,
+        mesh: usize,
+        primitive: usize,
+        #[source]
+        cause: Box<SceneGpuError>,
+    },
+    #[error("scene node={node} mesh={mesh} primitive={primitive} phase=morph: {cause}")]
+    Deformation {
+        node: usize,
+        mesh: usize,
+        primitive: usize,
+        #[source]
+        cause: Box<SceneGpuError>,
+    },
+    #[error("scene pass instance={instance} request=#{request} source={source_id}: {cause}")]
+    PassInstance {
+        instance: usize,
+        request: u64,
+        source_id: u64,
+        #[source]
+        cause: Box<SceneGpuError>,
+    },
     #[error(transparent)]
     Render(#[from] RenderError),
     #[error("scene image={image} phase=decode: {cause}")]
@@ -75,6 +101,9 @@ impl SceneGpuError {
     pub fn resource_rejection(&self) -> Option<&crate::ResourceRejection> {
         match self {
             Self::Render(cause) => cause.resource_rejection(),
+            Self::PassInstance { cause, .. }
+            | Self::Deformation { cause, .. }
+            | Self::SkinDeformation { cause, .. } => cause.resource_rejection(),
             _ => None,
         }
     }

@@ -303,6 +303,8 @@ pub(super) fn load(
             .transpose()?;
         let normals_present = block.normal || block.state.smooth.is_some();
         let mut primitive = Primitive {
+            joint_influences: Vec::new(),
+            morph_targets: Vec::new(),
             positions: Vec::new(),
             normals: normals_present.then(Vec::new),
             tangents: None,
@@ -378,6 +380,7 @@ pub(super) fn load(
         let mesh = *object_meshes.entry(block.state.object).or_insert_with(|| {
             meshes.push(Mesh {
                 primitives: Vec::new(),
+                weights: Vec::new(),
             });
             meshes.len() - 1
         });
@@ -398,7 +401,11 @@ pub(super) fn load(
         .map(|id| Node {
             local: Mat4::IDENTITY.to_cols_array(),
             mesh: Some(id),
+            camera: None,
+            skin: None,
+            weights: None,
             children: Vec::new(),
+            rest: None,
         })
         .collect();
     Ok(Scene {
@@ -419,6 +426,9 @@ pub(super) fn load(
         default_scene: Some(0),
         meshes,
         nodes,
+        animations: Vec::new(),
+        cameras: Vec::new(),
+        skins: Vec::new(),
         ignored_optional_extensions: Vec::new(),
         retained_bytes: budget.bytes,
     })

@@ -28,6 +28,8 @@ pub struct ImportLimits {
     pub max_vertices: usize,
     pub max_indices: usize,
     pub max_node_depth: usize,
+    /// Total decoded key timestamps across channels, including shared-sampler copies.
+    pub max_animation_keys: usize,
 }
 impl Default for ImportLimits {
     fn default() -> Self {
@@ -40,6 +42,7 @@ impl Default for ImportLimits {
             max_vertices: 1_000_000,
             max_indices: 3_000_000,
             max_node_depth: 128,
+            max_animation_keys: 1_000_000,
         }
     }
 }
@@ -120,6 +123,9 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         root.samplers.len(),
         root.materials.len(),
         root.meshes.len(),
+        root.animations.len(),
+        root.cameras.len(),
+        root.skins.len(),
         root.nodes.len(),
         root.scenes.len(),
     ] {
@@ -151,19 +157,6 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
             "required",
             root.extensions_required.join(", "),
         ));
-    }
-    for (feature, count) in [
-        ("animations", root.animations.len()),
-        ("skins", root.skins.len()),
-        ("cameras", root.cameras.len()),
-    ] {
-        if count != 0 {
-            return Err(unsupported(
-                "profile",
-                feature,
-                format!("{feature} are not implemented by the static import profile"),
-            ));
-        }
     }
     let mut budget = Budget {
         bytes: 0,
@@ -326,10 +319,9 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         .collect::<Result<Vec<_>>>()?;
     let mut meshes = Vec::with_capacity(root.meshes.len());
     let mut primitive_count = 0usize;
+    let mut target_count = 0usize;
+    let mut influence_count = 0usize;
     for (mesh_id, mesh) in root.meshes.iter().enumerate() {
-        if mesh.weights.is_some() {
-            return Err(unsupported("mesh", mesh_id, "morph weights"));
-        }
         primitive_count = primitive_count
             .checked_add(mesh.primitives.len())
             .filter(|&n| n <= limits.max_items)
@@ -337,6 +329,43 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         if mesh.primitives.is_empty() {
             return Err(invalid("mesh", mesh_id, "empty primitive list"));
         }
+        for p in &mesh.primitives {
+            influence_count = influence_count
+                .checked_add(
+                    p.attributes
+                        .keys()
+                        .filter(|n| n.starts_with("JOINTS_") || n.starts_with("WEIGHTS_"))
+                        .count(),
+                )
+                .filter(|&n| n <= limits.max_items)
+                .ok_or_else(|| {
+                    invalid(
+                        "budget",
+                        "skin attributes",
+                        "influence descriptor limit exceeded",
+                    )
+                })?;
+        }
+        let count = mesh.primitives[0].targets.len();
+        if mesh.primitives.iter().any(|p| p.targets.len() != count) {
+            return Err(invalid("mesh", mesh_id, "inconsistent morph target counts"));
+        }
+        target_count = mesh.primitives.iter().try_fold(target_count, |n, p| {
+            n.checked_add(p.targets.len())
+                .filter(|&n| n <= limits.max_items)
+                .ok_or_else(|| {
+                    invalid(
+                        "budget",
+                        "morph targets",
+                        "target descriptor limit exceeded",
+                    )
+                })
+        })?;
+        if let Some(weights) = &mesh.weights {
+            crate::morph::validate_weights("mesh", mesh_id, weights, count)?;
+        }
+        budget.reserve(count, std::mem::size_of::<f32>(), limits)?;
+        let weights = mesh.weights.clone().unwrap_or_else(|| vec![0.; count]);
         let primitives = mesh
             .primitives
             .iter()
@@ -348,9 +377,15 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        meshes.push(Mesh { primitives });
+        meshes.push(Mesh {
+            primitives,
+            weights,
+        });
     }
-    let nodes = nodes(&root, limits)?;
+    let nodes = nodes(&root, limits, &mut budget)?;
+    let skins = crate::skin::decode(&reader, &mut budget)?;
+    let cameras = crate::camera::decode(&root, &mut budget, limits)?;
+    let animations = crate::animation::decode(&reader, &mut budget)?;
     let mut scenes = Vec::with_capacity(root.scenes.len());
     let mut parents = vec![false; nodes.len()];
     for node in &nodes {
@@ -373,7 +408,7 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
     if root.scene.is_some_and(|n| n >= scenes.len()) {
         return Err(invalid("scene", "default", "scene index out of range"));
     }
-    Ok(Scene {
+    let scene = Scene {
         format: crate::SourceFormat::Gltf,
         obj_metadata: None,
         extra_resources: Vec::new(),
@@ -385,11 +420,16 @@ fn load(source: &[u8], resolver: &mut impl AssetResolver, limits: &ImportLimits)
         materials,
         meshes,
         nodes,
+        animations,
+        cameras,
+        skins,
         scenes,
         default_scene: root.scene,
         ignored_optional_extensions: root.extensions_used,
         retained_bytes: budget.bytes,
-    })
+    };
+    crate::skin::validate(&scene)?;
+    Ok(scene)
 }
 
 pub(crate) fn image_mime(

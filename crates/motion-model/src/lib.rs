@@ -29,7 +29,7 @@ pub use layer_switches::LayerSwitch;
 pub mod model_assets;
 pub mod node_resources;
 pub use node_resources::{NodeResource, NodeImageReference};
-pub use model_assets::{ModelAsset, ModelClip};
+pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
 pub mod particle_history;
@@ -42,6 +42,8 @@ pub mod text;
 pub use text::{TextAlign, TextStyle};
 mod video;
 mod work_area;
+pub mod guides;
+pub use guides::{Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};
 pub use work_area::{FrameScope, WorkArea};
 pub mod vector;
 

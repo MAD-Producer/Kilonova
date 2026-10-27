@@ -122,17 +122,138 @@ impl Reader<'_> {
         float_only: bool,
         budget: &mut Budget,
     ) -> Result<Vec<[f32; N]>> {
+        self.float_data(id, float_only, true, false, budget)
+    }
+
+    pub fn animation_floats<const N: usize>(
+        &self,
+        id: usize,
+        rotation: bool,
+        budget: &mut Budget,
+    ) -> Result<Vec<[f32; N]>> {
+        let a = self
+            .root
+            .accessors
+            .get(id)
+            .ok_or_else(|| invalid("animation", id, "accessor index out of range"))?;
+        if a.count > self.limits.max_animation_keys.saturating_mul(3)
+            || a.buffer_view
+                .and_then(|v| self.root.buffer_views.get(v))
+                .is_some_and(|v| v.target.is_some())
+        {
+            return Err(invalid(
+                "animation",
+                id,
+                "key count limit or animation buffer target",
+            ));
+        }
+        self.float_data(id, !rotation, false, rotation, budget)
+    }
+
+    pub fn animation_weight_floats(&self, id: usize, budget: &mut Budget) -> Result<Vec<[f32; 1]>> {
+        let a = self.accessor(id, "SCALAR", false)?;
+        if a.buffer_view
+            .and_then(|v| self.root.buffer_views.get(v))
+            .is_some_and(|v| v.target.is_some())
+        {
+            return Err(invalid(
+                "animation",
+                id,
+                "morph animation buffer cannot have a GPU target",
+            ));
+        }
+        // Scalar count includes every target and tangent. The accessor index
+        // bound and retained-byte budget apply before allocation, unlike key count.
+        self.float_data(id, false, false, true, budget)
+    }
+
+    pub fn inverse_bind_matrices(&self, id: usize, budget: &mut Budget) -> Result<Vec<[f32; 16]>> {
+        let a = self.accessor(id, "MAT4", false)?;
+        if a.buffer_view
+            .and_then(|v| self.root.buffer_views.get(v))
+            .is_some_and(|v| v.target.is_some())
+        {
+            return Err(invalid(
+                "skin",
+                id,
+                "inverse bind view cannot have a GPU target",
+            ));
+        }
+        self.float_data(id, true, false, false, budget)
+    }
+
+    pub fn joints(&self, id: usize, budget: &mut Budget) -> Result<Vec<[u16; 4]>> {
+        let a = self.accessor(id, "VEC4", true)?;
+        let width = match (a.component_type, a.normalized) {
+            (5121, false) => 1,
+            (5123, false) => 2,
+            _ => {
+                return Err(invalid(
+                    "skin",
+                    id,
+                    "joints require non-normalized unsigned byte/short",
+                ))
+            }
+        };
+        budget.reserve(a.count, std::mem::size_of::<[u16; 4]>(), self.limits)?;
+        let mut out = vec![[0; 4]; a.count];
+        let decode = |bytes: &[u8]| {
+            std::array::from_fn(|c| {
+                if width == 1 {
+                    bytes[c] as u16
+                } else {
+                    u16::from_le_bytes([bytes[c * 2], bytes[c * 2 + 1]])
+                }
+            })
+        };
+        if let Some(view) = a.buffer_view {
+            let values = self.elements(view, a.byte_offset, a.count, width, 4 * width, true)?;
+            for (i, item) in out.iter_mut().enumerate() {
+                *item = decode(values.at(i));
+            }
+        } else if a.byte_offset != 0 {
+            return Err(invalid("accessor", id, "offset without buffer view"));
+        }
+        if let Some(sparse) = &a.sparse {
+            let indices = self.sparse_indices(id, a.count, sparse)?;
+            let values = self.elements(
+                sparse.values.buffer_view,
+                sparse.values.byte_offset,
+                sparse.count,
+                width,
+                4 * width,
+                false,
+            )?;
+            for (i, index) in indices.into_iter().enumerate() {
+                out[index] = decode(values.at(i));
+            }
+        }
+        Ok(out)
+    }
+
+    fn float_data<const N: usize>(
+        &self,
+        id: usize,
+        float_only: bool,
+        vertex: bool,
+        signed: bool,
+        budget: &mut Budget,
+    ) -> Result<Vec<[f32; N]>> {
         let shape = match N {
+            1 => "SCALAR",
             2 => "VEC2",
             3 => "VEC3",
             4 => "VEC4",
+            16 => "MAT4",
             _ => return Err(invalid("accessor", id, "unsupported shape")),
         };
-        let a = self.accessor(id, shape, true)?;
+        let a = self.accessor(id, shape, vertex)?;
         let width = match (a.component_type, a.normalized) {
             (5126, false) => 4,
             (5121, true) if !float_only => 1,
             (5123, true) if !float_only => 2,
+            (5120, true) if signed => 1,
+            (5122, true) if signed => 2,
             _ => {
                 return Err(invalid(
                     "accessor",
@@ -147,9 +268,11 @@ impl Reader<'_> {
             let mut value = [0.; N];
             for c in 0..N {
                 let b = &bytes[c * width..(c + 1) * width];
-                value[c] = match width {
-                    1 => b[0] as f32 / 255.,
-                    2 => u16::from_le_bytes([b[0], b[1]]) as f32 / 65535.,
+                value[c] = match a.component_type {
+                    5120 => (b[0] as i8 as f32 / 127.).max(-1.),
+                    5121 => b[0] as f32 / 255.,
+                    5122 => (i16::from_le_bytes([b[0], b[1]]) as f32 / 32767.).max(-1.),
+                    5123 => u16::from_le_bytes([b[0], b[1]]) as f32 / 65535.,
                     _ => f32::from_le_bytes([b[0], b[1], b[2], b[3]]),
                 };
                 if !value[c].is_finite() {
@@ -159,7 +282,7 @@ impl Reader<'_> {
             Ok(value)
         };
         if let Some(view) = a.buffer_view {
-            let elements = self.elements(view, a.byte_offset, a.count, width, N * width, true)?;
+            let elements = self.elements(view, a.byte_offset, a.count, width, N * width, vertex)?;
             for (i, item) in out.iter_mut().enumerate() {
                 *item = decode(elements.at(i))?;
             }

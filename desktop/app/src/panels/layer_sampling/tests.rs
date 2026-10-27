@@ -408,6 +408,7 @@ fn declared_sampling_sources_agree_with_model_and_unreferenced_blur_is_not_a_bou
         fps: 60,
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: project.camera.clone(),
         layers: vec![child],

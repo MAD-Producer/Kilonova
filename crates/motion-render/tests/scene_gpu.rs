@@ -15,23 +15,45 @@ use std::{collections::BTreeMap, io, sync::Arc};
 
 const SIZE: u32 = 65;
 
+#[path = "scene_gpu/cameras.rs"]
+mod cameras;
+#[path = "scene_gpu/morph.rs"]
+mod morph;
+#[path = "scene_gpu/shared.rs"]
+mod shared;
+#[path = "scene_gpu/skins.rs"]
+mod skins;
+
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn scene_native_access_rejects_a_foreign_thread_before_allocation_and_recovers() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.render_target(SIZE, SIZE).unwrap();
-    let source = fixture(vec![json!({"emissiveFactor":[1.,0.,0.]})], &[(0., 0)], None, true);
+    let source = fixture(
+        vec![json!({"emissiveFactor":[1.,0.,0.]})],
+        &[(0., 0)],
+        None,
+        true,
+    );
     let gpu = GpuScene::upload(&renderer, REQUEST, source, SceneGpuLimits::default()).unwrap();
     let (renderer, target, mut gpu) = std::thread::spawn(move || {
         let mut gpu = gpu;
         let before = renderer.allocation_budget().info().unwrap();
         let error = gpu.draw(&renderer, REQUEST, &target, &frame()).unwrap_err();
         assert!(error.to_string().contains("owning thread"));
-        assert_eq!(renderer.allocation_budget().info().unwrap().admitted_bytes, before.admitted_bytes);
+        assert_eq!(
+            renderer.allocation_budget().info().unwrap().admitted_bytes,
+            before.admitted_bytes
+        );
         (renderer, target, gpu)
-    }).join().unwrap();
+    })
+    .join()
+    .unwrap();
     gpu.draw(&renderer, REQUEST, &target, &frame()).unwrap();
-    assert!(pixels(&renderer, &target, ChannelPrecision::Unorm8).pixels.iter().any(|b| *b != 0));
+    assert!(pixels(&renderer, &target, ChannelPrecision::Unorm8)
+        .pixels
+        .iter()
+        .any(|b| *b != 0));
 }
 const REQUEST: SceneRequest = SceneRequest {
     request: 8703,

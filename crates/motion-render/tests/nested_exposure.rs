@@ -25,6 +25,7 @@ fn composition(id: &str, fps: u32, layers: Vec<Layer>) -> Composition {
         fps,
         frames: 90,
         work_area: motion_core::WorkArea::full(90),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(64, 64),
         layers,

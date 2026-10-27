@@ -52,6 +52,10 @@ pub enum Command {
     InComposition { composition: String, command: Box<Command> },
     Composition { action: crate::CompositionAction },
     SetWorkArea { in_frame: u32, out_frame: u32 },
+    SetGuides {
+        #[serde(deserialize_with = "crate::guides::deserialize")]
+        guides: Vec<crate::Guide>,
+    },
     RegisterAudioAsset {
         asset: crate::AudioAsset,
     },

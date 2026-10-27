@@ -2,6 +2,77 @@ use super::{charge, invalid, MeshBuffers, Result, SceneGpuLimits, Vertex};
 use crate::AllocationContext;
 use glam::Vec3;
 
+/// One immutable vertex buffer for this node and sample. Pending encodes never
+/// observe a later frame's displacement through shared queue writes.
+pub(super) fn deformed(
+    context: &AllocationContext,
+    source: &motion_scene::Primitive,
+    weights: &[f32],
+    palette: Option<&[glam::Mat4]>,
+) -> Result<(crate::AdmittedBuffer, Vec3)> {
+    let mut attributes = if let Some(palette) = palette {
+        source.skin_attributes(weights, palette)?
+    } else {
+        source.morph_attributes(weights)?
+    };
+    // Normalize directions before interpolation, with f64 magnitude evaluation
+    // so large but finite deltas cannot overflow a native dot product.
+    let unit = |v: [f32; 3], vertex| -> Result<[f32; 3]> {
+        let length = v.iter().map(|&v| f64::from(v).powi(2)).sum::<f64>().sqrt();
+        if length == 0. || !length.is_finite() {
+            return Err(invalid(
+                "morph_basis",
+                vertex,
+                "zero or nonfinite displaced shading direction",
+            ));
+        }
+        Ok(v.map(|v| (f64::from(v) / length) as f32))
+    };
+    if let Some(normals) = &mut attributes.normals {
+        for (i, n) in normals.iter_mut().enumerate() {
+            *n = unit(*n, i)?;
+        }
+        if let Some(tangents) = &mut attributes.tangents {
+            for (i, t) in tangents.iter_mut().enumerate() {
+                let [x, y, z, w] = *t;
+                let [x, y, z] = unit([x, y, z], i)?;
+                *t = [x, y, z, w];
+            }
+        }
+    }
+    let mut vertices = Vec::new();
+    vertices
+        .try_reserve_exact(attributes.positions.len())
+        .map_err(|_| invalid("morph", 0, "vertex staging allocation failed"))?;
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
+    for (i, &position) in attributes.positions.iter().enumerate() {
+        for c in 0..3 {
+            min[c] = min[c].min(f64::from(position[c]));
+            max[c] = max[c].max(f64::from(position[c]));
+        }
+        vertices.push(Vertex {
+            position,
+            normal: attributes.normals.as_ref().map_or([0.; 3], |a| a[i]),
+            tangent: attributes.tangents.as_ref().map_or([0.; 4], |a| a[i]),
+            uv0: source.texcoords[0].as_ref().map_or([0.; 2], |a| a[i]),
+            uv1: source.texcoords[1].as_ref().map_or([0.; 2], |a| a[i]),
+            color: source.colors.as_ref().map_or([1.; 4], |a| a[i]),
+        });
+    }
+    let center = Vec3::from_array(std::array::from_fn(|c| ((min[c] + max[c]) * 0.5) as f32));
+    let buffer = context.buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(if palette.is_some() {
+            "immutable scene skin vertices"
+        } else {
+            "immutable scene morph vertices"
+        }),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    })?;
+    Ok((buffer, center))
+}
+
 pub(super) fn prepare(
     context: &AllocationContext,
     source: &motion_scene::Scene,

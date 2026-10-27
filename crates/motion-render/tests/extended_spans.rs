@@ -12,7 +12,7 @@ fn nested_signed_span_renders_recovered_tail_and_random_seeks_consistently(){
     let mut leaf=Layer::solid(1,"Red",[64.;2],[32.,32.,0.],[1.,0.,0.,1.]);
     leaf.timeline=Some(LayerTimeline{in_frame:-6,out_frame:36,offset_frame:-6});
     let mut camera=Camera::new(64,64);camera.created=false;
-    p.compositions.push(Composition{id:"comp-child".into(),name:"Child".into(),width:64,height:64,fps:30,work_area: motion_core::WorkArea::full(48), frames:48,
+    p.compositions.push(Composition{id:"comp-child".into(),name:"Child".into(),width:64,height:64,fps:30,work_area: motion_core::WorkArea::full(48), guides: Vec::new(), frames:48,
         background:[0.;4],camera,layers:vec![leaf],expressions:vec![]});
     let mut reference=Layer::solid(2,"Reference",[64.;2],[32.,32.,0.],[1.;4]);
     reference.content=Content::Composition{clip:CompositionClip::new("comp-child".into())};

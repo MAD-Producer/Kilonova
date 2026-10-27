@@ -92,7 +92,7 @@ pub(super) fn render(
         if let Some((_, before)) = panels.composition.pan.take() {
             panels.composition.navigation = before;
         }
-    } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() {
+    } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() && !panels.viewer_guides.dragging() {
         if input
             .pressed
             .is_some_and(|(b, p)| (b == MouseButton::Middle || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Hand) && v.contains(p))
@@ -223,7 +223,15 @@ pub(super) fn render(
         panels.composition.zoom.cancel();
         panels.composition.zoom_before = None;
     }
-    let right_width = quality_width + view_width + gap * 2.;
+    let overlay_width = sheet.metric("viewer.overlay.button.width", 64.);
+    let overlay_rect = Rect::new(fit_rect.max[0] + gap, fit_rect.min[1], overlay_width, button_height);
+    let overlay_fits = overlay_rect.max[0] <= controls.max[0] - padding;
+    if overlay_fits && motion_ui::ui::button(list, atlas, overlay_rect,
+        if panels.locale == Locale::Zh { "辅助显示" } else { "Overlays" }, input, true).clicked {
+        panels.viewer_guides.open(overlay_rect.min, state);
+    }
+    let left_end = if overlay_fits { overlay_rect.max[0] } else { fit_rect.max[0] };
+    let right_width = quality_width + view_width + gap * 2. + overlay_width + gap;
     let show_count = controls.width()
         >= padding * 2.
             + zoom_width
@@ -249,15 +257,15 @@ pub(super) fn render(
     );
     let camera_width = sheet.metric("viewer.camera.width", 24.);
     let camera_rect = Rect::new(quality_rect.min[0] - gap - camera_width, quality_rect.min[1], camera_width, button_height);
-    if camera_rect.min[0] > fit_rect.max[0] + gap {
+    if camera_rect.min[0] > left_end + gap {
         super::tools::camera::button(list, camera_rect, panels, state, input, out);
     }
-    if camera_rect.min[0] - gap - fit_rect.max[0] >= time_width {
+    if camera_rect.min[0] - gap - left_end >= time_width {
         let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
         motion_ui::style::text_style(
             list,
             atlas,
-            Rect::new(fit_rect.max[0] + gap, controls.min[1], time_width, height),
+            Rect::new(left_end + gap, controls.min[1], time_width, height),
             &timecode(state["frame"].as_f64().unwrap_or(0.), fps),
             sheet.resolve("label.accent", Default::default()).unwrap(),
             Align::Left,
@@ -269,7 +277,7 @@ pub(super) fn render(
         "economy" => (T::Economy, 0),
         _ => (T::Auto, 1),
     };
-    if quality_rect.min[0] > fit_rect.max[0] + gap {
+    if quality_rect.min[0] > left_end + gap {
         button(
             list,
             atlas,
@@ -292,7 +300,7 @@ pub(super) fn render(
             _ => (T::ViewFree, 2),
         }
     };
-    if view_rect.min[0] > fit_rect.max[0] + gap {
+    if view_rect.min[0] > left_end + gap {
         button(
             list,
             atlas,
@@ -317,36 +325,53 @@ pub(super) fn render(
             true,
         );
     }
-    if !observing { panels.effect_drag.target(v, None); }
+    let canvas_clip = panels.viewer_guides.canvas(v,&sheet);
+    if !observing { panels.effect_drag.target(canvas_clip, None); }
     let Some(mapping) = panels.composition.navigation.mapping(v, canvas) else {
         return;
     };
     let mut handles = list.child();
-    let tool_owned = super::tools::viewport(panels, &mut handles, v, mapping, state, input, out);
-    let consumed = tool_owned || panels.path_controls.draw_in_viewport(
-        &mut handles,
+    let handles_visible = panels.viewer_guides.visibility.handles;
+    let handle_hit = handles_visible && input.pressed.is_some_and(|(button,point)| button == MouseButton::Left && canvas_clip.contains(point)
+        && panels.transform_controls.handle_hit(state,panels.selected,mapping.image,point,&sheet));
+    let guide_tool = super::tools::active(panels) == super::tools::Active::Select
+        || input.pressed.is_some_and(|(button,point)| button == MouseButton::Left && panels.viewer_guides.ruler_hit(v,point,&sheet));
+    let guide_owned = panels.viewer_guides.viewport(&mut handles, atlas, v, mapping, canvas, state, input,
+        panels.locale, !panels.path_controls.editing() && !panels.transform_controls.gesture_active()
+            && !panels.tools.editing() && panels.composition.pan.is_none() && !handle_hit && guide_tool, out);
+    if let Some(notice) = panels.viewer_guides.take_notice(panels.locale) { panels.message = Some(notice); }
+    if guide_owned { handles.clip_to(v); list.append(handles); return; }
+    let mut editing = handles.child();
+    let tool_owned = super::tools::viewport(panels, &mut editing, v, mapping, state, input, out);
+    let consumed = tool_owned || panels.path_controls.draw_with_handles(
+        &mut editing,
         atlas,
-        v,
+        canvas_clip,
         mapping.image,
         state,
         panels.selected,
         input,
         panels.locale,
+        handles_visible,
         out,
     );
-    let consumed = if !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
-        panels.transform_controls.draw_in_viewport(
-            &mut handles,
-            v,
+    let consumed = if handles_visible && !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
+        let snapping = panels.viewer_guides.snapping(state, mapping, canvas, &sheet);
+        panels.transform_controls.draw_with_guides(
+            &mut editing,
+            canvas_clip,
             mapping.image,
             state,
             panels.selected,
             input,
+            snapping.as_ref(),
             out,
         ) || consumed
     } else {
         consumed
     };
+    editing.clip_to(canvas_clip);
+    handles.append(editing);
     handles.clip_to(v);
     list.append(handles);
     if let Some(cursor) = panels
@@ -358,7 +383,7 @@ pub(super) fn render(
     }
     if input
         .pressed
-        .is_some_and(|(b, p)| b == MouseButton::Left && v.contains(p))
+        .is_some_and(|(b, p)| b == MouseButton::Left && canvas_clip.contains(p))
         && !consumed
     {
         let point = input.pressed.unwrap().1;

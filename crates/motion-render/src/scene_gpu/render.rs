@@ -8,6 +8,9 @@ use glam::{Mat4, Vec3};
 use motion_scene::AlphaMode;
 use std::{collections::HashSet, time::Instant};
 
+mod shared;
+pub use shared::{ScenePass, ScenePassFrame, ScenePassInstance};
+
 const MAX_LIGHTS: usize = 4;
 const DEFAULT_LIGHTS: &[SceneLight] = &[SceneLight::Directional {
     direction: [0.2, -0.5, -1.],
@@ -32,6 +35,7 @@ pub enum SceneLight {
 }
 pub struct SceneFrame<'a> {
     pub scene: usize,
+    pub animation: Option<motion_scene::AnimationSample>,
     pub camera: motion_model::CameraPose,
     pub pixels_per_metre: f32,
     pub world: Mat4,
@@ -42,11 +46,14 @@ pub struct SceneFrame<'a> {
     pub background: [f32; 4],
     /// Explicit 1 or 4, with refusal rather than an implicit MSAA fallback.
     pub samples: u32,
+    /// Native-pixel camera viewport; None uses the complete target.
+    pub viewport: Option<[f32; 4]>,
 }
 impl SceneFrame<'static> {
     pub fn new(camera: motion_model::CameraPose, scene: usize, pixels_per_metre: f32) -> Self {
         Self {
             scene,
+            animation: None,
             camera,
             pixels_per_metre,
             world: Mat4::IDENTITY,
@@ -54,7 +61,30 @@ impl SceneFrame<'static> {
             ambient: [0.03; 3],
             background: [0.; 4],
             samples: 1,
+            viewport: None,
         }
+    }
+}
+impl SceneFrame<'static> {
+    pub fn from_imported_camera(
+        camera: &motion_scene::CameraView,
+        scene: usize,
+        pixels_per_metre: f32,
+    ) -> Self {
+        let mut frame = Self::new(imported_camera_pose(camera), scene, pixels_per_metre);
+        frame.viewport = Some(camera.viewport);
+        frame
+    }
+}
+fn imported_camera_pose(camera: &motion_scene::CameraView) -> motion_model::CameraPose {
+    motion_model::CameraPose {
+        eye: camera.eye,
+        target: camera.target,
+        view_projection: camera.view_projection,
+        projection: match camera.kind {
+            motion_scene::CameraKind::Perspective => motion_model::ProjectionKind::Perspective,
+            motion_scene::CameraKind::Orthographic => motion_model::ProjectionKind::Orthographic,
+        },
     }
 }
 #[derive(Debug, Default)]
@@ -64,6 +94,8 @@ pub struct SceneRenderStats {
     pub blended_draws: usize,
     pub parameter_bytes: u64,
     pub resident_bytes: u64,
+    /// Immutable per-node displaced vertices, separately admitted per encode.
+    pub deformation_bytes: u64,
 }
 
 #[repr(C)]
@@ -120,6 +152,7 @@ struct Item {
     uniform: Draw,
     key: PipelineKey,
     distance: f32,
+    vertices: Option<crate::AdmittedBuffer>,
 }
 
 pub(super) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
@@ -143,7 +176,11 @@ impl GpuScene {
         // identity is movable metadata; native access remains owner-thread-only.
         // AllocationContext itself retains its compile-time !Send contract.
         if std::thread::current().id() != self.thread {
-            return Err(invalid("thread", 0, "scene access requires its owning thread"));
+            return Err(invalid(
+                "thread",
+                0,
+                "scene access requires its owning thread",
+            ));
         }
         if !std::sync::Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
             return Err(invalid("owner", 0, "scene belongs to another renderer"));
@@ -238,58 +275,146 @@ impl GpuScene {
         {
             return Err(invalid("target", 0, "target metadata/view was changed"));
         }
-        if !matches!(frame.samples, 1 | 4) {
-            return Err(unsupported(
-                0,
-                "scene sample count must be explicitly 1 or 4",
-            ));
-        }
-        if !frame.world.is_finite()
-            || !frame.camera.view_projection.is_finite()
-            || !frame.camera.eye.is_finite()
-            || !frame.camera.target.is_finite()
+        validate_viewport(frame.viewport, target)?;
+        let items = self.prepare_items(
+            renderer,
+            request,
+            texture.format(),
+            frame,
+            self.limits.max_draws,
+        )?;
+        self.ensure_targets(renderer, target, frame.samples)?;
+        let targets = self
+            .targets
+            .as_ref()
+            .ok_or_else(|| invalid("targets", 0, "scene targets missing"))?;
+        let FrameUniforms {
+            buffer,
+            group,
+            stride,
+            size,
+        } = self.uniforms(renderer, &items)?;
+        let color = targets.color.as_ref().map_or(&*target.view, |v| &**v);
+        let mut stats = SceneRenderStats {
+            draws: items.len(),
+            triangles: 0,
+            blended_draws: 0,
+            parameter_bytes: size,
+            resident_bytes: self.resident_bytes,
+            deformation_bytes: items
+                .iter()
+                .filter_map(|item| item.vertices.as_ref())
+                .map(|v| v.size())
+                .sum(),
+        };
         {
-            return Err(invalid("frame", 0, "non-finite camera/world transform"));
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("scene depth and material pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color,
+                    depth_slice: None,
+                    resolve_target: targets.color.as_ref().map(|_| &*target.view),
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: f64::from(frame.background[0] * frame.background[3]),
+                            g: f64::from(frame.background[1] * frame.background[3]),
+                            b: f64::from(frame.background[2] * frame.background[3]),
+                            a: f64::from(frame.background[3]),
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &targets.depth,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            if let Some([x, y, w, h]) = frame.viewport {
+                pass.set_viewport(x, y, w, h, 0., 1.);
+            }
+            if let Some(group) = &group {
+                for (i, item) in items.iter().enumerate() {
+                    let p = &self.meshes[item.mesh][item.primitive];
+                    let material = &self.materials[p.material];
+                    pass.set_pipeline(&self.pipelines[&item.key]);
+                    pass.set_bind_group(0, group, &[(i as u64 * stride) as u32]);
+                    pass.set_bind_group(1, &material.group, &[]);
+                    pass.set_vertex_buffer(
+                        0,
+                        item.vertices.as_ref().unwrap_or(&p.vertices).slice(..),
+                    );
+                    pass.set_index_buffer(p.indices.slice(..), wgpu::IndexFormat::Uint32);
+                    pass.draw_indexed(0..p.index_count, 0, 0..1);
+                    stats.triangles += u64::from(p.index_count / 3);
+                    stats.blended_draws += usize::from(item.key.blend);
+                }
+            }
         }
-        if frame.world.row(3) != glam::Vec4::W {
-            return Err(invalid("frame", 0, "world transform must be affine"));
-        }
-        let projection_determinant = frame.camera.view_projection.determinant();
-        if !projection_determinant.is_finite() || projection_determinant == 0. {
-            return Err(invalid("camera", 0, "camera projection must be invertible"));
-        }
-        if frame
-            .ambient
-            .iter()
-            .chain(&frame.background)
-            .any(|v| !v.is_finite() || *v < 0.)
-            || frame.background[3] > 1.
-        {
-            return Err(invalid("frame", 0, "invalid ambient/background components"));
-        }
-        let forward = (frame.camera.target - frame.camera.eye)
-            .try_normalize()
-            .ok_or_else(|| invalid("camera", 0, "camera eye and target must define a direction"))?;
-        let lights = lights(frame)?;
-        let instances = self.source.instances(frame.scene, frame.pixels_per_metre)?;
+        drop(buffer);
+        Ok(stats)
+    }
+    fn prepare_items(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        format: wgpu::TextureFormat,
+        frame: &SceneFrame<'_>,
+        max_draws: usize,
+    ) -> Result<Vec<Item>> {
+        let (forward, lights) = validate_frame(frame)?;
+        let sampled = self.source.mesh_instances_with_skins_at(
+            frame.scene,
+            frame.pixels_per_metre,
+            frame.animation,
+        )?;
         let mut items = Vec::new();
         let mut needed = HashSet::new();
-        for (mesh, matrix) in instances {
-            let world = frame.world * matrix;
-            let determinant = world.determinant();
-            if !world.is_finite() || !determinant.is_finite() || determinant == 0. {
-                return Err(invalid(
-                    "transform",
-                    mesh,
-                    "singular or overflowing world transform cannot shade a mesh",
-                ));
-            }
-            let normal_world = world.inverse().transpose();
-            if !normal_world.is_finite() {
-                return Err(invalid("transform", mesh, "normal transform overflow"));
-            }
+        let mut frame_bytes = self.resident_bytes;
+        for instance in sampled.meshes {
+            let mesh = instance.mesh;
             for (primitive, p) in self.meshes[mesh].iter().enumerate() {
-                if items.len() >= self.limits.max_draws {
+                let primitive_source = &self.source.meshes()[mesh].primitives[primitive];
+                let palette = if primitive_source.joint_influences.is_empty() {
+                    None
+                } else {
+                    instance.skin.and_then(|s| sampled.skins[s].as_deref())
+                };
+                let world = frame.world
+                    * if palette.is_some() {
+                        Mat4::from_scale(Vec3::splat(frame.pixels_per_metre))
+                    } else {
+                        instance.world
+                    };
+                let determinant = world.determinant();
+                // A fully collapsed animated hierarchy has no visible geometry.
+                // Other singular transforms retain the explicit shading refusal below.
+                if frame.animation.is_some()
+                    && world.is_finite()
+                    && [world.x_axis, world.y_axis, world.z_axis]
+                        .iter()
+                        .all(|axis| axis.truncate() == Vec3::ZERO)
+                {
+                    continue;
+                }
+                if !world.is_finite() || !determinant.is_finite() || determinant == 0. {
+                    return Err(invalid(
+                        "transform",
+                        mesh,
+                        "singular or overflowing world transform cannot shade a mesh",
+                    ));
+                }
+                let normal_world = world.inverse().transpose();
+                if !normal_world.is_finite() {
+                    return Err(invalid("transform", mesh, "normal transform overflow"));
+                }
+                if items.len() >= self.limits.max_draws.min(max_draws) {
                     return Err(invalid(
                         "instances",
                         mesh,
@@ -297,13 +422,47 @@ impl GpuScene {
                     ));
                 }
                 let m = &self.materials[p.material];
-                let center = world.transform_point3(p.center);
+                let (vertices, local_center) = if instance.has_active_morph() || palette.is_some() {
+                    let cost = (primitive_source.positions.len() as u64)
+                        .checked_mul(std::mem::size_of::<Vertex>() as u64)
+                        .ok_or_else(|| invalid("morph", mesh, "vertex capacity overflow"))?;
+                    let (buffer, center) = (|| {
+                        super::charge(&mut frame_bytes, cost, self.limits)?;
+                        super::meshes::deformed(
+                            &renderer.allocation_context(),
+                            primitive_source,
+                            &instance.weights,
+                            palette,
+                        )
+                    })()
+                    .map_err(|cause| {
+                        if palette.is_some() {
+                            super::SceneGpuError::SkinDeformation {
+                                node: instance.node,
+                                mesh,
+                                primitive,
+                                cause: Box::new(cause),
+                            }
+                        } else {
+                            super::SceneGpuError::Deformation {
+                                node: instance.node,
+                                mesh,
+                                primitive,
+                                cause: Box::new(cause),
+                            }
+                        }
+                    })?;
+                    (Some(buffer), center)
+                } else {
+                    (None, p.center)
+                };
+                let center = world.transform_point3(local_center);
                 let distance = (center - frame.camera.eye).dot(forward);
                 if !center.is_finite() || !distance.is_finite() {
                     return Err(invalid("sort", mesh, "primitive depth overflow"));
                 }
                 let key = PipelineKey {
-                    format: texture.format(),
+                    format,
                     samples: frame.samples,
                     blend: m.alpha == AlphaMode::Blend,
                     double: m.double_sided,
@@ -335,6 +494,7 @@ impl GpuScene {
                     uniform,
                     key,
                     distance,
+                    vertices,
                 });
             }
         }
@@ -363,11 +523,9 @@ impl GpuScene {
                 );
             }
         }
-        self.ensure_targets(renderer, target, frame.samples)?;
-        let targets = self
-            .targets
-            .as_ref()
-            .ok_or_else(|| invalid("targets", 0, "scene targets missing"))?;
+        Ok(items)
+    }
+    fn uniforms(&self, renderer: &Renderer, items: &[Item]) -> Result<FrameUniforms> {
         let stride = (std::mem::size_of::<Draw>() as u64).div_ceil(u64::from(
             renderer.device.limits().min_uniform_buffer_offset_alignment,
         )) * u64::from(renderer.device.limits().min_uniform_buffer_offset_alignment);
@@ -388,13 +546,14 @@ impl GpuScene {
                 let bytes = bytemuck::bytes_of(&item.uniform);
                 staging[start..start + bytes.len()].copy_from_slice(bytes);
             }
-            let buffer = renderer
-                .allocation_context()
-                .buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("immutable scene frame transforms"),
-                    contents: &staging,
-                    usage: wgpu::BufferUsages::UNIFORM,
-                })?;
+            let buffer =
+                renderer
+                    .allocation_context()
+                    .buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("immutable scene frame transforms"),
+                        contents: &staging,
+                        usage: wgpu::BufferUsages::UNIFORM,
+                    })?;
             let group = renderer
                 .device
                 .create_bind_group(&wgpu::BindGroupDescriptor {
@@ -411,60 +570,12 @@ impl GpuScene {
                 });
             (Some(buffer), Some(group))
         };
-        let color = targets.color.as_ref().map_or(&*target.view, |v| &**v);
-        let mut stats = SceneRenderStats {
-            draws: items.len(),
-            triangles: 0,
-            blended_draws: 0,
-            parameter_bytes: size,
-            resident_bytes: self.resident_bytes,
-        };
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("scene depth and material pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color,
-                    depth_slice: None,
-                    resolve_target: targets.color.as_ref().map(|_| &*target.view),
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: f64::from(frame.background[0] * frame.background[3]),
-                            g: f64::from(frame.background[1] * frame.background[3]),
-                            b: f64::from(frame.background[2] * frame.background[3]),
-                            a: f64::from(frame.background[3]),
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &targets.depth,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            if let Some(group) = &group {
-                for (i, item) in items.iter().enumerate() {
-                    let p = &self.meshes[item.mesh][item.primitive];
-                    let material = &self.materials[p.material];
-                    pass.set_pipeline(&self.pipelines[&item.key]);
-                    pass.set_bind_group(0, group, &[(i as u64 * stride) as u32]);
-                    pass.set_bind_group(1, &material.group, &[]);
-                    pass.set_vertex_buffer(0, p.vertices.slice(..));
-                    pass.set_index_buffer(p.indices.slice(..), wgpu::IndexFormat::Uint32);
-                    pass.draw_indexed(0..p.index_count, 0, 0..1);
-                    stats.triangles += u64::from(p.index_count / 3);
-                    stats.blended_draws += usize::from(item.key.blend);
-                }
-            }
-        }
-        drop(buffer);
-        Ok(stats)
+        Ok(FrameUniforms {
+            buffer,
+            group,
+            stride,
+            size,
+        })
     }
     fn pipeline(&self, renderer: &Renderer, key: PipelineKey) -> Result<wgpu::RenderPipeline> {
         let features = features(renderer, key.format);
@@ -532,6 +643,25 @@ impl GpuScene {
         {
             return Ok(());
         }
+        self.targets = Some(Targets::new(renderer, target, samples, false)?);
+        Ok(())
+    }
+}
+struct FrameUniforms {
+    buffer: Option<crate::AdmittedBuffer>,
+    group: Option<wgpu::BindGroup>,
+    stride: u64,
+    size: u64,
+}
+impl Targets {
+    fn new(
+        renderer: &Renderer,
+        target: &RenderTarget,
+        samples: u32,
+        copy_depth: bool,
+    ) -> Result<Self> {
+        let format = target.texture().format();
+        let size = (target.width, target.height);
         if !features(renderer, wgpu::TextureFormat::Depth32Float)
             .flags
             .sample_count_supported(samples)
@@ -549,7 +679,12 @@ impl GpuScene {
             sample_count: samples,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | if copy_depth && samples == 1 && format == wgpu::TextureFormat::Depth32Float {
+                    wgpu::TextureUsages::COPY_SRC
+                } else {
+                    wgpu::TextureUsages::empty()
+                },
             view_formats: &[],
         };
         let context = renderer.allocation_context();
@@ -567,12 +702,19 @@ impl GpuScene {
         };
         let depth_bytes = crate::resource_ledger::logical_bytes(&depth)
             .ok_or_else(|| invalid("targets", 0, "cannot account scene depth storage"))?;
-        let color_bytes = color.as_ref().map(|texture| crate::resource_ledger::logical_bytes(texture)
-            .ok_or_else(|| invalid("targets", 0, "cannot account scene multisample storage")))
-            .transpose()?.unwrap_or(0);
-        let bytes = depth_bytes.checked_add(color_bytes)
+        let color_bytes = color
+            .as_ref()
+            .map(|texture| {
+                crate::resource_ledger::logical_bytes(texture).ok_or_else(|| {
+                    invalid("targets", 0, "cannot account scene multisample storage")
+                })
+            })
+            .transpose()?
+            .unwrap_or(0);
+        let bytes = depth_bytes
+            .checked_add(color_bytes)
             .ok_or_else(|| invalid("targets", 0, "scene target capacity overflow"))?;
-        self.targets = Some(Targets {
+        Ok(Targets {
             size,
             format,
             samples,
@@ -581,9 +723,62 @@ impl GpuScene {
             color: color.as_ref().map(|c| c.view()).transpose()?,
             _color: color,
             bytes,
-        });
-        Ok(())
+        })
     }
+}
+fn validate_frame(frame: &SceneFrame<'_>) -> Result<(Vec3, [Light; MAX_LIGHTS])> {
+    if !matches!(frame.samples, 1 | 4) {
+        return Err(unsupported(
+            0,
+            "scene sample count must be explicitly 1 or 4",
+        ));
+    }
+    if !frame.world.is_finite()
+        || !frame.camera.view_projection.is_finite()
+        || !frame.camera.eye.is_finite()
+        || !frame.camera.target.is_finite()
+    {
+        return Err(invalid("frame", 0, "non-finite camera/world transform"));
+    }
+    if frame.world.row(3) != glam::Vec4::W {
+        return Err(invalid("frame", 0, "world transform must be affine"));
+    }
+    let projection_determinant = frame.camera.view_projection.determinant();
+    if !projection_determinant.is_finite() || projection_determinant == 0. {
+        return Err(invalid("camera", 0, "camera projection must be invertible"));
+    }
+    if frame
+        .ambient
+        .iter()
+        .chain(&frame.background)
+        .any(|v| !v.is_finite() || *v < 0.)
+        || frame.background[3] > 1.
+    {
+        return Err(invalid("frame", 0, "invalid ambient/background components"));
+    }
+    let forward = (frame.camera.target - frame.camera.eye)
+        .try_normalize()
+        .ok_or_else(|| invalid("camera", 0, "camera eye and target must define a direction"))?;
+    let lights = lights(frame)?;
+    Ok((forward, lights))
+}
+fn validate_viewport(viewport: Option<[f32; 4]>, target: &RenderTarget) -> Result<()> {
+    if viewport.is_some_and(|[x, y, w, h]| {
+        [x, y, w, h].iter().any(|v| !v.is_finite())
+            || x < 0.
+            || y < 0.
+            || w <= 0.
+            || h <= 0.
+            || x + w > target.width as f32
+            || y + h > target.height as f32
+    }) {
+        return Err(invalid(
+            "viewport",
+            0,
+            "camera viewport exceeds target or has invalid components",
+        ));
+    }
+    Ok(())
 }
 fn features(renderer: &Renderer, format: wgpu::TextureFormat) -> wgpu::TextureFormatFeatures {
     if renderer

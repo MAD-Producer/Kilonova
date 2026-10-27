@@ -30,9 +30,10 @@ pub use expressions::{expression_reference_source, expression_source_diagnostic,
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
-pub use motion_model::{ModelAsset, ModelClip, model_assets};
+pub use motion_model::{ModelAnimation, ModelAsset, ModelClip, model_assets};
 pub use motion_model::ClipRange;
 pub use motion_model::{FrameScope, WorkArea};
+pub use motion_model::{guides, Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};
 pub use motion_model::geometry::RotationOrder;
 pub use motion_model::{audio_levels,AudioLevels,AudioLevelsAction,AudioChannel};
 pub use motion_model::{AudioMarker, AudioMarkersAction, AudioSourceChannel};

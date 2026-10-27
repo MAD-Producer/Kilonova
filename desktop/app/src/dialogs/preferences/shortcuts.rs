@@ -345,6 +345,7 @@ impl Shortcuts {
 pub(crate) fn command_name(locale: Locale, command: Command) -> String {
     use Command::*;
     let (zh, en) = match command {
+        Command::ToggleViewerHandles => ("显隐编辑手柄", "Toggle editing handles"),
         ToolSelect => ("选择工具", "Selection tool"),
         ToolPen => ("钢笔工具", "Pen tool"),
         ToolAnchor => ("锚点工具", "Anchor tool"),

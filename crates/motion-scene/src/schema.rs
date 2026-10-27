@@ -32,11 +32,69 @@ pub(crate) struct Root {
     #[serde(default)]
     pub extensions_required: Vec<String>,
     #[serde(default)]
-    pub animations: Vec<serde_json::Value>,
+    pub animations: Vec<Animation>,
     #[serde(default)]
-    pub skins: Vec<serde_json::Value>,
+    pub skins: Vec<Skin>,
     #[serde(default)]
-    pub cameras: Vec<serde_json::Value>,
+    pub cameras: Vec<Camera>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Skin {
+    pub joints: Vec<usize>,
+    pub inverse_bind_matrices: Option<usize>,
+    pub skeleton: Option<usize>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct Camera {
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub perspective: Option<Perspective>,
+    pub orthographic: Option<Orthographic>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Perspective {
+    pub aspect_ratio: Option<f32>,
+    pub yfov: f32,
+    pub znear: f32,
+    pub zfar: Option<f32>,
+}
+#[derive(Deserialize)]
+pub(crate) struct Orthographic {
+    pub xmag: f32,
+    pub ymag: f32,
+    pub znear: f32,
+    pub zfar: f32,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct Animation {
+    pub name: Option<String>,
+    pub channels: Vec<AnimationChannel>,
+    pub samplers: Vec<AnimationSampler>,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationChannel {
+    pub sampler: usize,
+    pub target: AnimationTarget,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationTarget {
+    pub node: Option<usize>,
+    pub path: String,
+}
+#[derive(Deserialize)]
+pub(crate) struct AnimationSampler {
+    pub input: usize,
+    pub output: usize,
+    #[serde(default = "linear")]
+    pub interpolation: String,
+}
+fn linear() -> String {
+    "LINEAR".into()
 }
 
 #[derive(Deserialize)]
@@ -204,7 +262,7 @@ pub(crate) struct Primitive {
     pub material: Option<usize>,
     pub mode: Option<u32>,
     #[serde(default)]
-    pub targets: Vec<serde_json::Value>,
+    pub targets: Vec<BTreeMap<String, usize>>,
 }
 
 #[derive(Deserialize)]

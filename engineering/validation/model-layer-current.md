@@ -196,3 +196,31 @@ Model layer transforms/keyframes, save/freeze/export and source budgets are
 accepted for this stage. The already delivered model movie is not rerendered.
 Shared mesh/plane depth, imported animation/skin/morph/camera and remaining
 composition acceptance stay open under #87.
+
+## Later #87 pipeline checkpoint
+
+The subsequent [transform animation](gltf-transform-animation-current.md),
+[shared native depth](gltf-shared-depth-current.md) and
+[imported camera](gltf-cameras-current.md) checkpoints supersede the earlier
+unsupported animation/camera boundary above. Their maintained-main full
+regression and exact source-equivalence evidence are recorded in those ledgers.
+Project mixed composition, skin/morph and calibrated AI depth remain open.
+
+
+## Later morph checkpoint
+
+The [morph target and weight-animation checkpoint](gltf-morph-current.md)
+supersedes the earlier unsupported-morph boundary above. Its final source passes
+121 targeted CPU/native/project/editor tests and strict scene lint. Full
+workspace/cross-platform morph acceptance remains separate. Skinning, actual
+mixed project composition and calibrated AI depth remain unfinished; #87 stays
+open. This adds no panels or repeated model-movie demonstration.
+
+## Later skin checkpoint
+
+The [linear blend skin checkpoint](gltf-skin-current.md) supersedes the earlier
+unsupported-skin boundary. It records owned joint data, actual native skin and
+saved-project seeks, including explicit unsupported-pose and admission refusals.
+Its acceptance scope is separate from earlier source manifests and full gates.
+Mixed project composition, calibrated AI depth and final #87 acceptance remain
+open; Android is retired and excluded.

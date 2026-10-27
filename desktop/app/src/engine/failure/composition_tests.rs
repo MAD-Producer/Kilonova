@@ -459,6 +459,7 @@ fn capacity_failure_reaches_reply_file_and_stderr_at_default_level() {
                 fps: 30,
                 frames: 120,
                 work_area: motion_core::WorkArea::full(120),
+                guides: Vec::new(),
                 background: [0.; 4],
                 camera: motion_core::Camera::new(64, 64),
                 layers: vec![],

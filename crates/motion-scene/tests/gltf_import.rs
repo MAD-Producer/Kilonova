@@ -468,12 +468,11 @@ fn optional_extensions_are_reported_and_required_features_are_explicit_errors() 
     let error = load(&root, bytes.clone()).unwrap_err();
     assert!(matches!(error.cause, Cause::Unsupported(_)));
     root.as_object_mut().unwrap().remove("extensionsRequired");
-    for feature in ["animations", "skins", "cameras"] {
-        let mut bad = root.clone();
-        bad[feature] = json!([{}]);
-        let error = load(&bad, bytes.clone()).unwrap_err();
-        assert!(matches!(error.cause, Cause::Unsupported(_)));
-    }
+    // A skin descriptor must provide its joint mapping, even if unused.
+    let mut bad = root.clone();
+    bad["skins"] = json!([{}]);
+    let error = load(&bad, bytes.clone()).unwrap_err();
+    assert!(matches!(error.cause, Cause::Json(_)));
 }
 
 #[test]
