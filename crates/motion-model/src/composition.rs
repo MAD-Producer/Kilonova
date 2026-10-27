@@ -23,6 +23,8 @@ pub struct Composition {
     pub fps: u32,
     pub frames: u32,
     pub work_area: crate::WorkArea,
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::guides::deserialize")]
+    pub guides: Vec<crate::Guide>,
     pub background: [f32; 4],
     pub camera: Camera,
     pub layers: Vec<Layer>,
@@ -40,6 +42,7 @@ pub struct CompositionView<'a> {
     pub fps: u32,
     pub frames: u32,
     pub work_area: crate::WorkArea,
+    pub guides: &'a [crate::Guide],
     pub background: [f32; 4],
     pub camera: &'a Camera,
     pub layers: &'a [Layer],
@@ -211,6 +214,7 @@ impl Composition {
             fps: p.fps,
             frames: p.frames,
             work_area: p.work_area,
+            guides: p.guides.clone(),
             background: p.background,
             camera: p.camera.clone(),
             layers: p.layers.clone(),
@@ -225,6 +229,7 @@ impl Composition {
         p.fps = self.fps;
         p.frames = self.frames;
         p.work_area = self.work_area;
+        p.guides = self.guides;
         p.background = self.background;
         p.camera = self.camera;
         p.layers = self.layers;
@@ -239,10 +244,12 @@ impl Project {
             id: &self.composition_id, name: &self.name, width: self.width, height: self.height,
             fps: self.fps, frames: self.frames, background: self.background, camera: &self.camera,
             work_area: self.work_area,
+            guides: &self.guides,
             layers: &self.layers, expressions: &self.expressions,
         }).chain(self.compositions.iter().map(|c| CompositionView {
             id: &c.id, name: &c.name, width: c.width, height: c.height, fps: c.fps, frames: c.frames,
             work_area: c.work_area,
+            guides: &c.guides,
             background: c.background, camera: &c.camera, layers: &c.layers, expressions: &c.expressions,
         }))
     }
@@ -270,6 +277,7 @@ impl Project {
             fps: body.fps,
             frames: body.frames,
             work_area: body.work_area,
+            guides: body.guides.to_vec(),
             background: body.background,
             camera: body.camera.clone(),
             layers: body.layers.to_vec(),

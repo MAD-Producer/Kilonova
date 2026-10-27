@@ -124,6 +124,7 @@ fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
         fps: 24,
         frames: 72,
         work_area: motion_core::WorkArea::full(72),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: child.camera,
         layers: child.layers,

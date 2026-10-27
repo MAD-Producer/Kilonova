@@ -200,7 +200,7 @@ mod tests {
         l.sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:2.,samples:8});
         if nested {
             p.compositions.push(motion_core::Composition {id:"comp-movie-shutter".into(),name:"60 fps child".into(),
-                width:64,height:64,fps:60,work_area: motion_core::WorkArea::full(12), frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
+                width:64,height:64,fps:60,work_area: motion_core::WorkArea::full(12), guides: Vec::new(), frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
                 layers:vec![l],expressions:vec![]});
             let mut parent=Layer::solid(1,"parent shutter",[64.;2],[32.,32.,0.],[1.;4]);
             parent.content=Content::Composition {clip:motion_core::CompositionClip::new("comp-movie-shutter".into())};

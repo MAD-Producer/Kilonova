@@ -198,6 +198,7 @@ registry! {
     Command::SetLayerShy { .. } => "set_layer_shy" [("object","u64",true), ("shy","bool",true)];
     Command::SetLayerSwitch { .. } => "set_layer_switch" [("object","u64",true), ("switch","LayerSwitch",true), ("enabled","bool",true)];
     Command::SetWorkArea { .. } => "set_work_area" [("in_frame","u32",true), ("out_frame","u32",true)];
+    Command::SetGuides { .. } => "set_guides" [("guides","Vec<Guide>",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];

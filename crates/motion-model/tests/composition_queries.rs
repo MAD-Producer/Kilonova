@@ -25,6 +25,7 @@ fn node(
         fps,
         frames,
         work_area: motion_model::WorkArea::full(frames),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(size[0], size[1]),
         layers,

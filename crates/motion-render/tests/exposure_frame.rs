@@ -353,6 +353,7 @@ fn authored_child_shutter_outside_its_whole_exposure_is_transparent_and_unused_c
         fps: 30,
         frames: 60,
         work_area: motion_core::WorkArea::full(60),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: motion_core::Camera::new(32, 32),
         layers: vec![child],

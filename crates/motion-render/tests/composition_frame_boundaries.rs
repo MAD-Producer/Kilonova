@@ -16,6 +16,7 @@ fn fixture() -> Project {
         fps: 60,
         frames: 240,
         work_area: motion_core::WorkArea::full(240),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: project.camera.clone(),
         layers: vec![Layer::solid(1, "Child solid", [32.; 2], [0.; 3], [1.; 4])],

@@ -45,6 +45,7 @@ pub(super) fn clipboard_intent(command: Command) -> Option<crate::layer_clipboar
 }
 
 fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
+    if panels.viewer_guides.editing() { return true; }
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()
         || panels.timeline_columns.editing()
@@ -245,6 +246,11 @@ fn route_inner(
                 return true;
             }
             if let Some(command) = panels.shortcut_bindings.resolve(Scope::Viewer, key, modifiers, repeat) {
+                if command == Command::ToggleViewerHandles && panels.focused == Some(Panel::Composition)
+                    && !panels.path_controls.editing() && !panels.tools.editing() {
+                    panels.viewer_guides.visibility.handles = !panels.viewer_guides.visibility.handles;
+                    return true;
+                }
                 if super::tools::command(panels, command, state, out) { return true; }
             }
         }

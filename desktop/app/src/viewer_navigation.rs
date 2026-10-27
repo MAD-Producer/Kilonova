@@ -4,13 +4,17 @@ use motion_ui::input::Rect;
 const MIN_ZOOM: f64 = 0.01;
 const MAX_ZOOM: f64 = 64.0;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Mapping {
     pub image: Rect,
     pub scale: f64,
     origin: [f64; 2],
 }
 impl Mapping {
+    /// The inverse used by viewer overlays, rulers, picking and snapping.
+    pub fn screen(self, point: [f64; 2]) -> [f32; 2] {
+        std::array::from_fn(|i| (self.origin[i] + point[i] * self.scale) as f32)
+    }
     pub fn local(self, point: [f32; 2]) -> [f64; 2] {
         std::array::from_fn(|i| (point[i] as f64 - self.origin[i]) / self.scale)
     }

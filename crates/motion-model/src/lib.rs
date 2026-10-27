@@ -40,6 +40,8 @@ pub mod text;
 pub use text::{TextAlign, TextStyle};
 mod video;
 mod work_area;
+pub mod guides;
+pub use guides::{Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};
 pub use work_area::{FrameScope, WorkArea};
 pub mod vector;
 

@@ -113,6 +113,7 @@ fn active_images_share_proxies_with_nested_instances_and_full_output_is_explicit
         fps: 30,
         frames: 30,
         work_area: motion_core::WorkArea::full(30),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: p.camera.clone(),
         layers: vec![nested_image],

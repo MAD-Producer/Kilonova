@@ -286,6 +286,8 @@ pub struct Project {
     pub fps: u32,
     pub frames: u32,
     pub work_area: crate::WorkArea,
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::guides::deserialize")]
+    pub guides: Vec<crate::Guide>,
     pub background: [f32; 4],
     pub assets: Vec<Asset>,
     pub model_assets: Vec<crate::ModelAsset>,
@@ -317,6 +319,7 @@ impl Project {
             fps,
             frames,
             work_area: crate::WorkArea::full(frames),
+            guides: Vec::new(),
             background: [0.05, 0.06, 0.09, 1.0],
             assets: Vec::new(),
             model_assets: Vec::new(),
@@ -379,6 +382,7 @@ impl Project {
         self.validate_compositions()
     }
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
+        crate::guides::validate(&self.guides)?;
         crate::effects::validate_image_graph(self)?;
         ensure(
             (1..=8192).contains(&self.width) && (1..=8192).contains(&self.height),

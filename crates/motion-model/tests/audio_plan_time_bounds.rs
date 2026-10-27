@@ -36,6 +36,7 @@ fn nested() -> Project {
         fps: 30,
         frames: 90,
         work_area: motion_model::WorkArea::full(90),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(32, 24),
         layers: std::mem::take(&mut project.layers),
@@ -269,6 +270,7 @@ fn audio_graph_instance_budget_accepts_the_boundary_and_rejects_excess_without_m
             fps: 30,
             frames: 90,
             work_area: motion_model::WorkArea::full(90),
+            guides: Vec::new(),
             background: [0.; 4],
             camera: Camera::new(32, 24),
             layers: if level == 9 {

@@ -79,6 +79,31 @@ fn peak_allocation<T>(operation: impl FnOnce() -> T) -> (T, usize) {
 fn exact(project: &Project) -> usize {
     serde_json::to_vec(project).unwrap().len()
 }
+
+#[test]
+fn guide_metadata_accounting_matches_real_json_after_scoped_edits_and_history_moves() {
+    let mut project = Project::new(640, 360, 30, 90).unwrap();
+    project.compositions.push(crate::Composition {
+        id: "comp-guide-history".into(), name: "Guide history".into(),
+        width: project.width, height: project.height, fps: project.fps, frames: project.frames,
+        work_area: project.work_area, guides: Vec::new(), background: project.background,
+        camera: project.camera.clone(), layers: Vec::new(), expressions: Vec::new(),
+    });
+    let mut engine = Engine::new(project).unwrap();
+    for composition in [crate::MAIN_COMPOSITION, "comp-guide-history"] {
+        for count in [crate::MAX_GUIDES, 1, 0] {
+            let guides = (0..count).map(|index| crate::Guide {
+                id: index as u64 + 1, axis: crate::GuideAxis::X, position: index as f64 + 0.25,
+            }).collect();
+            engine.apply(Command::InComposition { composition: composition.into(),
+                command: Box::new(Command::SetGuides { guides }) }).unwrap();
+            assert_exact(&engine);
+        }
+    }
+    while engine.undo().unwrap() { assert_exact(&engine); }
+    while engine.redo().unwrap() { assert_exact(&engine); }
+    assert_exact(&engine);
+}
 fn assert_exact(engine: &Engine) {
     if engine.gesture.is_none() {
         assert_eq!(engine.size.bytes(), exact(&engine.project));
@@ -407,6 +432,7 @@ fn history_accounting_composition_routing_and_activation_keep_exact_payload_size
         fps: 30,
         frames: 180,
         work_area: crate::WorkArea::full(180),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: crate::Camera::new(64, 64),
         layers: vec![Layer::solid(

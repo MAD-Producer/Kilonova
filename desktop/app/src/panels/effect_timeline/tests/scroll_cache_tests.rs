@@ -17,6 +17,7 @@ fn group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache() {
                         fps: child.fps,
                         frames: child.frames,
                         work_area: motion_core::WorkArea::full(child.frames),
+                        guides: Vec::new(),
                         background: child.background,
                         camera: child.camera,
                         layers: child.layers,

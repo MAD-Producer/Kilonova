@@ -20,6 +20,7 @@ fn node(index: usize, targets: &[usize]) -> Composition {
         fps: 30,
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(64, 64),
         layers: targets

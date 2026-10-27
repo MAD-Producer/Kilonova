@@ -350,6 +350,7 @@ fn nested_png_emitter_preserves_births_pixels_and_random_seek() {
         fps: p.fps,
         frames: p.frames,
         work_area: motion_core::WorkArea::full(p.frames),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: p.camera.clone(),
         layers: std::mem::take(&mut nested_project.layers),

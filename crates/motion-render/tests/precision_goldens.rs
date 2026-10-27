@@ -205,6 +205,7 @@ fn composition(id: &str, layers: Vec<Layer>) -> Composition {
         fps: 30,
         frames: 12,
         work_area: motion_core::WorkArea::full(12),
+        guides: Vec::new(),
         background: [0.; 4],
         camera: Camera::new(W, H),
         layers,

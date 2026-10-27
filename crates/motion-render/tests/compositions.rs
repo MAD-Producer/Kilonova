@@ -189,7 +189,7 @@ fn deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolut
     for n in 1..=80 {
         let mut camera=Camera::new(64,64);camera.created=false;
         let mut c=Composition {id:format!("comp-{n}"),name:format!("Library {n}"),
-            width:64,height:64,fps:24,work_area: motion_core::WorkArea::full(120), frames:120,background:[0.;4],camera,layers:vec![],expressions:vec![]};
+            width:64,height:64,fps:24,work_area: motion_core::WorkArea::full(120), guides: Vec::new(), frames:120,background:[0.;4],camera,layers:vec![],expressions:vec![]};
         if n<9 {
             let mut l=reference.clone();l.content=Content::Composition {clip:CompositionClip::new(format!("comp-{}",n+1))};
             c.layers.push(l);

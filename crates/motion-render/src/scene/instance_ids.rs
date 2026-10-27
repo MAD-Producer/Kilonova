@@ -306,6 +306,7 @@ mod tests {
             fps: 30,
             frames: 60,
             work_area: motion_core::WorkArea::full(60),
+            guides: Vec::new(),
             background: p.background,
             camera: p.camera.clone(),
             layers,
