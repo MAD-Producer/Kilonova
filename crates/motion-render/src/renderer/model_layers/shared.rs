@@ -1,7 +1,7 @@
-//! Contiguous model runs share geometry depth inside ordinary 2D compositions.
-//! Authored plane, effect, matte, sampling and opacity boundaries remain intact.
+//! Contiguous meshes and opaque solid planes share actual geometry depth.
+//! Ordinary 2D, effect, matte, sampling and transparency boundaries stay intact.
 use super::*;
-use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance};
+use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance, ScenePlane};
 
 fn samples(layer: &crate::DrawLayer) -> Option<u32> {
     let samples = layer.model_source.as_ref()?.samples;
@@ -11,6 +11,18 @@ fn samples(layer: &crate::DrawLayer) -> Option<u32> {
         && layer.color == [1.; 4]
         && layer.sampling.is_default())
     .then_some(samples)
+}
+
+fn solid_plane(layer: &crate::DrawLayer) -> bool {
+    layer.model_source.is_none()
+        && layer.asset.is_none()
+        && layer.video.is_none()
+        && layer.vector.is_none()
+        && layer.three_d
+        && !layer.screen_overlay
+        && layer.color[3] == 1.
+        && layer.opacity == 1.
+        && layer.sampling.is_default()
 }
 
 fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
@@ -33,14 +45,25 @@ fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        let Some(count) = samples(&scene.layers[start]) else {
+        if samples(&scene.layers[start]).is_none() && !solid_plane(&scene.layers[start]) {
             start += 1;
             continue;
-        };
-        let end = (start + 1..scene.layers.len())
-            .find(|&index| samples(&scene.layers[index]) != Some(count))
-            .unwrap_or(scene.layers.len());
-        if end - start >= 2 {
+        }
+        let mut count = None;
+        let mut end = start;
+        while end < scene.layers.len() {
+            if let Some(current) = samples(&scene.layers[end]) {
+                if count.is_some_and(|count| count != current) {
+                    break;
+                }
+                count = Some(current);
+            } else if !solid_plane(&scene.layers[end]) {
+                break;
+            }
+            end += 1;
+        }
+        // A pure-plane run retains its existing exact BSP implementation.
+        if count.is_some() && end - start >= 2 {
             blocks.push(start..end);
         }
         start = end;
@@ -64,7 +87,14 @@ impl Renderer {
         let mut keep = vec![true; scene.layers.len()];
         for block in &blocks {
             grouped[block.clone()].fill(true);
-            keep[block.start + 1..block.end].fill(false);
+            keep[block.clone()].fill(false);
+            let anchor = block
+                .clone()
+                .find(|&index| scene.layers[index].model_source.is_some())
+                .ok_or_else(|| {
+                    RenderError::Invalid("shared geometry block lacks a model anchor".into())
+                })?;
+            keep[anchor] = true;
         }
         // Reuse one bounded scene scratch for isolated models and each run.
         // Every run is encoded in the enclosing command stream; no shared
@@ -101,12 +131,20 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<RenderStats> {
         let began = Instant::now();
-        let anchor = &scene.layers[0];
+        let anchor = scene
+            .layers
+            .iter()
+            .find(|layer| layer.model_source.is_some())
+            .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
         let clip = anchor
             .model_source
             .as_ref()
             .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
-        for layer in &scene.layers {
+        for layer in scene
+            .layers
+            .iter()
+            .filter(|layer| layer.model_source.is_some())
+        {
             let source_id = layer
                 .model_source
                 .as_ref()
@@ -217,7 +255,11 @@ impl Renderer {
                 .map(|(i, (id, _))| (*id, i))
                 .collect();
             let mut instances = Vec::with_capacity(scene.layers.len());
-            for layer in &scene.layers {
+            for layer in scene
+                .layers
+                .iter()
+                .filter(|layer| layer.model_source.is_some())
+            {
                 let clip = layer
                     .model_source
                     .as_ref()
@@ -249,6 +291,17 @@ impl Renderer {
             let mut sources: Vec<_> = owned.iter_mut().map(|(_, gpu)| gpu).collect();
             let mut frame = ScenePassFrame::new(scene.camera);
             frame.samples = clip.samples;
+            let planes: Vec<_> = scene
+                .layers
+                .iter()
+                .filter(|layer| layer.model_source.is_none())
+                .map(|layer| ScenePlane {
+                    object: layer.id,
+                    world: layer.model,
+                    size: layer.size,
+                    color: layer.color,
+                })
+                .collect();
             pass.encode_composition(
                 self,
                 SceneRequest {
@@ -260,6 +313,7 @@ impl Renderer {
                 &mut sources,
                 &instances,
                 &frame,
+                &planes,
             )
             .map_err(scene_error)
         })();
@@ -312,7 +366,7 @@ impl Renderer {
         self.models.targets.insert(anchor.id, target);
         let report = RenderStats {
             draw_calls: stats.draws as u32,
-            parameter_upload_bytes: stats.parameter_bytes,
+            parameter_upload_bytes: stats.parameter_bytes + stats.plane_vertex_bytes,
             cpu_prepare_us: began.elapsed().as_micros() as u64,
             ..Default::default()
         };

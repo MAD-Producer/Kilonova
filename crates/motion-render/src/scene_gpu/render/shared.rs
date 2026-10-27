@@ -66,6 +66,7 @@ pub struct ScenePass {
     targets: Option<Targets>,
     depth_input: Option<AdmittedTexture>,
     depth_pipelines: std::collections::HashMap<depth_seed::Key, depth_seed::Pipeline>,
+    plane_pipelines: planes::Pipelines,
     max_draws: usize,
     // Consecutive failed pass calls; reset by any successful encode/draw.
     failures: u8,
@@ -90,6 +91,7 @@ impl ScenePass {
             targets: None,
             depth_input: None,
             depth_pipelines: Default::default(),
+            plane_pipelines: Default::default(),
             max_draws,
             failures: 0,
         })
@@ -172,12 +174,14 @@ impl ScenePass {
             )?;
             let stats = self.encode_inner(
                 renderer,
+                request,
                 &mut encoder,
                 target,
                 sources,
                 instances,
                 frame,
                 depth,
+                &[],
             )?;
             renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(self.texture_resource_ledger());
@@ -250,7 +254,17 @@ impl ScenePass {
             .check_owner(&renderer.allocation_owner)
             .map_err(super::super::SceneGpuError::from)
             .and_then(|()| {
-                self.encode_inner(renderer, encoder, target, sources, instances, frame, depth)
+                self.encode_inner(
+                    renderer,
+                    request,
+                    encoder,
+                    target,
+                    sources,
+                    instances,
+                    frame,
+                    depth,
+                    &[],
+                )
             });
         self.observe(request, began, &result);
         result
@@ -267,9 +281,12 @@ impl ScenePass {
         sources: &mut [&mut GpuScene],
         instances: &[ScenePassInstance<'_>],
         frame: &ScenePassFrame,
+        planes: &[ScenePlane],
     ) -> Result<SceneRenderStats> {
         let began = Instant::now();
-        let result = self.encode_inner(renderer, encoder, target, sources, instances, frame, None);
+        let result = self.encode_inner(
+            renderer, request, encoder, target, sources, instances, frame, None, planes,
+        );
         self.observe(request, began, &result);
         result
     }
@@ -316,12 +333,14 @@ impl ScenePass {
     fn encode_inner(
         &mut self,
         renderer: &Renderer,
+        request: SceneRequest,
         encoder: &mut wgpu::CommandEncoder,
         target: &RenderTarget,
         sources: &mut [&mut GpuScene],
         instances: &[ScenePassInstance<'_>],
         frame: &ScenePassFrame,
         depth: Option<&depth_seed::SceneDepthInput<'_>>,
+        planes: &[ScenePlane],
     ) -> Result<SceneRenderStats> {
         self.check_owner(renderer)?;
         renderer.check_health()?;
@@ -342,7 +361,11 @@ impl ScenePass {
         common.background = frame.background;
         validate_frame(&common)?;
         validate_viewport(frame.viewport, target)?;
-        if instances.len() > self.max_draws {
+        if instances
+            .len()
+            .checked_add(planes.len())
+            .is_none_or(|count| count > self.max_draws)
+        {
             return Err(invalid(
                 "shared_instances",
                 0,
@@ -368,11 +391,24 @@ impl ScenePass {
                 .check_owner(renderer)
                 .map_err(|cause| instance_error(index, instance, cause))?;
         }
+        let planes = planes::prepare(
+            renderer,
+            request,
+            texture.format(),
+            frame,
+            planes,
+            &mut self.plane_pipelines,
+        )?;
         let mut prepared = Vec::new();
         prepared
             .try_reserve_exact(instances.len())
             .map_err(|_| invalid("shared_instances", 0, "instance staging allocation failed"))?;
         let mut stats = SceneRenderStats::default();
+        if let Some(planes) = &planes {
+            stats.draws = planes.count;
+            stats.triangles = planes.count as u64 * 2;
+            stats.plane_vertex_bytes = planes.vertices.size();
+        }
         stats.depth_input_bytes = seed.as_ref().map_or(0, |s| s.bytes);
         let mut used_sources = HashSet::new();
         for (index, instance) in instances.iter().enumerate() {
@@ -508,6 +544,13 @@ impl ScenePass {
                 pass.set_pipeline(&seed.pipeline);
                 pass.set_bind_group(0, &seed.group, &[]);
                 pass.draw(0..3, 0..1);
+            }
+            if let Some(planes) = &planes {
+                pass.set_pipeline(&planes.pipeline);
+                pass.set_vertex_buffer(0, planes.vertices.slice(..));
+                for index in 0..planes.count as u32 {
+                    pass.draw(index * 6..(index + 1) * 6, 0..1);
+                }
             }
             for (instance_index, item_index, group) in order {
                 let prepared = &prepared[instance_index];

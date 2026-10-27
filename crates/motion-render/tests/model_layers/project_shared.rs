@@ -1,5 +1,7 @@
 //! Actual saved-project coverage for geometry shared across model layer sources.
 use super::*;
+#[path = "mixed_planes.rs"]
+mod mixed_planes;
 
 struct Paint(String);
 impl AssetResolver for Paint {

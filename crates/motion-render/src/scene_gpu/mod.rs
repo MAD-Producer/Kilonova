@@ -6,6 +6,7 @@ mod render;
 
 use crate::{AdmittedBuffer, RenderError, Renderer};
 use bytemuck::{Pod, Zeroable};
+pub(crate) use render::ScenePlane;
 pub use render::{
     SceneDepthInput, SceneFrame, SceneLight, ScenePass, ScenePassFrame, ScenePassInstance,
     SceneRenderStats,
