@@ -11,6 +11,10 @@ use motion_ui::{
 };
 use std::time::Instant;
 
+#[path = "node_preview/prepared.rs"]
+mod prepared;
+pub use prepared::{PreparedGraph, InstallGraph};
+
 pub const LOGICAL_SIZE: u32 = 64;
 pub const RASTER_SIZE: u32 = 512;
 pub const FPS: f64 = 30.;
@@ -441,6 +445,21 @@ impl NodePreview {
         compiled: &motion_graph::CompiledGraph,
         previous: Option<&PipelineCache>,
     ) -> Result<Self, RenderError> {
+        Self::build_pixels(context, snapshot, compiled, &prepared::decode_resources(compiled)?, previous)
+    }
+    pub fn build_prepared(
+        context: &GpuContext,
+        snapshot: &EditorSnapshot,
+        prepared: &PreparedGraph,
+        previous: Option<&PipelineCache>,
+    ) -> Result<Self, RenderError> {
+        Self::build_pixels(context, snapshot, &prepared.compiled, &prepared.pixels, previous)
+    }
+    fn build_pixels(
+        context: &GpuContext, snapshot: &EditorSnapshot,
+        compiled: &motion_graph::CompiledGraph, resource_pixels: &[image::RgbaImage],
+        previous: Option<&PipelineCache>,
+    ) -> Result<Self, RenderError> {
         if compiled.shader.wgsl.len() > 2 << 20 {
             return Err(RenderError::Invalid(
                 "node preview WGSL exceeds 2 MiB".into(),
@@ -553,19 +572,7 @@ impl NodePreview {
             let mut data = None;
             let mut images = Vec::new();
             let mut resource_views = Vec::new();
-            let mut decoded = 0;
-            for path in &definition.resources {
-                let bytes = compiled.resource(path).ok_or("node preview resource is missing")?;
-                let remaining = motion_effects::DEFAULT_DECODED_IMAGE_BUDGET - decoded;
-                let pixels = motion_render::image_resources::decode_png_with_budget(bytes, remaining)
-                    .map_err(|cause| {
-                        let cause = RenderError::from(cause);
-                        RenderError::Context {
-                            message: format!("node preview phase=resource_decode path={path}: {cause}"),
-                            cause: Box::new(cause),
-                        }
-                    })?;
-                decoded += u64::from(pixels.width()) * u64::from(pixels.height()) * 4;
+            for (path, pixels) in definition.resources.iter().zip(resource_pixels) {
                 let texture = texture(allocations, pixels.width(), pixels.height(), wgpu::TextureFormat::Rgba8Unorm)?;
                 upload(allocations, &texture, pixels.width(), pixels.height(), pixels.as_raw())?;
                 resource_views.push(texture.view()?);

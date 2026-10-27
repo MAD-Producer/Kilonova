@@ -23,6 +23,8 @@ mod editing;
 mod grouping;
 #[path = "node_editor/inline.rs"]
 mod inline;
+#[path = "node_editor/image_import.rs"]
+mod image_import;
 #[path = "node_editor/input_defaults.rs"]
 mod input_defaults;
 #[path = "node_editor/texture_chain.rs"]
@@ -128,6 +130,7 @@ pub enum Action {
     Validate(EditorSnapshot),
     Compile(EditorSnapshot),
     ExportMsfx(EditorSnapshot),
+    ImportImage { snapshot: EditorSnapshot, path: PathBuf, position: [f32; 2] },
     PreviewChanged,
     Changed {
         revision: u64,

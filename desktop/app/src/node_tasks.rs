@@ -6,11 +6,14 @@ mod bound_source_tests;
 mod graph_native_effect_tests;
 #[cfg(test)]
 mod image_source_tests;
+#[cfg(test)]
+mod image_import_tests;
 use crate::{
     i18n::{Locale, Text as T},
     node_editor::{Action, EditorSnapshot, NodeEditor},
 };
-use motion_graph::{CompiledGraph, Diagnostic, ExportReport, GraphDocument, ValidationReport};
+use crate::node_preview::PreparedGraph;
+use motion_graph::{Diagnostic, ExportReport, GraphDocument, ValidationReport};
 use std::{
     collections::BTreeMap,
     path::PathBuf,
@@ -149,6 +152,7 @@ pub(crate) fn decision_prompt(
 enum Kind {
     Open,
     BoundOpen,
+    ImportImage,
     Save,
     SaveAs,
     Validate,
@@ -164,6 +168,7 @@ struct Job {
     dirty: bool,
     path: Option<PathBuf>,
     bound_source: Option<Arc<serde_json::Value>>,
+    image_position: Option<[f32; 2]>,
     permit: Option<QueuePermit>,
 }
 /// Counts queued, running and unconsumed completions together. Cancelling UI
@@ -191,9 +196,10 @@ enum Outcome {
         motion_graph::CompileOptions,
         crate::node_layer::Target,
     ),
+    ImageImported(motion_graph::GraphImage, [f32; 2], String),
     Saved(PathBuf),
     Validated(Result<ValidationReport, Diagnostic>),
-    Compiled(Result<(CompiledGraph, Option<CompiledGraph>), Diagnostic>),
+    Compiled(Result<(PreparedGraph, Option<PreparedGraph>), Diagnostic>),
     Exported(ExportReport),
     Cancelled,
     Failed(String),
@@ -207,8 +213,8 @@ struct Completion {
 }
 pub struct ReadyPreview {
     pub snapshot: EditorSnapshot,
-    pub compiled: CompiledGraph,
-    pub canonical: Option<CompiledGraph>,
+    pub compiled: PreparedGraph,
+    pub canonical: Option<PreparedGraph>,
 }
 pub struct NodeTasks {
     io: Sender<Job>,
@@ -301,6 +307,9 @@ impl NodeTasks {
             queued: Arc::new(AtomicUsize::new(0)),
         })
     }
+    pub fn importing_image(&self) -> bool {
+        self.pending.values().any(|(kind, _)| *kind == Kind::ImportImage)
+    }
     pub fn busy(&self) -> bool {
         !self.pending.is_empty()
     }
@@ -339,6 +348,7 @@ impl NodeTasks {
             false,
             None,
             Some(Arc::new(source)),
+            None,
         )
     }
     /// Navigation/undo may change the target while file/PNG work is in flight.
@@ -398,6 +408,14 @@ impl NodeTasks {
         dirty: bool,
         path: Option<PathBuf>,
     ) -> Result<(), String> {
+        if let Action::ImportImage { snapshot, path, position } = action {
+            // Every import is based on the same editable state; reject another
+            // pending drop explicitly rather than silently losing its result.
+            if self.importing_image() {
+                return Err(if locale == Locale::Zh { "图像正在导入，请稍后再拖入" } else { "An image is importing; wait before dropping another image" }.into());
+            }
+            return self.enqueue(Kind::ImportImage, snapshot, locale, false, Some(path), None, Some(position));
+        }
         let (kind, snapshot) = match action {
             Action::Open(s) => (Kind::Open, s),
             Action::Save(s) => (Kind::Save, s),
@@ -405,6 +423,7 @@ impl NodeTasks {
             Action::Validate(s) => (Kind::Validate, s),
             Action::Compile(s) => (Kind::Compile, s),
             Action::ExportMsfx(s) => (Kind::Export, s),
+            Action::ImportImage { .. } => unreachable!(),
             Action::ShowProperties
             | Action::ViewPreferencesChanged(_)
             | Action::RecentNodesChanged(_)
@@ -415,7 +434,7 @@ impl NodeTasks {
                 return Ok(());
             }
         };
-        self.enqueue(kind, snapshot, locale, dirty, path, None)
+        self.enqueue(kind, snapshot, locale, dirty, path, None, None)
     }
     fn enqueue(
         &mut self,
@@ -425,6 +444,7 @@ impl NodeTasks {
         dirty: bool,
         path: Option<PathBuf>,
         bound_source: Option<Arc<serde_json::Value>>,
+        image_position: Option<[f32; 2]>,
     ) -> Result<(), String> {
         if kind == Kind::Compile && self.compiling(&snapshot) {
             log::debug!(
@@ -465,6 +485,7 @@ impl NodeTasks {
                 dirty,
                 path,
                 bound_source,
+                image_position,
                 permit: Some(permit),
             })
             .is_err()
@@ -490,7 +511,7 @@ impl NodeTasks {
                 "node task cancellation requested #{id} {kind:?} epoch={} revision={} path={:?}",
                 snapshot.epoch,
                 snapshot.revision,
-                snapshot.source_path
+                observed_path(snapshot.source_path.as_ref())
             );
             editor.cancel_compile(&snapshot);
         }
@@ -537,6 +558,16 @@ impl NodeTasks {
                         ));
                     } else {
                         editor.report_error(locale.t(T::NodeStaleOpen));
+                    }
+                }
+                Outcome::ImageImported(image, position, name) => {
+                    match editor.accept_imported_image(&snapshot, image, position, &name) {
+                        Ok(Some(_)) => editor.report_status(if locale == Locale::Zh { "图像已导入；Ctrl+T 添加 UV 映射" } else { "Image imported; Ctrl+T adds UV mapping" }),
+                        Ok(None) => editor.report_status(if locale == Locale::Zh { "图像导入已取消：节点图已改变" } else { "Image import cancelled: the graph changed" }),
+                        Err(error) => {
+                            log::warn!("node image import rejected #{} epoch={} revision={} reason={}", completion.id, snapshot.epoch, snapshot.revision, error);
+                            editor.report_error(error.to_string());
+                        }
                     }
                 }
                 Outcome::Saved(path) => {
@@ -610,6 +641,9 @@ fn job_cancelled(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) 
         || job.kind == Kind::Compile && latest_compile.load(Ordering::Acquire) != job.id
 }
 
+fn observed_path(path: Option<&PathBuf>) -> Option<String> {
+    path.map(|path| path.to_string_lossy().chars().take(384).collect())
+}
 fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: bool) -> Outcome {
     // Preserve the failure before replacing the UI completion with cancellation.
     // The generation and preview guards must still discard stale results.
@@ -621,7 +655,7 @@ fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: boo
             began.elapsed().as_millis(),
             job.snapshot.epoch,
             job.snapshot.revision,
-            job.path.as_ref().or(job.snapshot.source_path.as_ref()),
+            observed_path(job.path.as_ref().or(job.snapshot.source_path.as_ref())),
             job.snapshot.layer_target.as_ref().map(|t| t.object),
             job.snapshot.layer_target.as_ref().map(|t| t.effect),
             error.chars().take(1024).collect::<String>()
@@ -633,7 +667,7 @@ fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: boo
             began.elapsed().as_millis(),
             job.snapshot.epoch,
             job.snapshot.revision,
-            job.path.as_ref().or(job.snapshot.source_path.as_ref())
+            observed_path(job.path.as_ref().or(job.snapshot.source_path.as_ref()))
         ),
         _ => {}
     }
@@ -658,6 +692,16 @@ fn execute(
 ) -> Outcome {
     let cancelled = || job_cancelled(job, generation, latest_compile);
     let result = (|| -> Result<Outcome, String> {
+        if job.kind == Kind::ImportImage {
+            #[cfg(test)]
+            image_import_tests::before_import(job);
+            if cancelled() { return Ok(Outcome::Cancelled); }
+            let path = job.path.as_ref().ok_or("node image import path missing")?;
+            let position = job.image_position.ok_or("node image import position missing")?;
+            let image = motion_graph::GraphImage::import(path).map_err(|error| format!("node image import path={} phase=read_decode: {error}", path.display()))?;
+            let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+            return Ok(Outcome::ImageImported(image, position, name));
+        }
         if job.kind == Kind::BoundOpen {
             #[cfg(test)]
             bound_source_tests::before_load(job);
@@ -695,20 +739,25 @@ fn execute(
             return Ok(match result {
                 Err(error) => Outcome::Compiled(Err(error)),
                 Ok(_) if cancelled() => Outcome::Cancelled,
-                Ok(compiled) => Outcome::Compiled((|| {
+                Ok(compiled) => {
                     let canonical = if job.snapshot.layer_target.is_some()
                         && job.snapshot.preview_target.is_some()
                     {
                         Some(
-                            compiler
-                                .compile(&snapshot.document, &snapshot.options)
-                                .map_err(|e| e.diagnostic())?,
+                            match compiler.compile(&snapshot.document, &snapshot.options) {
+                                Ok(compiled) => compiled,
+                                Err(error) => return Ok(Outcome::Compiled(Err(error.diagnostic()))),
+                            },
                         )
                     } else {
                         None
                     };
-                    Ok((compiled, canonical))
-                })()),
+                    let compiled = PreparedGraph::new(compiled).map_err(|e| e.to_string())?;
+                    if cancelled() { Outcome::Cancelled } else {
+                        let canonical = canonical.map(PreparedGraph::new).transpose().map_err(|e| e.to_string())?;
+                        Outcome::Compiled(Ok((compiled, canonical)))
+                    }
+                },
             });
         }
         if job.kind == Kind::Open
@@ -879,7 +928,7 @@ mod tests {
         assert_eq!(ready.snapshot.preview_stamp(), snapshot.preview_stamp());
         assert!(!ready.compiled.shader.wgsl.is_empty());
         assert_eq!(editor.snapshot().document, snapshot.document);
-        assert!(editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report)));
+        assert!(editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report.clone())));
         assert!(editor.diagnostic().is_none());
     }
     fn drain(tasks: &mut NodeTasks, editor: &mut NodeEditor) {
@@ -978,6 +1027,7 @@ mod observability_tests {
                 dirty: false,
                 path: Some(root.join("blocked/failure.msgraph")),
                 bound_source: None,
+                image_position: None,
                 permit: None,
             };
             let began = std::time::Instant::now();

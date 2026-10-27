@@ -340,7 +340,8 @@ impl Shell {
             | node_editor::Action::SaveAs(s)
             | node_editor::Action::Validate(s)
             | node_editor::Action::Compile(s)
-            | node_editor::Action::ExportMsfx(s) => s.clone(),
+            | node_editor::Action::ExportMsfx(s)
+            | node_editor::Action::ImportImage { snapshot: s, .. } => s.clone(),
             _ => unreachable!(),
         };
         if matches!(&action, node_editor::Action::Compile(_)) {
