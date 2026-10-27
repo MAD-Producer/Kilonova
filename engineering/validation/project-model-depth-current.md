@@ -82,3 +82,8 @@ project model/plane/matte/effect/nested depth, persisted authored calibration,
 current-frame depth routing, arbitrary image-plane reprojection and imported
 camera selection remain open. The separate calibration and parent full
 workspace gates cannot substitute for this later consumer's acceptance.
+
+
+The later [final combined checkpoint](depth-project-final-current.md) rebuilds
+the real calibrated inference harness after the project shared consumer and
+records its exact final source and scope. Earlier gates are not added together.

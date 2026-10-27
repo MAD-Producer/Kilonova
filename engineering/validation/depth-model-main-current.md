@@ -59,3 +59,8 @@ requires its own actual acceptance. It cannot inherit this checkpoint merely
 by being developed while CI runs. Mixed model/plane/matte/effect/nested depth
 composition, persisted authored calibration, automatic current-frame routing,
 arbitrary image-plane reprojection and imported camera selection remain open.
+
+
+The later [final combined checkpoint](depth-project-final-current.md) rebuilds
+the real calibrated inference harness after the project shared consumer and
+records its exact final source and scope. Earlier gates are not added together.
