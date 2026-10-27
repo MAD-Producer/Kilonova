@@ -756,6 +756,9 @@ pub(in crate::panels) fn render(
         || panels.key_gestures.active()
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing;
+    #[cfg(test)]
+    panels.timeline.graph_ranges.record_probe(identity.clone(),
+        Rect::new(area.min[0],area.min[1],area.width(),row),plot,displayed);
     if let Some(point) = graph_ranges::launch(
         &mut graph,
         atlas,

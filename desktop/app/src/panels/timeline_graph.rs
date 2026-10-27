@@ -696,6 +696,8 @@ pub(super) fn render(
             || panels.timeline.graph_box.editing() || panels.key_gestures.active()
             || panels.timeline.horizontal_drag.is_some() || panels.timeline.scrubbing;
         let row=Rect::new(area.min[0],last_mode.min[1],area.width(),last_mode.height());
+        #[cfg(test)]
+        panels.timeline.graph_ranges.record_probe(identity.clone(),row,plot,displayed);
         if let Some(point)=super::graph_ranges::launch(&mut graph,atlas,row,last_mode.max[0],input,
             panels.timeline.graph_ranges.ready() && !busy) {
             let (all_interval,selection_interval)=fit_intervals(panels,state,&target,source,layer_offset);

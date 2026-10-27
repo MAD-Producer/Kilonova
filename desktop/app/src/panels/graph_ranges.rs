@@ -101,6 +101,19 @@ pub(crate) struct Controls {
     window: Option<Panel>,
     menu: Option<Menu>,
     time_locked: bool,
+    #[cfg(test)]
+    probes: Vec<Probe>,
+    #[cfg(test)]
+    menu_card: Option<Rect>,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+pub(super) struct Probe {
+    pub id: Identity,
+    pub header: Rect,
+    pub plot: Rect,
+    pub bounds: Bounds,
 }
 
 fn snapshot<'a>(state: &'a Value, id: &Identity) -> Option<(&'a Value, i64)> {
@@ -108,6 +121,10 @@ fn snapshot<'a>(state: &'a Value, id: &Identity) -> Option<(&'a Value, i64)> {
 }
 
 impl Controls {
+    #[cfg(test)]
+    pub(super) fn record_probe(&mut self, id: Identity, header: Rect, plot: Rect, bounds: Bounds) {
+        if self.probes.len() < MAX_VIEWS { self.probes.push(Probe { id,header,plot,bounds }); }
+    }
     pub(super) fn sync(&mut self, state: &Value) {
         let scope = Scope::of(state);
         if scope != self.scope {
@@ -180,6 +197,7 @@ impl Controls {
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
+        #[cfg(test)] { self.probes.clear(); self.menu_card=None; }
         self.window = window;
         let owner = self.menu.as_ref().map(|m| m.window);
         self.sync(state);
@@ -407,6 +425,7 @@ impl Controls {
         let x = menu.point[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
         let y = menu.point[1].clamp(top, (bounds.max[1] - height).max(top));
         let card = Rect::new(x, y, width, height);
+        #[cfg(test)] { self.menu_card=Some(card); }
         let neutral = Input::default();
         let opened = std::mem::take(&mut menu.opened);
         let events = if opened || input.composing || input.ime_consumed {
@@ -789,3 +808,5 @@ pub(super) fn overlay(
 
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, target_os = "windows"))]
+mod native_tests;

@@ -349,6 +349,10 @@ impl View {
                 ctx.ranges.capture_mini(target.clone(), start);
             }
         }
+        #[cfg(test)]
+        if let Some(ctx) = context.as_mut() {
+            ctx.ranges.record_probe(id.clone(),header,graph,bounds);
+        }
         let pad = styles.metric("padding.panel", 8.);
         let slot = styles.metric("graph.control.height", 24.);
         let mut text = list.child();

@@ -625,6 +625,8 @@ pub(in crate::panels) fn render(
                 &neutral_menu
             };
             #[cfg(test)]
+            panels.timeline.graph_ranges.record_probe(id.clone(),menu_row,plot,displayed);
+            #[cfg(test)]
             controls.range_debug.push(format!("unit={} header={menu_row:?} viewport={:?} press={:?} mouse={:?} ready={} busy={} scrub={} keygesture={} hdrag={}",
                 unit.title(false),scroll.viewport,menu_input.pressed,menu_input.mouse,panels.timeline.graph_ranges.ready(),busy,
                 panels.timeline.scrubbing,panels.key_gestures.active(),panels.timeline.horizontal_drag.is_some()));
