@@ -73,7 +73,17 @@ fn default_failure_channels_cache_suppression_recovery_and_process_reset_use_rea
             vec![],
         );
         assert!(lines.is_empty());
-        assert!(std::fs::read_to_string(&file).unwrap().is_empty());
+        crate::logging::flush();
+        let healthy_log = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(
+            healthy_log.lines().count(),
+            1,
+            "healthy branches must add no records beyond logger initialization: {healthy_log}"
+        );
+        assert!(
+            healthy_log.contains("logging initialized level=INFO")
+                && !healthy_log.contains("panel degradation")
+        );
 
         let mut malformed = good.clone();
         malformed["revision"] = 1.into();
