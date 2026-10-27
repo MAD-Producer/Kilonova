@@ -192,6 +192,8 @@ impl Onnx {
             resource,
             provider,
             costs: Costs {
+                source_prepare: Duration::ZERO,
+                source_rgb_bytes: 0,
                 total: Duration::ZERO, // Filled after temporary cleanup in infer().
                 host_transport: input_transport + output_transport_began.elapsed(),
                 load: Duration::from_nanos(n.load),

@@ -58,7 +58,91 @@ a seek or asset/model/geometry change. Cancel on changes even if no replacement
 is submitted. One in-flight job and one replaceable pending input bound retained
 work; canceled and stale results cannot install. `in_flight`, `queue_depth` and
 lifetime saturating counts expose activity. A backend panic stops that backend.
-This prototype does not automatically attach a result to Session or a layer.
+This lower-level API does not automatically attach a result to a layer. The
+optional Session path below owns its installation guard.
+
+## Session-managed static images
+
+With `motion-host/ai-depth`, an owning-thread Session can opt in once using
+`configure_depth(backend)`. Passing an `Onnx` uses the same external runtime and
+hash-identified model described above. A normal Session creates neither a depth
+worker nor an inference runtime. Reconfiguration is rejected; canceling does not
+restart a failed backend.
+
+`request_image_depth(asset_id, geometry, model)` resolves the registered image
+metadata, then enqueues its managed path. File opening, bounded reading, image
+decoding, crop, clockwise rotation, horizontal mirror and inference run on the
+depth worker after its Info start and in-flight publication. PNG/JPEG inputs
+must be opaque sRGB8 in the declared crop. ICC-tagged, high-bit-depth and
+transparent inputs require explicit conversion/compositing and are refused.
+No implicit EXIF rotation is applied: geometry describes raw source pixels.
+Untagged sources follow the managed-image sRGB convention; arbitrary input color
+management is not established by this path.
+
+The encoded file is capped at 64 MiB and source dimensions at 4096 per axis.
+Decoded staging checks `8 * source_pixels + 3 * crop_pixels` against the lower
+of the Session decoded-image policy and 128 MiB, before decoding. This is a
+conservative pixel-payload allowance, not a process-wide codec/RSS measurement.
+Static source PTS is exactly `0/1`; composition frame is checked separately.
+The source revision is the conservative edit-engine revision. Managed-source
+relinking must go through the project edit API; external same-path file writes
+are not watched or represented as new project revisions.
+
+`poll_depth()` derives the live identity from Session itself, without taking a
+caller-supplied key. Document generation, root, active composition, edit revision,
+frame, registered asset metadata and decoded budget must still match. Sampling
+also invalidates old requests. Seek, relink, undo, project replacement and budget
+changes therefore discard pending/installed results. A new request carries its
+own ticket even when the static-image key is identical. `cancel_depth()` clears
+ownership; `depth_status()` exposes the bounded worker's flight, pending count,
+request, installation flag and saturating lifetime counters.
+
+The installed immutable `Estimate` retains provider, timings and the original
+DepthResource semantics. It is not silently attached to a renderer depth buffer.
+
+## Session-managed original video
+
+`request_video_depth(object, geometry, model)` resolves an original video layer
+and derives its requested source coordinate from the current composition frame,
+clip interval and source offset. Outside the clip/source interval is a normal
+`Ok(None)`: no inference is submitted and no error is recorded. This path does
+not sample frame blending, effects or composition output.
+
+The depth worker reads the managed source and PTS index, then creates, uses and
+drops the native decoder on that same worker. The factory can return a non-Send
+decoder. Cancellation is checked between packets; a blocked decoder factory is
+observable before entry but cannot be interrupted until it returns. There is no
+added thread timeout or restart.
+
+The actual decoded frame must agree with the managed index on PTS, sample end,
+dimensions, coded orientation, YUV matrix and range. Geometry uses **display
+pixel coordinates** after the decoder's coded rotation; crop, the requested
+clockwise quarter-turn and horizontal mirror are then applied. The source PTS
+is the actual decoded sample in managed microseconds, not the requested
+coordinate or the raw container time base. A seek to another requested coordinate
+inside the same VFR sample still invalidates the earlier request ticket.
+
+Native RGB encoding must be explicitly declared for the returned frame. The
+initial supported contract requires BT.709 primaries and either IEC sRGB or
+BT.709 transfer metadata. sRGB bytes pass through. BT.709 bytes are converted
+using the inverse BT.709 OETF followed by IEC sRGB encoding, with one final byte
+rounding. This is an explicit signal conversion; it does not apply a display
+viewing OOTF or infer mastering intent. A different display-referred conversion
+requires a separate policy. Unknown primaries/transfer, HDR and wide-gamut input
+are refused before inference; matrix/range alone do not establish the encoding.
+The decoder's existing preview pixels are unchanged.
+
+Video staging admits the bounded PTS index and decoded pixel payloads under the
+lesser of the Session decoded-image policy and 128 MiB. Source axes are capped
+at 4096 and the existing asset contract caps the index at one million timestamps.
+These are payload limits, not total codec/process RSS measurements. Polling
+independently rechecks document/root, revision, active composition/frame, video
+layer, registered metadata, requested source coordinate and budget. Relink and
+document replacement therefore reject stale results without a caller-supplied
+live key. External same-path writes are not watched; use the project edit API.
+
+These Session APIs do not provide a desktop control, automatic layer effect,
+metric calibration or a shared hardware depth binding.
 
 The output is an owned R32Float **unitless relative** resource, with larger
 values nearer. Confidence/validity planes remain absent when the model does not
@@ -74,19 +158,24 @@ as proof of GPU execution. Internal provider fallback diagnostics remain visible
 the host does not retry failed inference. Only CPU and an unavailable-CUDA to CPU
 fallback have been accepted locally; accelerated providers need their own run.
 
-Cost fields separately measure parent-side staging/serialization/output ownership,
-load, preprocessing, host tensor input/output copies, inference and postprocessing.
-Total backend wall time also includes child startup and temporary cleanup; the
-phase fields do not claim to exhaust every orchestration cost.
+Cost fields separately measure source preparation, prepared RGB bytes,
+parent-side staging/serialization/output ownership, load, preprocessing, host
+tensor input/output copies, inference and postprocessing. For managed image/video
+jobs, total worker wall time includes source preparation. Direct backend calls
+have no source preparation; their total includes child startup and temporary
+cleanup. The phase fields do not claim to exhaust every orchestration cost.
 Provider-internal transfers are included in
 inference time. There is no I/O Binding, zero-copy or persistent session claim:
 each cancellable child owns its model/runtime and is killed and reaped on cancel.
 This bounds ownership but adds Python/model startup cost per request. It is an
 optional correctness prototype, not a real-time playback implementation.
 
-The job layer publishes in-flight state and Info start before entering the
-backend. Errors retain request/source identity, phases and bounded original
-causes. Use the desktop's existing logger so Error reaches file and stderr and
+The job layer publishes in-flight state and Info start before source IO, decoder
+opening or backend entry. Actual video PTS remains unknown until the decoded
+sample is validated; source-ready then records it before inference. Errors
+retain request/source identity, requested source coordinate, available actual
+PTS, phases, elapsed time and bounded original causes. Use the desktop's existing
+logger so Error reaches file and stderr and
 stdout stays available for CLI/MCP. Normal pending polls and cancellation are
 quiet. Child stdout is a bounded private protocol; native diagnostics go to a
 separate bounded stderr tail. Temporary files use the explicit scratch root.

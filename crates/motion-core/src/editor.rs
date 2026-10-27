@@ -722,6 +722,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let l=project.layer_mut(object)?;if l.locked{return Err(Error::Locked(object));}l.track_matte=matte;
         }
         Command::RegisterAsset { asset } => project.assets.push(asset),
+        Command::RegisterModelAsset { asset } => project.model_assets.push(asset),
         Command::RegisterFontAsset { asset } => project.fonts.push(asset),
         Command::Content {
             object,

@@ -35,6 +35,12 @@ pub struct SurfaceTarget {
 // Android's JNI attachment and codec objects must not cross threads.
 pub trait VideoDecoder {
     fn frame(&mut self, target_us: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame>;
+    /// Colour encoding for the last returned frame, after YUV matrix/range
+    /// conversion. Consumers requiring sRGB must convert explicitly. Unknown
+    /// metadata is an error, never inferred from a matrix or a file extension.
+    fn rgb_encoding(&self) -> Result<crate::video_frame::RgbEncoding> {
+        Err("decoder does not declare its RGB transfer and primaries".into())
+    }
     /// Number of seeks performed so far, reported as preview metrics.
     fn seeks(&self) -> u64 {
         0

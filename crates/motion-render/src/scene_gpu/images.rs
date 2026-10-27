@@ -16,6 +16,7 @@ struct Texture {
 pub(super) struct Images {
     textures: Vec<Texture>,
     keys: HashMap<Key, usize>,
+    bytes: u64,
 }
 pub(super) struct ImageRequest {
     pub image: Option<usize>,
@@ -27,10 +28,14 @@ impl Images {
         Self {
             textures: Vec::new(),
             keys: HashMap::new(),
+            bytes: 0,
         }
     }
     pub fn len(&self) -> usize {
         self.textures.len()
+    }
+    pub fn bytes(&self) -> u64 {
+        self.bytes
     }
     pub fn collect(&self, ledger: &mut crate::TextureResourceLedger) {
         for (id, texture) in self.textures.iter().enumerate() {
@@ -150,6 +155,19 @@ impl Images {
                 .checked_add(u64::from(w) * u64::from(h) * unit)
                 .ok_or_else(|| invalid("image", 0, "mip capacity overflow"))?;
         }
+        let next = self
+            .bytes
+            .checked_add(cost)
+            .ok_or_else(|| invalid("image", 0, "material texture capacity overflow"))?;
+        if next > limits.source_texture_bytes {
+            return Err(RenderError::budget(
+                crate::ResourceBudgetScope::SourceTextures,
+                next,
+                limits.source_texture_bytes,
+                "scene material images exceed available source texture budget",
+            )
+            .into());
+        }
         charge(bytes, cost, limits)?;
         let texture = context.texture_in(
             &wgpu::TextureDescriptor {
@@ -230,6 +248,7 @@ impl Images {
             _texture: texture,
         });
         self.keys.insert(key, id);
+        self.bytes = next;
         Ok(id)
     }
 }

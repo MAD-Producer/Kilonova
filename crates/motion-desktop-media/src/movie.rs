@@ -720,6 +720,7 @@ impl MovieFreezePlan {
             .chain(project.fonts.iter().map(|a| PathBuf::from(&a.path)))
             .chain(project.audio_assets.iter().filter(|_| include_audio).map(|a| PathBuf::from(&a.path)))
             .chain(project.video_assets.iter().map(|a| PathBuf::from(&a.path)))
+            .chain(project.model_assets.iter().map(|a| PathBuf::from(&a.path)))
             .collect();
         let voices = if include_audio { project.audio_voices().map_err(|e| e.to_string())? } else { Vec::new() };
         for asset in &project.audio_assets {
