@@ -4,7 +4,7 @@ mod materials;
 mod meshes;
 mod render;
 
-use crate::{AdmittedBuffer, AllocationContext, RenderError, Renderer};
+use crate::{AdmittedBuffer, RenderError, Renderer};
 use bytemuck::{Pod, Zeroable};
 pub use render::{SceneFrame, SceneLight, SceneRenderStats};
 use std::{collections::HashMap, sync::Arc, time::Instant};
@@ -110,7 +110,8 @@ struct MeshBuffers {
 /// Opaque admission-owned resources tied to one native renderer queue.
 /// Use allocated encoders/submissions to retain their reservations through GPU completion.
 pub struct GpuScene {
-    context: AllocationContext,
+    owner: Arc<()>,
+    thread: std::thread::ThreadId,
     source: Arc<motion_scene::Scene>,
     meshes: Vec<Vec<MeshBuffers>>,
     materials: Vec<materials::GpuMaterial>,
@@ -207,7 +208,8 @@ impl GpuScene {
         )?;
         let meshes = meshes::prepare(&context, &source, limits, &mut bytes)?;
         Ok(Self {
-            context,
+            owner: renderer.allocation_owner.clone(),
+            thread: std::thread::current().id(),
             source,
             meshes,
             materials,

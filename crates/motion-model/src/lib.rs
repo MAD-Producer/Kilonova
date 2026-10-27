@@ -22,6 +22,8 @@ pub mod path_conversion;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
+pub mod model_assets;
+pub use model_assets::{ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
 pub mod particle_history;

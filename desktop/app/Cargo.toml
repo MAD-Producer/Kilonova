@@ -43,4 +43,6 @@ winit = "0.30"
 
 [dev-dependencies]
 motion-model = { path = "../../crates/motion-model" }
+motion-scene = { path = "../../crates/motion-scene" }
+sha2 = "0.10"
 tempfile = "3"

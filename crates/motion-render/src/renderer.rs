@@ -10,6 +10,7 @@ mod phase_adjustment;
 mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
+mod model_layers;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
@@ -200,6 +201,7 @@ pub(crate) struct GpuImage {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum TextureKey {
+    Model(u64),
     Static(u64),
     Video(u64),
     VideoBlendSource(u64, u8),
@@ -208,7 +210,9 @@ pub(crate) enum TextureKey {
     EffectInput(u64),
 }
 fn texture_key(layer: &crate::DrawLayer) -> TextureKey {
-    if layer.vector.is_some() {
+    if layer.model_source.is_some() {
+        TextureKey::Model(layer.id)
+    } else if layer.vector.is_some() {
         TextureKey::Vector(layer.id)
     } else if layer.video.is_some() || layer.composition {
         TextureKey::Video(layer.id)
@@ -309,6 +313,7 @@ pub struct Renderer {
     pub effect_diagnostics: Vec<String>,
     snapshot_encodes: Vec<crate::effect_plan::SnapshotEncode>,
     composition_images: std::collections::HashSet<u64>,
+    models: model_layers::Models,
     // Drop last: finish unsubmitted destination lifetimes after cache handles.
     allocation_uploads: Arc<crate::allocation_uploads::AllocationUploads>,
 }
@@ -548,6 +553,7 @@ impl Renderer {
             texture_bytes: 4,
             target_format: format,
             composition_images: Default::default(),
+            models: Default::default(),
             gpu_failure,
             effect_gpu,
             layer_gpu,
@@ -751,6 +757,7 @@ impl Renderer {
         if self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
             return Err(RenderError::Invalid("cancel preview conversions before reclaiming resources".into()));
         }
+        self.models.clear_gpu();
         self.image_decode.cancel();
         self.image_prefetch.clear();
         self.image_trim_candidates = Vec::new();
@@ -868,6 +875,7 @@ impl Renderer {
                 TextureKey::Static(0) => SystemTextures,
                 TextureKey::Static(_) => StaticImages,
                 TextureKey::Vector(_) => VectorSources,
+                TextureKey::Model(_) => ModelSources,
                 TextureKey::Mask(_) => MaskOutputs,
                 TextureKey::EffectInput(_) => EffectInputSnapshots,
                 TextureKey::Video(id) if self.composition_images.contains(id) => NestedCompositions,
@@ -876,6 +884,7 @@ impl Renderer {
             ledger.retained(&image._texture, category, format!("images/{key:?}"));
         }
         self.effect_gpu.state.collect_textures(&mut ledger);
+        self.models.collect_textures(&mut ledger);
         self.layer_gpu.collect_textures(&mut ledger);
         self.mask_gpu.collect_textures(&mut ledger);
         if let Some(gpu) = &self.compositing_gpu { gpu.collect_textures(&mut ledger); }
@@ -898,6 +907,7 @@ impl Renderer {
     }
     pub fn texture_memory_breakdown(&self) -> crate::TextureMemoryBreakdown {
         let mut memory = crate::TextureMemoryBreakdown {
+            model_sources: self.models.texture_bytes(),
             video_planes: self.video_plane_bytes(),
             effect_scratch: self.effect_gpu.state.scratch_bytes(),
             plugin_resources: self.effect_gpu.state.resource_bytes(),
@@ -915,6 +925,7 @@ impl Renderer {
                 TextureKey::Static(0) => memory.system_textures += image.bytes,
                 TextureKey::Static(_) => memory.static_images += image.bytes,
                 TextureKey::Vector(_) => memory.vector_sources += image.bytes,
+                TextureKey::Model(_) => memory.model_sources += image.bytes,
                 TextureKey::Mask(_) => memory.mask_outputs += image.bytes,
                 TextureKey::EffectInput(_) => memory.effect_input_snapshots += image.bytes,
                 TextureKey::Video(id) if self.composition_images.contains(id) =>
@@ -1216,6 +1227,18 @@ impl Renderer {
         Ok(upload)
     }
     pub fn retain_video_instances(&mut self, scene: &Scene) {
+        fn collect_models(scene: &Scene, ids: &mut std::collections::HashSet<u64>) {
+            ids.extend(scene.layers.iter().filter(|l| l.model_source.is_some()).map(|l| l.id));
+            for nested in &scene.nested { collect_models(&nested.scene, ids); }
+        }
+        let mut live_models = Default::default(); collect_models(scene, &mut live_models);
+        self.models.retain_targets(&live_models);
+        let stale_models: Vec<_> = self.images.keys().filter_map(|key| match key {
+            TextureKey::Model(id) if !live_models.contains(id) => Some(*key), _ => None,
+        }).collect();
+        for key in stale_models { if let Some(image) = self.images.remove(&key) {
+            self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes); self.effect_gpu.invalidate();
+        } }
         fn collect(scene:&Scene,ids:&mut std::collections::HashSet<u64>,compositions:&mut std::collections::HashSet<u64>){for l in &scene.layers{if l.video.is_some()||l.composition{ids.insert(l.id);}if l.composition{compositions.insert(l.id);}}for n in &scene.nested{collect(&n.scene,ids,compositions);}}
         let mut live=Default::default();let mut compositions=Default::default();collect(scene,&mut live,&mut compositions);
         let stale: Vec<_> = self
@@ -1327,6 +1350,7 @@ impl Renderer {
             TextureKey::Static(_) => crate::TextureCategory::StaticImages,
             TextureKey::Video(_) | TextureKey::VideoBlendSource(_, _) => crate::TextureCategory::VideoRgba,
             TextureKey::Vector(_) => crate::TextureCategory::VectorSources,
+            TextureKey::Model(_) => crate::TextureCategory::ModelSources,
             TextureKey::Mask(_) => crate::TextureCategory::MaskOutputs,
             TextureKey::EffectInput(_) => crate::TextureCategory::EffectInputSnapshots,
         };
@@ -1398,6 +1422,7 @@ impl Renderer {
         Ok(())
     }
     pub fn synchronize_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
+        let model_sources = model_layers::prepare_sources(project, root, &self.models)?;
         for asset in &project.assets {
             if self.images.contains_key(&TextureKey::Static(asset.id)) {
                 continue;
@@ -1434,6 +1459,7 @@ impl Renderer {
                     .iter()
                     .any(|l| l.id == *id && matches!(l.content, motion_model::Content::Vector { .. })),
                 TextureKey::Mask(_) => true,
+                TextureKey::Model(_) => true,
                 TextureKey::EffectInput(_) => true,
             })
             .collect();
@@ -1455,6 +1481,7 @@ impl Renderer {
             self.effect_gpu.invalidate();
         }
         self.video_blend = None;
+        self.models.install(model_sources);
         Ok(())
     }
     /// Register the complete, stable asset table without decoding/uploading
@@ -1468,6 +1495,7 @@ impl Renderer {
             let source = crate::image_resources::Source::new(root, asset)?;
             sources.insert(asset.id, source);
         }
+        let model_sources = model_layers::prepare_sources(project, root, &self.models)?;
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
             TextureKey::Static(id) if *id != 0 && self.image_sources.get(id) != sources.get(id) => Some(*id),
             _ => None,
@@ -1490,6 +1518,7 @@ impl Renderer {
         if let Some(video) = &mut self.video_gpu { video.clear(); }
         self.composition_images.clear();
         self.image_sources = sources;
+        self.models.install(model_sources);
         self.asset_order = std::iter::once(0).chain(project.assets.iter().map(|a| a.id)).collect();
         Ok(())
     }
@@ -1695,6 +1724,7 @@ impl Renderer {
         Ok(())
     }
     pub fn clear_assets(&mut self) {
+        self.models.clear_gpu();
         self.video_blend = None;
         self.layer_gpu.release();
         if let Some(gpu)=&mut self.compositing_gpu{gpu.release();}
@@ -1812,6 +1842,7 @@ impl Renderer {
         self.snapshot_encodes.clear();
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
+        self.prepare_models(scene, width, height)?;
         let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
         stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
     }

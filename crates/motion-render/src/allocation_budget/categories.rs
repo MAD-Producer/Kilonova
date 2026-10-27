@@ -26,8 +26,9 @@ pub enum AllocationCategory {
     TimingBuffers,
     OtherBuffers,
     UiAtlas,
+    ModelSources,
 }
-pub(super) const CATEGORIES: [AllocationCategory; 20] = [
+pub(super) const CATEGORIES: [AllocationCategory; 21] = [
     AllocationCategory::StaticImages,
     AllocationCategory::Video,
     AllocationCategory::Vector,
@@ -48,6 +49,7 @@ pub(super) const CATEGORIES: [AllocationCategory; 20] = [
     AllocationCategory::TimingBuffers,
     AllocationCategory::OtherBuffers,
     AllocationCategory::UiAtlas,
+    AllocationCategory::ModelSources,
 ];
 pub(super) const CATEGORY_COUNT: usize = CATEGORIES.len();
 
@@ -74,6 +76,7 @@ impl From<TextureCategory> for AllocationCategory {
     fn from(value: TextureCategory) -> Self {
         match value {
             TextureCategory::StaticImages => Self::StaticImages,
+            TextureCategory::ModelSources => Self::ModelSources,
             TextureCategory::VideoRgba | TextureCategory::VideoPlanes => Self::Video,
             TextureCategory::VectorSources
             | TextureCategory::VectorRasterScratch
