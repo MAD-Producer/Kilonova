@@ -24,6 +24,23 @@ pub(super) fn merge_knots(
     }).flatten()
 }
 
+/// Bounded range preparation for an explicit fit operation. This is not a
+/// successful partial result when evaluation or the input budget fails.
+pub(super) fn extrema<E>(knots:impl IntoIterator<Item=f64>,mut value:impl FnMut(f64)->Result<f64,E>)
+    ->Result<Option<[f64;2]>,Failure<E>> {
+    let mut bounds:Option<[f64;2]>=None;
+    let mut previous=None;
+    for (index,frame) in knots.into_iter().enumerate() {
+        if index>=MAX_POINTS {return Err(Failure::Budget {evaluations:index,points:0});}
+        if !frame.is_finite() || previous.is_some_and(|last|frame<last) {return Err(Failure::InvalidOrder {frame});}
+        previous=Some(frame);
+        let next=value(frame).map_err(|cause|Failure::Sample {frame,cause})?;
+        if !next.is_finite() {return Err(Failure::NonFinite {frame});}
+        bounds=Some(bounds.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));
+    }
+    Ok(bounds)
+}
+
 #[derive(Debug)]
 pub(super) enum Failure<E> {
     Sample { frame: f64, cause: E },

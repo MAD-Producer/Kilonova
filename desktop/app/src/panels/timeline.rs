@@ -692,6 +692,7 @@ pub(super) fn render(
     let colors = styles.colors();
     let footer_height = styles.metric("field.height", 18.).min(area.height());
 
+    panels.timeline.graph_ranges.sync(state);
     panels.timeline_columns.begin(state);
     let context_input = input;
     panels.parent_controls.begin_timeline(context_input);
@@ -703,6 +704,7 @@ pub(super) fn render(
         .prepare(state, panels.selected, context_input, out);
     let neutral = Input::default();
     let input = if panels.timeline.timeline_context_menu.is_some()
+        || panels.timeline.graph_ranges.editing()
         || panels.timeline_columns.editing()
         || panels.parent_controls.picking()
         || panels.layer_actions.editing()
@@ -818,7 +820,9 @@ pub(super) fn render(
         } else if input.modifiers.control && input.modifiers.alt && graph_mode {
             // The graph owns vertical scaling; one wheel event has one owner.
         } else if input.modifiers.shift {
-            panels.timeline.offset = (panels.timeline.offset + wheel).max(0.);
+            if !(graph_mode && panels.timeline.graph_ranges.locked_x()) {
+                panels.timeline.offset = (panels.timeline.offset + wheel).max(0.);
+            }
         } else if !(graph_mode && input.mouse[0] >= track.min[0]) {
             panels.timeline.scroll = (panels.timeline.scroll + wheel).clamp(0., scroll_max);
         }
@@ -967,13 +971,14 @@ pub(super) fn render(
         );
     }
     let zoom_x = graph_area.max[0] - 146.;
+    let time_navigation_enabled = !(graph_mode && panels.timeline.graph_ranges.locked_x());
     if ui::button(
         list,
         atlas,
         Rect::new(zoom_x, toolbar_top, toolbar_height, toolbar_height),
         "−",
         input,
-        true,
+        time_navigation_enabled,
     )
     .clicked
     {
@@ -986,7 +991,7 @@ pub(super) fn render(
         Rect::new(zoom_x + 86., toolbar_top, toolbar_height, toolbar_height),
         "+",
         input,
-        true,
+        time_navigation_enabled,
     )
     .clicked
     {
@@ -998,7 +1003,7 @@ pub(super) fn render(
         Rect::new(zoom_x + 117., toolbar_top, toolbar_height, toolbar_height),
         motion_ui::icons::Icon::Expand,
         input,
-        true,
+        time_navigation_enabled,
     )
     .clicked
     {

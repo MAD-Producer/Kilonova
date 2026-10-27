@@ -10,6 +10,38 @@ enum Samples {
     Vector(Track<[f32; 3]>),
 }
 impl Samples {
+    fn fit_bounds(&self,interval:[f64;2],layer_offset:f64,components:&[usize],speed:bool,fps:f64,
+        display_scale:f32,size:[f32;2],tolerance:f64)
+        ->Result<super::graph_ranges::Bounds,super::graph_adaptive::Failure<motion_core::Error>> {
+        use super::graph_adaptive::{self,Failure};
+        use super::graph_view::Range;
+        let [start,end]=interval;
+        let x=Range::fitted(start,end,0.05,1.).ok_or(Failure::InvalidGeometry)?;
+        let value=|frame:f64,component:usize|->motion_core::Result<f64> {
+            Ok(f64::from((if speed {self.velocity(frame-layer_offset,component,fps)}
+                else {self.value(frame-layer_offset,component)?})*display_scale))
+        };
+        let mut low=f64::INFINITY;let mut high=f64::NEG_INFINITY;
+        for component in components.iter().copied() {
+            let mut sample=|frame|value(frame,component);
+            let bounds=match self {
+                Self::Anchor(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
+                Self::Scalar(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
+                Self::Vector(track)=>graph_adaptive::extrema(super::graph_sampling::knots(track,start,end,layer_offset),&mut sample),
+            }?.ok_or(Failure::InvalidGeometry)?;
+            low=low.min(bounds[0]);high=high.max(bounds[1]);
+        }
+        let preliminary=Range::fitted(low,high,0.1,1.).ok_or(Failure::InvalidGeometry)?;
+        low=f64::INFINITY;high=f64::NEG_INFINITY;
+        for component in components.iter().copied() {
+            let points=self.adaptive(start,end,layer_offset,
+                [f64::from(size[0])/x.span(),f64::from(size[1])/preliminary.span()],tolerance,
+                |frame|value(frame,component))?;
+            for (_,value) in points {low=low.min(f64::from(value));high=high.max(f64::from(value));}
+        }
+        let y=Range::fitted(low,high,0.1,1.).ok_or(Failure::InvalidGeometry)?;
+        Ok(super::graph_ranges::Bounds {x,y})
+    }
     fn adaptive(
         &self, start: f64, end: f64, layer_offset: f64, scale: [f64;2], tolerance: f64,
         value: impl FnMut(f64)->motion_core::Result<f64>,
@@ -42,7 +74,40 @@ impl Samples {
     }
 }
 
-fn observe_early_return(panels: &Panels, reason: &'static str) {
+fn unit(property:Property,speed:bool)->&'static str {
+    match (property,speed) {
+        (Property::Anchor|Property::Position|Property::Target|Property::Radius,false)=>"px",
+        (Property::Anchor|Property::Position|Property::Target|Property::Radius,true)=>"px/s",
+        (Property::Rotation|Property::Roll|Property::Fov|Property::Azimuth|Property::Elevation,false)=>"°",
+        (Property::Rotation|Property::Roll|Property::Fov|Property::Azimuth|Property::Elevation,true)=>"°/s",
+        (_,false)=>"%",(_,true)=>"%/s",
+    }
+}
+
+fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget,source:&Value,offset:i64)
+    ->([f64;2],Option<[f64;2]>) {
+    let mut all:Option<[f64;2]>=None;let mut selected:Option<[f64;2]>=None;
+    let status=panels.selected_keys.status(state);
+    let legacy=panels.animation_controls.user_key_in(state,panels.selected);
+    for key in source["keys"].as_array().into_iter().flatten() {
+        let Some(frame)=key["local_frame"].as_i64().and_then(|frame|frame.checked_add(offset)).or_else(||key["frame"].as_i64())
+            .and_then(|frame|u32::try_from(frame).ok()).filter(|frame|f64::from(*frame)<=last_frame(state)) else {continue;};
+        let next=f64::from(frame);
+        all=Some(all.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));
+        let chosen=match status {
+            super::key_selection::Status::Current=>panels.selected_keys.contains(&super::key_selection::Key {target:target.clone(),frame}),
+            super::key_selection::Status::Unowned=>panels.timeline.graph_box.has_selection() || legacy.is_some_and(|key| {
+                key.frame==frame && *target==(motion_core::KeyframeTarget::Property {object:key.object,property:key.property,axis:key.axis})
+            }),
+            _=>false,
+        };
+        if chosen {selected=Some(selected.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));}
+    }
+    (all.unwrap_or([0.,last_frame(state)+1.]),selected)
+}
+
+fn observe_early_return(panels: &mut Panels, reason: &'static str) {
+    panels.timeline.graph_ranges.no_property_plot();
     let active = panels
         .timeline
         .graph_drag
@@ -79,6 +144,7 @@ pub(super) fn render(
         let body=Rect::new(area.min[0],area.min[1],area.width(),(area.height()-footer).max(0.));
         let content=super::curve_comparison::toolbar(list, atlas, body, panels, state, input, out);
         if panels.timeline.comparison.enabled {
+            panels.timeline.graph_ranges.no_property_plot();
             let neutral=Input::default();
             let graph_input=if panels.timeline.comparison.popup_open(){&neutral}else{input};
             super::curve_comparison::render(list, atlas, content, panels, state, graph_input, offset, ppf, out);
@@ -88,6 +154,7 @@ pub(super) fn render(
     if super::effect_timeline::graph::render(
         list, atlas, area, panels, state, input, offset, ppf, out,
     ) {
+        panels.timeline.graph_ranges.no_property_plot();
         return;
     }
     let styles = list.styles();
@@ -260,12 +327,16 @@ pub(super) fn render(
     let plot = Rect::new(
         area.min[0],
         area.min[1] + 32.,
-        (area.width() - 8.).max(1.),
+        area.width().max(1.),
         (area.height() - 102.).max(1.),
     );
     let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
     let scale = data::display_scale(state,object,property,components[0]);
     let speed_graph = panels.timeline.speed_graph;
+    let unit=unit(property,speed_graph);
+    let target=motion_core::KeyframeTarget::Property {object,property,axis};
+    let identity=super::graph_ranges::Identity {surface:super::graph_ranges::Surface::Timeline,
+        target:Some(target.clone()),component:Some(components[0]),speed:speed_graph,unit:unit.into()};
     let sample = |frame: f64, component: usize| -> motion_core::Result<f32> {
         Ok(if speed_graph {
             samples.velocity(frame - layer_offset as f64, component, fps)
@@ -304,11 +375,23 @@ pub(super) fn render(
     let margin = ((max - min) * 0.1).max(1.);
     let auto_low = min - margin;
     let auto_high = max + margin;
-    let old_zoom = if panels.timeline.graph_y_zoom > 0. {
+    let old_zoom = if panels.timeline.graph_y_zoom.is_finite() && panels.timeline.graph_y_zoom > 0. {
         panels.timeline.graph_y_zoom
     } else {
         1.
     };
+    use super::graph_ranges::Bounds;
+    use super::graph_view::Range;
+    let initial_half=(auto_high-auto_low)*0.5/old_zoom;
+    let initial_center=(auto_high+auto_low)*0.5+panels.timeline.graph_y_offset;
+    let automatic=Range::new(offset,offset+f64::from(plot.width())/f64::from(ppf))
+        .zip(Range::new(f64::from(initial_center-initial_half),f64::from(initial_center+initial_half)))
+        .map(|(x,y)|Bounds {x,y});
+    let Ok(automatic)=observe!("timeline.graph_view_bounds",automatic.ok_or("unrepresentable graph range"),
+        "object={object} property={property:?} axis={axis:?} phase=display") else {
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,"invalid_view_bounds");return;
+    };
+    let before_view=panels.timeline.graph_ranges.displayed(state,&identity,automatic);
     if area.contains(input.mouse)
         && input.modifiers.control
         && input.modifiers.alt
@@ -317,12 +400,19 @@ pub(super) fn render(
         && !panels.timeline.graph_box.editing()
         && panels.timeline.key_drag.is_none()
         && panels.timeline.graph_drag.is_none()
+        && !panels.key_gestures.active()
+        && !panels.timeline.scrubbing
+        && !panels.timeline.graph_ranges.locked_y(&identity)
     {
         let zoom = (old_zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
         let fraction = (plot.max[1] - input.mouse[1]) / plot.height().max(1.) - 0.5;
-        panels.timeline.graph_y_offset +=
+        let next_offset=panels.timeline.graph_y_offset+
             fraction * (auto_high - auto_low) * (1. / old_zoom - 1. / zoom);
-        panels.timeline.graph_y_zoom = zoom;
+        if next_offset.is_finite() && panels.timeline.graph_ranges.navigate_y(&identity,before_view.y,
+            f64::from(zoom/old_zoom),before_view.y.at(f64::from(fraction+0.5))) {
+            panels.timeline.graph_y_offset=next_offset;
+            panels.timeline.graph_y_zoom=zoom;
+        }
     }
     let zoom = if panels.timeline.graph_y_zoom > 0. {
         panels.timeline.graph_y_zoom
@@ -331,6 +421,8 @@ pub(super) fn render(
     };
     let half = (auto_high - auto_low) * 0.5 / zoom;
     let center = (auto_high + auto_low) * 0.5 + panels.timeline.graph_y_offset;
+    let legacy_y=Range::new(f64::from(center-half),f64::from(center+half)).unwrap_or(before_view.y);
+    let displayed=panels.timeline.graph_ranges.displayed(state,&identity,Bounds {x:automatic.x,y:legacy_y});
     let fixed = panels
         .timeline
         .graph_drag
@@ -339,8 +431,8 @@ pub(super) fn render(
         .or_else(|| panels.timeline.key_drag.as_ref().map(|d| d.bounds()))
         .or_else(|| panels.key_gestures.drag_bounds())
         .or_else(|| panels.timeline.graph_box.bounds());
-    let low = fixed.map_or(center - half, |b| b[0]);
-    let high = fixed.map_or(center + half, |b| b[1]);
+    let low = fixed.map_or(displayed.y.low as f32, |b| b[0]);
+    let high = fixed.map_or(displayed.y.high as f32, |b| b[1]);
     let adaptive = components.iter().map(|component|samples.adaptive(
         offset,end,layer_offset as f64,
         [f64::from(ppf),f64::from(plot.height())/f64::from(high-low)],
@@ -368,29 +460,6 @@ pub(super) fn render(
             true,
         );
     }
-    let unit = match property {
-        Property::Anchor | Property::Position | Property::Target | Property::Radius => {
-            if panels.timeline.speed_graph {
-                "px/s"
-            } else {
-                "px"
-            }
-        }
-        Property::Rotation | Property::Roll | Property::Fov | Property::Azimuth | Property::Elevation => {
-            if panels.timeline.speed_graph {
-                "°/s"
-            } else {
-                "°"
-            }
-        }
-        _ => {
-            if panels.timeline.speed_graph {
-                "%/s"
-            } else {
-                "%"
-            }
-        }
-    };
     label(
         &mut graph,
         atlas,
@@ -611,6 +680,7 @@ pub(super) fn render(
             Align::Left,
         );
     }
+    let mut last_mode=None;
     for (index, speed) in [true, false].into_iter().enumerate() {
         let title = if speed {
             if panels.locale == Locale::Zh {
@@ -629,6 +699,7 @@ pub(super) fn render(
             94.,
             24.,
         );
+        last_mode=Some(rect);
         let mut states = motion_ui::style::States::default();
         if panels.timeline.speed_graph == speed {
             states = states.with(motion_ui::style::State::Selected);
@@ -649,6 +720,29 @@ pub(super) fn render(
             panels.timeline.speed_graph = speed;
             panels.timeline.graph_y_zoom = 1.;
             panels.timeline.graph_y_offset = 0.;
+        }
+    }
+    if let Some(last_mode)=last_mode {
+        let busy=panels.timeline.graph_drag.is_some() || panels.timeline.key_drag.is_some()
+            || panels.timeline.graph_box.editing() || panels.key_gestures.active()
+            || panels.timeline.horizontal_drag.is_some() || panels.timeline.scrubbing;
+        let row=Rect::new(area.min[0],last_mode.min[1],area.width(),last_mode.height());
+        if let Some(point)=super::graph_ranges::launch(&mut graph,atlas,row,last_mode.max[0],input,
+            panels.timeline.graph_ranges.ready() && !busy) {
+            let (all_interval,selection_interval)=fit_intervals(panels,state,&target,source,layer_offset);
+            let tolerance=f64::from(styles.metric("graph.sample.error",0.35));
+            let started=std::time::Instant::now();
+            let all=observe!("timeline.graph_fit_all",samples.fit_bounds(all_interval,layer_offset as f64,
+                &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
+                "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_all",started.elapsed().as_millis()).ok();
+            let selection=selection_interval.and_then(|interval| {
+                let started=std::time::Instant::now();
+                observe!("timeline.graph_fit_selection",samples.fit_bounds(interval,layer_offset as f64,
+                    &components,speed_graph,fps,scale,[plot.width(),plot.height()],tolerance),
+                    "object={object} property={property:?} axis={axis:?} elapsed_ms={} phase=fit_selection",started.elapsed().as_millis()).ok()
+            });
+            panels.timeline.graph_ranges.open(point,identity,super::graph_ranges::Options {displayed,all,selection},
+                state,&panels.selected_keys,panels.animation_controls.user_key(),panels.selected,panels.focused);
         }
     }
     let step = (plot.width() / ppf / 4.).max(1.);

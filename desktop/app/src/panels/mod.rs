@@ -56,6 +56,8 @@ pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
 mod graph_adaptive;
+mod graph_view;
+mod graph_ranges;
 mod curve_comparison;
 mod graph_notice;
 mod graph_workspace;
@@ -261,6 +263,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.parent_controls.cancel();
     panels.timeline_columns.cancel();
     panels.viewer_guides.cancel();
+    panels.timeline.graph_ranges.cancel();
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
@@ -369,6 +372,11 @@ pub fn chrome(
     let guide_owned = panels.viewer_guides.prepare(None, state, input);
     let guide_neutral = Input::default();
     let input = if guide_owned { &guide_neutral } else { input };
+    let graph_range_input = input;
+    let graph_range_owned = panels.timeline.graph_ranges.prepare(None,state,input,&panels.selected_keys,
+        panels.animation_controls.user_key(),panels.selected,panels.focused);
+    let graph_range_neutral = Input::default();
+    let input = if graph_range_owned { &graph_range_neutral } else { input };
     tools::prepare(panels,None,input);
     let parent_pick_owned = panels.parent_controls.prepare_window(None, input);
     let parent_neutral = Input::default();
@@ -1020,6 +1028,7 @@ pub fn chrome(
     let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
+    graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -1057,6 +1066,11 @@ pub fn floating_chrome(
     let guide_owned = panels.viewer_guides.prepare(Some(panel), state, input);
     let guide_neutral = Input::default();
     let input = if guide_owned { &guide_neutral } else { input };
+    let graph_range_input = input;
+    let graph_range_owned = panels.timeline.graph_ranges.prepare(Some(panel),state,input,&panels.selected_keys,
+        panels.animation_controls.user_key(),panels.selected,panels.focused);
+    let graph_range_neutral = Input::default();
+    let input = if graph_range_owned { &graph_range_neutral } else { input };
     // The toolbar belongs to the main native window. Moving input to a float
     // cancels its gesture before that window can dispatch another edit.
     let mut toolbar_actions = vec![];
@@ -1346,6 +1360,7 @@ pub fn floating_chrome(
     let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
+    graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
