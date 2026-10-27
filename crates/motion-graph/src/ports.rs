@@ -32,7 +32,7 @@ impl PortSemantic {
             Self::Scalar => ("普通标量（单位未声明）", "Scalar · unspecified units"),
             Self::Vector => ("普通向量（单位未声明）", "Vector · unspecified units"),
             Self::Bool => ("开关", "Boolean"),
-            Self::Image => ("宿主图像", "Host image"),
+            Self::Image => ("图像句柄", "Image handle"),
         }
     }
 }
@@ -342,7 +342,7 @@ fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
             PortSemantic::DistancePixels => ("有符号距离","Signed distance","单位是图层逻辑像素，内侧负、边界零、外侧正；连接 SDF 运算、Fill 或 Stroke。","Layer logical pixels: negative inside, zero at the boundary, positive outside. Connect to SDF operations, Fill or Stroke."),
             PortSemantic::Color => ("颜色","Color","当前图声明工作空间/Alpha 模式中的 RGBA；颜色常量及参数本身以 straight RGBA 编辑。","RGBA in the graph's declared working space and alpha mode; color literals and parameters are edited as straight RGBA."),
             PortSemantic::Bool => ("开关","Boolean","true/false，只能接开关条件；不隐式转换为 Float。","true/false; connects to boolean conditions without implicit Float conversion."),
-            PortSemantic::Image => ("图像句柄","Image handle","宿主提供的当前 pass 输入或效果原始图像；先通过 Sample Image 得到 Color，不支持任意外部纹理绑定。","Host-provided current-pass input or original source. Sample Image converts it to Color; arbitrary external texture bindings are unsupported."),
+            PortSemantic::Image => ("图像句柄","Image handle","宿主图像或随工程携带的图像资源；先通过采样图像得到 Color。","A host image or an image resource carried with the project. Sample Image converts it to Color."),
             PortSemantic::Vector => ("数值向量","Numeric vector","普通 Vec2/Vec3；常量、组合与数学输出不证明像素/UV 单位，也不代表 3D 位置或网格属性。","Generic Vec2/Vec3. Constants, construction and arithmetic do not prove pixel/UV units or imply 3D positions or mesh attributes."),
             PortSemantic::Scalar if matches!(op,NodeOp::SdfFill|NodeOp::SdfStroke) => ("覆盖率","Coverage","0..1 的抗锯齿覆盖率，适合 Apply Mask 的 coverage 输入；不是像素距离。","Antialiased 0..1 coverage for Apply Mask's coverage input; not a pixel distance."),
             _ => ("数值","Value","普通 Float，单位未声明；数学结果不会自动继承输入单位。","Generic Float with unspecified units; arithmetic results do not automatically inherit input units."),
@@ -403,8 +403,8 @@ pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
         NodeOp::Image{source:ImageSource::Input} => ("当前效果 pass 的宿主输入图像句柄；通过 Sample Image 读取像素。","Host input-image handle for the current effect pass; read pixels with Sample Image."),
         NodeOp::Image{source:ImageSource::Source} => ("效果链原始图层图像句柄；与当前 pass 输入来源不同。","Original layer-image handle before the effect chain, distinct from the current pass input."),
         NodeOp::ImageAsset{..} => ("随节点图携带的 sRGB 图片；通过采样图像读取，像素坐标使用图片自身尺寸。","An sRGB image carried with the graph. Read with Sample Image; pixel coordinates use the image's own dimensions."),
-        NodeOp::SampleImage{coordinates:SampleCoordinates::Pixels} => ("按图层逻辑像素位置采样宿主图像，输出图契约中的 RGBA Color。","Samples a host image at layer logical-pixel positions and returns RGBA Color in the graph contract."),
-        NodeOp::SampleImage{coordinates:SampleCoordinates::Uv} => ("按归一化 UV 采样宿主图像，输出 RGBA Color；不能直接输入已知像素位置。","Samples a host image with normalized UV and returns RGBA Color; known pixel positions cannot directly feed this mode."),
+        NodeOp::SampleImage{coordinates:SampleCoordinates::Pixels} => ("按像素坐标采样 Image 并输出 RGBA Color；宿主图像使用图层逻辑尺寸，图像资源使用自身尺寸。","Samples Image at pixel coordinates and returns RGBA Color. Host images use layer logical dimensions; image resources use their own dimensions."),
+        NodeOp::SampleImage{coordinates:SampleCoordinates::Uv} => ("按归一化 UV 采样 Image，输出 RGBA Color；不能直接输入已知像素位置。","Samples Image with normalized UV and returns RGBA Color; known pixel positions cannot directly feed this mode."),
         NodeOp::Float{..} => ("有限 Float 常量，范围 ±1e6；数值自身未声明单位。","Finite Float literal within ±1e6; the value itself declares no units."),
         NodeOp::Vec2{..} => ("普通二维数值向量。它可用作明确的坐标常量，但不会自动被标为像素位置或 UV。","Generic two-component numeric vector. It can supply an explicit coordinate literal but is not automatically labeled pixel Position or UV."),
         NodeOp::Vec3{..} => ("普通三维数值向量；N1 未提供网格位置、法线、深度或 3D 场景执行上下文。","Generic three-component numeric vector; N1 supplies no mesh position, normal, depth or 3D scene execution context."),

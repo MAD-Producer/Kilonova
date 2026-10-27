@@ -67,6 +67,7 @@ pub fn catalog() -> Vec<LibraryItem> {
     for op in [
         NodeOp::Position,
         NodeOp::Uv,
+        NodeOp::UvMapping,
         NodeOp::Time,
         NodeOp::FrameIndex,
         NodeOp::Resolution,
@@ -78,6 +79,9 @@ pub fn catalog() -> Vec<LibraryItem> {
         },
         NodeOp::SampleImage {
             coordinates: SampleCoordinates::Pixels,
+        },
+        NodeOp::SampleImage {
+            coordinates: SampleCoordinates::Uv,
         },
     ] {
         add(Category::Input, op);
@@ -256,6 +260,8 @@ pub(super) fn operation_title(op: &NodeOp, language: Language) -> String {
         NodeOp::Image {
             source: ImageSource::Source,
         } => ("效果原始图像", "Original Source"),
+        NodeOp::SampleImage { coordinates: SampleCoordinates::Pixels } => ("采样图像（像素）", "Sample Image (Pixels)"),
+        NodeOp::SampleImage { coordinates: SampleCoordinates::Uv } => ("采样图像（UV）", "Sample Image (UV)"),
         _ => op.title(),
     };
     language.text(titles.0, titles.1).into()

@@ -9,7 +9,7 @@ pub(super) struct Fragment {
     pastes: u32,
 }
 
-fn used_ids(nodes: &[Node], ids: &mut BTreeSet<String>) {
+pub(super) fn used_ids(nodes: &[Node], ids: &mut BTreeSet<String>) {
     for node in nodes {
         ids.insert(node.id.clone());
         if let NodeOp::Group { graph } = &node.operation {
@@ -32,7 +32,7 @@ fn references(nodes: &[Node], ids: &mut BTreeSet<String>) {
 
 // Draft graphs may have no output. Check every scope's edges before the shared
 // validator's normal MissingOutput/MissingInput draft boundary can short-circuit.
-fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic> {
+pub(super) fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic> {
     if depth > 16 {
         return Err(diag(
             ErrorCode::Budget,
@@ -96,7 +96,7 @@ fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic
 }
 
 // IDs are allocated in a candidate-local counter, so rejection changes no editor state.
-fn fresh(
+pub(super) fn fresh(
     counter: &mut u64,
     used: &mut BTreeSet<String>,
     prefix: &str,

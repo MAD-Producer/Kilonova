@@ -111,6 +111,7 @@
 | Nodes | G | false | false | false | ToggleNodeGrid | false |
 | Nodes | G | false | false | true | Ungroup | false |
 | Nodes | G | true | false | false | Group | false |
+| Nodes | T | true | false | false | AddTextureMapping | false |
 | Nodes | Num0 | true | false | false | ResetZoom | false |
 | Nodes | N | false | false | false | ToggleNodeMinimap | false |
 | Nodes | O | true | false | false | Open | false |

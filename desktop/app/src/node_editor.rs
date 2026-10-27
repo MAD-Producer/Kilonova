@@ -25,6 +25,8 @@ mod grouping;
 mod inline;
 #[path = "node_editor/input_defaults.rs"]
 mod input_defaults;
+#[path = "node_editor/texture_chain.rs"]
+mod texture_chain;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
 #[path = "node_editor/naming.rs"]
