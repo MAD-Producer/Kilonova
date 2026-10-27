@@ -23,8 +23,12 @@ mod editing;
 mod grouping;
 #[path = "node_editor/inline.rs"]
 mod inline;
+#[path = "node_editor/image_import.rs"]
+mod image_import;
 #[path = "node_editor/input_defaults.rs"]
 mod input_defaults;
+#[path = "node_editor/texture_chain.rs"]
+mod texture_chain;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
 #[path = "node_editor/naming.rs"]
@@ -126,6 +130,7 @@ pub enum Action {
     Validate(EditorSnapshot),
     Compile(EditorSnapshot),
     ExportMsfx(EditorSnapshot),
+    ImportImage { snapshot: EditorSnapshot, path: PathBuf, position: [f32; 2] },
     PreviewChanged,
     Changed {
         revision: u64,
@@ -609,13 +614,14 @@ impl NodeEditor {
             }
         }
     }
+    /// Synchronous fixture/acceptance setup. Interactive shell navigation uses
+    /// NodeTasks::open_bound so source IO and PNG decode stay off the GUI thread.
     pub fn load_layer_source(
         &mut self,
         source: &serde_json::Value,
         target: crate::node_layer::Target,
     ) -> Result<(), String> {
-        let document =
-            GraphDocument::from_json(&source["document"].to_string()).map_err(|e| e.to_string())?;
+        let document = crate::node_layer::load_document(source, &target.root).map_err(|e| e.to_string())?;
         let options =
             serde_json::from_value(source["options"].clone()).map_err(|e| e.to_string())?;
         self.replace_document(document, None);
@@ -623,6 +629,14 @@ impl NodeEditor {
         self.layer_target = Some(target);
         self.refresh_diagnostic();
         Ok(())
+    }
+    pub fn accept_layer_document(&mut self, snapshot: &EditorSnapshot, document: GraphDocument, options: CompileOptions, target: crate::node_layer::Target) -> bool {
+        if snapshot.epoch != self.epoch || snapshot.revision != self.revision { return false; }
+        self.replace_document(document, None);
+        self.options = options;
+        self.layer_target = Some(target);
+        self.refresh_diagnostic();
+        true
     }
     pub fn accept_saved(&mut self, snapshot: &EditorSnapshot, path: PathBuf) -> bool {
         if snapshot.epoch != self.epoch
@@ -997,6 +1011,8 @@ impl NodeEditor {
         self.document
             .connections
             .retain(|c| !deleting.contains(&c.from.node) && !deleting.contains(&c.to.node));
+        let images = self.root_document().referenced_images();
+        self.document.images.retain(|id, _| images.contains(id));
         self.selected.retain(|id| protected.contains(id));
         self.primary = self.selected.iter().next().cloned();
         self.finish_edit(before);

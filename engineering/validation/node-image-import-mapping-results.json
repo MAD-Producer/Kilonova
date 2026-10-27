@@ -1,0 +1,27 @@
+{
+  "baseCommit": "06fa8cf533760fea69cbc28533469bc93bb7f6d5",
+  "phase": "UV mapping foundation; issues 227/228 remain open",
+  "passed": 85,
+  "failed": 0,
+  "ignored": 0,
+  "resultBlocks": 21,
+  "sourceHashes": {
+    "crates/motion-graph/src/compiler.rs": "47614fe0454118959afce3f2d921bdc5430cd28a4ed3fbcd6e14983f10f973ef",
+    "crates/motion-graph/src/document.rs": "f8b973e04bce425c7d6da4428639b83c57bab697d8d2b269e1185242e5c18a7b",
+    "crates/motion-graph/src/input_defaults.rs": "e4202e6c23e798fa0773d302b10d4ec0bc8da4a920458b45fc072bbe7ae436c4",
+    "crates/motion-graph/src/ports.rs": "e1710c201c5a53a0713c6c316c5ac792cad0cf7e5b662d0e9b15c229be2dcc8a",
+    "crates/motion-graph/src/uv_mapping.wgsl": "2bfca17d26f79bae421aa9a0f10a6e5bb7b86a4ab9694d266e65397debe3d19a",
+    "crates/motion-graph/tests/gpu.rs": "61128fb23b5430d6f2fcc29411b73ffaeff980970b6b3cfd96686b6c0a30fb66",
+    "crates/motion-graph/tests/support/uv_mapping_fixture.rs": "992389d6700888a8bd24bc819fae263aa173075459e7729f488be54f57b19b95",
+    "crates/motion-graph/tests/uv_mapping.rs": "bc2ff04f07e2504e1488532812fbe82191cfdcbc25b667aeaf45b7117f0da86d"
+  },
+  "logs": {
+    "node-image-import-mapping-core-initial.log": "9e9afe473b8edbdb37dcb31b3064951547cec5f383e42b4f926846dd2af4096e",
+    "node-image-import-mapping-gpu-initial.log": "17c7101378a289b6f9f5fa60cd2a8d25305291b4937a96f9c04c336fba30a07d",
+    "node-image-import-mapping-graph-regression.log": "41a78718da5eb545a8fc364a9ebce5a28e5a90b0d9c0ea5d3bf5cc36ac4838d0"
+  },
+  "limits": [
+    "No image asset transport, file-drop routing, Ctrl+T binding, or native screenshots yet.",
+    "No new IO/worker observation in this phase; actual import fault-channel acceptance remains pending."
+  ]
+}

@@ -9,7 +9,7 @@ pub(super) struct Fragment {
     pastes: u32,
 }
 
-fn used_ids(nodes: &[Node], ids: &mut BTreeSet<String>) {
+pub(super) fn used_ids(nodes: &[Node], ids: &mut BTreeSet<String>) {
     for node in nodes {
         ids.insert(node.id.clone());
         if let NodeOp::Group { graph } = &node.operation {
@@ -32,7 +32,7 @@ fn references(nodes: &[Node], ids: &mut BTreeSet<String>) {
 
 // Draft graphs may have no output. Check every scope's edges before the shared
 // validator's normal MissingOutput/MissingInput draft boundary can short-circuit.
-fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic> {
+pub(super) fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic> {
     if depth > 16 {
         return Err(diag(
             ErrorCode::Budget,
@@ -96,7 +96,7 @@ fn check_scopes(document: &GraphDocument, depth: usize) -> Result<(), Diagnostic
 }
 
 // IDs are allocated in a candidate-local counter, so rejection changes no editor state.
-fn fresh(
+pub(super) fn fresh(
     counter: &mut u64,
     used: &mut BTreeSet<String>,
     prefix: &str,
@@ -197,6 +197,9 @@ impl NodeEditor {
         document
             .connections
             .retain(|e| self.selected.contains(&e.from.node) && self.selected.contains(&e.to.node));
+        let images = document.referenced_images();
+        document.images.retain(|id, _| images.contains(id));
+        document.validate_images().map_err(|e| e.diagnostic())?;
         check_scopes(&document, 0)?;
         let mut parameters = BTreeSet::new();
         references(&document.nodes, &mut parameters);
@@ -213,16 +216,7 @@ impl NodeEditor {
         }
         self.check_nested_budget(&document)?;
         // Do not retain an arbitrarily large payload even if a malformed graph reached the editor.
-        let bytes = serde_json::to_vec(&document)
-            .map_err(|e| diag(ErrorCode::Json, None, None, &e.to_string()))?;
-        if bytes.len() > motion_graph::MAX_DOCUMENT_BYTES {
-            return Err(diag(
-                ErrorCode::Budget,
-                None,
-                None,
-                "Node clipboard exceeds 4 MiB",
-            ));
-        }
+        document.validate_metadata_budget().map_err(|e| e.diagnostic())?;
         Ok(Some(Fragment {
             document,
             primary: self.primary.clone(),
@@ -241,6 +235,8 @@ impl NodeEditor {
             candidate.connections.retain(|e| {
                 !self.selected.contains(&e.from.node) && !self.selected.contains(&e.to.node)
             });
+            let images = self.root_with(&candidate).referenced_images();
+            candidate.images.retain(|id, _| images.contains(id));
             self.checked_structure(&candidate)?;
             let before = self.state(true);
             // Cache before deleting. There is no fallible work after this point.
@@ -271,6 +267,7 @@ impl NodeEditor {
             ));
         }
         let mut candidate = self.document.clone();
+        candidate.images.extend(fragment.document.images.clone());
         let mut nodes = fragment.document.nodes.clone();
         let mut edges = fragment.document.connections.clone();
         let mut used: BTreeSet<_> = candidate
@@ -431,3 +428,6 @@ impl NodeEditor {
 #[cfg(test)]
 #[path = "clipboard/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "clipboard/image_tests.rs"]
+mod image_tests;

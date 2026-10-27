@@ -189,8 +189,8 @@ pub enum Command {
     NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value,String>>},
     NodeInstall {
         snapshot: crate::node_editor::EditorSnapshot,
-        compiled: motion_graph::CompiledGraph,
-        canonical: Option<motion_graph::CompiledGraph>,
+        compiled: crate::node_preview::InstallGraph,
+        canonical: Option<crate::node_preview::PreparedGraph>,
         reply: Sender<Result<bool, String>>,
     },
     NodeCapture {
@@ -605,12 +605,13 @@ impl Engine {
     pub fn node_install(
         &self,
         snapshot: crate::node_editor::EditorSnapshot,
-        compiled: motion_graph::CompiledGraph,
+        compiled: impl Into<crate::node_preview::InstallGraph>,
     ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        let compiled = compiled.into();
         self.request(|reply| Command::NodeInstall { snapshot, compiled, canonical:None,reply })
     }
-    pub fn node_install_bound(&self,snapshot:crate::node_editor::EditorSnapshot,compiled:motion_graph::CompiledGraph,canonical:Option<motion_graph::CompiledGraph>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String>{
-        self.request(|reply|Command::NodeInstall{snapshot,compiled,canonical,reply})
+    pub fn node_install_bound(&self,snapshot:crate::node_editor::EditorSnapshot,compiled:crate::node_preview::PreparedGraph,canonical:Option<crate::node_preview::PreparedGraph>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String>{
+        self.request(|reply|Command::NodeInstall{snapshot,compiled:compiled.into(),canonical,reply})
     }
     pub fn node_source(&self,snapshot:crate::node_editor::EditorSnapshot)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
         self.request(|reply|Command::NodeSource{snapshot,reply})
@@ -1589,6 +1590,7 @@ fn handle(
                 log::debug!("node install superseded received={:?} desired={:?} revision={}", snapshot.preview_stamp(), node_preview.desired, snapshot.revision);
                 return Ok(false);
             }
+            let compiled = compiled.prepare().map_err(|e| e.to_string())?;
             let (preview, canonical_preview) = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
@@ -1597,12 +1599,12 @@ fn handle(
                 };
                 let active_cache = node_preview.active.as_ref().map(crate::node_preview::NodePreview::pipeline_cache);
                 let canonical_preview = canonical.as_ref().map(|canonical|
-                    crate::node_preview::NodePreview::build_with_cache(&context, &snapshot, canonical,
+                    crate::node_preview::NodePreview::build_prepared(&context, &snapshot, canonical,
                         node_preview.canonical.as_ref().or(active_cache.as_ref()))
                         .map(|candidate| candidate.pipeline_cache())
                         .map_err(|error|motion_host::Error::with_context(format!("node canonical graph {} {:?}",snapshot.document.id,snapshot.preview_stamp()),error)))
                     .transpose()?;
-                let preview = crate::node_preview::NodePreview::build_with_cache(&context, &snapshot, &compiled,
+                let preview = crate::node_preview::NodePreview::build_prepared(&context, &snapshot, &compiled,
                     active_cache.as_ref().or(canonical_preview.as_ref()))
                     .map_err(|error| motion_host::Error::with_context(format!("node graph {} {:?}", snapshot.document.id, snapshot.preview_stamp()),error))?;
                 Ok((preview, canonical_preview))

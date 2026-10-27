@@ -404,6 +404,7 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         FitAll => ("适配全部", "Fit all"),
         FitSelection => ("适配选择", "Fit selection"),
         AddNode => ("添加节点", "Add node"),
+        AddTextureMapping => ("添加 UV 纹理映射", "Add UV texture mapping"),
         ResetZoom => ("重置缩放", "Reset zoom"),
         ZoomIn => ("放大时间轴", "Zoom in timeline"),
         ZoomOut => ("缩小时间轴", "Zoom out timeline"),

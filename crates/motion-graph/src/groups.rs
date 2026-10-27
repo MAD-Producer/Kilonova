@@ -327,6 +327,7 @@ fn metadata(document: &GraphDocument) -> GraphDocument {
         nodes: vec![],
         connections: vec![],
         public_parameters: document.public_parameters.clone(),
+        images: document.images.clone(),
     }
 }
 pub(crate) fn flatten(document: &GraphDocument, options: &CompileOptions) -> Result<FlatGraph> {

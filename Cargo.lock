@@ -2079,6 +2079,7 @@ dependencies = [
  "rquickjs",
  "serde",
  "serde_json",
+ "sha2",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
@@ -2164,6 +2165,7 @@ dependencies = [
 name = "motion-graph"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "image",
  "log",
  "motion-core",
@@ -2172,6 +2174,7 @@ dependencies = [
  "pollster",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 2.0.21",
  "wgpu",

@@ -3,6 +3,28 @@ use crate::session::{Result, Session};
 use motion_core::Command;
 use serde_json::{json, Value};
 
+fn restore_imported_effects<'a>(effects: impl IntoIterator<Item = &'a motion_core::EffectInstance>, root: &std::path::Path, original: &motion_effects::Registry, registry: &mut Option<motion_effects::Registry>) -> Result<()> {
+    let current = registry.as_ref().unwrap_or(original);
+    let missing: Vec<_> = effects.into_iter().filter(|e| e.node_graph.as_ref().is_some_and(|s| s.get("runtime").is_some())
+        && current.resolve(&e.plugin, &e.version, &e.hash).is_err()).collect();
+    if missing.is_empty() { return Ok(()); }
+    crate::node_effects::restore_effects(missing, root, registry.get_or_insert_with(|| original.clone()))?;
+    Ok(())
+}
+fn restore_command_runtimes(command: &Command, root: &std::path::Path, original: &motion_effects::Registry, registry: &mut Option<motion_effects::Registry>) -> Result<()> {
+    match command {
+        Command::InComposition { command, .. } => restore_command_runtimes(command, root, original, registry),
+        Command::ApplyAnimationPreset { preset, .. } => restore_imported_effects(&preset.effects, root, original, registry),
+        Command::PasteLayers { clipboard, .. } => {
+            let view = clipboard.resolve()?;
+            restore_imported_effects(view.layers.iter().copied().chain(view.compositions.iter().flat_map(|c| &c.layers)).flat_map(|l| &l.effects), root, original, registry)
+        },
+        Command::Effect { action: motion_core::EffectAction::Insert { instance } | motion_core::EffectAction::Replace { instance }, .. } =>
+            restore_imported_effects(std::iter::once(instance), root, original, registry),
+        _ => Ok(()),
+    }
+}
+
 fn validate_presets(registry: &motion_effects::Registry, project: &motion_core::Project, command: &Command) -> Result<()> {
     match command {
         Command::InComposition { composition, command } => {
@@ -70,12 +92,20 @@ impl Session {
         self.apply_command_batch(commands)
     }
     pub fn apply_command_batch(&mut self, commands: Vec<Command>) -> Result<Value> {
-        for command in &commands { validate_presets(&self.effects.registry, self.engine.project(), command)?; }
+        let mut registry = None;
+        for command in &commands {
+            restore_command_runtimes(command, &self.root, &self.effects.registry, &mut registry)?;
+            validate_presets(registry.as_ref().unwrap_or(&self.effects.registry), self.engine.project(), command)?;
+        }
         let resources = commands.iter().any(Command::changes_resources);
+        let previous_nodes = self.engine.project().node_resources()?;
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
         let results = apply_prepared(&mut self.engine, commands, |project| {
+                if project.node_resources()? != previous_nodes {
+                    for resource in project.node_resources()? { motion_core::storage::open_node_resource(&self.root, &resource)?; }
+                }
                 if resources {
                     motion_core::storage::validate_assets(&self.root, project)?;
                     if let Some(g) = &mut self.graphics {
@@ -87,6 +117,10 @@ impl Session {
                 }
                 Ok(())
             })?;
+        if let Some(registry) = registry {
+            self.effects.set_registry(registry.clone());
+            if let Some(g) = &mut self.graphics { g.renderer.set_effect_registry(registry); }
+        }
         if resources {
             self.effects.alpha_images.clear();
             self.editor_renderer = None;

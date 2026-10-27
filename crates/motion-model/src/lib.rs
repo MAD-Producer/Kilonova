@@ -29,6 +29,8 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
+pub mod node_resources;
+pub use node_resources::{NodeResource, NodeImageReference};
 pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
@@ -183,6 +185,13 @@ pub enum Error {
     Gesture,
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("node resource phase={phase} path={path} cause={source}")]
+    NodeResourceIo {
+        phase: &'static str,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("project save phase={phase} path={} published={published} cause={source}", .path.display())]
     Storage {
         phase: &'static str,
