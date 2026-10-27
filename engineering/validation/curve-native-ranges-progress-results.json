@@ -1,0 +1,3358 @@
+{
+  "head": "4ac302e92e13bee5b295a5bd6ea79d4ee93fb648",
+  "binary_sha256": "a81956e381be0668afaa996d527522fa1c4bef87e1f8364e06b4a65d0478ae1e",
+  "source_unchanged": true,
+  "stage": "app-stage-20",
+  "counts": {
+    "adaptive": 7,
+    "sampling": 4,
+    "timeline": 50,
+    "handles": 2,
+    "ranges": 22,
+    "axes": 7,
+    "effects": 16,
+    "comparison": 14,
+    "mini": 11
+  },
+  "unique_portable_cases": 133,
+  "portable_cases": [
+    "panels::graph_adaptive::tests::duplicate_knot_budget_preserves_the_available_evaluation_and_output_counts",
+    "panels::graph_adaptive::tests::errors_keep_the_original_cause_and_budgets_do_not_return_partial_success",
+    "panels::graph_adaptive::tests::key_boundaries_preserve_hold_steps_without_diagonal_interpolation",
+    "panels::graph_adaptive::tests::overflowing_screen_geometry_cannot_be_misreported_as_a_flat_curve",
+    "panels::graph_adaptive::tests::periodic_knots_prevent_midpoint_aliasing_of_the_valid_elastic_frequency",
+    "panels::graph_adaptive::tests::quadratic_envelopes_refine_narrow_velocity_peaks_between_ordinary_probes",
+    "panels::graph_adaptive::tests::vertical_magnification_adds_geometry_and_follows_a_dense_screen_oracle",
+    "panels::graph_sampling::tests::adaptive_knots_keep_signed_local_keys_offsets_and_hold_boundaries",
+    "panels::graph_sampling::tests::adaptive_real_model_values_and_physical_speeds_match_dense_screen_oracles",
+    "panels::graph_sampling::tests::physical_speed_and_hold_do_not_use_a_discontinuous_finite_difference",
+    "panels::graph_sampling::tests::vector_spatial_path_derivative_matches_the_actual_sampler",
+    "panels::timeline_shortcuts_tests::a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts",
+    "panels::timeline_shortcuts_tests::active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph",
+    "panels::timeline_shortcuts_tests::bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits",
+    "panels::timeline_shortcuts_tests::clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer",
+    "panels::timeline_shortcuts_tests::curve_selection_box_delete_owns_keys_only_in_the_focused_timeline",
+    "panels::timeline_shortcuts_tests::curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss",
+    "panels::timeline_shortcuts_tests::curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes",
+    "panels::timeline_shortcuts_tests::custom_animated_property_chords_preserve_double_press_and_input_ownership",
+    "panels::timeline_shortcuts_tests::custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority",
+    "panels::timeline_shortcuts_tests::custom_select_all_routes_the_graph_selection_and_disables_its_old_chord",
+    "panels::timeline_shortcuts_tests::ease_does_not_edit_without_explicit_selection_or_a_locked_or_foreign_layer",
+    "panels::timeline_shortcuts_tests::easy_ease_changes_the_selected_keys_two_sides_as_one_undoable_edit",
+    "panels::timeline_shortcuts_tests::f4_toggles_composite_columns_and_shift_f4_toggles_parent",
+    "panels::timeline_shortcuts_tests::fields_search_ime_and_drag_own_animation_shortcuts",
+    "panels::timeline_shortcuts_tests::graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key",
+    "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_faults_use_bounded_default_file_and_error_stderr_without_stdout",
+    "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_rejects_noninteger_composition_frames_before_history_and_recovers",
+    "panels::timeline_shortcuts_tests::graph_drag_return_to_origin_then_cancel_restores_engine_bytes",
+    "panels::timeline_shortcuts_tests::graph_property_tree_selects_y_without_separating_or_editing_the_track",
+    "panels::timeline_shortcuts_tests::graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history",
+    "panels::timeline_shortcuts_tests::graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid",
+    "panels::timeline_shortcuts_tests::in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers",
+    "panels::timeline_shortcuts_tests::in_out_shortcuts_seek_to_the_selected_clip_without_editing",
+    "panels::timeline_shortcuts_tests::linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection",
+    "panels::timeline_shortcuts_tests::navigation_uses_visible_property_times_and_accumulates_repeated_keys",
+    "panels::timeline_shortcuts_tests::one_sided_easing_preserves_the_opposite_bezier_handle",
+    "panels::timeline_shortcuts_tests::property_context_tests::changed_project_composition_target_or_dimensions_blocks_stale_navigation",
+    "panels::timeline_shortcuts_tests::property_context_tests::explicit_property_navigation_uses_one_channel_in_normal_and_graph_hosts",
+    "panels::timeline_shortcuts_tests::property_context_tests::invalid_scope_cancels_an_active_graph_transaction_exactly_once_and_restores_authored_data",
+    "panels::timeline_shortcuts_tests::property_context_tests::legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_displayed_key",
+    "panels::timeline_shortcuts_tests::property_context_tests::projection_keeps_unselected_layer_navigation_and_cannot_rebind_explicit_selection",
+    "panels::timeline_shortcuts_tests::property_context_tests::property_reveal_selects_an_available_separated_axis_including_2d_rotation_z",
+    "panels::timeline_shortcuts_tests::property_context_tests::stale_key_owns_delete_without_editing_reused_objects_or_falling_through_to_layer_delete",
+    "panels::timeline_shortcuts_tests::property_keys_filter_and_append_without_editing_and_u_omits_static_channels",
+    "panels::timeline_shortcuts_tests::repeated_p_can_be_reopened_manually_in_both_property_views",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::property_inspector_reveal_retains_the_selected_axis_and_key",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_does_not_reuse_a_stale_scope_or_another_property_axis",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_retains_selected_axis_and_key_for_ease_delete_and_undo",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::scale_and_rotation_reveal_keep_each_valid_selected_axis",
+    "panels::timeline_shortcuts_tests::separated_axis_easing_and_value_sampling_use_composition_offsets",
+    "panels::timeline_shortcuts_tests::shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::ime_text_and_repeat_ownership_keep_existing_feedback",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::notice_lifetime_follows_reselection_clear_and_restored_keys_without_erasing_other_messages",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::reselecting_an_available_key_allows_real_easing_delete_and_single_undo",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_edits_are_explained_without_clearing_ownership_or_editing_the_project",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_notice_is_painted_in_both_window_hosts_and_locales",
+    "panels::timeline_shortcuts_tests::three_dimensional_layer_anchor_graph_has_only_two_pixel_components",
+    "panels::timeline_shortcuts_tests::timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded",
+    "panels::timeline_shortcuts_tests::toggle_and_delete_keys_preserve_other_frames_and_do_not_disable_the_track",
+    "panels::timeline_shortcuts_tests::visible_bezier_handles_edit_the_curve_without_moving_keyframes",
+    "panels::graph_handles::observation_tests::malformed_easing_logs_context_without_changing_fallbacks",
+    "panels::graph_handles::tests::linked_handles_do_not_rewrite_hold_or_non_cubic_segments",
+    "panels::graph_ranges::tests::a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_view_is_unlocked",
+    "panels::graph_ranges::tests::actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key",
+    "panels::graph_ranges::tests::actual_property_graph_menu_fits_composition_time_once_and_owned_empty_does_not_fall_back",
+    "panels::graph_ranges::tests::automatic_fit_resets_old_vertical_navigation_and_preserves_a_locked_axis",
+    "panels::graph_ranges::tests::comparison::comparison_axis_locks_are_per_unit_and_automatic_preserves_other_unit_and_legacy_y",
+    "panels::graph_ranges::tests::comparison::comparison_fit_selection_uses_only_its_unit_group_and_composition_time_without_history",
+    "panels::graph_ranges::tests::comparison::comparison_menu_cancels_mode_and_collection_changes_and_consumes_delete_escape",
+    "panels::graph_ranges::tests::comparison::comparison_more_button_owns_left_press_without_starting_marquee_or_changing_key_context",
+    "panels::graph_ranges::tests::effect::effect_locks_survive_playback_wheel_and_main_float_escape_consumes_the_key",
+    "panels::graph_ranges::tests::effect::effect_menu_cancels_projected_key_changes_and_owned_empty_never_uses_the_old_diamond",
+    "panels::graph_ranges::tests::effect::effect_range_menu_fits_local_keys_once_and_retains_native_values_and_per_second_speed",
+    "panels::graph_ranges::tests::keyboard_skips_disabled_rows_and_ime_repeat_and_opening_frame_cannot_activate",
+    "panels::graph_ranges::tests::locked_ranges_survive_scrolling_through_more_views_than_the_cache_limit",
+    "panels::graph_ranges::tests::menu_consumes_closing_frames_and_cancels_foreign_input_source_selection_and_track_changes",
+    "panels::graph_ranges::tests::mini::mini_control_drag_inverts_zoomed_axes_and_escape_cancels_the_existing_transaction",
+    "panels::graph_ranges::tests::mini::mini_fit_selection_uses_normalized_interval_without_moving_shared_time_or_history",
+    "panels::graph_ranges::tests::mini::mini_hover_uses_actual_composition_frame_and_percent_but_last_key_stays_normalized",
+    "panels::graph_ranges::tests::mini::mini_locks_both_local_axes_during_playback_and_modifier_wheel_without_panel_scroll",
+    "panels::graph_ranges::tests::mini::mini_menu_owns_ime_and_cancels_changed_key_or_other_window_without_deleting",
+    "panels::graph_ranges::tests::mini::mini_modifier_zoom_and_pan_are_pointer_anchored_and_do_not_scroll_or_move_timeline",
+    "panels::graph_ranges::tests::native_checkbox_locks_capture_bounds_and_fit_only_the_unlocked_axis_without_edits",
+    "panels::graph_ranges::tests::time_lock_blocks_navigation_and_channel_views_are_bounded_and_reset_on_document_change",
+    "panels::graph_view::tests::constant_tracks_keep_a_finite_invertible_range_in_the_callers_units",
+    "panels::graph_view::tests::invalid_and_unrepresentable_navigation_preserves_the_previous_view",
+    "panels::graph_view::tests::locking_captures_the_displayed_range_before_playback_or_scroll_changes_auto_bounds",
+    "panels::graph_view::tests::pointer_anchor_does_not_move_when_zooming_then_panning_in_data_units",
+    "panels::graph_view::tests::selection_fit_can_update_one_axis_while_the_other_is_locked",
+    "panels::graph_view::tests::unlocking_keeps_the_visible_range_until_explicit_automatic_fit",
+    "panels::graph_view::tests::zero_navigation_does_not_accidentally_capture_an_automatic_axis",
+    "panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing",
+    "panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom",
+    "panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges",
+    "panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key",
+    "panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo",
+    "panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform",
+    "panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history",
+    "panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler",
+    "panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout",
+    "panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent",
+    "panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts",
+    "panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache",
+    "panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries",
+    "panels::curve_comparison::tests::clicks_select_the_authored_channel_and_single_key_drag_uses_one_atomic_existing_command",
+    "panels::curve_comparison::tests::collection_expands_components_deduplicates_and_keeps_unit_groups_separate_without_editing",
+    "panels::curve_comparison::tests::compact_controls_keep_a_visible_plot_and_own_popup_keys_and_closing_clicks",
+    "panels::curve_comparison::tests::error_tests::comparison_menu_and_keyboard_controls_work_in_read_only_views_and_do_not_start_playback",
+    "panels::curve_comparison::tests::error_tests::malformed_tracks_report_once_per_revision_at_default_level_then_recover_without_stdout_diagnostics",
+    "panels::curve_comparison::tests::local_offsets_physical_units_and_signed_separated_axes_follow_actual_samples",
+    "panels::curve_comparison::tests::native_effect_values_do_not_share_axes_without_the_same_parameter_identity",
+    "panels::curve_comparison::tests::ranges::comparison_actual_samples_keep_dense_high_zoom_error_bounds_for_values_and_physical_speed",
+    "panels::curve_comparison::tests::ranges::comparison_context_snapshot_notices_visibility_collection_and_group_changes_without_allocating_each_match",
+    "panels::curve_comparison::tests::ranges::comparison_sampling_budget_failure_is_not_a_partial_curve_and_is_cached_until_the_view_changes",
+    "panels::curve_comparison::tests::ranges::comparison_tessellation_cache_tracks_ordinate_geometry_and_time_scale_even_when_end_is_capped",
+    "panels::curve_comparison::tests::samples_reuse_the_revision_cache_while_visibility_and_graph_modes_leave_the_project_unchanged",
+    "panels::curve_comparison::tests::stale_keys_partial_add_limits_and_removed_dimensions_preserve_authored_state",
+    "panels::curve_comparison::tests::wide_legend_reserves_the_same_time_viewport_for_ruler_keys_zoom_and_navigation",
+    "panels::animation_controls::mini::tests::actual_readouts_preserve_zero_and_negative_amplitude_and_duration_in_physical_units",
+    "panels::animation_controls::mini::tests::adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples",
+    "panels::animation_controls::mini::tests::automatic_ranges_include_authored_controls_and_actual_extrema_without_clipping",
+    "panels::animation_controls::mini::tests::coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_cache",
+    "panels::animation_controls::mini::tests::fault_tests::default_failure_channels_cache_suppression_recovery_and_process_reset_use_real_consumers",
+    "panels::animation_controls::mini::tests::last_key_readout_remains_normalized_without_fabricated_frames_or_physical_units",
+    "panels::animation_controls::mini::tests::mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints",
+    "panels::animation_controls::mini::tests::outgoing_interval_maps_composition_time_once_and_never_invents_last_key_time",
+    "panels::animation_controls::mini::tests::physical_readout_keeps_component_values_and_units_visible_with_long_layer_names",
+    "panels::animation_controls::mini::tests::unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache",
+    "panels::animation_controls::tests::editing_a_separated_interval_emits_only_the_captured_axis_and_composition_time"
+  ],
+  "ignored_in_default": [
+    "panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files"
+  ],
+  "explicit_native_test": "panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files",
+  "explicit_native_passed": 1,
+  "native_scenarios": 32,
+  "png_count": 160,
+  "cases": [
+    {
+      "case": "en-main-property-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            436.6221923828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3239192095996441,
+          "physical": [
+            552.7999877929688,
+            436.6221923828125
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            385.06475830078125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5286441487409188,
+          "physical": [
+            595.199951171875,
+            385.06475830078125
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            348.5721435546875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.12328751058600684,
+          "physical": [
+            637.5999755859375,
+            348.5721435546875
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            242.10977172851562
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4028315052838215,
+          "physical": [
+            722.4000244140625,
+            242.10977172851562
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            240.186279296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4340660727349075,
+          "physical": [
+            764.7999877929688,
+            240.186279296875
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            242.137939453125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4701919985853499,
+          "physical": [
+            807.2000122070312,
+            242.137939453125
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "en-main-property-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            380.47906494140625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.30071739658454305,
+          "physical": [
+            552.7999877929688,
+            380.47906494140625
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            398.50701904296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3001309151410147,
+          "physical": [
+            595.199951171875,
+            398.50701904296875
+          ],
+          "value": 17.600000381469727
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            258.7247619628906
+          ],
+          "nearest_colored_curve_pixel_distance": 0.245994019736239,
+          "physical": [
+            637.5999755859375,
+            258.7247619628906
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            448.5882263183594
+          ],
+          "nearest_colored_curve_pixel_distance": 0.13333792046824577,
+          "physical": [
+            722.4000244140625,
+            448.5882263183594
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            480.70513916015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.36342090055454046,
+          "physical": [
+            764.7999877929688,
+            480.70513916015625
+          ],
+          "value": -2.91766095161438
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            469.016357421875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5691246078897471,
+          "physical": [
+            807.2000122070312,
+            469.016357421875
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "en-main-effect-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            401.1485595703125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.46206390418338916,
+          "physical": [
+            552.7999877929688,
+            401.1485595703125
+          ],
+          "value": 0.38155555725097656
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            364.37548828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.32485761090863313,
+          "physical": [
+            595.199951171875,
+            364.37548828125
+          ],
+          "value": 0.6995555758476257
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            333.846923828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3610419093463403,
+          "physical": [
+            637.5999755859375,
+            333.846923828125
+          ],
+          "value": 0.9635555148124695
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            355.6554870605469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.18485492630994182,
+          "physical": [
+            722.4000244140625,
+            355.6554870605469
+          ],
+          "value": 0.7749630212783813
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            379.4770202636719
+          ],
+          "nearest_colored_curve_pixel_distance": 0.30086665520122324,
+          "physical": [
+            764.7999877929688,
+            379.4770202636719
+          ],
+          "value": 0.5689629912376404
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            387.4518127441406
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3038333219999388,
+          "physical": [
+            807.2000122070312,
+            387.4518127441406
+          ],
+          "value": 0.5
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "en-main-effect-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            335.51251220703125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3002486157421121,
+          "physical": [
+            552.7999877929688,
+            335.51251220703125
+          ],
+          "value": 0.4399999976158142
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            323.3333740234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3432105990854487,
+          "physical": [
+            595.199951171875,
+            323.3333740234375
+          ],
+          "value": 0.5525000095367432
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            354.99908447265625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5089994387326116,
+          "physical": [
+            637.5999755859375,
+            354.99908447265625
+          ],
+          "value": 0.2600000500679016
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            423.56298828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11816362112924413,
+          "physical": [
+            722.4000244140625,
+            423.56298828125
+          ],
+          "value": -0.3733333349227905
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            412.1958312988281
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4272133831036277,
+          "physical": [
+            764.7999877929688,
+            412.1958312988281
+          ],
+          "value": -0.268333375453949
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            383.1463623046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4637373130083433,
+          "physical": [
+            807.2000122070312,
+            383.1463623046875
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "en-main-comparison-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            512.13671875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.47113261671404594,
+          "physical": [
+            552.7999877929688,
+            512.13671875
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            490.45123291015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3039860659816732,
+          "physical": [
+            595.199951171875,
+            490.45123291015625
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            475.10211181640625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4102561692736383,
+          "physical": [
+            637.5999755859375,
+            475.10211181640625
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            430.32318115234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.2031256327252437,
+          "physical": [
+            722.4000244140625,
+            430.32318115234375
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            429.51416015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.30032180399579056,
+          "physical": [
+            764.7999877929688,
+            429.51416015625
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            430.3350524902344
+          ],
+          "nearest_colored_curve_pixel_distance": 0.342345376641985,
+          "physical": [
+            807.2000122070312,
+            430.3350524902344
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "en-main-comparison-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            488.5224304199219
+          ],
+          "nearest_colored_curve_pixel_distance": 0.300825197861039,
+          "physical": [
+            552.7999877929688,
+            488.5224304199219
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            496.10516357421875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.49590836087214574,
+          "physical": [
+            595.199951171875,
+            496.10516357421875
+          ],
+          "value": 17.600000381469727
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            437.31158447265625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.21329680899575093,
+          "physical": [
+            637.5999755859375,
+            437.31158447265625
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            517.1697387695312
+          ],
+          "nearest_colored_curve_pixel_distance": 0.34506173090373154,
+          "physical": [
+            722.4000244140625,
+            517.1697387695312
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            530.6783447265625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.34899787595759735,
+          "physical": [
+            764.7999877929688,
+            530.6783447265625
+          ],
+          "value": -2.91766095161438
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            525.761962890625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3982677893012029,
+          "physical": [
+            807.2000122070312,
+            525.761962890625
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "en-main-mini-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            189.60000610351562,
+            456.2956848144531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22747728630663736,
+          "physical": [
+            189.60000610351562,
+            456.2956848144531
+          ],
+          "value": 0.5634938288453155
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            276.4000244140625,
+            441.2279968261719
+          ],
+          "nearest_colored_curve_pixel_distance": 0.28979448641428573,
+          "physical": [
+            276.4000244140625,
+            441.2279968261719
+          ],
+          "value": 0.730397656863706
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            363.20001220703125,
+            430.4305419921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3079238392517587,
+          "physical": [
+            363.20001220703125,
+            430.4305419921875
+          ],
+          "value": 0.8500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            536.800048828125,
+            418.00537109375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5785214379409436,
+          "physical": [
+            536.800048828125,
+            418.00537109375
+          ],
+          "value": 0.9876329773564305
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            623.5999755859375,
+            415.254150390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.26539997779462327,
+          "physical": [
+            623.5999755859375,
+            415.254150390625
+          ],
+          "value": 1.0181078465855729
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            710.4000244140625,
+            414.31463623046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.21060589934372878,
+          "physical": [
+            710.4000244140625,
+            414.31463623046875
+          ],
+          "value": 1.028514767111955
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "en-main-mini-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        600.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            189.60000610351562,
+            459.14251708984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.37120782830398313,
+          "physical": [
+            189.60000610351562,
+            459.14251708984375
+          ],
+          "value": 0.8865994544740379
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            276.4000244140625,
+            446.880615234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.39352645962105604,
+          "physical": [
+            276.4000244140625,
+            446.880615234375
+          ],
+          "value": 1.112973351829466
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            363.20001220703125,
+            439.45831298828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3028704060754382,
+          "physical": [
+            363.20001220703125,
+            439.45831298828125
+          ],
+          "value": 1.2500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            536.800048828125,
+            435.0060729980469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5779214328242103,
+          "physical": [
+            536.800048828125,
+            435.0060729980469
+          ],
+          "value": 1.3321956238930308
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            623.5999755859375,
+            436.7028503417969
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22614901934489007,
+          "physical": [
+            623.5999755859375,
+            436.7028503417969
+          ],
+          "value": 1.300870376883522
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            710.4000244140625,
+            440.452880859375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11052298944918643,
+          "physical": [
+            710.4000244140625,
+            440.452880859375
+          ],
+          "value": 1.2316390045447876
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "zh-main-property-value-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999971149349,
+          "logical": [
+            830.4000244140625,
+            737.4630126953125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3214045262047102,
+          "physical": [
+            1245.60009765625,
+            1106.194580078125
+          ],
+          "value": 32.01778030395508
+        },
+        {
+          "frame_or_normalized_t": 53.99999956724022,
+          "logical": [
+            925.5999755859375,
+            616.2333984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.18025052967602156,
+          "physical": [
+            1388.39990234375,
+            924.35009765625
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999942298697,
+          "logical": [
+            1020.800048828125,
+            530.4263916015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3308182324857473,
+          "physical": [
+            1531.2000732421875,
+            795.6395874023438
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.99999913448045,
+          "logical": [
+            1211.199951171875,
+            280.095947265625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4655624411628103,
+          "physical": [
+            1816.7999267578125,
+            420.1439208984375
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999899022718,
+          "logical": [
+            1306.39990234375,
+            275.57318115234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.1721472994448873,
+          "physical": [
+            1959.599853515625,
+            413.3597717285156
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999884597395,
+          "logical": [
+            1401.60009765625,
+            280.16217041015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.27547849950831266,
+          "physical": [
+            2102.400146484375,
+            420.2432556152344
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "zh-main-property-speed-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999971149349,
+          "logical": [
+            830.4000244140625,
+            605.4507446289062
+          ],
+          "nearest_colored_curve_pixel_distance": 0.338969036703902,
+          "physical": [
+            1245.60009765625,
+            908.1761474609375
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.99999956724022,
+          "logical": [
+            925.5999755859375,
+            647.8408203125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.27975149434826596,
+          "physical": [
+            1388.39990234375,
+            971.76123046875
+          ],
+          "value": 17.600000381469727
+        },
+        {
+          "frame_or_normalized_t": 71.99999942298697,
+          "logical": [
+            1020.800048828125,
+            319.1636962890625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3876185353163514,
+          "physical": [
+            1531.2000732421875,
+            478.74554443359375
+          ],
+          "value": 52.49135971069336
+        },
+        {
+          "frame_or_normalized_t": 107.99999913448045,
+          "logical": [
+            1211.199951171875,
+            765.599365234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3164607342563451,
+          "physical": [
+            1816.7999267578125,
+            1148.3990478515625
+          ],
+          "value": 5.099113464355469
+        },
+        {
+          "frame_or_normalized_t": 125.99999899022718,
+          "logical": [
+            1306.39990234375,
+            841.1174926757812
+          ],
+          "nearest_colored_curve_pixel_distance": 0.20258744341584164,
+          "physical": [
+            1959.599853515625,
+            1261.67626953125
+          ],
+          "value": -2.917661428451538
+        },
+        {
+          "frame_or_normalized_t": 143.99999884597395,
+          "logical": [
+            1401.60009765625,
+            813.633056640625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.1118588429510404,
+          "physical": [
+            2102.400146484375,
+            1220.4495849609375
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "zh-main-effect-value-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999971149349,
+          "logical": [
+            830.4000244140625,
+            636.5555419921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.34801880544551017,
+          "physical": [
+            1245.60009765625,
+            954.8333129882812
+          ],
+          "value": 0.38155555725097656
+        },
+        {
+          "frame_or_normalized_t": 53.99999956724022,
+          "logical": [
+            925.5999755859375,
+            553.527099609375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.23205001318491178,
+          "physical": [
+            1388.39990234375,
+            830.2906494140625
+          ],
+          "value": 0.6995555758476257
+        },
+        {
+          "frame_or_normalized_t": 71.99999942298697,
+          "logical": [
+            1020.800048828125,
+            484.5977478027344
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4972451432797862,
+          "physical": [
+            1531.2000732421875,
+            726.8966064453125
+          ],
+          "value": 0.9635555744171143
+        },
+        {
+          "frame_or_normalized_t": 107.99999913448045,
+          "logical": [
+            1211.199951171875,
+            533.8385009765625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.39546412944920417,
+          "physical": [
+            1816.7999267578125,
+            800.7577514648438
+          ],
+          "value": 0.7749630212783813
+        },
+        {
+          "frame_or_normalized_t": 125.99999899022718,
+          "logical": [
+            1306.39990234375,
+            587.624267578125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11838712209649882,
+          "physical": [
+            1959.599853515625,
+            881.4364013671875
+          ],
+          "value": 0.5689629912376404
+        },
+        {
+          "frame_or_normalized_t": 143.99999884597395,
+          "logical": [
+            1401.60009765625,
+            605.6301879882812
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11384835193766364,
+          "physical": [
+            2102.400146484375,
+            908.4453125
+          ],
+          "value": 0.5
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "zh-main-effect-speed-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999971149349,
+          "logical": [
+            830.4000244140625,
+            488.3583984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.10692578988362128,
+          "physical": [
+            1245.60009765625,
+            732.53759765625
+          ],
+          "value": 0.4399999976158142
+        },
+        {
+          "frame_or_normalized_t": 53.99999956724022,
+          "logical": [
+            925.5999755859375,
+            460.8596496582031
+          ],
+          "nearest_colored_curve_pixel_distance": 0.23309677772637058,
+          "physical": [
+            1388.39990234375,
+            691.2894897460938
+          ],
+          "value": 0.5525000095367432
+        },
+        {
+          "frame_or_normalized_t": 71.99999942298697,
+          "logical": [
+            1020.800048828125,
+            532.3564453125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3019237123996209,
+          "physical": [
+            1531.2000732421875,
+            798.53466796875
+          ],
+          "value": 0.2600000202655792
+        },
+        {
+          "frame_or_normalized_t": 107.99999913448045,
+          "logical": [
+            1211.199951171875,
+            687.1642456054688
+          ],
+          "nearest_colored_curve_pixel_distance": 0.38812165155978157,
+          "physical": [
+            1816.7999267578125,
+            1030.746337890625
+          ],
+          "value": -0.3733333349227905
+        },
+        {
+          "frame_or_normalized_t": 125.99999899022718,
+          "logical": [
+            1306.39990234375,
+            661.4987182617188
+          ],
+          "nearest_colored_curve_pixel_distance": 0.2710186373294976,
+          "physical": [
+            1959.599853515625,
+            992.248046875
+          ],
+          "value": -0.2683333456516266
+        },
+        {
+          "frame_or_normalized_t": 143.99999884597395,
+          "logical": [
+            1401.60009765625,
+            595.9091186523438
+          ],
+          "nearest_colored_curve_pixel_distance": 0.37710767749936186,
+          "physical": [
+            2102.400146484375,
+            893.8636474609375
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "zh-main-comparison-value-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999917271628,
+          "logical": [
+            789.4000244140625,
+            862.55712890625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5221225105903939,
+          "physical": [
+            1184.10009765625,
+            1293.835693359375
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.99999875907441,
+          "logical": [
+            864.0999755859375,
+            806.0355224609375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5676075790544457,
+          "physical": [
+            1296.14990234375,
+            1209.05322265625
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999834543256,
+          "logical": [
+            938.800048828125,
+            766.0292358398438
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5459425742880311,
+          "physical": [
+            1408.2000732421875,
+            1149.0438232421875
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.99999751814882,
+          "logical": [
+            1088.199951171875,
+            649.3162841796875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5148879367986361,
+          "physical": [
+            1632.2999267578125,
+            973.9744262695312
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999710450696,
+          "logical": [
+            1162.89990234375,
+            647.2076416015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3457640739636091,
+          "physical": [
+            1744.349853515625,
+            970.8114624023438
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999669086512,
+          "logical": [
+            1237.60009765625,
+            649.34716796875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4895400034891677,
+          "physical": [
+            1856.400146484375,
+            974.020751953125
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "zh-main-comparison-speed-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999917271628,
+          "logical": [
+            789.4000244140625,
+            801.00830078125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.40009613372013975,
+          "physical": [
+            1184.10009765625,
+            1201.512451171875
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.99999875907441,
+          "logical": [
+            864.0999755859375,
+            820.7720336914062
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4893638054406512,
+          "physical": [
+            1296.14990234375,
+            1231.1580810546875
+          ],
+          "value": 17.60000228881836
+        },
+        {
+          "frame_or_normalized_t": 71.99999834543256,
+          "logical": [
+            938.800048828125,
+            667.531005859375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.36244273062199517,
+          "physical": [
+            1408.2000732421875,
+            1001.2965087890625
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.99999751814882,
+          "logical": [
+            1088.199951171875,
+            875.67529296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.20049122595912297,
+          "physical": [
+            1632.2999267578125,
+            1313.512939453125
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999710450696,
+          "logical": [
+            1162.89990234375,
+            910.884521484375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22923429892757585,
+          "physical": [
+            1744.349853515625,
+            1366.3267822265625
+          ],
+          "value": -2.917660713195801
+        },
+        {
+          "frame_or_normalized_t": 143.99999669086512,
+          "logical": [
+            1237.60009765625,
+            898.0703125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.40697129113640756,
+          "physical": [
+            1856.400146484375,
+            1347.10546875
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "zh-main-mini-value-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            329.6000061035156,
+            456.2956848144531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.1148153704656651,
+          "physical": [
+            494.4000244140625,
+            684.4435424804688
+          ],
+          "value": 0.5634938288453155
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            486.4000244140625,
+            441.2279968261719
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3563111457718677,
+          "physical": [
+            729.6000366210938,
+            661.8419799804688
+          ],
+          "value": 0.730397656863706
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            643.2000122070312,
+            430.4305419921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3336026480870524,
+          "physical": [
+            964.800048828125,
+            645.6458129882812
+          ],
+          "value": 0.8500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            956.800048828125,
+            418.00537109375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5761634567421631,
+          "physical": [
+            1435.2000732421875,
+            627.008056640625
+          ],
+          "value": 0.9876329773564305
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            1113.5999755859375,
+            415.254150390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.39414779989254456,
+          "physical": [
+            1670.39990234375,
+            622.8812255859375
+          ],
+          "value": 1.0181078465855729
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            1270.4000244140625,
+            414.31463623046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.10396062819114603,
+          "physical": [
+            1905.60009765625,
+            621.471923828125
+          ],
+          "value": 1.028514767111955
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 0
+    },
+    {
+      "case": "zh-main-mini-speed-1.5",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        1600.0,
+        1000.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            329.6000061035156,
+            459.14251708984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.23597053397626694,
+          "physical": [
+            494.4000244140625,
+            688.7137451171875
+          ],
+          "value": 0.8865994544740379
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            486.4000244140625,
+            446.880615234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.2051242322407592,
+          "physical": [
+            729.6000366210938,
+            670.3209228515625
+          ],
+          "value": 1.112973351829466
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            643.2000122070312,
+            439.45831298828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4332269027417224,
+          "physical": [
+            964.800048828125,
+            659.1875
+          ],
+          "value": 1.2500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            956.800048828125,
+            435.0060729980469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.300064601747414,
+          "physical": [
+            1435.2000732421875,
+            652.5090942382812
+          ],
+          "value": 1.3321956238930308
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            1113.5999755859375,
+            436.7028503417969
+          ],
+          "nearest_colored_curve_pixel_distance": 0.45684074034007066,
+          "physical": [
+            1670.39990234375,
+            655.0542602539062
+          ],
+          "value": 1.300870376883522
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            1270.4000244140625,
+            440.452880859375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.20536714804899991,
+          "physical": [
+            1905.60009765625,
+            660.6793212890625
+          ],
+          "value": 1.2316390045447876
+        }
+      ],
+      "pixel_ratio": 1.5,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 0
+    },
+    {
+      "case": "en-float-property-value-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            446.8576354980469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4023908059833703,
+          "physical": [
+            883.8399658203125,
+            893.7152709960938
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            375.7919921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.1632711763331708,
+          "physical": [
+            951.3599853515625,
+            751.583984375
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            325.4913024902344
+          ],
+          "nearest_colored_curve_pixel_distance": 0.614256687496835,
+          "physical": [
+            1018.8800048828125,
+            650.9826049804688
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            178.74588012695312
+          ],
+          "nearest_colored_curve_pixel_distance": 0.42012475457818477,
+          "physical": [
+            1153.9200439453125,
+            357.49176025390625
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            176.0946044921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.31654081897355124,
+          "physical": [
+            1221.43994140625,
+            352.189208984375
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            178.78472900390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4651757505235631,
+          "physical": [
+            1288.9599609375,
+            357.5694580078125
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "en-float-property-speed-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            369.47113037109375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5578273236952358,
+          "physical": [
+            883.8399658203125,
+            738.9422607421875
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            394.32049560546875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.19870234859885108,
+          "physical": [
+            951.3599853515625,
+            788.6409912109375
+          ],
+          "value": 17.60000228881836
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            201.64764404296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4316372072938966,
+          "physical": [
+            1018.8800048828125,
+            403.2952880859375
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            463.3513488769531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.46639392731073287,
+          "physical": [
+            1153.9200439453125,
+            926.7026977539062
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            507.62060546875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.265666733997421,
+          "physical": [
+            1221.43994140625,
+            1015.2412109375
+          ],
+          "value": -2.917660713195801
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            491.509033203125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.6662012104542208,
+          "physical": [
+            1288.9599609375,
+            983.01806640625
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "en-float-effect-value-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            393.0625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5061637669576429,
+          "physical": [
+            883.8399658203125,
+            786.125
+          ],
+          "value": 0.38155555725097656
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            343.33795166015625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.2248245535390623,
+          "physical": [
+            951.3599853515625,
+            686.6759033203125
+          ],
+          "value": 0.6995555758476257
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            302.0571594238281
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5414366650260626,
+          "physical": [
+            1018.8800048828125,
+            604.1143188476562
+          ],
+          "value": 0.9635555148124695
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            331.5467529296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.584529214288001,
+          "physical": [
+            1153.9200439453125,
+            663.093505859375
+          ],
+          "value": 0.7749630212783813
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            363.75823974609375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.06227847417836609,
+          "physical": [
+            1221.43994140625,
+            727.5164794921875
+          ],
+          "value": 0.5689629912376404
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            374.541748046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.620515566240999,
+          "physical": [
+            1288.9599609375,
+            749.08349609375
+          ],
+          "value": 0.5
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "en-float-effect-speed-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            304.3093566894531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.36009668883799795,
+          "physical": [
+            883.8399658203125,
+            608.6187133789062
+          ],
+          "value": 0.4399999976158142
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            287.84075927734375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22924460184029558,
+          "physical": [
+            951.3599853515625,
+            575.6815185546875
+          ],
+          "value": 0.5525000095367432
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            330.65911865234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.42123792370655155,
+          "physical": [
+            1018.8800048828125,
+            661.3182373046875
+          ],
+          "value": 0.2600000500679016
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            423.371337890625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4851066385847429,
+          "physical": [
+            1153.9200439453125,
+            846.74267578125
+          ],
+          "value": -0.3733333349227905
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            408.0006408691406
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5023215496621652,
+          "physical": [
+            1221.43994140625,
+            816.0012817382812
+          ],
+          "value": -0.268333375453949
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            368.7199401855469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.46387329499088875,
+          "physical": [
+            1288.9599609375,
+            737.4398803710938
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "en-float-comparison-value-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            536.25439453125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3400794121971807,
+          "physical": [
+            883.8399658203125,
+            1072.5087890625
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            504.8148193359375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.19081479770340307,
+          "physical": [
+            951.3599853515625,
+            1009.629638671875
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            482.56170654296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5349966493394689,
+          "physical": [
+            1018.8800048828125,
+            965.1234130859375
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            417.6412353515625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.473028446282697,
+          "physical": [
+            1153.9200439453125,
+            835.282470703125
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            416.46832275390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4407565475135492,
+          "physical": [
+            1221.43994140625,
+            832.9366455078125
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            417.658447265625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.49506734563293114,
+          "physical": [
+            1288.9599609375,
+            835.31689453125
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "en-float-comparison-speed-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.999999135591445,
+          "logical": [
+            441.91998291015625,
+            502.01849365234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5744192850186152,
+          "physical": [
+            883.8399658203125,
+            1004.0369873046875
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.99999870338717,
+          "logical": [
+            475.67999267578125,
+            513.0119018554688
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4963537120783653,
+          "physical": [
+            951.3599853515625,
+            1026.0238037109375
+          ],
+          "value": 17.60000228881836
+        },
+        {
+          "frame_or_normalized_t": 71.99999827118289,
+          "logical": [
+            509.44000244140625,
+            427.7730407714844
+          ],
+          "nearest_colored_curve_pixel_distance": 0.382788740121392,
+          "physical": [
+            1018.8800048828125,
+            855.5460815429688
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.99999740677434,
+          "logical": [
+            576.9600219726562,
+            543.55126953125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5782837649736238,
+          "physical": [
+            1153.9200439453125,
+            1087.1025390625
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999697457005,
+          "logical": [
+            610.719970703125,
+            563.1360473632812
+          ],
+          "nearest_colored_curve_pixel_distance": 0.2356859103634521,
+          "physical": [
+            1221.43994140625,
+            1126.2720947265625
+          ],
+          "value": -2.917660713195801
+        },
+        {
+          "frame_or_normalized_t": 143.99999654236578,
+          "logical": [
+            644.47998046875,
+            556.00830078125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.6672616528793786,
+          "physical": [
+            1288.9599609375,
+            1112.0166015625
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "en-float-mini-value-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            153.60000610351562,
+            382.2956848144531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3135938217132593,
+          "physical": [
+            307.20001220703125,
+            764.5913696289062
+          ],
+          "value": 0.5634938288453155
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            222.40000915527344,
+            367.2279968261719
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3032285364167493,
+          "physical": [
+            444.8000183105469,
+            734.4559936523438
+          ],
+          "value": 0.730397656863706
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            291.20001220703125,
+            356.4305419921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3746688692107628,
+          "physical": [
+            582.4000244140625,
+            712.861083984375
+          ],
+          "value": 0.8500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            428.8000183105469,
+            344.00537109375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4993801484361785,
+          "physical": [
+            857.6000366210938,
+            688.0107421875
+          ],
+          "value": 0.9876329773564305
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            497.6000061035156,
+            341.254150390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3001026139499987,
+          "physical": [
+            995.2000122070312,
+            682.50830078125
+          ],
+          "value": 1.0181078465855729
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            566.4000244140625,
+            340.31463623046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.32671190430717895,
+          "physical": [
+            1132.800048828125,
+            680.6292724609375
+          ],
+          "value": 1.028514767111955
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "en-float-mini-speed-2",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        720.0,
+        640.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            153.60000610351562,
+            385.14251708984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3690568788586492,
+          "physical": [
+            307.20001220703125,
+            770.2850341796875
+          ],
+          "value": 0.8865994544740379
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            222.40000915527344,
+            372.880615234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3978094323501466,
+          "physical": [
+            444.8000183105469,
+            745.76123046875
+          ],
+          "value": 1.112973351829466
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            291.20001220703125,
+            365.45831298828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.42845340718706304,
+          "physical": [
+            582.4000244140625,
+            730.9166259765625
+          ],
+          "value": 1.2500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            428.8000183105469,
+            361.0060729980469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.49800487416009687,
+          "physical": [
+            857.6000366210938,
+            722.0121459960938
+          ],
+          "value": 1.3321956238930308
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            497.6000061035156,
+            362.7028503417969
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3144599131923617,
+          "physical": [
+            995.2000122070312,
+            725.4057006835938
+          ],
+          "value": 1.300870376883522
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            566.4000244140625,
+            366.452880859375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5046502468662231,
+          "physical": [
+            1132.800048828125,
+            732.90576171875
+          ],
+          "value": 1.2316390045447876
+        }
+      ],
+      "pixel_ratio": 2.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "zh-float-property-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            537.10986328125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.49213751660209587,
+          "physical": [
+            552.7999877929688,
+            537.10986328125
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            445.142578125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4666687218870592,
+          "physical": [
+            595.199951171875,
+            445.142578125
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            380.0475769042969
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4633376471960221,
+          "physical": [
+            637.5999755859375,
+            380.0475769042969
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            190.1417236328125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.37196380612718055,
+          "physical": [
+            722.4000244140625,
+            190.1417236328125
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            186.71066284179688
+          ],
+          "nearest_colored_curve_pixel_distance": 0.36656719553745776,
+          "physical": [
+            764.7999877929688,
+            186.71066284179688
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            190.19198608398438
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4299595892517599,
+          "physical": [
+            807.2000122070312,
+            190.19198608398438
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "zh-float-property-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            436.962646484375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5513931858799207,
+          "physical": [
+            552.7999877929688,
+            436.962646484375
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            469.1206359863281
+          ],
+          "nearest_colored_curve_pixel_distance": 0.48368001212415257,
+          "physical": [
+            595.199951171875,
+            469.1206359863281
+          ],
+          "value": 17.600000381469727
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            219.779296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.29665107815127195,
+          "physical": [
+            637.5999755859375,
+            219.779296875
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            558.4547119140625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.10975485643664627,
+          "physical": [
+            722.4000244140625,
+            558.4547119140625
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            615.7443237304688
+          ],
+          "nearest_colored_curve_pixel_distance": 0.38689373373114744,
+          "physical": [
+            764.7999877929688,
+            615.7443237304688
+          ],
+          "value": -2.91766095161438
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            594.89404296875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.49523987839386996,
+          "physical": [
+            807.2000122070312,
+            594.89404296875
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "zh-float-effect-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            463.6846008300781
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3522359186621864,
+          "physical": [
+            552.7999877929688,
+            463.6846008300781
+          ],
+          "value": 0.38155555725097656
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            400.0834045410156
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5134014761427823,
+          "physical": [
+            595.199951171875,
+            400.0834045410156
+          ],
+          "value": 0.6995555758476257
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            347.28240966796875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.23945912047156623,
+          "physical": [
+            637.5999755859375,
+            347.28240966796875
+          ],
+          "value": 0.9635555148124695
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            385.00164794921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5082813043005064,
+          "physical": [
+            722.4000244140625,
+            385.00164794921875
+          ],
+          "value": 0.7749630212783813
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            426.202392578125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4225669810637668,
+          "physical": [
+            764.7999877929688,
+            426.202392578125
+          ],
+          "value": 0.5689629912376404
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            439.9952697753906
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5790378453484208,
+          "physical": [
+            807.2000122070312,
+            439.9952697753906
+          ],
+          "value": 0.5
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "zh-float-effect-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            350.1631164550781
+          ],
+          "nearest_colored_curve_pixel_distance": 0.45109112025109804,
+          "physical": [
+            552.7999877929688,
+            350.1631164550781
+          ],
+          "value": 0.4399999976158142
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            329.0986328125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5011236558583579,
+          "physical": [
+            595.199951171875,
+            329.0986328125
+          ],
+          "value": 0.5525000095367432
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            383.8663330078125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3797301547105518,
+          "physical": [
+            637.5999755859375,
+            383.8663330078125
+          ],
+          "value": 0.2600000500679016
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            502.45172119140625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11102234524084958,
+          "physical": [
+            722.4000244140625,
+            502.45172119140625
+          ],
+          "value": -0.3733333349227905
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            482.79150390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.41829081186331407,
+          "physical": [
+            764.7999877929688,
+            482.79150390625
+          ],
+          "value": -0.268333375453949
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            432.54876708984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3039258215125691,
+          "physical": [
+            807.2000122070312,
+            432.54876708984375
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "zh-float-comparison-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            641.3805541992188
+          ],
+          "nearest_colored_curve_pixel_distance": 0.322893132869895,
+          "physical": [
+            552.7999877929688,
+            641.3805541992188
+          ],
+          "value": 32.01777648925781
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            599.4901123046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3002117016003517,
+          "physical": [
+            595.199951171875,
+            599.4901123046875
+          ],
+          "value": 44.73777770996094
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            569.83984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3542441138503348,
+          "physical": [
+            637.5999755859375,
+            569.83984375
+          ],
+          "value": 53.741065979003906
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            483.33917236328125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.18936907486726726,
+          "physical": [
+            722.4000244140625,
+            483.33917236328125
+          ],
+          "value": 80.00695037841797
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            481.7763671875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.40788662426821715,
+          "physical": [
+            764.7999877929688,
+            481.7763671875
+          ],
+          "value": 80.48149871826172
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            483.362060546875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.33018172066104096,
+          "physical": [
+            807.2000122070312,
+            483.362060546875
+          ],
+          "value": 80.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "zh-float-comparison-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 1.0,
+      "high_zoom_y_span": 1.0,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 35.99999927124894,
+          "logical": [
+            552.7999877929688,
+            595.7642211914062
+          ],
+          "nearest_colored_curve_pixel_distance": 0.399756818476433,
+          "physical": [
+            552.7999877929688,
+            595.7642211914062
+          ],
+          "value": 22.100000381469727
+        },
+        {
+          "frame_or_normalized_t": 53.9999989068734,
+          "logical": [
+            595.199951171875,
+            610.4119873046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3126907958276942,
+          "physical": [
+            595.199951171875,
+            610.4119873046875
+          ],
+          "value": 17.600000381469727
+        },
+        {
+          "frame_or_normalized_t": 71.99999854249788,
+          "logical": [
+            637.5999755859375,
+            496.8388671875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3533073570529017,
+          "physical": [
+            637.5999755859375,
+            496.8388671875
+          ],
+          "value": 52.49136734008789
+        },
+        {
+          "frame_or_normalized_t": 107.9999978137468,
+          "logical": [
+            722.4000244140625,
+            651.1029663085938
+          ],
+          "nearest_colored_curve_pixel_distance": 0.4094274903999728,
+          "physical": [
+            722.4000244140625,
+            651.1029663085938
+          ],
+          "value": 5.099113941192627
+        },
+        {
+          "frame_or_normalized_t": 125.99999744937126,
+          "logical": [
+            764.7999877929688,
+            677.1979370117188
+          ],
+          "nearest_colored_curve_pixel_distance": 0.42571671898066227,
+          "physical": [
+            764.7999877929688,
+            677.1979370117188
+          ],
+          "value": -2.91766095161438
+        },
+        {
+          "frame_or_normalized_t": 143.99999708499575,
+          "logical": [
+            807.2000122070312,
+            667.7008056640625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3609925077475199,
+          "physical": [
+            807.2000122070312,
+            667.7008056640625
+          ],
+          "value": 0.0
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    },
+    {
+      "case": "zh-float-mini-value-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            189.60000610351562,
+            382.2956848144531
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22747728630663736,
+          "physical": [
+            189.60000610351562,
+            382.2956848144531
+          ],
+          "value": 0.5634938288453155
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            276.4000244140625,
+            367.2279968261719
+          ],
+          "nearest_colored_curve_pixel_distance": 0.28979448641428573,
+          "physical": [
+            276.4000244140625,
+            367.2279968261719
+          ],
+          "value": 0.730397656863706
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            363.20001220703125,
+            356.4305419921875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3079238392517587,
+          "physical": [
+            363.20001220703125,
+            356.4305419921875
+          ],
+          "value": 0.8500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            536.800048828125,
+            344.00537109375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5785214379409436,
+          "physical": [
+            536.800048828125,
+            344.00537109375
+          ],
+          "value": 0.9876329773564305
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            623.5999755859375,
+            341.254150390625
+          ],
+          "nearest_colored_curve_pixel_distance": 0.26539997779462327,
+          "physical": [
+            623.5999755859375,
+            341.254150390625
+          ],
+          "value": 1.0181078465855729
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            710.4000244140625,
+            340.31463623046875
+          ],
+          "nearest_colored_curve_pixel_distance": 0.21060589934372878,
+          "physical": [
+            710.4000244140625,
+            340.31463623046875
+          ],
+          "value": 1.028514767111955
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": false,
+      "window": 1
+    },
+    {
+      "case": "zh-float-mini-speed-1",
+      "fit_selection": true,
+      "focus_and_foreign_cancel": true,
+      "high_zoom_x_span": 0.0015625,
+      "high_zoom_y_span": 0.003125,
+      "history_revision_project_unchanged": true,
+      "ime_repeat_gated": true,
+      "lock_x_y_playhead_wheel": true,
+      "logical_size": [
+        900.0,
+        760.0
+      ],
+      "pixel_measurements": [
+        {
+          "frame_or_normalized_t": 0.2,
+          "logical": [
+            189.60000610351562,
+            385.14251708984375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.37120782830398313,
+          "physical": [
+            189.60000610351562,
+            385.14251708984375
+          ],
+          "value": 0.8865994544740379
+        },
+        {
+          "frame_or_normalized_t": 0.3,
+          "logical": [
+            276.4000244140625,
+            372.880615234375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.39352645962105604,
+          "physical": [
+            276.4000244140625,
+            372.880615234375
+          ],
+          "value": 1.112973351829466
+        },
+        {
+          "frame_or_normalized_t": 0.4,
+          "logical": [
+            363.20001220703125,
+            365.45831298828125
+          ],
+          "nearest_colored_curve_pixel_distance": 0.3028704060754382,
+          "physical": [
+            363.20001220703125,
+            365.45831298828125
+          ],
+          "value": 1.2500000000227116
+        },
+        {
+          "frame_or_normalized_t": 0.6,
+          "logical": [
+            536.800048828125,
+            361.0060729980469
+          ],
+          "nearest_colored_curve_pixel_distance": 0.5779214328242103,
+          "physical": [
+            536.800048828125,
+            361.0060729980469
+          ],
+          "value": 1.3321956238930308
+        },
+        {
+          "frame_or_normalized_t": 0.7,
+          "logical": [
+            623.5999755859375,
+            362.7028503417969
+          ],
+          "nearest_colored_curve_pixel_distance": 0.22614901934489007,
+          "physical": [
+            623.5999755859375,
+            362.7028503417969
+          ],
+          "value": 1.300870376883522
+        },
+        {
+          "frame_or_normalized_t": 0.8,
+          "logical": [
+            710.4000244140625,
+            366.452880859375
+          ],
+          "nearest_colored_curve_pixel_distance": 0.11052298944918643,
+          "physical": [
+            710.4000244140625,
+            366.452880859375
+          ],
+          "value": 1.2316390045447876
+        }
+      ],
+      "pixel_ratio": 1.0,
+      "pointer_and_keyboard": true,
+      "speed": true,
+      "window": 1
+    }
+  ],
+  "maximum_nearest_curve_pixel_distance_physical": 0.6672616528793786,
+  "saved_files": [
+    {
+      "path": "project.json",
+      "bytes": 10595,
+      "sha256": "3a82f6018f0a184758a537215ed450b70e46f2f7fdba431664c92bab06973bea"
+    }
+  ],
+  "saved_files_byte_equal": true,
+  "core_reopen_equal": true,
+  "actual_worker_revision_cancel": true,
+  "physical_os_input": false,
+  "system_dpi_setting_changed": false,
+  "status": "NATIVE_RANGE_INPUT_PIXEL_AND_SAVED_BYTE_STAGE_PASSED; ISSUE259_INCOMPLETE; no259 PR or closure",
+  "visual_review": {
+    "stage": "20",
+    "head": "4ac302e92e13bee5b295a5bd6ea79d4ee93fb648",
+    "reviewed": [
+      {
+        "path": "en-main-mini-speed-1-readout.png",
+        "sha256": "b73e44d32809b50cdc96344622d1f1b56e82f1e658adf2cf8f047fc5a1ad0172"
+      },
+      {
+        "path": "zh-float-mini-speed-1-readout.png",
+        "sha256": "9a99e62dbb26d0e9753c897bfa9ec74dc77f054e5fc02c68ba4a8ea45d948f2e"
+      },
+      {
+        "path": "en-main-comparison-value-1-readout.png",
+        "sha256": "f2227d2bd399d1fd051c84b68a1f4b436693fa15f77461be92d3090780d60243"
+      },
+      {
+        "path": "zh-main-effect-speed-1.5-locked-menu.png",
+        "sha256": "e6ae70f09c14a803e4c950af84ee8f8772170e5aecaa9bd574190af6cc12db35"
+      },
+      {
+        "path": "en-main-mini-value-1-fit-selection.png",
+        "sha256": "8ea607b825629c08d12b7b0f61a755cab7ece32f78905214333e637cab6b5e04"
+      },
+      {
+        "path": "en-float-mini-speed-2-readout.png",
+        "sha256": "1f7242968b35671dda5616961895984427ba797608d624f6fc429e348febd401"
+      },
+      {
+        "path": "en-float-property-speed-2-locked-menu.png",
+        "sha256": "6672e3281b114240035d0603d47b98d7bed4977d7b3b128ab85ba0e82ace09be"
+      }
+    ],
+    "findings": "Reviewed readable signed and zero physical component values/units in EN/ZH, frame-first comparison clock, checked native axis controls, and unobscured high-zoom Mini segment. Seven representative images manually inspected, not all160. The 2400x1500 effect preview was displayed resized; pixel metrics use original PNG files."
+  },
+  "omitted_duplicate_prior_pngs": 157,
+  "remaining": [
+    "16 other new observation sites require actual failure evidence or justified boundary dispositions",
+    "Final performance, all-targets/current-main integration, complete DESIGN12 audit and259own PR/CI"
+  ],
+  "archive": {
+    "path": "data/curve-native-ranges-stage-20.zip",
+    "bytes": 15045919,
+    "entries": 326,
+    "sha256": "d9e7c02de66cd537490485e28d9f7fb4c3ad946b704eaf1ba65212d83c0f0b2e"
+  }
+}

@@ -1,5 +1,7 @@
 # Mini默认故障信道、缓存恢复与主分支接续（#259，未完成）
 
+后续四类图的原生窗口、实际GPU像素、More输入修正、读数显示与保存文件字节见[原生范围阶段](curve-native-ranges-progress.md)，完整#259仍未完成。
+
 接续[Mini范围阶段](curve-mini-ranges-progress.md)。当前实际编译源码 `bbab3144deb6f9ddeec966c94a3f4ced58138372`、二进制SHA-256 `ee442fe39683e69b0a9f7c8a4dd0a6a693982751a1aac3750ef2ac284e3226fd`，Rust/WGSL/Cargo/样式来源哈希前后相同；本阶段131个不同桌面用例通过，仍未完成完整#259。无新增依赖或第三方资产。
 
 ## 交付与真实合并边界
