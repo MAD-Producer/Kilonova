@@ -1,5 +1,7 @@
 # #276：共享菜单与导航验收
 
+后续修正：子菜单改为预留空间并排展开，窄窗口也不覆盖父菜单，首行补偿 padding 对齐。最新冻结源与 38 张截图见 [子菜单位置验收](menu-cascade-placement.md)。下文保留原源提交的历史证据。
+
 实现源提交：`01c8fbf799d06b19cb835729fbdf82b61fc78340`（含前序 `4cfe6485`、`a1b9d8ca`、`b264ceaa`）。基于 main `8c271bd3`，独立分支 `feat/shared-menu-navigation`；开始前核对了开放 PR 和本地 worktree 的分支归属，避开其他 agent 的曲线、滚动、深度及根 worktree 属性工作。
 
 ## 功能与样式边界
