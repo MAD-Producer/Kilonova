@@ -51,6 +51,50 @@ struct CpuSample {
     ticks: u64,
     cycles: u64,
 }
+
+/// Counts the commands actually emitted, before the painter expands strokes.
+/// Capacity is summed over Present attempts; it is not an allocation/RSS count.
+#[derive(Default, serde::Serialize)]
+struct PaintWork {
+    draw_commands_us: u128,
+    metrics_collect_us: u128,
+    atlas_prepare_us: u128,
+    shape_commands: u64,
+    glyphs: u64,
+    images: u64,
+    line_points: u64,
+    triangle_points: u64,
+    shape_capacity_sum: u64,
+    glyph_capacity_sum: u64,
+    atlas_upload_bytes: u64,
+}
+impl PaintWork {
+    fn add(&mut self, paint: &PaintList) {
+        self.shape_commands = self
+            .shape_commands
+            .saturating_add(paint.shapes.len() as u64);
+        self.glyphs = self.glyphs.saturating_add(paint.glyphs.len() as u64);
+        self.images = self.images.saturating_add(paint.images.len() as u64);
+        self.shape_capacity_sum = self
+            .shape_capacity_sum
+            .saturating_add(paint.shapes.capacity() as u64);
+        self.glyph_capacity_sum = self
+            .glyph_capacity_sum
+            .saturating_add(paint.glyphs.capacity() as u64);
+        for shape in &paint.shapes {
+            match shape {
+                motion_ui::paint::Shape::Line { points, .. }
+                | motion_ui::paint::Shape::Stroke { points, .. } => {
+                    self.line_points = self.line_points.saturating_add(points.len() as u64);
+                }
+                motion_ui::paint::Shape::Triangles { points } => {
+                    self.triangle_points = self.triangle_points.saturating_add(points.len() as u64);
+                }
+                _ => {}
+            }
+        }
+    }
+}
 impl CpuSample {
     fn read() -> Self {
         let (mut created, mut exited, mut kernel, mut user) = (
@@ -282,13 +326,25 @@ fn frame(
     let mut cpu_cycles = 0;
     let mut reply_us = 0;
     let mut polls = 0;
+    let mut paint_work = PaintWork::default();
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let cpu_before = CpuSample::read();
         let start = Instant::now();
         let (paint, actions) = shell.draw_commands(SIZE);
         assert!(actions.is_empty());
+        paint_work.draw_commands_us += start.elapsed().as_micros();
+        let metrics_started = Instant::now();
+        paint_work.add(&paint);
+        paint_work.metrics_collect_us += metrics_started.elapsed().as_micros();
+        let atlas_started = Instant::now();
         let ui = shell.ui_frame(paint, SIZE, false);
+        paint_work.atlas_prepare_us += atlas_started.elapsed().as_micros();
+        paint_work.atlas_upload_bytes = paint_work.atlas_upload_bytes.saturating_add(
+            ui.atlas
+                .as_ref()
+                .map_or(0, |upload| upload.pixels.len() as u64),
+        );
         assert!(ui.composition.is_some());
         build_us += start.elapsed().as_micros();
         let cpu_after = CpuSample::read();
@@ -326,7 +382,7 @@ fn frame(
         "ui_thread_cpu_100ns":cpu_ticks,"ui_thread_cycles":cpu_cycles,"document_generation":shell.state["document_generation"],"revision":shell.state["revision"],
         "present_reply_us":reply_us,"present_polls":polls,
         "effective_timeline_zoom":shell.panels.timeline.zoom,"effective_timeline_offset":shell.panels.timeline.offset,
-        "timeline_graph_mode":shell.panels.timeline.graph_mode,"info":p})
+        "timeline_graph_mode":shell.panels.timeline.graph_mode,"paint_work":paint_work,"info":p})
 }
 
 #[test]
@@ -487,8 +543,8 @@ fn actual_native_graph_costs_match_info_counters() {
     }
     assert_eq!(cases.len(), 28);
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":3,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
+        "schema":4,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Own-thread CPU100ns and raw cycles bracket UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Schema4 records draw, atlas preparation, read-only command census time and emitted geometry/capacities; census overhead remains included in the total and capacities are not allocation counts. Own-thread CPU100ns and raw cycles bracket this instrumented UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }
