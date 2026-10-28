@@ -112,12 +112,21 @@ fn ready_image_preparation_does_not_clone_an_unchanged_allowed_set() {
         renderer.texture_bytes(),
     );
     assert_eq!(scene_assets(&scene).len(), 64);
-    // The unchanged demand collection and active-set copy remain intentional.
+    // Preserve the earlier allowed-set budget, then independently bound the
+    // unchanged active-set path by demand collection alone.
     let reference = allocations(|| {
         let wanted = scene_assets(&scene);
         black_box(wanted.clone());
         black_box(wanted);
     });
+    let demand_only = allocations(|| {
+        black_box(scene_assets(&scene));
+    });
+    assert!(
+        demand_only > 0,
+        "the allocation probe must observe demand collection"
+    );
+    let mut active_counts = Vec::new();
     for (resolution, asynchronous) in [(Resolution::Full, false), (Resolution::Preview(32), true)] {
         assert!(renderer
             .prepare_scene_assets(&scene, resolution, asynchronous)
@@ -134,6 +143,7 @@ fn ready_image_preparation_does_not_clone_an_unchanged_allowed_set() {
             count <= reference * 20 + 20,
             "unchanged allowed-set allocation: {count}, demand/active reference={reference}"
         );
+        active_counts.push((resolution, count));
         assert_eq!(
             (
                 renderer.image_decodes,
@@ -151,5 +161,11 @@ fn ready_image_preparation_does_not_clone_an_unchanged_allowed_set() {
             expected_pixels
         );
         renderer.check_health().unwrap();
+    }
+    for (resolution, count) in active_counts {
+        assert!(
+            count <= demand_only * 20,
+            "unchanged active-set allocation {resolution:?}: {count}, demand-only reference={demand_only}"
+        );
     }
 }

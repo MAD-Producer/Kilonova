@@ -1681,7 +1681,9 @@ impl Renderer {
                 self.image_memory_cache_hits += 1;
             }
         }
-        self.image_active = wanted.clone();
+        if self.image_active != wanted {
+            self.image_active = wanted.clone();
+        }
         for id in &wanted { if self.images.contains_key(&TextureKey::Static(*id)) { self.touch_image(*id); } }
         // Wrong-resolution images cannot survive a quality switch. Idle preview
         // images otherwise stay resident until LRU or resource pressure evicts.
