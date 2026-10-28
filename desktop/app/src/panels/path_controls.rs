@@ -231,6 +231,7 @@ pub struct Controls {
     #[cfg(test)]
     pub(crate) context_rows: Vec<(String, Rect, bool)>,
     geometry_failures: motion_render::observability::FailureCounter,
+    boundaries: mask_boundaries::Viewer,
     pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
     pub mask: Option<u64>,
@@ -464,6 +465,7 @@ impl Controls {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }
     pub fn cancel(&mut self) -> bool {
+        self.boundaries.cancel();
         self.context_menu = None;
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let points = self.point_selection.cancel();
@@ -748,6 +750,11 @@ impl Controls {
         // Keep source/selection validation, but never pick hidden authored grips.
         // The pen's own local draft remains available for new authoring.
         let sampled = if handles_visible {sampled} else {vec![]};
+        let mut boundary_overlay = list.child();
+        let boundary_owned = self.mask_boundaries(&mut boundary_overlay, atlas, clip,
+            projection.as_ref(), target.as_ref(), state, input, locale, handles_visible, out);
+        let boundary_neutral = Input { mouse: input.mouse, ..Default::default() };
+        let input = if boundary_owned { &boundary_neutral } else { input };
         let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
         let context_neutral = Input { mouse: input.mouse, ..Default::default() };
         let input = if context_owned { &context_neutral } else { input };
@@ -1180,6 +1187,8 @@ impl Controls {
             }),
             colors.TEXT_MUTED,
         );
+        boundary_overlay.clip_to(clip);
+        list.append(boundary_overlay);
         list.append(tool_overlay);
         clip.contains(input.mouse) || self.editing()
     }

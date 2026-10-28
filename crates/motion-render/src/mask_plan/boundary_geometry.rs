@@ -11,6 +11,36 @@ pub struct BoundaryGeometry {
 }
 
 impl BoundaryGeometry {
+    /// A stable measurement line through the largest white triangle. Call on
+    /// the unexpanded fill to keep the reference fixed during expansion drags.
+    pub fn reference_coordinate(&self, axis: usize) -> Result<Option<f32>, RenderError> {
+        if axis > 1 {
+            return Err("invalid mask boundary reference axis".into());
+        }
+        let triangle = self
+            .vertices
+            .chunks_exact(3)
+            .filter(|triangle| triangle[0].color[0] > 0.5)
+            .max_by(|a, b| {
+                let area = |t: &[VectorVertex]| {
+                    let [a, b, c] = [t[0].position, t[1].position, t[2].position];
+                    ((f64::from(b[0]) - f64::from(a[0])) * (f64::from(c[1]) - f64::from(a[1]))
+                        - (f64::from(b[1]) - f64::from(a[1])) * (f64::from(c[0]) - f64::from(a[0])))
+                    .abs()
+                };
+                area(a).total_cmp(&area(b))
+            });
+        let cross = 1 - axis;
+        Ok(triangle.map(|triangle| {
+            let position = triangle
+                .iter()
+                .map(|v| f64::from(v.position[cross]))
+                .sum::<f64>()
+                / 3.;
+            (position * f64::from(self.size[cross]) * if cross == 0 { 0.5 } else { -0.5 }
+                + f64::from(self.center[cross])) as f32
+        }))
+    }
     pub fn new(
         nodes: Vec<[f32; 6]>,
         source_rect: [f32; 4],

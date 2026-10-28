@@ -1,4 +1,6 @@
 //! Mask parameter constraints and viewer boundary controls.
+mod viewer;
+pub(super) use viewer::Viewer;
 
 /// Preserve proportions when the edited axis has a nonzero baseline. At zero,
 /// a common delta avoids changing the opposite value merely by starting a drag.
@@ -30,7 +32,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     mod native;
 
-    fn fixture() -> motion_core::Engine {
+    pub(super) fn fixture() -> motion_core::Engine {
         let mut project = motion_core::Project::new(320, 180, 30, 90).unwrap();
         let mut layer = Layer::solid(7, "Feather", [320., 180.], [160., 90., 0.], [1.; 4]);
         let mut mask = LayerMask::new(
@@ -82,7 +84,7 @@ mod tests {
         }
         engine
     }
-    fn apply(engine: &mut motion_core::Engine, actions: Vec<Action>) {
+    pub(super) fn apply(engine: &mut motion_core::Engine, actions: Vec<Action>) {
         for action in actions {
             match action {
                 Action::Edit(command) => engine.apply(command).unwrap(),
