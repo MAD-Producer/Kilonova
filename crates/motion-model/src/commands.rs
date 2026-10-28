@@ -42,6 +42,7 @@ pub enum Command {
         #[serde(deserialize_with = "deserialize_depth_calibration")]
         calibration: Option<crate::depth::SavedDepthCalibration>,
     },
+    VideoDepthCalibration { object: u64, sample: crate::depth::VideoDepthSample },
     /// Zero edits the active composition background. Visual layer source
     /// colors remain static; animated color uses a color effect or vector paint.
     SetColor { object:u64, value:[f32;4] },
