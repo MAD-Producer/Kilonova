@@ -183,15 +183,32 @@ fn performance(engine: &DesktopEngine) -> Value {
     p
 }
 
-fn frame(shell: &mut Shell, events: &mut EventLoop<()>, root: &Path, value: f64) -> Value {
+fn frame(
+    shell: &mut Shell,
+    events: &mut EventLoop<()>,
+    root: &Path,
+    value: f64,
+    seek: bool,
+) -> Value {
+    let mut seek_us = 0;
+    if seek {
+        let begin = Instant::now();
+        let reply = shell.engine.seek_async(value).unwrap();
+        let state = native_test_support::receive(events, &reply, Duration::from_secs(10))
+            .unwrap()
+            .unwrap();
+        shell.accept_edit_state(state);
+        seek_us = begin.elapsed().as_micros();
+    }
+    // Seek replies contain the Core snapshot, while State includes the actual
+    // desktop Info counters. Read that snapshot outside the timed UI/Present
+    // section so the Info panel paints real performance data in both phases.
     let begin = Instant::now();
-    let reply = shell.engine.seek_async(value).unwrap();
-    let state = native_test_support::receive(events, &reply, Duration::from_secs(10))
-        .unwrap()
-        .unwrap();
-    shell.state = state;
+    shell.state = shell.engine.state().unwrap();
+    let snapshot_us = begin.elapsed().as_micros();
+    assert_eq!(shell.state["frame"].as_f64(), Some(value));
+    assert!(shell.state["desktop"]["uiPerformance"].is_object());
     shell.frame = value;
-    let seek_us = begin.elapsed().as_micros();
     let mut build_us = 0;
     let mut reply_us = 0;
     let mut polls = 0;
@@ -225,7 +242,7 @@ fn frame(shell: &mut Shell, events: &mut EventLoop<()>, root: &Path, value: f64)
         );
     }
     let p = performance(&shell.engine);
-    serde_json::json!({"frame":value,"seek_reply_us":seek_us,"ui_build_and_atlas_us":build_us,"present_reply_us":reply_us,"present_polls":polls,
+    serde_json::json!({"frame":value,"sought":seek,"seek_reply_us":seek_us,"state_snapshot_us":snapshot_us,"ui_build_and_atlas_us":build_us,"present_reply_us":reply_us,"present_polls":polls,
         "effective_timeline_zoom":shell.panels.timeline.zoom,"effective_timeline_offset":shell.panels.timeline.offset,
         "timeline_graph_mode":shell.panels.timeline.graph_mode,"info":p})
 }
@@ -329,6 +346,7 @@ fn actual_native_graph_costs_match_info_counters() {
                             } else {
                                 45.
                             },
+                            advancing || i == 0,
                         ));
                     }
                     let start = performance(&shell.engine);
@@ -343,6 +361,7 @@ fn actual_native_graph_costs_match_info_counters() {
                             } else {
                                 45.
                             },
+                            advancing,
                         ));
                     }
                     let end = performance(&shell.engine);
@@ -354,10 +373,13 @@ fn actual_native_graph_costs_match_info_counters() {
                         renders + reuses >= 60,
                         "real composition counters did not advance: {name}"
                     );
+                    assert_eq!((renders, reuses), if advancing {(60, 0)} else {(0, 60)},
+                        "static redraws must reuse the composition; distinct fixture frames must render: {name}");
                     let final_state = shell.engine.state().unwrap();
                     assert_eq!(final_state["project"], before);
                     assert_eq!(final_state["revision"], revision);
                     assert!(!shell.engine.failed());
+                    shell.state = final_state;
                     let result = serde_json::json!({"case":name,"kind":kind.name(),"speed":speed,"timeline_zoom":zoom,"phase":phase,
                         "warmup":warmup,"frames":records,"info_before":start,"info_after":end,"renders":renders,"reuses":reuses,
                         "native":shell.engine.native_wait_snapshot()});
@@ -383,8 +405,8 @@ fn actual_native_graph_costs_match_info_counters() {
     }
     assert_eq!(cases.len(), 28);
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
+        "schema":2,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Direct worker seek per frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }
