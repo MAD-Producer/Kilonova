@@ -1,5 +1,5 @@
-//! Contiguous meshes and opaque solid planes share actual geometry depth.
-//! Ordinary 2D, effect, matte, sampling and transparency boundaries stay intact.
+//! Compatible meshes and planes share actual geometry depth and alpha ordering.
+//! Ordinary 2D, effect, matte and sampling boundaries stay intact.
 use super::*;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance, ScenePlane};
 
@@ -13,19 +13,22 @@ fn samples(layer: &crate::DrawLayer) -> Option<u32> {
     .then_some(samples)
 }
 
-fn solid_plane(layer: &crate::DrawLayer) -> bool {
+fn shared_plane(renderer: &Renderer, layer: &crate::DrawLayer) -> bool {
     layer.model_source.is_none()
-        && layer.asset.is_none()
+        && layer.asset.is_none_or(|asset| {
+            renderer
+                .images
+                .get(&TextureKey::Static(asset))
+                .is_some_and(|image| image.plane_image.is_some())
+        })
         && layer.video.is_none()
         && layer.vector.is_none()
         && layer.three_d
         && !layer.screen_overlay
-        && layer.color[3] == 1.
-        && layer.opacity == 1.
         && layer.sampling.is_default()
 }
 
-fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
+fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // Effects/receivers still consume independent layer images. Do not replace
     // their source with a combined raster or silently cross those boundaries.
     if scene.layers.len() > MAX_LAYERS
@@ -45,7 +48,8 @@ fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        if samples(&scene.layers[start]).is_none() && !solid_plane(&scene.layers[start]) {
+        if samples(&scene.layers[start]).is_none() && !shared_plane(renderer, &scene.layers[start])
+        {
             start += 1;
             continue;
         }
@@ -57,7 +61,7 @@ fn blocks(scene: &Scene) -> Vec<std::ops::Range<usize>> {
                     break;
                 }
                 count = Some(current);
-            } else if !solid_plane(&scene.layers[end]) {
+            } else if !shared_plane(renderer, &scene.layers[end]) {
                 break;
             }
             end += 1;
@@ -79,7 +83,7 @@ impl Renderer {
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<Option<(Scene, RenderStats)>> {
-        let blocks = blocks(scene);
+        let blocks = blocks(self, scene);
         if blocks.is_empty() {
             return Ok(None);
         }
@@ -289,19 +293,31 @@ impl Renderer {
                 instances.push(instance);
             }
             let mut sources: Vec<_> = owned.iter_mut().map(|(_, gpu)| gpu).collect();
-            let mut frame = ScenePassFrame::new(scene.camera);
+            let mut frame = ScenePassFrame::new(scene.native_camera());
+            frame.viewport = scene.native_camera_viewport(w, h);
             frame.samples = clip.samples;
             let planes: Vec<_> = scene
                 .layers
                 .iter()
                 .filter(|layer| layer.model_source.is_none())
-                .map(|layer| ScenePlane {
+                .map(|layer| Ok(ScenePlane {
                     object: layer.id,
                     world: layer.model,
                     size: layer.size,
-                    color: layer.color,
-                })
-                .collect();
+                    color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
+                    blend: layer.color[3] != 1. || layer.opacity != 1. || layer.asset.is_some_and(|asset| {
+                        self.images.get(&TextureKey::Static(asset)).is_none_or(|image| {
+                            image.plane_image.is_none_or(|state| !state.opaque)
+                        })
+                    }),
+                    texture: layer.asset.map(|asset| {
+                        self.images.get(&TextureKey::Static(asset))
+                            .ok_or_else(|| RenderError::Invalid(format!(
+                                "scene plane object={} source={asset} phase=shared_plane_image: prepared image is missing", layer.id
+                            )))?._texture.admitted_view()
+                    }).transpose()?,
+                }))
+                .collect::<Result<Vec<_>>>()?;
             pass.encode_composition(
                 self,
                 SceneRequest {
@@ -330,6 +346,17 @@ impl Renderer {
                 return Err(error);
             }
         };
+        // The allocation encoder owns the prior revisions until submission or
+        // abandonment. Uploading a referenced static source must not mutate it.
+        for asset in scene.layers.iter().filter_map(|layer| layer.asset) {
+            if let Some(state) = self
+                .images
+                .get_mut(&TextureKey::Static(asset))
+                .and_then(|image| image.plane_image.as_mut())
+            {
+                state.frozen = true;
+            }
+        }
         if self
             .images
             .get(&key)
@@ -358,6 +385,7 @@ impl Renderer {
                     bytes,
                     size: (w, h),
                     video_stamp: None,
+                    plane_image: None,
                 },
             );
             self.texture_bytes = self.texture_bytes - previous_bytes + bytes;

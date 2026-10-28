@@ -678,6 +678,10 @@ impl Targets {
         {
             return Err(unsupported(0, "requested depth sample count"));
         }
+        if copy_depth && !features(renderer, wgpu::TextureFormat::Depth32Float)
+            .allowed_usages.contains(wgpu::TextureUsages::TEXTURE_BINDING) {
+            return Err(unsupported(0, "shared scene depth sampling"));
+        }
         let descriptor = |format, label| wgpu::TextureDescriptor {
             label: Some(label),
             size: wgpu::Extent3d {
@@ -690,6 +694,11 @@ impl Targets {
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | if copy_depth && format == wgpu::TextureFormat::Depth32Float {
+                    wgpu::TextureUsages::TEXTURE_BINDING
+                } else {
+                    wgpu::TextureUsages::empty()
+                }
                 | if copy_depth && samples == 1 && format == wgpu::TextureFormat::Depth32Float {
                     wgpu::TextureUsages::COPY_SRC
                 } else {

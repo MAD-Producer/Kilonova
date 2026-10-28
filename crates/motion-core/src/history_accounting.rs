@@ -91,6 +91,7 @@ impl Changes {
             Command::SetWorkingPrecision { .. } | Command::SetWorkArea { .. } | Command::SetGuides { .. } | Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
             Command::CameraMode { object, .. }
+            | Command::CameraImported { object, .. }
             | Command::CameraLens { object, .. }
             | Command::Dolly { object, .. }
             | Command::Pan { object, .. } => *object,

@@ -209,7 +209,9 @@ impl PlaneCompositor {
         Ok(Polygon {
             layer,
             vertices: start..self.arena.len(),
-            split: false,
+            // Cropped cameras must emit their clipped polygon even without BSP
+            // intersections; emitting the original quad would fill letterboxes.
+            split: l.three_d && scene.camera_viewport != [0., 0., scene.width as f32, scene.height as f32],
         })
     }
     fn node(&mut self, polygon: Polygon) -> Result<usize> {

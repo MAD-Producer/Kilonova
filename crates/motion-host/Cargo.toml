@@ -39,6 +39,8 @@ raw-window-handle = "0.6"
 
 [dev-dependencies]
 tempfile = "3"
+motion-scene = { path = "../motion-scene" }
+sha2 = "0.10"
 
 [target.'cfg(windows)'.dev-dependencies]
 winit = "0.30"

@@ -83,7 +83,8 @@ impl Session {
         } else {
             vec![id.into()]
         };
-        let next_scene = motion_render::Scene::for_composition(self.engine.project(), id)?;
+        let mut next_scene = motion_render::Scene::for_composition(self.engine.project(), id)?;
+        next_scene.set_model_source_catalog(self.scene.model_source_catalog());
         let old = self.engine.project().composition_id.clone();
         self.composition_contexts.entry(old).or_default().frame = self.frame;
         self.engine

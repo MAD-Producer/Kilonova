@@ -11,6 +11,7 @@ mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
 mod model_layers;
+pub use model_layers::ModelSourceCatalog;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
@@ -190,12 +191,21 @@ struct GeometryVertex {
     position: [f32; 3],
     uv: [f32; 2],
 }
+/// Facts computed once at a static image upload, never by reading GPU pixels.
+#[derive(Clone, Copy)]
+pub(crate) struct PlaneImageState {
+    pub(crate) opaque: bool,
+    /// A native geometry encode references this revision. Subsequent uploads
+    /// replace it so pending command buffers keep their original image pixels.
+    pub(crate) frozen: bool,
+}
 pub(crate) struct GpuImage {
     pub(crate) view: wgpu::TextureView,
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) bytes: u64,
     pub(crate) size: (u32, u32),
     pub(crate) video_stamp: Option<(u64, u64)>,
+    pub(crate) plane_image: Option<PlaneImageState>,
     // Release views/bindings before their allocation reservation.
     pub(crate) _texture: OwnedTexture,
 }
@@ -548,7 +558,7 @@ impl Renderer {
             geometry_upload: Vec::with_capacity(MAX_LAYERS * 12),
             images: HashMap::from([(TextureKey::Static(0), GpuImage {
                 view: white_view, bind_group: white_group, bytes: 4, size: (1, 1),
-                video_stamp: None, _texture: white_texture,
+                video_stamp: None, plane_image: Some(PlaneImageState { opaque: true, frozen: false }), _texture: white_texture,
             })]),
             texture_bytes: 4,
             target_format: format,
@@ -1180,6 +1190,7 @@ impl Renderer {
                     bytes,
                     size: (width, height),
                     video_stamp: None,
+                    plane_image: None,
                 })
         } else { None };
         let image = replacement.as_ref().or_else(|| self.images.get(&key)).ok_or_else(||
@@ -1320,7 +1331,13 @@ impl Renderer {
         } else {
             rgba
         };
-        if let Some(image) = self.images.get(&id).filter(|i| i.size == (width, height)) {
+        let plane_image = matches!(id, TextureKey::Static(_)).then(|| PlaneImageState {
+            opaque: rgba.chunks_exact(4).all(|pixel| pixel[3] == 255),
+            frozen: false,
+        });
+        if let Some(image) = self.images.get_mut(&id).filter(|i| {
+            i.size == (width, height) && i.plane_image.is_none_or(|state| !state.frozen)
+        }) {
             self.allocation_uploads.track(image._texture.allocation()).map_err(|error| {
                 let message = format!("image key={id:?} phase=upload_track: {error}");
                 error.with_diagnostic(message)
@@ -1344,6 +1361,7 @@ impl Renderer {
                     depth_or_array_layers: 1,
                 },
             );
+            image.plane_image = plane_image;
             return Ok(());
         }
         let category = match id {
@@ -1410,6 +1428,7 @@ impl Renderer {
                 bytes,
                 size: (width, height),
                 video_stamp: None,
+                plane_image,
             },
         );
         if let TextureKey::Static(asset) = id {
@@ -1488,6 +1507,12 @@ impl Renderer {
     /// inactive images. Source files in a project are immutable; replacing a
     /// resource must use a new path (including when retaining its asset ID).
     pub fn configure_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
+        self.configure_assets_with_model_catalog(project, root, &self.model_source_catalog())
+    }
+    /// Resolve a candidate against a host-owned CPU catalog before mutating live
+    /// renderer state. Unchanged frozen sources remain available without files.
+    pub fn configure_assets_with_model_catalog(&mut self, project: &Project, root: &Path,
+        catalog: &ModelSourceCatalog) -> Result<()> {
         // Keep all fallible source resolution before any live cache/catalog
         // mutation: host command preparation relies on Err being non-destructive.
         let mut sources = HashMap::new();
@@ -1495,7 +1520,7 @@ impl Renderer {
             let source = crate::image_resources::Source::new(root, asset)?;
             sources.insert(asset.id, source);
         }
-        let model_sources = model_layers::prepare_sources(project, root, &self.models)?;
+        let model_sources = ModelSourceCatalog::prepare(project, root, catalog)?.prepared_sources();
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
             TextureKey::Static(id) if *id != 0 && self.image_sources.get(id) != sources.get(id) => Some(*id),
             _ => None,
@@ -1891,7 +1916,7 @@ impl Renderer {
                     entries:&[wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&target.view)},
                         wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}],
                 });
-                self.images.insert(key,GpuImage {_texture:target.texture,view:target.view.view,bind_group:group,bytes,size:(w,h),video_stamp:None});
+                self.images.insert(key,GpuImage {_texture:target.texture,view:target.view.view,bind_group:group,bytes,size:(w,h),video_stamp:None,plane_image:None});
                 self.texture_bytes=self.texture_bytes-previous+bytes;
                 self.composition_images.insert(node.layer);
                 self.effect_gpu.invalidate();
@@ -2108,7 +2133,7 @@ impl Renderer {
             let view=texture.create_view(&Default::default());
             let bind_group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.image_layout,entries:&[
                 wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&view)},wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}]});
-            if let Some(old)=self.images.insert(key,GpuImage{_texture:texture,view,bind_group,bytes,size:(width,height),video_stamp:None}){self.texture_bytes=self.texture_bytes.saturating_sub(old.bytes);}
+            if let Some(old)=self.images.insert(key,GpuImage{_texture:texture,view,bind_group,bytes,size:(width,height),video_stamp:None,plane_image:None}){self.texture_bytes=self.texture_bytes.saturating_sub(old.bytes);}
             self.texture_bytes+=bytes;self.effect_gpu.invalidate();
         }
         Ok(())

@@ -51,6 +51,11 @@ fn remap_content(
     match &mut layer.content {
         Content::Image { asset } => *asset = mapped(assets, *asset, "image")?,
         Content::Model { model } => model.asset = mapped(assets, model.asset, "model")?,
+        Content::Camera { camera } => {
+            if let Some(binding) = &mut camera.imported {
+                binding.asset = mapped(assets, binding.asset, "imported camera")?;
+            }
+        }
         Content::Text {
             font, raster_asset, ..
         } => {
@@ -221,6 +226,9 @@ pub(crate) fn paste(
     for source in &view.compositions {
         let mut composition = (*source).clone();
         composition.id = compositions[&source.id].clone();
+        if let Some(binding) = &mut composition.camera.imported {
+            binding.asset = mapped(&assets, binding.asset, "composition imported camera")?;
+        }
         for layer in &mut composition.layers {
             remap_content(layer, &assets, &fonts, &compositions)?;
         }

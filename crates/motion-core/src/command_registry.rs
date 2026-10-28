@@ -86,6 +86,14 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
             "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
+            "ImportedCamera" => json!({"type":"object","additionalProperties":false,
+                "required":["asset","scene","node","pixels_per_metre","pivot","animation"],
+                "properties":{"asset":{"type":"integer","minimum":1},"scene":{"type":"integer","minimum":0},
+                    "node":{"type":"integer","minimum":0},"pixels_per_metre":{"type":"number","exclusiveMinimum":0},
+                    "pivot":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number"}},
+                    "animation":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                        "required":["clip","offset_seconds","speed"],"properties":{"clip":{"type":"integer","minimum":0},
+                            "offset_seconds":{"type":"number"},"speed":{"type":"number"}}}]}}}),
             "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
             "ParentMode" => json!({"type":"string","enum":["preserve_world","preserve_local"]}),
             "crate::compositing::BlendMode" => {
@@ -120,7 +128,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
             schema = json!({"anyOf":[schema,{"type":"null"}]});
         }
         properties.insert((*name).into(), schema);
-        if *is_required && !optional {
+        if *is_required {
             required.push(name);
         }
     }
@@ -204,6 +212,7 @@ registry! {
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
+    Command::CameraImported { .. } => "camera_imported" [("object","u64",false), ("binding","Option<ImportedCamera>",true)];
     Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
     Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];
     Command::Pan { .. } => "pan" [("object","u64",false), ("frame","u32",true), ("x","f32",true), ("y","f32",true)];

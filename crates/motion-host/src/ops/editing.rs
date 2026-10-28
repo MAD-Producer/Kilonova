@@ -92,12 +92,22 @@ impl Session {
         self.apply_command_batch(commands)
     }
     pub fn apply_command_batch(&mut self, commands: Vec<Command>) -> Result<Value> {
+        fn selects_camera(command: &Command) -> bool {
+            match command {
+                Command::CameraImported { .. } => true,
+                Command::InComposition { command, .. } => selects_camera(command),
+                _ => false,
+            }
+        }
         let mut registry = None;
         for command in &commands {
             restore_command_runtimes(command, &self.root, &self.effects.registry, &mut registry)?;
             validate_presets(registry.as_ref().unwrap_or(&self.effects.registry), self.engine.project(), command)?;
         }
         let resources = commands.iter().any(Command::changes_resources);
+        let camera_sources = resources || commands.iter().any(selects_camera);
+        let previous_models = self.scene.model_source_catalog();
+        let mut candidate_models = None;
         let previous_nodes = self.engine.project().node_resources()?;
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
@@ -106,17 +116,22 @@ impl Session {
                 if project.node_resources()? != previous_nodes {
                     for resource in project.node_resources()? { motion_core::storage::open_node_resource(&self.root, &resource)?; }
                 }
+                if camera_sources {
+                    candidate_models = Some(motion_render::ModelSourceCatalog::prepare(project, &self.root, &previous_models)?);
+                }
                 if resources {
                     motion_core::storage::validate_assets(&self.root, project)?;
                     if let Some(g) = &mut self.graphics {
                         // configure_assets resolves every source before changing
                         // its catalog/caches, so Err leaves the old renderer intact.
-                        g.renderer.configure_assets(project, &self.root)
+                        g.renderer.configure_assets_with_model_catalog(project, &self.root,
+                            candidate_models.as_ref().unwrap_or(&previous_models))
                             .map_err(crate::Error::from)?;
                     }
                 }
                 Ok(())
             })?;
+        if let Some(catalog) = candidate_models { self.scene.set_model_source_catalog(catalog); }
         if let Some(registry) = registry {
             self.effects.set_registry(registry.clone());
             if let Some(g) = &mut self.graphics { g.renderer.set_effect_registry(registry); }
@@ -264,7 +279,7 @@ pub fn history(id: i64, op: i32) -> Result<Value> {
         }
         if let Some(g) = &mut s.graphics {
             g.renderer
-                .configure_assets(s.engine.project(), &s.root)
+                .configure_assets_with_model_catalog(s.engine.project(), &s.root, &s.scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
         }
         if let Err(error) = s.sample() {

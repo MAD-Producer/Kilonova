@@ -69,11 +69,21 @@ pub fn matrices(
     world: &mut Vec<Mat4>,
     states: &mut Vec<u8>,
 ) -> Result<()> {
+    matrices_with_cameras(p, frame, world, states, &crate::AuthoredCameraSampler, &mut Vec::new())
+}
+/// Resolve source cameras before their spatial children. The existing state
+/// machine also detects cycles involving an imported camera's authored parent.
+pub fn matrices_with_cameras(
+    p: &Project, frame: f64, world: &mut Vec<Mat4>, states: &mut Vec<u8>,
+    sampler: &dyn crate::CameraSampler, cameras: &mut Vec<Option<crate::CameraSample>>,
+) -> Result<()> {
     world.resize(p.layers.len() + 1, Mat4::IDENTITY);
     states.resize(p.layers.len() + 1, 0);
     states.fill(0);
+    cameras.resize(p.layers.len() + 1, None);
+    cameras.fill(None);
     for i in 0..world.len() {
-        node(p, frame, i, world, states)?;
+        node(p, frame, i, world, states, sampler, Some(cameras))?;
     }
     Ok(())
 }
@@ -83,7 +93,7 @@ pub(crate) fn matrix_for(p: &Project, frame: f64, index: usize, world: &mut Vec<
     world.resize(p.layers.len() + 1, Mat4::IDENTITY);
     states.resize(p.layers.len() + 1, 0);
     states.fill(0);
-    node(p, frame, index, world, states)
+    node(p, frame, index, world, states, &crate::AuthoredCameraSampler, None)
 }
 fn node(
     p: &Project,
@@ -91,6 +101,8 @@ fn node(
     index: usize,
     world: &mut [Mat4],
     states: &mut [u8],
+    sampler: &dyn crate::CameraSampler,
+    mut cameras: Option<&mut [Option<crate::CameraSample>]>,
 ) -> Result<Mat4> {
     if states[index] == 2 {
         return Ok(world[index]);
@@ -112,7 +124,7 @@ fn node(
                     .position(|l| l.id == object)
                     .ok_or(Error::Missing(object))?
             };
-            node(p, frame, index, world, states)?
+            node(p, frame, index, world, states, sampler, cameras.as_deref_mut())?
         } else {
             Mat4::IDENTITY
         };
@@ -131,15 +143,9 @@ fn node(
             implicit = crate::Camera::new(p.width, p.height);
             (&implicit, frame)
         };
-        let pose = camera.pose_parented(frame, p.width, p.height, prefix)?;
-        // Recover the camera's orthonormal world basis from its projection/view.
-        let projection = Mat4::perspective_rh(
-            camera.fov.sample(frame)?.clamp(10.0, 120.0).to_radians(),
-            p.width as f32 / p.height as f32,
-            0.5,
-            100_000.0,
-        );
-        (projection.inverse() * pose.view_projection).inverse()
+        let sampled = sampler.sample(camera, frame, p.fps, [p.width, p.height], prefix)?;
+        if let Some(cameras) = cameras { cameras[index] = Some(sampled); }
+        sampled.world
     } else {
         let layer = &p.layers[index];
         let prefix = if layer.three_d {

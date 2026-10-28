@@ -848,6 +848,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let layer = project.layers.remove(from);
             project.layers.insert(index, layer);
         }
+        Command::CameraImported { object, binding } => {
+            if let Some(binding) = &binding { binding.validate()?; }
+            project.camera_for_mut(object)?.imported = binding;
+        }
         Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
             valid_frame(frame)?;
             let lens = motion_model::lens::Lens::from_focal_length(

@@ -26,6 +26,8 @@ pub enum CameraKind {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct CameraView {
+    /// Orthonormal camera-to-world transform after units and instance prefix.
+    pub world: Mat4,
     pub node: usize,
     pub camera: usize,
     pub kind: CameraKind,
@@ -103,6 +105,24 @@ impl Scene {
         sample: Option<AnimationSample>,
         viewport: [u32; 2],
     ) -> Result<CameraView> {
+        self.camera_view_in_world(scene, node, pixels_per_metre, sample, viewport, Mat4::IDENTITY)
+    }
+    /// Place an explicitly selected imported camera in the same composition
+    /// world as its model instance. The prefix is applied after metre-to-pixel
+    /// conversion, including the caller's authored pivot and parent transform.
+    /// Camera scale is ignored as in glTF; ambiguous shear/reflection is refused.
+    pub fn camera_view_in_world(
+        &self,
+        scene: usize,
+        node: usize,
+        pixels_per_metre: f32,
+        sample: Option<AnimationSample>,
+        viewport: [u32; 2],
+        prefix: Mat4,
+    ) -> Result<CameraView> {
+        if !prefix.is_finite() || prefix.row(3) != glam::Vec4::W {
+            return Err(invalid("camera_view", node, "camera world prefix must be finite affine"));
+        }
         if viewport.contains(&0) || viewport.iter().any(|&v| v > (1 << 24)) {
             return Err(invalid(
                 "camera_view",
@@ -113,7 +133,7 @@ impl Scene {
         let mut selected = None;
         self.visit_node_instances_at(scene, pixels_per_metre, sample, |index, world| {
             if index == node {
-                selected = Some(world);
+                selected = Some(prefix * world);
             }
         })?;
         let world = selected.ok_or_else(|| {
@@ -257,6 +277,7 @@ impl Scene {
             return Err(invalid("camera_view", node, "clipping conversion overflow"));
         }
         Ok(CameraView {
+            world: rigid,
             node,
             camera: index,
             kind,
