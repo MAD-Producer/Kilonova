@@ -515,6 +515,8 @@ pub fn chrome(
         );
     }
     if panels.effect_search.is_none()
+        && panels.menu.is_none()
+        && !input.composing && !input.ime_consumed
         && input
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)

@@ -234,7 +234,6 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, TextComman
             "Select All Text",
         ]
     };
-    let keys = ["Ctrl+Z", "Ctrl+Y", "Ctrl+C", "Ctrl+X", "Ctrl+V", "Ctrl+A"];
     COMMANDS
         .into_iter()
         .enumerate()
@@ -244,7 +243,7 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, TextComman
                     && capture.focused == panels.focused
                     && capture.enabled[i]
             });
-            (format!("{}  {}", names[i], keys[i]), command, enabled)
+            (format!("{}  {}", names[i], command.binding().1), command, enabled)
         })
         .collect()
 }

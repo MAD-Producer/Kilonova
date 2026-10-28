@@ -1,6 +1,6 @@
 //! Scoped timeline menus and name editing. Opening a menu never edits a project.
 use super::*;
-use motion_ui::style::{box_style, text_style, State, States};
+use motion_ui::style::{States, box_style};
 use motion_ui::widgets::{TextEditor, TextEvent};
 use std::time::{Duration, Instant};
 
@@ -23,14 +23,7 @@ enum Choice {
     New(Action),
     SelectGenerated,
 }
-struct Entry {
-    label: String,
-    checked: bool,
-    enabled: bool,
-    disabled_reason: Option<String>,
-    choice: Choice,
-    divider_after: bool,
-}
+type Entry = motion_ui::widgets::menu::Entry<Choice>;
 struct Popup {
     target: Option<u64>,
     anchor: [f32; 2],
@@ -103,22 +96,7 @@ fn frame(state: &Value) -> u32 {
 }
 
 fn popup_rect(anchor: [f32; 2], bounds: Rect, width: f32, height: f32) -> Rect {
-    Rect::new(
-        anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
-        (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
-        width,
-        height,
-    )
-}
-
-fn submenu_arrow(list: &mut PaintList, area: Rect, color: motion_ui::theme::Color) {
-    let x = area.max[0] - 11.;
-    let y = area.min[1] + area.height() * 0.5;
-    paint::line(
-        list,
-        vec![[x - 2.5, y - 4.], [x + 1.5, y], [x - 2.5, y + 4.]],
-        color.with_alpha(0.82),
-    );
+    motion_ui::widgets::menu::popup(anchor, bounds, width, height, true)
 }
 
 impl Controls {
@@ -166,7 +144,13 @@ impl Controls {
     pub fn open_audio(&mut self, target: u64, anchor: [f32; 2], state: &Value, locale: Locale) {
         self.open(Some(target), anchor, state);
         if let Some(popup) = &mut self.popup {
-            let root = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
+            let root = entries_with_bindings(
+                popup,
+                state,
+                locale,
+                &self.shortcut_bindings,
+                &self.selection,
+            );
             if let Some(index) = root
                 .iter()
                 .position(|e| matches!(e.choice, Choice::Page(Page::Audio)))
@@ -433,7 +417,12 @@ impl Controls {
             popup.mouse != Some(active.mouse) || active.pressed.is_some() || active.wheel[1] != 0.;
         popup.mouse = Some(input.mouse);
         popup.opened = false;
-        if active.focus_lost || active.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        use motion_ui::widgets::menu::{self, Metrics, plain_key};
+        let escape = plain_key(active, Key::Escape, false);
+        if active.focus_lost
+            || (escape && matches!(popup.page, Page::Root | Page::Markers))
+            || plain_key(active, Key::Tab, false)
+        {
             self.popup = None;
             return;
         }
@@ -444,37 +433,27 @@ impl Controls {
             Page::Root
         };
         popup.page = root_page;
-        let root_entries = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
+        let root_entries = entries_with_bindings(
+            popup,
+            state,
+            locale,
+            &self.shortcut_bindings,
+            &self.selection,
+        );
         popup.page = page;
         if root_entries.is_empty() {
             self.popup = None;
             return;
         }
-        let row = list
-            .styles()
-            .metric("context.row.height", 20.)
-            .clamp(18., 24.);
-        let base_width = if root_page == Page::Markers {
-            root_entries
-                .iter()
-                .map(|entry| atlas.measure(&entry.label) + 40.)
-                .fold(220., f32::max)
-                .min(320.)
-        } else {
-            220.
-        };
-        let width = base_width.min(
-            if root_entries
-                .iter()
-                .any(|e| matches!(e.choice, Choice::Page(_)))
-            {
-                bounds.width() * 0.5
-            } else {
-                bounds.width()
-            },
+        let styles = list.styles();
+        let metrics = Metrics::context(&styles);
+        let row = metrics.row;
+        let card = popup_rect(
+            popup.anchor,
+            bounds,
+            metrics.width(&root_entries, &styles, atlas),
+            metrics.height(root_entries.len(), bounds),
         );
-        let count = menu_count(root_entries.len(), bounds, row);
-        let card = popup_rect(popup.anchor, bounds, width, count as f32 * row + 6.);
         let mut root_highlighted = if page == root_page {
             popup.highlighted
         } else {
@@ -486,6 +465,30 @@ impl Controls {
             popup.root_scroll
         };
         let root_active = page == root_page;
+        // In narrow windows the child may overlap its parent. Only the topmost
+        // card owns pointer input; a child click must never invoke a root action.
+        let mut root_input = active.clone();
+        if !root_active {
+            let children = entries_with_bindings(
+                popup,
+                state,
+                locale,
+                &self.shortcut_bindings,
+                &self.selection,
+            );
+            let child = menu::child(
+                card,
+                metrics.row_rect(card, root_highlighted.saturating_sub(root_scroll)),
+                bounds,
+                metrics.width(&children, &styles, atlas),
+                metrics.height(children.len(), bounds),
+            );
+            if child.contains(active.mouse) {
+                root_input.mouse = [f32::MIN; 2];
+                root_input.pressed = None;
+                root_input.wheel = [0.; 2];
+            }
+        }
         let root_chosen = draw_menu(
             list,
             atlas,
@@ -493,13 +496,13 @@ impl Controls {
             bounds,
             row,
             &root_entries,
-            active,
+            &root_input,
             root_active,
             &mut root_highlighted,
             &mut root_scroll,
             hover,
         );
-        let over_root = (hover && card.contains(active.mouse)).then_some(root_highlighted);
+        let over_root = (hover && card.contains(root_input.mouse)).then_some(root_highlighted);
         let hovered = over_root.filter(|i| root_entries[*i].enabled);
         let branch = hovered.or(root_chosen).and_then(|i| {
             if let Choice::Page(next) = root_entries[i].choice {
@@ -508,12 +511,8 @@ impl Controls {
                 None
             }
         });
-        let right = active
-            .key_presses()
-            .any(|(k, m, r)| k == Key::Right && !r && !m.control && !m.alt);
-        let left = active
-            .key_presses()
-            .any(|(k, m, r)| k == Key::Left && !r && !m.control && !m.alt);
+        let right = plain_key(active, Key::Right, false);
+        let left = plain_key(active, Key::Left, false) || escape;
         let branch = branch.or_else(|| {
             (page == root_page && right && root_entries[root_highlighted].enabled)
                 .then(|| &root_entries[root_highlighted].choice)
@@ -538,31 +537,24 @@ impl Controls {
         }
         popup.root_highlighted = root_highlighted;
         popup.root_scroll = root_scroll;
+        let opened_child = popup.page != page;
         let mut child_card = None;
         let mut child_choice = None;
         if popup.page != root_page {
-            let children = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
+            let children = entries_with_bindings(
+                popup,
+                state,
+                locale,
+                &self.shortcut_bindings,
+                &self.selection,
+            );
             if !children.is_empty() {
-                let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
-                let parent_y =
-                    card.min[1] + 3. + root_highlighted.saturating_sub(root_scroll) as f32 * row;
-                // Prefer the right side; at the window edge open to the left.
-                let child_width = children
-                    .iter()
-                    .map(|entry| atlas.measure(&entry.label) + 40.)
-                    .fold(width, f32::max)
-                    .min(320.)
-                    .min((bounds.width() - card.width()).max(1.));
-                let child_x = if card.max[0] + child_width <= bounds.max[0] {
-                    card.max[0]
-                } else {
-                    (card.min[0] - child_width).max(bounds.min[0])
-                };
-                let child = Rect::new(
-                    child_x,
-                    parent_y.clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
-                    child_width,
-                    height,
+                let child = menu::child(
+                    card,
+                    metrics.row_rect(card, root_highlighted.saturating_sub(root_scroll)),
+                    bounds,
+                    metrics.width(&children, &styles, atlas),
+                    metrics.height(children.len(), bounds),
                 );
                 child_card = Some(child);
                 let chosen = draw_menu(
@@ -572,8 +564,8 @@ impl Controls {
                     bounds,
                     row,
                     &children,
-                    active,
-                    true,
+                    if opened_child { &neutral } else { active },
+                    !opened_child,
                     &mut popup.highlighted,
                     &mut popup.scroll,
                     hover,
@@ -622,10 +614,6 @@ impl Controls {
     }
 }
 
-fn menu_count(len: usize, bounds: Rect, row: f32) -> usize {
-    len.min(((bounds.height() - 8.).max(row) / row).floor() as usize)
-        .max(1)
-}
 fn draw_menu(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -639,109 +627,37 @@ fn draw_menu(
     scroll: &mut usize,
     hover: bool,
 ) -> Option<usize> {
-    let count = menu_count(entries.len(), bounds, row);
-    *highlighted = (*highlighted).min(entries.len() - 1);
-    *scroll = (*scroll).min(entries.len() - count);
-    if card.contains(input.mouse) && input.wheel[1] != 0. {
-        *scroll = (*scroll as i32 + if input.wheel[1] > 0. { 1 } else { -1 })
-            .clamp(0, (entries.len() - count) as i32) as usize;
-    }
-    if keyboard && !input.composing && !input.ime_consumed {
-        for (k, m, _) in input
-            .key_presses()
-            .filter(|(_, m, _)| !m.control && !m.alt && !m.shift)
-        {
-            let _ = m;
-            if matches!(k, Key::Up | Key::Down) {
-                for _ in 0..entries.len() {
-                    *highlighted = if k == Key::Down {
-                        (*highlighted + 1) % entries.len()
-                    } else {
-                        (*highlighted + entries.len() - 1) % entries.len()
-                    };
-                    if entries[*highlighted].enabled {
-                        break;
-                    }
-                }
-                *scroll = (*scroll)
-                    .min(*highlighted)
-                    .max(highlighted.saturating_sub(count - 1));
-            }
-        }
-    }
-    let styles = list.styles();
-    box_style(
+    let mut metrics = motion_ui::widgets::menu::Metrics::context(&list.styles());
+    metrics.row = row;
+    let response = motion_ui::widgets::menu::draw(
         list,
+        atlas,
         card,
-        styles.resolve("context_menu", States::default()).unwrap(),
+        metrics,
+        entries,
+        input,
+        keyboard,
+        hover,
+        highlighted,
+        scroll,
     );
-    let mut chosen = None;
-    for (i, entry) in entries.iter().enumerate().skip(*scroll).take(count) {
-        let area = Rect::new(
-            card.min[0] + 3.,
-            card.min[1] + 3. + (i - *scroll) as f32 * row,
-            card.width() - 6.,
-            row,
-        );
-        if hover && area.contains(input.mouse) {
-            *highlighted = i;
-        }
-        let mut states = States::default();
-        if i == *highlighted && entry.enabled {
-            states = states.with(State::Selected);
-        }
-        if !entry.enabled {
-            states = states.with(State::Disabled);
-        }
-        let style = styles.resolve("context_menu.row", states).unwrap();
-        box_style(list, area, style);
-        text_style(
-            list,
-            atlas,
-            Rect::new(area.min[0] + 5., area.min[1], area.width() - 28., row),
-            &entry.label,
-            style,
-            Align::Left,
-        );
-        if matches!(entry.choice, Choice::Page(_)) {
-            submenu_arrow(list, area, style.foreground);
-        }
-        if entry.checked {
-            let slot = styles.metric("icon.slot", 20.);
-            motion_ui::icons::draw(list,
-                Rect::new(area.max[0] - slot, area.min[1], slot, area.height()),
-                motion_ui::icons::Icon::Check, styles.metric("checkbox.size", 14.), style.foreground);
-        }
-        if entry.divider_after {
-            paint::line(
-                list,
-                vec![
-                    [area.min[0] + 7., area.max[1] - 1.],
-                    [area.max[0] - 7., area.max[1] - 1.],
-                ],
-                styles.color("context.border"),
-            );
-        }
-        if area.contains(input.mouse) {
-            if let Some(reason) = entry.disabled_reason.as_deref() {
-                disabled_hint(list, atlas, bounds, input.mouse, reason);
-            }
-        }
-        if entry.enabled && clicked(input, area) {
-            chosen = Some(i);
-        }
-    }
-    if keyboard
-        && !input.composing
-        && !input.ime_consumed
-        && input
-            .key_presses()
-            .any(|(k, m, r)| k == Key::Enter && !r && !m.control && !m.alt)
-        && entries[*highlighted].enabled
+    if let Some(entry) = entries
+        .iter()
+        .enumerate()
+        .skip(*scroll)
+        .take(metrics.count(entries.len(), card.height()))
+        .find_map(|(i, e)| {
+            metrics
+                .row_rect(card, i - *scroll)
+                .contains(input.mouse)
+                .then_some(e)
+        })
     {
-        chosen = Some(*highlighted);
+        if let Some(reason) = entry.disabled_reason.as_deref() {
+            disabled_hint(list, atlas, bounds, input.mouse, reason);
+        }
     }
-    chosen
+    response.chosen
 }
 
 fn disabled_hint(
@@ -795,7 +711,11 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
         return word(locale, "当前处于只读模式", "This session is read-only");
     }
     if matches!(choice, Choice::New(Action::EditBatch(_))) {
-        return word(locale, "所有图层均已解锁", "All layers are already unlocked");
+        return word(
+            locale,
+            "所有图层均已解锁",
+            "All layers are already unlocked",
+        );
     }
     if layer["locked"] == true {
         return word(
@@ -896,19 +816,35 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
     }
 }
 
-fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate::shortcuts::bindings::Bindings,selection:&[u64])->Vec<Entry> {
-    let mut rows=entries(popup,state,locale);
+fn entries_with_bindings(
+    popup: &Popup,
+    state: &Value,
+    locale: Locale,
+    bindings: &crate::shortcuts::bindings::Bindings,
+    selection: &[u64],
+) -> Vec<Entry> {
+    let mut rows = entries(popup, state, locale);
     for row in &mut rows {
         if let Choice::New(Action::OrderLayers { objects, order }) = &mut row.choice {
             if popup.target.is_some_and(|id| selection.contains(&id)) {
                 *objects = selection.to_vec();
             }
-            row.label = bindings.label(order.label(locale), crate::shortcuts::Scope::Animation, order.shortcut());
+            row.label = bindings.label(
+                order.label(locale),
+                crate::shortcuts::Scope::Animation,
+                order.shortcut(),
+            );
+            row.hint = bindings.hint(crate::shortcuts::Scope::Animation, order.shortcut());
             match super::layer_navigation::plan(state, objects, *order) {
                 Ok(commands) => {
                     row.enabled = !commands.is_empty();
-                    row.disabled_reason = (!row.enabled).then(|| word(locale,
-                        "所选图层已在该排列边界", "Selected layers are already at this ordering boundary"));
+                    row.disabled_reason = (!row.enabled).then(|| {
+                        word(
+                            locale,
+                            "所选图层已在该排列边界",
+                            "Selected layers are already at this ordering boundary",
+                        )
+                    });
                 }
                 Err(reason) => {
                     row.enabled = false;
@@ -917,10 +853,24 @@ fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate
             }
             continue;
         }
-        let command=match &row.choice {Choice::Edit(Command::Duplicate {..})=>Some(crate::shortcuts::Command::Duplicate),Choice::Edit(Command::Remove {..})=>Some(crate::shortcuts::Command::Delete),_=>None};
-        if let Some(command)=command {
-            let label=row.label.split("    ").next().unwrap_or(&row.label).to_owned();
-            row.label=bindings.label(&label,crate::shortcuts::Scope::Application,command);
+        let command = match &row.choice {
+            Choice::Edit(Command::Duplicate { .. }) => Some(crate::shortcuts::Command::Duplicate),
+            Choice::Edit(Command::Remove { .. }) => Some(crate::shortcuts::Command::Delete),
+            Choice::New(Action::AddSolid) => Some(crate::shortcuts::Command::Solid),
+            Choice::New(Action::NewText) => Some(crate::shortcuts::Command::Text),
+            Choice::New(Action::AddNull) => Some(crate::shortcuts::Command::Null),
+            Choice::New(Action::AddAdjustment) => Some(crate::shortcuts::Command::Adjustment),
+            _ => None,
+        };
+        if let Some(command) = command {
+            let label = row
+                .label
+                .split("    ")
+                .next()
+                .unwrap_or(&row.label)
+                .to_owned();
+            row.label = bindings.label(&label, crate::shortcuts::Scope::Application, command);
+            row.hint = bindings.hint(crate::shortcuts::Scope::Application, command);
         }
     }
     rows
@@ -954,9 +904,11 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
         let index = result.len();
         result.push(Entry {
             label: word(locale, zh, en),
+            hint: String::new(),
             checked: false,
             enabled,
             disabled_reason: None,
+            submenu: matches!(choice, Choice::Page(_)),
             choice,
             divider_after: false,
         });
@@ -1245,7 +1197,12 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 }),
             );
             let unlock = super::layer_locks::changes(state, None, false);
-            add("全部解锁", "Unlock All Layers", !unlock.is_empty(), Choice::New(Action::EditBatch(unlock)));
+            add(
+                "全部解锁",
+                "Unlock All Layers",
+                !unlock.is_empty(),
+                Choice::New(Action::EditBatch(unlock)),
+            );
         }
         Page::Order => {
             use super::layer_navigation::Order;
@@ -1254,7 +1211,10 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                     order.label(Locale::Zh),
                     order.label(Locale::En),
                     unlocked,
-                    Choice::New(Action::OrderLayers { objects: vec![id], order }),
+                    Choice::New(Action::OrderLayers {
+                        objects: vec![id],
+                        order,
+                    }),
                 );
             }
         }
@@ -1406,20 +1366,122 @@ fn blend_modes() -> Vec<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "windows")]
+    mod shared_native;
+    #[test]
+    fn shared_menu_overlapping_child_click_cannot_retarget_the_parent_page() {
+        use motion_ui::widgets::menu::{self, Metrics};
+        let mut engine=engine();let state=state(&engine);
+        let mut controls=Controls::default();controls.open(Some(9),[230.,190.],&state);
+        let mut atlas=TextAtlas::from_system(12.).unwrap();
+        let styles=PaintList::default().styles();let metrics=Metrics::context(&styles);
+        let bounds=Rect::new(0.,0.,240.,200.);
+        let popup=controls.popup.as_mut().unwrap();
+        let root=entries_with_bindings(popup,&state,Locale::En,&controls.shortcut_bindings,&[]);
+        let card=popup_rect(popup.anchor,bounds,metrics.width(&root,&styles,&mut atlas),metrics.height(root.len(),bounds));
+        popup.page=Page::Switch;popup.opened=false;
+        let children=entries_with_bindings(popup,&state,Locale::En,&controls.shortcut_bindings,&[]);
+        let child=menu::child(card,metrics.row_rect(card,0),bounds,metrics.width(&children,&styles,&mut atlas),metrics.height(children.len(),bounds));
+        let area=metrics.row_rect(child,1);let point=[area.min[0]+10.,area.min[1]+10.];
+        assert!(card.contains(point),"negative control must exercise overlapping cards");
+        let mut actions=vec![];
+        controls.finish_window(&mut PaintList::default(),&mut atlas,bounds,&state,&click(MouseButton::Left,point),Locale::En,&mut actions);
+        assert_eq!(actions.len(),1);
+        engine.apply(edit(actions)).unwrap();
+        assert!(engine.project().layers[1].locked);
+        assert!(engine.project().layers[1].visible);
+        engine.undo().unwrap();assert!(!engine.project().layers[1].locked);
+    }
+    #[test]
+    fn shared_menu_context_enter_only_opens_branch_and_escape_ime_keep_the_correct_owner() {
+        let state = state(&engine());
+        for owner in [None, Some(Panel::Timeline)] {
+            for locale in [Locale::Zh, Locale::En] {
+                let mut controls = Controls {
+                    owner,
+                    ..Default::default()
+                };
+                controls.open(Some(9), [220., 190.], &state);
+                let mut atlas = TextAtlas::from_system(12.).unwrap();
+                let bounds = Rect::new(0., 0., 240., 200.);
+                let mut run = |controls: &mut Controls, input: &Input| {
+                    let mut out = vec![];
+                    controls.finish_window(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        bounds,
+                        &state,
+                        input,
+                        locale,
+                        &mut out,
+                    );
+                    out
+                };
+                assert!(run(&mut controls, &Input::default()).is_empty());
+                let key = |key| Input {
+                    mouse: [-1.; 2],
+                    keys: vec![(key, Default::default())],
+                    ..Default::default()
+                };
+                assert!(run(&mut controls, &key(Key::Enter)).is_empty());
+                assert!(controls.popup.as_ref().unwrap().page == Page::Switch);
+                let mut ime = key(Key::Escape);
+                ime.ime_consumed = true;
+                assert!(run(&mut controls, &ime).is_empty());
+                assert!(controls.popup.as_ref().unwrap().page == Page::Switch);
+                assert!(run(&mut controls, &key(Key::Escape)).is_empty());
+                assert!(controls.popup.as_ref().unwrap().page == Page::Root);
+                assert!(run(&mut controls, &key(Key::Escape)).is_empty());
+                assert!(controls.popup.is_none());
+            }
+        }
+    }
     #[test]
     fn custom_layer_menu_hints_follow_effective_mapping_without_changing_actions() {
-        use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
-        let state=state(&engine());let mut controls=Controls::default();controls.open(Some(7),[100.,100.],&state);
-        let mut bindings=Bindings::default();bindings.bind(Scope::Application,Shortcut::Duplicate,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
-        for locale in [Locale::Zh,Locale::En] {
-            let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,locale,&bindings,&[]);
-            let duplicate=rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap();
+        use crate::shortcuts::{Command as Shortcut, Scope, bindings::Bindings};
+        let state = state(&engine());
+        let mut controls = Controls::default();
+        controls.open(Some(7), [100., 100.], &state);
+        let mut bindings = Bindings::default();
+        bindings
+            .bind(
+                Scope::Application,
+                Shortcut::Duplicate,
+                Some(motion_ui::input::KeyChord::new(Key::B, true, false, false)),
+            )
+            .unwrap();
+        for locale in [Locale::Zh, Locale::En] {
+            let rows = entries_with_bindings(
+                controls.popup.as_ref().unwrap(),
+                &state,
+                locale,
+                &bindings,
+                &[],
+            );
+            let duplicate = rows
+                .iter()
+                .find(|r| matches!(r.choice, Choice::Edit(Command::Duplicate { object: 7 })))
+                .unwrap();
             assert!(duplicate.label.ends_with("Ctrl+B") && !duplicate.label.contains("Ctrl+D"));
             assert!(duplicate.enabled);
         }
-        bindings.bind(Scope::Application,Shortcut::Duplicate,None).unwrap();
-        let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,Locale::En,&bindings,&[]);
-        assert_eq!(rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap().label,"Duplicate");
+        bindings
+            .bind(Scope::Application, Shortcut::Duplicate, None)
+            .unwrap();
+        let rows = entries_with_bindings(
+            controls.popup.as_ref().unwrap(),
+            &state,
+            Locale::En,
+            &bindings,
+            &[],
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|r| matches!(r.choice, Choice::Edit(Command::Duplicate { object: 7 })))
+                .unwrap()
+                .label,
+            "Duplicate"
+        );
     }
     fn state(engine: &motion_core::Engine) -> Value {
         let p = engine.project();
@@ -1466,7 +1528,12 @@ mod tests {
         let layout = dock::Node::dock(Panel::Timeline.dock());
         let frame = frames(&layout, [1280., 700.]).remove(0);
         let styles = PaintList::default().styles();
-        [140., frame.content.min[1] + timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5]
+        [
+            140.,
+            frame.content.min[1]
+                + timeline::header_height(&styles)
+                + styles.metric("row.height", 22.) * 0.5,
+        ]
     }
 
     #[test]
@@ -2046,7 +2113,10 @@ mod tests {
         let state = state(&engine);
         let mut panels = Panels::default();
         let styles = PaintList::default().styles();
-        let p = [140., 30. + timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5];
+        let p = [
+            140.,
+            30. + timeline::header_height(&styles) + styles.metric("row.height", 22.) * 0.5,
+        ];
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         assert!(floating_chrome(
             &mut PaintList::default(),
@@ -2114,18 +2184,21 @@ mod tests {
         };
         for locale in [Locale::Zh, Locale::En] {
             let locked = entries(&popup, &state, locale);
-            assert!(locked.iter().filter(|e| !e.enabled).all(|e| e
-                .disabled_reason
-                .as_ref()
-                .is_some_and(|r| r.contains(if locale == Locale::Zh {
-                    "解锁"
-                } else {
-                    "Unlock"
-                }))));
-            assert!(locked
-                .iter()
-                .filter(|e| e.enabled)
-                .all(|e| e.disabled_reason.is_none()));
+            assert!(locked.iter().filter(|e| !e.enabled).all(|e| {
+                e.disabled_reason.as_ref().is_some_and(|r| {
+                    r.contains(if locale == Locale::Zh {
+                        "解锁"
+                    } else {
+                        "Unlock"
+                    })
+                })
+            }));
+            assert!(
+                locked
+                    .iter()
+                    .filter(|e| e.enabled)
+                    .all(|e| e.disabled_reason.is_none())
+            );
             state["project"]["layers"][1]["locked"] = serde_json::json!(false);
             popup.page = Page::Time;
             state["frame"] = serde_json::json!(0);
@@ -2233,14 +2306,35 @@ mod tests {
                 let fixture = engine();
                 let root = tempfile::tempdir().unwrap();
                 motion_core::storage::save(root.path(), fixture.project()).unwrap();
-                let host = crate::engine::Engine::start(root.path().into(), motion_desktop_media::platform(), 8 << 30).unwrap();
+                let host = crate::engine::Engine::start(
+                    root.path().into(),
+                    motion_desktop_media::platform(),
+                    8 << 30,
+                )
+                .unwrap();
                 let initial = host.state().unwrap();
                 let mut panels = Panels { selected: Some(9), focused: Some(Panel::Timeline), locale, ..Default::default() };
                 let mut render = |panels: &mut Panels, state: &Value, input: &Input| {
                     if floating {
-                        floating_chrome(&mut PaintList::default(), &mut atlas, Panel::Timeline, [1280.,700.], panels, state, input)
+                        floating_chrome(
+                            &mut PaintList::default(),
+                            &mut atlas,
+                            Panel::Timeline,
+                            [1280., 700.],
+                            panels,
+                            state,
+                            input,
+                        )
                     } else {
-                        chrome(&mut PaintList::default(), &mut atlas, [1280.,700.], &dock::Node::dock(Panel::Timeline.dock()), panels, state, input)
+                        chrome(
+                            &mut PaintList::default(),
+                            &mut atlas,
+                            [1280., 700.],
+                            &dock::Node::dock(Panel::Timeline.dock()),
+                            panels,
+                            state,
+                            input,
+                        )
                     }
                 };
                 render(&mut panels, &initial, &Input::default());
@@ -2253,7 +2347,14 @@ mod tests {
                     // The child page uses its own highlight, after the root Switches row.
                     render(panels, state, &Input::default());
                     panels.layer_actions.popup.as_mut().unwrap().highlighted = index;
-                    render(panels, state, &Input { keys:vec![(Key::Enter,Default::default())], ..Default::default() })
+                    render(
+                        panels,
+                        state,
+                        &Input {
+                            keys: vec![(Key::Enter, Default::default())],
+                            ..Default::default()
+                        },
+                    )
                 };
                 let actions = choose(&mut panels, &initial, 1);
                 let locked = host.edit(serde_json::to_string(&edit(actions)).unwrap()).unwrap();
@@ -2274,6 +2375,6 @@ mod tests {
                 assert_eq!(host.state().unwrap()["revision"], unchanged_revision);
             }
         }
-    }
 
+    }
 }
