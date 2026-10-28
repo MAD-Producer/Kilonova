@@ -455,7 +455,7 @@ impl MaskGpu {
         for (key, target, cost, size) in next {
             images.insert(key, GpuImage {
                 _texture: target.texture, view: target.view, bind_group: target.composite,
-                bytes: cost, size, video_stamp: None,
+                bytes: cost, size, video_stamp: None, plane_image: None,
             });
         }
         *bytes = next_bytes;

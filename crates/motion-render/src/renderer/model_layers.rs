@@ -405,7 +405,7 @@ impl Renderer {
                         bind_group: group,
                         bytes,
                         size: (w, h),
-                        video_stamp: None,
+                        video_stamp: None, plane_image: None,
                     },
                 );
                 self.texture_bytes = self.texture_bytes - previous + bytes;
