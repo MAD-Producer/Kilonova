@@ -1,0 +1,151 @@
+{
+  "ui_source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+  "geometry_source": "4135e910e71518c6659e8d04577fbced86a183b7",
+  "partial": true,
+  "pending": [
+    "viewer drawing and gesture input",
+    "zoom and parent-transform interaction",
+    "independent native owner focus/input"
+  ],
+  "phases": {
+    "model-phase": [
+      {
+        "arguments": [
+          "test",
+          "-p",
+          "motion-model",
+          "--locked",
+          "--offline"
+        ],
+        "elapsed_ms": 189732,
+        "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+        "exit": 0,
+        "name": "model"
+      },
+      {
+        "arguments": [
+          "test",
+          "-p",
+          "motion-core",
+          "--test",
+          "layer_masks",
+          "--locked",
+          "--offline"
+        ],
+        "elapsed_ms": 21973,
+        "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+        "exit": 0,
+        "name": "layer-masks"
+      }
+    ],
+    "ui-phase-rebuilt": [
+      {
+        "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+        "name": "path-controls",
+        "exit": 0,
+        "elapsed_ms": 420517,
+        "arguments": [
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline",
+          "panels::path_controls",
+          "--",
+          "--test-threads=1"
+        ]
+      },
+      {
+        "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+        "name": "native-mask-link",
+        "exit": 0,
+        "elapsed_ms": 32997,
+        "arguments": [
+          "test",
+          "-p",
+          "motion-desktop",
+          "--bin",
+          "motion-studio",
+          "--features",
+          "ffmpeg",
+          "--locked",
+          "--offline",
+          "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+          "--",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ]
+      }
+    ],
+    "boundary-geometry": [
+      {
+        "name": "boundary-gpu",
+        "exit": 0,
+        "arguments": [
+          "test",
+          "-p",
+          "motion-render",
+          "--test",
+          "mask_boundary_geometry",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ],
+        "elapsed_ms": 56906,
+        "source": "1760d2aed97a63525e4a9d8ce72cbeb5a4b923ae"
+      },
+      {
+        "name": "layer-masks",
+        "exit": 0,
+        "arguments": [
+          "test",
+          "-p",
+          "motion-render",
+          "--test",
+          "layer_masks",
+          "--locked",
+          "--offline",
+          "--",
+          "--test-threads=1"
+        ],
+        "elapsed_ms": 18187,
+        "source": "1760d2aed97a63525e4a9d8ce72cbeb5a4b923ae"
+      },
+      {
+        "name": "mask-plan",
+        "exit": 0,
+        "arguments": [
+          "test",
+          "-p",
+          "motion-render",
+          "--lib",
+          "--locked",
+          "--offline",
+          "mask_plan",
+          "--",
+          "--test-threads=1"
+        ],
+        "elapsed_ms": 28140,
+        "source": "1760d2aed97a63525e4a9d8ce72cbeb5a4b923ae"
+      }
+    ]
+  },
+  "final_boundary_gpu": {
+    "source": "4135e910e71518c6659e8d04577fbced86a183b7",
+    "passed": 3,
+    "failed": 0
+  },
+  "screenshots": 24,
+  "archive": {
+    "entries": 56,
+    "bytes": 1025217,
+    "sha256": "4c7074261e4fc54b13e52b3b1a01a163b39c9ce0da06e30aa07bda64fbfc5de6"
+  }
+}
