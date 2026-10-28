@@ -63,3 +63,17 @@
 | Timeline snap guide 色值 | retained：不改拖拽反馈。 |
 
 §12 相关的行对齐、悬停展开、边缘、两列无覆盖、双语、绘制比例、主窗/浮窗输入、取消、IME 与 Undo 已有本轮证据；不宣称全仓 UI 验收完成。
+
+## CI 后续：自定义主题夹具
+
+首次 CI run `40672404453` 的 Linux job `122762755690` 实际为 1238 项通过、1 项失败、1 项忽略。失败发生在 `optional_row_class_uses_required_framework_selection_in_custom_themes`：它删除可选 `row` 及所有派生类时，也删除了共享菜单现已必需的 `context_menu.row`，主题加载因 `missing framework style context_menu.row` 先行拒绝。不能以此前本地过滤组通过代替完整 CI。
+
+同轮 macOS Intel job `122762755601` 也为 1238 项通过、1 项失败、1 项忽略，原始日志确认是相同夹具与具名错误。
+
+修正源 `fcf5bfc49ac6460d5b3837be44a9debfcba39c8a` 仅修改这份夹具：让菜单行继承仍存在的必需基类 `widget`，保留菜单行，同时继续删除可选属性行及其派生类。保留原选中高亮断言，并增加属性行确实缺失、菜单行仍在的断言。未放宽主题校验；原缺少菜单样式必须返回具名错误的测试保留。生产代码、token、截图外观及上述 DESIGN 基线处置均不变。
+
+本地首次及排队后的验证遇到共享 target 中来自另一工作树的旧 UI 产物，编译报告缺少本分支源码已存在的 `widgets::menu` 和 `TextCommand::binding`。原始失败日志保留；仅刷新本工作树 UI crate 根文件的修改时间，令 Cargo 重编该库，不修改源码内容、不删除其他分支产物。重编后的验证单独记录，不将编译失败计作通过。
+
+冻结修正源补测通过：属性选中与自定义主题 2 项、共享菜单库 6 项、样式集成 6 项；后两组覆盖缺类具名拒绝、畸形主题拒绝及失败 reload 保留原样式。脚本逐阶段核对 HEAD 与 desktop/crates 内容；面板样式消费者检查也通过。此次没有新增产品错误路径、日志或异常恢复，继续沿用前文 C01–C05 的观测边界；不将这些补测冒称为重新执行默认级别文件/stderr/stdout 的独立验收，也不宣称远端 CI 已绿。
+
+补充证据 `data/menu-cascade-ci-followup.zip`：13 项、141,096 字节，SHA-256 `1ef63b38866d24808b46b505efdb9d128922cdd77a0406b8c4ab8347764a51da`，重读全部内容并校验 CRC。包括两平台原失败日志、本地旧 target 两次失败、冻结补测命令与日志、修正夹具及逐项 SHA-256；结果摘要见 `menu-cascade-ci-followup-results.json`。原 38 张截图的生产菜单代码与当前源无差异，不重造截图或覆盖旧证据。
