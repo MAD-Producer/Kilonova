@@ -529,6 +529,7 @@ impl Session {
         self.render_attempts += 1;
         self.frame = frame;
         self.sample()?;
+        if !self.prepare_render_depth(None)? { return Ok(false); }
         self.synchronize_working_precision()?;
         let tier = self.preview.tier();
         let Some(g) = &self.graphics else {
@@ -891,6 +892,26 @@ impl Session {
             self.last_error = None;
         }
         result
+    }
+    /// Rendering admission is separate from semantic sampling: pending depth is
+    /// normal and never starts inference, invents a distance or draws flat data.
+    pub(crate) fn prepare_render_depth(&mut self, scene: Option<&mut Scene>) -> Result<bool> {
+        #[cfg(feature = "ai-depth")]
+        {
+            if let Some(scene) = scene { return self.render_depth_sample(scene); }
+            if !self.scene.has_calibrated_depth() { return Ok(true); }
+            let mut prepared = self.scene.clone();
+            let ready = self.render_depth_sample(&mut prepared)?;
+            if ready { self.scene = prepared; }
+            Ok(ready)
+        }
+        #[cfg(not(feature = "ai-depth"))]
+        {
+            if scene.unwrap_or(&mut self.scene).has_calibrated_depth() {
+                return Err("calibrated depth rendering requires the ai-depth feature".into());
+            }
+            Ok(true)
+        }
     }
     /// Revision checks are metadata-only; unchanged frame sampling never opens
     /// source files or rebuilds the catalog. Root replacement prepares explicitly.

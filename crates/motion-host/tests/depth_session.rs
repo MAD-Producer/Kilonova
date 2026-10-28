@@ -228,6 +228,74 @@ fn calibration_command(session: &mut Session) -> Command {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn actual_png_capture_consumes_current_calibrated_geometry_and_refuses_stale_frames() {
+    let root = tempfile::tempdir().unwrap();
+    let original = calibrated_source_session(root.path());
+    let mut project = original.engine.project().clone();
+    project.layers[0].three_d = true;
+    project.layers[0].size = [80.;2];
+    project.camera.created = true;
+    project.camera.position.set_at(0,[16.,16.,-120.]).unwrap();
+    project.camera.target.set_at(0,[16.,16.,0.]).unwrap();
+    project.camera.fov.set_at(0,60.).unwrap();
+    let mut blue = motion_core::Layer::solid(2,"Depth occlusion oracle",[80.;2],[16.,16.,0.],[0.,0.,1.,1.]);
+    blue.three_d = true;
+    project.layers.push(blue);
+    let id = motion_host::session::open(root.path().into(),project,Arc::new(NoMedia)).unwrap();
+    struct Close(i64);
+    impl Drop for Close { fn drop(&mut self) { motion_host::session::close(self.0); } }
+    let _close = Close(id);
+    let (worker,seen,_release) = backend(false);
+    motion_host::session::with_session(id,|s| {
+        s.configure_depth(worker)?;
+        s.request_image_depth(7,geometry(),model())?;
+        Ok(())
+    }).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    motion_host::session::with_session(id,|s| {
+        wait_done(s,1);
+        s.poll_depth()?;
+        s.observing = true;
+        let command = calibration_command(s);
+        let Command::DepthCalibration { calibration:Some(calibration), .. } = &command else { panic!("calibration command required") };
+        assert!(calibration.reference().is_some(),"3D authoring must capture the actual camera and plane");
+        let reference = calibration.reference().unwrap();
+        assert_eq!(reference.camera.eye,glam::Vec3::new(0.,0.,120.));
+        assert_ne!(reference.camera.eye,s.scene.camera.eye,"the free observation camera must not become the saved source camera");
+        s.apply_command_batch(vec![command])?;
+        s.observing = false;
+        Ok(())
+    }).unwrap();
+    assert!(motion_host::ops::export::capture(id).unwrap_err().to_string().contains("pending"));
+    assert!(!root.path().join("exports/frame-000000.png").exists(),"pending depth must not create a misleading flat export");
+    motion_host::session::with_session(id,|s| { s.request_image_depth(7,geometry(),model())?; Ok(()) }).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    motion_host::session::with_session(id,|s| { wait_done(s,2); s.poll_depth()?; Ok(()) }).unwrap();
+    let capture = motion_host::ops::export::capture(id).unwrap();
+    let pixels = image::open(capture["path"].as_str().unwrap()).unwrap().to_rgba8();
+    assert_eq!(pixels.dimensions(),(32,32));
+    assert_eq!(pixels.get_pixel(16,10).0,[0,0,255,255],"far calibrated photo must be occluded by actual geometry");
+    let near = pixels.get_pixel(16,22).0;
+    assert!(near[0]>40 && near[2]<10 && near[3]==255,"near calibrated photo must occlude the plane: {near:?}");
+    motion_host::session::with_session(id,|s| { s.frame=1.; Ok(()) }).unwrap();
+    assert!(motion_host::ops::export::capture(id).unwrap_err().to_string().contains("pending"));
+    assert!(!root.path().join("exports/frame-000001.png").exists());
+    motion_host::session::with_session(id,|s| { s.request_image_depth(7,geometry(),model())?; Ok(()) }).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    motion_host::session::with_session(id,|s| { wait_done(s,3); s.poll_depth()?; Ok(()) }).unwrap();
+    let next = motion_host::ops::export::capture(id).unwrap();
+    assert_eq!(image::open(next["path"].as_str().unwrap()).unwrap().to_rgba8(),pixels);
+    let mut parameters = [0xa5;1024];
+    let mut vertices = [0xa5;1024];
+    let error = motion_host::ops::geometry::sample_geometry_into(id,1.,&mut parameters,&mut vertices).unwrap_err().to_string();
+    assert!(error.contains("native calibrated depth"),"{error}");
+    assert!(parameters.iter().chain(&vertices).all(|byte|*byte==0xa5));
+    assert!(motion_host::ops::export::sample_into(id,1,&mut parameters).unwrap_err().to_string().contains("native calibrated depth"));
+    assert!(parameters.iter().all(|byte|*byte==0xa5));
+}
+
+#[test]
 fn actual_calibration_authoring_reopens_and_rebinds_without_reusing_live_revisions() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = calibrated_source_session(directory.path());

@@ -4,11 +4,19 @@ use motion_render::Scene;
 use motion_render::Renderer;
 use serde_json::json;
 
+pub(crate) fn require_portable_depth(scene: &Scene) -> Result<()> {
+    if scene.has_calibrated_depth() {
+        return Err("portable plane output cannot carry native calibrated depth geometry; bake explicitly".into());
+    }
+    Ok(())
+}
+
 pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         crate::render_sampling::require_single_time(s.engine.project(), "render_plan_info")?;
         s.observing = false;
         s.sample()?;
+        require_portable_depth(&s.scene)?;
         let p = s.engine.project();
         for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
@@ -166,6 +174,12 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
         s.synchronize_working_precision()?;
         s.effects.set_precision(s.engine.project().working_precision);
+        let mut scene = Scene::new(s.engine.project())?;
+        scene.set_model_source_catalog(s.scene.model_source_catalog());
+        scene.sample(s.engine.project(), s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
+        if !s.prepare_render_depth(Some(&mut scene))? {
+            return Err("calibrated depth capture pending; request the current source and retry".into());
+        }
         let p = s.engine.project();
         for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
@@ -173,9 +187,6 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         }
         s.effects
             .synchronize_scene_alpha(&s.scene, p, &s.root)?;
-        let mut scene = Scene::new(p)?;
-        scene.set_model_source_catalog(s.scene.model_source_catalog());
-        scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
             temporary = Some(pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, s.allocation_budget().clone())).map_err(crate::Error::from)?);
@@ -272,6 +283,7 @@ pub fn sample_into_inner(
         s.scene
             .sample(s.engine.project(), s.frame, None, &motion_core::ExpressionEvaluator)
             .map_err(crate::Error::from)?;
+        require_portable_depth(&s.scene)?;
         if s.scene
             .layers
             .iter()

@@ -16,6 +16,8 @@ pub use calibration::{
     RelativeDepthCalibration,
 };
 pub use projection::{DepthProjection, ProjectedDepth};
+mod surface;
+pub use surface::{DepthReference, DepthSurface, DepthVertex};
 
 pub const MAX_DEPTH_DIMENSION: u32 = 4096;
 pub const MAX_DEPTH_PIXELS: usize = 4096 * 4096;

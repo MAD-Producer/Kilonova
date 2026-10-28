@@ -15,6 +15,7 @@ pub(crate) struct ScenePlane {
     pub blend: bool,
     /// Static source retaining its admitted upload revision.
     pub texture: Option<AdmittedTextureView>,
+    pub surface: Option<std::sync::Arc<motion_model::depth::DepthSurface>>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -29,15 +30,25 @@ struct TexturedVertex {
     color: [f32; 4],
     uv: [f32; 2],
 }
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct ProjectedVertex {
+    clip: [f32; 4],
+    color: [f32; 4],
+    uvq: [f32; 3],
+}
 const SOLID_ATTRIBUTES: [wgpu::VertexAttribute; 2] =
     wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4];
 const IMAGE_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
     wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x2];
+const PROJECTED_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x3];
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Key {
     format: wgpu::TextureFormat,
     samples: u32,
     textured: bool,
+    projected: bool,
     blend: bool,
 }
 #[derive(Clone)]
@@ -48,16 +59,19 @@ struct Pipeline {
 #[derive(Default)]
 pub(super) struct Pipelines(HashMap<Key, Pipeline>);
 pub(super) struct Draw {
+    pub object: u64,
     pub pipeline: wgpu::RenderPipeline,
     pub group: Option<wgpu::BindGroup>,
     pub vertices: std::ops::Range<u64>,
     pub blend: bool,
     pub distance: f32,
+    pub vertex_count: u32,
 }
 pub(super) struct Prepared {
     pub vertices: AdmittedBuffer,
     pub draws: Vec<Draw>,
     pub count: usize,
+    pub triangles: u64,
 }
 
 pub(super) fn prepare(
@@ -79,8 +93,14 @@ pub(super) fn prepare(
         ));
     }
     let mut vertices = Vec::new();
+    let staging_bytes = planes.iter().try_fold(0usize, |bytes, plane| {
+        let count = plane.surface.as_ref().map_or(6, |s| s.vertices().len());
+        let stride = if plane.texture.is_some() && plane.surface.is_some() { std::mem::size_of::<ProjectedVertex>() }
+            else if plane.texture.is_some() { std::mem::size_of::<TexturedVertex>() } else { std::mem::size_of::<Vertex>() };
+        bytes.checked_add(count.checked_mul(stride)?).filter(|n| *n <= motion_model::depth::MAX_DEPTH_RESOURCE_BYTES)
+    }).ok_or_else(|| invalid("shared_planes", 0, "plane vertex staging byte budget exceeded"))?;
     vertices
-        .try_reserve_exact(planes.len() * 6 * std::mem::size_of::<TexturedVertex>())
+        .try_reserve_exact(staging_bytes)
         .map_err(|_| invalid("shared_planes", 0, "plane vertex staging allocation failed"))?;
     let mut draws = Vec::with_capacity(planes.len());
     let projection = frame.camera.view_projection.as_dmat4();
@@ -132,6 +152,29 @@ pub(super) fn prepare(
         // Match the authored XY geometry and camera, without assigning a single
         // depth to its raster. Hardware clipping/interpolation supplies every Z.
         let world = plane.world.as_dmat4();
+        let mut append = |position: glam::DVec3, uv: [f32; 2], q: f32| -> Result<()> {
+            let clip = projection * world * position.extend(1.);
+            if !clip.is_finite() || !clip.as_vec4().is_finite() {
+                return Err(crate::RenderError::Invalid(format!(
+                    "scene plane object={} phase=shared_plane_clip: plane camera projection overflow", plane.object
+                )).into());
+            }
+            let clip = clip.as_vec4().to_array();
+            if plane.texture.is_some() && plane.surface.is_some() {
+                vertices.extend_from_slice(bytemuck::bytes_of(&ProjectedVertex { clip, color, uvq:[uv[0]*q,uv[1]*q,q] }));
+            } else if plane.texture.is_some() {
+                vertices.extend_from_slice(bytemuck::bytes_of(&TexturedVertex { clip, color, uv }));
+            } else {
+                vertices.extend_from_slice(bytemuck::bytes_of(&Vertex { clip, color }));
+            }
+            Ok(())
+        };
+        let vertex_count = if let Some(surface) = &plane.surface {
+            for vertex in surface.vertices() {
+                append(glam::Vec3::from_array(vertex.position).as_dvec3(), vertex.uv, vertex.texture_weight)?;
+            }
+            u32::try_from(surface.vertices().len()).map_err(|_| invalid("shared_planes", 0, "surface vertex count overflow"))?
+        } else {
         for [x, y] in [
             [-0.5, -0.5],
             [0.5, -0.5],
@@ -140,45 +183,24 @@ pub(super) fn prepare(
             [0.5, 0.5],
             [-0.5, 0.5],
         ] {
-            let clip = projection
-                * (world
-                    * glam::DVec4::new(
-                        x * f64::from(plane.size[0]),
-                        y * f64::from(plane.size[1]),
-                        0.,
-                        1.,
-                    ));
-            if !clip.is_finite() || !clip.as_vec4().is_finite() {
-                return Err(crate::RenderError::Invalid(format!(
-                    "scene plane object={} phase=shared_plane_clip: plane camera projection overflow", plane.object
-                )).into());
-            }
-            let clip = clip.as_vec4().to_array();
-            if plane.texture.is_some() {
-                // Layer-local +Y points up; image V points down. Hardware
-                // perspective interpolation keeps rotated image planes correct.
-                vertices.extend_from_slice(bytemuck::bytes_of(&TexturedVertex {
-                    clip,
-                    color,
-                    uv: [(x + 0.5) as f32, (0.5 - y) as f32],
-                }));
-            } else {
-                // Preserve the existing solid-plane 192-byte admission contract.
-                vertices.extend_from_slice(bytemuck::bytes_of(&Vertex { clip, color }));
-            }
+            append(glam::DVec3::new(x * f64::from(plane.size[0]), y * f64::from(plane.size[1]), 0.),
+                [(x + 0.5) as f32, (0.5 - y) as f32], 1.)?;
         }
+        6
+        };
         let key = Key {
             format,
             samples: frame.samples,
             textured: plane.texture.is_some(),
+            projected: plane.texture.is_some() && plane.surface.is_some(),
             blend: plane.blend,
         };
         let pipeline = if let Some(pipeline) = cache.0.get(&key) {
             pipeline.clone()
         } else {
-            // Four formats x two sample counts x two sources x two alpha modes.
+            // Four formats x two sample counts x three sources x two alpha modes.
             // Asset IDs and animation never create additional pipeline keys.
-            if cache.0.len() >= 32 {
+            if cache.0.len() >= 48 {
                 return Err(invalid(
                     "shared_plane_pipeline",
                     0,
@@ -220,11 +242,13 @@ pub(super) fn prepare(
             }
         };
         draws.push(Draw {
+            object: plane.object,
             pipeline: pipeline.render,
             group,
             vertices: first..vertices.len() as u64,
             blend: key.blend,
             distance,
+            vertex_count,
         });
     }
     let vertices =
@@ -235,10 +259,12 @@ pub(super) fn prepare(
                 contents: &vertices,
                 usage: wgpu::BufferUsages::VERTEX,
             })?;
+    let triangles = draws.iter().map(|draw| u64::from(draw.vertex_count) / 3).sum();
     Ok(Some(Prepared {
         vertices,
         draws,
         count: planes.len(),
+        triangles,
     }))
 }
 
@@ -291,7 +317,9 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
         .create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shared plane geometry"),
             source: wgpu::ShaderSource::Wgsl(
-                if key.textured {
+                if key.projected {
+                    include_str!("projected_planes.wgsl")
+                } else if key.textured {
                     include_str!("textured_planes.wgsl")
                 } else {
                     include_str!("planes.wgsl")
@@ -349,13 +377,17 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
                 entry_point: Some("vs"),
                 compilation_options: Default::default(),
                 buffers: &[Some(wgpu::VertexBufferLayout {
-                    array_stride: if key.textured {
+                    array_stride: if key.projected {
+                        std::mem::size_of::<ProjectedVertex>()
+                    } else if key.textured {
                         std::mem::size_of::<TexturedVertex>()
                     } else {
                         std::mem::size_of::<Vertex>()
                     } as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: if key.textured {
+                    attributes: if key.projected {
+                        &PROJECTED_ATTRIBUTES
+                    } else if key.textured {
                         &IMAGE_ATTRIBUTES
                     } else {
                         &SOLID_ATTRIBUTES
