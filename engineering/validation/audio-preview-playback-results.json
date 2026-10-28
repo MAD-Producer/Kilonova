@@ -1,0 +1,102 @@
+{
+  "sourceCommit": "d70d5695085168b00bab89d99b34d5852f54d1a8",
+  "baseMain": "876699731b54f36903c5c1e5009bbe1567d175ba",
+  "sourceHashes": {
+    "desktop/app/src/audio_output/playhead_tests.rs": "3defb5cfa0789a1595d100e381ade2ce8c5deac7a4856e3d4f36bb918d96ca18",
+    "desktop/app/src/dialogs/preferences/shortcuts.rs": "91ed298571a8be61eaac3c036aa08767dec62da3fb12c45f515e9780823671eb",
+    "desktop/app/src/engine.rs": "d6d2a2ccd05edb7571e6b29d67de8369e791f2325b81a1f58a2e3ab6adfb3ba5",
+    "desktop/app/src/engine/diagnostic_names.rs": "f0f06e680334b0771367da07e3a06ed4955ead0e58117f8d62c56a6f5ef17603",
+    "desktop/app/src/main.rs": "d051cf391ae98b9f12b263a98acef9ce1abdab1e228edab9b2e0e48feff3b3dc",
+    "desktop/app/src/panels/keyboard.rs": "cc9f403c7f3be7bb9c556d08c25e261eb5cd5de6181bd394045517d5f718c684",
+    "desktop/app/src/panels/menus.rs": "507e578e8eed6110d4203dff9aa3a14d96229cdd3cb28796aaf9e007d9e04ec2",
+    "desktop/app/src/panels/types.rs": "f2fa9081d5e257a6b2671223e0d3e980dbe4d7dc834e70f22f6c75a31a5298eb",
+    "desktop/app/src/shell/actions.rs": "83ceb8ce1e5121c6368b1119cf879b394e3da1d2ac1fdfb362345b12683f9521",
+    "desktop/app/src/shell/audio_preview_tests.rs": "16e1703605a621f16fd9c3bebfa56d8565343827d4c12405069b71218242b51a",
+    "desktop/app/src/shell/audio_preview_tests/native.rs": "bf7ef8504111756c65fc58c107ac935e5200d5a2320e204351c2f466c48f4fa1",
+    "desktop/app/src/shell/mod.rs": "7341e74263250ff59a0ec597f49a6947d61fe247682de6803199c3552248e490",
+    "desktop/app/src/shell/presentation.rs": "7b79c8132a04914661df4aed0cabbbc6d0de808d06c331a08a3cd69a7f62993e",
+    "desktop/app/src/shortcuts.rs": "68401be295e091dc9a6910cd4200cb95620b4d31d67347c4b42715a0e0baf9a5",
+    "desktop/app/src/shortcuts/bindings.rs": "93c3b79d0151a817376078f3eecda61b6b8b1fa719175885e6213dd4e5918c3f",
+    "desktop/app/src/shortcuts_documentation_tests.rs": "b6e9bca76c721ffcabfd396db3101caae9a06301bdcf611ef7c2653c25b6b85c",
+    "desktop/ui/src/input.rs": "6dde30179dc566b72e981d313a50cdc0252b24e3156e26e7f20e70897b024654"
+  },
+  "runs": [
+    {
+      "name": "audio",
+      "log": "audio-preview-main-audio.log",
+      "passed": 57,
+      "failed": 0,
+      "ignored": 2,
+      "sha256": "3daa3a6540c525c84269c74493ef0e63701fa1b845048dc95d220d8df1ca25da"
+    },
+    {
+      "name": "bindings",
+      "log": "audio-preview-main-bindings.log",
+      "passed": 73,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "3be668fa4182d2efefe737c35fb955f762c08fa1d4dedf659e2c5663b393dae8"
+    },
+    {
+      "name": "playback",
+      "log": "audio-preview-main-playback.log",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 1,
+      "sha256": "f32f4307e254529088f847e4e3626ab86882cbc18c07a610767988a80201c60c"
+    },
+    {
+      "name": "native",
+      "log": "audio-preview-main-native.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "1db3598de8a4bfcac3fede3b4e9dd22e19ec4411fd2dd4ed12c6fbb5f0c8573c"
+    },
+    {
+      "name": "mixer",
+      "log": "audio-preview-main-mixer.log",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "069885b1f17d89a833b526544d9731e15d55a98465089955d1bb5b961dcaa5cf"
+    },
+    {
+      "name": "build",
+      "log": "audio-preview-main-build.log",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "2b82215621866db770864a129b8d94b4149e65dc814be4749eae9702e03b4f3d"
+    },
+    {
+      "name": "key",
+      "log": "audio-preview-main-key.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "e219120a22c38100de5ea13bc956097177f2a71caba5a8ac9fc4410749fca8bf"
+    },
+    {
+      "name": "launch",
+      "log": "audio-preview-main-launch.log",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "38900e37e3cdc77c44e78f0d0bc50a9cdc1673e7c2604eec09e9741a370fb13f"
+    }
+  ],
+  "nativePngCount": 10,
+  "archive": "audio-preview-playback-evidence.zip",
+  "archiveSha256": "a229f8eea2285d1be06c37f104d6781487487002f3fd2e948170357a03128d72",
+  "binarySha256": "59287154d945975cfee84c2f0e8d58632aa1d2070fcdd88ca4e1c9bb0fbd5ec0",
+  "binaryProfile": "Windows dev, ffmpeg enabled",
+  "developmentFailures": "Pre-commit failures retained as development evidence, not relabeled as final-source validation",
+  "limits": [
+    "Groups overlap and must not be summed",
+    "One existing device test and sampling-cost test remain ignored; the new native test was explicitly executed",
+    "Windows native GPU and real device; floating panel production input API, no OS numpad injection",
+    "Retained preview can rebuild after invalidation or memory pressure; host sampling still runs",
+    "Remote CI pending"
+  ]
+}

@@ -167,6 +167,15 @@ pub(super) fn render(
                     true,
                 ),
                 (locale.t(T::Play).into(), Action::TogglePlay, true),
+                (
+                    panels.shortcut_bindings.label(
+                        if locale == Locale::Zh { "仅音频预览 / 停止" } else { "Audio-only preview / Stop" },
+                        crate::shortcuts::Scope::Application,
+                        crate::shortcuts::Command::AudioPreview,
+                    ),
+                    Action::ToggleAudioPreview,
+                    true,
+                ),
                 (locale.t(T::FirstFrame).into(), Action::Seek(0.0), true),
                 (
                     locale.t(T::LastFrame).into(),
