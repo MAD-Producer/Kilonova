@@ -1,5 +1,6 @@
 //! Stateful edit widgets. They emit transactions; callers decide how values enter an engine.
 pub mod numeric_behavior;
+pub mod menu;
 mod property_layout;
 mod text_history;
 mod text_input;
