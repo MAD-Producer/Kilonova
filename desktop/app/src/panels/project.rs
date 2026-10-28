@@ -392,7 +392,7 @@ pub(super) fn render(
         }
         let style = styles.resolve("row", states).expect("row style");
         box_style(&mut child, rect, style);
-        if let Some(bitmap)=(i-first < motion_ui::paint::MAX_BITMAPS.saturating_sub(1)).then(||panels.project.thumbnails.get(state,&entry.key)).flatten() {
+        if let Some(bitmap)=panels.project.thumbnails.get(state,&entry.key) {
             let [width,height]=bitmap.dimensions();
             let fit=(styles.metric("project.item.preview.width",32.)/width as f32).min(styles.metric("project.item.preview.height",18.)/height as f32);
             let w=width as f32*fit; let h=height as f32*fit;

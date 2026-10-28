@@ -117,6 +117,14 @@ fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_langua
     let video_id = shell.state["project"]["video_assets"][0]["id"]
         .as_u64()
         .unwrap();
+    // A project reopened after derived-cache cleanup must still show its poster.
+    let video_asset =
+        serde_json::from_value(shell.state["project"]["video_assets"][0].clone()).unwrap();
+    let poster = motion_media::video_cache_path(&root.join("project"), &video_asset)
+        .unwrap()
+        .with_extension("png");
+    std::fs::remove_file(&poster).unwrap();
+    shell.panels.project.thumbnails.refresh();
     let before = shell.state["project"].clone();
     let mut cases = Vec::new();
     for (locale, lang) in [(Locale::Zh, "zh"), (Locale::En, "en")] {
@@ -135,6 +143,7 @@ fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_langua
                 let (paint, actions) = frame(&mut shell, owner, size, Input::default());
                 run(&mut shell, &mut events, actions);
                 if paint.images.len() == 2 {
+                    assert!(shell.panels.project.thumbnails.message.is_none());
                     break paint;
                 }
                 assert!(

@@ -297,8 +297,9 @@ fn decode(
     }
     let root = PathBuf::from(root);
     let source = if kind == 0 {
-        let asset=serde_json::from_value::<motion_core::Asset>(value.clone()).map_err(|e| e.to_string())?;
-        motion_render::image_resources::Source::new(&root,&asset).map_err(|e|e.to_string())?
+        let asset = serde_json::from_value::<motion_core::Asset>(value.clone())
+            .map_err(|e| e.to_string())?;
+        motion_render::image_resources::Source::new(&root, &asset).map_err(|e| e.to_string())?
     } else {
         let video: motion_core::VideoAsset =
             serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
@@ -306,7 +307,15 @@ fn decode(
             .map_err(|e| e.to_string())?
             .with_extension("png");
         let base = root.canonicalize().map_err(|e| e.to_string())?;
-        let resolved = path.canonicalize().map_err(|e| e.to_string())?;
+        let resolved = match path.canonicalize() {
+            Ok(path) => path,
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {
+                // Derived cache absence is normal. Generate on this bounded
+                // worker; repaint never probes media or restarts a failed task.
+                return decode_video_source(&base, &video, cancel);
+            }
+            Err(cause) => return Err(cause.to_string()),
+        };
         if !resolved.starts_with(&base) {
             return Err("video thumbnail resolves outside project directory".into());
         }
@@ -330,6 +339,71 @@ fn decode(
     if cancel.load(Ordering::Acquire) {
         return Ok(None);
     }
+    Bitmap::new(decoded.width, decoded.height, decoded.rgba)
+        .map(Some)
+        .map_err(|e| e.to_string())
+}
+
+fn decode_video_source(
+    root: &std::path::Path,
+    video: &motion_core::VideoAsset,
+    cancel: &AtomicBool,
+) -> Result<Option<Arc<Bitmap>>, String> {
+    use motion_host::platform::Platform;
+    video.validate().map_err(|e| e.to_string())?;
+    if cancel.load(Ordering::Acquire) {
+        return Ok(None);
+    }
+    let path = root
+        .join(&video.path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !path.starts_with(root) {
+        return Err("video source resolves outside project directory".into());
+    }
+    let size = path.metadata().map_err(|e| e.to_string())?;
+    if !size.is_file() || size.len() != video.bytes {
+        return Err("video source size differs from registered asset".into());
+    }
+    const CANCELLED: &str = "project thumbnail cancelled";
+    let probe = motion_desktop_media::DesktopPlatform::new().probe_video(
+        &path,
+        Some(video.track),
+        Some(u32::MAX),
+        &|| {
+            if cancel.load(Ordering::Acquire) {
+                Err(CANCELLED.into())
+            } else {
+                Ok(())
+            }
+        },
+    );
+    let mut probe = match probe {
+        Ok(probe) => probe,
+        Err(cause) if matches!(cause.primary(), motion_media::Error::Message(s) if s == CANCELLED) => {
+            return Ok(None)
+        }
+        Err(cause) => return Err(cause.to_string()),
+    };
+    // Import supplies these three identity/association fields. All source
+    // metadata must still match before publishing a newly decoded poster.
+    probe.asset.id = video.id;
+    probe.asset.path = video.path.clone();
+    probe.asset.audio_asset = video.audio_asset;
+    if &probe.asset != video {
+        return Err("video source metadata differs from registered asset".into());
+    }
+    let decoded = match motion_render::image_resources::preview_rgba(
+        video.display_width,
+        video.display_height,
+        &probe.first_rgba,
+        128,
+        cancel,
+    ) {
+        Ok(decoded) => decoded,
+        Err(motion_render::image_resources::Error::Cancelled) => return Ok(None),
+        Err(cause) => return Err(cause.to_string()),
+    };
     Bitmap::new(decoded.width, decoded.height, decoded.rgba)
         .map(Some)
         .map_err(|e| e.to_string())
