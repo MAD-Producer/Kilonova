@@ -1,0 +1,197 @@
+{
+  "branch": "feat/panel-layout-consistency",
+  "implementationRevision": "6d141449b86dadc8c8c640d2da171fc6e365ffaf",
+  "baseRevision": "8f870211b77f443d785e432ba0f34f5f86e00d13",
+  "suiteRevision": "a1b843e9ef94cfc0035d3af5b87826ca010e7704",
+  "finalDelta": "Only English delete button text: Delete selected node -> Delete node",
+  "build": {
+    "command": "cargo build -p motion-desktop --features ffmpeg --locked --offline",
+    "exitCode": 0,
+    "log": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-6d141449\\build.log",
+    "warnings": 28
+  },
+  "tests": {
+    "passed": 304,
+    "ignored": 2,
+    "filters": [
+      {
+        "filter": "panels::properties",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-properties.log",
+        "summary": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 1319 filtered out; finished in 19.10s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::effect_controls",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-effect_controls.log",
+        "summary": "test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 1293 filtered out; finished in 30.34s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::path_controls",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-path_controls.log",
+        "summary": "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 1246 filtered out; finished in 37.11s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::key_navigation",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-key_navigation.log",
+        "summary": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1322 filtered out; finished in 33.50s",
+        "exitCode": 0
+      },
+      {
+        "filter": "node_editor::view",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/node_editor-view.log",
+        "summary": "test result: ok. 116 passed; 0 failed; 0 ignored; 0 measured; 1216 filtered out; finished in 20.14s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::camera_controls",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-camera_controls.log",
+        "summary": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 1321 filtered out; finished in 56.42s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::expressions",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-expressions.log",
+        "summary": "test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 1319 filtered out; finished in 17.77s",
+        "exitCode": 0
+      },
+      {
+        "filter": "panels::timeline_columns",
+        "log": "E:/Dev/aem/artifacts/panel-layout-consistency/verified-a1b843e9/panels-timeline_columns.log",
+        "summary": "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 1314 filtered out; finished in 2.45s",
+        "exitCode": 0
+      }
+    ],
+    "finalNodeRetest": {
+      "passed": 116,
+      "failed": 0,
+      "log": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-6d141449\\node_editor-view.log"
+    },
+    "sharedGeometry": {
+      "passed": 1,
+      "failed": 0,
+      "log": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\inspector-columns.log",
+      "sourceSha256": "b140f1890cf7866391a3366984a91ca19bad93e1146b233ab90a74a968240b06"
+    }
+  },
+  "checks": [
+    "verify_style_consumers",
+    "rustfmt --check desktop/ui/src/widgets/inspector.rs",
+    "git diff --check"
+  ],
+  "captures": [
+    {
+      "revision": "a1b843e9",
+      "locale": "zh",
+      "report": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-a1b843e9\\zh\\panels-zh.json",
+      "ok": true,
+      "panelCount": 19,
+      "designScreenCount": 46,
+      "testProjectUntouched": true
+    },
+    {
+      "revision": "a1b843e9",
+      "locale": "en",
+      "report": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-a1b843e9\\en\\panels-en.json",
+      "ok": true,
+      "panelCount": 19,
+      "designScreenCount": 46,
+      "testProjectUntouched": true
+    },
+    {
+      "revision": "6d141449",
+      "locale": "en",
+      "report": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-6d141449\\en\\panels-en.json",
+      "ok": true,
+      "panelCount": 19,
+      "designScreenCount": 46,
+      "testProjectUntouched": true
+    }
+  ],
+  "images": [
+    {
+      "file": "panel-layout-consistency/compact-navigation.png",
+      "size": [
+        840,
+        606
+      ],
+      "sha256": "7881e6ad4da6b2185feb644ab213cde5d1399a22bfda6bbb100ac726e6493aac"
+    },
+    {
+      "file": "panel-layout-consistency/effect-narrow-after.png",
+      "size": [
+        220,
+        560
+      ],
+      "sha256": "8cc7e319e3a93ad548dde0ec2a223dd0463506bcffdea5fb9f917c06d551d681"
+    },
+    {
+      "file": "panel-layout-consistency/effect-narrow-before.png",
+      "size": [
+        220,
+        560
+      ],
+      "sha256": "dfae2ae2b6a9a92cf084bb39b3410a22ff6d956ddddfe2ac93a600f7e406cf79"
+    },
+    {
+      "file": "panel-layout-consistency/effect-wide-after.png",
+      "size": [
+        360,
+        560
+      ],
+      "sha256": "002d7989d6479ceaf83948385c6fe98301901acd01c94ee1491a325068f5bd31"
+    },
+    {
+      "file": "panel-layout-consistency/node-properties-after.png",
+      "size": [
+        720,
+        520
+      ],
+      "sha256": "e0c22e0cd3c7c1b7b0e748325737cf5d371d52f5b9263825eac5913f4bd20efb"
+    },
+    {
+      "file": "panel-layout-consistency/node-properties-en-after.png",
+      "size": [
+        720,
+        520
+      ],
+      "sha256": "1d57b5687433e7f95439387f1b856ac1743ff676b2d00a953cb829b5afe7e190"
+    },
+    {
+      "file": "panel-layout-consistency/property-tree-after.png",
+      "size": [
+        360,
+        560
+      ],
+      "sha256": "7e54d24eedf3980b5daab6f9693420fcaf9250e014537d68f37d5e2a24d363d3"
+    },
+    {
+      "file": "panel-layout-consistency/vector-properties-after.png",
+      "size": [
+        720,
+        520
+      ],
+      "sha256": "5c6e89fa2734ab951b4e47f7512e2d440de1aa324ccba9f704bcefb0e898fbbb"
+    }
+  ],
+  "comparison": {
+    "before": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\after\\panels-zh.effect-controls-narrow.png",
+    "beforeDescription": "First local branch iteration, as shown in the user feedback; revision not stored in original capture receipt",
+    "after": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-a1b843e9\\zh\\panels-zh.effect-controls-narrow.png",
+    "wide": "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-a1b843e9\\zh\\panels-zh.effect-controls.png",
+    "processing": "Original pixels, external captions only; no rescaling or UI repaint"
+  },
+  "preservedFailures": [
+    "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\panels-effect_controls.log",
+    "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\node_editor-view.log",
+    "E:\\Dev\\aem\\artifacts\\panel-layout-consistency\\verified-a1b843e9\\test-build-command-error.log"
+  ],
+  "boundaries": [
+    "No new logging paths; existing failure-channel assertions retained",
+    "Epic overlay Vulkan JSON registration errors remain visible in capture logs",
+    "Full DPI/IME/state matrix and isolated performance comparison pending",
+    "Inline curve size/scroll policy and metadata localization unchanged",
+    "Timeline header is queued as a separate next batch"
+  ]
+}
