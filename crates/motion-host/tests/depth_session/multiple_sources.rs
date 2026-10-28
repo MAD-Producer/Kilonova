@@ -213,12 +213,24 @@ fn two_image_depth_results_render_together_and_pending_replacement_seek_and_canc
         s.frame = 1.;
         s.sample()?;
         let status = s.depth_status()?.unwrap();
+        assert_eq!((status.retained_samples, status.retained_bytes, status.retained_image_bytes), (2, 72, 72));
+        assert!(!status.installed, "clock changes still invalidate the last worker ticket");
+        assert_eq!(status.counts.completed, 7, "clock changes do not rerun static inference");
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(capture(id).1, pixels);
+    let retained_file = std::fs::read(root.path().join("exports/frame-000001.png")).unwrap();
+    motion_host::session::with_session(id, |s| {
+        s.cancel_depth()?;
+        let status = s.depth_status()?.unwrap();
         assert_eq!((status.retained_samples, status.retained_bytes), (0, 0));
         Ok(())
     })
     .unwrap();
     pending(id);
-    assert!(!root.path().join("exports/frame-000001.png").exists());
+    assert_eq!(std::fs::read(root.path().join("exports/frame-000001.png")).unwrap(), retained_file,
+        "explicit cancellation cannot overwrite the accepted playback output");
     request(id, 7, &seen);
     release(id, 8, &permit);
     pending(id);

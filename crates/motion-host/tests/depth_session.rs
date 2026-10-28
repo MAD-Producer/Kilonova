@@ -3,6 +3,10 @@
 mod multiple_sources;
 #[path = "depth_session/snapshots.rs"]
 mod snapshots;
+#[path = "depth_session/owned_image.rs"]
+mod owned_image;
+#[path = "depth_session/playback.rs"]
+mod playback;
 
 use motion_core::{Asset, Command, Engine, Project};
 use motion_host::{
@@ -233,7 +237,7 @@ fn calibration_command(session: &mut Session) -> Command {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn actual_png_capture_consumes_current_calibrated_geometry_and_refuses_stale_frames() {
+fn actual_png_capture_reuses_owned_static_depth_and_refuses_canceled_admissions() {
     let root = tempfile::tempdir().unwrap();
     let original = calibrated_source_session(root.path());
     let mut project = original.engine.project().clone();
@@ -283,8 +287,15 @@ fn actual_png_capture_consumes_current_calibrated_geometry_and_refuses_stale_fra
     let near = pixels.get_pixel(16,22).0;
     assert!(near[0]>40 && near[2]<10 && near[3]==255,"near calibrated photo must occlude the plane: {near:?}");
     motion_host::session::with_session(id,|s| { s.frame=1.; Ok(()) }).unwrap();
+    let reused = motion_host::ops::export::capture(id).unwrap();
+    assert_eq!(image::open(reused["path"].as_str().unwrap()).unwrap().to_rgba8(),pixels);
+    motion_host::session::with_session(id,|s| {
+        assert_eq!(s.depth_status()?.unwrap().counts.completed,2);
+        assert!(s.poll_depth()?.is_none(),"reusable original-image ownership is distinct from old worker tickets");
+        s.cancel_depth()
+    }).unwrap();
     assert!(motion_host::ops::export::capture(id).unwrap_err().to_string().contains("pending"));
-    assert!(!root.path().join("exports/frame-000001.png").exists());
+    assert_eq!(image::open(root.path().join("exports/frame-000001.png")).unwrap().to_rgba8(),pixels,"cancellation cannot overwrite the last accepted output");
     motion_host::session::with_session(id,|s| { s.request_image_depth(7,geometry(),model())?; Ok(()) }).unwrap();
     seen.recv_timeout(Duration::from_secs(5)).unwrap();
     motion_host::session::with_session(id,|s| { wait_done(s,3); s.poll_depth()?; Ok(()) }).unwrap();

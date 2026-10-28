@@ -1,3 +1,4 @@
+mod depth_images;
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
@@ -194,6 +195,7 @@ struct GeometryVertex {
 /// Facts computed once at a static image upload, never by reading GPU pixels.
 #[derive(Clone, Copy)]
 pub(crate) struct PlaneImageState {
+    pub(crate) depth_image: Option<[u8; 32]>,
     pub(crate) opaque: bool,
     /// A native geometry encode references this revision. Subsequent uploads
     /// replace it so pending command buffers keep their original image pixels.
@@ -558,7 +560,7 @@ impl Renderer {
             geometry_upload: Vec::with_capacity(MAX_LAYERS * 12),
             images: HashMap::from([(TextureKey::Static(0), GpuImage {
                 view: white_view, bind_group: white_group, bytes: 4, size: (1, 1),
-                video_stamp: None, plane_image: Some(PlaneImageState { opaque: true, frozen: false }), _texture: white_texture,
+                video_stamp: None, plane_image: Some(PlaneImageState { opaque: true, frozen: false, depth_image: None }), _texture: white_texture,
             })]),
             texture_bytes: 4,
             target_format: format,
@@ -1333,11 +1335,13 @@ impl Renderer {
             rgba
         };
         let plane_image = matches!(id, TextureKey::Static(_)).then(|| PlaneImageState {
+            depth_image: None,
             opaque: rgba.chunks_exact(4).all(|pixel| pixel[3] == 255),
             frozen: false,
         });
         if let Some(image) = self.images.get_mut(&id).filter(|i| {
-            i.size == (width, height) && i.plane_image.is_none_or(|state| !state.frozen)
+            i.size == (width, height) && i._texture.format() == TARGET_FORMAT
+                && i.plane_image.is_none_or(|state| !state.frozen)
         }) {
             self.allocation_uploads.track(image._texture.allocation()).map_err(|error| {
                 let message = format!("image key={id:?} phase=upload_track: {error}");
@@ -1514,11 +1518,31 @@ impl Renderer {
     /// renderer state. Unchanged frozen sources remain available without files.
     pub fn configure_assets_with_model_catalog(&mut self, project: &Project, root: &Path,
         catalog: &ModelSourceCatalog) -> Result<()> {
+        self.configure_assets_with_owned_depth(project, root, catalog, None)
+    }
+    /// Use independently admitted original pixels for calibrated depth layers.
+    /// Other sources retain ordinary canonical path resolution and decoding.
+    pub fn configure_assets_with_scene(&mut self, project: &Project, root: &Path, scene: &Scene) -> Result<()> {
+        self.configure_assets_with_owned_depth(project, root, &scene.model_source_catalog(), Some(scene))
+    }
+    fn configure_assets_with_owned_depth(&mut self, project: &Project, root: &Path,
+        catalog: &ModelSourceCatalog, scene: Option<&Scene>) -> Result<()> {
         // Keep all fallible source resolution before any live cache/catalog
         // mutation: host command preparation relies on Err being non-destructive.
         let mut sources = HashMap::new();
         for asset in &project.assets {
-            let source = crate::image_resources::Source::new(root, asset)?;
+            let owned = scene.and_then(|scene| scene.calibrated_source_images().find(|(id, _)| *id == asset.id));
+            let source = if let Some((_, image)) = owned {
+                motion_model::storage::validate_relative_path(&asset.path)?;
+                if image.size() != [asset.width, asset.height] {
+                    return Err(RenderError::Invalid(format!("depth image source={} phase=catalog: dimensions differ", asset.id)));
+                }
+                let base = root.canonicalize()?;
+                // This is a logical source name only. Pixels come from the
+                // owned admission; no symlink or source file is opened here.
+                crate::image_resources::Source { id: asset.id, path: base.join(&asset.path),
+                    root: base, width: asset.width, height: asset.height }
+            } else { crate::image_resources::Source::new(root, asset)? };
             sources.insert(asset.id, source);
         }
         let model_sources = ModelSourceCatalog::prepare(project, root, catalog)?.prepared_sources();
@@ -1668,6 +1692,7 @@ impl Renderer {
         }).collect();
         for id in stale { self.remove_static_image(id); }
         self.trim_image_cache(0);
+        self.prepare_owned_depth_images(scene, resolution, decode_budget)?;
         let demand_missing = wanted.iter().any(|id| !self.images.contains_key(&TextureKey::Static(*id)));
         let allowed = crate::image_resources::allowed_assets(&wanted, &self.image_prefetch,
             self.image_cache_enabled && asynchronous && !demand_missing);

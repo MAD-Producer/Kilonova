@@ -79,6 +79,7 @@ pub(crate) struct CalibrationSample {
     request: u64,
     estimate: Arc<Estimate>,
     input: PreparedDepthInput,
+    image: Option<motion_render::DepthImage>,
     source: Source,
     key: Identity,
     frame: f64,
@@ -125,13 +126,21 @@ impl CalibrationSample {
 }
 impl Binding {
     fn current(&self, session: &Session) -> bool {
-        self.document == session.document_generation
+        self.frame == session.frame && self.current_document(session)
+    }
+    fn current_document(&self, session: &Session) -> bool {
+        session.frame.is_finite()
+            && self.document == session.document_generation
             && self.revision == session.engine.revision()
-            && self.frame == session.frame
             && self.composition == session.engine.project().composition_id
             && self.root == session.root
             && self.decoded_budget == session.effects.memory_policy().decoded_image_budget_bytes
             && self.source.current(session, &self.key)
+    }
+    fn retained_current(&self, session: &Session, owns_original: bool) -> bool {
+        self.current_document(session)
+            && (self.frame == session.frame
+                || (owns_original && matches!(self.source, Source::Image(_))))
     }
 }
 impl Session {
@@ -178,6 +187,7 @@ impl Session {
             request: binding.request,
             estimate: estimate.clone(),
             input: *input,
+            image: None,
             source: binding.source.clone(),
             key: binding.key.clone(),
             frame: binding.frame,
@@ -271,15 +281,25 @@ impl Session {
             else {
                 return Ok(false);
             };
-            let Identity::Sample(key) = &sample.key else {
-                return Err(format!("calibrated depth object={object} phase=render: video geometry routing is not implemented").into());
+            let current = match &sample.key {
+                Identity::Sample(key) => key.source.clone(),
+                Identity::Video(key) => {
+                    // saved_depth_sample already guarded the current document,
+                    // exact composition frame, object and source target. The
+                    // worker independently checked the actual indexed PTS/end.
+                    // Preserve that PTS; never substitute the requested target.
+                    let decoded = &sample.estimate.resource.descriptor().source;
+                    DepthSource { asset: key.asset, revision: key.revision, pts: decoded.pts }
+                }
             };
-            scene.attach_calibrated_depth(
-                object,
-                &key.source,
-                &sample.estimate.resource,
-                sample.input,
-            )?;
+            match &sample.image {
+                Some(image) => scene.attach_calibrated_depth_image(
+                    object, &current, &sample.estimate.resource, sample.input, image.clone(),
+                )?,
+                None => scene.attach_calibrated_depth(
+                    object, &current, &sample.estimate.resource, sample.input,
+                )?,
+            }
         }
         Ok(true)
     }
@@ -297,7 +317,7 @@ impl Session {
         };
         let mut rejected = None;
         for entry in &state.retained.entries {
-            if !entry.binding.current(self)
+            if !entry.binding.retained_current(self, entry.image.is_some())
                 || entry.estimate.resource.descriptor().source.asset != calibration.asset()
             {
                 continue;
@@ -541,13 +561,14 @@ impl Session {
             Identity::Video(key) => state.jobs.take_video_prepared_ready(key)?,
         };
         if let Some(estimate) = ready {
-            let (estimate, input) = estimate.into_parts();
+            let (estimate, input, image) = estimate.into_owned_parts();
             let estimate = Arc::new(estimate);
             state.retained.admit(
                 retained::Entry {
                     binding: binding.clone(),
                     estimate: estimate.clone(),
                     input,
+                    image,
                 },
                 motion_model::depth::MAX_DEPTH_RESOURCE_BYTES,
                 motion_model::MAX_LAYERS,
@@ -598,6 +619,7 @@ impl Session {
                     queue_depth: state.jobs.queue_depth()?,
                     retained_samples: state.retained.entries.len(),
                     retained_bytes: state.retained.bytes,
+                    retained_image_bytes: state.retained.image_bytes,
                     retention_rejections: state.retained.rejections,
                 })
             })
@@ -605,14 +627,18 @@ impl Session {
     }
 
     pub(super) fn synchronize_depth(&mut self) -> Result<()> {
-        if self
-            .depth
-            .as_ref()
-            .and_then(|state| state.binding.as_ref())
-            .is_some_and(|binding| !binding.current(self))
-        {
-            self.cancel_depth()?;
-        }
-        Ok(())
+        let Some(mut state) = self.depth.take() else { return Ok(()); };
+        // Completed static images retain the exact original pixels. Their
+        // immutable source sample is independent of the composition clock.
+        // Pending worker tickets remain strictly frame-bound and are canceled.
+        state.retained.retain(|entry| entry.binding.retained_current(self, entry.image.is_some()));
+        let result = if state.binding.as_ref().is_some_and(|binding| !binding.current(self)) {
+            state.binding = None;
+            state.installed = None;
+            state.jobs.cancel().map_err(crate::Error::from)
+        } else { Ok(()) };
+        // Restore ownership even if worker cancellation reports a poisoned lock.
+        self.depth = Some(state);
+        result
     }
 }

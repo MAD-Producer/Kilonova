@@ -218,6 +218,9 @@ fn actual_png_keeps_calibrated_geometry_after_seek_close_and_original_source_rem
             session.poll_depth().unwrap().is_none(),
             "live result remains frame-bound"
         );
+        assert!(frame::FrameFreezePlan::capture(&session, None, &ExportControl::default()).is_ok(),
+            "immutable admitted static sources can freeze at another camera time");
+        session.cancel_depth().unwrap();
         assert!(
             frame::FrameFreezePlan::capture(&session, None, &ExportControl::default())
                 .err()

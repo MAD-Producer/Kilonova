@@ -203,7 +203,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             .set_memory_policy(s.effects.memory_policy())
             .map_err(crate::Error::from)?;
         renderer
-            .configure_assets_with_model_catalog(p, &s.root, &scene.model_source_catalog())
+            .configure_assets_with_scene(p, &s.root, &scene)
             .map_err(crate::Error::from)?;
         renderer.retain_video_instances(&scene);
         renderer
