@@ -418,6 +418,7 @@ pub fn chrome(
         panels.locale,
         panels.selected,
         panels.focused == Some(Panel::Timeline)
+            && panels.menu.is_none()
             && !panels.timeline_columns.editing()
             && !panels.timeline.comparison.keyboard_focus()
             && !panels.parent_controls.open

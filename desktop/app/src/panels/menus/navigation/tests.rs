@@ -21,6 +21,45 @@ fn frame(panels: &mut Panels, state: &Value, atlas: &mut TextAtlas, input: &Inpu
     out
 }
 #[test]
+fn shared_menu_main_chrome_keeps_enter_away_from_timeline_rename() {
+    for locale in [Locale::Zh, Locale::En] {
+        let mut project = motion_core::Project::new(64, 64, 30, 60).unwrap();
+        project.layers.push(motion_core::Layer::solid(
+            7, "Layer", [32.; 2], [0.; 3], [1.; 4],
+        ));
+        let state = serde_json::json!({"root":"a","composition":project.composition_id,"frame":0.,"timeline_layers":project.timeline_layers(0.).unwrap(),"project":project});
+        let mut panels = Panels {
+            locale,
+            selected: Some(7),
+            focused: Some(Panel::Timeline),
+            menu: Some(7),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let mut run = |panels: &mut Panels, input: &Input| {
+            crate::panels::chrome(
+                &mut PaintList::default(),
+                &mut atlas,
+                [900., 600.],
+                &dock::Node::dock(Panel::Timeline.dock()),
+                panels,
+                &state,
+                input,
+            )
+        };
+        assert!(run(&mut panels, &key(Key::End)).is_empty());
+        assert!(run(&mut panels, &key(Key::Enter)).is_empty());
+        assert_eq!(panels.menu_navigation.cards.len(), 2);
+        assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+        assert!(run(&mut panels, &key(Key::Escape)).is_empty());
+        assert_eq!(panels.menu, Some(7));
+        assert_eq!(panels.menu_navigation.cards.len(), 1);
+        assert!(run(&mut panels, &key(Key::Escape)).is_empty());
+        assert_eq!(panels.menu, None);
+        assert!(!panels.layer_actions.editing());
+    }
+}
+#[test]
 fn shared_menu_application_navigation_opens_child_without_executing_and_escape_returns_to_parent() {
     for locale in [Locale::Zh, Locale::En] {
         let mut atlas = TextAtlas::from_system(12.).unwrap();
