@@ -15,6 +15,7 @@ pub(super) struct State {
     binding: Option<Binding>,
     installed: Option<(Arc<Estimate>, PreparedDepthInput, Option<u64>)>,
     retained: retained::Results,
+    archive: Option<(Binding, Arc<depth::storage::Store>)>,
 }
 #[derive(Clone)]
 struct Binding {
@@ -512,6 +513,7 @@ impl Session {
             binding: None,
             installed: None,
             retained: retained::Results::default(),
+            archive: None,
         });
         Ok(())
     }
@@ -650,13 +652,27 @@ impl Session {
             .depth
             .as_mut()
             .ok_or(depth::Error::Invalid("depth backend not configured"))?;
+        let binding = Binding {
+            request: 0,
+            key: Identity::Video(key.clone()),
+            document: self.document_generation,
+            revision: self.engine.revision(),
+            frame: self.frame,
+            composition: project.composition_id.clone(),
+            root: self.root.clone(),
+            source: Source::Video { asset: asset.clone(), object },
+            decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
+        };
+        let store = if timeline {
+            Some(state.archive.get_or_insert_with(|| (binding.clone(), Arc::new(depth::storage::Store::new()))).1.clone())
+        } else { None };
         let request = state.jobs.request_video(VideoInput {
             key: key.clone(),
             root: self.root.clone(),
             asset: asset.clone(),
             platform: self.platform.clone(),
             budget: self.effects.memory_policy().decoded_image_budget_bytes,
-        })?;
+        }, store)?;
         state.binding = Some(Binding {
             request,
             key: Identity::Video(key.clone()),
@@ -739,6 +755,7 @@ impl Session {
             state.binding = None;
             state.installed = None;
             state.retained.clear();
+            state.archive = None;
             state.jobs.cancel()?;
         }
         Ok(())
@@ -750,6 +767,7 @@ impl Session {
         self.depth
             .as_ref()
             .map(|state| {
+                let stored = state.archive.as_ref().map(|(_, store)| store.stats()).transpose()?.unwrap_or_default();
                 Ok(SessionStatus {
                     request: state.binding.as_ref().map(|b| b.request),
                     installed: state.installed.is_some(),
@@ -760,6 +778,9 @@ impl Session {
                     retained_bytes: state.retained.bytes,
                     retained_image_bytes: state.retained.image_bytes,
                     retention_rejections: state.retained.rejections,
+                    stored_samples: stored.samples,
+                    stored_bytes: stored.bytes,
+                    storage_rejections: stored.rejections,
                 })
             })
             .transpose()
@@ -767,6 +788,9 @@ impl Session {
 
     pub(super) fn synchronize_depth(&mut self) -> Result<()> {
         let Some(mut state) = self.depth.take() else { return Ok(()); };
+        if state.archive.as_ref().is_some_and(|(scope, _)| !scope.document_matches(self)) {
+            state.archive = None;
+        }
         // Completed static images retain the exact original pixels. Their
         // immutable source sample is independent of the composition clock.
         // Pending tickets remain frame-bound except within an explicitly saved

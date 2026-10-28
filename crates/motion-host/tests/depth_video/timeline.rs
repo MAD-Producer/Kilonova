@@ -2,6 +2,118 @@
 //! pending worker. No second decoder supplies colors after depth admission.
 use super::*;
 
+#[test]
+fn indexed_spill_keeps_150_samples_after_the_128_sample_live_cache_evicts_the_first() {
+    let mut f = fixture(Mode::ManyFrames);
+    for frame in 0..150 {
+        f.session.frame = f64::from(frame);
+        request(&mut f.session).unwrap();
+        done(&mut f.session, frame as u64 + 1);
+        f.session.poll_depth().unwrap().unwrap();
+        let command = author_indexed_sample(&mut f.session, f64::from((10 + frame * 40) % 256));
+        f.session.apply_command_batch(vec![command]).unwrap();
+        f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    }
+    // Establish all admissions at one final document revision. Authoring a new
+    // calibration intentionally invalidates previous revision ownership.
+    for frame in 0..150 {
+        f.session.frame = f64::from(frame);
+        request(&mut f.session).unwrap();
+        done(&mut f.session, frame as u64 + 151);
+        let result = f.session.poll_depth().unwrap().unwrap();
+        assert_eq!(result.resource.descriptor().source.pts.ticks, 10_000 + i64::from(frame) * 40_000);
+        f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    }
+    let before = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((before.retained_samples, before.stored_samples), (128, 150));
+    assert_eq!((before.stored_bytes, before.counts.restored), (150 * 24, 0));
+    // Frame zero is no longer in the live FIFO. A new worker admission must
+    // recover its exact scalar/RGB pair without invoking inference again.
+    f.session.frame = 0.;
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 301);
+    let restored = f.session.poll_depth().unwrap().unwrap();
+    assert_eq!(restored.resource.values(), &[10., 11., 12., 13., 14., 15.]);
+    assert!(f.session.bound_depth_calibration(1).unwrap().is_some());
+    assert!(f.seen.try_recv().is_err());
+    let after = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((after.retained_samples, after.stored_samples, after.stored_bytes, after.counts.restored), (128, 150, 3600, 1));
+    assert_eq!(f.platform.opens.load(Ordering::SeqCst), 301);
+}
+
+#[test]
+fn indexed_spill_restores_verified_source_without_running_backend_again_and_resets_with_document() {
+    let mut authored = fixture(Mode::Rgba);
+    for (index, frame, low) in [(1, 0., 10.), (2, 1., 40.)] {
+        authored.session.frame = frame;
+        request(&mut authored.session).unwrap();
+        done(&mut authored.session, index);
+        authored.session.poll_depth().unwrap().unwrap();
+        let command = author_indexed_sample(&mut authored.session, low);
+        authored.session.apply_command_batch(vec![command]).unwrap();
+    }
+    let mut f = fixture(Mode::Rgba);
+    f.session.replace_project(motion_core::Engine::new(authored.session.engine.snapshot()).unwrap(), f.dir.path().into()).unwrap();
+    for (count, frame) in [(1, 0.), (2, 1.)] {
+        f.session.frame = frame;
+        request(&mut f.session).unwrap();
+        done(&mut f.session, count);
+        f.session.poll_depth().unwrap().unwrap();
+        f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    }
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.stored_samples, status.stored_bytes, status.storage_rejections), (2, 48, 0));
+    // An explicit request evicts this interval's live result. It must decode
+    // the original again but restore its stored scalar planes without inference.
+    f.session.frame = 0.;
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 3);
+    let restored = f.session.poll_depth().unwrap().unwrap();
+    assert_eq!(restored.resource.descriptor().source.pts.ticks, 10_000);
+    assert!(f.seen.try_recv().is_err(), "restore must not run the backend");
+    assert_eq!(f.platform.opens.load(Ordering::SeqCst), 3);
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.stored_samples, status.stored_bytes, status.counts.restored), (2, 48, 1));
+    assert!(f.session.bound_depth_calibration(1).unwrap().is_some());
+    let project = f.session.engine.snapshot();
+    f.session.replace_project(motion_core::Engine::new(project).unwrap(), f.dir.path().into()).unwrap();
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.stored_samples, status.stored_bytes), (0, 0));
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 4);
+    f.session.poll_depth().unwrap().unwrap();
+    f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert_eq!(f.session.depth_status().unwrap().unwrap().counts.restored, 1);
+    f.session.cancel_depth().unwrap();
+    assert_eq!(f.session.depth_status().unwrap().unwrap().stored_samples, 0);
+}
+
+#[test]
+fn indexed_spill_io_failure_is_reported_at_default_info_without_publishing_a_success() {
+    let mut authored = fixture(Mode::Rgba);
+    request(&mut authored.session).unwrap();
+    done(&mut authored.session, 1);
+    authored.session.poll_depth().unwrap().unwrap();
+    let command = author_indexed_sample(&mut authored.session, 10.);
+    authored.session.apply_command_batch(vec![command]).unwrap();
+    let mut f = fixture(Mode::BlockBackend);
+    f.session.replace_project(motion_core::Engine::new(authored.session.engine.snapshot()).unwrap(), f.dir.path().into()).unwrap();
+    let request_id = request(&mut f.session).unwrap();
+    f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    // Decoding has completed and the backend is controlled. Removing the test
+    // root now forces a real tempfile creation failure in the storage phase.
+    std::fs::remove_dir_all(f.dir.path()).unwrap();
+    f.release.send(()).unwrap();
+    done(&mut f.session, 1);
+    assert!(f.session.poll_depth().is_err());
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.counts.failed, status.stored_samples, status.retained_samples), (1, 0, 0));
+    let lines = LOG.0.lock().unwrap().clone();
+    assert!(lines.iter().any(|line| line.contains(&format!("start #{request_id} depth_spill object=1 asset=74"))), "{lines:?}");
+    assert!(lines.iter().any(|line| line.contains(&format!("request={request_id} operation=depth_infer asset=74"))
+        && line.contains("stage=archive_write") && line.contains("cause=")), "{lines:?}");
+}
+
 struct FourthGate {
     echo: Echo,
     calls: usize,
