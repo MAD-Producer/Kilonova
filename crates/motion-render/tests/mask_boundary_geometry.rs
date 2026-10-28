@@ -69,6 +69,8 @@ fn sections_follow_union_and_erosion_instead_of_a_bounding_rectangle() {
 fn invalid_inputs_are_errors_and_empty_geometry_is_a_normal_miss() {
     for (shape, size, rect, expansion, density) in [
         (rectangle(), [0., 96.], [0., 0., 96., 96.], 0., 1.),
+        (rectangle(), [1e-38, 96.], [0., 0., 96., 96.], 0., 1.),
+        (vec![], [96., 96.], [f32::MAX, 0., f32::MAX, 96.], 0., 1.),
         (rectangle(), [96., 96.], [0., 0., f32::NAN, 96.], 0., 1.),
         (
             rectangle(),

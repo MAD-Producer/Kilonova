@@ -18,10 +18,15 @@ impl BoundaryGeometry {
         expansion: f32,
         density: f32,
     ) -> Result<Self, RenderError> {
+        let center = [
+            source_rect[0] + source_rect[2] * 0.5,
+            source_rect[1] + source_rect[3] * 0.5,
+        ];
         if nodes.len() > motion_model::masks::MAX_MASK_NODES
             || nodes.iter().flatten().any(|v| !v.is_finite())
             || source_rect.iter().any(|v| !v.is_finite())
             || source_rect[2..].iter().any(|v| *v <= 0.)
+            || center.iter().any(|v| !v.is_finite())
             || size.iter().any(|v| !v.is_finite() || *v <= 0.)
             || !expansion.is_finite()
             || expansion.abs() > 32000.
@@ -37,13 +42,17 @@ impl BoundaryGeometry {
             density,
             vector_mesh::MAX_TRIANGLE_VERTICES,
         )?;
+        if vertices
+            .iter()
+            .flat_map(|vertex| vertex.position)
+            .any(|v| !v.is_finite())
+        {
+            return Err("non-finite normalized mask boundary geometry".into());
+        }
         Ok(Self {
             vertices,
             size,
-            center: [
-                source_rect[0] + source_rect[2] * 0.5,
-                source_rect[1] + source_rect[3] * 0.5,
-            ],
+            center,
         })
     }
 
