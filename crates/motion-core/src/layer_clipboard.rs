@@ -79,6 +79,9 @@ fn remap_content(
         }
         _ => {}
     }
+    if let Some(calibration) = &mut layer.depth_calibration {
+        calibration.remap_asset(mapped(assets, calibration.asset(), "calibrated source")?);
+    }
     for effect in &mut layer.effects {
         if let Some(EffectImageInput::Asset { asset }) = &mut effect.image_input {
             *asset = mapped(assets, *asset, "effect image")?;
