@@ -235,6 +235,14 @@ pub enum Command {
         ui: UiFrame,
         reply: Sender<Result<bool, String>>,
     },
+    PresentFrozen {
+        ui: UiFrame,
+        reply: Sender<Result<bool, String>>,
+    },
+    SeekAudioPreview {
+        frame: f64,
+        reply: Sender<Result<Value, String>>,
+    },
     OpenDirectory {
         directory: PathBuf,
         reply: Sender<Result<Value, String>>,
@@ -427,7 +435,7 @@ impl Command {
             KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
             PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
-            NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => {
+            NodeInstall { reply, .. } | Present { reply, .. } | PresentFrozen { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
             }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
@@ -440,7 +448,7 @@ impl Command {
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
             | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
-            | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
+            | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. } | SeekAudioPreview { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
@@ -1107,6 +1115,10 @@ impl Engine {
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::Seek { frame, reply })
     }
+    pub(crate) fn seek_audio_preview_async(&self, frame: f64)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::SeekAudioPreview { frame, reply })
+    }
     pub fn view(&self, kind: i32) -> Result<Value, String> {
         self.call(|reply| Command::View { kind, reply })
     }
@@ -1359,6 +1371,10 @@ impl Engine {
     ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
         self.request(|reply| Command::Present { ui, reply })
     }
+    pub(crate) fn present_frozen_async(&self, ui: UiFrame)
+        -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        self.request(|reply| Command::PresentFrozen { ui, reply })
+    }
 }
 
 impl Drop for Engine {
@@ -1507,14 +1523,17 @@ fn handle(
     factory: &Mutex<Option<SurfaceFactory>>,
     command: Command,
 ) -> bool {
-    // Capture, project operations and view changes can overwrite the shared
-    // scratch texture. A read-only state request leaves it reusable.
+    // Project operations and view changes can overwrite the shared scratch.
+    // UI captures only read it. Audio clock seeks preserve the old stamp:
+    // frozen presentation may reuse it, ordinary presentation still compares time.
     if !matches!(
         &command,
-        Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. }
+        Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
+        | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
     ) {
         presentation.retained = None;
     }
+    let frozen = matches!(&command, Command::PresentFrozen { .. });
     match command {
         #[cfg(test)]
         Command::TestStudy { operation, reply } => respond(reply, operation(id)),
@@ -1773,7 +1792,7 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { mut ui, reply } => {
+        Command::Present { mut ui, reply } | Command::PresentFrozen { mut ui, reply } => {
         let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
         let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
@@ -1796,7 +1815,12 @@ fn handle(
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
-                    let reuse=presentation.retained.as_ref()==Some(&stamp)
+                    let retained=presentation.retained.clone();
+                    let reuse=retained.as_ref().is_some_and(|previous| {
+                        let mut comparison=stamp.clone();
+                        if frozen { comparison.frame=previous.frame; }
+                        previous==&comparison
+                    })
                         && !s.preview_memory_held && s.last_error.is_none();
                     let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
                     // The overlay targets the swapchain, not the composition scratch texture.
@@ -1843,7 +1867,9 @@ fn handle(
                     presentation.retained=if result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
-                    {Some(stamp)}else{None};
+                    // Never relabel the frozen texture with the new clock:
+                    // stopping must render the current frame again.
+                    {if frozen && reuse {retained}else{Some(stamp)}}else{None};
                     result
                 }else{
                     #[cfg(test)]
@@ -1957,7 +1983,7 @@ fn handle(
             height,
             reply,
         } => respond(reply,editing::drag(id, object, dx, dy, width, height)),
-        Command::Seek { frame, reply } => respond(reply,preview::seek(id, frame)),
+        Command::Seek { frame, reply } | Command::SeekAudioPreview { frame, reply } => respond(reply,preview::seek(id, frame)),
         Command::View { kind, reply } => respond(reply,preview::view(id, kind)),
         Command::CameraGesture { action, reply } => respond(reply,preview::camera_gesture(id, action)),
         Command::Observe {

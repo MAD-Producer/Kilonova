@@ -157,6 +157,7 @@ impl Shell {
             Action::History(_) => "history",
             Action::Plugin(_) => "plugin",
             Action::TogglePlay => "toggle_play",
+            Action::ToggleAudioPreview => "toggle_audio_preview",
             Action::PreviewDrag { .. } => "preview_drag",
             Action::SelectAt(_) => "select_at",
             Action::ExportDiagnostics => "export_diagnostics",
@@ -860,7 +861,8 @@ impl Shell {
                 self.frame = frame;
                 self.editing = Some((Instant::now(), self.engine.seek_async(frame)?));
             }
-            Action::TogglePlay => {
+            Action::TogglePlay | Action::ToggleAudioPreview => {
+                let audio_only = matches!(action, Action::ToggleAudioPreview);
                 if std::env::var_os("MOTION_TRACE_UI").is_some() {
                     log::debug!(
                         "[motion-ui] toggle playback, previously {}",
@@ -873,14 +875,29 @@ impl Shell {
                     let project = serde_json::from_value::<Project>(self.state["project"].clone())
                         .map_err(|error| error.to_string())?;
                     let plan = crate::preview_playback::Plan::new(&project, self.workspace.preview_playback, self.frame)?;
-                    self.frame = plan.origin;
-                    if self.state["has_audio"].as_bool().unwrap_or(false) {
+                    let has_audio = self.state["has_audio"].as_bool().unwrap_or(false);
+                    if audio_only && !has_audio {
+                        if let Some(error) = self.state["audio_error"].as_str() {
+                            log::error!("audio preview failed phase=plan composition={} frame={} cause={error}", project.composition_id, self.frame);
+                            return Err(error.to_owned());
+                        }
+                        // An empty composition is a normal audition miss. Never
+                        // start a silent wall-clock fallback for an audio request.
+                        self.panels.message = Some(if self.workspace.locale == Locale::Zh {
+                            "合成中没有可预览的音频；拖动播放头时保持静音。"
+                        } else {
+                            "No audio to preview in this composition; scrubbing stays silent."
+                        }.into());
+                        self.dirty = true;
+                        return Ok(());
+                    }
+                    if has_audio {
                         match audio_output::AudioOutput::start_in_range(
                             project,
                             std::path::Path::new(
                                 self.state["root"].as_str().ok_or("project root missing")?,
                             ),
-                            self.frame,
+                            plan.origin,
                             plan.range,
                             plan.looping,
                         ) {
@@ -889,10 +906,13 @@ impl Shell {
                                 self.panels.message = Some(format!(
                                     "{}: {error}",
                                     self.workspace.locale.t(T::AudioUnavailable)
-                                ))
+                                ));
+                                if audio_only { self.dirty = true; return Ok(()); }
                             }
                         }
                     }
+                    self.frame = plan.origin;
+                    self.audio_only_preview = audio_only;
                     self.playback = Some((Instant::now(), self.frame));
                     self.playback_plan = Some(plan);
                     self.panels.playing = true;
@@ -949,6 +969,7 @@ impl Shell {
         }
         self.playback = None;
         self.playback_plan = None;
+        self.audio_only_preview = false;
         self.next_composition = Instant::now();
         self.panels.playing = false;
     }

@@ -303,6 +303,7 @@ struct Shell {
     frame: f64,
     playback: Option<(Instant, f64)>,
     playback_plan: Option<preview_playback::Plan>,
+    audio_only_preview: bool,
     next_composition: Instant,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
@@ -439,6 +440,7 @@ impl Shell {
             frame: 0.0,
             playback: None,
             playback_plan: None,
+            audio_only_preview: false,
             next_composition: Instant::now(),
             audio: None,
             freezing_movie: None,
@@ -1221,9 +1223,21 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
 }
 
 /// Main and floating windows normalize keyboard input through the same adapter.
+fn translate_keyboard_key(logical: &WinitKey, physical: winit::keyboard::PhysicalKey) -> Option<Key> {
+    // Respect NumLock: the same physical key can be Delete. Decimal separators
+    // vary by keyboard locale; text input still comes from event.text below.
+    if physical == winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::NumpadDecimal)
+        && matches!(logical, WinitKey::Character(text) if matches!(text.as_str(), "." | ","))
+    {
+        Some(Key::NumpadDecimal)
+    } else {
+        translate_key(logical)
+    }
+}
+
 fn keyboard_events(event: &winit::event::KeyEvent, input: &Input) -> Vec<Event> {
     let mut result = vec![];
-    if let Some(key) = translate_key(&event.logical_key) {
+    if let Some(key) = translate_keyboard_key(&event.logical_key, event.physical_key) {
         let modifiers = input.modifiers;
         result.push(if event.state == ElementState::Released {
             Event::KeyReleased { key, modifiers }
@@ -1262,6 +1276,19 @@ fn translate_ime(ime: winit::event::Ime) -> Option<Event> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn numpad_decimal_preserves_locale_text_numlock_and_regular_punctuation() {
+        use winit::keyboard::{KeyCode, PhysicalKey};
+        let numpad = PhysicalKey::Code(KeyCode::NumpadDecimal);
+        for separator in [".", ","] {
+            assert_eq!(translate_keyboard_key(&WinitKey::Character(separator.into()), numpad), Some(Key::NumpadDecimal));
+        }
+        assert_eq!(translate_keyboard_key(&WinitKey::Named(NamedKey::Delete), numpad), Some(Key::Delete));
+        assert_eq!(translate_keyboard_key(&WinitKey::Character(".".into()), PhysicalKey::Code(KeyCode::Period)), Some(Key::Period));
+        assert_eq!(translate_keyboard_key(&WinitKey::Character(",".into()), PhysicalKey::Code(KeyCode::Comma)), Some(Key::Comma));
+        let json = serde_json::to_string(&Key::NumpadDecimal).unwrap();
+        assert_eq!(serde_json::from_str::<Key>(&json).unwrap(), Key::NumpadDecimal);
+    }
     #[test]
     fn configurable_chords_normalize_new_letters_digits_function_keys_and_shifted_symbols() {
         for (text,key) in [("B",Key::B),("c",Key::C),("e",Key::E),("H",Key::H),("l",Key::L),("q",Key::Q),("v",Key::V),("w",Key::W),

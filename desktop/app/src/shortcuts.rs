@@ -38,6 +38,7 @@ pub enum Command {
     Undo,
     Redo,
     Play,
+    AudioPreview,
     PreviousFrame,
     NextFrame,
     FirstFrame,
@@ -197,6 +198,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Application, Key::Comma, true, false, false) => Preferences,
         (Application, Key::M, true, false, true) => Export,
         (Application, Key::Space, false, false, false) => Play,
+        (Application, Key::NumpadDecimal, false, false, false) => AudioPreview,
         (Application, Key::Home, false, false, false) => FirstFrame,
         (Application, Key::End, false, false, false) => LastFrame,
         (Application, Key::PageUp, false, _, false) | (Application, Key::Left, _, _, false) => {

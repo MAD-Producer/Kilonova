@@ -6,6 +6,11 @@ use motion_ui::dock::Panel;
 mod curve_playback_tests;
 
 impl Shell {
+    pub(crate) fn present_ui_async(&self, ui: UiFrame)
+        -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        if self.audio_only_preview { self.engine.present_frozen_async(ui) }
+        else { self.engine.present_async(ui) }
+    }
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
         if state["editorAction"]["cancelled"]==true && state["editorAction"]["operation"]=="keyframe_timing" {
             self.reject_stale_keyframe_timing();
@@ -28,15 +33,15 @@ impl Shell {
                 .values()
                 .all(|window| !playback_input_blocks(&window.input))
             && now >= self.next_composition
-            && self.attached
-            && self.rendering.is_empty()
-            && self.exposure_presentations.is_empty()
             && self.editing.is_none()
             && !self.layer_clipboard.committing()
-            && !self.present_due
             && self.actions.is_empty()
-            && self.resizing.is_none()
-            && self.resize_queue.is_empty()
+            && (self.audio_only_preview || (self.attached
+                && self.rendering.is_empty()
+                && self.exposure_presentations.is_empty()
+                && !self.present_due
+                && self.resizing.is_none()
+                && self.resize_queue.is_empty()))
     }
     // A chrome-only reply in another native window cannot acknowledge a
     // partially accumulated composition. Explicit user seeks still supersede
@@ -449,7 +454,7 @@ impl Shell {
             self.actions.extend(actions);
             let ui = self.ui_frame(paint, size, false);
             let composition = ui.composition.is_some();
-            self.rendering.insert(0, self.engine.present_async(ui)?);
+            self.rendering.insert(0, self.present_ui_async(ui)?);
             self.track_exposure_present(0,composition);
             self.present_deferrals.submitted(0);
             self.present_due = false;
@@ -532,7 +537,7 @@ impl Shell {
         }
         let ui = self.ui_frame(paint, size, false);
         let composition = ui.composition.is_some();
-        self.rendering.insert(0, self.engine.present_async(ui)?);
+        self.rendering.insert(0, self.present_ui_async(ui)?);
         self.track_exposure_present(0,composition);
         self.present_deferrals.submitted(0);
         self.dirty = false;
@@ -793,7 +798,7 @@ impl Shell {
         });
         self.rendering.insert(
             key,
-            self.engine.present_async(UiFrame {
+            self.present_ui_async(UiFrame {
                 paint,
                 atlas,
                 logical_size: size,
@@ -1565,6 +1570,11 @@ impl Shell {
         let Some((start, origin)) = self.playback else {
             return Ok(());
         };
+        if self.audio_only_preview && self.audio.is_none() {
+            let error = "audio-only preview lost its output";
+            log::error!("audio preview failed phase=tick frame={} cause={error}", self.frame);
+            return Err(error.into());
+        }
         // The plan is frozen for this playback episode. Direct clock consumers
         // may initialize the episode lazily; regular TogglePlay sets it before
         // starting audio. Project edits and option changes stop the episode.
@@ -1596,7 +1606,9 @@ impl Shell {
             self.frame = frame;
             if finished { self.stop(); }
         }
-        self.editing = Some((Instant::now(), self.engine.seek_async(self.frame)?));
+        self.editing = Some((Instant::now(), if self.audio_only_preview {
+            self.engine.seek_audio_preview_async(self.frame)?
+        } else { self.engine.seek_async(self.frame)? }));
         let rate = (f64::from(fps) / f64::from(plan.step))
             .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.))
             .clamp(1., 120.);

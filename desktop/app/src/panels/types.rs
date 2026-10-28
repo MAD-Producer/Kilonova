@@ -154,6 +154,7 @@ pub enum Action {
     History(i32),
     Seek(f64),
     TogglePlay,
+    ToggleAudioPreview,
     Edit(Command),
     EditChecked {
         command: Command,

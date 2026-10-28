@@ -47,6 +47,7 @@ fn default_binding_reference_matches_live_resolver() {
         Key::End,
         Key::Comma,
         Key::Period,
+        Key::NumpadDecimal,
         Key::BracketLeft,
         Key::BracketRight,
         Key::F4,
