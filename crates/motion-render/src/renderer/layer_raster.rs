@@ -198,6 +198,13 @@ impl Renderer {
                     let message = format!("{context}: {error}");
                     error.with_diagnostic(message)
                 })?;
+        // Retained receivers can be the first render of a model, and each
+        // shutter sample has its own native pose. Prepare the sampled model
+        // inputs before effects copy the receiver into its immutable raster.
+        let models = self.prepare_models(scene, width, height).map_err(|error| {
+            let message = format!("{context}: {error}");
+            error.with_diagnostic(message)
+        })?;
         let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::RetainedLayer, &wgpu::CommandEncoderDescriptor {
                 label: Some("receiver-time local image"),
             })?;
@@ -228,6 +235,7 @@ impl Renderer {
             error.with_diagnostic(message)
         })?;
         stats.add(children);
+        stats.add(models);
         self.effect_diagnostics.extend(diagnostics);
         Ok(Some((raster, stats)))
     }

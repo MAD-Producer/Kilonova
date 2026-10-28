@@ -1,6 +1,7 @@
-//! Native model layers rasterize in composition space with their sampled camera
-//! and world transforms. This isolated layer pass does not share mesh depth with
-//! another layer or with the plane compositor.
+//! Native model layers use their sampled camera and world transforms. Plain
+//! contiguous model runs share mesh depth; authored compositing boundaries
+//! retain the isolated receiver path and do not share depth with flat planes.
+mod shared;
 use super::*;
 use crate::scene_gpu::{GpuScene, SceneFrame, SceneGpuLimits, SceneRenderStats, SceneRequest};
 use motion_model::ModelAsset;
@@ -23,20 +24,25 @@ pub(super) struct Models {
     sources: HashMap<u64, Source>,
     gpu: HashMap<u64, GpuScene>,
     targets: HashMap<u64, RenderTarget>,
+    shared: [Option<crate::scene_gpu::ScenePass>; 2],
 }
 impl Models {
     pub fn clear_gpu(&mut self) {
         self.gpu.clear();
         self.targets.clear();
+        self.shared = [None, None];
     }
     pub fn clear_targets(&mut self) {
         self.targets.clear();
+        self.shared = [None, None];
     }
     pub fn retain_targets(&mut self, live: &std::collections::HashSet<u64>) {
         self.targets.retain(|id, _| live.contains(id));
+        if self.targets.is_empty() { self.shared = [None, None]; }
     }
     pub fn texture_bytes(&self) -> u64 {
-        self.gpu.values().map(GpuScene::texture_bytes).sum()
+        self.gpu.values().map(GpuScene::texture_bytes).sum::<u64>()
+            + self.shared.iter().flatten().map(crate::scene_gpu::ScenePass::attachment_bytes).sum::<u64>()
     }
     pub fn source_texture_bytes(&self) -> u64 {
         self.gpu.values().map(GpuScene::source_texture_bytes).sum()
@@ -49,12 +55,14 @@ impl Models {
                 .is_some_and(|(old, new)| old.asset == new.asset && old.root == new.root)
         });
         self.targets.clear();
+        self.shared = [None, None];
         self.sources = sources;
     }
     pub fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
         for gpu in self.gpu.values() {
             ledger.merge(gpu.texture_resource_ledger());
         }
+        for pass in self.shared.iter().flatten() { ledger.merge(pass.texture_resource_ledger()); }
     }
 }
 
@@ -414,6 +422,7 @@ fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
         crate::scene_gpu::SceneGpuError::Render(error) => error,
         crate::scene_gpu::SceneGpuError::Deformation { cause, .. }
         | crate::scene_gpu::SceneGpuError::SkinDeformation { cause, .. }
+        | crate::scene_gpu::SceneGpuError::DepthInput { cause, .. }
         | crate::scene_gpu::SceneGpuError::PassInstance { cause, .. } => {
             scene_error(*cause).with_diagnostic(message)
         }
@@ -424,6 +433,63 @@ fn scene_error(error: crate::scene_gpu::SceneGpuError) -> RenderError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn wrapped_native_calibrated_depth_keeps_original_typed_resource_refusal() {
+        use crate::scene_gpu::SceneGpuError;
+        use motion_model::depth::{DepthSource, DepthTime};
+        let source = DepthSource {
+            asset: 74,
+            revision: 2,
+            pts: DepthTime {
+                ticks: 12,
+                timescale: 24,
+            },
+        };
+        let wrapped = SceneGpuError::DepthInput {
+            expected: source.clone(),
+            actual: source,
+            cause: Box::new(SceneGpuError::Render(RenderError::budget(
+                ResourceBudgetScope::RenderAllocations,
+                24,
+                23,
+                "original calibrated depth refusal",
+            ))),
+        };
+        let error = scene_error(wrapped);
+        assert_eq!(
+            error.resource_rejection(),
+            Some(&ResourceRejection::Budget {
+                scope: ResourceBudgetScope::RenderAllocations,
+                required_bytes: 24,
+                budget_bytes: 23,
+            })
+        );
+        for part in [
+            "phase=calibrated_depth",
+            "asset: 74",
+            "revision: 2",
+            "ticks: 12",
+            "timescale: 24",
+            "original calibrated depth refusal",
+        ] {
+            assert!(error.to_string().contains(part), "{error}");
+        }
+        let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&error);
+        let mut original = false;
+        while let Some(error) = cause {
+            let render = error
+                .downcast_ref::<RenderError>()
+                .or_else(|| error.downcast_ref::<Box<RenderError>>().map(Box::as_ref));
+            if let Some(RenderError::Resource { message, .. }) = render {
+                original |= message == "original calibrated depth refusal";
+            }
+            cause = error.source();
+        }
+        assert!(
+            original,
+            "original typed cause must remain reachable through the adapter"
+        );
+    }
     struct NoResources;
     impl motion_scene::AssetResolver for NoResources {
         fn read(
