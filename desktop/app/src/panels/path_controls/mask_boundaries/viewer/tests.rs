@@ -1,5 +1,7 @@
 use super::super::tests::{apply, fixture};
 use super::*;
+#[cfg(target_os = "windows")]
+mod native;
 
 fn state(engine: &motion_core::Engine) -> Value {
     let layer = &engine.project().layers[0];
