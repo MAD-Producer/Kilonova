@@ -74,6 +74,11 @@ cause is unproven, so these passes are not a claim that this crash was fixed.
 
 ## Remaining #87 work
 
+Publication also integrates main `8c271bd3` (desktop audio preview). The six
+model/render/host/core/scene/media packages are byte-identical to the accepted
+native source above. Required PR CI validates this later desktop integration;
+the local counts above do not claim its additional desktop tests ran in that gate.
+
 Calibrated video/multiple-source routing, complex effect/mask/matte/nested/exposure
 depth, intersecting transparency, DOF, encoded frozen-camera video acceptance,
 normative comparisons and final current-main full regression/cross-platform CI
