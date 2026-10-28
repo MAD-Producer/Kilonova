@@ -47,6 +47,11 @@ impl Shell {
         }
         match intent {
             Intent::Preview {owner} => {
+                if source.target.kind==AssetKind::Video {
+                    self.panels.project.preview.start(&self.state,source.target.id)?;
+                } else {
+                    self.panels.project.preview.close();
+                }
                 self.panels.project.browser.preview(&self.state,source.target,owner);
                 self.dirty=true;
             }

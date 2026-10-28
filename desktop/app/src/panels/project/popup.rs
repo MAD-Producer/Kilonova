@@ -1,12 +1,19 @@
 use super::*;
 use motion_ui::widgets::{ListItem, ListView, TextEvent};
 
-fn child_preview(list:&mut PaintList,bitmap:std::sync::Arc<motion_ui::paint::Bitmap>,area:Rect) {
-    list.push_image(motion_ui::paint::ImageQuad::new(bitmap,area));
+fn child_preview(
+    list: &mut PaintList,
+    bitmap: std::sync::Arc<motion_ui::paint::Bitmap>,
+    area: Rect,
+) {
+    list.push_image(motion_ui::paint::ImageQuad::new(bitmap, area));
 }
 
 pub(super) enum Popup {
-    Preview {key:RowKey},
+    Preview {
+        key: RowKey,
+        seek: motion_ui::widgets::NumberEditor,
+    },
     Name {
         source: crate::layer_clipboard::KeyframeSource,
         id: Option<u64>,
@@ -95,12 +102,16 @@ pub(super) fn finish(
             input
         };
         let moving = matches!(popup, Popup::Move { .. });
-        let preview=matches!(popup, Popup::Preview{..});
-        let width = if preview {styles.metric("project.preview.width",400.)}else{styles
-            .metric("project.folder.dialog.width", 400.)
+        let preview = matches!(popup, Popup::Preview { .. });
+        let width = if preview {
+            styles.metric("project.preview.width", 400.)
+        } else {
+            styles.metric("project.folder.dialog.width", 400.)
         }
-            .min(bounds.width());
-        let height = if preview {styles.metric("project.preview.height",320.)} else if moving {
+        .min(bounds.width());
+        let height = if preview {
+            styles.metric("project.preview.height", 320.)
+        } else if moving {
             styles.metric("project.folder.move.height", 360.)
         } else {
             styles.metric("project.folder.dialog.height", 180.)
@@ -160,24 +171,140 @@ pub(super) fn finish(
         {
             browser.buttons = vec![apply, cancel];
         }
-        if let Popup::Preview {key}= &popup {
-            let video=matches!(key,RowKey::Item(ProjectItem::Video{..}));
-            label(list,atlas,title,if video {word(locale,"视频首帧预览","Video first frame")}else{word(locale,"图像预览","Image preview")},false);
-            let content=Rect::new(title.min[0],title.max[1]+pad,title.width(),(apply.min[1]-title.max[1]-pad*2.).max(0.));
-            if let Some(bitmap)=panels.project.thumbnails.get(_state,key) {
-                let [w,h]=bitmap.dimensions();
-                let fit=(content.width()/w as f32).min(content.height()/h as f32);
-                let width=w as f32*fit;let height=h as f32*fit;
-                child_preview(list,bitmap,Rect::new(content.min[0]+(content.width()-width)*0.5,content.min[1]+(content.height()-height)*0.5,width,height));
-            } else {label(list,atlas,content,if panels.project.thumbnails.failed(_state,key) {word(locale,"预览读取失败，请关闭后刷新缩略图或重链接素材","Preview failed; close and refresh thumbnail or relink asset")}else{word(locale,"正在准备预览…","Preparing preview…")},true);}
-            if ui::button(list,atlas,apply,word(locale,"关闭","Close"),input,true).clicked {return;}
-            browser.popup=Some(popup);
+        if let Popup::Preview { key, seek } = &mut popup {
+            let active = matches!(key,RowKey::Item(ProjectItem::Video{id}) if panels.project.preview.current(_state,*id));
+            let caption = if active {
+                format!(
+                    "{} · {:.3} / {:.3} s",
+                    word(locale, "视频预览（静音）", "Video preview (muted)"),
+                    panels.project.preview.seconds(),
+                    panels.project.preview.duration()
+                )
+            } else {
+                word(locale, "图像预览", "Image preview").into()
+            };
+            label(list, atlas, title, &caption, false);
+            let content = Rect::new(
+                title.min[0],
+                title.max[1] + pad,
+                title.width(),
+                (apply.min[1] - title.max[1] - pad * 2.).max(0.),
+            );
+            let bitmap = if active {
+                panels.project.preview.bitmap()
+            } else {
+                panels.project.thumbnails.get(_state, key)
+            };
+            if let Some(cause) = panels.project.preview.message.as_deref().filter(|_| active) {
+                label(
+                    list,
+                    atlas,
+                    content,
+                    &format!("{}: {cause}", word(locale, "预览失败", "Preview failed")),
+                    true,
+                );
+            } else if let Some(bitmap) = bitmap {
+                let [w, h] = bitmap.dimensions();
+                let fit = (content.width() / w as f32).min(content.height() / h as f32);
+                let width = w as f32 * fit;
+                let height = h as f32 * fit;
+                child_preview(
+                    list,
+                    bitmap,
+                    Rect::new(
+                        content.min[0] + (content.width() - width) * 0.5,
+                        content.min[1] + (content.height() - height) * 0.5,
+                        width,
+                        height,
+                    ),
+                );
+            } else {
+                label(
+                    list,
+                    atlas,
+                    content,
+                    if panels.project.thumbnails.failed(_state, key) {
+                        word(
+                            locale,
+                            "预览读取失败，请关闭后刷新缩略图或重链接素材",
+                            "Preview failed; close and refresh thumbnail or relink asset",
+                        )
+                    } else {
+                        word(locale, "正在准备预览…", "Preparing preview…")
+                    },
+                    true,
+                );
+            }
+            if active {
+                let play = Rect::new(title.min[0], apply.min[1], button_width, row);
+                let time = Rect::new(
+                    play.max[0] + pad,
+                    apply.min[1],
+                    (apply.min[0] - play.max[0] - pad * 2.).max(0.),
+                    row,
+                );
+                let options = motion_ui::widgets::NumberOptions {
+                    speed: 0.01,
+                    min: 0.,
+                    max: panels.project.preview.duration(),
+                    decimals: 3,
+                };
+                let current = panels.project.preview.seconds();
+                for event in seek.update(current, options, input, time) {
+                    match event {
+                        motion_ui::widgets::NumberEvent::Change { value }
+                        | motion_ui::widgets::NumberEvent::Cancel { value } => {
+                            panels.project.preview.seek(value)
+                        }
+                        _ => {}
+                    }
+                }
+                seek.draw(list, atlas, time, panels.project.preview.seconds(), options);
+                let space = !seek.interacting()
+                    && input.key_presses().any(|(key, mods, repeat)| {
+                        key == Key::Space && !mods.control && !mods.alt && !mods.shift && !repeat
+                    });
+                if ui::button(
+                    list,
+                    atlas,
+                    play,
+                    if panels.project.preview.playing() {
+                        word(locale, "暂停", "Pause")
+                    } else {
+                        word(locale, "播放", "Play")
+                    },
+                    input,
+                    panels.project.preview.message.is_none(),
+                )
+                .clicked
+                    || space
+                {
+                    panels.project.preview.toggle();
+                }
+                #[cfg(test)]
+                {
+                    browser.buttons = vec![apply, play, time];
+                }
+            }
+            if ui::button(
+                list,
+                atlas,
+                apply,
+                word(locale, "关闭", "Close"),
+                input,
+                true,
+            )
+            .clicked
+            {
+                return;
+            }
+            browser.popup = Some(popup);
             return;
         }
         let mut submit = false;
         let enabled;
         match &mut popup {
-            Popup::Preview {..}=>unreachable!("preview handled above"),
+            Popup::Preview { .. } => unreachable!("preview handled above"),
             Popup::Name { id, editor, .. } => {
                 label(
                     list,
@@ -292,7 +419,7 @@ pub(super) fn finish(
         .clicked;
         if submit && enabled {
             match popup {
-                Popup::Preview {..}=>unreachable!("preview does not submit document edits"),
+                Popup::Preview { .. } => unreachable!("preview does not submit document edits"),
                 Popup::Name {
                     source,
                     id,

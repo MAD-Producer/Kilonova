@@ -77,6 +77,10 @@ impl Shell {
         self.pending || !self.exposure_presentations.is_empty()
     }
     pub(crate) fn lose_focus(&mut self) {
+        if self.panels.project.browser.preview_in(None) {
+            self.panels.project.browser.cancel();
+            self.panels.project.preview.close();
+        }
         self.workspace.cancel();
         self.actions
             .extend(panels::cancel_interaction(&mut self.panels));
@@ -666,6 +670,10 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
+        if panel==dock::Panel::Project.dock() {
+            self.panels.project.browser.cancel();
+            self.panels.project.preview.close();
+        }
         if self
             .panels
             .effect_search
@@ -986,6 +994,10 @@ impl Shell {
             }
             WindowEvent::Ime(ime) => translate_ime(ime),
             WindowEvent::Focused(false) => {
+                if self.panels.project.browser.preview_in(Some(f.panel)) {
+                    self.panels.project.browser.cancel();
+                    self.panels.project.preview.close();
+                }
                 self.actions
                     .extend(panels::cancel_interaction(&mut self.panels));
                 Some(Event::FocusLost)

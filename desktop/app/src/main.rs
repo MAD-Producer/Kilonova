@@ -27,6 +27,7 @@ mod panels;
 mod animation_presets;
 mod project_lifecycle;
 mod preview_playback;
+mod project_preview;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
@@ -822,6 +823,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         if let Some(cause)=self.panels.project.thumbnails.message.take() {
             self.panels.message=Some(self.workspace.locale.error(&cause));
         }
+        self.poll_project_preview();
         if self.smoke.is_some()
             && self.smoke_stage != 4 // Completed capture may be followed by one final native callback.
             && self.started.elapsed()
@@ -1108,6 +1110,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.library_import.is_some()
             || self.project_image.is_some()
             || self.panels.project.thumbnails.busy()
+            || self.panels.project.preview.busy()
             || self.file_location.is_some()
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()

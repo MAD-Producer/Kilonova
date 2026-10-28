@@ -499,6 +499,7 @@ pub(crate) enum Tool {
 pub(crate) struct ProjectState {
     pub browser: super::project::Controls,
     pub thumbnails: super::project::thumbnails::Thumbnails,
+    pub preview: crate::project_preview::Player,
     pub search_field: motion_ui::widgets::SearchField,
     pub query: String,
     pub search: bool,

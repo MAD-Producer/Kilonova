@@ -26,6 +26,27 @@ fn imports(shell: &mut Shell, events: &mut EventLoop<()>) {
         std::thread::sleep(Duration::from_millis(2));
     }
 }
+fn video_ready(shell: &mut Shell, owner: Option<Panel>, size: [f32; 2]) -> PaintList {
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        shell.poll_project_preview();
+        let (paint, actions) = frame(shell, owner, size, Input::default());
+        assert!(actions.is_empty());
+        assert!(
+            shell.panels.project.preview.message.is_none(),
+            "{:?}",
+            shell.panels.project.preview.message
+        );
+        if !shell.panels.project.preview.busy() && shell.panels.project.preview.bitmap().is_some() {
+            return paint;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "video preview did not finish decoding"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}
 #[test]
 #[ignore = "manual native real image and video poster preview screenshots"]
 fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_languages_and_windows() {
@@ -185,9 +206,14 @@ fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_langua
                 matches!(actions.as_slice(),[Action::MediaAsset{intent:Intent::Preview{owner:actual},..}] if *actual==owner)
             );
             run(&mut shell, &mut events, actions);
-            let (paint, actions) = frame(&mut shell, owner, size, Input::default());
-            assert!(actions.is_empty());
+            let paint = video_ready(&mut shell, owner, size);
             assert!(paint.images.iter().any(|p| p.area.width() > 100.));
+            let preview_area = paint
+                .images
+                .iter()
+                .find(|p| p.area.width() > 100.)
+                .unwrap()
+                .area;
             capture(
                 &mut shell,
                 &mut events,
@@ -196,9 +222,87 @@ fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_langua
                 key,
                 root.join(format!("{suffix}-video-first-frame.png")),
             );
+            let play = shell.panels.project.browser.buttons[1];
+            let (_, actions) = frame(&mut shell, owner, size, click(play, MouseButton::Left));
+            assert!(actions.is_empty());
+            assert!(shell.panels.project.preview.playing());
+            assert!(
+                shell.playback.is_none(),
+                "source play started composition playback"
+            );
+            let deadline = std::time::Instant::now() + Duration::from_secs(15);
+            while shell.panels.project.preview.seconds()
+                < shell.panels.project.preview.duration().min(1.) * 0.5
+            {
+                shell.poll_project_preview();
+                assert!(std::time::Instant::now() < deadline);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            let (_, actions) = frame(&mut shell, owner, size, key_input(Key::Space));
+            assert!(actions.is_empty());
+            assert!(!shell.panels.project.preview.playing());
+            let paint = video_ready(&mut shell, owner, size);
+            capture(
+                &mut shell,
+                &mut events,
+                paint,
+                size,
+                key,
+                root.join(format!("{suffix}-video-paused.png")),
+            );
+            let first = image::open(root.join(format!("{suffix}-video-first-frame.png")))
+                .unwrap()
+                .into_rgba8();
+            let later = image::open(root.join(format!("{suffix}-video-paused.png")))
+                .unwrap()
+                .into_rgba8();
+            let changed = (preview_area.min[1].ceil() as u32..preview_area.max[1].floor() as u32)
+                .any(|y| {
+                    (preview_area.min[0].ceil() as u32..preview_area.max[0].floor() as u32)
+                        .any(|x| first.get_pixel(x, y) != later.get_pixel(x, y))
+                });
+            assert!(
+                changed,
+                "decoded playback did not change actual video pixels"
+            );
+            let time = shell.panels.project.browser.buttons[2];
+            frame(&mut shell, owner, size, click(time, MouseButton::Left));
+            frame(
+                &mut shell,
+                owner,
+                size,
+                Input {
+                    mouse: point(time),
+                    released: Some((MouseButton::Left, point(time))),
+                    ..Default::default()
+                },
+            );
+            frame(
+                &mut shell,
+                owner,
+                size,
+                Input {
+                    text: "0.250".into(),
+                    ..Default::default()
+                },
+            );
+            let (_, actions) = frame(&mut shell, owner, size, key_input(Key::Enter));
+            assert!(actions.is_empty());
+            assert_eq!(shell.panels.project.preview.seconds(), 0.25);
+            let paint = video_ready(&mut shell, owner, size);
+            capture(
+                &mut shell,
+                &mut events,
+                paint,
+                size,
+                key,
+                root.join(format!("{suffix}-video-seek.png")),
+            );
             let (_, actions) = frame(&mut shell, owner, size, key_input(Key::Escape));
             assert!(actions.is_empty());
             assert!(!shell.panels.project.browser.modal());
+            shell.poll_project_preview();
+            assert!(!shell.panels.project.preview.busy());
             let source = Source::read(
                 &shell.state,
                 AssetRef {
@@ -231,7 +335,7 @@ fn project_thumbnails_and_first_frame_previews_render_real_assets_in_both_langua
                 shell.state["project"], before,
                 "observational previews mutated project"
             );
-            cases.push(serde_json::json!({"language":lang,"owner":format!("{owner:?}"),"realImage":true,"videoFirstFrame":true,"menuPreview":true,"projectUntouched":true}));
+            cases.push(serde_json::json!({"language":lang,"owner":format!("{owner:?}"),"realImage":true,"videoFirstFrame":true,"videoPlaybackPixelsChanged":changed,"videoPause":true,"sourceSeekSeconds":0.25,"compositionPlaybackUntouched":true,"menuPreview":true,"projectUntouched":true}));
         }
     }
     std::fs::write(

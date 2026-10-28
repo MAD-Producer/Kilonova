@@ -57,11 +57,20 @@ impl Controls {
         self.refresh(state);
         self.owner=owner;
         let item=if target.kind==motion_core::media_assets::AssetKind::Video {ProjectItem::Video{id:target.id}}else{ProjectItem::Image{id:target.id}};
-        self.popup=Some(Popup::Preview { key:RowKey::Item(item) });
+        self.popup=Some(Popup::Preview { key:RowKey::Item(item), seek:Default::default() });
         self.popup_fresh=true;
     }
     pub(crate) fn modal(&self) -> bool {
         self.popup.is_some()
+    }
+    pub(crate) fn video_preview(&self) -> Option<u64> {
+        match self.popup.as_ref() {
+            Some(Popup::Preview { key:RowKey::Item(ProjectItem::Video {id}), .. })=>Some(*id),
+            _=>None,
+        }
+    }
+    pub(crate) fn preview_in(&self, owner:Option<Panel>) -> bool {
+        matches!(self.popup,Some(Popup::Preview{..})) && self.owner==owner
     }
     pub fn cancel(&mut self) {
         self.popup = None;
@@ -392,7 +401,11 @@ pub(super) fn render(
         }
         let style = styles.resolve("row", states).expect("row style");
         box_style(&mut child, rect, style);
-        if let Some(bitmap)=panels.project.thumbnails.get(state,&entry.key) {
+        let source_frame=match &entry.key {
+            RowKey::Item(ProjectItem::Video{id}) if panels.project.preview.current(state,*id)=>panels.project.preview.bitmap(),
+            _=>None,
+        };
+        if let Some(bitmap)=source_frame.or_else(||panels.project.thumbnails.get(state,&entry.key)) {
             let [width,height]=bitmap.dimensions();
             let fit=(styles.metric("project.item.preview.width",32.)/width as f32).min(styles.metric("project.item.preview.height",18.)/height as f32);
             let w=width as f32*fit; let h=height as f32*fit;
