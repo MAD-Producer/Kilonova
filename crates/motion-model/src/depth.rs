@@ -6,16 +6,18 @@
 use crate::{ensure, Error, Result};
 use serde::{Deserialize, Serialize};
 mod calibration;
-mod projection;
 mod prepared;
+mod projection;
 pub use prepared::PreparedDepthInput;
 mod saved;
-pub use saved::SavedDepthCalibration;
 pub use calibration::{
     CalibratedDepth, CalibrationCurve, CalibrationExtrapolation, DepthAnchor,
     RelativeDepthCalibration,
 };
 pub use projection::{DepthProjection, ProjectedDepth};
+pub use saved::SavedDepthCalibration;
+mod surface;
+pub use surface::{DepthReference, DepthSurface, DepthVertex};
 
 pub const MAX_DEPTH_DIMENSION: u32 = 4096;
 pub const MAX_DEPTH_PIXELS: usize = 4096 * 4096;
@@ -256,10 +258,24 @@ impl DepthDescriptor {
     }
 }
 
+/// Process-local identity of immutable depth samples. Clones retain identity;
+/// a newly produced result has a new identity even if all source metadata match.
+/// Keeping a token retains no scalar planes, and prevents allocator address reuse
+/// from turning an old geometry cache entry into a false hit.
+#[derive(Clone, Debug)]
+pub struct DepthResourceIdentity(std::sync::Arc<()>);
+impl PartialEq for DepthResourceIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for DepthResourceIdentity {}
+
 /// Immutable, validated R32Float scalar samples. R8 is not an internal format.
 /// Inference runtimes, models, GPU handles and weight files are deliberately absent.
 #[derive(Clone, Debug)]
 pub struct DepthResource {
+    identity: DepthResourceIdentity,
     descriptor: DepthDescriptor,
     values: Vec<f32>,
     validity: Option<Vec<u8>>,
@@ -316,11 +332,17 @@ impl DepthResource {
             }
         }
         Ok(Self {
+            identity: DepthResourceIdentity(std::sync::Arc::new(())),
             descriptor,
             values,
             validity,
             confidence,
         })
+    }
+
+    /// Constant-time geometry cache key, not a persistent source/revision key.
+    pub fn cache_identity(&self) -> DepthResourceIdentity {
+        self.identity.clone()
     }
 
     pub fn descriptor(&self) -> &DepthDescriptor {

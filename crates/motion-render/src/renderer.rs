@@ -219,8 +219,8 @@ pub(crate) enum TextureKey {
     Mask(u64),
     EffectInput(u64),
 }
-fn texture_key(layer: &crate::DrawLayer) -> TextureKey {
-    if layer.model_source.is_some() {
+fn texture_key(scene: &Scene, layer: &crate::DrawLayer) -> TextureKey {
+    if layer.model_source.is_some() || scene.shared_rasters.contains(&layer.id) {
         TextureKey::Model(layer.id)
     } else if layer.vector.is_some() {
         TextureKey::Vector(layer.id)
@@ -1240,6 +1240,7 @@ impl Renderer {
     pub fn retain_video_instances(&mut self, scene: &Scene) {
         fn collect_models(scene: &Scene, ids: &mut std::collections::HashSet<u64>) {
             ids.extend(scene.layers.iter().filter(|l| l.model_source.is_some()).map(|l| l.id));
+            ids.extend(scene.calibrated_depth_layers().map(|(id, _)| id));
             for nested in &scene.nested { collect_models(&nested.scene, ids); }
         }
         let mut live_models = Default::default(); collect_models(scene, &mut live_models);
@@ -1865,6 +1866,7 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         self.snapshot_encodes.clear();
+        scene.validate_depth_ready()?;
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
         let (model_scene, model_stats) = match self.prepare_shared_model_scene(scene, width, height, encoder)? {
@@ -2005,7 +2007,7 @@ impl Renderer {
             );
         }
         for (index, layer) in scene.layers.iter().enumerate() {
-            let asset = texture_key(layer);
+            let asset = texture_key(scene, layer);
             if !self.images.contains_key(&asset) {
                 return Err(RenderError::Invalid(format!("draw image is not uploaded")));
             }
@@ -2075,7 +2077,7 @@ impl Renderer {
                     &self.uniform_group,
                     &[(index * self.uniform_stride) as u32],
                 );
-                pass.set_bind_group(1, &self.images[&texture_key(layer)].bind_group, &[]);
+                pass.set_bind_group(1, &self.images[&texture_key(scene, layer)].bind_group, &[]);
                 pass.draw(batch.vertices.clone(), 0..1);
             }
         }
@@ -2373,7 +2375,7 @@ impl Renderer {
             let draw=&frame.draws[i];
             for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
-                    Some(texture_key(&scene.layers[i])),None,&self.images,&self.device,&self.queue,encoder)?;
+                    Some(texture_key(scene, &scene.layers[i])),None,&self.images,&self.device,&self.queue,encoder)?;
                 executed_passes+=1;
             }
             let output=&frame.passes[draw.pass_end-1];
@@ -2426,7 +2428,7 @@ impl Renderer {
                     frame,
                     &self.asset_order,
                     (scene.layers[i].video.is_some() || scene.layers[i].vector.is_some() || scene.layers[i].composition)
-                        .then(|| texture_key(&scene.layers[i])),
+                        .then(|| texture_key(scene, &scene.layers[i])),
                     (scene.layers[i].adjustment && has_adjustment)
                         .then(|| &self.layer_gpu.accumulators[accumulator].view),
                     &self.images,
@@ -2515,7 +2517,7 @@ impl Renderer {
             let group = if draw.words[27] >= 0.0 {
                 &self.effect_gpu.state.output(frame,i)?.composite
             } else {
-                &self.images[&texture_key(&scene.layers[i])].bind_group
+                &self.images[&texture_key(scene, &scene.layers[i])].bind_group
             };
             pass.set_bind_group(1, group, &[]);
             if has_compositing {

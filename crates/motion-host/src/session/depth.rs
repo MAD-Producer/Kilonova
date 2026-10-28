@@ -162,10 +162,11 @@ impl Session {
         extrapolation: motion_model::depth::CalibrationExtrapolation,
         pixels_per_metre: f32,
     ) -> Result<motion_core::Command> {
+        self.sample()?;
         let sample = self
             .depth_calibration_sample()?
             .ok_or("depth calibration requires an installed current result")?;
-        let calibration = motion_model::depth::SavedDepthCalibration::new(
+        let mut calibration = motion_model::depth::SavedDepthCalibration::new(
             &sample.estimate.resource,
             sample.input,
             anchors,
@@ -173,6 +174,16 @@ impl Session {
             extrapolation,
             pixels_per_metre,
         )?;
+        // Observation views are editing aids, never the source photograph's
+        // persisted camera. Reference geometry always uses the authored scene.
+        let mut reference = motion_render::Scene::new(self.engine.project())?;
+        reference.set_model_source_catalog(self.scene.model_source_catalog());
+        reference.sample(self.engine.project(), self.frame, None, &motion_core::ExpressionEvaluator)?;
+        if let Some(layer) = reference.layers.iter().find(|layer| layer.id == object && layer.three_d) {
+            calibration = calibration.with_reference(motion_model::depth::DepthReference {
+                camera: reference.native_camera(), world: layer.model, size: layer.size,
+            })?;
+        }
         sample.validate(
             self.engine.project(),
             &self.engine.project().composition_id,
@@ -183,6 +194,27 @@ impl Session {
             object,
             calibration: Some(calibration),
         })
+    }
+
+    pub(super) fn render_depth_sample(&mut self, scene: &mut motion_render::Scene) -> Result<bool> {
+        if !scene.has_calibrated_depth() { return Ok(true); }
+        if scene.nested.iter().any(|node| node.scene.has_calibrated_depth()) {
+            return Err("calibrated depth phase=render: nested depth routing is not implemented".into());
+        }
+        if self.depth.is_none() {
+            return Err("calibrated depth phase=render: configure a depth backend and request the current source".into());
+        }
+        let Some(sample) = self.depth_calibration_sample()? else { return Ok(false); };
+        let required: Vec<_> = scene.calibrated_depth_layers().map(|(id, c)| (id, c.clone())).collect();
+        for (object, calibration) in required {
+            let Identity::Sample(key) = &sample.key else {
+                return Err(format!("calibrated depth object={object} phase=render: video geometry routing is not implemented").into());
+            };
+            if key.source.asset != calibration.asset() { return Ok(false); }
+            sample.validate(self.engine.project(), &scene.composition_id, scene.source_object(object), &calibration)?;
+            scene.attach_calibrated_depth(object, &key.source, &sample.estimate.resource, sample.input)?;
+        }
+        Ok(true)
     }
 
     /// A saved calibration remains authoring data until both the live session

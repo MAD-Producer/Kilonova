@@ -67,7 +67,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
             end += 1;
         }
         // A pure-plane run retains its existing exact BSP implementation.
-        if count.is_some() && end - start >= 2 {
+        if (count.is_some() && end - start >= 2) || scene.layers[start..end].iter().any(|layer| scene.depth_surface(layer.id).is_some()) {
             blocks.push(start..end);
         }
         start = end;
@@ -84,6 +84,11 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<Option<(Scene, RenderStats)>> {
         let blocks = blocks(self, scene);
+        for (object, calibration) in scene.calibrated_depth_layers() {
+            if !blocks.iter().any(|block| scene.layers[block.clone()].iter().any(|layer| layer.id == object)) {
+                return Err(RenderError::Invalid(format!("depth surface object={object} source={} phase=shared_geometry: effects, masks, mattes, nested or unsupported sampling require an explicit depth composition path", calibration.asset())));
+            }
+        }
         if blocks.is_empty() {
             return Ok(None);
         }
@@ -95,6 +100,7 @@ impl Renderer {
             let anchor = block
                 .clone()
                 .find(|&index| scene.layers[index].model_source.is_some())
+                .or_else(|| block.clone().find(|&index| scene.depth_surface(scene.layers[index].id).is_some()))
                 .ok_or_else(|| {
                     RenderError::Invalid("shared geometry block lacks a model anchor".into())
                 })?;
@@ -124,6 +130,22 @@ impl Renderer {
             index += 1;
             retain
         });
+        for layer in &mut output.layers {
+            if layer.model_source.is_none() && scene.depth_surface(layer.id).is_some() {
+                output.shared_rasters.insert(layer.id);
+                layer.asset = None;
+                layer.size = [scene.width as f32, scene.height as f32];
+                layer.source_size = layer.size;
+                layer.source_rect = [0., 0., layer.size[0], layer.size[1]];
+                layer.model = glam::Mat4::IDENTITY;
+                layer.color = [1.; 4];
+                layer.opacity = 1.;
+                layer.screen_overlay = true;
+                layer.three_d = false;
+                layer.view_projection = glam::Mat4::from_scale(glam::Vec3::new(
+                    2. / scene.width as f32, 2. / scene.height as f32, 1.));
+            }
+        }
         Ok(Some((output, stats)))
     }
 
@@ -139,11 +161,10 @@ impl Renderer {
             .layers
             .iter()
             .find(|layer| layer.model_source.is_some())
+            .or_else(|| scene.layers.iter().find(|layer| scene.depth_surface(layer.id).is_some()))
             .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
-        let clip = anchor
-            .model_source
-            .as_ref()
-            .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
+        let sample_count = anchor.model_source.as_ref().map_or(4, |clip| clip.samples);
+        let source_id = anchor.model_source.as_ref().map_or(anchor.asset.unwrap_or(0), |clip| clip.asset);
         for layer in scene
             .layers
             .iter()
@@ -225,7 +246,7 @@ impl Renderer {
         }
         // Exactly two validated sample counts; alternating blocks must not
         // rebuild and retire each other's native depth/MSAA attachments.
-        let slot = usize::from(clip.samples == 4);
+        let slot = usize::from(sample_count == 4);
         let mut pass = match self.models.shared[slot].take() {
             Some(pass) => pass,
             None => {
@@ -295,13 +316,14 @@ impl Renderer {
             let mut sources: Vec<_> = owned.iter_mut().map(|(_, gpu)| gpu).collect();
             let mut frame = ScenePassFrame::new(scene.native_camera());
             frame.viewport = scene.native_camera_viewport(w, h);
-            frame.samples = clip.samples;
+            frame.samples = sample_count;
             let planes: Vec<_> = scene
                 .layers
                 .iter()
                 .filter(|layer| layer.model_source.is_none())
                 .map(|layer| Ok(ScenePlane {
                     object: layer.id,
+                    surface: scene.depth_surface(layer.id),
                     world: layer.model,
                     size: layer.size,
                     color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
@@ -322,7 +344,7 @@ impl Renderer {
                 self,
                 SceneRequest {
                     request: 0,
-                    source: clip.asset,
+                    source: source_id,
                 },
                 encoder,
                 &target,

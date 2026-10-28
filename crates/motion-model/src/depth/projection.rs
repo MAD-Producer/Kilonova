@@ -64,6 +64,26 @@ impl DepthProjection {
         if uv.iter().any(|v| !(0. ..=1.).contains(v)) {
             return Ok(None);
         }
+        let world = self.unproject_camera_z(uv, meters)?;
+        let clip = self.camera.view_projection.as_dmat4() * world.extend(1.);
+        ensure(
+            clip.is_finite() && clip.w > 0.,
+            "depth projection is behind its camera",
+        )?;
+        let projected = clip.z / clip.w;
+        ensure(projected.is_finite(), "nonfinite projected depth")?;
+        if !(0. ..=1.).contains(&projected) {
+            return Ok(None);
+        }
+        Ok(Some(projected as f32))
+    }
+
+    /// Reconstruct a point at explicit camera-Z metres. Offscreen rays are
+    /// allowed: a transformed image can extend past the reference viewport.
+    /// Near/far clipping belongs to the eventual rendering camera.
+    pub fn unproject_camera_z(&self, uv: [f64; 2], meters: f64) -> Result<DVec3> {
+        ensure(uv.iter().all(|v| v.is_finite()) && meters.is_finite() && meters > 0.,
+            "invalid unprojected depth sample")?;
         let unproject = |z| -> Result<DVec3> {
             let p = self.inverse * DVec4::new(uv[0] * 2. - 1., 1. - uv[1] * 2., z, 1.);
             ensure(
@@ -88,17 +108,7 @@ impl DepthProjection {
         let distance = (near - self.camera.eye.as_dvec3()).dot(self.forward);
         let world = near + ray * ((z - distance) / denominator);
         ensure(world.is_finite(), "depth world position overflow")?;
-        let clip = self.camera.view_projection.as_dmat4() * world.extend(1.);
-        ensure(
-            clip.is_finite() && clip.w > 0.,
-            "depth projection is behind its camera",
-        )?;
-        let projected = clip.z / clip.w;
-        ensure(projected.is_finite(), "nonfinite projected depth")?;
-        if !(0. ..=1.).contains(&projected) {
-            return Ok(None);
-        }
-        Ok(Some(projected as f32))
+        Ok(world)
     }
 }
 

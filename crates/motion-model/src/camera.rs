@@ -34,7 +34,8 @@ pub struct Camera {
     pub elevation: Track<f32>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CameraPose {
     pub eye: Vec3,
     pub target: Vec3,
@@ -42,7 +43,8 @@ pub struct CameraPose {
     pub view_projection: Mat4,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ProjectionKind {
     Perspective,
     Orthographic,

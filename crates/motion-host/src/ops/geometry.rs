@@ -44,6 +44,7 @@ pub fn sample_geometry_into_inner(
         s.scene
             .sample(s.engine.project(), frame, None, &motion_core::ExpressionEvaluator)
             .map_err(crate::Error::from)?;
+        crate::ops::export::require_portable_depth(&s.scene)?;
         if s.scene
             .layers
             .iter()
