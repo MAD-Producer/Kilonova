@@ -31,7 +31,9 @@ pub(super) struct ProjectedGeometry {
 }
 impl ProjectedGeometry {
     pub fn prepare(&mut self, scene: &Scene, overlays: &[bool]) -> Result<()> {
+        let cropped = scene.camera_viewport != [0., 0., scene.width as f32, scene.height as f32];
         self.active = scene.layers.iter().enumerate().any(|(i, l)| {
+            (cropped && l.three_d) ||
             l.three_d
                 && !overlays.get(i).copied().unwrap_or(l.screen_overlay)
                 && l.view_projection != scene.camera.view_projection
@@ -98,6 +100,11 @@ impl ProjectedGeometry {
         }
         // Clip in homogeneous coordinates before dividing, including the eye
         // plane. This retains the correct UV parameter along every original edge.
+        let [x, y, w, h] = scene.camera_viewport.map(f64::from);
+        let bounds = if l.three_d { [2. * x / f64::from(scene.width) - 1.,
+            2. * (x + w) / f64::from(scene.width) - 1.,
+            1. - 2. * (y + h) / f64::from(scene.height), 1. - 2. * y / f64::from(scene.height)]
+        } else { [-1., 1., -1., 1.] };
         for boundary in 0..7 {
             if self.clip.is_empty() {
                 break;
@@ -106,8 +113,8 @@ impl ProjectedGeometry {
             for i in 0..self.clip.len() {
                 let a = self.clip[i];
                 let b = self.clip[(i + 1) % self.clip.len()];
-                let da = distance(a.position, boundary);
-                let db = distance(b.position, boundary);
+                let da = distance(a.position, boundary, bounds);
+                let db = distance(b.position, boundary, bounds);
                 if da >= 0. {
                     push(&mut self.spare, a, l.id)?;
                 }
@@ -181,13 +188,13 @@ impl ProjectedGeometry {
         Ok((position, uv))
     }
 }
-fn distance(p: DVec4, boundary: usize) -> f64 {
+fn distance(p: DVec4, boundary: usize, [left, right, bottom, top]: [f64; 4]) -> f64 {
     match boundary {
         0 => p.w - 1e-12,
-        1 => p.x + p.w,
-        2 => p.w - p.x,
-        3 => p.y + p.w,
-        4 => p.w - p.y,
+        1 => p.x - left * p.w,
+        2 => right * p.w - p.x,
+        3 => p.y - bottom * p.w,
+        4 => top * p.w - p.y,
         5 => p.z,
         _ => p.w - p.z,
     }

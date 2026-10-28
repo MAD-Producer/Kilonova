@@ -170,6 +170,7 @@ impl Session {
         let engine = Engine::new(project).map_err(crate::Error::from)?;
         let project = engine.project();
         let mut scene = Scene::new(project)?;
+        scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(project, &root, &Default::default())?);
         // A newly opened project has no compiled expressions on this worker.
         // Prepare source bytecode before the first frame's unchanged deadline,
         // just as SetExpression already does before evaluating an edit.
@@ -339,7 +340,9 @@ impl Session {
             batch.cancel()?;
         }
         let document_generation = next_document_generation()?;
-        let next_scene = Scene::new(engine.project())?;
+        let mut next_scene = Scene::new(engine.project())?;
+        next_scene.set_model_source_catalog(motion_render::ModelSourceCatalog::prepare(
+            engine.project(), &root, &self.scene.model_source_catalog())?);
         let mut registry=self.effects.registry.clone();
         crate::node_effects::restore(engine.project(),&root,&mut registry)?;
         let platform = self.platform.clone();
@@ -348,7 +351,7 @@ impl Session {
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
         if let Some(g) = &mut self.graphics {
             g.renderer
-                .configure_assets(engine.project(), &root)
+                .configure_assets_with_model_catalog(engine.project(), &root, &next_scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
         }
         if let Some(mut editor) = self.editor.take() {
@@ -440,7 +443,7 @@ impl Session {
             .map_err(crate::Error::from)?;
         surface.configure(&renderer.device, &config);
         renderer
-            .configure_assets(self.engine.project(), &self.root)
+            .configure_assets_with_model_catalog(self.engine.project(), &self.root, &self.scene.model_source_catalog())
             .map_err(crate::Error::from)?;
         if let Some(change) = renderer.prepare_working_precision(self.engine.project().working_precision)? {
             renderer.commit_working_precision(change)?;
@@ -862,10 +865,11 @@ impl Session {
     }
 
     pub fn sample(&mut self) -> Result<()> {
+        let model_sources = self.synchronize_model_sources();
         #[cfg(feature = "ai-depth")]
         self.synchronize_depth()?;
         self.effects.set_precision(self.engine.project().working_precision);
-        let result = self.sampling.synchronize(self.engine.project(),self.engine.revision(),&mut self.video_frames)
+        let result = model_sources.and_then(|_| self.sampling.synchronize(self.engine.project(),self.engine.revision(),&mut self.video_frames))
             .and_then(|_| self
             .scene
             .sample(
@@ -887,6 +891,25 @@ impl Session {
             self.last_error = None;
         }
         result
+    }
+    /// Revision checks are metadata-only; unchanged frame sampling never opens
+    /// source files or rebuilds the catalog. Root replacement prepares explicitly.
+    pub(crate) fn synchronize_model_sources(&mut self) -> Result<()> {
+        let previous = self.scene.model_source_catalog();
+        if previous.matches_assets(self.engine.project()) { return Ok(()); }
+        let ready = self.graphics.as_ref().map(|g| g.renderer.model_source_catalog())
+            .filter(|catalog| catalog.matches_assets(self.engine.project()));
+        let catalog = match ready {
+            Some(catalog) => catalog,
+            None => motion_render::ModelSourceCatalog::prepare(self.engine.project(), &self.root, &previous)?,
+        };
+        if let Some(g) = &mut self.graphics {
+            if !g.renderer.model_source_catalog().shares_sources_with(&catalog) {
+                g.renderer.configure_assets_with_model_catalog(self.engine.project(), &self.root, &catalog)?;
+            }
+        }
+        self.scene.set_model_source_catalog(catalog);
+        Ok(())
     }
 
     /// Persisted precision changes are applied before any content work on the

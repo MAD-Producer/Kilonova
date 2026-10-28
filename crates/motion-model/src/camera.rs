@@ -2,6 +2,8 @@ use crate::{ensure, Result, Track};
 use glam::{Mat4, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 pub mod lens;
+mod imported;
+pub use imported::{CameraSample, CameraSampler, ImportedCamera, AuthoredCameraSampler};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -15,6 +17,9 @@ pub enum CameraMode {
 #[serde(deny_unknown_fields)]
 pub struct Camera {
     pub created: bool,
+    /// Explicit imported node selection; absence uses authored camera tracks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported: Option<ImportedCamera>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::ParentLink>,
     pub mode: CameraMode,
@@ -64,6 +69,7 @@ impl Camera {
         let target = [width as f32 / 2.0, height as f32 / 2.0, 0.0];
         Self {
             created: true,
+            imported: None,
             parent: None,
             mode: CameraMode::Position,
             position: Track::constant([target[0], target[1], -distance]),
@@ -83,6 +89,7 @@ impl Camera {
         self.validate_tracks(None)
     }
     fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
+        if let Some(imported) = &self.imported { imported.validate()?; }
         lens::validate_film_width(f64::from(self.film_width_mm))?;
         for track in [&self.position, &self.target] {
             if let Some(frames) = frames {
@@ -157,6 +164,7 @@ impl Camera {
         self.pose_parented(frame, width, height, Mat4::IDENTITY)
     }
     pub fn pose_parented(&self, frame: f64, width: u32, height: u32, parent: Mat4) -> Result<CameraPose> {
+        ensure(self.imported.is_none(), "imported camera requires its model source resolver")?;
         let local_eye = to_world(self.position_at(frame)?, width, height);
         let local_target = to_world(self.target.sample(frame)?, width, height);
         let eye = parent.transform_point3(local_eye);

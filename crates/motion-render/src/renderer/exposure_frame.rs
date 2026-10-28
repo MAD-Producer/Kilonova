@@ -97,6 +97,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
                 "exposure phase=task_init: scene schedule already advanced or failed".into(),
             ));
         }
+        scenes.set_model_source_catalog(renderer.model_source_catalog()).map_err(model_error)?;
         let factory = scenes.child_factory();
         scenes
             .center_scene()

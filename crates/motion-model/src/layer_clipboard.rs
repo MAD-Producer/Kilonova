@@ -106,6 +106,9 @@ impl LayerClipboard {
 
         let mut images = BTreeSet::new();
         let mut models = BTreeSet::new();
+        for camera in compositions.iter().map(|composition| &composition.camera) {
+            if let Some(binding) = &camera.imported { models.insert(binding.asset); }
+        }
         let mut fonts = BTreeSet::new();
         let mut audio = BTreeSet::new();
         let mut video = BTreeSet::new();
@@ -116,6 +119,9 @@ impl LayerClipboard {
         {
             match &layer.content {
                 Content::Model { model } => { models.insert(model.asset); }
+                Content::Camera { camera } => {
+                    if let Some(binding) = &camera.imported { models.insert(binding.asset); }
+                }
                 Content::Image { asset } => {
                     images.insert(*asset);
                 }

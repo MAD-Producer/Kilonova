@@ -11,6 +11,7 @@ mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
 mod model_layers;
+pub use model_layers::ModelSourceCatalog;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
@@ -1506,6 +1507,12 @@ impl Renderer {
     /// inactive images. Source files in a project are immutable; replacing a
     /// resource must use a new path (including when retaining its asset ID).
     pub fn configure_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
+        self.configure_assets_with_model_catalog(project, root, &self.model_source_catalog())
+    }
+    /// Resolve a candidate against a host-owned CPU catalog before mutating live
+    /// renderer state. Unchanged frozen sources remain available without files.
+    pub fn configure_assets_with_model_catalog(&mut self, project: &Project, root: &Path,
+        catalog: &ModelSourceCatalog) -> Result<()> {
         // Keep all fallible source resolution before any live cache/catalog
         // mutation: host command preparation relies on Err being non-destructive.
         let mut sources = HashMap::new();
@@ -1513,7 +1520,7 @@ impl Renderer {
             let source = crate::image_resources::Source::new(root, asset)?;
             sources.insert(asset.id, source);
         }
-        let model_sources = model_layers::prepare_sources(project, root, &self.models)?;
+        let model_sources = ModelSourceCatalog::prepare(project, root, catalog)?.prepared_sources();
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
             TextureKey::Static(id) if *id != 0 && self.image_sources.get(id) != sources.get(id) => Some(*id),
             _ => None,

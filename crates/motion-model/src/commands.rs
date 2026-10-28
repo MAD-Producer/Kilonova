@@ -1,6 +1,11 @@
 use crate::{Asset, CameraMode, Content, Ease, Easing, Layer};
 use serde::{Deserialize, Serialize};
 
+fn deserialize_camera_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::ImportedCamera>, D::Error> {
+    Option::<crate::ImportedCamera>::deserialize(deserializer)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Property {
@@ -273,6 +278,12 @@ pub enum Command {
         frame: u32,
         film_width_mm: f32,
         focal_length_mm: f32,
+    },
+    CameraImported {
+        #[serde(default)]
+        object: u64,
+        #[serde(deserialize_with = "deserialize_camera_binding")]
+        binding: Option<crate::ImportedCamera>,
     },
     CameraMode {
         #[serde(default)]

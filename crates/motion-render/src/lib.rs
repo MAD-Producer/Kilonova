@@ -76,6 +76,7 @@ pub use memory::TextureMemoryBreakdown;
 pub use presenter::Presenter;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
 pub use renderer::premultiply_pixels;
+pub use renderer::ModelSourceCatalog;
 pub use renderer::{CaptureTarget, ExposureTarget, LayerRaster, RenderError, RenderStats, RenderTarget, Renderer};
 pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};

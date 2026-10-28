@@ -426,6 +426,13 @@ impl Project {
             ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
             asset.validate()?;
         }
+        for camera in std::iter::once(&self.camera)
+            .chain(self.layers.iter().filter_map(Layer::camera_data)) {
+            if let Some(imported) = &camera.imported {
+                ensure(self.model_assets.iter().any(|a| a.id == imported.asset),
+                    "imported camera model asset missing")?;
+            }
+        }
         for asset in &self.audio_assets {
             ensure(
                 asset.id != 0 && asset_ids.insert(asset.id),
