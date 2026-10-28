@@ -19,3 +19,5 @@ Windows x86_64 Vulkan 下使用带 FFmpeg 的 release 构建，中英文 `--node
 run 40620825955 的审计、Rust/GPU、Windows、macOS Intel 均通过；Linux 在 job 的 60 分钟总预算耗尽后取消。官方检查注释为 `The job has exceeded the maximum execution time of 1h0m0s`。不是新的断言失败：17 分 21 秒用于桌面测试编译，此后约 31 分钟仍持续输出通过的测试，终止前最后一项 shader 错误信道测试也已通过。
 
 日志中多个隔离失败测试分别耗时约 40 秒。为降低编译及强制回溯解析的成本，Linux 桌面 dev/test profile 使用 `line-tables-only`，保留函数、源文件与行号信息，不生成完整类型调试数据；Windows/macOS 仍用原级别。此处是待 CI 实测的性能修正，尚不能认定全部耗时来自 DWARF。没有延长 job 或产品期限，没有跳过测试、缩减断言、关闭回溯或添加重试。原始 Linux job 日志和注释保存在本机 `artifacts/pr-ci-followups/node-history-acceptance-ci-linux-full.log`，待新运行验证后再冻结结果。
+
+首次配置重复定义已有 job `env`，run 40627617285 / 40627885628 被 GitHub 以重复键拒绝，未执行任何测试；第二次中间修正只更换表达式上下文，没有解决重复块，仍不算有效验证。已将配置合入原 env 块，并使既有工作流策略测试使用拒绝重复键的 BaseLoader，保留 `on`、布尔字符串的原解析语义。新增负面对照确实拒绝两个 env 块。最初本地系统 Python 缺 PyYAML，改用已具备依赖的工具环境后执行；失败输出不作为通过证据。

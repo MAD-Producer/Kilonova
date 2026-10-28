@@ -127,11 +127,6 @@ jobs:
     name: Desktop build
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ (matrix.os == 'macos-15-intel' || matrix.os == 'windows-2022') && 90 || 60 }}
-    env:
-      # Keep source locations for forced backtraces without full Linux DWARF
-      # type data in every isolated failure-path test process.
-      CARGO_PROFILE_DEV_DEBUG: ${{ matrix.platform == 'linux-x86_64' && 'line-tables-only' || '2' }}
-      CARGO_PROFILE_TEST_DEBUG: ${{ matrix.platform == 'linux-x86_64' && 'line-tables-only' || '2' }}
     strategy:
       fail-fast: false
       matrix:
@@ -148,6 +143,10 @@ jobs:
       XDG_RUNTIME_DIR: /tmp/motion-runtime
       MACOSX_DEPLOYMENT_TARGET: '11.0'
       PIP_CACHE_DIR: ${{ github.workspace }}/artifacts/ci-cache/pip
+      # Keep source locations for forced backtraces without full Linux DWARF
+      # type data in every isolated failure-path test process.
+      CARGO_PROFILE_DEV_DEBUG: ${{ matrix.platform == 'linux-x86_64' && 'line-tables-only' || '2' }}
+      CARGO_PROFILE_TEST_DEBUG: ${{ matrix.platform == 'linux-x86_64' && 'line-tables-only' || '2' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
