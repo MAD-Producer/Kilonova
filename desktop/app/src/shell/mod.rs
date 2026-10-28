@@ -12,6 +12,8 @@ mod effect_application;
 mod effect_drag;
 mod lifecycle;
 mod media;
+pub(crate) mod project_import;
+mod project_drag;
 pub(crate) mod media_assets;
 mod frame_export;
 pub(crate) mod audio_analysis;

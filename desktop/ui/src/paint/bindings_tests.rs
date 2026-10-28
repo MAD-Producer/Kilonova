@@ -1,6 +1,6 @@
 use super::*;
 
-fn capture(
+pub(super) fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     painter: &mut Painter,
@@ -18,7 +18,7 @@ fn capture(
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8Unorm,
+        format: painter.target_format,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });

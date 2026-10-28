@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "1698884a35e6409c83aebbae6e653ab88c99e06f",
+  "baseCommit": "2af21061ec2a8f8ebf465dd083d29ba5ea4099e1",
+  "runs": [
+    {
+      "log": "project-library-final-main-model-core.log",
+      "sha256": "cba3c48708c84ff396c8cf24d827199cb98ed7e74c02da2e58c329692ff271e4",
+      "passed": 531,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "log": "project-library-final-main-project-library.log",
+      "sha256": "45ce507d9ddcc560ebbf0bd975f2c9a0dd3c1c9fe039c384823404a89f82fdee",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "project-library-final-main-project-panels.log",
+      "sha256": "24eab433a2ab70846fd96905dbf2bc0c11688c1a87c6b56deee3b406a540a7f2",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 3
+    },
+    {
+      "log": "project-library-final-main-project-preview.log",
+      "sha256": "cd9d31db1367b80d6dfd80efe2f1011541ee99f9c0fc87ab475c3d11afcc6163",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "project-library-final-main-native.log",
+      "sha256": "fa5622a72423e1505bfb197ae3d5993f6d39ce212b38bca9b61e31670b2cc2d6",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "project-library-final-main-build.log",
+      "sha256": "e0d57bf807eb11bebfa71e847d7e206186d6d0fff8e6c38bd4f123f182829f4b",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "pngCount": 116,
+  "archive": "project-library-final-main-evidence.zip",
+  "archiveSha256": "63f8a8ace65b4acab2411926683ad609e517a3feb625df27f217e125a30cc1fb",
+  "limits": [
+    "Windows real GPU and production input bridge, not OS file drop injection",
+    "Existing global layout concerns remain deferred after user paused design work",
+    "Cross-platform CI must run on the final pushed head"
+  ]
+}

@@ -269,6 +269,8 @@ impl Project {
         Ok(Self {
             working_precision: self.working_precision,
             version: self.version,
+            // A sampling view omits other compositions and is not a document.
+            library: crate::ProjectLibrary::default(),
             composition_id: body.id.into(),
             compositions: Vec::new(),
             name: body.name.into(),
@@ -737,6 +739,7 @@ impl Project {
                     );
                 }
                 self.compositions.retain(|c| c.id != target);
+                self.library.remove_item(&crate::ProjectItem::Composition { id: target.clone() });
                 Ok(json!({"kind":"delete","composition":target}))
             }
             CompositionAction::SetClip {

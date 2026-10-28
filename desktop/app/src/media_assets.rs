@@ -32,6 +32,9 @@ impl Source {
 
 #[derive(Debug)]
 pub(crate) enum Intent {
+    Place,
+    RefreshThumbnail,
+    Preview { owner: Option<motion_ui::dock::Panel> },
     Replace,
     RelinkMissing,
     RevealFile,

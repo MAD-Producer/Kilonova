@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 29;
+pub const CURRENT_PROJECT_VERSION: u32 = 30;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -274,6 +274,7 @@ pub struct ParentLink {
 #[serde(deny_unknown_fields)]
 pub struct Project {
     pub version: u32,
+    pub library: crate::ProjectLibrary,
     /// One project-wide working precision, shared by every composition.
     /// Required on disk; unsupported GPU modes are never silently reduced.
     pub working_precision: motion_effects::image_contract::ChannelPrecision,
@@ -310,6 +311,7 @@ impl Project {
         ensure(width > 0 && height > 0, "composition size must be positive")?;
         let mut project = Self {
             version: CURRENT_PROJECT_VERSION,
+            library: crate::ProjectLibrary::default(),
             working_precision: motion_effects::image_contract::ChannelPrecision::Unorm8,
             composition_id: crate::MAIN_COMPOSITION.into(),
             compositions: Vec::new(),
@@ -369,6 +371,7 @@ impl Project {
     }
     pub fn validate(&self) -> Result<()> {
         ensure(self.version == CURRENT_PROJECT_VERSION, &format!("unsupported project format: version={} expected={CURRENT_PROJECT_VERSION}", self.version))?;
+        self.library.validate(self)?;
         ensure(self.fonts.len()<=128,"too many font assets")?;
         let mut font_ids=HashSet::new();
         for font in &self.fonts {

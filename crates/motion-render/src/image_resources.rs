@@ -651,6 +651,80 @@ fn linear_lut() -> [f32; 256] {
         }
     })
 }
+
+/// Reduce an owned decoder's straight sRGB pixels using the same linear box
+/// filter as file previews. No filesystem access or full-size pixel copy.
+pub fn preview_rgba(
+    width: u32,
+    height: u32,
+    rgba: &[u8],
+    edge: u32,
+    cancel: &AtomicBool,
+) -> Result<Pixels, Error> {
+    check_cancel(Some(cancel))?;
+    let bytes = decoded_image_bytes(width, height, MAX_DECODED_BYTES)?;
+    if rgba.len() as u64 != bytes {
+        return Err("invalid decoder RGBA length".into());
+    }
+    let (w, h) = Resolution::Preview(edge).dimensions(width, height);
+    let mut output = vec![0; (u64::from(w) * u64::from(h) * 4) as usize];
+    let lut = linear_lut();
+    let mut row = vec![[0.; 4]; w as usize];
+    let mut rows = 0;
+    let mut y_out = 0;
+    for y in 0..height {
+        check_cancel(Some(cancel))?;
+        for x in 0..width {
+            let at = ((u64::from(y) * u64::from(width) + u64::from(x)) * 4) as usize;
+            accumulate(
+                &mut row[(u64::from(x) * u64::from(w) / u64::from(width)) as usize],
+                [rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]],
+                &lut,
+            );
+        }
+        rows += 1;
+        if y + 1 == height
+            || u64::from(y + 1) * u64::from(h) / u64::from(height) > u64::from(y_out)
+        {
+            finish_row(
+                &mut row, rows, width, w,
+                &mut output[(y_out * w * 4) as usize..((y_out + 1) * w * 4) as usize],
+            );
+            rows = 0;
+            y_out += 1;
+        }
+    }
+    Ok(Pixels { width: w, height: h, rgba: output, cached: false })
+}
+
+#[cfg(test)]
+mod decoder_preview_tests {
+    use super::*;
+
+    #[test]
+    fn decoder_preview_matches_png_linear_alpha_filter_and_rejects_invalid_pixels() {
+        let temp = tempfile::tempdir().unwrap();
+        let image = image::RgbaImage::from_fn(257, 19, |x, y| {
+            image::Rgba([(x % 256) as u8, (y * 11) as u8, 220, ((x * 3 + y) % 256) as u8])
+        });
+        let path = temp.path().join("source.png");
+        image.save(&path).unwrap();
+        let source = Source { id: 1, path, root: temp.path().into(), width: 257, height: 19 };
+        let cancel = AtomicBool::new(false);
+        for edge in [1, 17, 128, 512] {
+            let file = decode(&source, Resolution::Preview(edge)).unwrap();
+            let memory = preview_rgba(257, 19, image.as_raw(), edge, &cancel).unwrap();
+            assert_eq!((file.width, file.height), (memory.width, memory.height));
+            assert_eq!(file.rgba, memory.rgba, "edge={edge}");
+        }
+        assert!(preview_rgba(0, 19, &[], 128, &cancel).is_err());
+        assert!(preview_rgba(257, 19, &[0; 4], 128, &cancel).is_err());
+        let half = preview_rgba(1, 1, &[255, 0, 0, 128], 128, &cancel).unwrap();
+        assert_eq!(half.rgba, [188, 0, 0, 128]);
+        cancel.store(true, Ordering::Release);
+        assert!(matches!(preview_rgba(257, 19, image.as_raw(), 128, &cancel), Err(Error::Cancelled)));
+    }
+}
 fn encode(v: f32) -> u8 {
     let v = if v <= 0.0031308 {
         v * 12.92

@@ -47,6 +47,7 @@ mod effect_recent;
 #[cfg(test)]
 mod recent_effect_menu_tests;
 pub(crate) mod effect_drag;
+pub(crate) mod project_drag;
 mod effects;
 mod effect_timeline;
 pub(crate) mod expressions;
@@ -83,7 +84,7 @@ pub(crate) mod layer_sampling;
 pub(crate) mod playback_switches;
 pub(crate) mod path_controls;
 mod paths;
-mod project;
+pub(crate) mod project;
 mod media_assets;
 mod properties;
 mod property_focus;
@@ -251,6 +252,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.key_gestures.cancel();
     panels.tools.cancel();
     panels.effect_drag.cancel();
+    panels.project_drag.cancel();
     panels.browser.cancel_library_click();
     panels.property_reveal.interrupt();
     let effect_timeline = panels.effect_timeline.cancel();
@@ -368,6 +370,10 @@ pub fn chrome(
     let effect_context_neutral = Input::default();
     let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, None);
+    let project_input = input;
+    let project_owned = project::prepare(panels, None, state, input);
+    let project_neutral = Input::default();
+    let input = if project_owned { &project_neutral } else { input };
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(None, state, input);
     let asset_neutral = Input::default();
@@ -380,7 +386,8 @@ pub fn chrome(
     let parent_pick_owned = panels.parent_controls.prepare_window(None, input);
     let parent_neutral = Input::default();
     let input = if parent_pick_owned { &parent_neutral } else { input };
-    let drag_owned = panels.effect_drag.prepare(None, state, input);
+    let project_drag_owned = panels.project_drag.prepare(None, state, input);
+    let drag_owned = panels.effect_drag.prepare(None, state, input) || project_drag_owned;
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
     let input = if drag_owned { &drag_neutral } else { input };
@@ -736,6 +743,7 @@ pub fn chrome(
     toolbar::render(list, atlas, size, panels, state,
         if toolbar_modal && !text_menu_owned { input } else { body_input }, &mut out);
     effect_drag::finish(list, atlas, size, panels, state, &mut out);
+    project_drag::finish(list, atlas, size, panels, state, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
@@ -1015,7 +1023,8 @@ pub fn chrome(
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         panels,
-        input,
+        state,
+        project_input,
         panels.locale,
         None,
         &mut out,
@@ -1068,6 +1077,10 @@ pub fn floating_chrome(
     let effect_context_neutral = Input::default();
     let input = if effect_context_owned { &effect_context_neutral } else { input };
     expressions::picking::prepare(panels, Some(panel));
+    let project_input = input;
+    let project_owned = project::prepare(panels, Some(panel), state, input);
+    let project_neutral = Input::default();
+    let input = if project_owned { &project_neutral } else { input };
     let asset_input = input;
     let asset_owned = panels.media_assets.prepare(Some(panel), state, input);
     let asset_neutral = Input::default();
@@ -1090,7 +1103,8 @@ pub fn floating_chrome(
     let parent_neutral = Input::default();
     let input = if parent_pick_owned { &parent_neutral } else { input };
     let path_context_owned = panels.path_controls.prepare_context_menu(Some(panel), state, panels.selected, input);
-    let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
+    let project_drag_owned = panels.project_drag.prepare(Some(panel), state, input);
+    let drag_owned = panels.effect_drag.prepare(Some(panel), state, input) || project_drag_owned;
     if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
     let drag_neutral = Input::default();
     let input = if drag_owned { &drag_neutral } else { input };
@@ -1242,6 +1256,7 @@ pub fn floating_chrome(
         &mut out,
     );
     effect_drag::finish(list, atlas, size, panels, state, &mut out);
+    project_drag::finish(list, atlas, size, panels, state, &mut out);
     paint::rect(
         list,
         Rect::new(0.0, size[1] - 20.0, size[0], 20.0),
@@ -1356,7 +1371,8 @@ pub fn floating_chrome(
         atlas,
         Rect::new(0., 0., size[0], size[1]),
         panels,
-        input,
+        state,
+        project_input,
         panels.locale,
         Some(panel),
         &mut out,
@@ -2156,7 +2172,7 @@ fn render_panel(
     }
     let input = &local;
     match panel {
-        Panel::Project => project(list, atlas, area, panels, state, input),
+        Panel::Project => project(list, atlas, area, panels, state, input, out),
         Panel::Composition => composition(list, atlas, area, panels, state, input, out),
         Panel::Properties => properties(list, atlas, area, panels, state, input, out),
         Panel::EffectControls | Panel::Effects => {

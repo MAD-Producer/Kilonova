@@ -40,6 +40,7 @@ pub use motion_model::{audio_levels,AudioLevels,AudioLevelsAction,AudioChannel};
 pub use motion_model::{AudioMarker, AudioMarkersAction, AudioSourceChannel};
 pub use motion_model::audio_edit;
 pub use motion_model::media_assets;
+pub use motion_model::{project_library, LibraryAction, ProjectFolder, ProjectItem, ProjectLibrary};
 pub use motion_model::EditSink;
 pub use motion_model::{
     to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind, ImportedCamera,

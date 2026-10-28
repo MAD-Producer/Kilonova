@@ -6,6 +6,8 @@ mod audio;
 pub mod audio_levels;
 pub mod audio_edit;
 pub mod media_assets;
+pub mod project_library;
+pub use project_library::{LibraryAction, ProjectFolder, ProjectItem, ProjectLibrary};
 pub use audio_edit::{AudioMarker, AudioMarkersAction, AudioSourceChannel};
 pub mod boundaries;
 mod camera;
@@ -87,6 +89,13 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("project library operation={operation} folder={folder:?}: {source}")]
+    ProjectLibrary {
+        operation: &'static str,
+        folder: Option<u64>,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("{0}")]
     Shared(#[source] SharedCause),
     #[error(transparent)]
