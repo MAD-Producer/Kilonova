@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 const MANIFEST: &str = "snapshot.json";
+const DEPTH: &str = "depth.snapshot";
+const MAX_DEPTH_PAYLOAD: u64 = (200 << 20) + 12;
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
 const MAX_FILES: usize = 8192;
 const MAX_PACKAGE_FILE: u64 = 16 * 1024 * 1024;
@@ -32,6 +34,7 @@ struct Manifest {
     range: motion_core::WorkArea,
     memory_policy: MemoryPolicy,
     revision: u64,
+    depth: bool,
     protected_sources: BTreeSet<PathBuf>,
     files: Vec<Entry>,
 }
@@ -169,6 +172,20 @@ impl FrozenMovie {
                         sha256: format!("{:x}", Sha256::digest(&package.bytes)),
                     });
                 }
+                let depth = self.depth.layer_count() > 0;
+                if depth {
+                    self.depth.validate_project(&self.project).map_err(|e| e.to_string())?;
+                    let mut output = fs::File::options().write(true).create_new(true)
+                        .open(prepared.path.join(DEPTH)).map_err(|e| format!("create frozen depth payload: {e}"))?;
+                    self.depth.write_to(&mut output, &|| control.check().map_err(Into::into))
+                        .map_err(|e| e.to_string())?;
+                    output.sync_all().map_err(|e| e.to_string())?;
+                    drop(output);
+                    let mut input = fs::File::open(prepared.path.join(DEPTH)).map_err(|e| e.to_string())?;
+                    let (bytes, sha256) = transfer_limited(&mut input, None, control, MAX_DEPTH_PAYLOAD)?;
+                    add_bytes(total, bytes)?;
+                    files.push(Entry { path: DEPTH.into(), bytes, sha256 });
+                }
                 if files.len() > MAX_FILES {
                     return Err("queued movie snapshot file count exceeds limit".into());
                 }
@@ -178,6 +195,7 @@ impl FrozenMovie {
                     range: self.range,
                     memory_policy: self.memory_policy,
                     revision: self.revision,
+                    depth,
                     protected_sources: self.source_paths.clone(),
                     files,
                 };
@@ -271,7 +289,27 @@ impl FrozenMovie {
                 registry.insert(package).map_err(|e| e.to_string())?;
                 package_names.insert(name);
             }
-            let plan = MovieFreezePlan::new(
+            let depth = if manifest.depth {
+                let entry = manifest.files.iter().find(|e| e.path == DEPTH)
+                    .ok_or("snapshot is missing required depth payload")?;
+                if entry.bytes > MAX_DEPTH_PAYLOAD {
+                    return Err("queued depth payload exceeds budget".into());
+                }
+                // Hash the exact private copy that will be parsed. A second
+                // read of an externally editable queue file is not verification.
+                let mut input = fs::File::open(safe_file(&root, DEPTH)?).map_err(|e| e.to_string())?;
+                let mut copied = tempfile::tempfile().map_err(|e| e.to_string())?;
+                let (bytes, hash) = transfer_limited(&mut input, Some(&mut copied), control, entry.bytes)?;
+                if bytes != entry.bytes || hash != entry.sha256 {
+                    return Err("queued movie snapshot integrity failure: depth.snapshot".into());
+                }
+                std::io::Seek::rewind(&mut copied).map_err(|e| e.to_string())?;
+                motion_host::depth_snapshot::DepthSnapshot::read_from(&mut copied, &|| control.check().map_err(Into::into))
+                    .map_err(|e| e.to_string())?
+            } else {
+                Default::default()
+            };
+            let mut plan = MovieFreezePlan::new(
                 manifest.project,
                 &root,
                 registry,
@@ -279,6 +317,7 @@ impl FrozenMovie {
                 manifest.revision,
                 control,
             )?;
+            plan.depth = depth;
             let mut frozen = plan.with_observation_request(request).freeze(control)?;
             let mut copied = Vec::new();
             collect(frozen.assets.path(), frozen.assets.path(), &mut copied)?;
@@ -286,11 +325,12 @@ impl FrozenMovie {
                 .iter()
                 .map(|p| p.to_string_lossy().replace('\\', "/"))
                 .collect();
-            if copied_names.len() + package_names.len() != manifest.files.len() {
+            if (manifest.depth && copied_names.contains(DEPTH))
+                || copied_names.len() + package_names.len() + usize::from(manifest.depth) != manifest.files.len() {
                 return Err("queued movie snapshot file set mismatch".into());
             }
             for entry in &manifest.files {
-                if package_names.contains(&entry.path) {
+                if package_names.contains(&entry.path) || (manifest.depth && entry.path == DEPTH) {
                     continue;
                 }
                 if !copied_names.contains(&entry.path) {
@@ -380,8 +420,16 @@ fn add_bytes(total: u64, bytes: u64) -> Result<u64> {
 }
 fn transfer(
     input: &mut fs::File,
+    output: Option<&mut fs::File>,
+    control: &ExportControl,
+) -> Result<(u64, String)> {
+    transfer_limited(input, output, control, motion_core::storage::MAX_PACKAGE)
+}
+fn transfer_limited(
+    input: &mut fs::File,
     mut output: Option<&mut fs::File>,
     control: &ExportControl,
+    limit: u64,
 ) -> Result<(u64, String)> {
     let mut hash = Sha256::new();
     let mut buffer = vec![0; motion_core::storage::TRANSFER_BUFFER_BYTES];
@@ -393,6 +441,9 @@ fn transfer(
             break;
         }
         bytes = add_bytes(bytes, count as u64)?;
+        if bytes > limit {
+            return Err("queued movie snapshot transfer exceeds declared budget".into());
+        }
         hash.update(&buffer[..count]);
         if let Some(output) = &mut output {
             output

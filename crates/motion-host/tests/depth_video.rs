@@ -425,6 +425,129 @@ fn done(session: &mut Session, count: u64) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_video_depth_uses_its_owned_color_and_refuses_other_source_times() {
+    use motion_model::depth::{CalibrationCurve, CalibrationExtrapolation, DepthAnchor};
+    use motion_effects::image_contract::ChannelPrecision::{Unorm8, Unorm16, Float16, Float32};
+    for precision in [Unorm8, Unorm16, Float16, Float32] {
+        let f = fixture(Mode::Rgba);
+        let mut project = f.session.engine.project().clone();
+        project.working_precision = precision;
+        project.layers[0].three_d = true;
+        project.layers[0].size = [80.; 2];
+        project.layers[0].transform.position.set_at(0, [16., 16., 0.]).unwrap();
+        project.camera.created = true;
+        project.camera.position.set_at(0, [16., 16., -120.]).unwrap();
+        project.camera.target.set_at(0, [16., 16., 0.]).unwrap();
+        project.camera.fov.set_at(0, 60.).unwrap();
+        let mut plane = Layer::solid(2, "Independent occlusion plane", [80.; 2], [16., 16., 0.], [0., 0., 1., 1.]);
+        plane.three_d = true;
+        project.layers.push(plane);
+        let id = motion_host::session::open(f.dir.path().into(), project, f.platform.clone()).unwrap();
+        struct Close(i64);
+        impl Drop for Close { fn drop(&mut self) { motion_host::session::close(self.0); } }
+        let _close = Close(id);
+        let (sender, seen) = mpsc::channel();
+        motion_host::session::with_session(id, |s| {
+            s.configure_depth(Echo { seen: sender, release: None })?;
+            request(s).unwrap();
+            Ok(())
+        }).unwrap();
+        let decoded = seen.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(decoded.key.source.pts.ticks, 10_000);
+        motion_host::session::with_session(id, |s| {
+            done(s, 1);
+            s.poll_depth()?;
+            let command = s.depth_calibration_command(1, [
+                DepthAnchor { value: 10., camera_z_meters: 8. },
+                DepthAnchor { value: 15., camera_z_meters: 4. },
+            ], CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject, 20.)?;
+            s.apply_command_batch(vec![command])?;
+            request(s).unwrap();
+            Ok(())
+        }).unwrap();
+        seen.recv_timeout(Duration::from_secs(5)).unwrap();
+        motion_host::session::with_session(id, |s| { done(s, 2); s.poll_depth()?; Ok(()) }).unwrap();
+        let opens = f.platform.opens.load(Ordering::SeqCst);
+        let capture = motion_host::ops::export::capture(id).unwrap();
+        let pixels = image::open(capture["path"].as_str().unwrap()).unwrap().to_rgba8();
+        assert_eq!(pixels.dimensions(), (32, 32));
+        assert_eq!(pixels.get_pixel(16, 10).0, [0, 0, 255, 255], "far video geometry must be behind the independent plane");
+        let near = pixels.get_pixel(16, 22).0;
+        assert!(near[0] >= 10 && near[1] <= 3 && near[2] <= 4 && near[3] == 255, "near video must use its admitted colors: {near:?}");
+        assert_eq!(f.platform.opens.load(Ordering::SeqCst), opens, "rendering must not decode a second color frame");
+        // A new headless renderer must recover from owned pixels after source
+        // removal, without codec/file IO or a stale GPU texture dependency.
+        std::fs::remove_file(f.dir.path().join("assets/source.mp4")).unwrap();
+        let again = motion_host::ops::export::capture(id).unwrap();
+        assert_eq!(image::open(again["path"].as_str().unwrap()).unwrap().to_rgba8(), pixels);
+        assert_eq!(f.platform.opens.load(Ordering::SeqCst), opens);
+        if let Some(dir) = std::env::var_os("MOTION_VIDEO_DEPTH_ARTIFACTS") {
+            let dir = std::path::PathBuf::from(dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            pixels.save(dir.join(format!("native-{precision:?}.png"))).unwrap();
+        }
+        motion_host::session::with_session(id, |s| {
+            assert_eq!(s.depth_status()?.unwrap().retained_image_bytes, 24);
+            s.frame = 1.; // 43,333us selects the distinct 40,000us source PTS.
+            Ok(())
+        }).unwrap();
+        assert!(motion_host::ops::export::capture(id).unwrap_err().to_string().contains("pending"));
+        assert!(!f.dir.path().join("exports/frame-000001.png").exists());
+        motion_host::session::with_session(id, |s| {
+            assert_eq!(s.depth_status()?.unwrap().retained_image_bytes, 0);
+            s.frame = 0.;
+            Ok(())
+        }).unwrap();
+        assert!(motion_host::ops::export::capture(id).unwrap_err().to_string().contains("pending"));
+        assert_eq!(image::open(f.dir.path().join("exports/frame-000000.png")).unwrap().to_rgba8(), pixels);
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_video_owned_colors_use_the_same_bt709_conversion_as_inference() {
+    use motion_model::depth::{CalibrationCurve, CalibrationExtrapolation, DepthAnchor};
+    let f = fixture(Mode::GrayBt709);
+    let mut project = f.session.engine.project().clone();
+    project.layers[0].three_d = true;
+    project.layers[0].size = [80.; 2];
+    project.layers[0].transform.position.set_at(0, [16., 16., 0.]).unwrap();
+    project.camera.created = true;
+    project.camera.position.set_at(0, [16., 16., -120.]).unwrap();
+    project.camera.target.set_at(0, [16., 16., 0.]).unwrap();
+    let id = motion_host::session::open(f.dir.path().into(), project, f.platform.clone()).unwrap();
+    struct Close(i64);
+    impl Drop for Close { fn drop(&mut self) { motion_host::session::close(self.0); } }
+    let _close = Close(id);
+    let (sender, seen) = mpsc::channel();
+    motion_host::session::with_session(id, |s| {
+        s.configure_depth(Echo { seen: sender, release: None })?;
+        request(s).unwrap();
+        Ok(())
+    }).unwrap();
+    let decoded = seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert_ne!(decoded.rgb[0], 128, "BT.709 and sRGB encodings must not be treated as identical");
+    motion_host::session::with_session(id, |s| {
+        done(s, 1);
+        s.poll_depth()?;
+        let command = s.depth_calibration_command(1, [
+            DepthAnchor { value: 0., camera_z_meters: 8. },
+            DepthAnchor { value: 255., camera_z_meters: 4. },
+        ], CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject, 20.)?;
+        s.apply_command_batch(vec![command])?;
+        request(s).unwrap();
+        Ok(())
+    }).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    motion_host::session::with_session(id, |s| { done(s, 2); s.poll_depth()?; Ok(()) }).unwrap();
+    let capture = motion_host::ops::export::capture(id).unwrap();
+    let pixels = image::open(capture["path"].as_str().unwrap()).unwrap().to_rgba8();
+    assert_eq!(pixels.get_pixel(16, 16).0, [decoded.rgb[0], decoded.rgb[1], decoded.rgb[2], 255]);
+    assert_eq!(f.platform.opens.load(Ordering::SeqCst), 2, "capture must not decode again");
+}
+
+#[test]
 fn video_prepared_fingerprint_is_computed_after_bt709_to_srgb_conversion() {
     for (mode, digest) in [
         (

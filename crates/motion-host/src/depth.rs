@@ -37,6 +37,15 @@ pub enum Error {
     State,
     #[error("depth worker stopped")]
     Stopped,
+    #[error("depth result request={request} asset={asset} phase=retain: capacity exceeded; bytes={required_bytes}/{byte_limit} samples={required_samples}/{sample_limit}")]
+    RetentionCapacity {
+        request: u64,
+        asset: u64,
+        required_bytes: usize,
+        byte_limit: usize,
+        required_samples: usize,
+        sample_limit: usize,
+    },
     #[error("depth backend panicked: {0}")]
     Panic(String),
     #[error("depth backend failed: {0}")]
@@ -59,7 +68,8 @@ pub enum Error {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Key {
     pub source: DepthSource,
     pub geometry: DepthGeometry,
@@ -89,6 +99,7 @@ pub struct Input {
     key: Key,
     size: [u32; 2],
     rgb: Arc<[u8]>,
+    image: Option<motion_render::DepthImage>,
 }
 
 impl Input {
@@ -108,7 +119,7 @@ impl Input {
         if rgb.len() as u64 != u64::from(size[0]) * u64::from(size[1]) * 3 {
             return Err(Error::Invalid("RGB byte count differs from dimensions"));
         }
-        Ok(Self { key, size, rgb })
+        Ok(Self { key, size, rgb, image: None })
     }
     pub fn key(&self) -> &Key {
         &self.key
@@ -119,7 +130,7 @@ impl Input {
     pub fn rgb(&self) -> &[u8] {
         &self.rgb
     }
-    fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
+    pub(crate) fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
         let mut hash = Sha256::new();
         hash.update(b"MotionStudio/depth/rgb8-srgb-opaque/v1\0");
         for size in self.size {
@@ -174,6 +185,7 @@ pub struct Estimate {
 pub struct PreparedEstimate {
     estimate: Estimate,
     input: PreparedDepthInput,
+    image: Option<motion_render::DepthImage>,
 }
 impl PreparedEstimate {
     pub fn estimate(&self) -> &Estimate {
@@ -181,6 +193,9 @@ impl PreparedEstimate {
     }
     pub fn input(&self) -> PreparedDepthInput {
         self.input
+    }
+    pub(crate) fn into_owned_parts(self) -> (Estimate, PreparedDepthInput, Option<motion_render::DepthImage>) {
+        (self.estimate, self.input, self.image)
     }
     pub fn into_parts(self) -> (Estimate, PreparedDepthInput) {
         (self.estimate, self.input)
@@ -283,7 +298,7 @@ pub(crate) enum Identity {
     Video(VideoKey),
 }
 impl Identity {
-    fn same_request(&self, other: &Self) -> bool {
+    pub(crate) fn same_request(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Sample(a), Self::Sample(b)) => a.same_sample(b),
             (Self::Video(a), Self::Video(b)) => a == b,
@@ -333,6 +348,16 @@ pub struct SessionStatus {
     pub counts: Counts,
     pub in_flight: Option<InFlight>,
     pub queue_depth: usize,
+    /// Results admitted for the current document/revision. Owned static image
+    /// samples survive clock changes; video and pending tickets stay frame-bound.
+    pub retained_samples: usize,
+    /// Scalar/validity/confidence planes, preserving the existing observation.
+    pub retained_bytes: usize,
+    /// Owned original RGBA allocation capacity. Combined with retained_bytes,
+    /// this is bounded by the session result-admission allowance.
+    pub retained_image_bytes: usize,
+    /// Lifetime host result-admission failures; separate from backend failures.
+    pub retention_rejections: u64,
 }
 
 struct Job {
@@ -638,7 +663,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
-            Ok(PreparedEstimate { estimate, input: prepared_input })
+            Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image })
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
         .map_err(|error| match error {

@@ -13,15 +13,20 @@ fn samples(layer: &crate::DrawLayer) -> Option<u32> {
     .then_some(samples)
 }
 
-fn shared_plane(renderer: &Renderer, layer: &crate::DrawLayer) -> bool {
+fn plane_texture(layer: &crate::DrawLayer) -> Option<TextureKey> {
+    layer.asset.map(TextureKey::Static)
+        .or_else(|| layer.video.as_ref().map(|_| TextureKey::Video(layer.id)))
+}
+
+fn shared_plane(renderer: &Renderer, scene: &Scene, layer: &crate::DrawLayer) -> bool {
     layer.model_source.is_none()
-        && layer.asset.is_none_or(|asset| {
+        && plane_texture(layer).is_none_or(|key| {
             renderer
                 .images
-                .get(&TextureKey::Static(asset))
+                .get(&key)
                 .is_some_and(|image| image.plane_image.is_some())
         })
-        && layer.video.is_none()
+        && (layer.video.is_none() || scene.has_owned_video_depth(layer.id))
         && layer.vector.is_none()
         && layer.three_d
         && !layer.screen_overlay
@@ -48,7 +53,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        if samples(&scene.layers[start]).is_none() && !shared_plane(renderer, &scene.layers[start])
+        if samples(&scene.layers[start]).is_none() && !shared_plane(renderer, scene, &scene.layers[start])
         {
             start += 1;
             continue;
@@ -61,7 +66,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
                     break;
                 }
                 count = Some(current);
-            } else if !shared_plane(renderer, &scene.layers[end]) {
+            } else if !shared_plane(renderer, scene, &scene.layers[end]) {
                 break;
             }
             end += 1;
@@ -134,6 +139,7 @@ impl Renderer {
             if layer.model_source.is_none() && scene.depth_surface(layer.id).is_some() {
                 output.shared_rasters.insert(layer.id);
                 layer.asset = None;
+                layer.video = None;
                 layer.size = [scene.width as f32, scene.height as f32];
                 layer.source_size = layer.size;
                 layer.source_rect = [0., 0., layer.size[0], layer.size[1]];
@@ -164,7 +170,9 @@ impl Renderer {
             .or_else(|| scene.layers.iter().find(|layer| scene.depth_surface(layer.id).is_some()))
             .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
         let sample_count = anchor.model_source.as_ref().map_or(4, |clip| clip.samples);
-        let source_id = anchor.model_source.as_ref().map_or(anchor.asset.unwrap_or(0), |clip| clip.asset);
+        let source_id = anchor.model_source.as_ref().map_or_else(
+            || anchor.asset.or_else(|| anchor.video.as_ref().map(|v| v.asset)).unwrap_or(0),
+            |clip| clip.asset);
         for layer in scene
             .layers
             .iter()
@@ -327,15 +335,15 @@ impl Renderer {
                     world: layer.model,
                     size: layer.size,
                     color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
-                    blend: layer.color[3] != 1. || layer.opacity != 1. || layer.asset.is_some_and(|asset| {
-                        self.images.get(&TextureKey::Static(asset)).is_none_or(|image| {
+                    blend: layer.color[3] != 1. || layer.opacity != 1. || plane_texture(layer).is_some_and(|key| {
+                        self.images.get(&key).is_none_or(|image| {
                             image.plane_image.is_none_or(|state| !state.opaque)
                         })
                     }),
-                    texture: layer.asset.map(|asset| {
-                        self.images.get(&TextureKey::Static(asset))
+                    texture: plane_texture(layer).map(|key| {
+                        self.images.get(&key)
                             .ok_or_else(|| RenderError::Invalid(format!(
-                                "scene plane object={} source={asset} phase=shared_plane_image: prepared image is missing", layer.id
+                                "scene plane object={} key={key:?} phase=shared_plane_image: prepared image is missing", layer.id
                             )))?._texture.admitted_view()
                     }).transpose()?,
                 }))
@@ -369,11 +377,11 @@ impl Renderer {
             }
         };
         // The allocation encoder owns the prior revisions until submission or
-        // abandonment. Uploading a referenced static source must not mutate it.
-        for asset in scene.layers.iter().filter_map(|layer| layer.asset) {
+        // abandonment. Uploading a referenced color source must not mutate it.
+        for key in scene.layers.iter().filter_map(plane_texture) {
             if let Some(state) = self
                 .images
-                .get_mut(&TextureKey::Static(asset))
+                .get_mut(&key)
                 .and_then(|image| image.plane_image.as_mut())
             {
                 state.frozen = true;

@@ -229,6 +229,7 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    pub(crate) menu_navigation: super::menus::Navigation,
     pub(crate) animation_menu_scope: Option<super::animation_menu::MenuScope>,
     pub(crate) clipboard_available: bool,
     pub(crate) keyframe_clipboard_available: bool,
