@@ -127,6 +127,11 @@ jobs:
     name: Desktop build
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ (matrix.os == 'macos-15-intel' || matrix.os == 'windows-2022') && 90 || 60 }}
+    env:
+      # Keep source locations for forced backtraces without full Linux DWARF
+      # type data in every isolated failure-path test process.
+      CARGO_PROFILE_DEV_DEBUG: ${{ runner.os == 'Linux' && 'line-tables-only' || '2' }}
+      CARGO_PROFILE_TEST_DEBUG: ${{ runner.os == 'Linux' && 'line-tables-only' || '2' }}
     strategy:
       fail-fast: false
       matrix:

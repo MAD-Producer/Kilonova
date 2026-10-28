@@ -13,3 +13,9 @@ Windows x86_64 Vulkan 下使用带 FFmpeg 的 release 构建，中英文 `--node
 首次 debug 启动缺少相邻 FFmpeg DLL，补齐运行目录后 debug 全量 smoke 又在原有期限内超时；均保留原始日志，没有以这些运行作为通过证据。随后采用与 CI 一致的 release 配置完成验证，没有延长验收期限。Linux/macOS 的真实运行仍交由本 PR CI；本机结果不代表已完成跨平台验证。
 
 本次只改验收阶段的等待边界，不改 UI 样式、资源、依赖、工程语义或渲染结果，因此不重新认定 DESIGN §0.7 的现存违规已修复。
+
+## CI 运行预算补查
+
+run 40620825955 的审计、Rust/GPU、Windows、macOS Intel 均通过；Linux 在 job 的 60 分钟总预算耗尽后取消。官方检查注释为 `The job has exceeded the maximum execution time of 1h0m0s`。不是新的断言失败：17 分 21 秒用于桌面测试编译，此后约 31 分钟仍持续输出通过的测试，终止前最后一项 shader 错误信道测试也已通过。
+
+日志中多个隔离失败测试分别耗时约 40 秒。为降低编译及强制回溯解析的成本，Linux 桌面 dev/test profile 使用 `line-tables-only`，保留函数、源文件与行号信息，不生成完整类型调试数据；Windows/macOS 仍用原级别。此处是待 CI 实测的性能修正，尚不能认定全部耗时来自 DWARF。没有延长 job 或产品期限，没有跳过测试、缩减断言、关闭回溯或添加重试。原始 Linux job 日志和注释保存在本机 `artifacts/pr-ci-followups/node-history-acceptance-ci-linux-full.log`，待新运行验证后再冻结结果。
