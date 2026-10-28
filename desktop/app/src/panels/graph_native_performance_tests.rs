@@ -17,6 +17,74 @@ const NAME: &str =
     "panels::graph_native_performance_tests::actual_native_graph_costs_match_info_counters";
 const CHILD: &str = "MOTION_GRAPH_PERFORMANCE_CHILD";
 
+// Independently authored ABI bindings to documented Windows own-thread clocks.
+// GetThreadTimes reports100ns units; raw cycle counts are never converted to time.
+// https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadtimes
+// https://learn.microsoft.com/windows/win32/api/realtimeapiset/nf-realtimeapiset-querythreadcycletime
+#[repr(C)]
+#[derive(Default)]
+struct FileTime {
+    low: u32,
+    high: u32,
+}
+impl FileTime {
+    fn ticks(&self) -> u64 {
+        (u64::from(self.high) << 32) | u64::from(self.low)
+    }
+}
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn GetCurrentThread() -> *mut std::ffi::c_void;
+    fn GetThreadTimes(
+        thread: *mut std::ffi::c_void,
+        created: *mut FileTime,
+        exited: *mut FileTime,
+        kernel: *mut FileTime,
+        user: *mut FileTime,
+    ) -> i32;
+}
+#[link(name = "mincore")]
+unsafe extern "system" {
+    fn QueryThreadCycleTime(thread: *mut std::ffi::c_void, cycles: *mut u64) -> i32;
+}
+struct CpuSample {
+    ticks: u64,
+    cycles: u64,
+}
+impl CpuSample {
+    fn read() -> Self {
+        let (mut created, mut exited, mut kernel, mut user) = (
+            FileTime::default(),
+            FileTime::default(),
+            FileTime::default(),
+            FileTime::default(),
+        );
+        let mut cycles = 0;
+        // SAFETY: the pseudo-handle refers to this live calling thread, every
+        // output points to a correctly aligned initialized local of the ABI
+        // type, and no pointer is retained by either synchronous OS query.
+        unsafe {
+            let thread = GetCurrentThread();
+            assert_ne!(
+                GetThreadTimes(thread, &mut created, &mut exited, &mut kernel, &mut user),
+                0,
+                "GetThreadTimes failed: {}",
+                std::io::Error::last_os_error()
+            );
+            assert_ne!(
+                QueryThreadCycleTime(thread, &mut cycles),
+                0,
+                "QueryThreadCycleTime failed: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+        Self {
+            ticks: kernel.ticks().checked_add(user.ticks()).unwrap(),
+            cycles,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Kind {
     Property,
@@ -210,16 +278,28 @@ fn frame(
     assert!(shell.state["desktop"]["uiPerformance"].is_object());
     shell.frame = value;
     let mut build_us = 0;
+    let mut cpu_ticks = 0;
+    let mut cpu_cycles = 0;
     let mut reply_us = 0;
     let mut polls = 0;
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
+        let cpu_before = CpuSample::read();
         let start = Instant::now();
         let (paint, actions) = shell.draw_commands(SIZE);
         assert!(actions.is_empty());
         let ui = shell.ui_frame(paint, SIZE, false);
         assert!(ui.composition.is_some());
         build_us += start.elapsed().as_micros();
+        let cpu_after = CpuSample::read();
+        cpu_ticks += cpu_after
+            .ticks
+            .checked_sub(cpu_before.ticks)
+            .expect("thread CPU time went backwards");
+        cpu_cycles += cpu_after
+            .cycles
+            .checked_sub(cpu_before.cycles)
+            .expect("thread cycles went backwards");
         let start = Instant::now();
         let result = native_test_support::receive(
             events,
@@ -242,7 +322,9 @@ fn frame(
         );
     }
     let p = performance(&shell.engine);
-    serde_json::json!({"frame":value,"sought":seek,"seek_reply_us":seek_us,"state_snapshot_us":snapshot_us,"ui_build_and_atlas_us":build_us,"present_reply_us":reply_us,"present_polls":polls,
+    serde_json::json!({"frame":value,"sought":seek,"seek_reply_us":seek_us,"state_snapshot_us":snapshot_us,"ui_build_and_atlas_us":build_us,
+        "ui_thread_cpu_100ns":cpu_ticks,"ui_thread_cycles":cpu_cycles,"document_generation":shell.state["document_generation"],"revision":shell.state["revision"],
+        "present_reply_us":reply_us,"present_polls":polls,
         "effective_timeline_zoom":shell.panels.timeline.zoom,"effective_timeline_offset":shell.panels.timeline.offset,
         "timeline_graph_mode":shell.panels.timeline.graph_mode,"info":p})
 }
@@ -405,8 +487,8 @@ fn actual_native_graph_costs_match_info_counters() {
     }
     assert_eq!(cases.len(), 28);
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":2,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
+        "schema":3,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Own-thread CPU100ns and raw cycles bracket UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }
