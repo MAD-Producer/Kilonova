@@ -19,6 +19,18 @@ pub(crate) struct VideoInput {
 }
 impl VideoInput {
     pub fn decode(self, cancellation: &Cancellation) -> Result<Input> {
+        self.decode_checked(cancellation, &|| Ok(()))
+    }
+    pub fn decode_checked(
+        self,
+        cancellation: &Cancellation,
+        check: &dyn Fn() -> crate::Result<()>,
+    ) -> Result<Input> {
+        let canceled = || -> Result<()> {
+            cancellation.check()?;
+            check().map_err(|cause| Error::Media(cause.to_string().into()))
+        };
+        canceled()?;
         cancellation.check()?;
         self.asset.validate()?;
         self.key.validate()?;
@@ -43,6 +55,7 @@ impl VideoInput {
                 "video depth staging exceeds decoded payload budget",
             ));
         }
+        canceled()?;
         let root = self.root.canonicalize()?;
         let path = root.join(&self.asset.path).canonicalize()?;
         if !path.starts_with(&root) {
@@ -53,7 +66,7 @@ impl VideoInput {
             return Err(Error::Invalid("video size differs from registered source"));
         }
         let pts = motion_media::load_video_index(&root, &self.asset)?;
-        cancellation.check()?;
+        canceled()?;
         let index = pts
             .partition_point(|p| *p <= self.key.target_us)
             .checked_sub(1)
@@ -70,13 +83,11 @@ impl VideoInput {
         let color = (self.asset.color_standard, self.asset.color_range);
         let coded_geometry = (self.asset.width, self.asset.height, self.asset.rotation);
         let mut decoder = self.platform.open_decoder(&path, self.asset, pts)?;
-        cancellation.check()?;
+        canceled()?;
         let decoded = decoder.frame(self.key.target_us, &|| {
-            cancellation
-                .check()
-                .map_err(|_| motion_media::Error::from("depth video request canceled"))
+            canceled().map_err(|cause| motion_media::Error::from(cause.to_string()))
         });
-        cancellation.check()?;
+        canceled()?;
         let frame = decoded?;
         let encoding = decoder.rgb_encoding()?;
         drop(decoder);
@@ -107,7 +118,7 @@ impl VideoInput {
             }
             VideoPixels::Rgba(rgba) => Cow::Borrowed(rgba.as_slice()),
         };
-        cancellation.check()?;
+        canceled()?;
         let key = Key {
             source: DepthSource {
                 asset: self.key.asset,
@@ -127,7 +138,7 @@ impl VideoInput {
         if encoding == RgbEncoding::Bt709 {
             let lut = bt709_to_srgb();
             for row in rgba.chunks_mut(width as usize * 4) {
-                cancellation.check()?;
+                canceled()?;
                 for pixel in row.chunks_exact_mut(4) {
                     for channel in &mut pixel[..3] {
                         *channel = lut[usize::from(*channel)];
@@ -140,7 +151,7 @@ impl VideoInput {
         // Only managed-index/decoder agreement above can construct this end.
         // Backends cannot extend a color/depth admission to another sample.
         input.video_end_us = Some(frame.end);
-        cancellation.check()?;
+        canceled()?;
         Ok(input)
     }
 }
