@@ -744,7 +744,7 @@ impl VideoFrames {
         prefetch: bool,
         retain_idle: bool,
     ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
-        let layers=scene.video_layers();
+        let layers=scene.video_decode_layers();
         let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
         if retain_idle {
             let missing=layers.iter().filter(|layer| !self.streams.contains_key(&layer.id)).count();

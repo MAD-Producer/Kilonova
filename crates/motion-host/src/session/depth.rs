@@ -281,15 +281,23 @@ impl Session {
             else {
                 return Ok(false);
             };
-            let Identity::Sample(key) = &sample.key else {
-                return Err(format!("calibrated depth object={object} phase=render: video geometry routing is not implemented").into());
+            let current = match &sample.key {
+                Identity::Sample(key) => key.source.clone(),
+                Identity::Video(key) => {
+                    // saved_depth_sample already guarded the current document,
+                    // exact composition frame, object and source target. The
+                    // worker independently checked the actual indexed PTS/end.
+                    // Preserve that PTS; never substitute the requested target.
+                    let decoded = &sample.estimate.resource.descriptor().source;
+                    DepthSource { asset: key.asset, revision: key.revision, pts: decoded.pts }
+                }
             };
             match &sample.image {
                 Some(image) => scene.attach_calibrated_depth_image(
-                    object, &key.source, &sample.estimate.resource, sample.input, image.clone(),
+                    object, &current, &sample.estimate.resource, sample.input, image.clone(),
                 )?,
                 None => scene.attach_calibrated_depth(
-                    object, &key.source, &sample.estimate.resource, sample.input,
+                    object, &current, &sample.estimate.resource, sample.input,
                 )?,
             }
         }

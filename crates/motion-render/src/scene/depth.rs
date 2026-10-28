@@ -119,6 +119,27 @@ impl Scene {
             Some((layer.asset?, surface.image.as_ref()?))
         })
     }
+    pub(crate) fn calibrated_video_images(&self) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
+        self.layers.iter().filter_map(|layer| {
+            if !self.has_owned_video_depth(layer.id) { return None; }
+            Some((layer.id, self.depth_surfaces.get(&layer.id)?.image.as_ref()?))
+        })
+    }
+    pub(crate) fn has_owned_video_depth(&self, object: u64) -> bool {
+        self.depth_required.contains_key(&object)
+            && !self.depth_pending.contains(&object)
+            && self.layers.iter().any(|layer| layer.id == object && layer.video.is_some())
+            && self.depth_surfaces.get(&object).is_some_and(|surface| surface.image.is_some())
+    }
+    /// Original video layers whose colors still need a decoder. A calibrated
+    /// video admission owns its exact display pixels and must not decode again.
+    /// video_layers() intentionally keeps its complete source/capability meaning.
+    pub fn video_decode_layers(&self) -> Vec<&crate::DrawLayer> {
+        let mut layers: Vec<_> = self.layers.iter().filter(|layer|
+            layer.video.is_some() && !self.has_owned_video_depth(layer.id)).collect();
+        for node in &self.nested { layers.extend(node.scene.video_decode_layers()); }
+        layers
+    }
     pub(crate) fn depth_surface(&self, object: u64) -> Option<Arc<DepthSurface>> {
         if self.depth_pending.contains(&object) {
             return None;

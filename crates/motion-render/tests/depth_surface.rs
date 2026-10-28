@@ -4,6 +4,9 @@ use motion_core::{Asset, Content, Layer, Project};
 use motion_model::depth::*;
 use motion_render::{Renderer, Scene};
 
+#[path = "depth_surface/video.rs"]
+mod video;
+
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {
     if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {

@@ -1340,7 +1340,8 @@ impl Renderer {
             frozen: false,
         });
         if let Some(image) = self.images.get_mut(&id).filter(|i| {
-            i.size == (width, height) && i.plane_image.is_none_or(|state| !state.frozen)
+            i.size == (width, height) && i._texture.format() == TARGET_FORMAT
+                && i.plane_image.is_none_or(|state| !state.frozen)
         }) {
             self.allocation_uploads.track(image._texture.allocation()).map_err(|error| {
                 let message = format!("image key={id:?} phase=upload_track: {error}");
