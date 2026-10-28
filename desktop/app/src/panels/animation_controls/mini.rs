@@ -351,7 +351,7 @@ impl View {
         }
         #[cfg(test)]
         if let Some(ctx) = context.as_mut() {
-            ctx.ranges.record_probe(id.clone(),header,graph,bounds);
+            ctx.ranges.record_probe(id.clone(), header, graph, bounds);
         }
         let pad = styles.metric("padding.panel", 8.);
         let slot = styles.metric("graph.control.height", 24.);

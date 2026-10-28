@@ -167,7 +167,7 @@ fn comparison_sampling_budget_failure_is_not_a_partial_curve_and_is_cached_until
     layer.transform.opacity.keys = (0..33000)
         .map(|frame| motion_core::Keyframe {
             frame,
-            value: if frame%2==0 {0.2}else{0.8},
+            value: if frame % 2 == 0 { 0.2 } else { 0.8 },
             ease: Ease::InOut,
             curve: None,
             spatial: None,

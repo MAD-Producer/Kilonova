@@ -123,7 +123,14 @@ fn snapshot<'a>(state: &'a Value, id: &Identity) -> Option<(&'a Value, i64)> {
 impl Controls {
     #[cfg(test)]
     pub(super) fn record_probe(&mut self, id: Identity, header: Rect, plot: Rect, bounds: Bounds) {
-        if self.probes.len() < MAX_VIEWS { self.probes.push(Probe { id,header,plot,bounds }); }
+        if self.probes.len() < MAX_VIEWS {
+            self.probes.push(Probe {
+                id,
+                header,
+                plot,
+                bounds,
+            });
+        }
     }
     pub(super) fn sync(&mut self, state: &Value) {
         let scope = Scope::of(state);
@@ -197,7 +204,11 @@ impl Controls {
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
-        #[cfg(test)] { self.probes.clear(); self.menu_card=None; }
+        #[cfg(test)]
+        {
+            self.probes.clear();
+            self.menu_card = None;
+        }
         self.window = window;
         let owner = self.menu.as_ref().map(|m| m.window);
         self.sync(state);
@@ -217,7 +228,9 @@ impl Controls {
                 || m.comparison
                     .as_ref()
                     .is_some_and(|context| !comparison.matches_range_context(context))
-                || m.mini.as_ref().is_some_and(|context| Some(context) != mini.as_ref())
+                || m.mini
+                    .as_ref()
+                    .is_some_and(|context| Some(context) != mini.as_ref())
                 || m.selected != selected
                 || m.focused != focused
                 || match (&m.track, snapshot(state, &m.id)) {
@@ -311,14 +324,25 @@ impl Controls {
     /// Mini axes stay in normalized authoring coordinates and never navigate
     /// the composition time axis used by the timeline/comparison surfaces.
     pub(super) fn navigate_mini(
-        &mut self, id: &Identity, automatic: Bounds, axis: usize,
-        factor: f64, anchor: f64, distance: f64,
+        &mut self,
+        id: &Identity,
+        automatic: Bounds,
+        axis: usize,
+        factor: f64,
+        anchor: f64,
+        distance: f64,
     ) -> bool {
         if !matches!(id.surface, Surface::Mini(_)) || axis > 1 {
             return false;
         }
-        let Some(entry) = self.entry(id) else { return false; };
-        let current = if axis == 0 { &mut entry.x } else { &mut entry.y };
+        let Some(entry) = self.entry(id) else {
+            return false;
+        };
+        let current = if axis == 0 {
+            &mut entry.x
+        } else {
+            &mut entry.y
+        };
         let automatic = if axis == 0 { automatic.x } else { automatic.y };
         let mut next = *current;
         let changed = if distance != 0. {
@@ -425,7 +449,10 @@ impl Controls {
         let x = menu.point[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
         let y = menu.point[1].clamp(top, (bounds.max[1] - height).max(top));
         let card = Rect::new(x, y, width, height);
-        #[cfg(test)] { self.menu_card=Some(card); }
+        #[cfg(test)]
+        {
+            self.menu_card = Some(card);
+        }
         let neutral = Input::default();
         let opened = std::mem::take(&mut menu.opened);
         let events = if opened || input.composing || input.ime_consumed {
@@ -509,8 +536,16 @@ impl Controls {
             ]
         };
         if matches!(menu.id.surface, Surface::Mini(_)) {
-            labels[3] = if zh { "锁定归一化时间 X" } else { "Lock normalized time X" };
-            labels[4] = if zh { "锁定归一化数值 Y" } else { "Lock normalized value Y" };
+            labels[3] = if zh {
+                "锁定归一化时间 X"
+            } else {
+                "Lock normalized time X"
+            };
+            labels[4] = if zh {
+                "锁定归一化数值 Y"
+            } else {
+                "Lock normalized value Y"
+            };
         }
         let mut operation = None;
         for item in 0..5 {
@@ -701,8 +736,14 @@ pub(super) fn readout(
     value: f64,
     unit: &str,
 ) {
-    readout_lines(list, atlas, plot, mouse, &format!("{frame:.2} f · {title}"),
-        &[value_label(value, unit)]);
+    readout_lines(
+        list,
+        atlas,
+        plot,
+        mouse,
+        &format!("{frame:.2} f · {title}"),
+        &[value_label(value, unit)],
+    );
 }
 
 pub(super) fn value_label(value: f64, unit: &str) -> String {
@@ -717,8 +758,12 @@ pub(super) fn value_label(value: f64, unit: &str) -> String {
 /// A normalized graph can show actual interval samples without pretending its
 /// authoring axes are composition frames or physical values.
 pub(super) fn readout_lines(
-    list: &mut PaintList, atlas: &mut TextAtlas, plot: Rect, mouse: [f32; 2],
-    title: &str, values: &[String],
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    plot: Rect,
+    mouse: [f32; 2],
+    title: &str,
+    values: &[String],
 ) {
     let styles = list.styles();
     let pad = styles.metric("padding.panel", 8.);
@@ -765,19 +810,19 @@ pub(super) fn readout_lines(
         true,
     );
     for (index, value) in values.iter().take(count).enumerate() {
-      motion_ui::style::text_style(
-        &mut text,
-        atlas,
-        Rect::new(
-            card.min[0] + pad,
-            card.min[1] + pad + row * (index + 1) as f32,
-            (width - pad * 2.).max(0.),
-            row,
-        ),
-        value,
-        styles.resolve("label.accent", Default::default()).unwrap(),
-        Align::Left,
-    );
+        motion_ui::style::text_style(
+            &mut text,
+            atlas,
+            Rect::new(
+                card.min[0] + pad,
+                card.min[1] + pad + row * (index + 1) as f32,
+                (width - pad * 2.).max(0.),
+                row,
+            ),
+            value,
+            styles.resolve("label.accent", Default::default()).unwrap(),
+            Align::Left,
+        );
     }
     text.clip_to(card.shrink(pad));
     paint.append(text);
@@ -806,7 +851,7 @@ pub(super) fn overlay(
     panels.timeline.graph_ranges = controls;
 }
 
-#[cfg(test)]
-mod tests;
 #[cfg(all(test, target_os = "windows"))]
 mod native_tests;
+#[cfg(test)]
+mod tests;

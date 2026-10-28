@@ -114,7 +114,8 @@ fn effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_a
 fn discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing() {
     let mut parameter = parameter(Ease::Linear, None);
     parameter.kind = motion_effects::ParamKind::Enum;
-    parameter.default=[0.;4];parameter.track.value=[0.;4];
+    parameter.default = [0.; 4];
+    parameter.track.value = [0.; 4];
     parameter.min = 0.;
     parameter.max = 3.;
     parameter.track.keys[0].value = [0.; 4];

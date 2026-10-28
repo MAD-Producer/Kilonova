@@ -28,9 +28,13 @@ impl Range {
     /// A constant track still needs a usable range. The caller supplies units,
     /// including its minimum span and padding, instead of mixing them with px.
     pub fn fitted(low: f64, high: f64, padding: f64, minimum_span: f64) -> Option<Self> {
-        if !low.is_finite() || !high.is_finite() || high < low
-            || !padding.is_finite() || padding < 0.
-            || !minimum_span.is_finite() || minimum_span <= 0.
+        if !low.is_finite()
+            || !high.is_finite()
+            || high < low
+            || !padding.is_finite()
+            || padding < 0.
+            || !minimum_span.is_finite()
+            || minimum_span <= 0.
         {
             return None;
         }
@@ -94,7 +98,8 @@ impl AxisView {
     }
 
     pub fn zoom(&mut self, factor: f64, anchor: f64, automatic: Range) -> bool {
-        if self.locked || !factor.is_finite() || factor <= 0. || factor == 1. || !anchor.is_finite() {
+        if self.locked || !factor.is_finite() || factor <= 0. || factor == 1. || !anchor.is_finite()
+        {
             return false;
         }
         let current = self.range(automatic);
