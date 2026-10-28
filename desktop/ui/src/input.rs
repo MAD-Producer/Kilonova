@@ -408,8 +408,6 @@ impl Rect {
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Scroll {
     pub offset: f32,
-    /// Accumulated but unapplied wheel delta, in the same units as `offset`.
-    pending: f32,
     pub max: f32,
 }
 
@@ -422,10 +420,8 @@ impl Scroll {
 
     /// Consume this frame's wheel delta, clamped to the available range.
     pub fn consume(&mut self, wheel: f32, viewport: f32, content: f32) {
-        self.pending += wheel;
         self.set_extent(viewport, content);
-        self.offset = (self.offset - self.pending).clamp(0.0, self.max);
-        self.pending = 0.0;
+        self.offset = (self.offset - wheel).clamp(0.0, self.max);
     }
     /// Total scrollable distance, used to draw the scrollbar thumb.
     pub fn bar(&self, viewport: f32, content: f32) -> (f32, f32) {
