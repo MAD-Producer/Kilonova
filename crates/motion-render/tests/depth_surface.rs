@@ -181,7 +181,13 @@ fn check_oracle(scene: &Scene, pixels: &[u8]) {
             let b = inverse * DVec4::new(ndc[0], ndc[1], 0.5, 1.);
             let origin = a.truncate() / a.w;
             let direction = (b.truncate() / b.w - origin).normalize();
-            let Some(surface) = surface_hit(origin, direction, image.model.as_dmat4()) else {
+            let authored_surface = image.model.as_dmat4()
+                * glam::DMat4::from_scale(DVec3::new(
+                    f64::from(image.size[0]) / 64.,
+                    f64::from(image.size[1]) / 40.,
+                    1.,
+                ));
+            let Some(surface) = surface_hit(origin, direction, authored_surface) else {
                 continue;
             };
             let o = blue_inverse.transform_point3(origin);
@@ -265,6 +271,42 @@ fn calibrated_geometry_matches_independent_rays_after_camera_and_parent_edits_in
                 "opaque depth cannot depend on authoring order: first byte {difference:?}"
             );
             p.layers.reverse();
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn calibrated_geometry_resizes_xy_without_rescaling_metric_depth_in_four_precisions() {
+    use motion_effects::image_contract::ChannelPrecision::*;
+    let root = tempfile::tempdir().unwrap();
+    let authored = project(root.path());
+    for precision in [Unorm8, Unorm16, Float16, Float32] {
+        let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(
+            precision,
+            motion_render::AllocationBudget::new(128 << 20).unwrap(),
+        ))
+        .unwrap();
+        prepare(&mut renderer, &authored, root.path());
+        let target = renderer
+            .sdr_capture_target(96, 64, motion_render::OutputTransform::SDR_CLIP)
+            .unwrap();
+        for size in [[96., 28.], [40., 56.]] {
+            let mut p = authored.clone();
+            p.layers[0].size = size;
+            p.camera.position.set_at(0, [52., 31., -100.]).unwrap();
+            let mut scene = sampled(&p);
+            attach(&mut scene);
+            let pixels = renderer.capture_sdr(&scene, &target).unwrap().0.pixels;
+            check_oracle(&scene, &pixels);
+            p.layers.reverse();
+            let mut reversed = sampled(&p);
+            attach(&mut reversed);
+            assert_eq!(
+                renderer.capture_sdr(&reversed, &target).unwrap().0.pixels,
+                pixels,
+                "resized opaque surfaces cannot depend on authoring order"
+            );
         }
     }
 }

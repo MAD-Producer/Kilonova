@@ -80,6 +80,7 @@ fn reference_surface_preserves_source_projection_and_moves_with_layer_transform(
     };
     let surface = DepthSurface::new(&bound.bind(&resource).unwrap(), &reference, 10.).unwrap();
     assert_eq!(surface.vertices().len(), 36);
+    assert_eq!(surface.reference_size(), reference.size);
     let forward = (reference.camera.target - reference.camera.eye).normalize();
     for v in surface.vertices() {
         let local = Vec3::from_array(v.position);

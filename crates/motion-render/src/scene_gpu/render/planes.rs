@@ -93,12 +93,28 @@ pub(super) fn prepare(
         ));
     }
     let mut vertices = Vec::new();
-    let staging_bytes = planes.iter().try_fold(0usize, |bytes, plane| {
-        let count = plane.surface.as_ref().map_or(6, |s| s.vertices().len());
-        let stride = if plane.texture.is_some() && plane.surface.is_some() { std::mem::size_of::<ProjectedVertex>() }
-            else if plane.texture.is_some() { std::mem::size_of::<TexturedVertex>() } else { std::mem::size_of::<Vertex>() };
-        bytes.checked_add(count.checked_mul(stride)?).filter(|n| *n <= motion_model::depth::MAX_DEPTH_RESOURCE_BYTES)
-    }).ok_or_else(|| invalid("shared_planes", 0, "plane vertex staging byte budget exceeded"))?;
+    let staging_bytes = planes
+        .iter()
+        .try_fold(0usize, |bytes, plane| {
+            let count = plane.surface.as_ref().map_or(6, |s| s.vertices().len());
+            let stride = if plane.texture.is_some() && plane.surface.is_some() {
+                std::mem::size_of::<ProjectedVertex>()
+            } else if plane.texture.is_some() {
+                std::mem::size_of::<TexturedVertex>()
+            } else {
+                std::mem::size_of::<Vertex>()
+            };
+            bytes
+                .checked_add(count.checked_mul(stride)?)
+                .filter(|n| *n <= motion_model::depth::MAX_DEPTH_RESOURCE_BYTES)
+        })
+        .ok_or_else(|| {
+            invalid(
+                "shared_planes",
+                0,
+                "plane vertex staging byte budget exceeded",
+            )
+        })?;
     vertices
         .try_reserve_exact(staging_bytes)
         .map_err(|_| invalid("shared_planes", 0, "plane vertex staging allocation failed"))?;
@@ -151,7 +167,17 @@ pub(super) fn prepare(
         }
         // Match the authored XY geometry and camera, without assigning a single
         // depth to its raster. Hardware clipping/interpolation supplies every Z.
-        let world = plane.world.as_dmat4();
+        let mut world = plane.world.as_dmat4();
+        if let Some(surface) = &plane.surface {
+            let reference = surface.reference_size();
+            // Size edits change the source's XY extent, independently of its
+            // calibrated metric depth. Layer/parent scale still affects XYZ.
+            world *= glam::DMat4::from_scale(glam::DVec3::new(
+                f64::from(plane.size[0]) / f64::from(reference[0]),
+                f64::from(plane.size[1]) / f64::from(reference[1]),
+                1.,
+            ));
+        }
         let mut append = |position: glam::DVec3, uv: [f32; 2], q: f32| -> Result<()> {
             let clip = projection * world * position.extend(1.);
             if !clip.is_finite() || !clip.as_vec4().is_finite() {
@@ -161,7 +187,11 @@ pub(super) fn prepare(
             }
             let clip = clip.as_vec4().to_array();
             if plane.texture.is_some() && plane.surface.is_some() {
-                vertices.extend_from_slice(bytemuck::bytes_of(&ProjectedVertex { clip, color, uvq:[uv[0]*q,uv[1]*q,q] }));
+                vertices.extend_from_slice(bytemuck::bytes_of(&ProjectedVertex {
+                    clip,
+                    color,
+                    uvq: [uv[0] * q, uv[1] * q, q],
+                }));
             } else if plane.texture.is_some() {
                 vertices.extend_from_slice(bytemuck::bytes_of(&TexturedVertex { clip, color, uv }));
             } else {
@@ -171,22 +201,34 @@ pub(super) fn prepare(
         };
         let vertex_count = if let Some(surface) = &plane.surface {
             for vertex in surface.vertices() {
-                append(glam::Vec3::from_array(vertex.position).as_dvec3(), vertex.uv, vertex.texture_weight)?;
+                append(
+                    glam::Vec3::from_array(vertex.position).as_dvec3(),
+                    vertex.uv,
+                    vertex.texture_weight,
+                )?;
             }
-            u32::try_from(surface.vertices().len()).map_err(|_| invalid("shared_planes", 0, "surface vertex count overflow"))?
+            u32::try_from(surface.vertices().len())
+                .map_err(|_| invalid("shared_planes", 0, "surface vertex count overflow"))?
         } else {
-        for [x, y] in [
-            [-0.5, -0.5],
-            [0.5, -0.5],
-            [0.5, 0.5],
-            [-0.5, -0.5],
-            [0.5, 0.5],
-            [-0.5, 0.5],
-        ] {
-            append(glam::DVec3::new(x * f64::from(plane.size[0]), y * f64::from(plane.size[1]), 0.),
-                [(x + 0.5) as f32, (0.5 - y) as f32], 1.)?;
-        }
-        6
+            for [x, y] in [
+                [-0.5, -0.5],
+                [0.5, -0.5],
+                [0.5, 0.5],
+                [-0.5, -0.5],
+                [0.5, 0.5],
+                [-0.5, 0.5],
+            ] {
+                append(
+                    glam::DVec3::new(
+                        x * f64::from(plane.size[0]),
+                        y * f64::from(plane.size[1]),
+                        0.,
+                    ),
+                    [(x + 0.5) as f32, (0.5 - y) as f32],
+                    1.,
+                )?;
+            }
+            6
         };
         let key = Key {
             format,
@@ -259,7 +301,10 @@ pub(super) fn prepare(
                 contents: &vertices,
                 usage: wgpu::BufferUsages::VERTEX,
             })?;
-    let triangles = draws.iter().map(|draw| u64::from(draw.vertex_count) / 3).sum();
+    let triangles = draws
+        .iter()
+        .map(|draw| u64::from(draw.vertex_count) / 3)
+        .sum();
     Ok(Some(Prepared {
         vertices,
         draws,

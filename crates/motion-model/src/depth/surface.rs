@@ -37,6 +37,7 @@ pub struct DepthVertex {
 #[derive(Clone, Debug)]
 pub struct DepthSurface {
     vertices: Vec<DepthVertex>,
+    reference_size: [f32; 2],
 }
 impl DepthSurface {
     /// Triangle grid at inference texel centres, with exact crop and source
@@ -163,10 +164,18 @@ impl DepthSurface {
             }
             previous = next;
         }
-        Ok(Self { vertices })
+        Ok(Self {
+            vertices,
+            reference_size: reference.size,
+        })
     }
     pub fn vertices(&self) -> &[DepthVertex] {
         &self.vertices
+    }
+    /// Authored XY extent. A later layer size edit scales these local X/Y
+    /// coordinates; metric Z stays governed by the calibration and transforms.
+    pub fn reference_size(&self) -> [f32; 2] {
+        self.reference_size
     }
     pub fn bytes(&self) -> usize {
         self.vertices.len() * std::mem::size_of::<DepthVertex>()
