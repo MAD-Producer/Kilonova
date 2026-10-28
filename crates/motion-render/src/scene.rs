@@ -615,7 +615,16 @@ impl Scene {
                 layer.size
             };
             if layer.three_d {
-                if let Some(calibration) = layer.depth_calibration.as_ref().filter(|c| c.reference().is_some()) {
+                let calibration = if let Some(track) = &layer.video_depth_calibration {
+                    let source = video.as_ref().ok_or_else(|| motion_model::Error::Invalid(
+                        format!("video depth object={} phase=sample: original video source is absent", layer.id)))?;
+                    let sample = track.at(source.source_time_us).ok_or_else(|| motion_model::Error::Invalid(
+                        format!("video depth object={} source={} target_us={} phase=sample: no indexed calibration interval", layer.id, source.asset, source.source_time_us)))?;
+                    motion_model::ensure(sample.calibration().reference().is_some(),
+                        &format!("video depth object={} phase=sample: reference camera is missing", layer.id))?;
+                    Some(sample.calibration())
+                } else { layer.depth_calibration.as_ref().filter(|c| c.reference().is_some()) };
+                if let Some(calibration) = calibration {
                     self.depth_required.insert(layer.id, calibration.clone());
                     self.depth_pending.insert(layer.id);
                 }

@@ -172,6 +172,10 @@ pub struct Layer {
     /// Optional authoring calibration; inference output is never saved here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_calibration: Option<crate::depth::SavedDepthCalibration>,
+    /// Optional indexed video calibration sequence, separate from a single
+    /// original-sample calibration. No inference payload is saved in the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video_depth_calibration: Option<crate::depth::VideoDepthTrack>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
     #[serde(default,skip_serializing_if="Option::is_none")]
@@ -203,6 +207,7 @@ impl Layer {
             masks: Vec::new(),
             blend:Default::default(),track_matte:None,
             depth_calibration: None,
+            video_depth_calibration: None,
             timeline: None,
             subframe_range:None,
             audio_levels: None,
@@ -495,6 +500,15 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
             layer.sampling.validate_content(&layer.content)?;
+            if let Some(track) = &layer.video_depth_calibration {
+                ensure(layer.depth_calibration.is_none(), "choose a single depth sample or an indexed video track")?;
+                let Content::Video { video } = &layer.content else {
+                    return Err(crate::Error::Invalid("video depth calibration requires a video layer".into()));
+                };
+                let asset = self.video_assets.iter().find(|asset| asset.id == video.asset)
+                    .ok_or_else(|| crate::Error::Invalid("calibrated video asset missing".into()))?;
+                track.validate_asset(asset)?;
+            }
             if let Some(calibration) = &layer.depth_calibration {
                 calibration.validate()?;
                 let (asset, size) = match &layer.content {
