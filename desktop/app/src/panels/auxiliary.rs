@@ -10,6 +10,7 @@ pub(crate) mod render_queue;
 
 #[derive(Default)]
 pub(crate) struct State {
+    pub(crate) audio: super::audio::monitor::Controls,
     pub(crate) text_style: text_style::State,
     pub(crate) render_queue: render_queue::Controls,
     pub(super) align: super::align::Controls,
@@ -38,6 +39,7 @@ struct ColorPopup {
 }
 impl State {
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
+        self.audio.text_menu(request);
         self.text_style.text_menu(request);
         self.render_queue.text_menu(request);
         if let Some((_, field)) = &mut self.color_field { request.visit(&mut field.editor.text); }
@@ -46,6 +48,7 @@ impl State {
         self.owner().is_some()
     }
     pub fn owner(&self) -> Option<Panel> {
+        if self.audio.editing() { return Some(Panel::Audio); }
         if let Some(owner) = self.text_style.owner() { return Some(owner); }
         if self.render_queue.editing() { return Some(Panel::RenderQueue); }
         if self.color_popup.is_some() {
@@ -61,6 +64,7 @@ impl State {
         }
     }
     pub fn cancel(&mut self) -> bool {
+        let audio = self.audio.cancel();
         self.text_style.cancel_field();
         self.render_queue.cancel_field();
         let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
@@ -69,7 +73,7 @@ impl State {
         for dropdown in &mut self.preview_options { dropdown.open = false; }
         self.export_scope.open = false;
         self.align.target.open = false;
-        begun
+        begun || audio
     }
 }
 

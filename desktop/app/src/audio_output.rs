@@ -21,6 +21,17 @@ const MIX_FRAMES: usize = 4096;
 const CALLBACK_TIMEOUT_NS: u64 = 2_000_000_000;
 const CLOCK_READ_ATTEMPTS: usize = 32;
 static NEXT_OBSERVATION: AtomicU64 = AtomicU64::new(1);
+mod meter;
+pub(crate) use meter::Levels;
+#[cfg(test)]
+pub(crate) fn meter_probe(pcm: &[[f32; 2]]) -> Levels {
+    let shared = Shared::new();
+    shared.ready.store(true, Ordering::Release);
+    for &frame in pcm { assert!(shared.ring.push(frame)); }
+    let mut output = vec![0f32; pcm.len() * 2];
+    render_callback(&shared, &mut output, 2, &mut 0, 0, 0);
+    shared.meter.take()
+}
 struct Ring {
     samples: Vec<[AtomicU32; 2]>,
     read: AtomicUsize,
@@ -79,6 +90,7 @@ impl CallbackEvidence {
     }
 }
 struct Shared {
+    meter: meter::Meter,
     observation: u64,
     latency_evidence: CallbackEvidence,
     error_poison_evidence: CallbackEvidence,
@@ -102,6 +114,7 @@ struct Shared {
 impl Shared {
     fn new() -> Self {
         Self {
+            meter: meter::Meter::default(),
             observation: NEXT_OBSERVATION.fetch_add(1, Ordering::Relaxed),
             latency_evidence: CallbackEvidence::default(),
             error_poison_evidence: CallbackEvidence::default(),
@@ -353,6 +366,9 @@ impl AudioOutput {
         } else { sample.min(self.total_samples as f64) };
         sample * f64::from(fps) / 48_000.0
     }
+    pub(crate) fn take_levels(&self) -> Levels {
+        self.shared.meter.take()
+    }
     pub fn error(&self) -> Option<String> {
         self.shared.check_callback_at(self.shared.now_ns());
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
@@ -521,6 +537,7 @@ fn render_callback<T: SizedSample + FromSample<f32>>(
     let before = *consumed;
     let ready = shared.ready.load(Ordering::Acquire);
     let mut underrun = false;
+    let mut peaks = [0f32; 2];
     for target in data.chunks_mut(channels) {
         let pcm = if underrun || !ready || shared.stop.load(Ordering::Relaxed) {
             None
@@ -539,6 +556,7 @@ fn render_callback<T: SizedSample + FromSample<f32>>(
                         _ => 0.0,
                     }
                 };
+                if channel < 2 { peaks[channel] = peaks[channel].max(value.abs()); }
                 *sample = T::from_sample(value);
             }
         } else {
@@ -549,6 +567,8 @@ fn render_callback<T: SizedSample + FromSample<f32>>(
             target.fill(T::EQUILIBRIUM);
         }
     }
+    if channels == 1 { peaks[1] = peaks[0]; }
+    shared.meter.publish(peaks);
     shared.publish_clock(before, *consumed, now.saturating_add(latency));
     if *consumed - before < (data.len() / channels) as u64
         && ready

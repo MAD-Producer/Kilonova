@@ -1,0 +1,769 @@
+{
+  "issue": 273,
+  "sourceCommit": "4f9bb2fb8cd7baa9a0aea9fa4f5d63432ab3330a",
+  "baseCommit": "7a00d1b559966b85ffb4929e5ae3371015eb9a76",
+  "results": [
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:36:10.1782483Z",
+      "Started": "2026-10-28T08:36:05.1686729Z",
+      "Name": "model",
+      "Args": [
+        "test",
+        "-p",
+        "motion-core",
+        "--test",
+        "audio_levels",
+        "--locked",
+        "--offline"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-model.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:36:15.2189413Z",
+      "Started": "2026-10-28T08:36:10.6962598Z",
+      "Name": "wave",
+      "Args": [
+        "test",
+        "-p",
+        "motion-media",
+        "--lib",
+        "--locked",
+        "--offline",
+        "waveform_display",
+        "--",
+        "--nocapture"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-wave.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:36:24.8418656Z",
+      "Started": "2026-10-28T08:36:15.5735466Z",
+      "Name": "mix",
+      "Args": [
+        "test",
+        "-p",
+        "motion-media",
+        "--test",
+        "audio_levels",
+        "--locked",
+        "--offline"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-mix.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:41:13.9466045Z",
+      "Started": "2026-10-28T08:36:25.3223874Z",
+      "Name": "audio",
+      "Args": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "audio_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-audio.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:43:20.7069504Z",
+      "Started": "2026-10-28T08:41:14.2966611Z",
+      "Name": "playback",
+      "Args": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "playback",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-playback.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:46:03.3473901Z",
+      "Started": "2026-10-28T08:43:21.1001724Z",
+      "Name": "host",
+      "Args": [
+        "test",
+        "-p",
+        "motion-host",
+        "--test",
+        "failure_boundaries",
+        "--locked",
+        "--offline",
+        "audio_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-host.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:46:53.1581171Z",
+      "Started": "2026-10-28T08:46:03.6046043Z",
+      "Name": "native",
+      "Args": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "native_audio_monitor",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-native.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:47:25.7417801Z",
+      "Started": "2026-10-28T08:46:53.4444881Z",
+      "Name": "device",
+      "Args": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "shell::audio_preview_tests::native::native_audio_preview_menu_and_device_clock_preserve_canvas_and_history",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-device.log"
+    },
+    {
+      "ExitCode": 0,
+      "Finished": "2026-10-28T08:48:43.7822489Z",
+      "Started": "2026-10-28T08:47:25.9836011Z",
+      "Name": "build",
+      "Args": [
+        "build",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline"
+      ],
+      "Log": "E:/Dev/aem/artifacts/pr-ci-followups/audio-monitor-frozen-build.log"
+    }
+  ],
+  "sources": {
+    "DESIGN.md": {
+      "blob": "be4dad34d4bfcc4ddc7505a10e11b1987394841b",
+      "sha256": "4daf50924f03b7dbe1e011cee14ab947fbdc9e68976cc9ca3ab191c79e6dab7a"
+    },
+    "crates/motion-core/tests/audio_levels.rs": {
+      "blob": "5cdcd7b6fc096f3b51620c1242af24419a60b4c2",
+      "sha256": "7cb507229e372a2a57597ed3628156f5a74a0c7c59a2e9153c01a32e79396380"
+    },
+    "crates/motion-host/src/ops/snapshot.rs": {
+      "blob": "76b50e3bf86ee0fd60637f134d1598e579e4abbb",
+      "sha256": "9a6912693dd27c56c781a552d288fe2b2da5dade138b1973d54f7dfcff6939cb"
+    },
+    "crates/motion-media/src/lib.rs": {
+      "blob": "fdaefaf9133d4a01cb4c3190b80f539b17e66f95",
+      "sha256": "8aff2776d36339ac37254d724068bece2f07a37068696856e7a4f1e8141929b0"
+    },
+    "crates/motion-media/src/waveform_view.rs": {
+      "blob": "0ee1be8bdeff211e7bc626b33c7c2a9c0604724d",
+      "sha256": "142783d893cc84be4e73591c73bbc30e6d0dd64642af48fc9de87d385b1d57a3"
+    },
+    "crates/motion-media/tests/audio_levels.rs": {
+      "blob": "906f68254e91d307b7d3c5868ba5118690838306",
+      "sha256": "7cf9bce9c8e2e82de187d8b719f91adfdecac867019146857bdb270e44fb24a2"
+    },
+    "crates/motion-model/src/audio_levels.rs": {
+      "blob": "33a425203c0b53dda05ed95b04ad781bc27e3880",
+      "sha256": "492ad6270d4a21716e3238e35dcdb635b4238b5981bf02e424ba6c23f98e2ebe"
+    },
+    "crates/motion-model/src/composition.rs": {
+      "blob": "54fd88724cd86a96b160173c3c572c0bbdc363cc",
+      "sha256": "e09ff78282ecfb146e5534f0ce737891f0a133a50a078e049a2bc8fe68797985"
+    },
+    "desktop/app/src/audio_output.rs": {
+      "blob": "adfefffd7054150549f8265837b55eef9a780466",
+      "sha256": "3f7492ab6bd7c4287c99b64047d203d219c2d923fc007f1fd6a2d732a788bb51"
+    },
+    "desktop/app/src/audio_output/meter.rs": {
+      "blob": "dd29ef725465456f1b0300654ecf57a62a2ac478",
+      "sha256": "f6f3d22b853f4a19f0111c51023a224611ff5070d577bea8eaa7fcdd081093c5"
+    },
+    "desktop/app/src/main.rs": {
+      "blob": "2585022ff041a05ab22c20484b39466ea01a51e3",
+      "sha256": "111925399c8292476f2a986fff43a1f8e256b4c16bdf27a593a925e27828bec9"
+    },
+    "desktop/app/src/panels/audio.rs": {
+      "blob": "095d482154b08edc5dde5e5ec3e0159dd6a98ded",
+      "sha256": "9ca0dd3a57f81a189082d45828f74c6dfc650e5fd3e4c7706920fdbddea88e15"
+    },
+    "desktop/app/src/panels/audio/monitor.rs": {
+      "blob": "cd2471aa4e9d475ac31639fc96e817d2b348755c",
+      "sha256": "cdb91f5950c9a316050db8ac1269318653a3d9c71574169894c4348aaac5a76f"
+    },
+    "desktop/app/src/panels/audio/monitor/native_tests.rs": {
+      "blob": "0690e73086a5319fd23a5cc1c16c04cddc52b216",
+      "sha256": "536c4da1d39fb3686058d7b9320b16b48765d37c639beed9126bedaec9e22552"
+    },
+    "desktop/app/src/panels/audio/tests.rs": {
+      "blob": "3eed3ff7012200d6b6ffab01950fad42e04ce80a",
+      "sha256": "81d68621554615144a1cc1f989cf3d2e056e03f1ab572874d4c8171a2aef28b9"
+    },
+    "desktop/app/src/panels/audio/tests/monitor_tests.rs": {
+      "blob": "5b92a660775700fd1f69932270b0d717d87fa164",
+      "sha256": "2817c4d72a9248cffc126cbad1bd6d55986bfac1321f2569976eec80f485a43e"
+    },
+    "desktop/app/src/panels/audio/waveform.rs": {
+      "blob": "e1e84d6a96e81492173cfe1bf84aed26387361c7",
+      "sha256": "63761ae2a9315327dbddb467188d960ec11e07a58f22e5cb9a1b8b0d0abd9072"
+    },
+    "desktop/app/src/panels/auxiliary.rs": {
+      "blob": "e15dfba1db54724e59315731888e2277641954dc",
+      "sha256": "b0110779948358d7e07957507c7707a99af23cfd13a805053adc2662e240a7e1"
+    },
+    "desktop/app/src/panels/mod.rs": {
+      "blob": "0b7b535105ec0e63630537571dfe622d467a9d83",
+      "sha256": "5e9e39021933d5c3439bdfb87b4cb54dd3198741488626123327d5b193c36551"
+    },
+    "desktop/ui/styles/dark.json": {
+      "blob": "9ce44d22aa8169cb8b658cf2059bd5dd91c521af",
+      "sha256": "c6f548965600ee0e4c532147048e3346ee0690a75eea9159472f412f9fa69ba7"
+    },
+    "Cargo.lock": {
+      "blob": "65335053dad37410bbf3528de66abda6ef687dde",
+      "sha256": "b3fad27eea128323fbdbbc2ad13c523f40669450a072fd0fc194ce03fc955347"
+    }
+  },
+  "binary": {
+    "name": "audio-monitor-motion-studio.exe",
+    "bytes": 88415232,
+    "sha256": "d0ca9ad40b160fd88c6a181370ce97087e7cc7a2334b75be62a49d2cb8f794e6",
+    "ffmpeg": true,
+    "helpLaunchExitCode": 0
+  },
+  "captures": [
+    {
+      "name": "audio-monitor-en-floating-route-1.5x.png",
+      "sha256": "d25b2434c0e91c234549c40a4ec07980e95d7fbf644dc1a3028f7ade023a5592",
+      "pixels": [
+        480,
+        900
+      ]
+    },
+    {
+      "name": "audio-monitor-en-floating-route-1x.png",
+      "sha256": "aafb60886671ea1e4bb6f94c58371009b5175a81e3332e92eb2c906c358ed03b",
+      "pixels": [
+        320,
+        600
+      ]
+    },
+    {
+      "name": "audio-monitor-en-floating-route-2x.png",
+      "sha256": "33eb895b92e6481ab39efa9da3d867dfee86064cb641e8467192494888061c78",
+      "pixels": [
+        640,
+        1200
+      ]
+    },
+    {
+      "name": "audio-monitor-en-main-maximized-1.5x.png",
+      "sha256": "86adf4095e85ad76e64587448bd36778b7744d5ed5f0b9e5cb609bf07c454774",
+      "pixels": [
+        1350,
+        900
+      ]
+    },
+    {
+      "name": "audio-monitor-en-main-maximized-1x.png",
+      "sha256": "213e827543c3b7f2d4f82b858f8367815dbec5c40d1d6f7282790356870164c4",
+      "pixels": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "name": "audio-monitor-en-main-maximized-2x.png",
+      "sha256": "491b924155887dfb77baed3b53a1ec960f364187e4131335090cdc929ac8deae",
+      "pixels": [
+        1800,
+        1200
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-floating-route-1.5x.png",
+      "sha256": "4e53f68bd5e87db31c99104db8f9687e51b771e898cf95da0471c8bc1ba65967",
+      "pixels": [
+        480,
+        900
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-floating-route-1x.png",
+      "sha256": "0a77493c2aecade5742f378778f631073166cd7e92e722ce132afc16246d3c4d",
+      "pixels": [
+        320,
+        600
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-floating-route-2x.png",
+      "sha256": "114821c8b7d4b8daabce3db9d215acbeac8f204e9b5b8b10f3b5f1bbe9a360b9",
+      "pixels": [
+        640,
+        1200
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-main-maximized-1.5x.png",
+      "sha256": "d196ac0476124e424007ec5e30cf3a0e2409171bf8d2dd097cc238f2a6fac265",
+      "pixels": [
+        1350,
+        900
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-main-maximized-1x.png",
+      "sha256": "a1ff3321e209fa450cbc5edf5bceed70e8382f080d56fb743ff81ac907ba4778",
+      "pixels": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "name": "audio-monitor-zh-main-maximized-2x.png",
+      "sha256": "ef565d1ea927d8f4e1c08ae1e52b5877071fbe295dd58fdd856a3da67dbffce1",
+      "pixels": [
+        1800,
+        1200
+      ]
+    }
+  ],
+  "checks": {
+    "styleConsumers": true,
+    "diffCheck": true,
+    "blockedTaskSeconds": 2.1,
+    "slowWarnings": 1,
+    "defaultFileErrorStderrStdoutIsolation": true
+  },
+  "longSourceProbe": {
+    "durationSeconds": 3600,
+    "sampleRate": 192000,
+    "channels": 2,
+    "cacheBytes": 4320000,
+    "columns": [
+      1,
+      2048
+    ],
+    "result": "passed",
+    "scope": "display reduction of independently generated prepared cache, not one-hour source decode"
+  },
+  "limits": [
+    "Meter is post-mix/post-clamp device peak, not pre-limiter overshoot.",
+    "Nonzero screenshot meter values use production callback PCM probe, not physical device.",
+    "Floating screenshots/input use production floating_chrome route in a native hidden GPU window; no separate OS-window input injection.",
+    "Third-party decoder/driver calls are not forcibly interrupted or restarted.",
+    "Vulkan loader emits existing missing Epic overlay JSON errors; evidence retains them.",
+    "No claim of full DESIGN baseline remediation or every device driver validation."
+  ],
+  "archiveEntries": {
+    "audio-monitor-af4-attempt/audio-monitor-frozen-audio.log": {
+      "bytes": 19944,
+      "sha256": "2de7cb5bfc31cafcf2357a8ba849722f5ef051f6d141e437a219996896951a8d"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-host.log": {
+      "bytes": 1365,
+      "sha256": "0f1225f2e6b597dfa8033a0dc46924af425c6deff93b05afa866fb4217c2e673"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-mix.log": {
+      "bytes": 1806,
+      "sha256": "792f71bce5e4ae98547831f30f184d27045233fd1005a1f061d1205a116cd74c"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-model.log": {
+      "bytes": 1639,
+      "sha256": "b5c763c0ad2095b88d13d9ebfd305ac00276aa308d48e243091f1f74625c736b"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-playback.log": {
+      "bytes": 16107,
+      "sha256": "151492d199b4fcb66a96bec6977c25e007af9923295332a99310284c49c66af6"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-results.json": {
+      "bytes": 2980,
+      "sha256": "72a3ce173d7549278147e4c4e704da4fb015b2cbb7a6601d00d56afb81af9a04"
+    },
+    "audio-monitor-af4-attempt/audio-monitor-frozen-wave.log": {
+      "bytes": 1496,
+      "sha256": "459ea1785efe8261944a07ead1d8a5032e712a98fc223188c4e2efdbdc920437"
+    },
+    "audio-monitor-frozen-device/audio-preview-baseline-en-floating-route.png": {
+      "bytes": 143849,
+      "sha256": "f1172a8d7c3d8b34567d9c6ca4af91ea0bab02b45db13be872c3da57fae0d7fb"
+    },
+    "audio-monitor-frozen-device/audio-preview-baseline-en-main.png": {
+      "bytes": 143806,
+      "sha256": "fdd8dc928a38dfa6f7eff416fd3aea615c541fdcc6fd6bfeb2b154eafe27f9a3"
+    },
+    "audio-monitor-frozen-device/audio-preview-baseline-zh-floating-route.png": {
+      "bytes": 146172,
+      "sha256": "5c8c0a56c7e2e18abbaebcf88a1b30108f4956915a21e91c4f419029da4c6c43"
+    },
+    "audio-monitor-frozen-device/audio-preview-baseline-zh-main.png": {
+      "bytes": 146177,
+      "sha256": "22b74c9d13dcab6a67e23f950bab58d0eebcf8887f2d575e33d1c09de6b4d889"
+    },
+    "audio-monitor-frozen-device/audio-preview-menu-en.png": {
+      "bytes": 146762,
+      "sha256": "9fc9aa0204e0ec259ba787811e7259b0bba1493aea3786080e7c49514a1b2c98"
+    },
+    "audio-monitor-frozen-device/audio-preview-menu-zh.png": {
+      "bytes": 149547,
+      "sha256": "dcdb47a7e98a3289ba83e912f8ce005de3b7951a10c55363ad2c707b30fa8743"
+    },
+    "audio-monitor-frozen-device/audio-preview-running-en-floating-route.png": {
+      "bytes": 143776,
+      "sha256": "c37ca8a99eae54a336b2e2be3f319ffcf03ddec9704e52959cd60e155808f1b5"
+    },
+    "audio-monitor-frozen-device/audio-preview-running-en-main.png": {
+      "bytes": 143910,
+      "sha256": "f4e18950a59dd6f945d7fa3c3f544d19e9199fdbc93b6ea80485efe658836ba6"
+    },
+    "audio-monitor-frozen-device/audio-preview-running-zh-floating-route.png": {
+      "bytes": 146177,
+      "sha256": "1c7483e4c383e72f23fd05c19a995c181991939608758d44c465625520c35ef9"
+    },
+    "audio-monitor-frozen-device/audio-preview-running-zh-main.png": {
+      "bytes": 146109,
+      "sha256": "36a433d3eb20ee1d50e16f25fe69d5ac714dad65cb0acc049398a774c10c1ff0"
+    },
+    "audio-monitor-frozen-device/logs/motion-studio.log": {
+      "bytes": 13630,
+      "sha256": "a475ebd00866c5b652148be69cae45edfcf8c6f892cb2215387c55ce5d375a9b"
+    },
+    "audio-monitor-frozen-errors/controlled-file.log": {
+      "bytes": 5642,
+      "sha256": "ff4658fd418e5af32868e3c2df8697ede2809f3fc9355bc08615c1007511957c"
+    },
+    "audio-monitor-frozen-errors/controlled-stderr.log": {
+      "bytes": 508,
+      "sha256": "ee7a6656bdaae9e343c33f261a75ecf9b71011e286a190d08cc5eb58ef8529b0"
+    },
+    "audio-monitor-frozen-errors/controlled-stdout.log": {
+      "bytes": 243,
+      "sha256": "cf7b2c769735ff29a6c04b7f7018cb7c9db26b85eb30e93c747831a17c901560"
+    },
+    "audio-monitor-frozen-errors/file.log": {
+      "bytes": 1340,
+      "sha256": "27b0cae0500b23af0ddc2e7a31e60b9164b0a7ab5795b96051bc1f16d5309ac8"
+    },
+    "audio-monitor-frozen-errors/stderr.log": {
+      "bytes": 393,
+      "sha256": "e9b52e81f7ff80f6d04131d806c0d8541e3f2a75479caa81ca5e137f2e855ccb"
+    },
+    "audio-monitor-frozen-errors/stdout.log": {
+      "bytes": 247,
+      "sha256": "6a8c01adca86719be4afee730818cee72afdfa3f2f0fc61fe7fd2da0f324d25b"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-floating-route-1.5x.png": {
+      "bytes": 46320,
+      "sha256": "d25b2434c0e91c234549c40a4ec07980e95d7fbf644dc1a3028f7ade023a5592"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-floating-route-1x.png": {
+      "bytes": 23514,
+      "sha256": "aafb60886671ea1e4bb6f94c58371009b5175a81e3332e92eb2c906c358ed03b"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-floating-route-2x.png": {
+      "bytes": 61660,
+      "sha256": "33eb895b92e6481ab39efa9da3d867dfee86064cb641e8467192494888061c78"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-main-maximized-1.5x.png": {
+      "bytes": 96191,
+      "sha256": "86adf4095e85ad76e64587448bd36778b7744d5ed5f0b9e5cb609bf07c454774"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-main-maximized-1x.png": {
+      "bytes": 67401,
+      "sha256": "213e827543c3b7f2d4f82b858f8367815dbec5c40d1d6f7282790356870164c4"
+    },
+    "audio-monitor-frozen-native/audio-monitor-en-main-maximized-2x.png": {
+      "bytes": 125374,
+      "sha256": "491b924155887dfb77baed3b53a1ec960f364187e4131335090cdc929ac8deae"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-floating-route-1.5x.png": {
+      "bytes": 40259,
+      "sha256": "4e53f68bd5e87db31c99104db8f9687e51b771e898cf95da0471c8bc1ba65967"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-floating-route-1x.png": {
+      "bytes": 22518,
+      "sha256": "0a77493c2aecade5742f378778f631073166cd7e92e722ce132afc16246d3c4d"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-floating-route-2x.png": {
+      "bytes": 53243,
+      "sha256": "114821c8b7d4b8daabce3db9d215acbeac8f204e9b5b8b10f3b5f1bbe9a360b9"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-main-maximized-1.5x.png": {
+      "bytes": 90176,
+      "sha256": "d196ac0476124e424007ec5e30cf3a0e2409171bf8d2dd097cc238f2a6fac265"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-main-maximized-1x.png": {
+      "bytes": 67172,
+      "sha256": "a1ff3321e209fa450cbc5edf5bceed70e8382f080d56fb743ff81ac907ba4778"
+    },
+    "audio-monitor-frozen-native/audio-monitor-zh-main-maximized-2x.png": {
+      "bytes": 116329,
+      "sha256": "ef565d1ea927d8f4e1c08ae1e52b5877071fbe295dd58fdd856a3da67dbffce1"
+    },
+    "audio-monitor-frozen-native/logs/motion-studio.log": {
+      "bytes": 52674,
+      "sha256": "3c2f0ed17b2a92a0f9fdd13132a840fba7b21a5c5089286445a6f27e2c62519a"
+    },
+    "development/audio-monitor-callback-first.log": {
+      "bytes": 4857,
+      "sha256": "0403500bdaec5d835ab768714bd44de2f9f07178f154113cc7af10bf75a5a2b5"
+    },
+    "development/audio-monitor-callback-second.log": {
+      "bytes": 12064,
+      "sha256": "bbff6e97d423e8c06e92eb142740051b3b8b949ad995fb9469cf01a695379ad2"
+    },
+    "development/audio-monitor-long-probe-first.log": {
+      "bytes": 191,
+      "sha256": "d978f7aa4c796cc5f25b0b661041feb2a8f889082b257530e8b276eae0867a72"
+    },
+    "development/audio-monitor-long-probe-second.log": {
+      "bytes": 516,
+      "sha256": "059e309e27710443fbbb676af9f5fb894e4189e69ec9b509489ffba03ff6bdbd"
+    },
+    "development/audio-monitor-mix-first.log": {
+      "bytes": 1616,
+      "sha256": "17fd9d89a414c63ca2969e051aa53f685e69667fa5d8119ba7a8faf80c2366f6"
+    },
+    "development/audio-monitor-model-first.log": {
+      "bytes": 2737,
+      "sha256": "b8961b4200c5a21114413b5adec6a50096281565298e18f38d3eb757d1438c8b"
+    },
+    "development/audio-monitor-model-second.log": {
+      "bytes": 1732,
+      "sha256": "f86a1583677d0d5d36a24cc9f8311ef4892c8ce83eb4c4261af5c85b0522309f"
+    },
+    "development/audio-monitor-native-first.log": {
+      "bytes": 19021,
+      "sha256": "61f50a75862d9a1d4f63c3219b9d7f9f536a96d32553a6f3147f5d9e99176fdd"
+    },
+    "development/audio-monitor-panels-final.log": {
+      "bytes": 13176,
+      "sha256": "b495a6cdac8ef51505c9776c725c6b3b864ded5da438eaa7e71ba3d2015269f8"
+    },
+    "development/audio-monitor-panels-first.log": {
+      "bytes": 5870,
+      "sha256": "b1c768681b22614bc73de22c54d6c679c4492fee41c6dca0a7b3378be8afc2c6"
+    },
+    "development/audio-monitor-panels-second.log": {
+      "bytes": 11901,
+      "sha256": "33066151a56aeb074e70bfd5380f8e0247de2e6b21c87ea7bfac0600e70092e2"
+    },
+    "development/audio-monitor-typing-second.log": {
+      "bytes": 11767,
+      "sha256": "92fd91133fff540a5dcd7ba3ceb7a1760639949fa5d9ba02355ed130353902d3"
+    },
+    "development/audio-monitor-wave-first.log": {
+      "bytes": 5406,
+      "sha256": "f582afdb0e4f894349f6a083eae77c8cfa7fee643ccec37e0c7229ec24c70df4"
+    },
+    "development/audio-monitor-worker-first.log": {
+      "bytes": 11926,
+      "sha256": "b3a0a1b14eb7ae6681efa74c23d022ef0455b80df455f84fbd4d4ce455ccab4a"
+    },
+    "final/audio-monitor-frozen-audio.log": {
+      "bytes": 20073,
+      "sha256": "eced2d07bbc1b1a6461ca74998c3d88461152836fd3657ec4b793a57497d72cd"
+    },
+    "final/audio-monitor-frozen-build.log": {
+      "bytes": 12399,
+      "sha256": "0136e3ad048bad02b21507739880a3ef08c7c929dd75c4319a7fce294f1fee22"
+    },
+    "final/audio-monitor-frozen-device.log": {
+      "bytes": 12837,
+      "sha256": "ce69c2cc2404c7e4fa9373b7bcf2a4cedb77ef536a03d1354ac47b7a5f2a7fe9"
+    },
+    "final/audio-monitor-frozen-host.log": {
+      "bytes": 1327,
+      "sha256": "688e56208b05a05228d76529dd35c2f74a11fbf56e1f672eeca95eb372666935"
+    },
+    "final/audio-monitor-frozen-launch.log": {
+      "bytes": 775,
+      "sha256": "38900e37e3cdc77c44e78f0d0bc50a9cdc1673e7c2604eec09e9741a370fb13f"
+    },
+    "final/audio-monitor-frozen-mix.log": {
+      "bytes": 1710,
+      "sha256": "911f99dd72e8175bc6444207d79c6941af06ce04b2a26461987325ba40027004"
+    },
+    "final/audio-monitor-frozen-model.log": {
+      "bytes": 1639,
+      "sha256": "b3fe3574eba0a6b7b659df342bbf992cb85d8e7f4d6fc2df75fd7d9947583822"
+    },
+    "final/audio-monitor-frozen-native.log": {
+      "bytes": 18772,
+      "sha256": "6a1f4795a4044f93fcfe81031ca57d0407b961b92e4ba1002effcd7810d159d4"
+    },
+    "final/audio-monitor-frozen-playback.log": {
+      "bytes": 16106,
+      "sha256": "3e476ea87844633439adb8b14c88baaf74b2cc76376935387a1a870c9616481a"
+    },
+    "final/audio-monitor-frozen-wave.log": {
+      "bytes": 1400,
+      "sha256": "e773e3d58eb033d2e99401763fc549005dc906cdf24981355c9b2baa29da5aa1"
+    },
+    "final/results.json": {
+      "bytes": 4673,
+      "sha256": "6b5dbf1aa86d4068bda7b382ac6dfe85808e8c1b2a30b50535a63a0d2f66280a"
+    },
+    "long-probe/Cargo.lock": {
+      "bytes": 24804,
+      "sha256": "875ab6cfc688837e0328d1cc8171e465462646b813e06a4fcaaa52e46d8dae7b"
+    },
+    "long-probe/Cargo.toml": {
+      "bytes": 282,
+      "sha256": "d28cf4b80c9dd30309edc56824e106401307624be4205d09fcada99f13ae78e9"
+    },
+    "long-probe/run.log": {
+      "bytes": 1565,
+      "sha256": "1684a36729181fa461ceaf31e86cfa34d753f28b23a4c09a3041c46ae11a53e4"
+    },
+    "long-probe/src/main.rs": {
+      "bytes": 2170,
+      "sha256": "f155a35dca3916392ee9f78dbbfa5efc99b031f091696fc157181d7f7dde3b5a"
+    },
+    "reproduce/package-evidence.py": {
+      "bytes": 6031,
+      "sha256": "63c19f9d2626b5a9def3ea9c60e6b00e1d07224ddfb83ce28faf053d0f834234"
+    },
+    "reproduce/run-validation.ps1": {
+      "bytes": 3388,
+      "sha256": "24ab34d7ac80f652f178c95f3d98137a372d144e2d636c4987c8902dccb4559c"
+    },
+    "review/contact-sheet.png": {
+      "bytes": 230446,
+      "sha256": "69d57f489a5d1e47a76fbd996761aceee264535bcefeb592bb0ec34f3c1b911a"
+    },
+    "source/Cargo.lock": {
+      "bytes": 146350,
+      "sha256": "b3fad27eea128323fbdbbc2ad13c523f40669450a072fd0fc194ce03fc955347"
+    },
+    "source/DESIGN.md": {
+      "bytes": 66064,
+      "sha256": "4daf50924f03b7dbe1e011cee14ab947fbdc9e68976cc9ca3ab191c79e6dab7a"
+    },
+    "source/crates/motion-core/tests/audio_levels.rs": {
+      "bytes": 9299,
+      "sha256": "7cb507229e372a2a57597ed3628156f5a74a0c7c59a2e9153c01a32e79396380"
+    },
+    "source/crates/motion-host/src/ops/snapshot.rs": {
+      "bytes": 41173,
+      "sha256": "9a6912693dd27c56c781a552d288fe2b2da5dade138b1973d54f7dfcff6939cb"
+    },
+    "source/crates/motion-media/src/lib.rs": {
+      "bytes": 2902,
+      "sha256": "8aff2776d36339ac37254d724068bece2f07a37068696856e7a4f1e8141929b0"
+    },
+    "source/crates/motion-media/src/waveform_view.rs": {
+      "bytes": 6013,
+      "sha256": "142783d893cc84be4e73591c73bbc30e6d0dd64642af48fc9de87d385b1d57a3"
+    },
+    "source/crates/motion-media/tests/audio_levels.rs": {
+      "bytes": 8589,
+      "sha256": "7cf9bce9c8e2e82de187d8b719f91adfdecac867019146857bdb270e44fb24a2"
+    },
+    "source/crates/motion-model/src/audio_levels.rs": {
+      "bytes": 5758,
+      "sha256": "492ad6270d4a21716e3238e35dcdb635b4238b5981bf02e424ba6c23f98e2ebe"
+    },
+    "source/crates/motion-model/src/composition.rs": {
+      "bytes": 51920,
+      "sha256": "e09ff78282ecfb146e5534f0ce737891f0a133a50a078e049a2bc8fe68797985"
+    },
+    "source/desktop/app/src/audio_output.rs": {
+      "bytes": 47511,
+      "sha256": "3f7492ab6bd7c4287c99b64047d203d219c2d923fc007f1fd6a2d732a788bb51"
+    },
+    "source/desktop/app/src/audio_output/meter.rs": {
+      "bytes": 2941,
+      "sha256": "f6f3d22b853f4a19f0111c51023a224611ff5070d577bea8eaa7fcdd081093c5"
+    },
+    "source/desktop/app/src/main.rs": {
+      "bytes": 67854,
+      "sha256": "111925399c8292476f2a986fff43a1f8e256b4c16bdf27a593a925e27828bec9"
+    },
+    "source/desktop/app/src/panels/audio.rs": {
+      "bytes": 41507,
+      "sha256": "9ca0dd3a57f81a189082d45828f74c6dfc650e5fd3e4c7706920fdbddea88e15"
+    },
+    "source/desktop/app/src/panels/audio/monitor.rs": {
+      "bytes": 13113,
+      "sha256": "cdb91f5950c9a316050db8ac1269318653a3d9c71574169894c4348aaac5a76f"
+    },
+    "source/desktop/app/src/panels/audio/monitor/native_tests.rs": {
+      "bytes": 8755,
+      "sha256": "536c4da1d39fb3686058d7b9320b16b48765d37c639beed9126bedaec9e22552"
+    },
+    "source/desktop/app/src/panels/audio/tests.rs": {
+      "bytes": 44111,
+      "sha256": "81d68621554615144a1cc1f989cf3d2e056e03f1ab572874d4c8171a2aef28b9"
+    },
+    "source/desktop/app/src/panels/audio/tests/monitor_tests.rs": {
+      "bytes": 6929,
+      "sha256": "2817c4d72a9248cffc126cbad1bd6d55986bfac1321f2569976eec80f485a43e"
+    },
+    "source/desktop/app/src/panels/audio/waveform.rs": {
+      "bytes": 24465,
+      "sha256": "63761ae2a9315327dbddb467188d960ec11e07a58f22e5cb9a1b8b0d0abd9072"
+    },
+    "source/desktop/app/src/panels/auxiliary.rs": {
+      "bytes": 31920,
+      "sha256": "b0110779948358d7e07957507c7707a99af23cfd13a805053adc2662e240a7e1"
+    },
+    "source/desktop/app/src/panels/mod.rs": {
+      "bytes": 80951,
+      "sha256": "5e9e39021933d5c3439bdfb87b4cb54dd3198741488626123327d5b193c36551"
+    },
+    "source/desktop/ui/styles/dark.json": {
+      "bytes": 16821,
+      "sha256": "c6f548965600ee0e4c532147048e3346ee0690a75eea9159472f412f9fa69ba7"
+    }
+  },
+  "archive": {
+    "path": "data/audio-monitoring-evidence.zip",
+    "sha256": "4f62ebecd8d0cea9aeccbd847fd7280e5297577ed715c70bfa2e1230459030eb",
+    "bytes": 1749524
+  }
+}
