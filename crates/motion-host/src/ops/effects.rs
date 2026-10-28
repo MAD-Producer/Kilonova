@@ -480,7 +480,7 @@ impl Session {
                 .set_memory_policy(self.effects.memory_policy())
                 .map_err(crate::Error::from)?;
             renderer
-                .configure_assets(self.engine.project(), &self.root)
+                .configure_assets_with_model_catalog(self.engine.project(), &self.root, &self.scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
             renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
             self.editor_renderer = Some(renderer);

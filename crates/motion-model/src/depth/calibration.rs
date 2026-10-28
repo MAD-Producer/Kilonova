@@ -1,9 +1,9 @@
 //! Explicit, sample-bound two-anchor calibration. Predictions alone are not metres.
 use super::{DepthDescriptor, DepthMeasure, DepthResource, NearDirection};
 use crate::{ensure, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CalibrationCurve {
     /// Camera Z is affine in decoded relative value.
@@ -12,7 +12,7 @@ pub enum CalibrationCurve {
     InverseCameraZ,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CalibrationExtrapolation {
     Reject,
@@ -20,7 +20,7 @@ pub enum CalibrationExtrapolation {
     AllowPositive,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DepthAnchor {
     /// Decoded value, after the resource's scale and offset.

@@ -86,6 +86,14 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
             "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
+            "ImportedCamera" => json!({"type":"object","additionalProperties":false,
+                "required":["asset","scene","node","pixels_per_metre","pivot","animation"],
+                "properties":{"asset":{"type":"integer","minimum":1},"scene":{"type":"integer","minimum":0},
+                    "node":{"type":"integer","minimum":0},"pixels_per_metre":{"type":"number","exclusiveMinimum":0},
+                    "pivot":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number"}},
+                    "animation":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                        "required":["clip","offset_seconds","speed"],"properties":{"clip":{"type":"integer","minimum":0},
+                            "offset_seconds":{"type":"number"},"speed":{"type":"number"}}}]}}}),
             "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
             "ParentMode" => json!({"type":"string","enum":["preserve_world","preserve_local"]}),
             "crate::compositing::BlendMode" => {
@@ -120,7 +128,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
             schema = json!({"anyOf":[schema,{"type":"null"}]});
         }
         properties.insert((*name).into(), schema);
-        if *is_required && !optional {
+        if *is_required {
             required.push(name);
         }
     }
@@ -148,6 +156,7 @@ registry! {
     Command::RegisterAudioAsset { .. } => "register_audio_asset" [("asset","crate::AudioAsset",true)];
     Command::RegisterVideoAsset { .. } => "register_video_asset" [("asset","crate::VideoAsset",true)];
     Command::MediaAsset { .. } => "media_asset" [("action","crate::media_assets::AssetAction",true)];
+    Command::ProjectLibrary { .. } => "project_library" [("action","crate::LibraryAction",true)];
     Command::SetAudio { .. } => "set_audio" [("object","u64",true), ("volume","Option<f32>",false), ("muted","Option<bool>",false)];
     Command::SetLayer3d { .. } => "set_layer_3d" [("object","u64",true), ("enabled","bool",true)];
     Command::SetLayerSampling { .. } => "set_layer_sampling" [("object","u64",true), ("sampling","crate::render_sampling::LayerSampling",true)];
@@ -180,6 +189,7 @@ registry! {
     Command::RemovePaths { .. } => "remove_paths" [("clipboard","PathClipboard",true)];
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
+    Command::DepthCalibration { .. } => "depth_calibration" [("object","u64",true), ("calibration","Option<SavedDepthCalibration>",true)];
     Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
@@ -203,6 +213,7 @@ registry! {
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
+    Command::CameraImported { .. } => "camera_imported" [("object","u64",false), ("binding","Option<ImportedCamera>",true)];
     Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
     Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];
     Command::Pan { .. } => "pan" [("object","u64",false), ("frame","u32",true), ("x","f32",true), ("y","f32",true)];

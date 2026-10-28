@@ -30,6 +30,7 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
                 }
             }
             let mut scene = Scene::new(&node)?;
+            scene.set_model_source_catalog(s.scene.model_source_catalog());
             scene.sample(&node, 0., None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
             s.effects.synchronize(&scene)?;
         }
@@ -161,6 +162,7 @@ pub fn sample_render_plan_into_inner(
 /// Write the current frame to `exports/frame-NNNNNN.png`.
 pub fn capture(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
+        s.synchronize_model_sources()?;
         crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
         s.synchronize_working_precision()?;
         s.effects.set_precision(s.engine.project().working_precision);
@@ -172,6 +174,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         s.effects
             .synchronize_scene_alpha(&s.scene, p, &s.root)?;
         let mut scene = Scene::new(p)?;
+        scene.set_model_source_catalog(s.scene.model_source_catalog());
         scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
@@ -189,7 +192,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             .set_memory_policy(s.effects.memory_policy())
             .map_err(crate::Error::from)?;
         renderer
-            .configure_assets(p, &s.root)
+            .configure_assets_with_model_catalog(p, &s.root, &scene.model_source_catalog())
             .map_err(crate::Error::from)?;
         renderer.retain_video_instances(&scene);
         renderer

@@ -68,7 +68,7 @@ fn matches_native_hit(window: &Window, hit: Option<isize>) -> Result<bool, Strin
     Ok(true)
 }
 
-fn clear_pointer(input: &mut Input) {
+pub(super) fn clear_pointer(input: &mut Input) {
     input.pressed = None;
     input.released = None;
     input.held = None;
@@ -77,7 +77,7 @@ fn clear_pointer(input: &mut Input) {
     input.long_press = None;
 }
 impl Shell {
-    fn effect_drag_window_point(
+    pub(super) fn drag_window_point(
         &self,
         id: WindowId,
         point: [f64; 2],
@@ -212,7 +212,7 @@ impl Shell {
             }
             _ => return false,
         };
-        let pointer = match self.effect_drag_window_point(id, physical) {
+        let pointer = match self.drag_window_point(id, physical) {
             Ok(Some(pointer)) => Some((pointer, released)),
             Ok(None) => {
                 self.panels.effect_drag.cancel();

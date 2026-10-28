@@ -39,6 +39,67 @@ fn ndc(view: Mat4, point: Vec3) -> Vec3 {
 }
 
 #[test]
+fn instance_camera_prefix_preserves_projection_clipping_and_authored_aspect() {
+    let prefix = Mat4::from_cols(
+        glam::Vec4::Y, -glam::Vec4::X, glam::Vec4::Z,
+        glam::Vec4::new(8., -4., 16., 1.),
+    );
+    for camera in [perspective(), json!({"type":"orthographic", "orthographic":{
+        "xmag":2.,"ymag":1.,"znear":0.,"zfar":10.}})] {
+        let scene = load(&root(camera));
+        let original = scene.camera_view(0, 0, 10., None, [200, 200]).unwrap();
+        let placed = scene.camera_view_in_world(0, 0, 10., None, [200, 200], prefix).unwrap();
+        assert_eq!(placed.eye, prefix.transform_point3(original.eye));
+        assert_eq!(placed.target, prefix.transform_point3(original.target));
+        assert_eq!(placed.world, prefix * original.world);
+        assert_eq!(placed.viewport, original.viewport);
+        for point in [Vec3::new(1., 2., 20.), Vec3::new(-2., -1., -10.)] {
+            let expected = ndc(original.view_projection, point);
+            let actual = ndc(placed.view_projection, prefix.transform_point3(point));
+            assert!((actual - expected).abs().max_element() < 1e-6, "{actual:?} != {expected:?}");
+        }
+    }
+}
+
+#[test]
+fn instance_camera_prefix_composes_after_units_and_independent_animation() {
+    let mut doc = root(perspective());
+    let values: [f32; 8] = [0., 2., 0., 0., 3., 2., 0., 3.];
+    let bytes: Vec<u8> = values.into_iter().flat_map(f32::to_le_bytes).collect();
+    doc["buffers"] = json!([{"uri":format!("data:application/octet-stream;base64,{}",STANDARD.encode(&bytes)),"byteLength":bytes.len()}]);
+    doc["bufferViews"] = json!([{"buffer":0,"byteLength":8},{"buffer":0,"byteOffset":8,"byteLength":24}]);
+    doc["accessors"] = json!([{"bufferView":0,"componentType":5126,"count":2,"type":"SCALAR","min":[0],"max":[2]},
+        {"bufferView":1,"componentType":5126,"count":2,"type":"VEC3"}]);
+    doc["animations"] = json!([{"samplers":[{"input":0,"output":1}],"channels":[{"sampler":0,"target":{"node":0,"path":"translation"}}]}]);
+    let scene = load(&doc);
+    // Layer parent translation and authored geometry pivot, in world pixels.
+    let prefix = Mat4::from_translation(Vec3::new(100., 50., 20.))
+        * Mat4::from_translation(-Vec3::new(2., 1., 0.) * 10.);
+    for (seconds, x) in [(0., 80.), (1., 90.), (2., 100.)] {
+        let view = scene.camera_view_in_world(0, 0, 10.,
+            Some(AnimationSample { animation: 0, seconds }), [200, 100], prefix).unwrap();
+        assert_eq!(view.eye, Vec3::new(x, 40., 50.));
+        assert_eq!(view.world.w_axis.truncate(), view.eye);
+    }
+}
+
+#[test]
+fn invalid_instance_camera_prefix_refuses_without_changing_owned_source() {
+    let scene = load(&root(perspective()));
+    let baseline = scene.camera_view(0, 0, 10., None, [200, 100]).unwrap();
+    let mut projective = Mat4::IDENTITY;
+    projective.x_axis.w = 0.5;
+    let mut shear = Mat4::IDENTITY;
+    shear.y_axis.x = 0.5;
+    for prefix in [Mat4::from_cols_array(&[f32::NAN; 16]), projective, shear,
+        Mat4::from_scale(Vec3::new(-1., 1., 1.)), Mat4::ZERO] {
+        let error = scene.camera_view_in_world(0, 0, 10., None, [200, 100], prefix).unwrap_err();
+        assert!(error.to_string().contains("camera_view"));
+        assert_eq!(scene.camera_view(0, 0, 10., None, [200, 100]).unwrap().view_projection, baseline.view_projection);
+    }
+}
+
+#[test]
 fn finite_perspective_has_independent_zero_to_one_clipping_and_ignores_camera_scale() {
     let mut doc = root(perspective());
     doc["nodes"][0]["scale"] = json!([2, 3, 4]);

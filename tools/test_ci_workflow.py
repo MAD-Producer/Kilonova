@@ -90,6 +90,22 @@ def expression_value(expression, context):
     return visit(tree.body)
 
 
+class UniqueKeyLoader(yaml.BaseLoader):
+    """GitHub rejects duplicate mapping keys; PyYAML otherwise drops the first."""
+
+    def construct_mapping(self, node, deep=False):
+        mapping = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a workflow mapping", node.start_mark,
+                    f"duplicate mapping key: {key}", key_node.start_mark,
+                )
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
+
+
 class WorkflowPolicyTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -97,9 +113,16 @@ class WorkflowPolicyTest(unittest.TestCase):
         # reinterpret GitHub's string-valued outputs as Python booleans.
         cls.workflow = yaml.load(
             (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"),
-            Loader=yaml.BaseLoader,
+            Loader=UniqueKeyLoader,
         )
         cls.checks = cls.workflow["jobs"]["checks"]
+
+    def test_yaml_loader_rejects_duplicate_job_environment_without_retyping_strings(self):
+        with self.assertRaisesRegex(yaml.constructor.ConstructorError, "duplicate mapping key: env"):
+            yaml.load("jobs:\n  desktop:\n    env: {FIRST: one}\n    env: {SECOND: two}\n", Loader=UniqueKeyLoader)
+        parsed = yaml.load("on: {push: {}}\nenv: {FLAG: false}\n", Loader=UniqueKeyLoader)
+        self.assertIn("on", parsed)
+        self.assertEqual(parsed["env"]["FLAG"], "false")
 
     def step(self, command):
         matches = [step for step in self.checks["steps"] if step.get("run") == command]

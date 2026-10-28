@@ -503,6 +503,28 @@ fn history_accounting_single_layer_visits_do_not_scale_with_unmodified_key_trees
 }
 
 #[test]
+fn history_accounting_project_library_edits_do_not_recount_unmodified_animation() {
+    let mut project = large_project();
+    project.library.folders.push(crate::ProjectFolder {
+        id: 1, parent: None, name: "sources".into(),
+    });
+    let mut engine = Engine::new(project).unwrap();
+    let full_json = exact(&engine.project);
+    reset_serialized_bytes();
+    engine.apply(Command::ProjectLibrary { action: crate::LibraryAction::RenameFolder {
+        id: 1, name: "素材与合成".into(),
+    }}).unwrap();
+    let visited = serialized_visit_bytes();
+    assert!(visited * 16 < full_json, "organization recounted animation: {visited}/{full_json}");
+    assert_exact(&engine);
+    reset_serialized_bytes();
+    engine.undo().unwrap();
+    engine.redo().unwrap();
+    assert_eq!(serialized_visit_bytes(), 0);
+    assert_exact(&engine);
+}
+
+#[test]
 fn history_accounting_default_32_mib_budget_trims_large_batch_edits_like_json_lengths() {
     let mut engine = Engine::new(large_project()).unwrap();
     let mut expected = VecDeque::new();

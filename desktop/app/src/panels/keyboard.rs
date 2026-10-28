@@ -45,6 +45,7 @@ pub(super) fn clipboard_intent(command: Command) -> Option<crate::layer_clipboar
 }
 
 fn editor_active_for(panels: &Panels, path_focus: bool) -> bool {
+    if panels.project.browser.modal() { return true; }
     if panels.viewer_guides.editing() || panels.timeline.graph_ranges.editing() { return true; }
     panels.composition.zoom.interacting()
         || panels.toolbar_style.editing()

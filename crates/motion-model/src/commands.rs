@@ -1,6 +1,15 @@
 use crate::{Asset, CameraMode, Content, Ease, Easing, Layer};
 use serde::{Deserialize, Serialize};
 
+fn deserialize_camera_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::ImportedCamera>, D::Error> {
+    Option::<crate::ImportedCamera>::deserialize(deserializer)
+}
+fn deserialize_depth_calibration<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::depth::SavedDepthCalibration>, D::Error> {
+    Option::<crate::depth::SavedDepthCalibration>::deserialize(deserializer)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Property {
@@ -28,6 +37,11 @@ impl Property {
 pub enum Command {
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
+    DepthCalibration {
+        object: u64,
+        #[serde(deserialize_with = "deserialize_depth_calibration")]
+        calibration: Option<crate::depth::SavedDepthCalibration>,
+    },
     /// Zero edits the active composition background. Visual layer source
     /// colors remain static; animated color uses a color effect or vector paint.
     SetColor { object:u64, value:[f32;4] },
@@ -63,6 +77,7 @@ pub enum Command {
         asset: crate::VideoAsset,
     },
     MediaAsset { action: crate::media_assets::AssetAction },
+    ProjectLibrary { action: crate::LibraryAction },
     SetAudio {
         object: u64,
         #[serde(default)]
@@ -274,6 +289,12 @@ pub enum Command {
         film_width_mm: f32,
         focal_length_mm: f32,
     },
+    CameraImported {
+        #[serde(default)]
+        object: u64,
+        #[serde(deserialize_with = "deserialize_camera_binding")]
+        binding: Option<crate::ImportedCamera>,
+    },
     CameraMode {
         #[serde(default)]
         object: u64,
@@ -313,7 +334,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        if matches!(self, Self::ApplyAnimationPreset { .. }) { return true; }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

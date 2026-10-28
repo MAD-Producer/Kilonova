@@ -129,6 +129,7 @@ impl ScenePass {
     /// Actual hardware depth in the common camera's projected [0,1] space.
     /// Single-sample storage permits COPY_SRC; multisample storage has no implicit
     /// depth resolve. Retain an admitted clone/view, never an untracked raw alias.
+    /// Both sample counts permit texture sampling of the original depth samples.
     pub fn depth(&self) -> Option<&AdmittedTexture> {
         self.targets.as_ref().map(|targets| &targets._depth)
     }
