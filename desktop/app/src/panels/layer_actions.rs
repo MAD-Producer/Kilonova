@@ -1594,13 +1594,16 @@ mod tests {
                 };
                 assert!(render(&mut panels, &Input::default()).0.is_empty());
                 let popup = panels.layer_actions.popup.as_ref().unwrap();
-                let root = entries(popup, &state, Locale::En);
-                let count = root.len();
+                let root = entries_with_bindings(popup, &state, Locale::En, &panels.layer_actions.shortcut_bindings, &[]);
+                let styles=PaintList::default().styles();
+                let metrics=motion_ui::widgets::menu::Metrics::context(&styles);
+                let mut geometry_atlas=TextAtlas::from_system(12.).unwrap();
+                let bounds=Rect::new(0.,0.,800.,500.);
                 let card = popup_rect(
                     anchor,
-                    Rect::new(0., 0., 800., 500.),
-                    220.,
-                    count as f32 * 20. + 6.,
+                    bounds,
+                    metrics.width(&root,&styles,&mut geometry_atlas),
+                    metrics.height(root.len(),bounds),
                 );
                 let hover = [card.min[0] + 10., card.min[1] + 13.];
                 assert!(render(
@@ -1615,19 +1618,18 @@ mod tests {
                 let popup = panels.layer_actions.popup.as_ref().unwrap();
                 assert!(popup.page == Page::Switch);
                 assert_eq!(engine.project(), &original); // Hover never edits.
-                let child_x = if right_edge {
-                    card.min[0] - 220.
-                } else {
-                    card.max[0]
-                };
-                let child_point = [child_x + 10., card.min[1] + 16.];
+                let children=entries_with_bindings(popup,&state,Locale::En,&panels.layer_actions.shortcut_bindings,&[]);
+                let child=motion_ui::widgets::menu::child(card,metrics.row_rect(card,0),bounds,
+                    metrics.width(&children,&styles,&mut geometry_atlas),metrics.height(children.len(),bounds));
+                if right_edge {assert_eq!(child.max[0],card.min[0]);}else{assert_eq!(child.min[0],card.max[0]);}
+                let child_point = [child.min[0] + 10., child.min[1] + metrics.pad + metrics.row * 0.5];
                 let (actions, paint) = render(&mut panels, &click(MouseButton::Left, child_point));
                 assert!(paint.glyphs.iter().any(|g| g.position[0] >= card.min[0]
                     && g.position[0] < card.max[0]
                     && g.position[1] >= card.min[1]));
-                assert!(paint.glyphs.iter().any(|g| g.position[0] >= child_x
-                    && g.position[0] < child_x + 220.
-                    && g.position[1] >= card.min[1]));
+                assert!(paint.glyphs.iter().any(|g| g.position[0] >= child.min[0]
+                    && g.position[0] < child.max[0]
+                    && g.position[1] >= child.min[1]));
                 engine.apply(edit(actions)).unwrap();
                 assert!(!engine.project().layers[1].visible);
                 engine.undo().unwrap();

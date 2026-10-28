@@ -111,11 +111,8 @@ fn shared_menu_native_root_child_shortcuts_checks_and_small_window_owners() {
                 shell.attached = true;
                 shell.atlas.set_pixel_ratio(scale);
                 let before = shell.state["project"].clone();
-                shell.panels.layer_actions.owner = if floating {
-                    Some(Panel::Timeline)
-                } else {
-                    None
-                };
+                // Production uses the Timeline panel owner in both windows.
+                shell.panels.layer_actions.owner = Some(Panel::Timeline);
                 let anchor = if floating {
                     [310., 330.]
                 } else {

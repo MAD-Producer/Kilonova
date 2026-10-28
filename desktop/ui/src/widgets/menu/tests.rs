@@ -1,5 +1,16 @@
 use super::*;
 
+#[test]
+fn shared_menu_missing_styles_are_rejected_before_a_sheet_can_reach_the_painter() {
+    for class in ["context_menu", "context_menu.row"] {
+        let mut value: serde_json::Value =
+            serde_json::from_str(include_str!("../../../styles/dark.json")).unwrap();
+        value["styles"].as_object_mut().unwrap().remove(class);
+        let result = StyleSheet::from_json(&serde_json::to_vec(&value).unwrap());
+        assert!(matches!(result,Err(reason) if reason==format!("missing framework style {class}")));
+    }
+}
+
 fn key(key: Key) -> Input {
     Input {
         keys: vec![(key, Default::default())],
