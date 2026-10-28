@@ -685,6 +685,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.panels.auxiliary.audio.poll(self.audio.as_ref()) { self.dirty = true; }
         if let Some(receive) = &self.diagnostics_export {
             let result = match receive.try_recv() {
                 Ok(r) => Some(r),
@@ -1115,6 +1116,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.panels.project.preview.busy()
             || self.file_location.is_some()
             || self.audio_analysis.is_some()
+            || self.panels.auxiliary.audio.busy()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
             || self.render_queue.busy()

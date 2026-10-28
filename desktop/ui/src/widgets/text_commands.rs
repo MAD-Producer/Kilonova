@@ -1,6 +1,6 @@
 //! Menu commands use the same draft operations as keys, bound to one edit session.
 use super::TextEditor;
-use crate::{input::Modifiers, text_clipboard::TextClipboard, Input, Key};
+use crate::{input::KeyChord, text_clipboard::TextClipboard, Input, Key};
 use std::sync::{Arc, Weak};
 
 #[derive(Default)]
@@ -21,6 +21,21 @@ pub enum TextCommand {
     Cut,
     Paste,
     SelectAll,
+}
+impl TextCommand {
+    /// Fixed draft-editor commands are independent of document key remapping.
+    /// Menu hints and programmatic dispatch share this catalogue.
+    pub const fn binding(self) -> (KeyChord, &'static str) {
+        let (key, hint) = match self {
+            Self::Undo => (Key::Z, "Ctrl+Z"),
+            Self::Redo => (Key::Y, "Ctrl+Y"),
+            Self::Copy => (Key::C, "Ctrl+C"),
+            Self::Cut => (Key::X, "Ctrl+X"),
+            Self::Paste => (Key::V, "Ctrl+V"),
+            Self::SelectAll => (Key::A, "Ctrl+A"),
+        };
+        (KeyChord::new(key, true, false, false), hint)
+    }
 }
 
 impl TextEditor {
@@ -45,23 +60,10 @@ impl TextEditor {
         if !self.command_enabled(command) {
             return;
         }
-        let key = match command {
-            TextCommand::Undo => Key::Z,
-            TextCommand::Redo => Key::Y,
-            TextCommand::Copy => Key::C,
-            TextCommand::Cut => Key::X,
-            TextCommand::Paste => Key::V,
-            TextCommand::SelectAll => Key::A,
-        };
+        let (chord, _) = command.binding();
         self.input(&Input {
             text_clipboard: clipboard.cloned(),
-            keys: vec![(
-                key,
-                Modifiers {
-                    control: true,
-                    ..Default::default()
-                },
-            )],
+            keys: vec![(chord.key, chord.modifiers)],
             ..Default::default()
         });
     }

@@ -418,7 +418,7 @@ impl ScenePass {
         let mut stats = SceneRenderStats::default();
         if let Some(planes) = &planes {
             stats.draws = planes.count;
-            stats.triangles = planes.count as u64 * 2;
+            stats.triangles = planes.triangles;
             stats.plane_vertex_bytes = planes.vertices.size();
         }
         stats.depth_input_bytes = seed.as_ref().map_or(0, |s| s.bytes);
@@ -530,6 +530,9 @@ impl ScenePass {
                     if a.0 {
                         std::cmp::Ordering::Equal
                     } else {
+                        if let (OrderedDraw::Plane { draw: a, .. }, OrderedDraw::Plane { draw: b, .. }) = (&a.2, &b.2) {
+                            return a.object.cmp(&b.object);
+                        }
                         matches!(a.2, OrderedDraw::Mesh { .. })
                             .cmp(&matches!(b.2, OrderedDraw::Mesh { .. }))
                     }
@@ -596,7 +599,7 @@ impl ScenePass {
                             pass.set_bind_group(0, group, &[]);
                         }
                         pass.set_vertex_buffer(0, vertices.slice(draw.vertices.clone()));
-                        pass.draw(0..6, 0..1);
+                        pass.draw(0..draw.vertex_count, 0..1);
                         stats.blended_draws += usize::from(draw.blend);
                         continue;
                     }

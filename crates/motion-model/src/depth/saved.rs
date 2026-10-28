@@ -53,6 +53,9 @@ struct Parameters {
     curve: CalibrationCurve,
     extrapolation: CalibrationExtrapolation,
     pixels_per_metre: f32,
+    /// None denotes algebra-only calibration, without a placement for rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reference: Option<DepthReference>,
 }
 
 /// Bounded saved authoring data, never an installed inference result. Rebinding
@@ -89,6 +92,7 @@ impl SavedDepthCalibration {
             curve,
             extrapolation,
             pixels_per_metre,
+            reference: None,
         })
     }
     pub fn validate(&self) -> Result<()> {
@@ -98,6 +102,7 @@ impl SavedDepthCalibration {
             "saved depth calibration requires explicit positive world pixels per metre",
         )?;
         p.input.validate(&p.interpretation.geometry)?;
+        if let Some(reference) = &p.reference { reference.validate()?; }
         RelativeDepthCalibration::new(
             p.interpretation.descriptor(p.asset, p.pts),
             p.anchors,
@@ -120,6 +125,12 @@ impl SavedDepthCalibration {
     }
     pub fn pixels_per_metre(&self) -> f32 {
         self.0.pixels_per_metre
+    }
+    pub fn reference(&self) -> Option<&DepthReference> { self.0.reference.as_ref() }
+    pub fn with_reference(mut self, reference: DepthReference) -> Result<Self> {
+        reference.validate()?;
+        self.0.reference = Some(reference);
+        Ok(self)
     }
     /// Clipboard remapping changes the managed reference, not the expected pixels.
     pub fn remap_asset(&mut self, asset: u64) {

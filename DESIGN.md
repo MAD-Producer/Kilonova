@@ -425,6 +425,27 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
 
 ---
 
+### 7.4 Audio monitoring
+
+The Audio panel distinguishes the master device-output peak in dBFS from the
+selected clip's prepared source waveform. Meter values come from consumed PCM,
+including mono device downmix; zero samples show silence. A full-scale indicator
+means the submitted samples reached 0 dBFS, not a measurement of pre-limiter
+overshoot. Source waveform values do not include layer gain, balance or mute.
+
+Keep stereo balance on one inline label/value row using the native numeric
+gesture, text and undo controls. Center is unity; moving toward one side
+attenuates only the opposite channel, independently of channel keyframes.
+Disable it explicitly when the backend does not declare support. Use existing
+padding, row, field and border tokens, plus the `audio.*` size tokens for the
+waveform, meter bars and value column. Narrow panels scroll vertically.
+
+Prepare and reduce source waveforms off the UI thread. Display loading and
+failure states, preserve the original error and provide an explicit reload.
+Changing clip/source/composition invalidates the view; cancelled or superseded
+work cannot publish another layer's waveform. Neither metering nor waveform
+cache preparation changes the authored project or its history.
+
 ## 8. Interaction semantics, modifier keys, and input safety
 
 ### 8.1 Existing shortcuts
@@ -459,6 +480,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 ### 8.3 Focus, menus, keyboard safety
 
+- Application dropdowns and layer context menus share `widgets::menu` rows: a leading check slot, caption, right-aligned catalogue shortcut, and trailing submenu arrow. Inline group dividers do not consume another row. Keep application and context row heights distinct (`menu.popup.row.height` / `context.row.height`); popup padding and width bounds use `menu.popup.*` / `context.menu.*`. Reserve space for a neighbouring submenu before painting the root. Hovering a branch opens it to the right; flip left at the owning window's edge. Align the child's first row with its triggering row, compensating for popup padding; only the bottom boundary may shift it vertically. Never cover parent actions: narrow windows use two compact columns, preserve row heights, and keep every painted row fully clickable; yield shortcut hints before ellipsizing command captions. Up/Down and PageUp/PageDown may repeat; Home/End and Enter do not. Left/Escape returns from a child before closing the root; IME confirmation keys never activate or dismiss a menu. Opening a child cannot execute its first action in the same frame. Rebuild actions and checks from live state; a different project/composition closes the menu. The Window menu's workspace branch reuses the five existing presets and workspace management commands.
 - Keyboard actions target the focused widget and valid shortcut context only. Global shortcuts must not interfere with IME composition, text entry, open menus, or active drag gestures.
 - Opening a dropdown blocks other inputs in the same panel; overlays render after regular content to preserve actual z-order and hit order (`desktop/ui/src/ui.rs`, `widgets/composite.rs`).
 - Preserve the existing repeat-key whitelist in `shortcuts.rs:131-142`: `PreviousFrame`, `NextFrame`, `MoveLeft`, `MoveRight`, `MoveUp`, `MoveDown`, `PreviousKey`, `NextKey`. **Do not enable repeat for every key.**

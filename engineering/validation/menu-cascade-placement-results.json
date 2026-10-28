@@ -1,0 +1,171 @@
+{
+  "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+  "checks": [
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "ui-lib",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-ui",
+        "--lib",
+        "--locked",
+        "--offline"
+      ],
+      "elapsed_ms": 43665
+    },
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "shared-menu",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "shared_menu",
+        "--",
+        "--test-threads=1"
+      ],
+      "elapsed_ms": 228937
+    },
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "layer-actions",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::layer_actions::tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "elapsed_ms": 27661
+    },
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "effect-menu",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::effect_controls::removal_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "elapsed_ms": 7100
+    },
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "recent-effects",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "recent_effect_menu_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "elapsed_ms": 3827
+    },
+    {
+      "source": "dbaea61cef7d00410634a44f7e2c99a2207c7b7b",
+      "name": "native-menu",
+      "exit": 0,
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::layer_actions::tests::shared_native::shared_menu_native_root_child_shortcuts_checks_and_small_window_owners",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "elapsed_ms": 72200
+    }
+  ],
+  "png_count": 38,
+  "archive_entries": 63,
+  "archive_bytes": 1932050,
+  "archive_sha256": "898d4714c6f48c5e86e544d0cbfdbaa48434705257f5fa48baa24f32459d810b",
+  "screenshots": [
+    {
+      "source": "shared-menu-zh-main-1x-hover-root.png",
+      "source_sha256": "86b9129fd8e487c5e7d90be5802630ce4967df469628edcb90edefb74f5733a4",
+      "crop": [
+        10,
+        740,
+        500,
+        985
+      ],
+      "result": "zh-before-hover.png",
+      "sha256": "db6090508e899e3c5c40c97795a9f5122a1cc2d4cc84089735eb336a132a43dd"
+    },
+    {
+      "source": "shared-menu-zh-main-1x-hover-child.png",
+      "source_sha256": "dc87bada9f89fda6793ba30bc7af4592a9dc5028dbabf92a0e0ecc04989a9922",
+      "crop": [
+        10,
+        740,
+        500,
+        985
+      ],
+      "result": "zh-hover-right.png",
+      "sha256": "18dab5637eee475e21ae4e6479d7a09acd1a12cb5114edef521128a2fa3c1988"
+    },
+    {
+      "source": "shared-menu-zh-main-1x-child.png",
+      "source_sha256": "28872cfdc02e523024465a5c6e1ed611bf95c9b39fcf30c22140d8c2cb5f9e40",
+      "crop": [
+        1120,
+        740,
+        1600,
+        985
+      ],
+      "result": "zh-right-edge-left.png",
+      "sha256": "0ae044368bb0c6e780a45b3f347c89ab1ef61e06f9e8715e018571b4aca638f6"
+    },
+    {
+      "source": "shared-menu-zh-floating-route-1x-child.png",
+      "source_sha256": "439a29f27710ff151c3eadfc6a6635ca008d871aa4a3655d21c5643b46c4148b",
+      "crop": null,
+      "result": "zh-compact-float.png",
+      "sha256": "7a7a3c983af246ac4b908dda7ec9d8c359c880dbe3d1588df80e8ec4bd7e551d"
+    }
+  ]
+}

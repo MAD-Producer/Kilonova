@@ -10,6 +10,8 @@ mod matroska;
 pub use matroska::{matroska_metadata, MatroskaMetadata, MatroskaTrack};
 mod jobs;
 mod mixer;
+mod waveform_view;
+pub use waveform_view::{waveform_view, MAX_WAVEFORM_COLUMNS};
 mod onsets;
 pub use onsets::audio_references;
 mod packages;

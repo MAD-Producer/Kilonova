@@ -237,3 +237,18 @@ fn dimensions_units_scale_and_declared_range_are_checked_before_installation() {
     }
     assert!(DepthResource::new(original, vec![0.0; 3], None, None).is_err());
 }
+
+#[test]
+fn immutable_resource_identity_distinguishes_new_predictions_with_identical_metadata() {
+    let original = DepthResource::new(descriptor(), vec![0., 1., 0., 1.], None, None).unwrap();
+    let token = original.cache_identity();
+    let cloned = original.clone();
+    assert_eq!(token, cloned.cache_identity());
+    let changed = DepthResource::new(descriptor(), vec![1., 0., 1., 0.], None, None).unwrap();
+    assert_ne!(token, changed.cache_identity());
+    let repeated =
+        DepthResource::new(descriptor(), original.values().to_vec(), None, None).unwrap();
+    assert_ne!(token, repeated.cache_identity());
+    drop(original);
+    assert_eq!(token, cloned.cache_identity());
+}

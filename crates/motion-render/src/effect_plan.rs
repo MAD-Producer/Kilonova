@@ -278,6 +278,9 @@ impl EffectFramePlan {
             + self.scratch_allocations.len()*SCRATCH_RECORD_BYTES
     }
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
+        if scene.has_calibrated_depth() {
+            return Err(RenderError::Invalid("portable packed plans do not carry calibrated geometry; use native calibrated depth rendering or bake explicitly".into()));
+        }
         if self.passes.iter().any(|pass| pass.instance_data != 0) {
             return Err("packed plan v12 cannot transport instance_shader_data textures; use a native consumer with instance_shader_data_v1".into());
         }

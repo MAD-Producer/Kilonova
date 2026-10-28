@@ -285,6 +285,27 @@ class WorkflowPolicyTest(unittest.TestCase):
         for legacy in ("setup-java", "gradle/actions", "android-emulator-runner", "sdkmanager", "KEYSTORE", "motion-android/diagnostics", "tools/build_android.py", "tools/ci_android_ui.py", "tools/generate_editor_icons.py"):
             self.assertNotIn(legacy, text)
 
+    def test_frozen_depth_exports_are_enabled_and_evidence_has_upload_routes(self):
+        desktop = self.workflow["jobs"]["desktop"]
+        native = next(s for s in desktop["steps"] if s.get("name") == "Run desktop unit tests")
+        args = shlex.split(native["run"])
+        self.assertIn("motion-desktop-media/ai-depth", args[args.index("--features") + 1].split(","))
+        self.assertNotIn("ffmpeg", args[args.index("--features") + 1].split(","))
+        failed = next(s for s in desktop["steps"] if s.get("name") == "Preserve failed PR frozen export evidence")
+        self.assertEqual(failed["if"], "failure() && github.event_name == 'pull_request'")
+        media = self.workflow["jobs"]["desktop-media"]
+        test = next(s for s in media["steps"] if s.get("name") == "Test libav probing, seeks and YUV frames")
+        args = shlex.split(test["run"])
+        self.assertLessEqual({"ffmpeg", "gpu-tests", "ai-depth"}, set(args[args.index("--features") + 1].split(",")))
+        upload = next(s for s in media["steps"] if s.get("name") == "Preserve frozen movie validation evidence")
+        self.assertEqual(upload["if"], "always()")
+        self.assertEqual(upload["with"]["path"], "artifacts/desktop-media/**")
+        for step, prefix in [(native, "artifacts/desktop/"), (test, "artifacts/desktop-media/")]:
+            for name in ["MOTION_FROZEN_DEPTH_ARTIFACTS", "MOTION_IMPORTED_CAMERA_OUTPUT_ARTIFACTS"]:
+                self.assertTrue(step["env"][name].startswith("${{ github.workspace }}/" + prefix))
+        for path in ["artifacts/desktop/frozen-depth/**", "artifacts/desktop/imported-camera/**"]:
+            self.assertIn(path, failed["with"]["path"].splitlines())
+
     def test_cpu_only_feature_is_not_reenabled_by_internal_dependencies(self):
         workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["workspace"]
         manifests = [tomllib.loads((ROOT / member / "Cargo.toml").read_text(encoding="utf-8")) for member in workspace["members"]]

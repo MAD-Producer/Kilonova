@@ -404,6 +404,7 @@ pub fn chrome(
     let drag_neutral = Input::default();
     let input = if drag_owned { &drag_neutral } else { input };
     let mut out = Vec::new();
+    audio::monitor::prepare(panels, None, state, input, &mut out);
     tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
@@ -430,6 +431,7 @@ pub fn chrome(
         panels.locale,
         panels.selected,
         panels.focused == Some(Panel::Timeline)
+            && panels.menu.is_none()
             && !panels.timeline_columns.editing()
             && !panels.timeline.comparison.keyboard_focus()
             && !panels.parent_controls.open
@@ -527,6 +529,8 @@ pub fn chrome(
         );
     }
     if panels.effect_search.is_none()
+        && panels.menu.is_none()
+        && !input.composing && !input.ime_consumed
         && input
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
@@ -1144,6 +1148,7 @@ pub fn floating_chrome(
     let colors = styles.colors();
 
     let mut out = toolbar_actions;
+    audio::monitor::prepare(panels, Some(panel), state, input, &mut out);
     tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));

@@ -2,6 +2,7 @@ use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Proje
 use glam::{Mat4, Vec3};
 use serde::Serialize;
 pub(crate) mod instance_ids;
+mod depth;
 // Bounded authored payload per scene; old/new samples may coexist during refresh.
 const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 
@@ -109,6 +110,10 @@ pub struct Scene {
     pub camera_viewport: [f32; 4],
     camera_sample: Option<motion_model::CameraSample>,
     model_sources: crate::ModelSourceCatalog,
+    depth_required: std::collections::HashMap<u64, motion_model::depth::SavedDepthCalibration>,
+    depth_surfaces: std::collections::HashMap<u64, depth::BoundSurface>,
+    depth_pending: std::collections::HashSet<u64>,
+    pub(crate) shared_rasters: std::collections::HashSet<u64>,
     node_cameras: Vec<Option<motion_model::CameraSample>>,
     pub layers: Vec<DrawLayer>,
     pub background: [f32; 4],
@@ -151,7 +156,7 @@ impl Scene {
     /// Install immutable source ownership before sampling, including child scenes.
     pub fn set_model_source_catalog(&mut self, catalog: crate::ModelSourceCatalog) { self.model_sources = catalog; }
     pub fn model_source_catalog(&self) -> crate::ModelSourceCatalog { self.model_sources.clone() }
-    pub(crate) fn native_camera(&self) -> CameraPose {
+    pub fn native_camera(&self) -> CameraPose {
         if self.camera_viewport == [0., 0., self.width as f32, self.height as f32] { return self.camera; }
         self.camera_sample.map_or(self.camera, |sample| sample.pose)
     }
@@ -162,6 +167,7 @@ impl Scene {
             w * width as f32 / self.width as f32, h * height as f32 / self.height as f32])
     }
     pub fn is_screen_overlay(&self, layer: u64) -> bool {
+        if self.shared_rasters.contains(&layer) { return true; }
         if self.layers.iter().any(|l| l.id == layer && l.model_source.is_some()) { return true; }
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
@@ -186,6 +192,10 @@ impl Scene {
         context.camera_viewport = self.camera_viewport;
         context.camera_sample = self.camera_sample;
         context.model_sources = self.model_sources.clone();
+        context.depth_required = self.depth_required.clone();
+        context.depth_surfaces = self.depth_surfaces.clone();
+        context.depth_pending = self.depth_pending.clone();
+        context.shared_rasters = self.shared_rasters.clone();
         context.frame = self.frame;
         context.layers = layers;
         context
@@ -212,6 +222,10 @@ impl Scene {
             camera_viewport: [0., 0., width as f32, height as f32],
             camera_sample: None,
             model_sources: Default::default(),
+            depth_required: Default::default(),
+            depth_surfaces: Default::default(),
+            depth_pending: Default::default(),
+            shared_rasters: Default::default(),
             node_cameras: Vec::new(),
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
             background,
@@ -298,6 +312,7 @@ impl Scene {
         self.sprite_assets.clear();
         self.sprite_assets.extend(project.assets.iter().map(|a| (a.id,[a.width,a.height])));
         self.composition_id.clone_from(&project.composition_id);
+        self.reset_depth();
         let mut previous_nested = std::mem::take(&mut self.nested);
         for node in &mut previous_nested { node.layer = self.source_object(node.layer); }
         // Alias IDs belong to the last rendered instance, not to authored tracks.
@@ -599,6 +614,12 @@ impl Scene {
             } else {
                 layer.size
             };
+            if layer.three_d {
+                if let Some(calibration) = layer.depth_calibration.as_ref().filter(|c| c.reference().is_some()) {
+                    self.depth_required.insert(layer.id, calibration.clone());
+                    self.depth_pending.insert(layer.id);
+                }
+            }
             self.layers.push(DrawLayer {
                 id: layer.id,
                 model: self.node_world[order] * geometry_offset(layer, frame)? * Mat4::from_translation(vector_center),
@@ -653,6 +674,7 @@ impl Scene {
             start = end;
         }
         previous_nested.clear();
+        self.depth_surfaces.retain(|id, surface| self.depth_required.get(id) == Some(&surface.calibration));
         self.nested_spare = previous_nested;
         self.evaluated_project = match evaluated {
             std::borrow::Cow::Owned(p) => Some(p),
@@ -665,6 +687,9 @@ impl Scene {
         path: &mut Vec<u64>) -> Result<()> {
         let mapping = registry.mapping(path, &self.composition_id, &self.node_ids)?;
         let alias = |object| instance_ids::alias(&mapping, &self.composition_id, object);
+        self.depth_required = std::mem::take(&mut self.depth_required).into_iter().map(|(id, value)| Ok((alias(id)?, value))).collect::<Result<_>>()?;
+        self.depth_surfaces = std::mem::take(&mut self.depth_surfaces).into_iter().map(|(id, value)| Ok((alias(id)?, value))).collect::<Result<_>>()?;
+        self.depth_pending = std::mem::take(&mut self.depth_pending).into_iter().map(alias).collect::<Result<_>>()?;
         for id in &mut self.node_ids { if *id!=0 { *id=alias(*id)?; } }
         self.source_objects.extend(mapping.iter().map(|(source,alias)|(*alias,*source)));
         for l in &mut self.layers {l.id=alias(l.id)?;if let Some(m)=&mut l.track_matte{m.source=alias(m.source)?;}}

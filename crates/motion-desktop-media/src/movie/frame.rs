@@ -39,6 +39,8 @@ impl FrameFreezePlan {
             false,
         )?;
         sources.allocation_budget = session.allocation_budget().clone();
+        sources.depth = motion_host::depth_snapshot::DepthSnapshot::capture(session)
+            .map_err(|e| e.to_string())?;
         let output = output.unwrap_or_else(|| {
             session
                 .root
@@ -84,6 +86,12 @@ impl FrameFreezePlan {
             .tempfile_in(output.parent().ok_or("PNG output has no parent")?)
             .map_err(|e| format!("create PNG temporary: {e}"))?;
         let p = &frozen.project;
+        frozen.depth.validate_project(p).map_err(|e| e.to_string())?;
+        let depth = frozen.depth.verify_sources(frozen.assets.path(), &|| control.check().map_err(Into::into))
+            .map_err(|e| e.to_string())?;
+        if depth.layer_count() > 0 && motion_host::render_sampling::needs_exposure(p)? {
+            return Err("frozen calibrated depth with exposure sampling is not supported".into());
+        }
         control.check()?;
         let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(p.working_precision, frozen.allocation_budget.clone()))
             .map_err(|e| format!("PNG GPU initialization: {e}"))?;
@@ -117,9 +125,11 @@ impl FrameFreezePlan {
                     )
                 } else {
                     let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
+                    scene.set_model_source_catalog(renderer.model_source_catalog());
                     scene
                         .sample(p, self.frame, None, &motion_core::ExpressionEvaluator)
                         .map_err(|e| e.to_string())?;
+                    depth.attach(&mut scene).map_err(|e| e.to_string())?;
                     renderer
                         .prepare_scene_assets(&scene, Resolution::Full, false)
                         .map_err(|e| e.to_string())?;
