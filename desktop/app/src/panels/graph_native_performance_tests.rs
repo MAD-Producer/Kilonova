@@ -1,6 +1,6 @@
 //! Manual, shared baseline/current native cost study. No performance thresholds.
 use super::*;
-use crate::{engine::Engine as DesktopEngine, native_test_support, workspace, Shell};
+use crate::{Shell, engine::Engine as DesktopEngine, native_test_support, workspace};
 use motion_core::{Curve, CurveShape, CurveSpace, Ease, EffectInstance, Layer, Project};
 use std::{
     path::Path,
@@ -126,6 +126,76 @@ impl CpuSample {
             ticks: kernel.ticks().checked_add(user.ticks()).unwrap(),
             cycles,
         }
+    }
+}
+
+/// A passive partition of the existing panel dispatcher. Enabled only while
+/// this manual study calls draw_commands; ordinary tests do not read clocks.
+#[derive(Default, serde::Serialize)]
+struct PanelCost {
+    calls: u64,
+    wall_us: u128,
+    thread_cycles: u64,
+}
+#[derive(Default, serde::Serialize)]
+struct PanelCosts {
+    graph: PanelCost,
+    info: PanelCost,
+    composition: PanelCost,
+    other: PanelCost,
+}
+thread_local! {
+    static PANEL_COSTS: std::cell::RefCell<Option<PanelCosts>> = const { std::cell::RefCell::new(None) };
+}
+fn thread_cycles() -> u64 {
+    let mut cycles = 0;
+    // SAFETY: own live thread pseudo-handle and one initialized output; the
+    // documented synchronous query retains neither pointer.
+    assert_ne!(
+        unsafe { QueryThreadCycleTime(GetCurrentThread(), &mut cycles) },
+        0,
+        "QueryThreadCycleTime failed: {}",
+        std::io::Error::last_os_error()
+    );
+    cycles
+}
+pub(super) struct PanelTimer {
+    panel: Panel,
+    started: Instant,
+    cycles: u64,
+}
+impl PanelTimer {
+    pub(super) fn start(panel: Panel) -> Option<Self> {
+        PANEL_COSTS
+            .with(|costs| costs.borrow().is_some())
+            .then(|| Self {
+                panel,
+                started: Instant::now(),
+                cycles: thread_cycles(),
+            })
+    }
+}
+impl Drop for PanelTimer {
+    fn drop(&mut self) {
+        let cycles = thread_cycles()
+            .checked_sub(self.cycles)
+            .expect("thread cycles went backwards");
+        let wall = self.started.elapsed().as_micros();
+        PANEL_COSTS.with(|costs| {
+            let mut slot = costs.borrow_mut();
+            let costs = slot
+                .as_mut()
+                .expect("panel probe ended outside measured draw");
+            let cost = match self.panel {
+                Panel::Timeline | Panel::Curves => &mut costs.graph,
+                Panel::Info => &mut costs.info,
+                Panel::Composition => &mut costs.composition,
+                _ => &mut costs.other,
+            };
+            cost.calls += 1;
+            cost.wall_us += wall;
+            cost.thread_cycles += cycles;
+        });
     }
 }
 
@@ -327,11 +397,17 @@ fn frame(
     let mut reply_us = 0;
     let mut polls = 0;
     let mut paint_work = PaintWork::default();
+    let mut panel_costs = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let cpu_before = CpuSample::read();
         let start = Instant::now();
+        PANEL_COSTS.with(|costs| {
+            assert!(costs.borrow().is_none());
+            *costs.borrow_mut() = Some(PanelCosts::default());
+        });
         let (paint, actions) = shell.draw_commands(SIZE);
+        panel_costs.push(PANEL_COSTS.with(|costs| costs.borrow_mut().take().unwrap()));
         assert!(actions.is_empty());
         paint_work.draw_commands_us += start.elapsed().as_micros();
         let metrics_started = Instant::now();
@@ -382,7 +458,7 @@ fn frame(
         "ui_thread_cpu_100ns":cpu_ticks,"ui_thread_cycles":cpu_cycles,"document_generation":shell.state["document_generation"],"revision":shell.state["revision"],
         "present_reply_us":reply_us,"present_polls":polls,
         "effective_timeline_zoom":shell.panels.timeline.zoom,"effective_timeline_offset":shell.panels.timeline.offset,
-        "timeline_graph_mode":shell.panels.timeline.graph_mode,"paint_work":paint_work,"info":p})
+        "timeline_graph_mode":shell.panels.timeline.graph_mode,"paint_work":paint_work,"panel_costs":panel_costs,"info":p})
 }
 
 #[test]
@@ -511,8 +587,11 @@ fn actual_native_graph_costs_match_info_counters() {
                         renders + reuses >= 60,
                         "real composition counters did not advance: {name}"
                     );
-                    assert_eq!((renders, reuses), if advancing {(60, 0)} else {(0, 60)},
-                        "static redraws must reuse the composition; distinct fixture frames must render: {name}");
+                    assert_eq!(
+                        (renders, reuses),
+                        if advancing { (60, 0) } else { (0, 60) },
+                        "static redraws must reuse the composition; distinct fixture frames must render: {name}"
+                    );
                     let final_state = shell.engine.state().unwrap();
                     assert_eq!(final_state["project"], before);
                     assert_eq!(final_state["revision"], revision);
@@ -543,8 +622,8 @@ fn actual_native_graph_costs_match_info_counters() {
     }
     assert_eq!(cases.len(), 28);
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":4,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
+        "schema":5,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Schema4 records draw, atlas preparation, read-only command census time and emitted geometry/capacities; census overhead remains included in the total and capacities are not allocation counts. Own-thread CPU100ns and raw cycles bracket this instrumented UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Schema5 adds passive per-panel wall/cycle probes to the schema4 draw, atlas preparation, read-only command census time and emitted geometry/capacities; all probe overhead remains included. Info and Composition serve as unchanged panel controls, not isolated CPU benchmarks; census overhead remains included in the total and capacities are not allocation counts. Own-thread CPU100ns and raw cycles bracket this instrumented UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }

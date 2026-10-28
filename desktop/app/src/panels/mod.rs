@@ -2180,6 +2180,8 @@ fn render_panel(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    #[cfg(all(test, target_os = "windows"))]
+    let _panel_timer = graph_native_performance_tests::PanelTimer::start(panel);
     let mut local = input.clone();
     let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
         || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
