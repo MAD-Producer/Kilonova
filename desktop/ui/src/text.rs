@@ -7,10 +7,23 @@ use unicode_segmentation::UnicodeSegmentation;
 // Fits the minimum texture dimension supported by the desktop's downlevel
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
 const MAX_ATLAS_DIMENSION: u32 = 2048;
+
+// The chrome atlas does not shape variation sequences or joining forms.
+// Their scalar fallback is invisible and non-advancing, independent of cmap
+// support. This does not implement substitution, bidi or mark positioning.
+// https://unicode.org/faq/unsup_char.html
+fn is_sequence_control(character: char) -> bool {
+    matches!(character,
+        '\u{180b}'..='\u{180d}' | '\u{180f}'
+        | '\u{200c}' | '\u{200d}'
+        | '\u{fe00}'..='\u{fe0f}' | '\u{e0100}'..='\u{e01ef}')
+}
 #[cfg(test)]
 mod observation_tests;
 #[cfg(test)]
 mod lifetime_tests;
+#[cfg(test)]
+mod format_controls_tests;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -257,6 +270,9 @@ impl TextAtlas {
         &self.font
     }
     fn advance(&self, character: char) -> f32 {
+        if is_sequence_control(character) {
+            return 0.;
+        }
         let font = self.face(character);
         let id = font.glyph_id(character);
         if id.0 == 0 {
@@ -273,6 +289,14 @@ impl TextAtlas {
     pub fn glyph_at(&mut self, character: char, size: f32) -> GlyphEntry {
         if !size.is_finite() || size <= 0. || !self.font_size.is_finite() || self.font_size <= 0. {
             self.observe_capacity(character, size);
+            return GlyphEntry { uv: [0.; 4], offset: [0.; 2], advance: 0. };
+        }
+        if is_sequence_control(character) {
+            // Preserve the public oversized-request diagnostic. A valid
+            // sequence control needs no atlas texel or missing-glyph episode.
+            if size * self.pixel_ratio > self.max_dimension as f32 {
+                self.observe_capacity(character, size);
+            }
             return GlyphEntry { uv: [0.; 4], offset: [0.; 2], advance: 0. };
         }
         let key = (character, size.to_bits(), self.pixel_ratio.to_bits());
