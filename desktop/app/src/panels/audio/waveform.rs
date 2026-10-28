@@ -226,6 +226,33 @@ impl Waveform {
         self.running.is_some() || self.loading()
     }
     fn start(&mut self, request: Request) {
+        self.start_work(request, |work, id, stop| {
+            prepare_missing_cache(work, id, stop).and_then(|_| {
+                motion_media::waveform_view(
+                    &work.root,
+                    &work.asset,
+                    work.begin,
+                    work.end,
+                    work.columns,
+                    &mut || {
+                        if stop.load(Ordering::Acquire) {
+                            Err("cancelled".into())
+                        } else {
+                            Ok(())
+                        }
+                    },
+                )
+                .map_err(|e| e.to_string())
+            })
+        });
+    }
+    fn start_work(
+        &mut self,
+        request: Request,
+        run: impl FnOnce(&Request, u64, &AtomicBool) -> Result<Vec<motion_media::WaveBucket>, String>
+            + Send
+            + 'static,
+    ) {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let id = NEXT.fetch_add(1, Ordering::Relaxed);
         let (send, receive) = mpsc::channel();
@@ -248,9 +275,7 @@ impl Waveform {
             work.asset.path.chars().take(512).collect::<String>());
         let spawn = std::thread::Builder::new().name("audio-waveform-view".into()).spawn(move || {
             let mut flight = InFlight { id, object: work.object, source: work.asset.id, began: Instant::now(), finished: false };
-            let result = prepare_missing_cache(&work, id, &stop).and_then(|_| motion_media::waveform_view(&work.root, &work.asset, work.begin, work.end, work.columns, &mut || {
-                if stop.load(Ordering::Acquire) { Err("cancelled".into()) } else { Ok(()) }
-            }).map_err(|e| e.to_string())).map_err(|error| error.chars().take(2048).collect::<String>());
+            let result = run(&work, id, &stop).map_err(|error| error.chars().take(2048).collect::<String>());
             match &result {
                 Err(error) if error != "cancelled" => log::error!("audio waveform failed request={id} operation=waveform_view object={} source={} elapsed_ms={} cause={}", work.object, work.asset.id, flight.began.elapsed().as_millis(), error.chars().take(2048).collect::<String>()),
                 _ => log::debug!("audio waveform done request={id} operation=waveform_view object={} source={} elapsed_ms={} cancelled={}", work.object, work.asset.id, flight.began.elapsed().as_millis(), stop.load(Ordering::Acquire)),
@@ -340,40 +365,42 @@ mod tests {
     fn audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply() {
         let root = tempfile::tempdir().unwrap();
         let old = request(root.path(), 1);
-        let (send, receive) = mpsc::channel();
-        let cancelled = Arc::new(AtomicBool::new(false));
+        let (entered, entering) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
         let mut wave = Waveform::default();
         wave.wanted = Some(old.clone());
-        wave.running = Some(Task {
-            id: 0,
-            request: old,
-            cancelled: cancelled.clone(),
-            receive,
-            began: Instant::now(),
-            slow: false,
+        wave.start_work(old, move |_, _, _| {
+            entered.send(()).unwrap();
+            gate.recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            Ok(vec![motion_media::WaveBucket {
+                min: -0.5,
+                max: 0.5,
+                rms: 0.25,
+            }])
         });
+        entering
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let task = wave.running.as_ref().unwrap();
+        let id = task.id;
+        let cancelled = task.cancelled.clone();
         for object in 2..100 {
             wave.request(Some(request(root.path(), object)));
         }
         assert!(cancelled.load(Ordering::Acquire));
         assert_eq!(
             wave.running.as_ref().unwrap().id,
-            0,
+            id,
             "no second worker while a filesystem operation is blocked"
         );
         assert_eq!(wave.wanted.as_ref().unwrap().object, 99);
-        send.send(Ok(vec![motion_media::WaveBucket {
-            min: -0.5,
-            max: 0.5,
-            rms: 0.25,
-        }]))
-        .unwrap();
-        wave.poll();
+        release.send(()).unwrap();
+        wait(&mut wave);
         assert!(
             wave.values.is_empty(),
             "the old layer's peaks must never appear on the current layer"
         );
-        wait(&mut wave);
         assert!(wave
             .error
             .as_deref()
@@ -382,6 +409,108 @@ mod tests {
         assert!(wave.completed);
         wave.request(None);
         assert!(wave.error.is_none() && wave.values.is_empty() && !wave.loading());
+    }
+    #[test]
+    fn audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics() {
+        const CHILD: &str = "MOTION_AUDIO_WAVEFORM_CONTROLLED_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logging = crate::logging::init(root.join("logs")).unwrap();
+            let mut wave = Waveform::default();
+            let work = request(&root, 23);
+            wave.wanted = Some(work.clone());
+            let (entered, entering) = mpsc::channel();
+            let (release, gate) = mpsc::channel();
+            wave.start_work(work, move |_, _, cancelled| {
+                entered.send(()).unwrap();
+                gate.recv_timeout(std::time::Duration::from_secs(10))
+                    .unwrap();
+                assert!(cancelled.load(Ordering::Acquire));
+                Err("cancelled".into())
+            });
+            entering
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            assert!(wave.running.is_some() && wave.loading());
+            crate::logging::flush();
+            let before = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            assert!(
+                before.contains("INFO")
+                    && before.contains("operation=waveform_view object=23 source=8")
+            );
+            assert!(!before.contains("waveform done") && !before.contains("ERROR"));
+            // Hold the real worker beyond the production observation threshold.
+            // Repeated polling must retain one task and emit one slow warning.
+            std::thread::sleep(std::time::Duration::from_millis(2100));
+            let id = wave.running.as_ref().unwrap().id;
+            for _ in 0..100 {
+                assert!(!wave.poll());
+            }
+            assert_eq!(wave.running.as_ref().unwrap().id, id);
+            crate::logging::flush();
+            let slow = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            assert_eq!(slow.matches("audio waveform still in flight ").count(), 1);
+            wave.request(None);
+            release.send(()).unwrap();
+            wait(&mut wave);
+            assert!(wave.error.is_none() && !wave.loading());
+            crate::logging::flush();
+            let cancelled = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            assert!(
+                !cancelled.contains("ERROR"),
+                "normal cancellation is not a failure"
+            );
+
+            let work = request(&root, 24);
+            wave.wanted = Some(work.clone());
+            wave.start_work(work, |_, _, _| panic!("controlled waveform handler panic"));
+            wait(&mut wave);
+            assert_eq!(
+                wave.error.as_deref(),
+                Some("audio waveform worker disconnected")
+            );
+            assert!(wave.completed && !wave.busy());
+            crate::logging::flush();
+            let logs = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            assert!(logs.contains("controlled waveform handler panic"));
+            assert!(logs.contains("phase=panic") && logs.contains("object=24 source=8"));
+            assert!(logs.contains("audio waveform disconnected"));
+            assert!(
+                logs.contains("std::panicking") || logs.contains("std::backtrace"),
+                "force-captured panic backtrace is retained"
+            );
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics", "--nocapture"])
+            .env_remove("MOTION_LOG").env_remove("RUST_BACKTRACE")
+            .env(CHILD, temp.path()).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("controlled waveform handler panic")
+                && stderr.contains("phase=panic")
+                && stderr.contains("audio waveform disconnected")
+        );
+        assert!(!stderr.contains("audio waveform start") && !stderr.contains("still in flight"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("audio waveform"));
+        if let Some(path) = std::env::var_os("MOTION_AUDIO_MONITOR_ERROR_EVIDENCE") {
+            let path = std::path::PathBuf::from(path);
+            std::fs::create_dir_all(&path).unwrap();
+            std::fs::copy(
+                temp.path().join("logs/motion-studio.log"),
+                path.join("controlled-file.log"),
+            )
+            .unwrap();
+            std::fs::write(path.join("controlled-stderr.log"), output.stderr).unwrap();
+            std::fs::write(path.join("controlled-stdout.log"), output.stdout).unwrap();
+        }
     }
     #[test]
     fn audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs() {

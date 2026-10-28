@@ -67,7 +67,13 @@ fn native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_
         source(&root);
         for floating in [false, true] {
             for scale in [1f32, 1.5, 2.] {
-                let size = if floating { [320., 600.] } else { [900., 600.] };
+                let size = if floating {
+                    [320., 600.]
+                } else if scale == 1. {
+                    [1600., 1000.]
+                } else {
+                    [900., 600.]
+                };
                 let mut shell = Shell::new(root.clone(), None, Some(locale)).unwrap();
                 shell.home = None;
                 shell.workspace.root = motion_ui::dock::Node::dock(Panel::Audio.dock());
