@@ -187,9 +187,11 @@ jobs:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
           MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
           MOTION_POINT_SELECTION_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/path-selection
+          MOTION_FROZEN_DEPTH_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frozen-depth
+          MOTION_IMPORTED_CAMERA_OUTPUT_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/imported-camera
         # Exercise the optional depth contract/process tests without installing
         # a model or Python inference runtime on the native matrix.
-        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests -- --test-threads=1
+        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests,motion-desktop-media/ai-depth -- --test-threads=1
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache
@@ -306,6 +308,16 @@ jobs:
             artifacts/desktop/path-selection/stdout.log
           if-no-files-found: warn
           retention-days: 7
+      - name: Preserve failed PR frozen export evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request'
+        with:
+          name: desktop-export-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/frozen-depth/**
+            artifacts/desktop/imported-camera/**
+          if-no-files-found: warn
+          retention-days: 7
 
   desktop-media:
     name: Desktop libav backend
@@ -335,7 +347,18 @@ jobs:
       - name: Build with video import and decoding
         run: python tools/build_desktop.py --task check --ffmpeg
       - name: Test libav probing, seeks and YUV frames
-        run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests -- --test-threads=1
+        env:
+          MOTION_FROZEN_DEPTH_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop-media/frozen-depth
+          MOTION_IMPORTED_CAMERA_OUTPUT_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop-media/imported-camera
+        run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests,ai-depth -- --test-threads=1
+      - name: Preserve frozen movie validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-media-export-evidence
+          path: artifacts/desktop-media/**
+          if-no-files-found: warn
+          retention-days: 14
 
   publish:
     name: Publish desktop release
