@@ -1,5 +1,9 @@
 # Indexed video depth authoring and live admission — issue #87
 
+Follow-up implementation and acceptance of bounded frozen temporal export are
+tracked in [frozen-temporal-depth-current.md](frozen-temporal-depth-current.md).
+The refusal described below records this increment's original boundary.
+
 This increment adds independently calibrated indexed source intervals and bounded
 live playback retention. It does not complete #87, real-codec video acceptance,
 or frozen temporal depth export. No Android work or panel/style changes are included.

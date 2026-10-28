@@ -3,13 +3,16 @@
 use crate::{Result, Session};
 use motion_render::Scene;
 use std::path::Path;
+#[cfg(feature = "ai-depth")]
+mod video;
 mod wire;
+#[cfg(feature = "ai-depth")]
+pub(crate) use video::VideoEntry;
 
 #[cfg(feature = "ai-depth")]
 use crate::depth::{image::ImageInput, Cancellation, Estimate, Key};
 #[cfg(feature = "ai-depth")]
 use motion_model::depth::{PreparedDepthInput, SavedDepthCalibration, MAX_DEPTH_RESOURCE_BYTES};
-#[cfg(feature = "ai-depth")]
 use std::sync::Arc;
 
 #[cfg(feature = "ai-depth")]
@@ -33,16 +36,32 @@ pub struct DepthSnapshot {
     pub(crate) composition: String,
     #[cfg(feature = "ai-depth")]
     pub(crate) entries: Vec<Entry>,
+    #[cfg(feature = "ai-depth")]
+    pub(crate) videos: Vec<VideoEntry>,
 }
 
 /// Admission after actual frozen-source verification. Only the verifier can
 /// construct this guard; attaching raw retained metadata is not an export path.
 pub struct VerifiedDepthSnapshot<'a> {
     snapshot: &'a DepthSnapshot,
+    #[cfg(feature = "ai-depth")]
+    video_source: Option<(std::path::PathBuf, Arc<dyn crate::Platform>)>,
 }
 impl VerifiedDepthSnapshot<'_> {
     pub fn attach(&self, scene: &mut Scene) -> Result<()> {
-        self.snapshot.attach(scene)
+        self.attach_checked(scene, &|| Ok(()))
+    }
+    pub fn attach_checked(&self, scene: &mut Scene, check: &dyn Fn() -> Result<()>) -> Result<()> {
+        check()?;
+        #[cfg(feature = "ai-depth")]
+        {
+            self.snapshot
+                .attach(scene, self.video_source.as_ref(), check)
+        }
+        #[cfg(not(feature = "ai-depth"))]
+        {
+            self.snapshot.attach(scene)
+        }
     }
     pub fn layer_count(&self) -> usize {
         self.snapshot.layer_count()
@@ -67,7 +86,11 @@ impl DepthSnapshot {
                     .composition_view(&id)?
                     .layers
                     .iter()
-                    .any(|layer| layer.three_d && (layer.depth_calibration.is_some() || layer.video_depth_calibration.is_some()))
+                    .any(|layer| {
+                        layer.three_d
+                            && (layer.depth_calibration.is_some()
+                                || layer.video_depth_calibration.is_some())
+                    })
                 {
                     return Err("frozen calibrated depth requires the ai-depth feature".into());
                 }
@@ -79,7 +102,12 @@ impl DepthSnapshot {
     pub fn layer_count(&self) -> usize {
         #[cfg(feature = "ai-depth")]
         {
-            self.entries.len()
+            self.entries
+                .iter()
+                .map(|e| e.object)
+                .chain(self.videos.iter().map(|e| e.object))
+                .collect::<std::collections::HashSet<_>>()
+                .len()
         }
         #[cfg(not(feature = "ai-depth"))]
         {
@@ -92,11 +120,9 @@ impl DepthSnapshot {
         if self.composition.len() > 256 || self.composition.chars().any(char::is_control) {
             return Err("invalid bounded frozen depth composition".into());
         }
-        if self.entries.len() > motion_model::MAX_LAYERS {
+        if self.entries.len() + self.videos.len() > motion_model::MAX_LAYERS {
             return Err("frozen depth layer count exceeds limit".into());
         }
-        let mut identities = Vec::new();
-        let mut bytes = 0usize;
         let mut objects = std::collections::HashSet::new();
         for entry in &self.entries {
             if entry.asset.path.len() > 1024
@@ -127,7 +153,17 @@ impl DepthSnapshot {
             entry
                 .calibration
                 .rebind(&entry.estimate.resource, entry.input)?;
-            let resource = &entry.estimate.resource;
+        }
+        self.validate_videos(&objects)?;
+        let mut identities = Vec::new();
+        let mut bytes = 0usize;
+        for estimate in self
+            .entries
+            .iter()
+            .map(|e| &e.estimate)
+            .chain(self.videos.iter().map(|e| &e.estimate))
+        {
+            let resource = &estimate.resource;
             let identity = resource.cache_identity();
             if !identities.contains(&identity) {
                 bytes = bytes
@@ -157,14 +193,16 @@ impl DepthSnapshot {
         let count = 0;
         for id in project.reachable_compositions()? {
             let view = project.composition_view(&id)?;
-            for layer in view
-                .layers
-                .iter()
-                .filter(|l| l.three_d && (l.depth_calibration.is_some() || l.video_depth_calibration.is_some()))
-            {
+            for layer in view.layers.iter().filter(|l| {
+                l.three_d && (l.depth_calibration.is_some() || l.video_depth_calibration.is_some())
+            }) {
                 #[cfg(feature = "ai-depth")]
                 {
                     count += 1;
+                    if layer.video_depth_calibration.is_some() {
+                        self.validate_video_project(project, &id, layer)?;
+                        continue;
+                    }
                     let entry = self
                         .entries
                         .iter()
@@ -203,6 +241,41 @@ impl DepthSnapshot {
         root: &Path,
         check: &dyn Fn() -> Result<()>,
     ) -> Result<VerifiedDepthSnapshot<'_>> {
+        #[cfg(feature = "ai-depth")]
+        if !self.videos.is_empty() {
+            return Err("frozen video depth source verification requires a platform".into());
+        }
+        self.verify_static_sources(root, check)?;
+        Ok(VerifiedDepthSnapshot {
+            snapshot: self,
+            #[cfg(feature = "ai-depth")]
+            video_source: None,
+        })
+    }
+
+    /// Retain the decoder factory, never a decoder handle, for per-frame source
+    /// verification on the independent export worker.
+    pub fn verify_sources_with_platform(
+        &self,
+        root: &Path,
+        platform: Arc<dyn crate::Platform>,
+        check: &dyn Fn() -> Result<()>,
+    ) -> Result<VerifiedDepthSnapshot<'_>> {
+        self.verify_static_sources(root, check)?;
+        #[cfg(feature = "ai-depth")]
+        for entry in &self.videos {
+            entry.decode(root, platform.clone(), check)?;
+        }
+        #[cfg(not(feature = "ai-depth"))]
+        let _ = platform;
+        Ok(VerifiedDepthSnapshot {
+            snapshot: self,
+            #[cfg(feature = "ai-depth")]
+            video_source: Some((root.into(), platform)),
+        })
+    }
+
+    fn verify_static_sources(&self, root: &Path, check: &dyn Fn() -> Result<()>) -> Result<()> {
         check()?;
         #[cfg(feature = "ai-depth")]
         {
@@ -240,13 +313,21 @@ impl DepthSnapshot {
         #[cfg(not(feature = "ai-depth"))]
         let _ = root;
         check()?;
-        Ok(VerifiedDepthSnapshot { snapshot: self })
+        Ok(())
     }
 
     /// Static original-image results can be used throughout this frozen
     /// document's clock. This never relaxes live worker installation guards.
     /// All layers are prepared on a clone so refusal leaves the caller intact.
-    fn attach(&self, scene: &mut Scene) -> Result<()> {
+    fn attach(
+        &self,
+        scene: &mut Scene,
+        #[cfg(feature = "ai-depth")] video_source: Option<&(
+            std::path::PathBuf,
+            Arc<dyn crate::Platform>,
+        )>,
+        #[cfg(feature = "ai-depth")] check: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
         if !scene.has_calibrated_depth() {
             return Ok(());
         }
@@ -266,7 +347,25 @@ impl DepthSnapshot {
                 .collect();
             let mut prepared = scene.clone();
             for (object, calibration) in required {
+                check()?;
                 let original = scene.source_object(object);
+                if let Some(entry) = self
+                    .videos
+                    .iter()
+                    .find(|e| e.object == original && e.sample.calibration() == &calibration)
+                {
+                    let (root, platform) =
+                        video_source.ok_or("frozen video depth has no verified source")?;
+                    let image = entry.decode(root, platform.clone(), check)?;
+                    prepared.attach_calibrated_depth_image(
+                        object,
+                        &entry.key.source,
+                        &entry.estimate.resource,
+                        entry.input,
+                        image,
+                    )?;
+                    continue;
+                }
                 let entry = self
                     .entries
                     .iter()
@@ -289,6 +388,7 @@ impl DepthSnapshot {
                     entry.input,
                 )?;
             }
+            check()?;
             *scene = prepared;
             Ok(())
         }

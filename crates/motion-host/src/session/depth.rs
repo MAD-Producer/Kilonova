@@ -200,14 +200,36 @@ impl Binding {
 }
 impl Session {
     pub(crate) fn capture_depth_snapshot(&self) -> Result<crate::depth_snapshot::DepthSnapshot> {
-        use crate::depth_snapshot::{DepthSnapshot, Entry};
+        use crate::depth_snapshot::{DepthSnapshot, Entry, VideoEntry};
         let project = self.engine.project();
-        let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new() };
+        let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new(), videos: Vec::new() };
         for composition in project.reachable_compositions()? {
             let view = project.composition_view(&composition)?;
             for layer in view.layers.iter().filter(|layer| layer.three_d) {
-                if layer.video_depth_calibration.is_some() {
-                    return Err(format!("frozen depth object={} phase=capture: indexed video depth export is not implemented", layer.id).into());
+                if let Some(track) = &layer.video_depth_calibration {
+                    if composition != project.composition_id {
+                        return Err(format!("frozen depth object={} phase=capture: nested depth is not supported", layer.id).into());
+                    }
+                    for authored in track.samples() {
+                        let entry = self.depth.as_ref().and_then(|state| state.retained.entries.iter().find(|entry| {
+                            matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
+                                && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())
+                                && entry.video_interval() == Some((authored.start_us(), authored.end_us()))
+                                && authored.calibration().rebind(&entry.estimate.resource, entry.input).is_ok()
+                        })).ok_or_else(|| crate::Error::from(format!(
+                            "frozen indexed video depth export object={} pts_us={} phase=capture: admitted video sample pending or absent", layer.id, authored.start_us())))?;
+                        let Source::Video { asset, .. } = &entry.binding.source else {
+                            return Err("frozen depth video admission has no registered source".into());
+                        };
+                        let descriptor = entry.estimate.resource.descriptor();
+                        snapshot.videos.push(VideoEntry {
+                            object: layer.id, asset: asset.clone(),
+                            key: Key { source: descriptor.source.clone(), geometry: descriptor.geometry.clone(), model: descriptor.model.clone() },
+                            input: entry.input, sample: authored.clone(), estimate: entry.estimate.clone(),
+                            request: entry.binding.request, decoded_budget: entry.binding.decoded_budget,
+                        });
+                    }
+                    continue;
                 }
                 let Some(calibration) = &layer.depth_calibration else { continue; };
                 if composition != project.composition_id {
