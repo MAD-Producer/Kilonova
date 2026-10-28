@@ -54,10 +54,19 @@ struct FrozenAudio {
 struct FrozenVideo {
     project: motion_core::Project,
     root: PathBuf,
+    models: motion_render::ModelSourceCatalog,
     frames: crate::video_frames::VideoFrames,
     prepared: HashMap<u64, crate::video_frame::PreparedVideoFrame>,
     sequence: u64,
     time: f64,
+}
+impl FrozenVideo {
+    fn sample_scene(&self, frame: f64) -> Result<motion_render::Scene> {
+        let mut scene = motion_render::Scene::new(&self.project)?;
+        scene.set_model_source_catalog(self.models.clone());
+        scene.sample(&self.project, frame, None, &motion_core::ExpressionEvaluator)?;
+        Ok(scene)
+    }
 }
 pub const MAX_FROZEN_AUDIO: usize = 8;
 pub const MAX_FROZEN_VIDEO: usize = 4;
@@ -113,12 +122,13 @@ pub fn freeze_video(id: i64) -> Result<Value> {
     let began = Instant::now();
     log::info!("frozen reader start site=host.frozen.create operation=freeze_video session={id}");
     let result = (|| {
-        let (project, root, revision, platform) = crate::session::with_session(id, |s| {
+        let (project, root, revision, platform, models) = crate::session::with_session(id, |s| {
             Ok((
                 s.engine.snapshot(),
                 s.root.clone(),
                 s.engine.revision(),
                 s.platform().clone(),
+                s.scene.model_source_catalog(),
             ))
         })
         .map_err(|error| Error::Session(Box::new(error)))?;
@@ -127,6 +137,7 @@ pub fn freeze_video(id: i64) -> Result<Value> {
             Ok(FrozenVideo {
                 project,
                 root,
+                models,
                 frames: crate::video_frames::VideoFrames::new(platform),
                 prepared: HashMap::new(),
                 sequence: 0,
@@ -195,8 +206,7 @@ pub fn request_frozen_composition_frame(handle: i64, frame: f64, sequence: u64) 
         if sequence < reader.sequence || (sequence == reader.sequence && frame != reader.time) {
             return Err(Error::Superseded("frozen composition request superseded"));
         }
-        let mut scene = motion_render::Scene::new(&reader.project)?;
-        scene.sample(&reader.project, frame, None, &motion_core::ExpressionEvaluator)?;
+        let scene = reader.sample_scene(frame)?;
         if sequence != reader.sequence { reader.prepared.clear(); reader.sequence = sequence; reader.time = frame; }
         match reader.frames.prepare_scene_exact(&reader.project, &reader.root, &scene)? {
             None => Ok(json!({"state":"pending","sequence":sequence})),

@@ -90,3 +90,13 @@ inference worker. No source-camera or model-scale assumptions are silently added
 `fc83c50020728c7f62c99de0cf98fe32e29072b8f61a16c1f4d6940ec6e64ce8`, 552064 bytes. Exact changed source,
 commands, controllers, raw output, exit receipts and initial stopped/failed gates
 are retained; every archive entry was read back and SHA-256 verified.
+
+## Subsequent integration
+
+The authoring stage above was subsequently integrated with camera ancestry
+editing and frozen source ownership against main 2af21061, retaining both
+candidate-calibration validation and the actual camera resolver. The expanded
+gate passes 879 Rust tests and 13 workflow tests; see
+[combined evidence and limits](depth-camera-integrated-current.md). This
+supersedes the earlier separate-source integration status, without changing the
+historical 317-test receipt or claiming the native depth frame bridge is done.
