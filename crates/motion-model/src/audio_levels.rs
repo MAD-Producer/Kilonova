@@ -10,17 +10,23 @@ pub const MAX_AUDIO_DB: f32 = 24.;
 pub struct AudioLevels {
     pub left: Track<f32>,
     pub right: Track<f32>,
+    /// Stereo balance, independent of the animated channel levels. Center is
+    /// unity; moving right attenuates only the left channel and vice versa.
+    #[serde(default)]
+    pub balance: f32,
 }
 impl Default for AudioLevels {
     fn default() -> Self {
         Self {
             left: Track::constant(0.),
             right: Track::constant(0.),
+            balance: 0.,
         }
     }
 }
 impl AudioLevels {
     pub fn validate(&self) -> Result<()> {
+        ensure((-1. ..=1.).contains(&self.balance), "audio balance must be -1..1")?;
         for track in [&self.left, &self.right] {
             track.validate_local()?;
             ensure(
@@ -43,6 +49,9 @@ impl AudioLevels {
     pub fn animated(&self) -> bool {
         !self.left.keys.is_empty() || !self.right.keys.is_empty()
     }
+    pub fn balance_gain(&self) -> [f32; 2] {
+        [1. - self.balance.max(0.), 1. + self.balance.min(0.)]
+    }
 }
 pub fn db_gain(db: f32) -> f32 {
     10f32.powf(db / 20.)
@@ -57,6 +66,7 @@ pub enum AudioChannel {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AudioLevelsAction {
+    Balance { value: f32 },
     Set {
         channel: AudioChannel,
         frame: u32,
@@ -111,6 +121,13 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
         layer.audio_levels = None;
         return Ok(());
     }
+    if let AudioLevelsAction::Balance { value } = action {
+        let mut levels = layer.audio_levels.clone().unwrap_or_default();
+        levels.balance = value;
+        levels.validate()?;
+        layer.audio_levels = Some(levels);
+        return Ok(());
+    }
     let channel = match &action {
         AudioLevelsAction::Set { channel, .. }
         | AudioLevelsAction::Animate { channel, .. }
@@ -118,7 +135,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
         | AudioLevelsAction::MoveKey { channel, .. }
         | AudioLevelsAction::CopyKey { channel, .. }
         | AudioLevelsAction::Curve { channel, .. } => *channel,
-        AudioLevelsAction::Clear => unreachable!(),
+        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => unreachable!(),
     };
     let mut levels = layer.audio_levels.clone().unwrap_or_default();
     let track = match channel {
@@ -148,7 +165,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
         AudioLevelsAction::MoveKey { from, to, .. } => track.move_key(local(from)?, local(to)?)?,
         AudioLevelsAction::CopyKey { from, to, .. } => track.copy_key(local(from)?, local(to)?)?,
         AudioLevelsAction::Curve { frame, easing, .. } => track.set_curve(local(frame)?, easing)?,
-        AudioLevelsAction::Clear => unreachable!(),
+        AudioLevelsAction::Clear | AudioLevelsAction::Balance { .. } => unreachable!(),
     }
     levels.validate()?;
     layer.audio_levels = Some(levels);

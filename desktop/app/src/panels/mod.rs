@@ -392,6 +392,7 @@ pub fn chrome(
     let drag_neutral = Input::default();
     let input = if drag_owned { &drag_neutral } else { input };
     let mut out = Vec::new();
+    audio::monitor::prepare(panels, None, state, input, &mut out);
     tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
@@ -1125,6 +1126,7 @@ pub fn floating_chrome(
     let colors = styles.colors();
 
     let mut out = toolbar_actions;
+    audio::monitor::prepare(panels, Some(panel), state, input, &mut out);
     tools::camera::flush(panels, &mut out);
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));

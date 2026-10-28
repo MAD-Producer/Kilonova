@@ -26,6 +26,38 @@ fn project() -> Project {
     p.layers.push(layer);
     p
 }
+
+#[test]
+fn stereo_balance_is_independent_atomic_and_persisted_with_undo() {
+    let mut e = Engine::new(project()).unwrap();
+    edit(&mut e, json!({"kind":"set","channel":"left","frame":0,"value":-6,"animated":true}));
+    edit(&mut e, json!({"kind":"set","channel":"left","frame":24,"value":-12}));
+    let original = e.snapshot();
+    edit(&mut e, json!({"kind":"balance","value":0.75}));
+    let changed = e.snapshot();
+    let levels = changed.layers[0].audio_levels.as_ref().unwrap();
+    assert_eq!(levels.balance_gain(), [0.25, 1.]);
+    assert_eq!(levels.left, original.layers[0].audio_levels.as_ref().unwrap().left);
+    assert_eq!(levels.right, original.layers[0].audio_levels.as_ref().unwrap().right);
+    for invalid in [-1.01, 1.01, f32::NAN, f32::INFINITY] {
+        assert!(e.apply(Command::AudioLevels { object: 1, action: AudioLevelsAction::Balance { value: invalid } }).is_err());
+        assert_eq!(e.snapshot(), changed);
+    }
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("assets")).unwrap();
+    std::fs::write(root.path().join("assets/tone.wav"), [0; 64]).unwrap();
+    storage::save(root.path(), &changed).unwrap();
+    assert_eq!(storage::load(root.path()).unwrap(), changed);
+    e.undo().unwrap();
+    assert_eq!(e.snapshot(), original);
+    e.redo().unwrap();
+    assert_eq!(e.snapshot(), changed);
+    let mut locked = changed;
+    locked.layers[0].locked = true;
+    let mut e = Engine::new(locked.clone()).unwrap();
+    assert!(e.apply(Command::AudioLevels { object: 1, action: AudioLevelsAction::Balance { value: 0. } }).is_err());
+    assert_eq!(e.snapshot(), locked);
+}
 fn edit(e: &mut Engine, action: serde_json::Value) {
     e.apply_batch(
         parse_commands(&json!({"op":"audio_levels","object":1,"action":action}).to_string())
@@ -142,6 +174,7 @@ fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
     reference.audio_levels = Some(AudioLevels {
         left: Track::constant(-6.),
         right: Track::constant(-12.),
+        balance: 0.,
     });
     p.layers = vec![reference];
     p.compositions = vec![c];

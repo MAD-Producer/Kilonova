@@ -3,6 +3,8 @@ use super::*;
 use motion_core::{AudioChannel, AudioLevelsAction, Track};
 use motion_ui::icons::Icon;
 use motion_ui::widgets::NumberOptions;
+mod waveform;
+pub(crate) mod monitor;
 
 const SILENCE_DB: f64 = -192.;
 fn gain_db(gain: f64) -> f64 {
@@ -1119,67 +1121,7 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    let Some(layer) = auxiliary::selected(panels, state).filter(|l| is_audio(l)) else {
-        label(
-            list,
-            atlas,
-            area.shrink(10.),
-            &word(
-                panels.locale,
-                "选择音频、视频或子合成图层",
-                "Select an audio, video or composition layer",
-            ),
-            true,
-        );
-        return;
-    };
-    let object = layer["id"].as_u64().unwrap_or(0);
-    let mut y = area.min[1] + 10.;
-    auxiliary::line(
-        list,
-        atlas,
-        area,
-        &mut y,
-        layer["name"].as_str().unwrap_or("Audio"),
-        false,
-    );
-    if matches!(layer["content"]["kind"].as_str(), Some("audio" | "video")) {
-        let gain = gain_db(source(layer)["volume"].as_f64().unwrap_or(1.));
-        auxiliary::line(
-            list,
-            atlas,
-            area,
-            &mut y,
-            &format!(
-                "{}: {} dB",
-                word(panels.locale, "增益", "Gain"),
-                if gain <= SILENCE_DB {
-                    "−∞".into()
-                } else {
-                    format!("{gain:.2}")
-                }
-            ),
-            true,
-        );
-    }
-    button(
-        list,
-        atlas,
-        Rect::new(area.min[0] + 10., y + 8., (area.width() - 20.).max(1.), 26.),
-        &word(panels.locale, "在时间轴调节", "Edit in timeline"),
-        input,
-        true,
-        Action::ShowPanel(Panel::Timeline.dock()),
-        out,
-    );
-    if clicked(
-        input,
-        Rect::new(area.min[0] + 10., y + 8., (area.width() - 20.).max(1.), 26.),
-    ) {
-        panels.timeline.expanded.insert(object);
-        panels.timeline.collapsed_audio.remove(&object);
-        panels.timeline.scroll = 0.;
-    }
+    monitor::render(list, atlas, area, panels, state, input, out);
 }
 
 #[cfg(test)]

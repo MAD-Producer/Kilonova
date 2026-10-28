@@ -5,6 +5,59 @@ use motion_media::AudioMixer;
 use std::{fs, io::Write};
 
 #[test]
+fn stereo_balance_applies_to_mono_and_stereo_without_rewriting_envelopes_or_frozen_mix() {
+    for channels in [1, 2] {
+        let (root, mut project) = fixture(channels);
+        let mut levels = AudioLevels::default();
+        levels.left.upsert(0, 0., Ease::Linear).unwrap();
+        levels.left.upsert(24, -12., Ease::Linear).unwrap();
+        project.layers[0].audio_levels = Some(levels);
+        let mut frozen = AudioMixer::new(project.clone(), root.path()).unwrap();
+        let mut engine = Engine::new(project).unwrap();
+        let mut original = vec![0.; 256];
+        frozen.mix(24_000, &mut original).unwrap();
+        for balance in [-1., -0.5, 0., 0.5, 1.] {
+            engine.apply(Command::AudioLevels { object: 1, action: motion_core::AudioLevelsAction::Balance { value: balance } }).unwrap();
+            let mut mixer = AudioMixer::new(engine.snapshot(), root.path()).unwrap();
+            let mut actual = vec![0.; 256];
+            mixer.mix(24_000, &mut actual).unwrap();
+            let gains = [1. - balance.max(0.), 1. + balance.min(0.)];
+            for (before, after) in original.chunks_exact(2).zip(actual.chunks_exact(2)) {
+                for ch in 0..2 { assert!((after[ch] - before[ch] * gains[ch]).abs() < 1e-7); }
+            }
+            let mut unchanged = vec![0.; 256];
+            frozen.mix(24_000, &mut unchanged).unwrap();
+            assert_eq!(unchanged, original);
+        }
+        engine.apply(Command::SetAudio { object: 1, volume: None, muted: Some(true) }).unwrap();
+        let mut muted = AudioMixer::new(engine.snapshot(), root.path()).unwrap();
+        let mut actual = vec![1.; 256];
+        muted.mix(24_000, &mut actual).unwrap();
+        assert_eq!(actual, vec![0.; 256]);
+    }
+}
+
+#[test]
+fn nested_reference_balance_multiplies_each_voice_without_changing_its_channel_keys() {
+    let (root, mut project) = fixture(2);
+    let mut levels = AudioLevels::default(); levels.balance = 0.5;
+    project.layers[0].audio_levels = Some(levels);
+    let mut engine = Engine::new(project).unwrap();
+    engine.apply(Command::Composition { action: motion_core::CompositionAction::Precompose {
+        objects:vec![1],name:"Audio child".into(),range:"composition".into(),
+    }}).unwrap();
+    let mut project = engine.snapshot();
+    project.layers[0].audio_levels = Some(AudioLevels::default());
+    project.layers[0].audio_levels.as_mut().unwrap().balance = -0.25;
+    let mut mixer = AudioMixer::new(project, root.path()).unwrap();
+    let mut out = vec![0.; 256]; mixer.mix(0, &mut out).unwrap();
+    for frame in out.chunks_exact(2) {
+        assert!((frame[0] - 0.025 * 0.5).abs() < 1e-7);
+        assert!((frame[1] + 0.025 * 0.75).abs() < 1e-7);
+    }
+}
+
+#[test]
 fn channel_separation_keeps_pcm_sum_and_isolates_each_track_with_frozen_export() {
     let (root, mut project) = fixture(2);
     let mut levels = AudioLevels::default();
