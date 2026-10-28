@@ -126,13 +126,21 @@ impl CalibrationSample {
 }
 impl Binding {
     fn current(&self, session: &Session) -> bool {
-        self.document == session.document_generation
+        self.frame == session.frame && self.current_document(session)
+    }
+    fn current_document(&self, session: &Session) -> bool {
+        session.frame.is_finite()
+            && self.document == session.document_generation
             && self.revision == session.engine.revision()
-            && self.frame == session.frame
             && self.composition == session.engine.project().composition_id
             && self.root == session.root
             && self.decoded_budget == session.effects.memory_policy().decoded_image_budget_bytes
             && self.source.current(session, &self.key)
+    }
+    fn retained_current(&self, session: &Session, owns_original: bool) -> bool {
+        self.current_document(session)
+            && (self.frame == session.frame
+                || (owns_original && matches!(self.source, Source::Image(_))))
     }
 }
 impl Session {
@@ -301,7 +309,7 @@ impl Session {
         };
         let mut rejected = None;
         for entry in &state.retained.entries {
-            if !entry.binding.current(self)
+            if !entry.binding.retained_current(self, entry.image.is_some())
                 || entry.estimate.resource.descriptor().source.asset != calibration.asset()
             {
                 continue;
@@ -611,14 +619,18 @@ impl Session {
     }
 
     pub(super) fn synchronize_depth(&mut self) -> Result<()> {
-        if self
-            .depth
-            .as_ref()
-            .and_then(|state| state.binding.as_ref())
-            .is_some_and(|binding| !binding.current(self))
-        {
-            self.cancel_depth()?;
-        }
-        Ok(())
+        let Some(mut state) = self.depth.take() else { return Ok(()); };
+        // Completed static images retain the exact original pixels. Their
+        // immutable source sample is independent of the composition clock.
+        // Pending worker tickets remain strictly frame-bound and are canceled.
+        state.retained.retain(|entry| entry.binding.retained_current(self, entry.image.is_some()));
+        let result = if state.binding.as_ref().is_some_and(|binding| !binding.current(self)) {
+            state.binding = None;
+            state.installed = None;
+            state.jobs.cancel().map_err(crate::Error::from)
+        } else { Ok(()) };
+        // Restore ownership even if worker cancellation reports a poisoned lock.
+        self.depth = Some(state);
+        result
     }
 }

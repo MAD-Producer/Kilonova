@@ -180,3 +180,22 @@ fn original_image_capacity_is_charged_with_planes_and_released_atomically() {
     assert_eq!((result.bytes, result.image_bytes), (0,0));
     assert_eq!(result.rejections, 1);
 }
+
+#[test]
+fn invalidating_a_subset_releases_both_owned_images_and_scalar_allocations() {
+    let mut result = Results::default();
+    for asset in [1,2] {
+        let mut sample = entry(asset);
+        sample.image = Some(motion_render::DepthImage::new([2,1], vec![255;8]).unwrap());
+        result.admit(sample, 52, 2).unwrap();
+    }
+    let old = Arc::downgrade(&result.entries[0].estimate);
+    let current = Arc::downgrade(&result.entries[1].estimate);
+    result.retain(|entry| entry.binding.request == 2);
+    assert!(old.upgrade().is_none());
+    assert!(current.upgrade().is_some());
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes), (1,18,8));
+    result.retain(|_| false);
+    assert!(current.upgrade().is_none());
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes), (0,0,0));
+}

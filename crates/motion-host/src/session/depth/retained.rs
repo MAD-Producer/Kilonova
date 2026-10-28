@@ -39,10 +39,18 @@ pub(super) struct Results {
     pub bytes: usize,
     pub image_bytes: usize,
     /// Saturating lifetime admission failures of this session depth owner.
-    /// Clear/seek resets retained ownership, but does not reset this count.
+    /// Clearing or invalidating an admission does not reset this count.
     pub rejections: u64,
 }
 impl Results {
+    pub fn retain(&mut self, mut keep: impl FnMut(&Entry) -> bool) {
+        self.entries.retain(|entry| {
+            if keep(entry) { return true; }
+            self.bytes -= entry.bytes();
+            self.image_bytes -= entry.image_bytes();
+            false
+        });
+    }
     pub fn clear(&mut self) {
         self.entries.clear();
         self.bytes = 0;

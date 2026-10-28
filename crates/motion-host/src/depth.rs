@@ -348,7 +348,8 @@ pub struct SessionStatus {
     pub counts: Counts,
     pub in_flight: Option<InFlight>,
     pub queue_depth: usize,
-    /// Results admitted for the current document/revision/frame only.
+    /// Results admitted for the current document/revision. Owned static image
+    /// samples survive clock changes; video and pending tickets stay frame-bound.
     pub retained_samples: usize,
     /// Scalar/validity/confidence planes, preserving the existing observation.
     pub retained_bytes: usize,
