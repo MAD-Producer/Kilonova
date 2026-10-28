@@ -1438,6 +1438,16 @@ impl Shell {
                 serde_json::to_value(path).map_err(|e| e.to_string())?;
             self.state = self.engine.history(0)?;
             self.reconcile_node_target()?;
+            self.smoke_stage = 18;
+        } else if self.smoke_stage == 18
+            && self.node_compile_due.is_none()
+            && self.node_installing.is_empty()
+            && !self.node_tasks.busy()
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            // Reconciliation starts asynchronous source/resource loading. Check
+            // the authored value only after that load and its GPU compile have
+            // completed, just like the composition-pixel assertion below.
             if self
                 .panels
                 .node_editor
@@ -1451,13 +1461,6 @@ impl Shell {
                     "undo did not restore the public default in the editable source".into(),
                 );
             }
-            self.smoke_stage = 18;
-        } else if self.smoke_stage == 18
-            && self.node_compile_due.is_none()
-            && self.node_installing.is_empty()
-            && !self.node_tasks.busy()
-            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
-        {
             let undone = self.capture_bound_composition("layer-undo")?;
             if undone["fingerprint"] != self.smoke_node_report["layerInvert"]["fingerprint"] {
                 return Err(
