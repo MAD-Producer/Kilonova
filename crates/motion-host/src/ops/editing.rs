@@ -70,13 +70,23 @@ fn validate_presets(registry: &motion_effects::Registry, project: &motion_core::
 
 // The model rolls back before returning a failed preparation. Keep the host's
 // native error separately rather than flattening it to the model callback type.
+#[cfg(test)]
 fn apply_prepared(
     engine: &mut motion_core::Engine,
     commands: Vec<Command>,
     prepare: impl FnOnce(&motion_core::Project) -> Result<()>,
 ) -> Result<Vec<motion_core::EditResult>> {
+    apply_prepared_with_cameras(engine, commands, &motion_core::AuthoredCameraSampler, prepare)
+}
+
+fn apply_prepared_with_cameras(
+    engine: &mut motion_core::Engine,
+    commands: Vec<Command>,
+    cameras: &dyn motion_core::CameraSampler,
+    prepare: impl FnOnce(&motion_core::Project) -> Result<()>,
+) -> Result<Vec<motion_core::EditResult>> {
     let mut primary = None;
-    engine.apply_batch_with_prepare(commands, |project| {
+    engine.apply_batch_with_cameras_and_prepare(commands, cameras, |project| {
         prepare(project).map_err(|error| {
             let bridge = motion_core::Error::Invalid(error.to_string());
             primary = Some(error);
@@ -112,7 +122,7 @@ impl Session {
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
-        let results = apply_prepared(&mut self.engine, commands, |project| {
+        let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
                 if project.node_resources()? != previous_nodes {
                     for resource in project.node_resources()? { motion_core::storage::open_node_resource(&self.root, &resource)?; }
                 }
@@ -203,7 +213,8 @@ pub fn drag(
             [dx as f32 / scale, dy as f32 / scale, 0.0]
         };
         let offset =
-            motion_core::scene_prefix_delta(s.engine.project(), object as u64, s.frame, offset)
+            motion_core::scene_prefix_delta_with_cameras(s.engine.project(), object as u64, s.frame,
+                offset, &s.scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
         let frame = s.frame.floor() as u32;
         let commands = if separated {

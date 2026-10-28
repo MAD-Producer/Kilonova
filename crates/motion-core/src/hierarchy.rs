@@ -1,7 +1,7 @@
 use crate::{ensure, Error, Project, Result};
 use glam::Mat4;
 use motion_model::hierarchy::ParentMode;
-pub(crate) use motion_model::hierarchy::{matrices, prefix, validate};
+pub(crate) use motion_model::hierarchy::validate;
 
 /// The local policy clears the old bind without rewriting or sampling tracks.
 /// Restore this one link if hierarchy validation fails, including direct calls.
@@ -11,6 +11,7 @@ pub fn reparent_with_mode(
     parent: Option<u64>,
     frame: u32,
     mode: ParentMode,
+    cameras: &dyn crate::CameraSampler,
 ) -> Result<()> {
     let result = (|| {
         let index = if object == 0 {
@@ -34,7 +35,7 @@ pub fn reparent_with_mode(
             None => p.camera.parent.clone(),
         };
         let result = match mode {
-            ParentMode::PreserveWorld => reparent(p, object, parent, frame),
+            ParentMode::PreserveWorld => reparent(p, object, parent, frame, cameras),
             ParentMode::PreserveLocal => {
                 let link = parent.map(|object| crate::ParentLink {
                     object: Some(object),
@@ -64,34 +65,26 @@ pub fn reparent_with_mode(
     })
 }
 
-pub fn reparent(p: &mut Project, object: u64, parent: Option<u64>, frame: u32) -> Result<()> {
+pub fn reparent(p: &mut Project, object: u64, parent: Option<u64>, frame: u32,
+    cameras: &dyn crate::CameraSampler) -> Result<()> {
     if object == 0 {
         ensure(p.camera.created, "camera does not exist")?;
     } else {
         ensure(!p.layer_mut(object)?.locked, "object is locked")?;
     }
-    let old = prefix(p, object, frame as f64)?;
+    let old = motion_model::hierarchy::prefix_with_cameras(p, object, frame as f64, cameras)?;
     let new_link = if let Some(parent) = parent {
         ensure(parent != object, "cannot parent an object to itself")?;
-        let mut world = Vec::new();
-        let mut states = Vec::new();
-        matrices(p, frame as f64, &mut world, &mut states)?;
-        let i = if parent == 0 {
-            ensure(p.camera.created, "camera does not exist")?;
-            p.layers.len()
-        } else {
-            p.layers
-                .iter()
-                .position(|l| l.id == parent)
-                .ok_or(Error::Missing(parent))?
-        };
+        if parent == 0 { ensure(p.camera.created, "camera does not exist")?; }
+        let world = motion_model::hierarchy::world_matrix_with_cameras(p, parent,
+            frame as f64, cameras)?;
         ensure(
-            world[i].determinant().abs() > 1e-8,
+            world.determinant().abs() > 1e-8,
             "cannot bind to a zero-scale parent",
         )?;
         Some(crate::ParentLink {
             object: Some(parent),
-            bind: (world[i].inverse() * old).to_cols_array_2d(),
+            bind: (world.inverse() * old).to_cols_array_2d(),
         })
     } else {
         // Keep an unparented object's world offset without rewriting keyframes.

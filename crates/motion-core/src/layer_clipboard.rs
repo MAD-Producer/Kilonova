@@ -288,7 +288,8 @@ pub(crate) fn paste(
     })
 }
 
-pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Result<()> {
+pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32,
+    cameras: &dyn crate::CameraSampler) -> Result<()> {
     ensure(frame < project.frames, "cut frame outside composition")?;
     let ids: BTreeSet<_> = objects.iter().copied().collect();
     ensure(
@@ -326,7 +327,7 @@ pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Re
         .map(|l| l.id)
         .collect();
     for child in children {
-        crate::hierarchy::reparent(project, child, None, frame)?;
+        crate::hierarchy::reparent(project, child, None, frame, cameras)?;
     }
     if project
         .camera
@@ -335,7 +336,7 @@ pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Re
         .and_then(|p| p.object)
         .is_some_and(|id| ids.contains(&id))
     {
-        crate::hierarchy::reparent(project, 0, None, frame)?;
+        crate::hierarchy::reparent(project, 0, None, frame, cameras)?;
     }
     project.layers.retain(|l| !ids.contains(&l.id));
     project

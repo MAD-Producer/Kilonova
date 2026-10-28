@@ -13,6 +13,8 @@ mod project_shared;
 mod source_catalog;
 #[path = "model_layers/imported_cameras.rs"]
 mod imported_cameras;
+#[path = "model_layers/source_editing.rs"]
+mod source_editing;
 
 struct Material;
 impl AssetResolver for Material {

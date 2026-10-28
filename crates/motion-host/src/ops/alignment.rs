@@ -166,7 +166,7 @@ fn plan(
             (object, delta)
         })
         .collect();
-    position_commands(project, frame, objects, &deltas)
+    position_commands(project, scene, frame, objects, &deltas)
 }
 
 fn selected_bounds(
@@ -302,12 +302,13 @@ fn distribution_plan(
             previous.0
         ).into());
     }
-    position_commands(project, frame, objects, &deltas)
+    position_commands(project, scene, frame, objects, &deltas)
         .map_err(|cause| crate::Error::with_context("distribute", cause))
 }
 
 fn position_commands(
     project: &Project,
+    scene: &Scene,
     frame: f64,
     objects: &[u64],
     deltas: &HashMap<u64, [f32; 3]>,
@@ -348,7 +349,8 @@ fn position_commands(
         if delta.iter().all(|v| v.abs() < 1e-5) {
             continue;
         }
-        let local = motion_core::scene_prefix_delta(project, object, frame, delta)
+        let local = motion_core::scene_prefix_delta_with_cameras(project, object, frame, delta,
+            &scene.model_source_catalog())
             .map_err(|e| crate::Error::with_context(format!("align layer {object}"), e))?;
         let before = layer.transform.position.sample(layer.local_frame(frame))?;
         let value = std::array::from_fn(|axis| before[axis] + local[axis]);
