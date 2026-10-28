@@ -37,6 +37,15 @@ pub enum Error {
     State,
     #[error("depth worker stopped")]
     Stopped,
+    #[error("depth result request={request} asset={asset} phase=retain: capacity exceeded; bytes={required_bytes}/{byte_limit} samples={required_samples}/{sample_limit}")]
+    RetentionCapacity {
+        request: u64,
+        asset: u64,
+        required_bytes: usize,
+        byte_limit: usize,
+        required_samples: usize,
+        sample_limit: usize,
+    },
     #[error("depth backend panicked: {0}")]
     Panic(String),
     #[error("depth backend failed: {0}")]
@@ -283,7 +292,7 @@ pub(crate) enum Identity {
     Video(VideoKey),
 }
 impl Identity {
-    fn same_request(&self, other: &Self) -> bool {
+    pub(crate) fn same_request(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Sample(a), Self::Sample(b)) => a.same_sample(b),
             (Self::Video(a), Self::Video(b)) => a == b,
@@ -333,6 +342,11 @@ pub struct SessionStatus {
     pub counts: Counts,
     pub in_flight: Option<InFlight>,
     pub queue_depth: usize,
+    /// Results admitted for the current document/revision/frame only.
+    pub retained_samples: usize,
+    pub retained_bytes: usize,
+    /// Lifetime host result-admission failures; separate from backend failures.
+    pub retention_rejections: u64,
 }
 
 struct Job {

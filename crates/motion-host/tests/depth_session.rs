@@ -1,4 +1,6 @@
 #![cfg(feature = "ai-depth")]
+#[path = "depth_session/multiple_sources.rs"]
+mod multiple_sources;
 
 use motion_core::{Asset, Command, Engine, Project};
 use motion_host::{

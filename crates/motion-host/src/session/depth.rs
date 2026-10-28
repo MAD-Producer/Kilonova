@@ -8,12 +8,15 @@ use crate::depth::{
 use motion_core::{Asset, Content, Layer, Project, VideoAsset};
 use motion_model::depth::{DepthGeometry, DepthModel, DepthSource, DepthTime, PreparedDepthInput};
 use std::{path::PathBuf, sync::Arc};
+mod retained;
 
 pub(super) struct State {
     jobs: Jobs,
     binding: Option<Binding>,
     installed: Option<(Arc<Estimate>, PreparedDepthInput)>,
+    retained: retained::Results,
 }
+#[derive(Clone)]
 struct Binding {
     request: u64,
     key: Identity,
@@ -98,15 +101,16 @@ impl CalibrationSample {
                     "depth calibration object={object}: layer does not exist"
                 ))
             })?;
-        let asset =
-            match &layer.content {
-                Content::Image { asset } => *asset,
-                Content::Video { video } => video.asset,
-                _ => return Err(format!(
+        let asset = match &layer.content {
+            Content::Image { asset } => *asset,
+            Content::Video { video } => video.asset,
+            _ => {
+                return Err(format!(
                     "depth calibration object={object}: original image or video source required"
                 )
-                .into()),
-            };
+                .into())
+            }
+        };
         if composition != self.composition
             || !self.source.current_project(project, self.frame, &self.key)
             || asset != calibration.asset()
@@ -178,10 +182,21 @@ impl Session {
         // persisted camera. Reference geometry always uses the authored scene.
         let mut reference = motion_render::Scene::new(self.engine.project())?;
         reference.set_model_source_catalog(self.scene.model_source_catalog());
-        reference.sample(self.engine.project(), self.frame, None, &motion_core::ExpressionEvaluator)?;
-        if let Some(layer) = reference.layers.iter().find(|layer| layer.id == object && layer.three_d) {
+        reference.sample(
+            self.engine.project(),
+            self.frame,
+            None,
+            &motion_core::ExpressionEvaluator,
+        )?;
+        if let Some(layer) = reference
+            .layers
+            .iter()
+            .find(|layer| layer.id == object && layer.three_d)
+        {
             calibration = calibration.with_reference(motion_model::depth::DepthReference {
-                camera: reference.native_camera(), world: layer.model, size: layer.size,
+                camera: reference.native_camera(),
+                world: layer.model,
+                size: layer.size,
             })?;
         }
         sample.validate(
@@ -197,24 +212,77 @@ impl Session {
     }
 
     pub(super) fn render_depth_sample(&mut self, scene: &mut motion_render::Scene) -> Result<bool> {
-        if !scene.has_calibrated_depth() { return Ok(true); }
-        if scene.nested.iter().any(|node| node.scene.has_calibrated_depth()) {
-            return Err("calibrated depth phase=render: nested depth routing is not implemented".into());
+        if !scene.has_calibrated_depth() {
+            return Ok(true);
+        }
+        if scene
+            .nested
+            .iter()
+            .any(|node| node.scene.has_calibrated_depth())
+        {
+            return Err(
+                "calibrated depth phase=render: nested depth routing is not implemented".into(),
+            );
         }
         if self.depth.is_none() {
             return Err("calibrated depth phase=render: configure a depth backend and request the current source".into());
         }
-        let Some(sample) = self.depth_calibration_sample()? else { return Ok(false); };
-        let required: Vec<_> = scene.calibrated_depth_layers().map(|(id, c)| (id, c.clone())).collect();
+        self.poll_depth()?;
+        let required: Vec<_> = scene
+            .calibrated_depth_layers()
+            .map(|(id, c)| (id, c.clone()))
+            .collect();
         for (object, calibration) in required {
+            let Some(sample) = self.saved_depth_sample(
+                &scene.composition_id,
+                scene.source_object(object),
+                &calibration,
+            )?
+            else {
+                return Ok(false);
+            };
             let Identity::Sample(key) = &sample.key else {
                 return Err(format!("calibrated depth object={object} phase=render: video geometry routing is not implemented").into());
             };
-            if key.source.asset != calibration.asset() { return Ok(false); }
-            sample.validate(self.engine.project(), &scene.composition_id, scene.source_object(object), &calibration)?;
-            scene.attach_calibrated_depth(object, &key.source, &sample.estimate.resource, sample.input)?;
+            scene.attach_calibrated_depth(
+                object,
+                &key.source,
+                &sample.estimate.resource,
+                sample.input,
+            )?;
         }
         Ok(true)
+    }
+
+    /// Match independently current admissions to this layer's saved input,
+    /// rather than treating the last worker ticket as every layer's source.
+    fn saved_depth_sample(
+        &self,
+        composition: &str,
+        object: u64,
+        calibration: &motion_model::depth::SavedDepthCalibration,
+    ) -> Result<Option<CalibrationSample>> {
+        let Some(state) = &self.depth else {
+            return Ok(None);
+        };
+        let mut rejected = None;
+        for entry in &state.retained.entries {
+            if !entry.binding.current(self)
+                || entry.estimate.resource.descriptor().source.asset != calibration.asset()
+            {
+                continue;
+            }
+            let sample = entry.sample();
+            match sample.validate(self.engine.project(), composition, object, calibration) {
+                Ok(()) => return Ok(Some(sample)),
+                Err(cause) if rejected.is_none() => rejected = Some(cause),
+                Err(_) => {}
+            }
+        }
+        if let Some(cause) = rejected {
+            return Err(cause);
+        }
+        Ok(None)
     }
 
     /// A saved calibration remains authoring data until both the live session
@@ -223,9 +291,14 @@ impl Session {
         &mut self,
         object: u64,
     ) -> Result<Option<motion_model::depth::RelativeDepthCalibration>> {
-        let Some(sample) = self.depth_calibration_sample()? else {
+        self.poll_depth()?;
+        if self
+            .depth
+            .as_ref()
+            .is_none_or(|state| state.retained.entries.is_empty())
+        {
             return Ok(None);
-        };
+        }
         let layer = self
             .engine
             .project()
@@ -236,12 +309,11 @@ impl Session {
         let Some(calibration) = &layer.depth_calibration else {
             return Ok(None);
         };
-        sample.validate(
-            self.engine.project(),
-            &self.engine.project().composition_id,
-            object,
-            calibration,
-        )?;
+        let Some(sample) =
+            self.saved_depth_sample(&self.engine.project().composition_id, object, calibration)?
+        else {
+            return Ok(None);
+        };
         Ok(Some(
             calibration.rebind(&sample.estimate.resource, sample.input)?,
         ))
@@ -261,6 +333,7 @@ impl Session {
             jobs: Jobs::start(backend)?,
             binding: None,
             installed: None,
+            retained: retained::Results::default(),
         });
         Ok(())
     }
@@ -328,7 +401,7 @@ impl Session {
         })?;
         depth.binding = Some(Binding {
             request,
-            key: Identity::Sample(key),
+            key: Identity::Sample(key.clone()),
             document: self.document_generation,
             revision: self.engine.revision(),
             frame: self.frame,
@@ -337,6 +410,7 @@ impl Session {
             source: Source::Image(asset),
             decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
         });
+        depth.retained.remove_source(key.source.asset);
         depth.installed = None;
         Ok(request)
     }
@@ -405,7 +479,7 @@ impl Session {
         })?;
         state.binding = Some(Binding {
             request,
-            key: Identity::Video(key),
+            key: Identity::Video(key.clone()),
             document: self.document_generation,
             revision: self.engine.revision(),
             frame: self.frame,
@@ -414,6 +488,7 @@ impl Session {
             source: Source::Video { asset, object },
             decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
         });
+        state.retained.remove_source(key.asset);
         state.installed = None;
         Ok(Some(request))
     }
@@ -437,7 +512,17 @@ impl Session {
         };
         if let Some(estimate) = ready {
             let (estimate, input) = estimate.into_parts();
-            state.installed = Some((Arc::new(estimate), input));
+            let estimate = Arc::new(estimate);
+            state.retained.admit(
+                retained::Entry {
+                    binding: binding.clone(),
+                    estimate: estimate.clone(),
+                    input,
+                },
+                motion_model::depth::MAX_DEPTH_RESOURCE_BYTES,
+                motion_model::MAX_LAYERS,
+            )?;
+            state.installed = Some((estimate, input));
         }
         Ok(state
             .installed
@@ -463,6 +548,7 @@ impl Session {
             // Clear ownership even when cancellation finds a poisoned worker.
             state.binding = None;
             state.installed = None;
+            state.retained.clear();
             state.jobs.cancel()?;
         }
         Ok(())
@@ -480,6 +566,9 @@ impl Session {
                     counts: state.jobs.counts()?,
                     in_flight: state.jobs.in_flight()?,
                     queue_depth: state.jobs.queue_depth()?,
+                    retained_samples: state.retained.entries.len(),
+                    retained_bytes: state.retained.bytes,
+                    retention_rejections: state.retained.rejections,
                 })
             })
             .transpose()
