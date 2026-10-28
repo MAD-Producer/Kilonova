@@ -2217,5 +2217,38 @@
     "design_section12_dispositions": "curve-review.md#design-12-范围处置",
     "whole_product_compliance_claim": false,
     "latest_main_531_not_yet_integrated": "4eaa2f815470fce4c4fbe6ce5458620317eddb21"
+  },
+  "final_local_2026_10_28": {
+    "status": "LOCAL_SCOPED_ACCEPTANCE_COMPLETE_FINAL_CI_TREE_PENDING",
+    "compiled_head": "12f1322c082d4d6ea31b67c539d1cbbf56db01f1",
+    "source_main": "4eaa2f815470fce4c4fbe6ce5458620317eddb21",
+    "native_and_integration": {
+      "path": "curve-final-native-stage-30.zip",
+      "members": 33,
+      "bytes": 587278,
+      "sha256": "093442ae0254af803b00d6700f3c123f070d1a619e05cb677906035ea084511d",
+      "scope": {
+        "head": "12f1322c082d4d6ea31b67c539d1cbbf56db01f1",
+        "binary_sha256": "216527ed58bc8e1bb35e24d40710d12727fe239bd7cbfa2928d85ca2ac2a6e4c",
+        "source_main": "4eaa2f815470fce4c4fbe6ce5458620317eddb21",
+        "native_cases": 32,
+        "generated_images": 160,
+        "images_byte_identical_to_prior_archive": 160,
+        "included_images": 0,
+        "actual_integration_passed": 20,
+        "existing_unexecuted_project_audio_native_tests": 4,
+        "nine_suite_reference": "curve-integration-stage-29.zip records actual136 cases at1795/main8c; not relabeled as12f cases.",
+        "scope": "Fresh native graph worker/window/input/saved-file acceptance and actual three integration suites/all-targets at recorded source. Original four project/audio native tests remain ignored and are not counted as executed. Performance and final current-main CI are separate records."
+      }
+    },
+    "performance": {
+      "path": "curve-cost-breakdown-stage-30.zip",
+      "members": 56,
+      "bytes": 1765282,
+      "sha256": "097bf5dd4abdfba46e1c70dab9f4ccbf5706ecc8b6b982b07ed64e742c0a93e5",
+      "omitted_files": 120
+    },
+    "performance_conclusion": "Extra Mini glyph/control work and measured adaptive sampling costs explain the main graph/control differences; actual absolute timing, common-control variation and debug/background limits retained. Not a release FPS or global performance equivalence claim.",
+    "whole_product_design_compliance": false
   }
 }
