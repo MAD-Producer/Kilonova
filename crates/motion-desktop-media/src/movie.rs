@@ -40,6 +40,7 @@ fn package_budget_project() -> Project {
 pub struct FrozenMovie {
     project: Project,
     depth: motion_host::depth_snapshot::DepthSnapshot,
+    platform: Arc<dyn motion_host::Platform>,
     range: motion_core::WorkArea,
     registry: Registry,
     assets: tempfile::TempDir,
@@ -56,6 +57,8 @@ mod camera_tests;
 mod imported_camera_tests;
 #[cfg(all(test, feature = "ai-depth"))]
 mod depth_tests;
+#[cfg(all(test, feature = "ffmpeg", feature = "ai-depth"))]
+mod video_depth_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod session_budget_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
@@ -666,6 +669,7 @@ pub struct MovieResult {
 pub struct MovieFreezePlan {
     project: Project,
     depth: motion_host::depth_snapshot::DepthSnapshot,
+    platform: Arc<dyn motion_host::Platform>,
     registry: Registry,
     root: PathBuf,
     memory_policy: MemoryPolicy,
@@ -790,6 +794,7 @@ impl MovieFreezePlan {
         Ok(Self {
             project,
             depth: Default::default(),
+            platform: crate::platform(),
             registry,
             root,
             memory_policy,
@@ -808,6 +813,7 @@ impl MovieFreezePlan {
         let Self {
             project,
             depth,
+            platform,
             registry,
             root,
             memory_policy,
@@ -878,7 +884,7 @@ impl MovieFreezePlan {
             motion_media::load_video_index(assets.path(), asset)?;
         }
         depth.validate_project(&project).map_err(|e| e.to_string())?;
-        depth.verify_sources(assets.path(), &|| control.check().map_err(Into::into))
+        depth.verify_sources_with_platform(assets.path(), platform.clone(), &|| control.check().map_err(Into::into))
             .map_err(|e| e.to_string())?;
         source_paths.insert(root.join("project.json"));
         control.set_progress(0.1);
@@ -886,6 +892,7 @@ impl MovieFreezePlan {
             range: motion_core::WorkArea::full(project.frames),
             project,
             depth,
+            platform,
             registry,
             assets,
             memory_policy,
@@ -930,6 +937,7 @@ impl FrozenMovie {
             control,
         )?;
         plan.allocation_budget = session.allocation_budget().clone();
+        plan.platform = session.platform().clone();
         plan.depth = motion_host::depth_snapshot::DepthSnapshot::capture(session)
             .map_err(|e| e.to_string())?;
         Ok(plan)
@@ -1040,7 +1048,7 @@ impl FrozenMovie {
             .map_err(|e| e.to_string())?;
         let p = &self.project;
         self.depth.validate_project(p).map_err(|e| e.to_string())?;
-        let depth = self.depth.verify_sources(self.assets.path(), &|| control.check().map_err(Into::into))
+        let depth = self.depth.verify_sources_with_platform(self.assets.path(), self.platform.clone(), &|| control.check().map_err(Into::into))
             .map_err(|e| e.to_string())?;
         if depth.layer_count() > 0 && motion_host::render_sampling::needs_exposure(p)? {
             return Err("frozen calibrated depth with exposure sampling is not supported".into());
@@ -1066,7 +1074,7 @@ impl FrozenMovie {
         let target = renderer.sdr_video_target(p.width, p.height, motion_render::OutputTransform::SDR_CLIP)
             .map_err(|error| error.to_string())?;
         let mut proxies = motion_host::preview_video::PreviewVideoCache::default();
-        let mut videos = motion_host::video_frames::VideoFrames::new(crate::platform());
+        let mut videos = motion_host::video_frames::VideoFrames::new(self.platform.clone());
         let mut mixer = motion_media::AudioMixer::new(p.clone(), self.assets.path())?;
         let samples = self.range.sample_bounds(p.fps, motion_media::OUTPUT_RATE as u32)
             .map_err(|error| error.to_string())?;
@@ -1096,7 +1104,7 @@ impl FrozenMovie {
                         scene
                             .sample(p, f64::from(frame), None, &motion_core::ExpressionEvaluator)
                             .map_err(|e| e.to_string())?;
-                        depth.attach(&mut scene).map_err(|e| e.to_string())?;
+                        depth.attach_checked(&mut scene, &|| control.check().map_err(Into::into)).map_err(|e| e.to_string())?;
                         renderer.retain_video_instances(&scene);
                         renderer
                             .prepare_scene_assets(&scene, Resolution::Full, false)

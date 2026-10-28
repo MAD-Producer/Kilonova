@@ -2,7 +2,7 @@
 use super::*;
 use std::io::{Read, Write};
 
-const MAGIC: &[u8; 8] = b"MSDPTH1\0";
+const MAGIC: &[u8; 8] = b"MSDPTH2\0";
 const MAX_METADATA: usize = 8 << 20;
 #[cfg(feature = "ai-depth")]
 const CHUNK: usize = 64 << 10;
@@ -13,7 +13,7 @@ impl DepthSnapshot {
         #[cfg(feature = "ai-depth")]
         {
             self.validate()?;
-            if !self.entries.is_empty() {
+            if !self.entries.is_empty() || !self.videos.is_empty() {
                 return write_snapshot(self, writer, check);
             }
         }
@@ -75,6 +75,8 @@ struct Metadata {
     #[serde(deserialize_with = "bounded")]
     entries: Vec<Layer>,
     #[serde(deserialize_with = "bounded")]
+    videos: Vec<VideoLayer>,
+    #[serde(deserialize_with = "bounded")]
     resources: Vec<Resource>,
 }
 #[cfg(feature = "ai-depth")]
@@ -86,6 +88,19 @@ struct Layer {
     key: Key,
     input: PreparedDepthInput,
     calibration: SavedDepthCalibration,
+    resource: usize,
+    request: u64,
+    decoded_budget: u64,
+}
+#[cfg(feature = "ai-depth")]
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VideoLayer {
+    object: u64,
+    asset: motion_core::VideoAsset,
+    key: Key,
+    input: PreparedDepthInput,
+    sample: motion_model::depth::VideoDepthSample,
     resource: usize,
     request: u64,
     decoded_budget: u64,
@@ -154,9 +169,30 @@ fn write_snapshot(
             decoded_budget: entry.decoded_budget,
         });
     }
+    let mut videos = Vec::new();
+    for entry in &snapshot.videos {
+        let resource = resources
+            .iter()
+            .position(|r| r.resource.cache_identity() == entry.estimate.resource.cache_identity())
+            .unwrap_or_else(|| {
+                resources.push(&entry.estimate);
+                resources.len() - 1
+            });
+        videos.push(VideoLayer {
+            object: entry.object,
+            asset: entry.asset.clone(),
+            key: entry.key.clone(),
+            input: entry.input,
+            sample: entry.sample.clone(),
+            resource,
+            request: entry.request,
+            decoded_budget: entry.decoded_budget,
+        });
+    }
     let metadata = Metadata {
         composition: snapshot.composition.clone(),
         entries: layers,
+        videos,
         resources: resources
             .iter()
             .map(|e| Resource {
@@ -221,9 +257,11 @@ fn read_snapshot(
     }
     let metadata: Metadata = serde_json::from_slice(&bytes)
         .map_err(|e| crate::Error::with_context("deserialize frozen depth metadata", e))?;
-    if metadata.entries.is_empty()
+    let count = metadata.entries.len() + metadata.videos.len();
+    if count == 0
+        || count > motion_model::MAX_LAYERS
         || metadata.resources.is_empty()
-        || metadata.resources.len() > metadata.entries.len()
+        || metadata.resources.len() > count
     {
         return Err("invalid frozen depth resource count".into());
     }
@@ -249,6 +287,11 @@ fn read_snapshot(
     // Validate resource indices and forbid unreachable planes before allocation.
     let mut used = vec![false; metadata.resources.len()];
     for layer in &metadata.entries {
+        *used
+            .get_mut(layer.resource)
+            .ok_or("invalid frozen depth resource index")? = true;
+    }
+    for layer in &metadata.videos {
         *used
             .get_mut(layer.resource)
             .ok_or("invalid frozen depth resource index")? = true;
@@ -293,6 +336,20 @@ fn read_snapshot(
                 key: e.key,
                 input: e.input,
                 calibration: e.calibration,
+                estimate: resources[e.resource].clone(),
+                request: e.request,
+                decoded_budget: e.decoded_budget,
+            })
+            .collect(),
+        videos: metadata
+            .videos
+            .into_iter()
+            .map(|e| VideoEntry {
+                object: e.object,
+                asset: e.asset,
+                key: e.key,
+                input: e.input,
+                sample: e.sample,
                 estimate: resources[e.resource].clone(),
                 request: e.request,
                 decoded_budget: e.decoded_budget,
@@ -461,6 +518,7 @@ mod tests {
         DepthSnapshot {
             composition: "comp-main".into(),
             entries: vec![entry, alias],
+            videos: Vec::new(),
         }
     }
 
@@ -491,6 +549,118 @@ mod tests {
         let mut repeated = Vec::new();
         restored.write_to(&mut repeated, &|| Ok(())).unwrap();
         assert_eq!(bytes, repeated);
+    }
+
+    #[test]
+    #[cfg(feature = "ai-depth")]
+    fn temporal_wire_rejects_duplicate_intervals_bad_indices_and_mixed_object_ownership() {
+        use motion_model::depth::*;
+        let mut snapshot = fixture();
+        let old = snapshot.entries.remove(0);
+        snapshot.entries.clear();
+        let mut descriptor = old.estimate.resource.descriptor().clone();
+        descriptor.source.pts.timescale = 1_000_000;
+        let resource =
+            DepthResource::new(descriptor.clone(), vec![10., 30., 90., 50.], None, None).unwrap();
+        let calibration = SavedDepthCalibration::new(
+            &resource,
+            old.input,
+            [
+                DepthAnchor {
+                    value: 10.,
+                    camera_z_meters: 8.,
+                },
+                DepthAnchor {
+                    value: 90.,
+                    camera_z_meters: 4.,
+                },
+            ],
+            CalibrationCurve::CameraZ,
+            CalibrationExtrapolation::Reject,
+            20.,
+        )
+        .unwrap();
+        snapshot.videos.push(VideoEntry {
+            object: 1,
+            asset: motion_core::VideoAsset {
+                id: 7,
+                path: "assets/source.mp4".into(),
+                bytes: 100,
+                mime: "video/avc".into(),
+                track: 0,
+                width: 2,
+                height: 2,
+                rotation: 0,
+                display_width: 2,
+                display_height: 2,
+                video_start_us: 0,
+                video_end_us: 100_000,
+                duration_us: 100_000,
+                frame_count: 3,
+                variable_frame_rate: true,
+                nominal_frame_rate: 30.,
+                color_standard: 1,
+                color_range: 1,
+                audio_asset: None,
+            },
+            key: Key {
+                source: descriptor.source,
+                geometry: descriptor.geometry,
+                model: descriptor.model,
+            },
+            input: old.input,
+            sample: VideoDepthSample::new(calibration, 33_333).unwrap(),
+            estimate: Arc::new(Estimate {
+                resource,
+                provider: "owned-wire-test".into(),
+                costs: Default::default(),
+            }),
+            request: 42,
+            decoded_budget: 1 << 20,
+        });
+        let mut bytes = Vec::new();
+        snapshot.write_to(&mut bytes, &|| Ok(())).unwrap();
+        let restored = DepthSnapshot::read_from(&mut &bytes[..], &|| Ok(())).unwrap();
+        assert_eq!(restored.layer_count(), 1);
+        assert_eq!(restored.videos.len(), 1);
+        assert_eq!(restored.videos[0].sample, snapshot.videos[0].sample);
+        let mut repeated = Vec::new();
+        restored.write_to(&mut repeated, &|| Ok(())).unwrap();
+        assert_eq!(bytes, repeated);
+        let size = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+        let metadata: serde_json::Value = serde_json::from_slice(&bytes[12..12 + size]).unwrap();
+        for mutation in 0..4 {
+            let mut value = metadata.clone();
+            match mutation {
+                0 => {
+                    let duplicate = value["videos"][0].clone();
+                    value["videos"].as_array_mut().unwrap().push(duplicate);
+                }
+                1 => value["videos"][0]["resource"] = serde_json::json!(99),
+                2 => value["videos"][0]["sample"]["end_us"] = serde_json::json!(0),
+                _ => {
+                    value["videos"] = serde_json::json!(vec![
+                        value["videos"][0].clone();
+                        motion_model::MAX_LAYERS + 1
+                    ])
+                }
+            }
+            let data = serde_json::to_vec(&value).unwrap();
+            let mut malformed = MAGIC.to_vec();
+            malformed.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            malformed.extend(data);
+            malformed.extend_from_slice(&bytes[12 + size..]);
+            assert!(
+                DepthSnapshot::read_from(&mut &malformed[..], &|| Ok(())).is_err(),
+                "mutation={mutation}"
+            );
+        }
+        snapshot.entries.push(old);
+        assert!(snapshot
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("video depth source metadata"));
     }
 
     #[test]
