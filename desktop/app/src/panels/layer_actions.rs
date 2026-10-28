@@ -3,6 +3,8 @@ use super::*;
 use motion_ui::style::{States, box_style};
 use motion_ui::widgets::{TextEditor, TextEvent};
 use std::time::{Duration, Instant};
+// Enter is a reserved, fixed editor action, not a remappable document command.
+const RENAME_CHORD: motion_ui::input::KeyChord = motion_ui::input::KeyChord::new(Key::Enter, false, false, false);
 
 #[derive(Clone, Copy, PartialEq)]
 enum Page {
@@ -292,9 +294,7 @@ impl Controls {
             && !was_modal
             && !input.composing
             && !input.ime_consumed
-            && input
-                .key_presses()
-                .any(|(k, m, r)| k == Key::Enter && !r && !m.control && !m.alt && !m.shift)
+            && RENAME_CHORD.pressed(input)
         {
             if let Some(id) = selected {
                 self.begin_name(id, false, state, locale);
@@ -483,7 +483,8 @@ impl Controls {
                 metrics.width(&children, &styles, atlas),
                 metrics.height(children.len(), bounds),
             );
-            if child.contains(active.mouse) {
+            if child.contains(active.mouse)
+                || active.pressed.is_some_and(|(_, point)| child.contains(point)) {
                 root_input.mouse = [f32::MIN; 2];
                 root_input.pressed = None;
                 root_input.wheel = [0.; 2];
@@ -825,6 +826,9 @@ fn entries_with_bindings(
 ) -> Vec<Entry> {
     let mut rows = entries(popup, state, locale);
     for row in &mut rows {
+        if matches!(row.choice,Choice::Rename) {
+            row.hint=crate::shortcuts::bindings::format_chord(RENAME_CHORD);
+        }
         if let Choice::New(Action::OrderLayers { objects, order }) = &mut row.choice {
             if popup.target.is_some_and(|id| selection.contains(&id)) {
                 *objects = selection.to_vec();
@@ -1371,6 +1375,7 @@ mod tests {
     #[test]
     fn shared_menu_overlapping_child_click_cannot_retarget_the_parent_page() {
         use motion_ui::widgets::menu::{self, Metrics};
+        for cursor_moved_after_press in [false,true] {
         let mut engine=engine();let state=state(&engine);
         let mut controls=Controls::default();controls.open(Some(9),[230.,190.],&state);
         let mut atlas=TextAtlas::from_system(12.).unwrap();
@@ -1385,12 +1390,15 @@ mod tests {
         let area=metrics.row_rect(child,1);let point=[area.min[0]+10.,area.min[1]+10.];
         assert!(card.contains(point),"negative control must exercise overlapping cards");
         let mut actions=vec![];
-        controls.finish_window(&mut PaintList::default(),&mut atlas,bounds,&state,&click(MouseButton::Left,point),Locale::En,&mut actions);
+        let mut input=click(MouseButton::Left,point);
+        if cursor_moved_after_press {input.mouse=[-1.;2];}
+        controls.finish_window(&mut PaintList::default(),&mut atlas,bounds,&state,&input,Locale::En,&mut actions);
         assert_eq!(actions.len(),1);
         engine.apply(edit(actions)).unwrap();
         assert!(engine.project().layers[1].locked);
         assert!(engine.project().layers[1].visible);
         engine.undo().unwrap();assert!(!engine.project().layers[1].locked);
+        }
     }
     #[test]
     fn shared_menu_context_enter_only_opens_branch_and_escape_ime_keep_the_correct_owner() {

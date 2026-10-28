@@ -267,7 +267,8 @@ pub(super) fn draw(
         metrics.height(child_entries.len(), bounds),
     );
     let mut parent_input = input.clone();
-    if navigation.child && child_card.contains(input.mouse) {
+    if navigation.child && (child_card.contains(input.mouse)
+        || input.pressed.is_some_and(|(_, point)| child_card.contains(point))) {
         parent_input.mouse = [f32::MIN, f32::MIN];
         parent_input.pressed = None;
         parent_input.wheel = [0.; 2];
