@@ -17,6 +17,7 @@ use winit::{
     window::Window,
 };
 
+mod owner;
 fn project() -> motion_core::Project {
     let mut project = fixture().project().clone();
     project.layers[0].name = "Boundary study".into();
@@ -24,18 +25,35 @@ fn project() -> motion_core::Project {
         color: [0.18, 0.48, 0.78, 1.],
     };
     project.layers[0].masks[0].expansion = Track::constant(6.);
-    project.layers[0].transform.position = Track::constant([0.; 3]);
-    project.layers[0].parent = Some(motion_core::ParentLink {
-        object: Some(9),
-        bind: glam::Mat4::IDENTITY.to_cols_array_2d(),
-    });
     let mut parent = Layer::solid(9, "Parent", [1.; 2], [160., 90., 0.], [1.; 4]);
     parent.content = motion_core::Content::Null;
-    parent.transform.rotation = Track::constant([0., 0., 12.]);
-    parent.transform.scale = Track::constant([90., 90., 100.]);
     project.layers.push(parent);
-    project.validate().unwrap();
-    project
+    let mut engine = motion_core::Engine::new(project).unwrap();
+    engine
+        .apply(Command::ParentWithMode {
+            object: 7,
+            parent: Some(9),
+            frame: 33,
+            mode: motion_core::ParentMode::PreserveWorld,
+        })
+        .unwrap();
+    engine
+        .apply(Command::SetVector {
+            object: 9,
+            property: motion_core::Property::Rotation,
+            frame: 33,
+            value: [0., 0., 12.],
+        })
+        .unwrap();
+    engine
+        .apply(Command::SetVector {
+            object: 9,
+            property: motion_core::Property::Scale,
+            frame: 33,
+            value: [90., 90., 100.],
+        })
+        .unwrap();
+    engine.project().clone()
 }
 fn draw(shell: &mut Shell, size: [f32; 2], window: u64, input: &Input) -> (PaintList, Vec<Action>) {
     let mut paint = PaintList::default();
@@ -104,6 +122,25 @@ fn capture(
         node_preview: None,
     };
     assert!(ui.composition_image.is_some());
+    // CaptureUi reads the composed scratch texture. Render the scene first:
+    // overlay-only changes cannot prove mask rendering.
+    let front = shell
+        .engine
+        .present_async(UiFrame {
+            paint: PaintList::default(),
+            atlas: None,
+            logical_size: size,
+            composition: ui.composition,
+            composition_image: ui.composition_image,
+            window,
+            node_preview: None,
+        })
+        .unwrap();
+    assert!(
+        native_test_support::receive(events, &front, Duration::from_secs(60))
+            .unwrap()
+            .unwrap()
+    );
     native_test_support::capture_ui(events, &shell.engine, ui, path.clone()).unwrap();
     assert_eq!(
         image::open(path).unwrap().to_rgba8().dimensions(),
@@ -133,6 +170,16 @@ fn screenshot_diff(a: &Path, b: &Path) -> usize {
     let b = image::open(b).unwrap().to_rgba8();
     assert_eq!(a.dimensions(), b.dimensions());
     a.pixels().zip(b.pixels()).filter(|(a, b)| a != b).count()
+}
+fn blue_pixels(path: &Path) -> usize {
+    image::open(path)
+        .unwrap()
+        .to_rgba8()
+        .pixels()
+        .filter(|p| {
+            u16::from(p[2]) > u16::from(p[0]) + 50 && u16::from(p[1]) > u16::from(p[0]) + 20
+        })
+        .count()
 }
 
 #[test]
@@ -164,7 +211,7 @@ fn native_boundary_viewer_main_and_independent_float_render_and_transactions() {
             shell.panels.path_controls.masks_open = true;
             shell.workspace.root = Node::Split {
                 edge: Edge::Right,
-                split: 0.72,
+                split: 0.28,
                 first: Box::new(Node::dock(Panel::Composition.dock())),
                 second: Box::new(Node::dock(Panel::Properties.dock())),
             };
@@ -264,6 +311,10 @@ fn native_boundary_viewer_main_and_independent_float_render_and_transactions() {
                         paint,
                         initial.clone(),
                     );
+                    assert!(
+                        blue_pixels(&initial) > 5000,
+                        "actual mask content must be rendered before capture"
+                    );
                     let (paint, actions) = draw(
                         &mut shell,
                         size,
@@ -331,6 +382,10 @@ fn native_boundary_viewer_main_and_independent_float_render_and_transactions() {
                     assert!(actions.is_empty());
                     let after = output.join(format!("{prefix}-after.png"));
                     capture(&mut shell, &mut events, size, window, paint, after.clone());
+                    assert!(
+                        blue_pixels(&initial).abs_diff(blue_pixels(&after)) > 20,
+                        "rendered mask coverage must change, not only the overlay"
+                    );
                     assert!(
                         screenshot_diff(&initial, &after) > 100,
                         "rendered mask must change"
