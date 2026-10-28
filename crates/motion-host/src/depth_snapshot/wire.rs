@@ -495,6 +495,62 @@ mod tests {
 
     #[test]
     #[cfg(feature = "ai-depth")]
+    fn aliased_source_keys_still_verify_each_distinct_expected_rgb_fingerprint() {
+        use motion_model::depth::*;
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        image::RgbaImage::from_pixel(2, 2, image::Rgba([10, 2, 3, 255]))
+            .save(root.path().join("assets/owned.png"))
+            .unwrap();
+        let mut snapshot = fixture();
+        let actual = ImageInput {
+            key: snapshot.entries[0].key.clone(),
+            root: root.path().into(),
+            relative: "assets/owned.png".into(),
+            budget: 1 << 20,
+        }
+        .decode(&Cancellation::default())
+        .unwrap()
+        .fingerprint(&Cancellation::default())
+        .unwrap();
+        for entry in &mut snapshot.entries {
+            entry.input = actual;
+            if entry.object == 2 {
+                entry.input.rgb_sha256[0] ^= 1;
+            }
+            entry.calibration = SavedDepthCalibration::new(
+                &entry.estimate.resource,
+                entry.input,
+                [
+                    DepthAnchor {
+                        value: 10.,
+                        camera_z_meters: 8.,
+                    },
+                    DepthAnchor {
+                        value: 90.,
+                        camera_z_meters: 4.,
+                    },
+                ],
+                CalibrationCurve::CameraZ,
+                CalibrationExtrapolation::Reject,
+                20.,
+            )
+            .unwrap();
+        }
+        snapshot.validate().unwrap();
+        let cause = snapshot
+            .verify_sources(root.path(), &|| Ok(()))
+            .err()
+            .expect("same source key does not authorize a different expected RGB fingerprint")
+            .to_string();
+        assert!(
+            cause.contains("object=2") && cause.contains("fingerprint changed"),
+            "{cause}"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "ai-depth")]
     fn malformed_wire_rejects_unbounded_metadata_counts_planes_and_bad_references() {
         let original = fixture();
         let mut bytes = Vec::new();

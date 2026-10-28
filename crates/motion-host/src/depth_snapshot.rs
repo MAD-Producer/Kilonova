@@ -151,7 +151,10 @@ impl DepthSnapshot {
     pub fn validate_project(&self, project: &motion_core::Project) -> Result<()> {
         #[cfg(feature = "ai-depth")]
         self.validate()?;
+        #[cfg(feature = "ai-depth")]
         let mut count = 0;
+        #[cfg(not(feature = "ai-depth"))]
+        let count = 0;
         for id in project.reachable_compositions()? {
             let view = project.composition_view(&id)?;
             for layer in view
@@ -159,9 +162,9 @@ impl DepthSnapshot {
                 .iter()
                 .filter(|l| l.three_d && l.depth_calibration.is_some())
             {
-                count += 1;
                 #[cfg(feature = "ai-depth")]
                 {
+                    count += 1;
                     let entry = self
                         .entries
                         .iter()
@@ -178,7 +181,11 @@ impl DepthSnapshot {
                     }
                 }
                 #[cfg(not(feature = "ai-depth"))]
-                return Err("frozen calibrated depth requires the ai-depth feature".into());
+                return Err(format!(
+                    "frozen calibrated depth object={} requires the ai-depth feature",
+                    layer.id
+                )
+                .into());
             }
         }
         if count != self.layer_count() {
@@ -200,15 +207,19 @@ impl DepthSnapshot {
         #[cfg(feature = "ai-depth")]
         {
             self.validate()?;
-            let mut verified: Vec<&Key> = Vec::new();
+            let mut verified: Vec<&Entry> = Vec::new();
             for entry in &self.entries {
-                if verified.iter().any(|key| key.same_sample(&entry.key)) {
+                if verified.iter().any(|prior| {
+                    prior.key.same_sample(&entry.key)
+                        && prior.input == entry.input
+                        && prior.asset == entry.asset
+                }) {
                     continue;
                 }
                 check()?;
                 let began = std::time::Instant::now();
-                log::info!("start frozen_depth operation=verify_source source_request={} object={} source_id={} phase=decode_frozen_rgb",
-                    entry.request, entry.object, entry.asset.id);
+                log::info!("start frozen_depth operation=verify_source source_request={} object={} source_id={} phase=decode_frozen_rgb path={:?}",
+                    entry.request, entry.object, entry.asset.id, entry.asset.path);
                 log::logger().flush();
                 let input = ImageInput {
                     key: entry.key.clone(), root: root.into(),
@@ -223,7 +234,7 @@ impl DepthSnapshot {
                 }
                 log::debug!("done frozen_depth operation=verify_source source_request={} source_id={} elapsed_ms={}",
                     entry.request, entry.asset.id, began.elapsed().as_millis());
-                verified.push(&entry.key);
+                verified.push(entry);
             }
         }
         #[cfg(not(feature = "ai-depth"))]
