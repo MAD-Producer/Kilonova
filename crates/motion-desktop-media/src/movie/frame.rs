@@ -39,6 +39,7 @@ impl FrameFreezePlan {
             false,
         )?;
         sources.allocation_budget = session.allocation_budget().clone();
+        sources.platform = session.platform().clone();
         sources.depth = motion_host::depth_snapshot::DepthSnapshot::capture(session)
             .map_err(|e| e.to_string())?;
         let output = output.unwrap_or_else(|| {
@@ -87,7 +88,7 @@ impl FrameFreezePlan {
             .map_err(|e| format!("create PNG temporary: {e}"))?;
         let p = &frozen.project;
         frozen.depth.validate_project(p).map_err(|e| e.to_string())?;
-        let depth = frozen.depth.verify_sources(frozen.assets.path(), &|| control.check().map_err(Into::into))
+        let depth = frozen.depth.verify_sources_with_platform(frozen.assets.path(), self.platform.clone(), &|| control.check().map_err(Into::into))
             .map_err(|e| e.to_string())?;
         if depth.layer_count() > 0 && motion_host::render_sampling::needs_exposure(p)? {
             return Err("frozen calibrated depth with exposure sampling is not supported".into());
@@ -129,7 +130,7 @@ impl FrameFreezePlan {
                     scene
                         .sample(p, self.frame, None, &motion_core::ExpressionEvaluator)
                         .map_err(|e| e.to_string())?;
-                    depth.attach(&mut scene).map_err(|e| e.to_string())?;
+                    depth.attach_checked(&mut scene, &|| control.check().map_err(Into::into)).map_err(|e| e.to_string())?;
                     renderer
                         .prepare_scene_assets(&scene, Resolution::Full, false)
                         .map_err(|e| e.to_string())?;

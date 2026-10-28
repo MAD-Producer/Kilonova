@@ -120,7 +120,13 @@ impl Input {
         if rgb.len() as u64 != u64::from(size[0]) * u64::from(size[1]) * 3 {
             return Err(Error::Invalid("RGB byte count differs from dimensions"));
         }
-        Ok(Self { key, size, rgb, image: None, video_end_us: None })
+        Ok(Self {
+            key,
+            size,
+            rgb,
+            image: None,
+            video_end_us: None,
+        })
     }
     pub fn key(&self) -> &Key {
         &self.key
@@ -130,6 +136,12 @@ impl Input {
     }
     pub fn rgb(&self) -> &[u8] {
         &self.rgb
+    }
+    pub(crate) fn into_image(self) -> Option<motion_render::DepthImage> {
+        self.image
+    }
+    pub(crate) fn video_end_us(&self) -> Option<u64> {
+        self.video_end_us
     }
     pub(crate) fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
         let mut hash = Sha256::new();
@@ -196,7 +208,14 @@ impl PreparedEstimate {
     pub fn input(&self) -> PreparedDepthInput {
         self.input
     }
-    pub(crate) fn into_owned_parts(self) -> (Estimate, PreparedDepthInput, Option<motion_render::DepthImage>, Option<u64>) {
+    pub(crate) fn into_owned_parts(
+        self,
+    ) -> (
+        Estimate,
+        PreparedDepthInput,
+        Option<motion_render::DepthImage>,
+        Option<u64>,
+    ) {
         (self.estimate, self.input, self.image, self.video_end_us)
     }
     pub fn into_parts(self) -> (Estimate, PreparedDepthInput) {
