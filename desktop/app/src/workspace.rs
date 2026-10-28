@@ -59,6 +59,8 @@ pub struct Workspace {
     pub node_view: crate::node_editor::ViewPreferences,
     #[serde(default)]
     pub node_recents: crate::node_editor::RecentNodes,
+    #[serde(default)]
+    pub project_view: crate::panels::project::ViewPreferences,
     #[serde(default = "visible_column")]
     pub timeline_column_blend: bool,
     #[serde(default = "visible_column")]
@@ -87,6 +89,7 @@ impl Default for Workspace {
             send_diagnostics: false,
             node_view: Default::default(),
             node_recents: Default::default(),
+            project_view: Default::default(),
             timeline_column_blend: true,
             timeline_column_parent: true,
             timeline_column_matte: true,
@@ -126,7 +129,7 @@ impl Workspace {
         self.timeline_column_matte = visibility.matte;
     }
     pub fn valid(&self) -> bool {
-        self.layout.valid()
+        self.layout.valid() && self.project_view.valid()
             && self
                 .owned_panels()
                 .iter()

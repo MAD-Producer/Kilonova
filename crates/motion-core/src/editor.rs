@@ -188,11 +188,11 @@ fn video_audio_layer(project: &Project, source: &Layer, id: u64) -> Result<Layer
     Ok(layer)
 }
 
-fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult>> {
+fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::CameraSampler) -> Result<Option<EditResult>> {
     if let Command::InComposition { composition, command } = command {
         let previous = project.composition_id.clone();
         project.activate_composition(&composition)?;
-        let result = apply_to(project, *command);
+        let result = apply_to(project, *command, cameras);
         project.activate_composition(&previous)?;
         return result;
     }
@@ -204,7 +204,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::PasteLayers { clipboard, at_frame, keep_external_references } => {
             result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);
         }
-        Command::RemoveLayers { objects, frame } => crate::layer_clipboard::remove(project, objects, frame)?,
+        Command::RemoveLayers { objects, frame } => crate::layer_clipboard::remove(project, objects, frame, cameras)?,
         Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
@@ -238,6 +238,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::RegisterAudioAsset { asset } => project.audio_assets.push(asset),
         Command::RegisterVideoAsset { asset } => project.video_assets.push(asset),
         Command::MediaAsset { action } => motion_model::media_assets::apply(project, action)?,
+        Command::ProjectLibrary { action } => motion_model::project_library::apply(project, action)?,
         Command::SetAudio {
             object,
             volume,
@@ -769,10 +770,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 .map(|l| l.id)
                 .collect();
             for child in children {
-                crate::hierarchy::reparent(project, child, None, frame)?;
+                crate::hierarchy::reparent(project, child, None, frame, cameras)?;
             }
             if project.camera.parent.as_ref().and_then(|p| p.object) == Some(object) {
-                crate::hierarchy::reparent(project, 0, None, frame)?;
+                crate::hierarchy::reparent(project, 0, None, frame, cameras)?;
             }
             if object == 0 {
                 project.camera = crate::Camera::new(project.width, project.height);
@@ -789,13 +790,13 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             frame,
         } => {
             valid_frame(frame)?;
-            crate::hierarchy::reparent(project, object, parent, frame)?;
+            crate::hierarchy::reparent(project, object, parent, frame, cameras)?;
         }
         Command::ParentWithMode { object, parent, frame, mode } => {
             valid_frame(frame).map_err(|source| Error::ParentOperation {
                 object, parent, frame, mode, source: Box::new(source),
             })?;
-            crate::hierarchy::reparent_with_mode(project, object, parent, frame, mode)?;
+            crate::hierarchy::reparent_with_mode(project, object, parent, frame, mode, cameras)?;
         }
         Command::Delete { object } => {
             if project.layer_mut(object)?.locked {
@@ -1141,6 +1142,16 @@ impl Engine {
     ) -> Result<Vec<EditResult>> {
         crate::CommandRegistry::run_prepared(self, commands, prepare)
     }
+    /// Resolve imported camera ancestry from a host-owned immutable catalog.
+    /// The resolver is borrowed for this transaction, never kept in history.
+    pub fn apply_batch_with_cameras_and_prepare(
+        &mut self,
+        commands: Vec<Command>,
+        cameras: &dyn crate::CameraSampler,
+        prepare: impl FnOnce(&Project) -> Result<()>,
+    ) -> Result<Vec<EditResult>> {
+        self.apply_batch_inner_with_cameras(commands, None, cameras, prepare)
+    }
     /// Publish history and revision only after the project file is saved successfully.
     /// Used by media imports after their owned source has been staged and validated.
     pub fn apply_batch_saved(
@@ -1167,6 +1178,15 @@ impl Engine {
         root: Option<&std::path::Path>,
         prepare: impl FnOnce(&Project) -> Result<()>,
     ) -> Result<Vec<EditResult>> {
+        self.apply_batch_inner_with_cameras(commands, root, &crate::AuthoredCameraSampler, prepare)
+    }
+    fn apply_batch_inner_with_cameras(
+        &mut self,
+        commands: Vec<Command>,
+        root: Option<&std::path::Path>,
+        cameras: &dyn crate::CameraSampler,
+        prepare: impl FnOnce(&Project) -> Result<()>,
+    ) -> Result<Vec<EditResult>> {
         if self.gesture.is_some() && commands.iter().any(Command::composition_transaction) {
             return Err(Error::Gesture);
         }
@@ -1178,7 +1198,7 @@ impl Engine {
         let mut results = Vec::new();
         let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
             for command in commands {
-                match apply_to(&mut self.project, command) {
+                match apply_to(&mut self.project, command, cameras) {
                     Ok(Some(result)) => results.push(result),
                     Ok(None) => {}
                     Err(error) => return Err(error),

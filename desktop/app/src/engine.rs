@@ -40,6 +40,10 @@ mod parent_policy_tests;
 #[cfg(test)]
 mod animation_action_tests;
 #[cfg(test)]
+mod project_library_tests;
+#[cfg(test)]
+mod project_library_import_tests;
+#[cfg(test)]
 mod keyframe_timing_tests;
 #[cfg(test)]
 mod text_style_tests;
@@ -204,6 +208,16 @@ pub enum Command {
     EditorAction {
         source: crate::layer_clipboard::KeyframeSource,
         commands: Vec<motion_core::Command>,
+        reply: Sender<Result<Value, String>>,
+    },
+    ProjectOpen {
+        source: crate::layer_clipboard::KeyframeSource,
+        composition: String,
+        reply: Sender<Result<Value, String>>,
+    },
+    ProjectAsset {
+        source: crate::layer_clipboard::KeyframeSource,
+        operation: crate::workflow::library_media::Request,
         reply: Sender<Result<Value, String>>,
     },
     ExpressionCheck {
@@ -443,7 +457,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | EditorAction { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | EditorAction { reply, .. } | ProjectOpen { reply, .. } | ProjectAsset { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1654,6 +1668,25 @@ fn handle(
             if s.engine.gesture_active() { return Err("finish the active editor gesture before an agent edit".into()); }
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
+        })),
+        Command::ProjectOpen {source,composition,reply}=>respond(reply,motion_host::session::with_session(id,|session|{
+            if !source.current(session) {
+                let mut state=session.snapshot()?;
+                state["editorAction"]=serde_json::json!({"cancelled":true,"reason":"context_changed","operation":"project_open"});
+                return Ok(state);
+            }
+            let mut state=session.composition_request(serde_json::json!({"version":1,"op":"open","composition":composition}))?;
+            state["editorAction"]=serde_json::json!({"cancelled":false,"operation":"project_open"});
+            Ok(state)
+        })),
+        Command::ProjectAsset {source,operation,reply}=>respond(reply,motion_host::session::with_session(id,|session|{
+            if !source.current(session) {
+                if source.same_document(session) { operation.cancel(session)?; }
+                let mut state=session.snapshot()?;
+                state["assetOperation"]=serde_json::json!({"cancelled":true,"reason":"context_changed"});
+                return Ok(state);
+            }
+            operation.run(session)
         })),
         Command::ExpressionCheck { target, source, reply } => {
             // Validation is an explicit user operation on a bounded draft, not

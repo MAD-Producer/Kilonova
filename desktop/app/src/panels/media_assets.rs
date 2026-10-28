@@ -63,14 +63,16 @@ impl Controls {
     pub(super) fn cancel(&mut self) {
         self.menu = None;
     }
-    pub(super) fn window(&self) -> Option<Panel> {
-        self.window
-    }
-    pub(super) fn reset_project_scroll(&mut self) {
-        self.lists[0].scroll.offset = 0.;
+    pub(super) fn select(&mut self, target: AssetRef) { self.selected = Some(target); }
+    pub(super) fn open_for(&mut self, state:&Value, target:AssetRef, anchor:[f32;2])->Result<(),String>{
+        self.selected=Some(target);
+        self.menu=Some(Menu {source:Source::read(state,target)?,owner:self.window,anchor,
+            usage_view:false,scroll:Default::default(),focus:0});
+        Ok(())
     }
     /// True for the entire open/closing frame, including input from another window.
     pub(super) fn prepare(&mut self, owner: Option<Panel>, state: &Value, input: &Input) -> bool {
+        self.observe_document(state);
         self.window = owner;
         let owned = self.menu.is_some();
         if self.menu.as_ref().is_some_and(|menu| {
@@ -83,21 +85,24 @@ impl Controls {
         }
         owned
     }
+    fn observe_document(&mut self, state: &Value) {
+        let document = (
+            state["root"].as_str().unwrap_or_default().to_owned(),
+            state["document_generation"].as_u64().unwrap_or_default(),
+        );
+        if self.document.as_ref().is_some_and(|previous| previous != &document) {
+            self.selected = None;
+            self.lists = Default::default();
+        }
+        self.document = Some(document);
+    }
     fn project(&mut self, state: &Value) -> &Result<motion_core::Project, String> {
+        self.observe_document(state);
         let stamp = (
             state["root"].as_str().unwrap_or_default().to_owned(),
             state["document_generation"].as_u64().unwrap_or_default(),
             state["revision"].as_u64().unwrap_or_default(),
         );
-        if self
-            .document
-            .as_ref()
-            .is_some_and(|d| d != &(stamp.0.clone(), stamp.1))
-        {
-            self.selected = None;
-            self.lists = Default::default();
-        }
-        self.document = Some((stamp.0.clone(), stamp.1));
         if self.cache.as_ref().is_none_or(|cache| cache.stamp != stamp) {
             let project = serde_json::from_value::<motion_core::Project>(state["project"].clone())
                 .map_err(|error| {
@@ -367,6 +372,21 @@ pub(super) fn overlay(
                 word(locale, "重链接丢失素材…", "Relink missing assets…"),
                 true,
                 Some(Intent::RelinkMissing),
+            ),
+            (
+                word(locale, "放入当前合成（播放头）", "Place in composition at playhead"),
+                true,
+                Some(Intent::Place),
+            ),
+            (
+                word(locale, "刷新缩略图", "Refresh thumbnail"),
+                matches!(menu.source.target.kind, AssetKind::Image | AssetKind::Video),
+                Some(Intent::RefreshThumbnail),
+            ),
+            (
+                word(locale, "预览素材…", "Preview asset…"),
+                matches!(menu.source.target.kind, AssetKind::Image | AssetKind::Video),
+                Some(Intent::Preview { owner }),
             ),
         ]
     };

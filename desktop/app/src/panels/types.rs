@@ -28,6 +28,14 @@ pub enum Action {
     Save,
     ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
+    ProjectImport {
+        source: crate::layer_clipboard::KeyframeSource,
+        folder: Option<u64>,
+        path: Option<std::path::PathBuf>,
+    },
+    ProjectViewChanged(super::project::ViewPreferences),
+    ProjectOpen { source: crate::layer_clipboard::KeyframeSource, composition: String },
+    ProjectPlace { source: crate::layer_clipboard::KeyframeSource, target: motion_core::media_assets::AssetRef, at_frame: u32 },
     MediaAsset { source: crate::media_assets::Source, intent: crate::media_assets::Intent },
     ImportEffectPackage,
     ImportEffectPath(std::path::PathBuf),
@@ -206,6 +214,7 @@ pub struct Panels {
     pub(crate) library_scroll: motion_ui::widgets::ScrollArea,
     pub(crate) library_height: f32,
     pub(crate) effect_drag: super::effect_drag::Controls,
+    pub(crate) project_drag: super::project_drag::Controls,
     pub(crate) browser: crate::panels::effect_controls::Controls,
     pub(crate) recent_effect_menu: super::effect_recent::Cache,
     pub selected: Option<u64>,
@@ -489,6 +498,9 @@ pub(crate) enum Tool {
 
 #[derive(Default)]
 pub(crate) struct ProjectState {
+    pub browser: super::project::Controls,
+    pub thumbnails: super::project::thumbnails::Thumbnails,
+    pub preview: crate::project_preview::Player,
     pub search_field: motion_ui::widgets::SearchField,
     pub query: String,
     pub search: bool,

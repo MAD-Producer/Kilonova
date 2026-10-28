@@ -15,6 +15,9 @@ pub(crate) struct KeyframeSource {
     revision: Option<u64>,
 }
 impl KeyframeSource {
+    pub(crate) fn same_document(&self, session: &Session) -> bool {
+        self.root == session.root && self.generation == Some(session.document_generation)
+    }
     pub(crate) fn current(&self, session: &Session) -> bool {
         self.matches(&Stamp::of(session))
     }
