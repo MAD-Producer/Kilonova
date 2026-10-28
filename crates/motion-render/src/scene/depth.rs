@@ -1,7 +1,7 @@
 use super::Scene;
 use motion_model::depth::{
-    DepthResource, DepthSource, DepthSurface, PreparedDepthInput, SavedDepthCalibration,
-    MAX_DEPTH_RESOURCE_BYTES,
+    DepthResource, DepthResourceIdentity, DepthSource, DepthSurface, PreparedDepthInput,
+    SavedDepthCalibration, MAX_DEPTH_RESOURCE_BYTES,
 };
 use motion_model::{ensure, Result};
 use std::sync::Arc;
@@ -11,6 +11,7 @@ pub(super) struct BoundSurface {
     pub calibration: SavedDepthCalibration,
     source: DepthSource,
     input: PreparedDepthInput,
+    resource: DepthResourceIdentity,
     mesh: Arc<DepthSurface>,
 }
 impl Scene {
@@ -61,6 +62,7 @@ impl Scene {
             surface.calibration == *calibration
                 && surface.source.same_sample(current)
                 && surface.input == input
+                && surface.resource == resource.cache_identity()
         });
         if !cached {
             let reference = calibration.reference().ok_or_else(|| {
@@ -86,6 +88,7 @@ impl Scene {
                     calibration: calibration.clone(),
                     source: current.clone(),
                     input,
+                    resource: resource.cache_identity(),
                     mesh,
                 },
             );

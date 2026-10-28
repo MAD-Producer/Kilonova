@@ -4,6 +4,15 @@ use motion_core::{Asset, Content, Layer, Project};
 use motion_model::depth::*;
 use motion_render::{Renderer, Scene};
 
+// Explicit local acceptance output; CI and ordinary tests perform no extra IO.
+fn retain_fixture(name: &str, pixels: &[u8]) {
+    if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {
+        let root = std::path::PathBuf::from(root);
+        std::fs::create_dir_all(&root).unwrap();
+        image::save_buffer(root.join(name), pixels, 96, 64, image::ColorType::Rgba8).unwrap();
+    }
+}
+
 fn field(revision: u64) -> DepthResource {
     DepthResource::new(
         DepthDescriptor {
@@ -257,6 +266,7 @@ fn calibrated_geometry_matches_independent_rays_after_camera_and_parent_edits_in
             let mut scene = sampled(&p);
             attach(&mut scene);
             let pixels = renderer.capture_sdr(&scene, &target).unwrap().0.pixels;
+            retain_fixture(&format!("camera-{precision:?}-moved-{moved}.png"), &pixels);
             check_oracle(&scene, &pixels);
             p.layers.reverse();
             let mut reversed = sampled(&p);
@@ -298,6 +308,10 @@ fn calibrated_geometry_resizes_xy_without_rescaling_metric_depth_in_four_precisi
             let mut scene = sampled(&p);
             attach(&mut scene);
             let pixels = renderer.capture_sdr(&scene, &target).unwrap().0.pixels;
+            retain_fixture(
+                &format!("resize-{precision:?}-{}x{}.png", size[0], size[1]),
+                &pixels,
+            );
             check_oracle(&scene, &pixels);
             p.layers.reverse();
             let mut reversed = sampled(&p);
@@ -409,6 +423,8 @@ fn reference_camera_preserves_the_original_photo_without_depth_dependent_texture
     let actual = renderer.capture(&scene, &target).unwrap().0;
     p.layers[0].depth_calibration = None;
     let expected = renderer.capture(&sampled(&p), &target).unwrap().0;
+    retain_fixture("reference-photo-flat.png", &expected);
+    retain_fixture("reference-photo-depth.png", &actual);
     let mut colors = std::collections::BTreeSet::new();
     for y in 26..38 {
         for x in 35..61 {
@@ -493,4 +509,44 @@ fn calibrated_geometry_is_immutable_for_reverse_submission_and_budget_refusal_pr
     drop(abandoned);
     assert_eq!(budget.info().unwrap().admitted_bytes, used);
     assert!(renderer.read_target(&b).unwrap() == expected_a);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn calibrated_geometry_replacement_with_identical_metadata_uses_the_current_resource() {
+    let root = tempfile::tempdir().unwrap();
+    let p = project(root.path());
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &p, root.path());
+    let target = renderer.capture_target(96, 64).unwrap();
+    let mut retained = sampled(&p);
+    attach(&mut retained);
+    let old_scene = retained.clone();
+    let old = renderer.capture(&retained, &target).unwrap().0;
+    // Same source revision, RGB fingerprint, dimensions and interpretation;
+    // a newly admitted inference result may still contain different samples.
+    let replacement =
+        DepthResource::new(field(1).descriptor().clone(), vec![0., 1.], None, None).unwrap();
+    let mut fresh = sampled(&p);
+    fresh
+        .attach_calibrated_depth(1, &replacement.descriptor().source, &replacement, input())
+        .unwrap();
+    let expected = renderer.capture(&fresh, &target).unwrap().0;
+    assert_ne!(
+        expected, old,
+        "the independent replacement must change physical occlusion"
+    );
+    retained
+        .attach_calibrated_depth(1, &replacement.descriptor().source, &replacement, input())
+        .unwrap();
+    assert_eq!(
+        renderer.capture(&retained, &target).unwrap().0,
+        expected,
+        "matching source metadata cannot reuse geometry from an older inference result"
+    );
+    assert_eq!(
+        renderer.capture(&old_scene, &target).unwrap().0,
+        old,
+        "previously sampled scenes must keep their immutable geometry"
+    );
 }
