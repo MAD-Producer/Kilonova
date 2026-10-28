@@ -375,6 +375,7 @@ fn every_removal_position_preserves_visible_command_identity_with_raw_buffers() 
                         (list.colors[i], points[0])
                     }
                     PaintOp::Glyph(i) => (list.glyphs[i].color, list.glyphs[i].position),
+                    PaintOp::Image(_) => unreachable!("this fixture contains only shapes and text"),
                 }).collect();
                 assert_eq!(actual, expected, "shape_bits={shape_bits} glyph_bits={glyph_bits} colors={color_count}");
                 assert_eq!(list.shapes.len(), list.colors.len());

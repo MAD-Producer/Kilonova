@@ -244,6 +244,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::RegisterAudioAsset { asset } => project.audio_assets.push(asset),
         Command::RegisterVideoAsset { asset } => project.video_assets.push(asset),
         Command::MediaAsset { action } => motion_model::media_assets::apply(project, action)?,
+        Command::ProjectLibrary { action } => motion_model::project_library::apply(project, action)?,
         Command::SetAudio {
             object,
             volume,

@@ -77,6 +77,7 @@ pub enum Command {
         asset: crate::VideoAsset,
     },
     MediaAsset { action: crate::media_assets::AssetAction },
+    ProjectLibrary { action: crate::LibraryAction },
     SetAudio {
         object: u64,
         #[serde(default)]
@@ -333,7 +334,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        if matches!(self, Self::ApplyAnimationPreset { .. }) { return true; }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

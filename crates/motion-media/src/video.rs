@@ -1,5 +1,6 @@
 //! Streaming source transactions; platform probing is supplied by the Android backend.
 use crate::progress::checked_progress;
+use crate::publication::ImportTarget;
 use crate::{contained_dir, Result};
 use motion_model::{AudioAsset, Command, Content, EditSink, Layer, LayerTimeline, VideoAsset, VideoClip};
 use serde::Serialize;
@@ -377,13 +378,17 @@ impl VideoJobs {
         Ok(initial)
     }
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<VideoTaskStatus> {
-        self.commit_target(id, engine, None)
+        self.commit_target(id, engine, ImportTarget::Layer)
     }
     /// Keep all existing clips and publish a validated replacement as one edit.
     pub fn replace(&self, id: &str, engine: &mut impl EditSink, asset: u64) -> Result<VideoTaskStatus> {
-        self.commit_target(id, engine, Some(asset))
+        self.commit_target(id, engine, ImportTarget::Replace(asset))
     }
-    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<VideoTaskStatus> {
+    /// Register video and linked audio together without creating a timeline clip.
+    pub fn register(&self, id: &str, engine: &mut impl EditSink, folder: Option<u64>) -> Result<VideoTaskStatus> {
+        self.commit_target(id, engine, ImportTarget::Library(folder))
+    }
+    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: ImportTarget) -> Result<VideoTaskStatus> {
         let request: String = id.chars().take(128).collect();
         let observation = crate::task_logging::TaskLog::new(&request, "commit_video");
         observation.start();
@@ -398,7 +403,8 @@ impl VideoJobs {
         result.map(|(status, _)| status)
     }
 
-    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, target: Option<u64>) -> Result<(VideoTaskStatus, bool)> {
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, destination: ImportTarget) -> Result<(VideoTaskStatus, bool)> {
+        let target = destination.replacement();
         let task = self.task(id)?;
         // Declare owned resources before the guard so unwind releases it first.
         let mut p;
@@ -436,7 +442,7 @@ impl VideoJobs {
                     return Err("replacement video asset missing".into());
                 }
             }
-            let object = if target.is_some() { 0 } else { project
+            let object = if !destination.creates_layer() { 0 } else { project
                 .layers
                 .iter()
                 .map(|l| l.id)
@@ -490,7 +496,17 @@ impl VideoJobs {
                 } });
             } else {
                 commands.push(Command::RegisterVideoAsset { asset: p.probe.asset.clone() });
-                commands.push(Command::Add { layer });
+                match destination {
+                    ImportTarget::Layer => commands.push(Command::Add { layer }),
+                    ImportTarget::Library(folder) => {
+                        let mut items = vec![motion_model::project_library::ProjectItem::Video { id: aid }];
+                        if let Some(audio) = &p.audio { items.push(motion_model::project_library::ProjectItem::Audio { id: audio.id }); }
+                        commands.push(Command::ProjectLibrary {
+                            action: motion_model::project_library::LibraryAction::MoveItems { items, folder },
+                        });
+                    }
+                    ImportTarget::Replace(_) => unreachable!("replacement handled above"),
+                }
             }
             contained_dir(&self.root, &self.root.join("assets"))?;
             let cache = video_cache_path(&self.root, &p.probe.asset)?;
@@ -514,7 +530,7 @@ impl VideoJobs {
                 .apply_batch_saved(commands, &self.root)
                 .map_err(crate::Error::from)?;
             Ok(
-                json!({"op":if target.is_some() {"replace_media"} else {"import_media"},"kind":"video","asset":aid,"object":if target.is_some() {None} else {Some(object)},"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
+                json!({"op":destination.operation(),"kind":"video","asset":aid,"object":if destination.creates_layer() {Some(object)} else {None},"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
             )
         })();
         match result {

@@ -27,6 +27,16 @@ impl OwnedFile {
         self.close();
         self.path.take();
     }
+    /// Explicit cleanup lets a caller retain its primary failure and report a
+    /// secondary removal failure with operation/request context.
+    pub(crate) fn discard(mut self) -> io::Result<()> {
+        self.close();
+        let Some(path) = self.path.take() else { return Ok(()); };
+        match fs::remove_file(path) {
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+            result => result,
+        }
+    }
 }
 impl Drop for OwnedFile {
     fn drop(&mut self) {

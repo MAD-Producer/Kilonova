@@ -289,6 +289,11 @@ pub fn apply(project: &mut Project, action: AssetAction) -> Result<()> {
                 AssetKind::Audio => project.audio_assets.retain(|a| a.id != target.id),
                 AssetKind::Video => project.video_assets.retain(|a| a.id != target.id),
             }
+            project.library.remove_item(&match target.kind {
+                AssetKind::Image => crate::ProjectItem::Image { id: target.id },
+                AssetKind::Audio => crate::ProjectItem::Audio { id: target.id },
+                AssetKind::Video => crate::ProjectItem::Video { id: target.id },
+            });
         }
     }
     Ok(())
