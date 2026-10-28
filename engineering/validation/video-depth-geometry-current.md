@@ -74,3 +74,25 @@ not UI screenshots. Existing assertions were not modified for this increment.
 - Complex effects, masks, mattes, nesting/exposure, intersecting transparency, DOF,
   normative scene comparisons and final latest-main desktop regression remain open.
 - No Android, panel, style, UI interaction, retry or worker restart changes.
+
+
+## Rebased-main integration
+
+PR541 merged as `8f870211b77f443d785e432ba0f34f5f86e00d13` after its exact
+head passed all five required checks. Its actual Chinese squash message was
+verified through the commits API. The static image commits were replayed onto
+that main; this video increment was replayed onto the resulting static batch.
+
+The integration gate records `12f2bf0cc0f8425566c9bec061ef55e0306e7f4e`.
+It compares every recorded source hash with the accepted native gate: all crate
+sources, manifests, locked dependencies and workflow/tool sources remain identical.
+Only desktop sources changed due to the merged menu work. The gate recompiles the
+FFmpeg/AI desktop against those changes and reruns style/provenance checks, with
+source hashes unchanged after each command. It does not claim to rerun the final
+desktop unit suite or cross-platform CI for the video increment.
+
+Integration archive: `data/video-depth-main-integration-v1.zip`
+
+- SHA-256: `18ddb23fd5f90efde2421e19e88cc7d543a90d341c828848ca98683cf25bb7a4`
+- Entries: 10; every entry read back and compared byte-for-byte
+- Raw receipt: `artifacts/pr-queue/video-depth-main-integration-v1/accepted.json`
