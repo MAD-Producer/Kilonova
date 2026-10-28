@@ -74,6 +74,7 @@ pub(crate) const KEYS: &[Key] = &[
     Key::End,
     Key::Comma,
     Key::Period,
+    Key::NumpadDecimal,
     Key::BracketLeft,
     Key::BracketRight,
     Key::F4,
@@ -419,6 +420,7 @@ fn domains(entry: &Entry, chord: KeyChord) -> u8 {
                     | Command::Null
                     | Command::Adjustment
                     | Command::LastFrame
+                    | Command::AudioPreview
             ) || matches!(entry.command, Command::PreviousFrame | Command::NextFrame)
                 && (!matches!(chord.key, Key::Left | Key::Right) || chord.modifiers.control)
             {
@@ -478,6 +480,7 @@ pub(crate) fn format_chord(chord: KeyChord) -> String {
         Key::Num9 => "9".into(),
         Key::Comma => ",".into(),
         Key::Period => ".".into(),
+        Key::NumpadDecimal => "Num .".into(),
         Key::Equal => "=".into(),
         Key::Minus => "-".into(),
         Key::Semicolon => ";".into(),
