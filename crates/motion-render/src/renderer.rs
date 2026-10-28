@@ -1842,8 +1842,11 @@ impl Renderer {
         self.snapshot_encodes.clear();
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
-        let model_stats = self.prepare_models(scene, width, height)?;
-        let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
+        let (model_scene, model_stats) = match self.prepare_shared_model_scene(scene, width, height, encoder)? {
+            Some((shared, stats)) => (Some(shared), stats),
+            None => (None, self.prepare_models(scene, width, height)?),
+        };
+        let mut stats=self.encode_local(model_scene.as_ref().unwrap_or(scene),view,width,height,encoder,timestamps,preview)?;
         stats.add(child_stats);stats.add(model_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
     }
     fn resident_source_texture_bytes(&self) -> u64 {

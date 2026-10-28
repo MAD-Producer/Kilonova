@@ -5,6 +5,13 @@
 
 use crate::{ensure, Error, Result};
 use serde::{Deserialize, Serialize};
+mod calibration;
+mod projection;
+pub use calibration::{
+    CalibratedDepth, CalibrationCurve, CalibrationExtrapolation, DepthAnchor,
+    RelativeDepthCalibration,
+};
+pub use projection::{DepthProjection, ProjectedDepth};
 
 pub const MAX_DEPTH_DIMENSION: u32 = 4096;
 pub const MAX_DEPTH_PIXELS: usize = 4096 * 4096;

@@ -574,17 +574,26 @@ impl Scene {
                 }
             }
             let screen_overlay = matches!(layer.content, Content::Model { .. }) || self.is_screen_overlay(layer.id);
+            // Native model sources are already rasterized through this
+            // composition's camera. Their image-domain extent is independent
+            // of the authored model bounds used by its world transform.
+            let model_raster = matches!(layer.content, Content::Model { .. });
+            let source_size = if model_raster {
+                [self.width as f32, self.height as f32]
+            } else {
+                layer.size
+            };
             self.layers.push(DrawLayer {
                 id: layer.id,
                 model: self.node_world[order] * geometry_offset(layer, frame)? * Mat4::from_translation(vector_center),
                 size,
-                source_size: layer.size,
-                source_rect: [
+                source_size,
+                source_rect: if model_raster { [0., 0., source_size[0], source_size[1]] } else { [
                     (layer.size[0] - size[0]) * 0.5 + vector_center.x,
                     (layer.size[1] - size[1]) * 0.5 - vector_center.y,
                     size[0],
                     size[1],
-                ],
+                ] },
                 color,
                 opacity,
                 asset,

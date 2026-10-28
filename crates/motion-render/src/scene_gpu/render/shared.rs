@@ -64,6 +64,9 @@ pub struct ScenePass {
     owner: Arc<()>,
     thread: ThreadId,
     targets: Option<Targets>,
+    depth_input: Option<AdmittedTexture>,
+    depth_pipelines: std::collections::HashMap<depth_seed::Key, depth_seed::Pipeline>,
+    plane_pipelines: planes::Pipelines,
     max_draws: usize,
     // Consecutive failed pass calls; reset by any successful encode/draw.
     failures: u8,
@@ -86,6 +89,9 @@ impl ScenePass {
             owner: renderer.allocation_owner.clone(),
             thread: std::thread::current().id(),
             targets: None,
+            depth_input: None,
+            depth_pipelines: Default::default(),
+            plane_pipelines: Default::default(),
             max_draws,
             failures: 0,
         })
@@ -95,7 +101,19 @@ impl ScenePass {
         if let Some(targets) = &self.targets {
             targets.collect(&mut ledger);
         }
+        if let Some(input) = &self.depth_input {
+            input.collect_texture_resources(
+                &mut ledger,
+                "scene/shared-depth-input",
+                crate::TextureState::Retained,
+            );
+        }
         ledger
+    }
+    /// Cached native depth/MSAA attachments; an optional explicit depth input
+    /// is a separate resource reported by texture_resource_ledger.
+    pub(crate) fn attachment_bytes(&self) -> u64 {
+        self.targets.as_ref().map_or(0, Targets::bytes)
     }
     /// Actual hardware depth in the common camera's projected [0,1] space.
     /// Single-sample storage permits COPY_SRC; multisample storage has no implicit
@@ -112,6 +130,39 @@ impl ScenePass {
         instances: &[ScenePassInstance<'_>],
         frame: &ScenePassFrame,
     ) -> Result<SceneRenderStats> {
+        self.draw_inner(renderer, request, target, sources, instances, frame, None)
+    }
+    /// Explicit calibrated full-image depth in the common camera viewport.
+    pub fn draw_with_depth(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+        depth: &depth_seed::SceneDepthInput<'_>,
+    ) -> Result<SceneRenderStats> {
+        self.draw_inner(
+            renderer,
+            request,
+            target,
+            sources,
+            instances,
+            frame,
+            Some(depth),
+        )
+    }
+    fn draw_inner(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+        depth: Option<&depth_seed::SceneDepthInput<'_>>,
+    ) -> Result<SceneRenderStats> {
         let began = Instant::now();
         let result = (|| {
             self.check_owner(renderer)?;
@@ -121,8 +172,17 @@ impl ScenePass {
                     label: Some("shared scene depth and materials"),
                 },
             )?;
-            let stats =
-                self.encode_inner(renderer, &mut encoder, target, sources, instances, frame)?;
+            let stats = self.encode_inner(
+                renderer,
+                request,
+                &mut encoder,
+                target,
+                sources,
+                instances,
+                frame,
+                depth,
+                &[],
+            )?;
             renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(self.texture_resource_ledger());
                 for source in sources.iter() {
@@ -152,8 +212,81 @@ impl ScenePass {
         instances: &[ScenePassInstance<'_>],
         frame: &ScenePassFrame,
     ) -> Result<SceneRenderStats> {
+        self.encode_depth_inner(
+            renderer, request, encoder, target, sources, instances, frame, None,
+        )
+    }
+    pub fn encode_with_depth(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        encoder: &mut AllocationEncoder,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+        depth: &depth_seed::SceneDepthInput<'_>,
+    ) -> Result<SceneRenderStats> {
+        self.encode_depth_inner(
+            renderer,
+            request,
+            encoder,
+            target,
+            sources,
+            instances,
+            frame,
+            Some(depth),
+        )
+    }
+    fn encode_depth_inner(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        encoder: &mut AllocationEncoder,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+        depth: Option<&depth_seed::SceneDepthInput<'_>>,
+    ) -> Result<SceneRenderStats> {
         let began = Instant::now();
-        let result = self.encode_inner(renderer, encoder, target, sources, instances, frame);
+        let result = encoder
+            .check_owner(&renderer.allocation_owner)
+            .map_err(super::super::SceneGpuError::from)
+            .and_then(|()| {
+                self.encode_inner(
+                    renderer,
+                    request,
+                    encoder,
+                    target,
+                    sources,
+                    instances,
+                    frame,
+                    depth,
+                    &[],
+                )
+            });
+        self.observe(request, began, &result);
+        result
+    }
+    /// Internal bridge for Renderer::encode's existing encoder contract. The
+    /// enclosing allocation encoder remains alive while all native resources
+    /// are admitted; no intermediate submission or mutable raster upload occurs.
+    pub(crate) fn encode_composition(
+        &mut self,
+        renderer: &Renderer,
+        request: SceneRequest,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &RenderTarget,
+        sources: &mut [&mut GpuScene],
+        instances: &[ScenePassInstance<'_>],
+        frame: &ScenePassFrame,
+        planes: &[ScenePlane],
+    ) -> Result<SceneRenderStats> {
+        let began = Instant::now();
+        let result = self.encode_inner(
+            renderer, request, encoder, target, sources, instances, frame, None, planes,
+        );
         self.observe(request, began, &result);
         result
     }
@@ -200,15 +333,17 @@ impl ScenePass {
     fn encode_inner(
         &mut self,
         renderer: &Renderer,
-        encoder: &mut AllocationEncoder,
+        request: SceneRequest,
+        encoder: &mut wgpu::CommandEncoder,
         target: &RenderTarget,
         sources: &mut [&mut GpuScene],
         instances: &[ScenePassInstance<'_>],
         frame: &ScenePassFrame,
+        depth: Option<&depth_seed::SceneDepthInput<'_>>,
+        planes: &[ScenePlane],
     ) -> Result<SceneRenderStats> {
         self.check_owner(renderer)?;
         renderer.check_health()?;
-        encoder.check_owner(&renderer.allocation_owner)?;
         target.check_owner(renderer)?;
         let texture: &wgpu::Texture = target.texture();
         if target.width != texture.width()
@@ -226,13 +361,24 @@ impl ScenePass {
         common.background = frame.background;
         validate_frame(&common)?;
         validate_viewport(frame.viewport, target)?;
-        if instances.len() > self.max_draws {
+        if instances
+            .len()
+            .checked_add(planes.len())
+            .is_none_or(|count| count > self.max_draws)
+        {
             return Err(invalid(
                 "shared_instances",
                 0,
                 "combined instance limit exceeded",
             ));
         }
+        // Validate source/camera/units and admit the immutable field before mesh
+        // uniforms, queue writes to existing outputs, or target recording.
+        let seed = depth
+            .map(|input| {
+                depth_seed::prepare(renderer, &mut self.depth_pipelines, target, frame, input)
+            })
+            .transpose()?;
         for (index, instance) in instances.iter().enumerate() {
             let source = sources.get(instance.source).ok_or_else(|| {
                 invalid(
@@ -245,11 +391,25 @@ impl ScenePass {
                 .check_owner(renderer)
                 .map_err(|cause| instance_error(index, instance, cause))?;
         }
+        let planes = planes::prepare(
+            renderer,
+            request,
+            texture.format(),
+            frame,
+            planes,
+            &mut self.plane_pipelines,
+        )?;
         let mut prepared = Vec::new();
         prepared
             .try_reserve_exact(instances.len())
             .map_err(|_| invalid("shared_instances", 0, "instance staging allocation failed"))?;
         let mut stats = SceneRenderStats::default();
+        if let Some(planes) = &planes {
+            stats.draws = planes.count;
+            stats.triangles = planes.count as u64 * 2;
+            stats.plane_vertex_bytes = planes.vertices.size();
+        }
+        stats.depth_input_bytes = seed.as_ref().map_or(0, |s| s.bytes);
         let mut used_sources = HashSet::new();
         for (index, instance) in instances.iter().enumerate() {
             let source = &mut sources[instance.source];
@@ -345,6 +505,9 @@ impl ScenePass {
             .as_ref()
             .or(self.targets.as_ref())
             .ok_or_else(|| invalid("shared_targets", 0, "shared attachments missing"))?;
+        if let Some((seed, input)) = seed.as_ref().zip(depth) {
+            depth_seed::upload(renderer, seed, input)?;
+        }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("globally ordered shared scene pass"),
@@ -377,6 +540,18 @@ impl ScenePass {
             if let Some([x, y, w, h]) = frame.viewport {
                 pass.set_viewport(x, y, w, h, 0., 1.);
             }
+            if let Some(seed) = &seed {
+                pass.set_pipeline(&seed.pipeline);
+                pass.set_bind_group(0, &seed.group, &[]);
+                pass.draw(0..3, 0..1);
+            }
+            if let Some(planes) = &planes {
+                pass.set_pipeline(&planes.pipeline);
+                pass.set_vertex_buffer(0, planes.vertices.slice(..));
+                for index in 0..planes.count as u32 {
+                    pass.draw(index * 6..(index + 1) * 6, 0..1);
+                }
+            }
             for (instance_index, item_index, group) in order {
                 let prepared = &prepared[instance_index];
                 let item = &prepared.items[item_index];
@@ -405,6 +580,7 @@ impl ScenePass {
         if let Some(targets) = replacement {
             self.targets = Some(targets);
         }
+        self.depth_input = seed.map(|seed| seed.texture);
         Ok(stats)
     }
 }

@@ -1210,7 +1210,9 @@ impl PlanBuilder {
             let source_size = semantic.layers[layer_index].source_size;
             let mut region = semantic.region(semantic.layers[layer_index].source)?;
             let mut materialized = false;
-            let mut overlay = false;
+            // Model input pixels already contain the sampled camera and world
+            // transform. Effects and retained copies stay in composition space.
+            let mut overlay = layer.model_source.is_some();
             let mut additive = false;
             if let Some(node) = semantic.layers[layer_index].mask {
                 let begin = self.frame.passes.len();
