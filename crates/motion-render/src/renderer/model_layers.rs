@@ -19,9 +19,32 @@ pub(super) struct Source {
     root: PathBuf,
     scene: Arc<motion_scene::Scene>,
 }
+/// Immutable, bounded CPU model sources, independent of GPU device creation.
+/// Clones share the catalog and parsed scenes, including frozen resources.
+#[derive(Clone, Default)]
+pub struct ModelSourceCatalog {
+    sources: Arc<HashMap<u64, Source>>,
+}
+impl ModelSourceCatalog {
+    /// Prepare a replacement atomically. Unchanged sources reuse the previous
+    /// owned scene without reopening files; failures leave `previous` intact.
+    pub fn prepare(project: &Project, root: &Path, previous: &Self) -> Result<Self> {
+        Ok(Self { sources: prepare_catalog(project, root, &previous.sources, MAX_CATALOG_RETAINED_BYTES)? })
+    }
+    /// No IO, parsing or GPU allocation occurs when resolving a sampled source.
+    pub fn scene(&self, source: u64) -> Option<&Arc<motion_scene::Scene>> {
+        self.sources.get(&source).map(|source| &source.scene)
+    }
+    /// Accounted retained payload; this is not a process RAM or transient cap.
+    pub fn retained_bytes(&self) -> usize {
+        self.sources.values().map(|source| source.scene.retained_bytes()).sum()
+    }
+    pub fn len(&self) -> usize { self.sources.len() }
+    pub fn is_empty(&self) -> bool { self.sources.is_empty() }
+}
 #[derive(Default)]
 pub(super) struct Models {
-    sources: HashMap<u64, Source>,
+    sources: Arc<HashMap<u64, Source>>,
     gpu: HashMap<u64, GpuScene>,
     targets: HashMap<u64, RenderTarget>,
     shared: [Option<crate::scene_gpu::ScenePass>; 2],
@@ -47,7 +70,7 @@ impl Models {
     pub fn source_texture_bytes(&self) -> u64 {
         self.gpu.values().map(GpuScene::source_texture_bytes).sum()
     }
-    pub fn install(&mut self, sources: HashMap<u64, Source>) {
+    pub fn install(&mut self, sources: Arc<HashMap<u64, Source>>) {
         self.gpu.retain(|id, _| {
             self.sources
                 .get(id)
@@ -70,7 +93,7 @@ pub(super) fn prepare_sources(
     project: &Project,
     root: &Path,
     previous: &Models,
-) -> Result<HashMap<u64, Source>> {
+) -> Result<Arc<HashMap<u64, Source>>> {
     prepare_sources_with_limit(project, root, previous, MAX_CATALOG_RETAINED_BYTES)
 }
 fn prepare_sources_with_limit(
@@ -78,12 +101,20 @@ fn prepare_sources_with_limit(
     root: &Path,
     previous: &Models,
     retained_limit: usize,
-) -> Result<HashMap<u64, Source>> {
+) -> Result<Arc<HashMap<u64, Source>>> {
+    prepare_catalog(project, root, &previous.sources, retained_limit)
+}
+fn prepare_catalog(
+    project: &Project,
+    root: &Path,
+    previous: &HashMap<u64, Source>,
+    retained_limit: usize,
+) -> Result<Arc<HashMap<u64, Source>>> {
     let began = Instant::now();
     let result = (|| {
         let mut sources = HashMap::new();
         if project.model_assets.is_empty() {
-            return Ok(sources);
+            return Ok(Arc::new(sources));
         }
         let total = project
             .model_assets
@@ -102,11 +133,13 @@ fn prepare_sources_with_limit(
         let root = root.canonicalize()?;
         let mut retained = 0usize;
         for asset in &project.model_assets {
+            if sources.contains_key(&asset.id) {
+                return Err(RenderError::Invalid(format!("model source={} duplicate catalog ID", asset.id)));
+            }
             asset
                 .validate()
                 .map_err(|e| RenderError::Invalid(e.to_string()))?;
             if let Some(source) = previous
-                .sources
                 .get(&asset.id)
                 .filter(|source| source.asset == *asset && source.root == root)
             {
@@ -202,7 +235,7 @@ fn prepare_sources_with_limit(
                 }
             }
         }
-        Ok(sources)
+        Ok(Arc::new(sources))
     })();
     if let Err(error) = &result {
         let cause: String = error.to_string().chars().take(1024).collect();
@@ -225,6 +258,15 @@ fn charge_retained(current: usize, bytes: usize, limit: usize, source: u64) -> R
 }
 
 impl Renderer {
+    /// Share the exact CPU catalog used by GPU uploads, without copying payloads.
+    pub fn model_source_catalog(&self) -> ModelSourceCatalog {
+        ModelSourceCatalog { sources: self.models.sources.clone() }
+    }
+    /// Adopt a catalog already prepared by the host before device creation.
+    /// Subsequent asset synchronization still validates authored model references.
+    pub fn install_model_source_catalog(&mut self, catalog: ModelSourceCatalog) {
+        self.models.install(catalog.sources);
+    }
     pub(super) fn prepare_models(
         &mut self,
         scene: &Scene,

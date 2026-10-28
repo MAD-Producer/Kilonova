@@ -11,6 +11,7 @@ mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
 mod model_layers;
+pub use model_layers::ModelSourceCatalog;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
