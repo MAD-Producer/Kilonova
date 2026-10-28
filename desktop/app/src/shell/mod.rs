@@ -20,6 +20,8 @@ pub(crate) mod audio_analysis;
 mod nodes;
 mod node_image_drop;
 mod presentation;
+#[cfg(test)]
+mod audio_preview_tests;
 pub(crate) mod pointer_position;
 #[cfg(all(test, target_os = "windows"))]
 mod native_input_tests;
