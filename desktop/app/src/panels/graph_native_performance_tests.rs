@@ -134,7 +134,7 @@ fn configure(shell: &mut Shell, catalogue: &Value, kind: Kind, speed: bool, zoom
             edge: dock::Edge::Right,
             split: 0.25,
             first: Box::new(Node::dock(Panel::Info.dock())),
-            second: Box::new(Node::dock(Panel::Viewer.dock())),
+            second: Box::new(Node::dock(Panel::Composition.dock())),
         }),
     };
     let mut p = Panels {
@@ -225,7 +225,9 @@ fn frame(shell: &mut Shell, events: &mut EventLoop<()>, root: &Path, value: f64)
         );
     }
     let p = performance(&shell.engine);
-    serde_json::json!({"frame":value,"seek_reply_us":seek_us,"ui_build_and_atlas_us":build_us,"present_reply_us":reply_us,"present_polls":polls,"info":p})
+    serde_json::json!({"frame":value,"seek_reply_us":seek_us,"ui_build_and_atlas_us":build_us,"present_reply_us":reply_us,"present_polls":polls,
+        "effective_timeline_zoom":shell.panels.timeline.zoom,"effective_timeline_offset":shell.panels.timeline.offset,
+        "timeline_graph_mode":shell.panels.timeline.graph_mode,"info":p})
 }
 
 #[test]
@@ -271,6 +273,9 @@ fn actual_native_graph_costs_match_info_counters() {
         .engine
         .plugin(serde_json::json!({"op":"catalogue"}).to_string())
         .unwrap();
+    assert!(catalogue["packages"].as_array().unwrap().iter().any(|entry|
+        entry["hash"].as_str()==Some(project.layers[0].effects[0].hash.as_str())),
+        "the measured authored effect must be in the real worker catalogue");
     let mut events = EventLoop::builder().with_any_thread(true).build().unwrap();
     #[allow(deprecated)]
     let window = Arc::new(
@@ -380,6 +385,6 @@ fn actual_native_graph_costs_match_info_counters() {
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
         "debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Viewer+Info+graph layout and owned procedural fixture. Direct worker seek per frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline graphs also x128. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Direct worker seek per frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }
