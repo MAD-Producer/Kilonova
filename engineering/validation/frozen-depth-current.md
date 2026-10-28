@@ -1,6 +1,6 @@
 # Frozen calibrated-image depth acceptance
 
-Issue: #87. Accepted implementation: `82af19eea61245ab81c128080e77691079bd6390`.
+Issue: #87. Full host baseline implementation: `82af19eea61245ab81c128080e77691079bd6390`.
 Main integration baseline: `72f1037aea7a71047f1920347756d63dedf3e41b`.
 
 This increment retains independently admitted image-depth results in export
@@ -40,7 +40,7 @@ not migrated. Depth is hashed from a private copy before parsing, then rebound
 only after the copied image and frozen project mapping pass verification.
 Unsupported calibrated-depth exposure and nested/video routing fail explicitly.
 
-## Validation
+## Full host baseline validation
 
 - Host library and integration targets: 217 passed, zero failed/ignored
 - Full FFmpeg media library including existing manual timing test: 56 passed, zero failed/ignored
@@ -59,6 +59,44 @@ Archive: [frozen-depth-native-v1.zip](data/frozen-depth-native-v1.zip).
 SHA-256: `b3a4937a8ebe25494a9e2e01f70d4ac6d031ec9524617db4cbb4db9de8b19150`.
 The archive contains the controller, commands, original stdout/stderr, source
 hashes, changed source files, comparison reports and actual PNG/MP4 outputs.
+
+## Current-source boundary and CI revalidation
+
+Accepted implementation: `3f34b45c750ca36a161951133096c41f92da9759`; same main baseline as above.
+The baseline's complete 20-target host suite passed before the following fix.
+This current-source gate reruns the entire host library and both depth integration
+targets, the full media library, feature configurations and workflow policy.
+It does not claim to rerun the other host integration targets or final workspace.
+
+A real regression reproduced admission of two layers with the same source key
+but different expected RGB fingerprints. The old verifier skipped the second
+layer. Verification now deduplicates only matching key, prepared fingerprint and
+asset mapping. The added actual-image regression failed before the fix and passes
+afterward. The first red invocation selected zero tests after a patch failed to
+apply; it is retained as an invocation error, never counted as a product result.
+
+- Entire host library: 107 passed; depth session: 15 passed; depth video: 13 passed
+- Full FFmpeg media library including manual timing: 56 passed
+- Workflow policy: 14 passed
+- No-FFmpeg calibrated PNG and AI-disabled scalar framing: one passed each
+- AI-disabled media and FFmpeg/AI desktop compilation passed
+- Provenance and panel style checks passed
+- Zero failed or ignored tests; source hashes unchanged after every command
+- The configuration tests overlap the suites above; counts must not be added
+- Four calibrated-depth MP4s and four imported-camera MP4s retained
+- All 31 decoded frames of every movie compared, with eight reports per family
+
+The maintained-desktop workflow now explicitly selects the media crate's
+`ai-depth` feature. Enabling only the host dependency did not select the media
+crate's gated tests. PR failures upload actual PNG/MP4/comparison evidence;
+the main FFmpeg media gate retains it as well. PRs still do not build/package the
+FFmpeg release chain. Remote cross-platform acceptance is pending publication.
+
+Current-source archive: [frozen-depth-native-v2.zip](data/frozen-depth-native-v2.zip).
+SHA-256: `73ed3bc14db3b590a81d34e8e6f94e59a4923e41bb9fc8a52bd3ac2812a29ea2`.
+All archive entries were read back and byte-compared with their originals.
+It includes original logs, controller, source hashes, changed source, rendered
+outputs, comparison reports and both red-invocation records.
 
 ## Remaining #87 scope
 
