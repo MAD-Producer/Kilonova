@@ -12,11 +12,11 @@ use std::sync::Arc;
 /// Validate once per immutable document revision, outside per-frame evaluation.
 /// Clones share the same snapshot, including for nested exposure tasks.
 #[derive(Clone)]
-pub struct ExposureDocument(Arc<Project>);
+pub struct ExposureDocument(Arc<Project>, crate::ModelSourceCatalog);
 impl ExposureDocument {
     pub fn new(project: Arc<Project>) -> Result<Self> {
         project.validate()?;
-        Ok(Self(project))
+        Ok(Self(project, Default::default()))
     }
     pub fn source(&self) -> &Arc<Project> {
         &self.0
@@ -196,7 +196,8 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             })
             .collect::<Result<Vec<_>>>()?;
         let clock = ExposureClock::new(frame, &shutters, preview)?;
-        let scene = Scene::new(project)?;
+        let mut scene = Scene::new(project)?;
+        scene.set_model_source_catalog(document.1.clone());
         let mut task = Self {
             document,
             root,
@@ -221,6 +222,16 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
     }
     pub fn document(&self) -> &Arc<Project> {
         self.document.source()
+    }
+    /// Freeze source ownership before the first receiver/phase is evaluated.
+    pub fn set_model_source_catalog(&mut self, catalog: crate::ModelSourceCatalog) -> Result<()> {
+        if self.document.1.shares_sources_with(&catalog) { return Ok(()); }
+        if !self.at_start() { return self.protocol("model catalog cannot change after exposure sampling starts"); }
+        self.document.1 = catalog.clone();
+        self.scene.set_model_source_catalog(catalog);
+        self.scene_frame = None;
+        self.center_scene = None;
+        Ok(())
     }
     pub(crate) fn child_factory(&self) -> (ExposureDocument, Arc<E>, ExposureScope) {
         (
@@ -301,10 +312,11 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             let root = self.root.as_ref().unwrap_or(&self.document);
             let scene = if centered {
                 if self.center_scene.is_none() {
-                    let scene = match Scene::new(root) {
+                    let mut scene = match Scene::new(root) {
                         Ok(scene) => scene,
                         Err(error) => { self.failed = true; return Err(error); }
                     };
+                    scene.set_model_source_catalog(self.document.1.clone());
                     self.center_scene = Some(Box::new(scene));
                 }
                 self.center_scene.as_deref_mut().ok_or_else(||

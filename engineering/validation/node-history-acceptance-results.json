@@ -1,0 +1,122 @@
+{
+  "scope": "#527 合并后原生节点撤销验收时序修正",
+  "base": "a8b5ac1938d956f2aa3da25e7400fcb203234f24",
+  "source": {
+    "desktop/app/src/shell/acceptance.rs": "a84561ad4e23a9bc61c220075e262122da382dbd19dcb281fc23ea3f44b18c5c"
+  },
+  "validation": {
+    "platform": "Windows x86_64, Vulkan, release + ffmpeg",
+    "reports": {
+      "en": {
+        "ok": true,
+        "nodeLayerChecks": {
+          "layerGraphChangedPixels": true,
+          "layerIdentityPreservedPixels": true,
+          "layerInvalidGraphKeptValidPixels": true,
+          "layerOfflinePackageRestoresPixels": true,
+          "layerPortPreviewIsObservational": true,
+          "layerProjectUndoRedoRestoresSourceAndPixels": true,
+          "layerPublicParameterChangedPixels": true,
+          "layerSourceAndRuntimePackedAndReopened": true
+        },
+        "sha256": "88b2017132f7489eec51e38d94edc21fecd713f5784932bba60e195797963c19"
+      },
+      "zh": {
+        "ok": true,
+        "nodeLayerChecks": {
+          "layerGraphChangedPixels": true,
+          "layerIdentityPreservedPixels": true,
+          "layerInvalidGraphKeptValidPixels": true,
+          "layerOfflinePackageRestoresPixels": true,
+          "layerPortPreviewIsObservational": true,
+          "layerProjectUndoRedoRestoresSourceAndPixels": true,
+          "layerPublicParameterChangedPixels": true,
+          "layerSourceAndRuntimePackedAndReopened": true
+        },
+        "sha256": "f70ab34787fa30b977a409a10de5d3c27ae1da26fdbe5ef75f44608738f4edeb"
+      }
+    }
+  },
+  "limits": [
+    "本机通过不能替代 Linux/macOS CI",
+    "debug 缺失 DLL 与 debug smoke 超时的首次失败保留；使用 CI 相同 release 配置验证，没有延长期限",
+    "未修改产品代码、断言、错误返回或重试策略"
+  ],
+  "archive": {
+    "path": "engineering/validation/data/node-history-acceptance-evidence.zip",
+    "bytes": 23941,
+    "sha256": "7a2e72d6c0092193fc185398aeb85d3183b94db60371bb92a046c7408b9f2a39",
+    "files": [
+      {
+        "path": "node-history-acceptance/en-bundle.stderr.log",
+        "bytes": 704,
+        "sha256": "b2dbf52e72532110a5c0678ffb5e14225f324e5af385f8b9dbd4fbeaecce8670"
+      },
+      {
+        "path": "node-history-acceptance/en-bundle.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/en-cargo.stderr.log",
+        "bytes": 12048,
+        "sha256": "89af7d7894a8b121359bb2cea0bd0969b5ef174813284893881afa9a4882cfe5"
+      },
+      {
+        "path": "node-history-acceptance/en-cargo.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/en-release.json",
+        "bytes": 41643,
+        "sha256": "88b2017132f7489eec51e38d94edc21fecd713f5784932bba60e195797963c19"
+      },
+      {
+        "path": "node-history-acceptance/en-release.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/en-release.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/en.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/en.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/zh-release.json",
+        "bytes": 41641,
+        "sha256": "f70ab34787fa30b977a409a10de5d3c27ae1da26fdbe5ef75f44608738f4edeb"
+      },
+      {
+        "path": "node-history-acceptance/zh-release.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "node-history-acceptance/zh-release.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "main-node-image-integration-failed.log",
+        "bytes": 6971,
+        "sha256": "ce4a662afc8490c9d7bc11158a18bee0d7b6cea0fcd23f71a8063529808b65fa"
+      },
+      {
+        "path": "node-history-acceptance-release-resume-build.log",
+        "bytes": 13512,
+        "sha256": "18b38ce7573d48b2c6d4c85a584cd59aea85c92c083c706c9896f0a51eb67234"
+      }
+    ]
+  }
+}

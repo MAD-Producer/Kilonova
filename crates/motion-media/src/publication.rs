@@ -10,6 +10,27 @@ use std::{
 
 static NONCE: AtomicU64 = AtomicU64::new(1);
 
+/// File publication is shared; the edit decides whether a clip is created.
+#[derive(Clone, Copy)]
+pub(crate) enum ImportTarget {
+    Layer,
+    Replace(u64),
+    Library(Option<u64>),
+}
+impl ImportTarget {
+    pub fn replacement(self) -> Option<u64> {
+        match self { Self::Replace(id) => Some(id), _ => None }
+    }
+    pub fn creates_layer(self) -> bool { matches!(self, Self::Layer) }
+    pub fn operation(self) -> &'static str {
+        match self {
+            Self::Layer => "import_media",
+            Self::Replace(_) => "replace_media",
+            Self::Library(_) => "register_media",
+        }
+    }
+}
+
 struct Entry {
     destination: PathBuf,
     backup: Option<PathBuf>,

@@ -70,13 +70,23 @@ fn validate_presets(registry: &motion_effects::Registry, project: &motion_core::
 
 // The model rolls back before returning a failed preparation. Keep the host's
 // native error separately rather than flattening it to the model callback type.
+#[cfg(test)]
 fn apply_prepared(
     engine: &mut motion_core::Engine,
     commands: Vec<Command>,
     prepare: impl FnOnce(&motion_core::Project) -> Result<()>,
 ) -> Result<Vec<motion_core::EditResult>> {
+    apply_prepared_with_cameras(engine, commands, &motion_core::AuthoredCameraSampler, prepare)
+}
+
+fn apply_prepared_with_cameras(
+    engine: &mut motion_core::Engine,
+    commands: Vec<Command>,
+    cameras: &dyn motion_core::CameraSampler,
+    prepare: impl FnOnce(&motion_core::Project) -> Result<()>,
+) -> Result<Vec<motion_core::EditResult>> {
     let mut primary = None;
-    engine.apply_batch_with_prepare(commands, |project| {
+    engine.apply_batch_with_cameras_and_prepare(commands, cameras, |project| {
         prepare(project).map_err(|error| {
             let bridge = motion_core::Error::Invalid(error.to_string());
             primary = Some(error);
@@ -92,31 +102,69 @@ impl Session {
         self.apply_command_batch(commands)
     }
     pub fn apply_command_batch(&mut self, commands: Vec<Command>) -> Result<Value> {
+        fn calibration_targets(command: &Command, composition: &str, targets: &mut std::collections::BTreeMap<(String, u64), bool>) {
+            match command {
+                Command::InComposition { composition, command } => calibration_targets(command, composition, targets),
+                Command::DepthCalibration { object, calibration } => { targets.insert((composition.to_owned(), *object), calibration.is_some()); },
+                _ => {},
+            }
+        }
+        let mut depth_targets = std::collections::BTreeMap::new();
+        for command in &commands { calibration_targets(command, &self.engine.project().composition_id, &mut depth_targets); }
+        let depth_targets: Vec<_> = depth_targets.into_iter().filter_map(|(target, selected)| selected.then_some(target)).collect();
+        #[cfg(feature = "ai-depth")]
+        let depth_sample = if depth_targets.is_empty() { None } else { self.depth_calibration_sample()? };
+        fn selects_camera(command: &Command) -> bool {
+            match command {
+                Command::CameraImported { .. } => true,
+                Command::InComposition { command, .. } => selects_camera(command),
+                _ => false,
+            }
+        }
         let mut registry = None;
         for command in &commands {
             restore_command_runtimes(command, &self.root, &self.effects.registry, &mut registry)?;
             validate_presets(registry.as_ref().unwrap_or(&self.effects.registry), self.engine.project(), command)?;
         }
         let resources = commands.iter().any(Command::changes_resources);
+        let camera_sources = resources || commands.iter().any(selects_camera);
+        let previous_models = self.scene.model_source_catalog();
+        let mut candidate_models = None;
         let previous_nodes = self.engine.project().node_resources()?;
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
-        let results = apply_prepared(&mut self.engine, commands, |project| {
+        let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
+                for (composition, object) in &depth_targets {
+                    let view = project.composition_view(composition)?;
+                    if let Some(_calibration) = view.layers.iter().find(|layer| layer.id == *object)
+                        .and_then(|layer| layer.depth_calibration.as_ref()) {
+                        #[cfg(feature = "ai-depth")]
+                        depth_sample.as_ref().ok_or("depth calibration requires an installed current result")?
+                            .validate(project, composition, *object, _calibration)?;
+                        #[cfg(not(feature = "ai-depth"))]
+                        return Err("depth calibration authoring requires an enabled native depth backend".into());
+                    }
+                }
                 if project.node_resources()? != previous_nodes {
                     for resource in project.node_resources()? { motion_core::storage::open_node_resource(&self.root, &resource)?; }
+                }
+                if camera_sources {
+                    candidate_models = Some(motion_render::ModelSourceCatalog::prepare(project, &self.root, &previous_models)?);
                 }
                 if resources {
                     motion_core::storage::validate_assets(&self.root, project)?;
                     if let Some(g) = &mut self.graphics {
                         // configure_assets resolves every source before changing
                         // its catalog/caches, so Err leaves the old renderer intact.
-                        g.renderer.configure_assets(project, &self.root)
+                        g.renderer.configure_assets_with_model_catalog(project, &self.root,
+                            candidate_models.as_ref().unwrap_or(&previous_models))
                             .map_err(crate::Error::from)?;
                     }
                 }
                 Ok(())
             })?;
+        if let Some(catalog) = candidate_models { self.scene.set_model_source_catalog(catalog); }
         if let Some(registry) = registry {
             self.effects.set_registry(registry.clone());
             if let Some(g) = &mut self.graphics { g.renderer.set_effect_registry(registry); }
@@ -188,7 +236,8 @@ pub fn drag(
             [dx as f32 / scale, dy as f32 / scale, 0.0]
         };
         let offset =
-            motion_core::scene_prefix_delta(s.engine.project(), object as u64, s.frame, offset)
+            motion_core::scene_prefix_delta_with_cameras(s.engine.project(), object as u64, s.frame,
+                offset, &s.scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
         let frame = s.frame.floor() as u32;
         let commands = if separated {
@@ -264,7 +313,7 @@ pub fn history(id: i64, op: i32) -> Result<Value> {
         }
         if let Some(g) = &mut s.graphics {
             g.renderer
-                .configure_assets(s.engine.project(), &s.root)
+                .configure_assets_with_model_catalog(s.engine.project(), &s.root, &s.scene.model_source_catalog())
                 .map_err(crate::Error::from)?;
         }
         if let Err(error) = s.sample() {

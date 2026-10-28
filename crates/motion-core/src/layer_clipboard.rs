@@ -51,6 +51,11 @@ fn remap_content(
     match &mut layer.content {
         Content::Image { asset } => *asset = mapped(assets, *asset, "image")?,
         Content::Model { model } => model.asset = mapped(assets, model.asset, "model")?,
+        Content::Camera { camera } => {
+            if let Some(binding) = &mut camera.imported {
+                binding.asset = mapped(assets, binding.asset, "imported camera")?;
+            }
+        }
         Content::Text {
             font, raster_asset, ..
         } => {
@@ -73,6 +78,9 @@ fn remap_content(
                 })?;
         }
         _ => {}
+    }
+    if let Some(calibration) = &mut layer.depth_calibration {
+        calibration.remap_asset(mapped(assets, calibration.asset(), "calibrated source")?);
     }
     for effect in &mut layer.effects {
         if let Some(EffectImageInput::Asset { asset }) = &mut effect.image_input {
@@ -221,6 +229,9 @@ pub(crate) fn paste(
     for source in &view.compositions {
         let mut composition = (*source).clone();
         composition.id = compositions[&source.id].clone();
+        if let Some(binding) = &mut composition.camera.imported {
+            binding.asset = mapped(&assets, binding.asset, "composition imported camera")?;
+        }
         for layer in &mut composition.layers {
             remap_content(layer, &assets, &fonts, &compositions)?;
         }
@@ -280,7 +291,8 @@ pub(crate) fn paste(
     })
 }
 
-pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Result<()> {
+pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32,
+    cameras: &dyn crate::CameraSampler) -> Result<()> {
     ensure(frame < project.frames, "cut frame outside composition")?;
     let ids: BTreeSet<_> = objects.iter().copied().collect();
     ensure(
@@ -318,7 +330,7 @@ pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Re
         .map(|l| l.id)
         .collect();
     for child in children {
-        crate::hierarchy::reparent(project, child, None, frame)?;
+        crate::hierarchy::reparent(project, child, None, frame, cameras)?;
     }
     if project
         .camera
@@ -327,7 +339,7 @@ pub(crate) fn remove(project: &mut Project, objects: Vec<u64>, frame: u32) -> Re
         .and_then(|p| p.object)
         .is_some_and(|id| ids.contains(&id))
     {
-        crate::hierarchy::reparent(project, 0, None, frame)?;
+        crate::hierarchy::reparent(project, 0, None, frame, cameras)?;
     }
     project.layers.retain(|l| !ids.contains(&l.id));
     project

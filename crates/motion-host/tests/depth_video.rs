@@ -425,6 +425,36 @@ fn done(session: &mut Session, count: u64) {
 }
 
 #[test]
+fn video_prepared_fingerprint_is_computed_after_bt709_to_srgb_conversion() {
+    for (mode, digest) in [
+        (
+            Mode::GrayBt709,
+            "d83feade52615bb7344abd4ddb5fa5ae6b5d3b007421f6161fef468a3748464f",
+        ),
+        (
+            Mode::GraySrgb,
+            "c0321cc20fccec0a81e5dff75fed8350de8e89712104513aadc6403db9109329",
+        ),
+    ] {
+        let mut f = fixture(mode);
+        request(&mut f.session).unwrap();
+        f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
+        done(&mut f.session, 1);
+        f.session.poll_depth().unwrap().unwrap();
+        let identity = f.session.depth_input_fingerprint().unwrap().unwrap();
+        assert_eq!(identity.rgb_size, [3, 2]);
+        let actual = identity
+            .rgb_sha256
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        assert_eq!(actual, digest);
+        f.session.cancel_depth().unwrap();
+        assert!(f.session.depth_input_fingerprint().unwrap().is_none());
+    }
+}
+
+#[test]
 fn variable_rate_sample_uses_actual_decoder_pts_and_explicit_crop_orientation() {
     let mut f = fixture(Mode::Rgba);
     f.session.frame = 1.;

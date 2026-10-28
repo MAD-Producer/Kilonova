@@ -69,11 +69,21 @@ pub fn matrices(
     world: &mut Vec<Mat4>,
     states: &mut Vec<u8>,
 ) -> Result<()> {
+    matrices_with_cameras(p, frame, world, states, &crate::AuthoredCameraSampler, &mut Vec::new())
+}
+/// Resolve source cameras before their spatial children. The existing state
+/// machine also detects cycles involving an imported camera's authored parent.
+pub fn matrices_with_cameras(
+    p: &Project, frame: f64, world: &mut Vec<Mat4>, states: &mut Vec<u8>,
+    sampler: &dyn crate::CameraSampler, cameras: &mut Vec<Option<crate::CameraSample>>,
+) -> Result<()> {
     world.resize(p.layers.len() + 1, Mat4::IDENTITY);
     states.resize(p.layers.len() + 1, 0);
     states.fill(0);
+    cameras.resize(p.layers.len() + 1, None);
+    cameras.fill(None);
     for i in 0..world.len() {
-        node(p, frame, i, world, states)?;
+        node(p, frame, i, world, states, sampler, Some(cameras))?;
     }
     Ok(())
 }
@@ -83,7 +93,7 @@ pub(crate) fn matrix_for(p: &Project, frame: f64, index: usize, world: &mut Vec<
     world.resize(p.layers.len() + 1, Mat4::IDENTITY);
     states.resize(p.layers.len() + 1, 0);
     states.fill(0);
-    node(p, frame, index, world, states)
+    node(p, frame, index, world, states, &crate::AuthoredCameraSampler, None)
 }
 fn node(
     p: &Project,
@@ -91,6 +101,8 @@ fn node(
     index: usize,
     world: &mut [Mat4],
     states: &mut [u8],
+    sampler: &dyn crate::CameraSampler,
+    mut cameras: Option<&mut [Option<crate::CameraSample>]>,
 ) -> Result<Mat4> {
     if states[index] == 2 {
         return Ok(world[index]);
@@ -112,7 +124,7 @@ fn node(
                     .position(|l| l.id == object)
                     .ok_or(Error::Missing(object))?
             };
-            node(p, frame, index, world, states)?
+            node(p, frame, index, world, states, sampler, cameras.as_deref_mut())?
         } else {
             Mat4::IDENTITY
         };
@@ -131,15 +143,16 @@ fn node(
             implicit = crate::Camera::new(p.width, p.height);
             (&implicit, frame)
         };
-        let pose = camera.pose_parented(frame, p.width, p.height, prefix)?;
-        // Recover the camera's orthonormal world basis from its projection/view.
-        let projection = Mat4::perspective_rh(
-            camera.fov.sample(frame)?.clamp(10.0, 120.0).to_radians(),
-            p.width as f32 / p.height as f32,
-            0.5,
-            100_000.0,
-        );
-        (projection.inverse() * pose.view_projection).inverse()
+        if let Some(binding) = &camera.imported {
+            let asset = p.model_assets.iter().find(|asset| asset.id == binding.asset)
+                .ok_or_else(|| Error::Invalid(format!("imported_camera source={} phase=binding: managed source missing", binding.asset)))?;
+            sampler.validate_source(asset).map_err(|cause| Error::Invalid(format!(
+                "imported_camera source={} scene={} node={} phase=binding frame={frame}: {cause}",
+                binding.asset, binding.scene, binding.node)))?;
+        }
+        let sampled = sampler.sample(camera, frame, p.fps, [p.width, p.height], prefix)?;
+        if let Some(cameras) = cameras { cameras[index] = Some(sampled); }
+        sampled.world
     } else {
         let layer = &p.layers[index];
         let prefix = if layer.three_d {
@@ -156,9 +169,13 @@ fn node(
 }
 
 pub fn prefix(p: &Project, object: u64, frame: f64) -> Result<Mat4> {
-    let mut world = Vec::with_capacity(p.layers.len() + 1);
-    let mut states = Vec::with_capacity(p.layers.len() + 1);
-    matrices(p, frame, &mut world, &mut states)?;
+    prefix_with_cameras(p, object, frame, &crate::AuthoredCameraSampler)
+}
+/// Resolve only the requested ancestry. Unrelated source cameras must not make
+/// an ordinary layer uneditable; a source camera in this ancestry still requires
+/// the caller's resolver and propagates its original failure.
+pub fn prefix_with_cameras(p: &Project, object: u64, frame: f64,
+    sampler: &dyn crate::CameraSampler) -> Result<Mat4> {
     let link = if object == 0 {
         p.camera.parent.as_ref()
     } else {
@@ -171,15 +188,7 @@ pub fn prefix(p: &Project, object: u64, frame: f64) -> Result<Mat4> {
     };
     Ok(if let Some(link) = link {
         let parent = if let Some(object) = link.object {
-            let index = if object == 0 {
-                p.layers.len()
-            } else {
-                p.layers
-                    .iter()
-                    .position(|l| l.id == object)
-                    .ok_or(Error::Missing(object))?
-            };
-            world[index]
+            world_matrix_with_cameras(p, object, frame, sampler)?
         } else {
             Mat4::IDENTITY
         };
@@ -187,4 +196,15 @@ pub fn prefix(p: &Project, object: u64, frame: f64) -> Result<Mat4> {
     } else {
         Mat4::IDENTITY
     })
+}
+
+/// Sample one spatial object's ancestry without evaluating unrelated nodes.
+pub fn world_matrix_with_cameras(p: &Project, object: u64, frame: f64,
+    sampler: &dyn crate::CameraSampler) -> Result<Mat4> {
+    let index = if object == 0 { p.layers.len() } else {
+        p.layers.iter().position(|l| l.id == object).ok_or(Error::Missing(object))?
+    };
+    let mut world = vec![Mat4::IDENTITY; p.layers.len() + 1];
+    let mut states = vec![0; p.layers.len() + 1];
+    node(p, frame, index, &mut world, &mut states, sampler, None)
 }

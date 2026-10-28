@@ -46,9 +46,34 @@ impl Shell {
             return Ok(());
         }
         match intent {
+            Intent::Preview {owner} => {
+                if source.target.kind==AssetKind::Video {
+                    self.panels.project.preview.start(&self.state,source.target.id)?;
+                } else {
+                    self.panels.project.preview.close();
+                }
+                self.panels.project.browser.preview(&self.state,source.target,owner);
+                self.dirty=true;
+            }
+            Intent::RefreshThumbnail => {
+                self.panels.project.thumbnails.refresh();
+                self.dirty=true;
+            }
+            Intent::Place => {
+                self.stop();
+                let target = source.target;
+                let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
+                let operation = workflow::library_media::Request::Place {
+                    target,
+                    at_frame: (self.frame.floor() as u32)
+                        .min(self.state["project"]["frames"].as_u64().unwrap_or(1).saturating_sub(1) as u32),
+                };
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::ProjectAsset { source, operation, reply })?));
+            }
             Intent::RelinkMissing => self.relink_missing_assets()?,
             Intent::Replace => {
-                if self.importing_image.is_some() || self.importing_media.is_some() {
+                if self.importing_image.is_some() || self.importing_media.is_some() || self.library_import.is_some() || self.project_image.is_some() {
                     return Err(self.workspace.locale.t(T::Importing).into());
                 }
                 let title = if self.workspace.locale == Locale::Zh {

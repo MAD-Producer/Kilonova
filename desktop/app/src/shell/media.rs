@@ -2,7 +2,7 @@ use crate::*;
 
 impl Shell {
     pub(crate) fn import_file(&mut self, path: PathBuf) -> Result<(), String> {
-        if self.importing_media.is_some() {
+        if self.importing_media.is_some() || self.library_import.is_some() || self.project_image.is_some() {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
         self.stop();

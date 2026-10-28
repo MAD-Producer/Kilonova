@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 29;
+pub const CURRENT_PROJECT_VERSION: u32 = 30;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -169,6 +169,9 @@ pub struct Layer {
     pub blend:crate::compositing::LayerBlend,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub track_matte:Option<crate::compositing::TrackMatte>,
+    /// Optional authoring calibration; inference output is never saved here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_calibration: Option<crate::depth::SavedDepthCalibration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
     #[serde(default,skip_serializing_if="Option::is_none")]
@@ -199,6 +202,7 @@ impl Layer {
             effects: Vec::new(),
             masks: Vec::new(),
             blend:Default::default(),track_matte:None,
+            depth_calibration: None,
             timeline: None,
             subframe_range:None,
             audio_levels: None,
@@ -274,6 +278,7 @@ pub struct ParentLink {
 #[serde(deny_unknown_fields)]
 pub struct Project {
     pub version: u32,
+    pub library: crate::ProjectLibrary,
     /// One project-wide working precision, shared by every composition.
     /// Required on disk; unsupported GPU modes are never silently reduced.
     pub working_precision: motion_effects::image_contract::ChannelPrecision,
@@ -310,6 +315,7 @@ impl Project {
         ensure(width > 0 && height > 0, "composition size must be positive")?;
         let mut project = Self {
             version: CURRENT_PROJECT_VERSION,
+            library: crate::ProjectLibrary::default(),
             working_precision: motion_effects::image_contract::ChannelPrecision::Unorm8,
             composition_id: crate::MAIN_COMPOSITION.into(),
             compositions: Vec::new(),
@@ -369,6 +375,7 @@ impl Project {
     }
     pub fn validate(&self) -> Result<()> {
         ensure(self.version == CURRENT_PROJECT_VERSION, &format!("unsupported project format: version={} expected={CURRENT_PROJECT_VERSION}", self.version))?;
+        self.library.validate(self)?;
         ensure(self.fonts.len()<=128,"too many font assets")?;
         let mut font_ids=HashSet::new();
         for font in &self.fonts {
@@ -426,6 +433,13 @@ impl Project {
             ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
             asset.validate()?;
         }
+        for camera in std::iter::once(&self.camera)
+            .chain(self.layers.iter().filter_map(Layer::camera_data)) {
+            if let Some(imported) = &camera.imported {
+                ensure(self.model_assets.iter().any(|a| a.id == imported.asset),
+                    "imported camera model asset missing")?;
+            }
+        }
         for asset in &self.audio_assets {
             ensure(
                 asset.id != 0 && asset_ids.insert(asset.id),
@@ -481,6 +495,26 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
             layer.sampling.validate_content(&layer.content)?;
+            if let Some(calibration) = &layer.depth_calibration {
+                calibration.validate()?;
+                let (asset, size) = match &layer.content {
+                    Content::Image { asset } => {
+                        let source = self.assets.iter().find(|source| source.id == *asset)
+                            .ok_or_else(|| crate::Error::Invalid("calibrated image asset missing".into()))?;
+                        ensure(calibration.source_time().same_instant(crate::depth::DepthTime { ticks: 0, timescale: 1 }),
+                            "static image calibration must use source time zero")?;
+                        (*asset, [source.width, source.height])
+                    },
+                    Content::Video { video } => {
+                        let source = self.video_assets.iter().find(|source| source.id == video.asset)
+                            .ok_or_else(|| crate::Error::Invalid("calibrated video asset missing".into()))?;
+                        (video.asset, [source.display_width, source.display_height])
+                    },
+                    _ => return Err(crate::Error::Invalid(format!("layer {}: saved depth calibration requires an image or video source", layer.id))),
+                };
+                ensure(calibration.asset() == asset && calibration.source_size() == size,
+                    "saved depth calibration differs from layer source or geometry")?;
+            }
             crate::audio_edit::validate(layer)?;
             if let Some(levels)=&layer.audio_levels {
                 ensure(matches!(layer.content,Content::Audio{..}|Content::Video{..}|Content::Composition{..}),

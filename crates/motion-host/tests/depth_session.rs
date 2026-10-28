@@ -195,6 +195,330 @@ fn wait_done(session: &mut Session, count: u64) {
     }
 }
 
+fn calibrated_source_session(root: &Path) -> Session {
+    let mut session = session(root);
+    let mut layer = motion_core::Layer::solid(1, "Owned source", [3., 3.], [16., 16., 0.], [1.; 4]);
+    layer.content = motion_core::Content::Image { asset: 7 };
+    session
+        .apply_command_batch(vec![Command::Add { layer }])
+        .unwrap();
+    session
+}
+
+fn calibration_command(session: &mut Session) -> Command {
+    use motion_model::depth::{CalibrationCurve, CalibrationExtrapolation, DepthAnchor};
+    session
+        .depth_calibration_command(
+            1,
+            [
+                DepthAnchor {
+                    value: 10.,
+                    camera_z_meters: 8.,
+                },
+                DepthAnchor {
+                    value: 90.,
+                    camera_z_meters: 4.,
+                },
+            ],
+            CalibrationCurve::CameraZ,
+            CalibrationExtrapolation::Reject,
+            20.,
+        )
+        .unwrap()
+}
+
+#[test]
+fn actual_calibration_authoring_reopens_and_rebinds_without_reusing_live_revisions() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = calibrated_source_session(directory.path());
+    let initial = session.engine.project().clone();
+    let (engine, seen, _) = backend(false);
+    session.configure_depth(engine).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 1);
+    let previous = session.poll_depth().unwrap().unwrap();
+    let command = calibration_command(&mut session);
+    session.apply_command_batch(vec![command]).unwrap();
+    let saved = session.engine.project().clone();
+    assert!(saved.layers[0].depth_calibration.is_some());
+    assert!(session.bound_depth_calibration(1).unwrap().is_none());
+    assert!(session.depth_input_fingerprint().unwrap().is_none());
+    session.engine.undo().unwrap();
+    session.sample().unwrap();
+    assert_eq!(session.engine.project(), &initial);
+    session.engine.redo().unwrap();
+    session.sample().unwrap();
+    assert_eq!(session.engine.project(), &saved);
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 2);
+    let fresh = session.poll_depth().unwrap().unwrap();
+    let bound = session.bound_depth_calibration(1).unwrap().unwrap();
+    assert_eq!(
+        bound.descriptor().source.revision,
+        session.engine.revision()
+    );
+    assert_ne!(
+        bound.descriptor().source.revision,
+        previous.resource.descriptor().source.revision
+    );
+    assert!(bound.bind(&previous.resource).is_err());
+    assert_eq!(
+        bound
+            .bind(&fresh.resource)
+            .unwrap()
+            .camera_z_meters(0)
+            .unwrap(),
+        Some(8.)
+    );
+    assert_eq!(
+        bound
+            .bind(&fresh.resource)
+            .unwrap()
+            .camera_z_meters(8)
+            .unwrap(),
+        Some(4.)
+    );
+    motion_core::storage::save(directory.path(), session.engine.project()).unwrap();
+    let mut reopened = Session::new(
+        motion_core::storage::load(directory.path()).unwrap(),
+        directory.path().into(),
+        Arc::new(NoMedia),
+    )
+    .unwrap();
+    assert_eq!(reopened.engine.project(), &saved);
+    assert!(reopened.bound_depth_calibration(1).unwrap().is_none());
+    let (engine, reopened_seen, _) = backend(false);
+    reopened.configure_depth(engine).unwrap();
+    reopened
+        .request_image_depth(7, geometry(), model())
+        .unwrap();
+    reopened_seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut reopened, 1);
+    let result = reopened.poll_depth().unwrap().unwrap();
+    let binding = reopened.bound_depth_calibration(1).unwrap().unwrap();
+    assert_eq!(
+        binding.descriptor().source.revision,
+        reopened.engine.revision()
+    );
+    assert_ne!(
+        binding.descriptor().source.revision,
+        bound.descriptor().source.revision
+    );
+    assert_eq!(
+        binding
+            .bind(&result.resource)
+            .unwrap()
+            .camera_z_meters(4)
+            .unwrap(),
+        Some(6.)
+    );
+    assert_eq!(reopened.engine.project(), &saved);
+    assert!(reopened.graphics.is_none());
+}
+
+#[test]
+fn saved_calibration_refuses_changed_pixels_and_processing_with_explicit_reauthoring_recovery() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = calibrated_source_session(directory.path());
+    let (engine, seen, _) = backend(false);
+    session.configure_depth(engine).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 1);
+    let original = calibration_command(&mut session);
+    session.apply_command_batch(vec![original.clone()]).unwrap();
+    let before = session.engine.project().clone();
+    let revision = session.engine.revision();
+    let history = session.engine.history_diagnostics();
+    let path = directory.path().join("assets/input.png");
+    let mut pixels = image::open(&path).unwrap().to_rgba8();
+    // The backend reads only R: changing G proves inference values alone cannot
+    // identify the exact RGB that the worker actually prepared.
+    pixels.get_pixel_mut(0, 0).0[1] += 1;
+    pixels.save(path).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 2);
+    let result = session.poll_depth().unwrap().unwrap();
+    assert_eq!(
+        result.resource.values(),
+        &[10., 20., 30., 40., 50., 60., 70., 80., 90.]
+    );
+    let error = session.bound_depth_calibration(1).unwrap_err().to_string();
+    assert!(
+        error.contains("source=7") && error.contains("phase=rebind"),
+        "{error}"
+    );
+    let error = session
+        .apply_command_batch(vec![
+            Command::Rename {
+                object: 1,
+                name: "Must roll back".into(),
+            },
+            original,
+        ])
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("actual source pixels"), "{error}");
+    assert_eq!(session.engine.project(), &before);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.engine.history_diagnostics(), history);
+    let replacement = calibration_command(&mut session);
+    session.apply_command_batch(vec![replacement]).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 3);
+    assert!(session.bound_depth_calibration(1).unwrap().is_some());
+    let mut processing = model();
+    processing.processing = "another-rgb-processing".into();
+    session
+        .request_image_depth(7, geometry(), processing)
+        .unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 4);
+    assert!(session.bound_depth_calibration(1).is_err());
+    session.cancel_depth().unwrap();
+    assert!(session.bound_depth_calibration(1).unwrap().is_none());
+    session
+        .apply_command_batch(vec![Command::DepthCalibration {
+            object: 1,
+            calibration: None,
+        }])
+        .unwrap();
+    assert!(session.engine.project().layers[0]
+        .depth_calibration
+        .is_none());
+}
+
+#[test]
+fn calibration_authoring_rejects_pending_canceled_and_changed_candidate_sources_atomically() {
+    use motion_model::depth::{CalibrationCurve, CalibrationExtrapolation, DepthAnchor};
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = calibrated_source_session(directory.path());
+    let before = session.engine.project().clone();
+    let (engine, seen, release) = backend(true);
+    session.configure_depth(engine).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(session
+        .depth_calibration_command(
+            1,
+            [
+                DepthAnchor {
+                    value: 10.,
+                    camera_z_meters: 8.
+                },
+                DepthAnchor {
+                    value: 90.,
+                    camera_z_meters: 4.
+                }
+            ],
+            CalibrationCurve::CameraZ,
+            CalibrationExtrapolation::Reject,
+            20.
+        )
+        .is_err());
+    release.send(()).unwrap();
+    wait_done(&mut session, 1);
+    let command = calibration_command(&mut session);
+    let revision = session.engine.revision();
+    let history = session.engine.history_diagnostics();
+    // Metadata changes after capture must be rejected against the transaction's
+    // final candidate, rather than validated only before entering the editor.
+    let mut asset = before.assets.iter().find(|a| a.id == 7).unwrap().clone();
+    asset.path = "assets/another.png".into();
+    let error = session
+        .apply_command_batch(vec![
+            Command::MediaAsset {
+                action: motion_core::media_assets::AssetAction::Replace {
+                    source: motion_core::media_assets::MediaAsset::Image(asset),
+                },
+            },
+            command.clone(),
+        ])
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("current original source"), "{error}");
+    assert_eq!(session.engine.project(), &before);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.engine.history_diagnostics(), history);
+    session.frame = 1.;
+    session.sample().unwrap();
+    assert!(session.apply_command_batch(vec![command.clone()]).is_err());
+    assert_eq!(session.engine.project(), &before);
+    assert_eq!(session.engine.revision(), revision);
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 2);
+    session.poll_depth().unwrap().unwrap();
+    session.cancel_depth().unwrap();
+    assert!(session.apply_command_batch(vec![command]).is_err());
+    assert_eq!(session.engine.project(), &before);
+    assert_eq!(session.engine.history_diagnostics(), history);
+    // Removing persisted authoring data is ordinary history and needs no result.
+    session
+        .apply_command_batch(vec![Command::DepthCalibration {
+            object: 1,
+            calibration: None,
+        }])
+        .unwrap();
+}
+
+#[test]
+fn installed_input_identity_survives_reopen_and_detects_changed_pixels_at_same_asset_key() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = session(directory.path());
+    assert!(session.depth_input_fingerprint().unwrap().is_none());
+    let project = session.engine.project().clone();
+    motion_core::storage::save(directory.path(), &project).unwrap();
+    let (engine, seen, _) = backend(false);
+    session.configure_depth(engine).unwrap();
+    session.request_image_depth(7, geometry(), model()).unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut session, 1);
+    session.poll_depth().unwrap().unwrap();
+    let original = session.depth_input_fingerprint().unwrap().unwrap();
+    let serialized = serde_json::to_vec(&original).unwrap();
+    let decoded: motion_model::depth::PreparedDepthInput =
+        serde_json::from_slice(&serialized).unwrap();
+    assert_eq!(decoded, original);
+    let mut reopened = Session::new(
+        motion_core::storage::load(directory.path()).unwrap(),
+        directory.path().into(),
+        Arc::new(NoMedia),
+    )
+    .unwrap();
+    let (engine, seen, _) = backend(false);
+    reopened.configure_depth(engine).unwrap();
+    reopened
+        .request_image_depth(7, geometry(), model())
+        .unwrap();
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut reopened, 1);
+    reopened.poll_depth().unwrap().unwrap();
+    assert_eq!(reopened.depth_input_fingerprint().unwrap(), Some(original));
+    let path = directory.path().join("assets/input.png");
+    let mut image = image::open(&path).unwrap().to_rgba8();
+    image.get_pixel_mut(0, 0).0[0] += 1;
+    image.save(path).unwrap();
+    let revision = reopened.engine.revision();
+    reopened
+        .request_image_depth(7, geometry(), model())
+        .unwrap();
+    assert!(reopened.depth_input_fingerprint().unwrap().is_none());
+    seen.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&mut reopened, 2);
+    reopened.poll_depth().unwrap().unwrap();
+    assert_ne!(reopened.depth_input_fingerprint().unwrap(), Some(original));
+    assert_eq!(reopened.engine.revision(), revision);
+    assert_eq!(reopened.engine.project(), &project);
+    reopened.frame = 1.;
+    assert!(reopened.depth_input_fingerprint().unwrap().is_none());
+    assert!(!reopened.depth_status().unwrap().unwrap().installed);
+}
+
 #[test]
 fn default_session_has_no_depth_worker_and_does_not_change_project() {
     let directory = tempfile::tempdir().unwrap();

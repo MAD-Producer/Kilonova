@@ -129,3 +129,13 @@ fn glyph_fs(vertex: GlyphOutput) -> @location(0) vec4<f32> {
     let coverage = textureSample(atlas, atlas_sampler, vertex.uv).a;
     return vec4<f32>(vertex.color.rgb, vertex.color.a * coverage);
 }
+
+@fragment
+fn bitmap_fs(vertex: GlyphOutput) -> @location(0) vec4<f32> {
+    let rgba = textureSample(atlas, atlas_sampler, vertex.uv);
+    let straight = rgba.rgb / max(rgba.a, 0.000001);
+    let srgb = select(12.92 * straight, 1.055 * pow(max(straight, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, straight > vec3(0.0031308));
+    // The texture is sRGB. sRGB render targets encode automatically; ordinary
+    // UNORM UI targets require encoded values, like existing solid/glyph draws.
+    return vec4(select(srgb * rgba.a, rgba.rgb, vertex.color.r > 0.5), rgba.a);
+}

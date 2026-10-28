@@ -15,6 +15,26 @@ fn admitted(context: &motion_render::AllocationContext, format: wgpu::TextureFor
     Painter::new_admitted(host_allocation::context(context.clone()), format)
 }
 
+#[test]
+#[cfg_attr(not(feature="gpu-tests"),ignore="requires gpu-tests")]
+fn bitmaps_use_host_admission_and_preserve_native_refusal_causes() {
+    let renderer=pollster::block_on(Renderer::headless()).unwrap();
+    let context=renderer.allocation_context();
+    let mut painter=admitted(&context,wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+    let budget=context.budget().clone();let before=budget.info().unwrap();
+    budget.set_limit(before.admitted_bytes).unwrap();
+    let mut list=PaintList::default();
+    list.push_image(ImageQuad::new(Bitmap::new(2,2,vec![255;16]).unwrap(),Rect::new(0.,0.,8.,8.)));
+    let failure=painter.prepare_bitmaps(&renderer.device,&renderer.queue,&list).unwrap_err();
+    assert_eq!(failure.kind,"bitmap allocation");
+    assert!(failure.resource_rejection().is_some());assert!(failure.capacity_refusal().is_some());
+    assert!(painter.bitmaps.entries.is_empty());
+    assert_eq!(budget.info().unwrap().admitted_bytes,before.admitted_bytes);
+    budget.set_limit(before.budget_bytes).unwrap();
+    painter.prepare_bitmaps(&renderer.device,&renderer.queue,&list).unwrap();
+    assert_eq!(bytes(&budget.info().unwrap(),Category::UiAtlas)-bytes(&before,Category::UiAtlas),16);
+}
+
 trait NativeRejection {
     fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection>;
 }

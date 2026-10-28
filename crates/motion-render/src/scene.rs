@@ -106,6 +106,10 @@ pub(crate) fn plane_size(scene: &Scene, layer: &DrawLayer, overlay: bool) -> [f3
 #[derive(Clone, Debug)]
 pub struct Scene {
     pub camera: CameraPose,
+    pub camera_viewport: [f32; 4],
+    camera_sample: Option<motion_model::CameraSample>,
+    model_sources: crate::ModelSourceCatalog,
+    node_cameras: Vec<Option<motion_model::CameraSample>>,
     pub layers: Vec<DrawLayer>,
     pub background: [f32; 4],
     pub width: u32,
@@ -144,23 +148,44 @@ pub struct NestedScene {
     pub scene: Box<Scene>,
 }
 impl Scene {
+    /// Install immutable source ownership before sampling, including child scenes.
+    pub fn set_model_source_catalog(&mut self, catalog: crate::ModelSourceCatalog) { self.model_sources = catalog; }
+    pub fn model_source_catalog(&self) -> crate::ModelSourceCatalog { self.model_sources.clone() }
+    pub(crate) fn native_camera(&self) -> CameraPose {
+        if self.camera_viewport == [0., 0., self.width as f32, self.height as f32] { return self.camera; }
+        self.camera_sample.map_or(self.camera, |sample| sample.pose)
+    }
+    pub(crate) fn native_camera_viewport(&self, width: u32, height: u32) -> Option<[f32; 4]> {
+        if self.camera_viewport == [0., 0., self.width as f32, self.height as f32] { return None; }
+        let [x,y,w,h] = self.camera_viewport;
+        Some([x * width as f32 / self.width as f32, y * height as f32 / self.height as f32,
+            w * width as f32 / self.width as f32, h * height as f32 / self.height as f32])
+    }
     pub fn is_screen_overlay(&self, layer: u64) -> bool {
         if self.layers.iter().any(|l| l.id == layer && l.model_source.is_some()) { return true; }
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
+    /// Create an empty, unsampled context. Imported cameras require a catalog
+    /// before `sample`; the initial empty pose is never a source-camera fallback.
     pub fn new(project: &Project) -> motion_model::Result<Self> {
-        Ok(Self::empty(project.camera.pose(0.0, project.width, project.height)?, project.background,
+        let initial = if project.camera.imported.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
+        Ok(Self::empty(initial, project.background,
             project.width, project.height, project.fps, project.composition_id.clone()))
     }
-    /// Build the initial camera for a composition before a host changes its active context.
+    /// Create the empty context before a host changes its active composition.
+    /// Install source ownership and sample before using it for content rendering.
     pub fn for_composition(project: &Project, id: &str) -> motion_model::Result<Self> {
         let view = project.composition_view(id)?;
-        Ok(Self::empty(view.camera.pose(0.0, view.width, view.height)?, view.background,
+        let initial = if view.camera.imported.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
+        Ok(Self::empty(initial, view.background,
             view.width, view.height, view.fps, view.id.to_owned()))
     }
     pub(crate) fn plane_context(&self, layers: Vec<DrawLayer>) -> Self {
         let mut context = Self::empty(self.camera, self.background, self.width, self.height,
             self.fps, self.composition_id.clone());
+        context.camera_viewport = self.camera_viewport;
+        context.camera_sample = self.camera_sample;
+        context.model_sources = self.model_sources.clone();
         context.frame = self.frame;
         context.layers = layers;
         context
@@ -184,6 +209,10 @@ impl Scene {
     fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: u32, composition_id: String) -> Self {
         Self {
             camera,
+            camera_viewport: [0., 0., width as f32, height as f32],
+            camera_sample: None,
+            model_sources: Default::default(),
+            node_cameras: Vec::new(),
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
             background,
             width,
@@ -349,49 +378,35 @@ impl Scene {
             }
         }
         self.effects.truncate(effect_index);
-        motion_model::hierarchy::matrices(project, frame, &mut self.node_world, &mut self.node_states)?;
+        motion_model::hierarchy::matrices_with_cameras(project, frame, &mut self.node_world,
+            &mut self.node_states, &self.model_sources, &mut self.node_cameras)?;
         self.node_ids.clear();
         self.node_ids.extend(project.layers.iter().map(|l| l.id));
         self.node_ids.push(0);
         self.node_spatial.clear();
-        self.node_spatial
-            .extend(project.layers.iter().map(|l| l.three_d));
+        self.node_spatial.extend(project.layers.iter().map(|l| l.three_d));
         self.node_spatial.push(true);
-        let active_camera = project.active_camera_layer(frame);
-        let link = active_camera.map_or(project.camera.parent.as_ref(), |l| l.parent.as_ref());
-        let prefix = if let Some(link) = link {
-            let parent = if let Some(id) = link.object {
-                let index = self
-                    .node_ids
-                    .iter()
-                    .position(|v| *v == id)
-                    .ok_or_else(|| {
-                        motion_model::Error::Invalid(format!(
-                            "camera parent layer {} is missing from the sampled project",
-                            id
-                        ))
-                    })?;
-                self.node_world[index]
-            } else {
-                Mat4::IDENTITY
-            };
-            parent * Mat4::from_cols_array_2d(&link.bind)
+        let active = project.active_camera_layer(frame).and_then(|layer|
+            project.layers.iter().position(|l| l.id == layer.id)).unwrap_or(project.layers.len());
+        let sample = self.node_cameras[active].ok_or_else(||
+            motion_model::Error::Invalid("selected camera has no resolved sample".into()))?;
+        if let Some(observer) = observer {
+            self.camera = observer.pose(project.width, project.height)?;
+            self.camera_viewport = [0., 0., project.width as f32, project.height as f32];
+            self.camera_sample = None;
         } else {
-            Mat4::IDENTITY
-        };
-        let implicit;
-        let (camera, camera_frame) = if let Some(layer) = active_camera {
-            (project.camera_for(layer.id)?, layer.local_frame(frame))
-        } else if project.camera.created {
-            (&project.camera, frame)
-        } else {
-            implicit = motion_model::Camera::new(project.width, project.height);
-            (&implicit, frame)
-        };
-        self.camera = observer.map_or_else(
-            || camera.pose_parented(camera_frame, project.width, project.height, prefix),
-            |o| o.pose(project.width, project.height),
-        )?;
+            self.camera = sample.pose;
+            self.camera_viewport = sample.viewport;
+            self.camera_sample = Some(sample);
+            let [x, y, w, h] = sample.viewport;
+            let [width, height] = [project.width as f32, project.height as f32];
+            let fit = Mat4::from_translation(Vec3::new((2. * x + w) / width - 1.,
+                1. - (2. * y + h) / height, 0.))
+                * Mat4::from_scale(Vec3::new(w / width, h / height, 1.));
+            if sample.viewport != [0., 0., width, height] {
+                self.camera.view_projection = fit * self.camera.view_projection;
+            }
+        }
         self.width = project.width;
         self.height = project.height;
         self.background = project.background;
@@ -444,6 +459,7 @@ impl Scene {
                 } else {
                     NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:Box::new(Scene::new(&child)?)}
                 };
+                node.scene.model_sources = self.model_sources.clone();
                 if let Err(error)=node.scene.sample_inner(document,&child,source,None,depth+1,instances,evaluator){
                     if matches!(&error, motion_model::Error::Composition(e) if e.code == "render_resource_limit") { return Err(error); }
                     return motion_model::composition::fail(&clip.composition,"sample_failed",&error.to_string(),serde_json::json!({"frame":source,"parent_composition":project.composition_id,"reference":layer.id}));
@@ -743,6 +759,8 @@ impl Scene {
             let group_start = hits.len();
             for l in &self.layers[start..end] {
                 if l.opacity <= 0.0 || !l.composite_visible { continue; }
+                let [vx, vy, vw, vh] = self.camera_viewport;
+                if l.three_d && (point[0] < vx || point[0] >= vx + vw || point[1] < vy || point[1] >= vy + vh) { continue; }
                 let mvp = (plane_projection(self, l, l.screen_overlay) * plane_model(l, l.screen_overlay)).as_dmat4();
                 let size = plane_size(self, l, l.screen_overlay);
                 if mvp.determinant().abs() < 1e-20 {

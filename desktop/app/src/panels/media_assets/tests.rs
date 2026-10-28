@@ -122,6 +122,25 @@ fn shared_asset_menus_preserve_orphan_identity_and_localized_command_semantics()
 }
 
 #[test]
+fn asset_menu_explicit_placement_keeps_source_identity_and_layer_selection_in_both_languages_and_windows() {
+    for locale in [Locale::Zh,Locale::En] {
+        for owner in [None,Some(Panel::Project),Some(Panel::Media)] {
+            let state = state();
+            let mut panels = Panels::default();
+            panels.locale = locale;
+            panels.select_only(Some(7));
+            open(&mut panels,&state,owner,2);
+            let place = panels.media_assets.menu_rows[5];
+            let actions = draw(&mut panels,&state,owner,press(place,MouseButton::Left));
+            assert!(matches!(actions.as_slice(),[Action::MediaAsset {source,intent:Intent::Place}]
+                if source.target.id==2 && source.generation==17 && source.revision==3),"{actions:?}");
+            assert!(!panels.media_assets.open());
+            assert_eq!(panels.selected,Some(7));
+        }
+    }
+}
+
+#[test]
 fn asset_overlay_owns_keys_closing_frame_and_cross_window_pointer_input() {
     for owner in [None, Some(Panel::Project), Some(Panel::Media)] {
         let state = state();

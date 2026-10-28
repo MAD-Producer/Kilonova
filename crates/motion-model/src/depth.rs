@@ -7,6 +7,10 @@ use crate::{ensure, Error, Result};
 use serde::{Deserialize, Serialize};
 mod calibration;
 mod projection;
+mod prepared;
+pub use prepared::PreparedDepthInput;
+mod saved;
+pub use saved::SavedDepthCalibration;
 pub use calibration::{
     CalibratedDepth, CalibrationCurve, CalibrationExtrapolation, DepthAnchor,
     RelativeDepthCalibration,

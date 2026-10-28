@@ -24,6 +24,7 @@ pub mod storage;
 pub use motion_model::{compositing, composition, color_curves, particle_history, masks, vector};
 pub use motion_model::render_sampling;
 pub use motion_model::LayerSwitch;
+pub use motion_model::{AuthoredCameraSampler, CameraSample, CameraSampler};
 pub use motion_model::lens;
 pub use editor::{parse_commands, Engine};
 pub use expressions::{expression_reference_source, expression_source_diagnostic, prepare_expression_sources, ExpressionSourceDiagnostic, ExpressionEvaluator, ProjectExpressions};
@@ -39,9 +40,10 @@ pub use motion_model::{audio_levels,AudioLevels,AudioLevelsAction,AudioChannel};
 pub use motion_model::{AudioMarker, AudioMarkersAction, AudioSourceChannel};
 pub use motion_model::audio_edit;
 pub use motion_model::media_assets;
+pub use motion_model::{project_library, LibraryAction, ProjectFolder, ProjectItem, ProjectLibrary};
 pub use motion_model::EditSink;
 pub use motion_model::{
-    to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,
+    to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind, ImportedCamera,
 };
 pub use motion_model::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use motion_model::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
@@ -70,8 +72,14 @@ pub fn scene_prefix_delta(
     frame: f64,
     delta: [f32; 3],
 ) -> Result<[f32; 3]> {
+    scene_prefix_delta_with_cameras(p, object, frame, delta, &AuthoredCameraSampler)
+}
+/// Convert through the actual source-camera ancestry supplied by the host.
+pub fn scene_prefix_delta_with_cameras(
+    p: &Project, object: u64, frame: f64, delta: [f32; 3], sampler: &dyn CameraSampler,
+) -> Result<[f32; 3]> {
     let evaluated = p.evaluated_at(frame)?;
-    let mut prefix = hierarchy::prefix(&evaluated, object, frame)?;
+    let mut prefix = motion_model::hierarchy::prefix_with_cameras(&evaluated, object, frame, sampler)?;
     if p.layers.iter().any(|l| l.id == object && !l.three_d) {
         prefix = motion_model::geometry::flat_matrix(prefix);
     }

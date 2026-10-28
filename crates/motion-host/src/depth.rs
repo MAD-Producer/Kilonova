@@ -5,7 +5,10 @@
 //! is cooperative: backends must check it during work (subprocess backends can
 //! terminate their own child). This worker never owns a render session or GPU.
 
-use motion_model::depth::{DepthGeometry, DepthModel, DepthResource, DepthSource};
+use motion_model::depth::{
+    DepthGeometry, DepthModel, DepthResource, DepthSource, PreparedDepthInput,
+};
+use sha2::{Digest, Sha256};
 pub(crate) mod image;
 pub mod onnx;
 pub(crate) mod video;
@@ -116,6 +119,24 @@ impl Input {
     pub fn rgb(&self) -> &[u8] {
         &self.rgb
     }
+    fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
+        let mut hash = Sha256::new();
+        hash.update(b"MotionStudio/depth/rgb8-srgb-opaque/v1\0");
+        for size in self.size {
+            hash.update(size.to_le_bytes());
+        }
+        for chunk in self.rgb.chunks(64 << 10) {
+            cancellation.check()?;
+            hash.update(chunk);
+        }
+        cancellation.check()?;
+        let input = PreparedDepthInput {
+            rgb_size: self.size,
+            rgb_sha256: hash.finalize().into(),
+        };
+        input.validate(&self.key.geometry)?;
+        Ok(input)
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -145,6 +166,25 @@ pub struct Estimate {
     /// Actual provider returned by the runtime, never just the requested one.
     pub provider: String,
     pub costs: Costs,
+}
+
+/// Only the worker constructs this pair, after all crop, orientation and color
+/// conversion. The backend cannot supply the authoritative input fingerprint.
+#[derive(Debug)]
+pub struct PreparedEstimate {
+    estimate: Estimate,
+    input: PreparedDepthInput,
+}
+impl PreparedEstimate {
+    pub fn estimate(&self) -> &Estimate {
+        &self.estimate
+    }
+    pub fn input(&self) -> PreparedDepthInput {
+        self.input
+    }
+    pub fn into_parts(self) -> (Estimate, PreparedDepthInput) {
+        (self.estimate, self.input)
+    }
 }
 
 impl Estimate {
@@ -335,7 +375,7 @@ struct Flight {
 struct Completion {
     request: u64,
     identity: Identity,
-    result: Result<Estimate>,
+    result: Result<PreparedEstimate>,
 }
 #[derive(Default)]
 struct State {
@@ -426,14 +466,24 @@ impl Jobs {
     /// This is the installation boundary: independently supply the live key.
     /// A source/revision/PTS/crop/model mismatch is a normal discarded old result.
     pub fn take_ready(&mut self, current: &Key) -> Result<Option<Estimate>> {
+        self.take_prepared_ready(current)
+            .map(|ready| ready.map(|ready| ready.estimate))
+    }
+
+    /// Preserve the worker's actual prepared input identity for saved calibration.
+    /// The independent live-key comparison is identical to `take_ready`.
+    pub fn take_prepared_ready(&mut self, current: &Key) -> Result<Option<PreparedEstimate>> {
         self.take_identity(&Identity::Sample(current.clone()))
     }
 
-    pub(crate) fn take_video_ready(&mut self, current: &VideoKey) -> Result<Option<Estimate>> {
+    pub(crate) fn take_video_prepared_ready(
+        &mut self,
+        current: &VideoKey,
+    ) -> Result<Option<PreparedEstimate>> {
         self.take_identity(&Identity::Video(current.clone()))
     }
 
-    fn take_identity(&mut self, current: &Identity) -> Result<Option<Estimate>> {
+    fn take_identity(&mut self, current: &Identity) -> Result<Option<PreparedEstimate>> {
         current.validate()?;
         let mut state = self.shared.0.lock().map_err(|_| Error::State)?;
         let Some(done) = state.ready.take() else {
@@ -567,6 +617,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
             job.cancellation.check()?;
             let prepare_began = Instant::now();
             let input = job.input.prepare(&job.cancellation)?;
+            let prepared_input = input.fingerprint(&job.cancellation)?;
             let source_prepare = prepare_began.elapsed();
             job.cancellation.check()?;
             source = Some(input.key().source.clone());
@@ -587,7 +638,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
-            Ok(estimate)
+            Ok(PreparedEstimate { estimate, input: prepared_input })
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
         .map_err(|error| match error {
