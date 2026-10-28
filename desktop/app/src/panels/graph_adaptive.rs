@@ -43,6 +43,8 @@ pub(super) fn extrema<E>(
     knots: impl IntoIterator<Item = f64>,
     mut value: impl FnMut(f64) -> Result<f64, E>,
 ) -> Result<Option<[f64; 2]>, Failure<E>> {
+    #[cfg(all(test, target_os = "windows"))]
+    let _adaptive_timer = super::graph_native_performance_tests::AdaptiveTimer::start(true);
     let mut bounds: Option<[f64; 2]> = None;
     let mut previous = None;
     for (index, frame) in knots.into_iter().enumerate() {
@@ -142,6 +144,8 @@ pub(super) fn sample<E>(
     tolerance: f64,
     mut value: impl FnMut(f64) -> Result<f64, E>,
 ) -> Result<Vec<(f64, f64)>, Failure<E>> {
+    #[cfg(all(test, target_os = "windows"))]
+    let _adaptive_timer = super::graph_native_performance_tests::AdaptiveTimer::start(false);
     if scale.iter().any(|v| !v.is_finite() || *v <= 0.) || !tolerance.is_finite() || tolerance <= 0.
     {
         return Err(Failure::InvalidGeometry);

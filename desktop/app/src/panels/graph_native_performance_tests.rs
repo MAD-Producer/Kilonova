@@ -133,6 +133,8 @@ impl CpuSample {
 /// this manual study calls draw_commands; ordinary tests do not read clocks.
 #[derive(Default, serde::Serialize)]
 struct PanelCost {
+    shapes: u64,
+    glyphs: u64,
     calls: u64,
     wall_us: u128,
     thread_cycles: u64,
@@ -143,6 +145,8 @@ struct PanelCosts {
     info: PanelCost,
     composition: PanelCost,
     other: PanelCost,
+    adaptive_sample: PanelCost,
+    adaptive_extrema: PanelCost,
 }
 thread_local! {
     static PANEL_COSTS: std::cell::RefCell<Option<PanelCosts>> = const { std::cell::RefCell::new(None) };
@@ -160,23 +164,27 @@ fn thread_cycles() -> u64 {
     cycles
 }
 pub(super) struct PanelTimer {
+    shapes: usize,
+    glyphs: usize,
     panel: Panel,
     started: Instant,
     cycles: u64,
 }
 impl PanelTimer {
-    pub(super) fn start(panel: Panel) -> Option<Self> {
+    pub(super) fn start(panel: Panel, paint: &PaintList) -> Option<Self> {
         PANEL_COSTS
             .with(|costs| costs.borrow().is_some())
             .then(|| Self {
+                shapes: paint.shapes.len(),
+                glyphs: paint.glyphs.len(),
                 panel,
                 started: Instant::now(),
                 cycles: thread_cycles(),
             })
     }
 }
-impl Drop for PanelTimer {
-    fn drop(&mut self) {
+impl PanelTimer {
+    pub(super) fn finish(self, paint: &PaintList) {
         let cycles = thread_cycles()
             .checked_sub(self.cycles)
             .expect("thread cycles went backwards");
@@ -191,6 +199,56 @@ impl Drop for PanelTimer {
                 Panel::Info => &mut costs.info,
                 Panel::Composition => &mut costs.composition,
                 _ => &mut costs.other,
+            };
+            cost.shapes += paint
+                .shapes
+                .len()
+                .checked_sub(self.shapes)
+                .expect("panel removed earlier shapes") as u64;
+            cost.glyphs += paint
+                .glyphs
+                .len()
+                .checked_sub(self.glyphs)
+                .expect("panel removed earlier glyphs") as u64;
+            cost.calls += 1;
+            cost.wall_us += wall;
+            cost.thread_cycles += cycles;
+        });
+    }
+}
+
+/// Nested algorithm time, not a fourth panel and never added to total UI time.
+pub(super) struct AdaptiveTimer {
+    extrema: bool,
+    started: Instant,
+    cycles: u64,
+}
+impl AdaptiveTimer {
+    pub(super) fn start(extrema: bool) -> Option<Self> {
+        PANEL_COSTS
+            .with(|costs| costs.borrow().is_some())
+            .then(|| Self {
+                extrema,
+                started: Instant::now(),
+                cycles: thread_cycles(),
+            })
+    }
+}
+impl Drop for AdaptiveTimer {
+    fn drop(&mut self) {
+        let cycles = thread_cycles()
+            .checked_sub(self.cycles)
+            .expect("thread cycles went backwards");
+        let wall = self.started.elapsed().as_micros();
+        PANEL_COSTS.with(|costs| {
+            let mut slot = costs.borrow_mut();
+            let costs = slot
+                .as_mut()
+                .expect("algorithm probe ended outside measured draw");
+            let cost = if self.extrema {
+                &mut costs.adaptive_extrema
+            } else {
+                &mut costs.adaptive_sample
             };
             cost.calls += 1;
             cost.wall_us += wall;
@@ -622,8 +680,8 @@ fn actual_native_graph_costs_match_info_counters() {
     }
     assert_eq!(cases.len(), 28);
     std::fs::write(root.join("result.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":5,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
+        "schema":6,"debug_assertions":cfg!(debug_assertions),"window":SIZE,"ratio":1.,"warmup_per_case":5,"measured_per_case":60,
         "cases":cases,"projectUnchanged":true,"revisionUnchanged":true,
-        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Schema5 adds passive per-panel wall/cycle probes to the schema4 draw, atlas preparation, read-only command census time and emitted geometry/capacities; all probe overhead remains included. Info and Composition serve as unchanged panel controls, not isolated CPU benchmarks; census overhead remains included in the total and capacities are not allocation counts. Own-thread CPU100ns and raw cycles bracket this instrumented UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
+        "scope":"Production Shell UI building and native surface Present, real Composition+Info+graph layout and owned procedural fixture. Static phase seeks once in warmup then only redraws UI; advancing phase directly seeks each frame, not application playback/input dispatch. State observation and final PNG readback outside timed UI/Present. Schema6 adds per-panel emitted glyph/shape counts and nested adaptive sample/extrema wall/cycle probes to schema5 passive per-panel probes to the schema4 draw, atlas preparation, read-only command census time and emitted geometry/capacities; all probe overhead remains included. Info and Composition serve as unchanged panel controls, not isolated CPU benchmarks; census overhead remains included in the total and capacities are not allocation counts. Own-thread CPU100ns and raw cycles bracket this instrumented UI/atlas work; probe overhead and OS counter granularity remain, cycles are never converted to elapsed time. Info reused ratio means composition texture reuse, not all allocator reuse. Default-scale Mini only; timeline zoom fields are2 and128 and effective values are recorded. Not a cold-start, physical-input, release-FPS, or cross-device throughput claim."
     })).unwrap()).unwrap();
 }

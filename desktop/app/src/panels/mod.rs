@@ -2181,7 +2181,7 @@ fn render_panel(
     out: &mut Vec<Action>,
 ) {
     #[cfg(all(test, target_os = "windows"))]
-    let _panel_timer = graph_native_performance_tests::PanelTimer::start(panel);
+    let panel_timer = graph_native_performance_tests::PanelTimer::start(panel, list);
     let mut local = input.clone();
     let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
         || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
@@ -2238,4 +2238,6 @@ fn render_panel(
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
     property_focus::settle(panels);
+    #[cfg(all(test, target_os = "windows"))]
+    if let Some(timer) = panel_timer { timer.finish(list); }
 }
