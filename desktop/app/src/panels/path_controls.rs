@@ -21,6 +21,7 @@ use serde_json::Value;
 pub(in crate::panels) mod groups;
 pub(in crate::panels) mod mask_header;
 mod mask_inspector;
+mod mask_boundaries;
 mod mask_keys;
 mod mask_path;
 mod source_geometry;
@@ -249,6 +250,8 @@ pub struct Controls {
     inspector_overlays: Option<PaintList>,
     #[cfg(test)]
     pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
+    #[cfg(test)]
+    feather_link_rects: std::collections::HashMap<(u64, u64), Rect>,
     add_mask_menu: motion_ui::widgets::Dropdown,
     timeline_add_mask_menu: Option<mask_header::AddMenu>,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
@@ -275,6 +278,7 @@ struct Parameter {
     start: Option<f32>,
     begun: bool,
     last_value: f32,
+    linked: bool,
     range: [f32; 2],
 }
 fn label(list: &mut PaintList, atlas: &mut TextAtlas, r: Rect, text: &str, color: Color) {
@@ -1547,9 +1551,9 @@ impl Controls {
             !layers.iter().any(|l| {
                 l["id"].as_u64() == Some(p.object)
                     && l["locked"] != true
-                    && l["masks"]
-                        .as_array()
-                        .is_some_and(|masks| masks.iter().any(|m| m["id"].as_u64() == Some(p.mask)))
+                    && l["masks"].as_array().is_some_and(|masks| masks.iter().any(|m|
+                        m["id"].as_u64() == Some(p.mask) && (!matches!(p.property, MaskProperty::Feather)
+                            || m["feather_linked"].as_bool() == Some(p.linked))))
             })
         });
         if stale {
@@ -1560,7 +1564,11 @@ impl Controls {
         }
         let command = |p: &Parameter, value: f32| {
             let mut v = p.values.clone();
-            v[p.axis] = value;
+            if p.linked && matches!(p.property, MaskProperty::Feather) {
+                v = mask_boundaries::linked_feather([v[0], v[1]], p.axis, value, p.range[1]).to_vec();
+            } else {
+                v[p.axis] = value;
+            }
             Action::Edit(Command::Mask {
                 object: p.object,
                 action: MaskAction::Set {
@@ -1578,6 +1586,11 @@ impl Controls {
             }
             return;
         }
+        if p.begun && input.pressed.is_some_and(|(button,_)| button == MouseButton::Left) {
+            // A new press starts a new gesture, even if a prior release was lost.
+            out.push(Action::History(3));
+            return;
+        }
         if p.start.is_none()
             && !input.composing
             && input
@@ -1586,7 +1599,12 @@ impl Controls {
         {
             if let Ok(value) = p.text.parse::<f32>() {
                 if value.is_finite() {
-                    p.values[p.axis] = value.clamp(p.range[0], p.range[1]);
+                    let value = value.clamp(p.range[0], p.range[1]);
+                    if p.linked && matches!(p.property, MaskProperty::Feather) {
+                        p.values = mask_boundaries::linked_feather([p.values[0],p.values[1]],p.axis,value,p.range[1]).to_vec();
+                    } else {
+                        p.values[p.axis] = value;
+                    }
                 }
             }
             p.start = Some(input.pressed.unwrap().1[0]);
@@ -1597,7 +1615,15 @@ impl Controls {
             .pressed
             .is_some_and(|(_, point)| !p.rect.contains(point));
         if let Some(start) = p.start {
-            let delta = input.mouse[0] - start;
+            if !input.dragging() && !release && !input.pressed.is_some_and(|(button,_)| button == MouseButton::Left) {
+                if p.begun {
+                    out.push(Action::History(3));
+                    return;
+                }
+                p.start = None;
+            }
+            let point = input.released.filter(|(b,_)| *b == MouseButton::Left).map_or(input.mouse, |(_,point)| point);
+            let delta = point[0] - start;
             if (input.dragging() || release)
                 && (motion_ui::widgets::numeric_behavior::started(
                     delta,
@@ -1611,6 +1637,9 @@ impl Controls {
                 }
                 let step = motion_ui::widgets::numeric_behavior::step(input) as f32;
                 let value = (p.values[p.axis] + delta * step).clamp(p.range[0], p.range[1]);
+                let value = if p.linked && matches!(p.property, MaskProperty::Feather) {
+                    mask_boundaries::linked_feather([p.values[0],p.values[1]],p.axis,value,p.range[1])[p.axis]
+                } else { value };
                 p.text = format!("{value:.1}");
                 if value != p.last_value {
                     p.last_value = value;
@@ -1851,6 +1880,7 @@ mod numeric_tests {
                     start: Some(100.),
                     begun: false,
                     last_value: 50.,
+                    linked: false,
                     range: [0., 100.],
                 });
                 let state = serde_json::json!({"frame":0});
