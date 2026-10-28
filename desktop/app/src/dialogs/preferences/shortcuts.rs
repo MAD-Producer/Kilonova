@@ -369,6 +369,7 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         Undo => ("撤销", "Undo"),
         Redo => ("重做", "Redo"),
         Play => ("播放切换", "Toggle playback"),
+        AudioPreview => ("仅音频预览切换", "Toggle audio-only preview"),
         PreviousFrame => ("上一帧", "Previous frame"),
         NextFrame => ("下一帧", "Next frame"),
         FirstFrame => ("首帧", "First frame"),
