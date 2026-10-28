@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "55f0a9a1",
+  "functionalSmokeOk": true,
+  "designCaptureProjectUntouched": true,
+  "screenshotSha256": "13ae789ae08530e4ddddd995627e0880dde959d39e3fc67f26998bcad6481e81",
+  "rawReportSha256": "b729fa625f1eb84053c8fb1463ee29158562dd3b296ee1e7aa266f414b5e7b8c",
+  "rawLogSha256": "460c9cb823d7238d5cfef24003f59758706902e6c52fcb14ae16ba02d308387f",
+  "visualAcceptance": "pending",
+  "environmentError": "Epic Vulkan layer manifests missing; original log retained, system configuration unchanged"
+}
