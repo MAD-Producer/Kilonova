@@ -394,7 +394,8 @@ fn handle_context_shortcuts(
                     | Command::Text
                     | Command::Null
                     | Command::Adjustment
-                    | Command::LastFrame,
+                    | Command::LastFrame
+                    | Command::AudioPreview,
                 ) => true,
                 Some(Command::PreviousFrame | Command::NextFrame) => {
                     !matches!(key, Key::Left | Key::Right) || modifiers.control
@@ -510,6 +511,7 @@ fn handle_context_shortcuts(
             Command::Play if panels.timeline.graph_mode && panels.timeline.comparison.keyboard_focus()
                 && matches!(panels.focused,Some(Panel::Timeline|Panel::Curves)) => continue,
             Command::Play => Action::TogglePlay,
+            Command::AudioPreview => Action::ToggleAudioPreview,
             Command::Solid => Action::AddSolid,
             Command::Text => Action::NewText,
             Command::Null => Action::AddNull,

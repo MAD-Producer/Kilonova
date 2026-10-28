@@ -81,6 +81,7 @@ pub enum Key {
     End,
     Comma,
     Period,
+    NumpadDecimal,
     BracketLeft,
     BracketRight,
     F4,

@@ -41,6 +41,7 @@
 | Application | Home | false | false | false | FirstFrame | false |
 | Application | End | false | false | false | LastFrame | false |
 | Application | Comma | true | false | false | Preferences | false |
+| Application | NumpadDecimal | false | false | false | AudioPreview | false |
 | Animation | B | false | false | false | WorkAreaIn | false |
 | Animation | C | true | false | false | CopySelection | false |
 | Animation | V | true | false | false | PasteSelection | false |
