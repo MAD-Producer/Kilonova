@@ -52,6 +52,7 @@ fn draw(
         input,
         Locale::Zh,
         visible,
+        &[],
         &mut actions,
     );
     actions
@@ -332,4 +333,121 @@ fn a_coalesced_release_can_commit_a_drag_and_an_empty_section_can_recover() {
         engine.undo().unwrap();
         assert_eq!(engine.snapshot(), before);
     }
+}
+
+#[test]
+fn boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean() {
+    const CHILD: &str = "MOTION_MASK_BOUNDARY_FAILURE_CHILD";
+    if let Some(directory) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(directory);
+        let _logging = crate::logging::init(root.clone()).unwrap();
+        let engine = fixture();
+        let healthy = state(&engine);
+        let mut bad_geometry = healthy.clone();
+        bad_geometry["project"]["layers"][0]["size"][0] = serde_json::json!(1e-38);
+        let mut bad_sample = healthy.clone();
+        bad_sample["project"]["layers"][0]["masks"][0]["expansion"]["value"] =
+            serde_json::json!(40000.);
+        let mut disabled = healthy.clone();
+        disabled["project"]["layers"][0]["masks"][0]["enabled"] = serde_json::json!(false);
+        let mut empty = healthy.clone();
+        empty["project"]["layers"][0]["masks"][0]["expansion"]["value"] = serde_json::json!(-500.);
+        let mut controls = Controls {
+            tool: Tool::Mask,
+            mask: Some(1),
+            ..Default::default()
+        };
+        let projection = projection(1., false);
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let mut frame = |controls: &mut Controls, state: &Value, count: usize| {
+            let layer = layer(state, 7).unwrap();
+            for _ in 0..count {
+                let mut paint = PaintList::default();
+                let mut actions = vec![];
+                controls.mask_boundaries(
+                    &mut paint,
+                    &mut atlas,
+                    Rect::new(0., 0., 1800., 1100.),
+                    Some(&projection),
+                    Some(&layer),
+                    state,
+                    &Input::default(),
+                    Locale::En,
+                    true,
+                    &[],
+                    &mut actions,
+                );
+                assert!(actions.is_empty());
+            }
+        };
+        let records = || {
+            std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .lines()
+                .filter(|line| line.contains("site=mask.boundary_geometry"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        frame(&mut controls, &bad_geometry, 59);
+        assert!(records().is_empty());
+        frame(&mut controls, &disabled, 1);
+        assert!(controls.notice.is_none());
+        frame(&mut controls, &bad_geometry, 59);
+        assert!(records().is_empty());
+        frame(&mut controls, &bad_geometry, 1);
+        assert_eq!(records().len(), 1);
+        frame(&mut controls, &bad_geometry, 120);
+        assert_eq!(records().len(), 1);
+        frame(&mut controls, &healthy, 1);
+        assert!(controls.notice.is_none());
+        frame(&mut controls, &bad_sample, 59);
+        assert_eq!(records().len(), 1);
+        frame(&mut controls, &disabled, 1);
+        assert!(controls.notice.is_none());
+        frame(&mut controls, &bad_sample, 60);
+        assert_eq!(records().len(), 2);
+        frame(&mut controls, &empty, 1);
+        assert!(controls.notice.is_none());
+        frame(&mut controls, &bad_sample, 59);
+        assert_eq!(records().len(), 2);
+        let records = records();
+        assert!(
+            records[0].contains("ERROR")
+                && records[0].contains("object=7 mask=1 frame=33 phase=measurement")
+                && records[0].contains("non-finite normalized mask boundary geometry")
+        );
+        assert!(
+            records[1].contains("ERROR")
+                && records[1].contains("object=7 mask=1 frame=33 phase=sample")
+        );
+        log::info!("mask-boundary-info-probe");
+        assert!(
+            std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .contains("mask-boundary-info-probe")
+        );
+        return;
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
+            "--nocapture","--test-threads=1"])
+        .env_remove("MOTION_LOG").env(CHILD,temporary.path()).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stdout}\n{stderr}");
+    assert_eq!(
+        stderr
+            .lines()
+            .filter(|line| line.contains("site=mask.boundary_geometry"))
+            .count(),
+        2,
+        "{stderr}"
+    );
+    assert!(
+        !stdout.contains("site=mask.boundary_geometry")
+            && !stdout.contains("mask-boundary-info-probe"),
+        "{stdout}"
+    );
+    assert!(!stderr.contains("mask-boundary-info-probe"), "{stderr}");
 }

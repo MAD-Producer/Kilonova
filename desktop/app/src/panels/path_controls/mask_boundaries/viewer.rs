@@ -120,6 +120,7 @@ impl Controls {
         input: &Input,
         locale: Locale,
         visible: bool,
+        authored: &[[f32; 2]],
         out: &mut Vec<Action>,
     ) -> bool {
         #[cfg(test)]
@@ -128,6 +129,7 @@ impl Controls {
         let mask = layer.and_then(|layer| layer.masks.iter().find(|m| Some(m.id) == self.mask));
         let frame = state["frame"].as_f64().unwrap_or(0.);
         let eligible = self.tool == Tool::Mask
+            && self.pen_tools.mode == pen_tools::Mode::Draw
             && visible
             && state["observing"] != true
             && self.context_menu.is_none()
@@ -138,6 +140,8 @@ impl Controls {
             && self.draft.is_none()
             && !self.point_selection.editing()
             && (self.parameter.is_none() || self.boundaries.capture.is_some())
+            && (self.boundaries.capture.is_some()
+                || !(input.modifiers.control || input.modifiers.shift || input.modifiers.alt))
             && input.held != Some(MouseButton::Middle)
             && !input
                 .pressed
@@ -148,19 +152,29 @@ impl Controls {
         } else {
             Ok(None)
         };
-        let sampled = match sampled {
-            Ok(Some(Some(sample))) => Some(sample),
-            Ok(_) => None,
+        let (sampled, sampling_failed) = match sampled {
+            Ok(Some(Some(sample))) => (Some(sample), false),
+            Ok(_) => (None, false),
             Err(error) => {
+                let cause: String = error.to_string().chars().take(512).collect();
                 self.boundaries.failures.failure(
                     "mask.boundary_geometry",
                     format_args!(
-                        "object={} mask={} frame={frame} phase=sample cause={error}",
+                        "object={} mask={} frame={frame} phase=sample cause={cause}",
                         layer.map_or(0, |l| l.id),
                         self.mask.unwrap_or(0)
                     ),
                 );
-                None
+                self.boundaries.failed = true;
+                self.notice = Some(
+                    if locale == Locale::Zh {
+                        "蒙版边界不可用，请查看日志"
+                    } else {
+                        "Mask boundary unavailable; see log"
+                    }
+                    .into(),
+                );
+                (None, true)
             }
         };
         let mut owned = false;
@@ -227,9 +241,13 @@ impl Controls {
         let (Some(layer), Some(mask), Some(sampled), Some(projection)) =
             (layer, mask, sampled, projection)
         else {
-            if !eligible {
+            if !sampling_failed {
                 self.boundaries.cache = None;
                 self.boundaries.failures.success();
+                if self.boundaries.failed {
+                    self.notice = None;
+                    self.boundaries.failed = false;
+                }
             }
             return owned;
         };
@@ -296,6 +314,7 @@ impl Controls {
         let gap = styles.metric("icon.slot", 20.);
         let colors = styles.colors();
         let color = styles.color("viewer.guide");
+        let corner = styles.metric("radius.control", 2.);
         let mut grips = vec![];
         for span in spans {
             for &[lo, hi] in &span.expanded {
@@ -365,24 +384,52 @@ impl Controls {
                 });
             }
         }
+        for grip in &mut grips {
+            for _ in 0..4 {
+                if authored
+                    .iter()
+                    .all(|p| distance(*p, grip.screen) > hit + HIT_RADIUS)
+                {
+                    break;
+                }
+                let previous = grip.screen;
+                grip.screen[1 - grip.axis] += if grip.axis == 0 { -gap } else { gap };
+                paint::line_with_width(list, vec![previous, grip.screen], color, line_width);
+            }
+        }
         grips.retain(|grip| {
-            clip.contains_rect(Rect::new(
-                grip.screen[0] - hit,
-                grip.screen[1] - hit,
-                hit * 2.,
-                hit * 2.,
-            ))
+            authored
+                .iter()
+                .all(|p| distance(*p, grip.screen) > hit + HIT_RADIUS)
+                && clip.contains_rect(Rect::new(
+                    grip.screen[0] - hit,
+                    grip.screen[1] - hit,
+                    hit * 2.,
+                    hit * 2.,
+                ))
         });
         let cursor = input.pressed.map_or(input.mouse, |(_, p)| p);
         let hovered = grips
             .iter()
             .enumerate()
             .filter(|(_, g)| distance(cursor, g.screen) <= hit)
+            .filter(|_| authored.iter().all(|p| distance(cursor, *p) > HIT_RADIUS))
             .min_by(|(_, a), (_, b)| {
                 distance(cursor, a.screen).total_cmp(&distance(cursor, b.screen))
             })
             .map(|(i, _)| i);
         for (i, grip) in grips.iter().enumerate() {
+            if grip.screen != grip.anchor {
+                paint::line_with_width(
+                    list,
+                    vec![
+                        [grip.anchor[0] - radius, grip.anchor[1]],
+                        [grip.anchor[0] + radius, grip.anchor[1]],
+                    ],
+                    color,
+                    line_width,
+                );
+            }
             let fill = if hovered == Some(i) {
                 colors.TEXT
             } else {
@@ -402,7 +449,7 @@ impl Controls {
                     colors.PANEL,
                     fill,
                     line_width,
-                    0.,
+                    corner,
                 );
             }
         }
@@ -443,7 +490,14 @@ impl Controls {
                 width,
                 height,
             );
-            paint::box_rect(list, rect, colors.PANEL, colors.BORDER, line_width, 0.);
+            paint::box_rect(
+                list,
+                rect,
+                colors.PANEL,
+                colors.BORDER,
+                line_width,
+                styles.metric("radius.popup", 4.),
+            );
             label(list, atlas, rect, &caption, colors.TEXT);
             if input
                 .pressed

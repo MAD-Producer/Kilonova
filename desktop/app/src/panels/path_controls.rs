@@ -750,9 +750,18 @@ impl Controls {
         // Keep source/selection validation, but never pick hidden authored grips.
         // The pen's own local draft remains available for new authoring.
         let sampled = if handles_visible {sampled} else {vec![]};
+        // Boundary measurement grips yield to every visible authored control,
+        // including the faded handles of an unselected node.
+        let authored: Vec<_> = sampled.iter().flat_map(|path|
+            path["nodes"].as_array().into_iter().flatten()).filter_map(geometry)
+            .flat_map(|g| [0,2,4].into_iter().filter_map(move |axis| {
+                if axis != 0 && g[axis].abs()+g[axis+1].abs()<0.01 {return None;}
+                let point=if axis==0 {[g[0],g[1]]} else {[g[0]+g[axis],g[1]+g[axis+1]]};
+                Some([point[0]-offset[0],point[1]-offset[1]])
+            })).filter_map(|point|projection.as_ref()?.screen(point)).collect();
         let mut boundary_overlay = list.child();
         let boundary_owned = self.mask_boundaries(&mut boundary_overlay, atlas, clip,
-            projection.as_ref(), target.as_ref(), state, input, locale, handles_visible, out);
+            projection.as_ref(), target.as_ref(), state, input, locale, handles_visible, &authored, out);
         let boundary_neutral = Input { mouse: input.mouse, ..Default::default() };
         let input = if boundary_owned { &boundary_neutral } else { input };
         let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
