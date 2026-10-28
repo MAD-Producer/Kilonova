@@ -3,6 +3,7 @@
 use crate::{Result, Session};
 use motion_render::Scene;
 use std::path::Path;
+mod wire;
 
 #[cfg(feature = "ai-depth")]
 use crate::depth::{image::ImageInput, Cancellation, Estimate, Key};
@@ -88,6 +89,9 @@ impl DepthSnapshot {
 
     #[cfg(feature = "ai-depth")]
     pub(crate) fn validate(&self) -> Result<()> {
+        if self.composition.len() > 256 || self.composition.chars().any(char::is_control) {
+            return Err("invalid bounded frozen depth composition".into());
+        }
         if self.entries.len() > motion_model::MAX_LAYERS {
             return Err("frozen depth layer count exceeds limit".into());
         }
@@ -95,6 +99,18 @@ impl DepthSnapshot {
         let mut bytes = 0usize;
         let mut objects = std::collections::HashSet::new();
         for entry in &self.entries {
+            if entry.asset.path.len() > 1024
+                || entry.asset.path.is_empty()
+                || !Path::new(&entry.asset.path)
+                    .components()
+                    .all(|c| matches!(c, std::path::Component::Normal(_)))
+                || [entry.asset.width, entry.asset.height] != entry.key.geometry.source_size
+                || entry.estimate.provider.is_empty()
+                || entry.estimate.provider.len() > 256
+                || entry.estimate.provider.chars().any(char::is_control)
+            {
+                return Err("invalid bounded frozen depth source metadata".into());
+            }
             if !objects.insert(entry.object) {
                 return Err("frozen depth contains duplicate layer IDs".into());
             }
@@ -102,7 +118,7 @@ impl DepthSnapshot {
                 return Err("frozen depth asset differs from original request".into());
             }
             let descriptor = entry.estimate.resource.descriptor();
-            if !entry.key.source.same_sample(&descriptor.source)
+            if entry.key.source != descriptor.source
                 || entry.key.geometry != descriptor.geometry
                 || entry.key.model != descriptor.model
             {
@@ -130,6 +146,47 @@ impl DepthSnapshot {
         Ok(())
     }
 
+    /// Check that the exporter draws exactly the captured source/calibration
+    /// mapping. A valid RGB fingerprint alone does not authorize relinked assets.
+    pub fn validate_project(&self, project: &motion_core::Project) -> Result<()> {
+        #[cfg(feature = "ai-depth")]
+        self.validate()?;
+        let mut count = 0;
+        for id in project.reachable_compositions()? {
+            let view = project.composition_view(&id)?;
+            for layer in view
+                .layers
+                .iter()
+                .filter(|l| l.three_d && l.depth_calibration.is_some())
+            {
+                count += 1;
+                #[cfg(feature = "ai-depth")]
+                {
+                    let entry = self
+                        .entries
+                        .iter()
+                        .find(|e| e.object == layer.id)
+                        .ok_or("frozen depth project mapping has no admitted resource")?;
+                    if id != self.composition
+                        || !matches!(layer.content, motion_core::Content::Image { asset } if asset == entry.asset.id)
+                        || !project.assets.contains(&entry.asset)
+                        || layer.depth_calibration.as_ref() != Some(&entry.calibration)
+                    {
+                        return Err(
+                            "frozen depth project source or calibration mapping changed".into()
+                        );
+                    }
+                }
+                #[cfg(not(feature = "ai-depth"))]
+                return Err("frozen calibrated depth requires the ai-depth feature".into());
+            }
+        }
+        if count != self.layer_count() {
+            return Err("frozen depth project layer set changed".into());
+        }
+        Ok(())
+    }
+
     /// Verify the actual *frozen copy*, after source copying and before drawing.
     /// Invoke on the export worker, outside Session/registry locks. Source IO,
     /// decode and fingerprinting are bounded by the original staging policies.
@@ -152,6 +209,7 @@ impl DepthSnapshot {
                 let began = std::time::Instant::now();
                 log::info!("start frozen_depth operation=verify_source source_request={} object={} source_id={} phase=decode_frozen_rgb",
                     entry.request, entry.object, entry.asset.id);
+                log::logger().flush();
                 let input = ImageInput {
                     key: entry.key.clone(), root: root.into(),
                     relative: entry.asset.path.clone(), budget: entry.decoded_budget,

@@ -12,6 +12,7 @@ crate-type = ["rlib"]
 default = ["gpu-tests"]
 # Test selection only; product rendering is always compiled.
 gpu-tests = []
+ai-depth = ["motion-host/ai-depth"]
 # Requires libav (ffmpeg) development libraries at build time. Off by default so
 # the workspace and CI build on machines without libav; `tools/build_desktop.py
 # --ffmpeg` turns it on for distributable builds.
@@ -41,3 +42,4 @@ ffmpeg-next = { version = "9", optional = true, default-features = false, featur
 
 [dev-dependencies]
 motion-scene = { path = "../motion-scene" }
+motion-model = { path = "../motion-model" }

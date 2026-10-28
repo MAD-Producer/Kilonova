@@ -39,6 +39,7 @@ fn package_budget_project() -> Project {
 #[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
 pub struct FrozenMovie {
     project: Project,
+    depth: motion_host::depth_snapshot::DepthSnapshot,
     range: motion_core::WorkArea,
     registry: Registry,
     assets: tempfile::TempDir,
@@ -53,6 +54,8 @@ pub struct FrozenMovie {
 mod camera_tests;
 #[cfg(test)]
 mod imported_camera_tests;
+#[cfg(all(test, feature = "ai-depth"))]
+mod depth_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod session_budget_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
@@ -662,6 +665,7 @@ pub struct MovieResult {
 /// rejected before or during copying, never silently exported as another revision.
 pub struct MovieFreezePlan {
     project: Project,
+    depth: motion_host::depth_snapshot::DepthSnapshot,
     registry: Registry,
     root: PathBuf,
     memory_policy: MemoryPolicy,
@@ -785,6 +789,7 @@ impl MovieFreezePlan {
         }
         Ok(Self {
             project,
+            depth: Default::default(),
             registry,
             root,
             memory_policy,
@@ -802,6 +807,7 @@ impl MovieFreezePlan {
         control.check()?;
         let Self {
             project,
+            depth,
             registry,
             root,
             memory_policy,
@@ -871,11 +877,15 @@ impl MovieFreezePlan {
         for asset in &project.video_assets {
             motion_media::load_video_index(assets.path(), asset)?;
         }
+        depth.validate_project(&project).map_err(|e| e.to_string())?;
+        depth.verify_sources(assets.path(), &|| control.check().map_err(Into::into))
+            .map_err(|e| e.to_string())?;
         source_paths.insert(root.join("project.json"));
         control.set_progress(0.1);
         Ok(FrozenMovie {
             range: motion_core::WorkArea::full(project.frames),
             project,
+            depth,
             registry,
             assets,
             memory_policy,
@@ -920,6 +930,8 @@ impl FrozenMovie {
             control,
         )?;
         plan.allocation_budget = session.allocation_budget().clone();
+        plan.depth = motion_host::depth_snapshot::DepthSnapshot::capture(session)
+            .map_err(|e| e.to_string())?;
         Ok(plan)
     }
 
@@ -1027,6 +1039,12 @@ impl FrozenMovie {
             .tempfile_in(output.parent().unwrap())
             .map_err(|e| e.to_string())?;
         let p = &self.project;
+        self.depth.validate_project(p).map_err(|e| e.to_string())?;
+        let depth = self.depth.verify_sources(self.assets.path(), &|| control.check().map_err(Into::into))
+            .map_err(|e| e.to_string())?;
+        if depth.layer_count() > 0 && motion_host::render_sampling::needs_exposure(p)? {
+            return Err("frozen calibrated depth with exposure sampling is not supported".into());
+        }
         let mut encoder =
             crate::encode::Mp4Encoder::new(temporary.path(), p.width, p.height, p.fps)?;
         let encoder_name = encoder.video_encoder.clone();
@@ -1078,6 +1096,7 @@ impl FrozenMovie {
                         scene
                             .sample(p, f64::from(frame), None, &motion_core::ExpressionEvaluator)
                             .map_err(|e| e.to_string())?;
+                        depth.attach(&mut scene).map_err(|e| e.to_string())?;
                         renderer.retain_video_instances(&scene);
                         renderer
                             .prepare_scene_assets(&scene, Resolution::Full, false)

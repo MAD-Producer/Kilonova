@@ -49,6 +49,14 @@ fn frozen_image_depth_keeps_results_after_seek_close_and_source_removal_and_veri
     let snapshot = DepthSnapshot::capture(&session).unwrap();
     assert_eq!(snapshot.layer_count(), 1);
     let project = session.engine.project().clone();
+    snapshot.validate_project(&project).unwrap();
+    let mut relinked = project.clone();
+    relinked.assets[0].path = "assets/another.png".into();
+    assert!(snapshot.validate_project(&relinked).is_err());
+    let mut saved = Vec::new();
+    snapshot.write_to(&mut saved, &|| Ok(())).unwrap();
+    let restored = DepthSnapshot::read_from(&mut &saved[..], &|| Ok(())).unwrap();
+    restored.validate_project(&project).unwrap();
     std::fs::create_dir_all(copied.path().join("assets")).unwrap();
     let bytes = std::fs::read(original.path().join("assets/input.png")).unwrap();
     std::fs::write(copied.path().join("assets/input.png"), &bytes).unwrap();
@@ -98,6 +106,15 @@ fn frozen_image_depth_keeps_results_after_seek_close_and_source_removal_and_veri
         frames.push(pixels);
     }
     assert!(frames.windows(2).all(|pair| pair[0] == pair[1]));
+    restored
+        .verify_sources(copied.path(), &|| Ok(()))
+        .unwrap()
+        .attach(&mut scene)
+        .unwrap();
+    assert_eq!(
+        renderer.capture_sdr(&scene, &target).unwrap().0.pixels,
+        frames[0]
+    );
     drop(verified);
 
     // A modified copy cannot reuse the old numeric result, even when the

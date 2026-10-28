@@ -68,7 +68,8 @@ pub enum Error {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Key {
     pub source: DepthSource,
     pub geometry: DepthGeometry,
