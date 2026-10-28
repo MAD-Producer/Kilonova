@@ -2135,6 +2135,7 @@ dependencies = [
  "motion-host",
  "motion-media",
  "motion-render",
+ "motion-scene",
  "pollster",
  "raw-window-handle",
  "serde",

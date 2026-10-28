@@ -51,6 +51,8 @@ pub struct FrozenMovie {
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod camera_tests;
+#[cfg(test)]
+mod imported_camera_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod session_budget_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
@@ -1038,6 +1040,7 @@ impl FrozenMovie {
             .configure_assets(p, self.assets.path())
             .map_err(|e| e.to_string())?;
         let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
+        scene.set_model_source_catalog(renderer.model_source_catalog());
         let document = if motion_host::render_sampling::needs_exposure(p)? {
             Some(motion_render::exposure_scene::ExposureDocument::new(Arc::new(p.clone()))
                 .map_err(|error| error.to_string())?)
