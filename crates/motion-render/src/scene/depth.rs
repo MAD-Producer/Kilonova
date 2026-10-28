@@ -13,6 +13,7 @@ pub(super) struct BoundSurface {
     input: PreparedDepthInput,
     resource: DepthResourceIdentity,
     mesh: Arc<DepthSurface>,
+    image: Option<crate::DepthImage>,
 }
 impl Scene {
     pub(super) fn reset_depth(&mut self) {
@@ -22,6 +23,7 @@ impl Scene {
             .into_iter()
             .map(|(id, surface)| (self.source_object(id), surface))
             .collect();
+        for surface in self.depth_surfaces.values_mut() { surface.image = None; }
         self.depth_required.clear();
         self.depth_pending.clear();
         self.shared_rasters.clear();
@@ -90,11 +92,32 @@ impl Scene {
                     input,
                     resource: resource.cache_identity(),
                     mesh,
+                    image: None,
                 },
             );
         }
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) { surface.image = None; }
         self.depth_pending.remove(&object);
         Ok(())
+    }
+    /// Pair depth with the exact original image decoded by its admission worker.
+    /// This keeps color and geometry consistent after file changes/GPU eviction.
+    pub fn attach_calibrated_depth_image(
+        &mut self, object: u64, current: &DepthSource, resource: &DepthResource,
+        input: PreparedDepthInput, image: crate::DepthImage,
+    ) -> Result<()> {
+        ensure(image.size() == resource.descriptor().geometry.source_size,
+            "owned depth image dimensions differ from source geometry")?;
+        self.attach_calibrated_depth(object, current, resource, input)?;
+        if let Some(surface) = self.depth_surfaces.get_mut(&object) { surface.image = Some(image); }
+        Ok(())
+    }
+    pub(crate) fn calibrated_source_images(&self) -> impl Iterator<Item = (u64, &crate::DepthImage)> {
+        self.layers.iter().filter_map(|layer| {
+            if self.depth_pending.contains(&layer.id) || !self.depth_required.contains_key(&layer.id) { return None; }
+            let surface = self.depth_surfaces.get(&layer.id)?;
+            Some((layer.asset?, surface.image.as_ref()?))
+        })
     }
     pub(crate) fn depth_surface(&self, object: u64) -> Option<Arc<DepthSurface>> {
         if self.depth_pending.contains(&object) {

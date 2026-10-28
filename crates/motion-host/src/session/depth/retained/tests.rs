@@ -66,6 +66,7 @@ fn entry(asset: u64) -> Entry {
             provider: "owned".into(),
             costs: Costs::default(),
         }),
+        image: None,
         input: PreparedDepthInput {
             rgb_size: [2, 1],
             rgb_sha256: [asset as u8; 32],
@@ -157,4 +158,25 @@ fn result_admission_failure_counter_saturates() {
     assert_eq!(results.rejections, u64::MAX);
     assert_eq!(results.bytes, 0);
     assert!(results.entries.is_empty());
+}
+
+
+#[test]
+fn original_image_capacity_is_charged_with_planes_and_released_atomically() {
+    let mut result = Results::default();
+    let mut first = entry(1);
+    let mut bytes = Vec::with_capacity(64);
+    bytes.extend_from_slice(&[10,20,30,255,40,50,60,255]);
+    first.image = Some(motion_render::DepthImage::new([2,1], bytes).unwrap());
+    result.admit(first, 82, 2).unwrap();
+    assert_eq!((result.bytes, result.image_bytes), (18,64));
+    let cause = result.admit(entry(2), 82, 2).unwrap_err();
+    assert!(matches!(cause, Error::RetentionCapacity { required_bytes: 100, .. }));
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes), (1,18,64));
+    // Replacing the source releases its previous original-image allocation.
+    result.admit(entry(1), 82, 2).unwrap();
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes), (1,18,0));
+    result.clear();
+    assert_eq!((result.bytes, result.image_bytes), (0,0));
+    assert_eq!(result.rejections, 1);
 }

@@ -140,6 +140,37 @@ fn attach(scene: &mut Scene) {
         .attach_calibrated_depth(1, &resource.descriptor().source, &resource, input())
         .unwrap();
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn owned_depth_image_recovers_eviction_and_quality_changes_without_source_io_or_repeat_uploads() {
+    use motion_render::{image_resources::Resolution, DepthImage};
+    let root = tempfile::tempdir().unwrap();
+    let p = project(root.path());
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &p, root.path());
+    let target = renderer.capture_target(96, 64).unwrap();
+    let mut scene = sampled(&p);
+    attach(&mut scene);
+    let expected = renderer.capture(&scene, &target).unwrap().0;
+    renderer.clear_assets();
+    let pixels = vec![255, 0, 0, 255, 255, 0, 0, 255];
+    let image = DepthImage::new([2, 1], pixels).unwrap();
+    let resource = field(1);
+    scene.attach_calibrated_depth_image(1, &resource.descriptor().source, &resource, input(), image).unwrap();
+    std::fs::remove_file(root.path().join("assets/red.png")).unwrap();
+    renderer.configure_assets_with_scene(&p, root.path(), &scene).unwrap();
+    for resolution in [Resolution::Full, Resolution::Preview(1), Resolution::Full] {
+        assert!(renderer.prepare_scene_assets(&scene, resolution, false).unwrap());
+        let bytes = renderer.image_upload_bytes;
+        assert!(renderer.prepare_scene_assets(&scene, resolution, false).unwrap());
+        assert_eq!(renderer.image_upload_bytes, bytes, "healthy preparation must not reupload immutable pixels");
+        assert_eq!(renderer.capture(&scene, &target).unwrap().0, expected);
+    }
+    retain_fixture("owned-image-after-eviction.png", &expected);
+    // A source without an owned admission still needs an actual valid file.
+    assert!(renderer.configure_assets(&p, root.path()).is_err());
+}
 fn prepare(renderer: &mut Renderer, p: &Project, root: &std::path::Path) {
     renderer.configure_assets(p, root).unwrap();
     assert!(renderer

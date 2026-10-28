@@ -99,6 +99,7 @@ pub struct Input {
     key: Key,
     size: [u32; 2],
     rgb: Arc<[u8]>,
+    image: Option<motion_render::DepthImage>,
 }
 
 impl Input {
@@ -118,7 +119,7 @@ impl Input {
         if rgb.len() as u64 != u64::from(size[0]) * u64::from(size[1]) * 3 {
             return Err(Error::Invalid("RGB byte count differs from dimensions"));
         }
-        Ok(Self { key, size, rgb })
+        Ok(Self { key, size, rgb, image: None })
     }
     pub fn key(&self) -> &Key {
         &self.key
@@ -184,6 +185,7 @@ pub struct Estimate {
 pub struct PreparedEstimate {
     estimate: Estimate,
     input: PreparedDepthInput,
+    image: Option<motion_render::DepthImage>,
 }
 impl PreparedEstimate {
     pub fn estimate(&self) -> &Estimate {
@@ -191,6 +193,9 @@ impl PreparedEstimate {
     }
     pub fn input(&self) -> PreparedDepthInput {
         self.input
+    }
+    pub(crate) fn into_owned_parts(self) -> (Estimate, PreparedDepthInput, Option<motion_render::DepthImage>) {
+        (self.estimate, self.input, self.image)
     }
     pub fn into_parts(self) -> (Estimate, PreparedDepthInput) {
         (self.estimate, self.input)
@@ -345,7 +350,11 @@ pub struct SessionStatus {
     pub queue_depth: usize,
     /// Results admitted for the current document/revision/frame only.
     pub retained_samples: usize,
+    /// Scalar/validity/confidence planes, preserving the existing observation.
     pub retained_bytes: usize,
+    /// Owned original RGBA allocation capacity. Combined with retained_bytes,
+    /// this is bounded by the session result-admission allowance.
+    pub retained_image_bytes: usize,
     /// Lifetime host result-admission failures; separate from backend failures.
     pub retention_rejections: u64,
 }
@@ -653,7 +662,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
-            Ok(PreparedEstimate { estimate, input: prepared_input })
+            Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image })
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
         .map_err(|error| match error {

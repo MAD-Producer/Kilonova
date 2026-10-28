@@ -3,6 +3,8 @@
 mod multiple_sources;
 #[path = "depth_session/snapshots.rs"]
 mod snapshots;
+#[path = "depth_session/owned_image.rs"]
+mod owned_image;
 
 use motion_core::{Asset, Command, Engine, Project};
 use motion_host::{

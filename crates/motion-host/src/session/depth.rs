@@ -79,6 +79,7 @@ pub(crate) struct CalibrationSample {
     request: u64,
     estimate: Arc<Estimate>,
     input: PreparedDepthInput,
+    image: Option<motion_render::DepthImage>,
     source: Source,
     key: Identity,
     frame: f64,
@@ -178,6 +179,7 @@ impl Session {
             request: binding.request,
             estimate: estimate.clone(),
             input: *input,
+            image: None,
             source: binding.source.clone(),
             key: binding.key.clone(),
             frame: binding.frame,
@@ -274,12 +276,14 @@ impl Session {
             let Identity::Sample(key) = &sample.key else {
                 return Err(format!("calibrated depth object={object} phase=render: video geometry routing is not implemented").into());
             };
-            scene.attach_calibrated_depth(
-                object,
-                &key.source,
-                &sample.estimate.resource,
-                sample.input,
-            )?;
+            match &sample.image {
+                Some(image) => scene.attach_calibrated_depth_image(
+                    object, &key.source, &sample.estimate.resource, sample.input, image.clone(),
+                )?,
+                None => scene.attach_calibrated_depth(
+                    object, &key.source, &sample.estimate.resource, sample.input,
+                )?,
+            }
         }
         Ok(true)
     }
@@ -541,13 +545,14 @@ impl Session {
             Identity::Video(key) => state.jobs.take_video_prepared_ready(key)?,
         };
         if let Some(estimate) = ready {
-            let (estimate, input) = estimate.into_parts();
+            let (estimate, input, image) = estimate.into_owned_parts();
             let estimate = Arc::new(estimate);
             state.retained.admit(
                 retained::Entry {
                     binding: binding.clone(),
                     estimate: estimate.clone(),
                     input,
+                    image,
                 },
                 motion_model::depth::MAX_DEPTH_RESOURCE_BYTES,
                 motion_model::MAX_LAYERS,
@@ -598,6 +603,7 @@ impl Session {
                     queue_depth: state.jobs.queue_depth()?,
                     retained_samples: state.retained.entries.len(),
                     retained_bytes: state.retained.bytes,
+                    retained_image_bytes: state.retained.image_bytes,
                     retention_rejections: state.retained.rejections,
                 })
             })

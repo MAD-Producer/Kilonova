@@ -84,6 +84,8 @@ pub use renderer::WorkingPrecisionChange;
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
+mod depth_image;
+pub use depth_image::DepthImage;
 pub mod exposure_scene;
 mod compositor;
 mod plane_sampling;
