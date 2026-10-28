@@ -127,16 +127,45 @@ pub fn popup(anchor: [f32; 2], bounds: Rect, width: f32, height: f32, above: boo
         height,
     )
 }
-pub fn child(parent: Rect, row: Rect, bounds: Rect, width: f32, height: f32) -> Rect {
-    let width = width.min(bounds.width().max(0.));
-    let x = if parent.max[0] + width <= bounds.max[0] {
-        parent.max[0]
-    } else if parent.min[0] - width >= bounds.min[0] {
-        parent.min[0] - width
+/// Reserve a neighbouring card before painting the root, so opening a branch
+/// never covers a parent action. Only narrow windows compress the two columns.
+pub fn cascade_parent(parent: Rect, bounds: Rect, child_width: f32) -> Rect {
+    let available = bounds.width().max(0.);
+    let compact = parent.width() + child_width > available;
+    let width = parent
+        .width()
+        .min(if compact { available * 0.5 } else { available });
+    let reserve = child_width.min(if compact {
+        available - width
     } else {
-        (bounds.max[0] - width).max(bounds.min[0])
+        available
+    });
+    let mut x = parent.min[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
+    if x + width + reserve > bounds.max[0] && x - reserve < bounds.min[0] {
+        // Move the parent as little as possible when neither side fits at the
+        // anchor. A tie keeps the usual right-hand cascade.
+        let right_x = (bounds.max[0] - width - reserve).max(bounds.min[0]);
+        let left_x = bounds.min[0] + reserve;
+        x = if (x - right_x).abs() <= (x - left_x).abs() {
+            right_x
+        } else {
+            left_x
+        };
+    }
+    Rect::new(x, parent.min[1], width, parent.height())
+}
+
+pub fn child(parent: Rect, row: Rect, bounds: Rect, width: f32, height: f32, pad: f32) -> Rect {
+    let right = (bounds.max[0] - parent.max[0]).max(0.);
+    let left = (parent.min[0] - bounds.min[0]).max(0.);
+    let width = width.min(right.max(left));
+    let x = if width <= right {
+        parent.max[0]
+    } else {
+        parent.min[0] - width
     };
-    popup([x, row.min[1]], bounds, width, height, false)
+    // Align the child's first *row*, not its outer padded card, to the trigger.
+    popup([x, row.min[1] - pad], bounds, width, height, false)
 }
 
 #[derive(Default)]
@@ -255,8 +284,13 @@ pub fn draw<T>(
             .expect("existing context menu row style");
         box_style(&mut paint, area, style);
         let end = area.max[0] - slot;
-        let hint_width = (atlas.measure(&entry.hint) * style.font_size / atlas.font_size())
-            .min((area.width() * 0.5).max(0.));
+        let caption_width = atlas.measure(entry.caption()) * style.font_size / atlas.font_size();
+        let desired_hint_width = atlas.measure(&entry.hint) * style.font_size / atlas.font_size();
+        // A compact cascade keeps the action legible. Shortcut hints yield as
+        // a whole column instead of clipping away the command's caption.
+        let show_hint = !entry.hint.is_empty()
+            && caption_width + desired_hint_width + inset + slot * 2. <= area.width();
+        let hint_width = if show_hint { desired_hint_width } else { 0. };
         let hint = Rect::new(
             (end - hint_width).max(area.min[0]),
             area.min[1],
@@ -264,11 +298,11 @@ pub fn draw<T>(
             area.height(),
         );
         let label_x = (area.min[0] + slot).min(area.max[0]);
-        let label_end = if entry.hint.is_empty() {
-            end
-        } else {
-            hint.min[0] - inset
-        };
+        let label_end = if !show_hint { end } else { hint.min[0] - inset };
+        let caption = atlas.ellipsize(
+            entry.caption(),
+            (label_end - label_x).max(0.) * atlas.font_size() / style.font_size,
+        );
         text_style(
             &mut paint,
             atlas,
@@ -278,11 +312,13 @@ pub fn draw<T>(
                 (label_end - label_x).max(0.),
                 area.height(),
             ),
-            entry.caption(),
+            &caption,
             style,
             Align::Left,
         );
-        text_style(&mut paint, atlas, hint, &entry.hint, style, Align::Right);
+        if show_hint {
+            text_style(&mut paint, atlas, hint, &entry.hint, style, Align::Right);
+        }
         let icon_size = styles.metric("checkbox.size", 14.);
         if entry.checked {
             icons::draw(

@@ -152,8 +152,8 @@ fn shared_menu_native_root_child_shortcuts_checks_and_small_window_owners() {
                 );
                 // Opening has not changed the project or consumed a history step.
                 assert_eq!(shell.engine.state().unwrap()["project"], before);
-                // The next Enter invokes Visibility exactly once, even when the
-                // child's topmost card overlaps its parent in a narrow float route.
+                // The next Enter invokes Visibility exactly once. Narrow float
+                // routes keep the two cards in separate, compact columns.
                 let (_, actions) = render(&mut shell, floating, size, &enter);
                 assert_eq!(actions.len(), 1);
                 for action in actions {
@@ -175,6 +175,85 @@ fn shared_menu_native_root_child_shortcuts_checks_and_small_window_owners() {
                 assert!(!motion_core::storage::load(&root).unwrap().layers[1].visible);
                 shell.state = shell.engine.history(0).unwrap();
                 assert_eq!(shell.state["project"], before);
+                if scale == 1. {
+                    // A real pointer hover must open a right-hand cascade in
+                    // available space, without an extra click/Enter or overlap.
+                    let anchor = [30., size[1] - 40.];
+                    shell
+                        .panels
+                        .layer_actions
+                        .open(Some(9), anchor, &shell.state);
+                    let (paint, actions) = render(&mut shell, floating, size, &Input::default());
+                    assert!(actions.is_empty());
+                    capture(
+                        &mut shell,
+                        &mut events,
+                        paint,
+                        size,
+                        output.join(format!("{prefix}-hover-root.png")),
+                    );
+                    let popup = shell.panels.layer_actions.popup.as_ref().unwrap();
+                    let rows = entries_with_bindings(
+                        popup,
+                        &shell.state,
+                        locale,
+                        &shell.panels.layer_actions.shortcut_bindings,
+                        &[],
+                    );
+                    let mut themed = PaintList::default();
+                    themed.stylesheet = shell.panels.styles.clone();
+                    let styles = themed.styles();
+                    let metrics = motion_ui::widgets::menu::Metrics::context(&styles);
+                    let bounds = Rect::new(0., 0., size[0], size[1]);
+                    let card = motion_ui::widgets::menu::cascade_parent(
+                        popup_rect(
+                            anchor,
+                            bounds,
+                            metrics.width(&rows, &styles, &mut shell.atlas),
+                            metrics.height(rows.len(), bounds),
+                        ),
+                        bounds,
+                        metrics.max_width,
+                    );
+                    let row = metrics.row_rect(card, 0);
+                    let input = Input {
+                        mouse: [
+                            row.min[0] + row.width() * 0.5,
+                            row.min[1] + row.height() * 0.5,
+                        ],
+                        ..Default::default()
+                    };
+                    let (paint, actions) = render(&mut shell, floating, size, &input);
+                    assert!(actions.is_empty());
+                    assert!(
+                        shell.panels.layer_actions.popup.as_ref().unwrap().page == Page::Switch
+                    );
+                    let child = motion_ui::widgets::menu::child(
+                        card,
+                        row,
+                        bounds,
+                        metrics.min_width,
+                        metrics.height(3, bounds),
+                        metrics.pad,
+                    );
+                    assert_eq!(child.min[0], card.max[0]);
+                    assert_eq!(metrics.row_rect(child, 0).min[1], row.min[1]);
+                    capture(
+                        &mut shell,
+                        &mut events,
+                        paint,
+                        size,
+                        output.join(format!("{prefix}-hover-child.png")),
+                    );
+                    assert_eq!(shell.engine.state().unwrap()["project"], before);
+                    let escape = Input {
+                        mouse: [-1.; 2],
+                        keys: vec![(Key::Escape, Default::default())],
+                        ..Default::default()
+                    };
+                    assert!(render(&mut shell, floating, size, &escape).1.is_empty());
+                    assert!(render(&mut shell, floating, size, &escape).1.is_empty());
+                }
                 if !floating {
                     shell.panels.menu = Some(7);
                     let end = Input {

@@ -25,12 +25,16 @@ fn shared_menu_geometry_keeps_root_child_and_clipped_hits_inside_small_windows()
         Rect::new(0., 24., 240., 156.),
         Rect::new(7., 11., 9., 5.),
     ] {
-        let card = popup(
-            [bounds.max[0], bounds.max[1]],
+        let card = cascade_parent(
+            popup(
+                [bounds.max[0], bounds.max[1]],
+                bounds,
+                220.,
+                metrics.height(30, bounds),
+                true,
+            ),
             bounds,
-            220.,
-            metrics.height(30, bounds),
-            true,
+            270.,
         );
         let child = child(
             card,
@@ -38,11 +42,13 @@ fn shared_menu_geometry_keeps_root_child_and_clipped_hits_inside_small_windows()
             bounds,
             270.,
             metrics.height(15, bounds),
+            metrics.pad,
         );
         for rect in [card, child, metrics.row_rect(card, 0)] {
             assert!(rect.min[0] >= bounds.min[0] && rect.min[1] >= bounds.min[1]);
             assert!(rect.max[0] <= bounds.max[0] && rect.max[1] <= bounds.max[1]);
         }
+        assert!(child.max[0] <= card.min[0] || child.min[0] >= card.max[0]);
         assert!(
             !metrics
                 .row_rect(card, 0)
@@ -52,9 +58,54 @@ fn shared_menu_geometry_keeps_root_child_and_clipped_hits_inside_small_windows()
     let bounds = Rect::new(0., 0., 800., 500.);
     let root = popup([790., 490.], bounds, 220., 200., true);
     assert_eq!(
-        child(root, metrics.row_rect(root, 0), bounds, 270., 100.).max[0],
+        child(
+            root,
+            metrics.row_rect(root, 0),
+            bounds,
+            270.,
+            100.,
+            metrics.pad
+        )
+        .max[0],
         root.min[0]
     );
+}
+
+#[test]
+fn cascade_aligns_rows_opens_right_flips_left_and_reserves_space_at_middle_anchors() {
+    for metrics in [
+        Metrics::context(&PaintList::default().styles()),
+        Metrics::application(&PaintList::default().styles()),
+    ] {
+        let bounds = Rect::new(0., 24., 800., 576.);
+        for (anchor, right) in [
+            ([30., 60.], true),
+            ([790., 60.], false),
+            ([220., 60.], true),
+            ([300., 60.], false),
+        ] {
+            let root = cascade_parent(popup(anchor, bounds, 300., 300., false), bounds, 320.);
+            let trigger = metrics.row_rect(root, 2);
+            let submenu = child(root, trigger, bounds, 320., 150., metrics.pad);
+            if right {
+                assert_eq!(submenu.min[0], root.max[0]);
+            } else {
+                assert_eq!(submenu.max[0], root.min[0]);
+            }
+            assert_eq!(metrics.row_rect(submenu, 0).min[1], trigger.min[1]);
+        }
+        let root = cascade_parent(popup([790., 590.], bounds, 300., 300., true), bounds, 320.);
+        let submenu = child(
+            root,
+            metrics.row_rect(root, 8),
+            bounds,
+            320.,
+            300.,
+            metrics.pad,
+        );
+        assert_eq!(submenu.max[1], bounds.max[1]);
+        assert_eq!(submenu.max[0], root.min[0]);
+    }
 }
 #[test]
 fn shared_menu_keyboard_skips_disabled_scrolls_and_does_not_repeat_actions_or_consume_ime() {

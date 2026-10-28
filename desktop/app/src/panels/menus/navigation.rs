@@ -233,12 +233,25 @@ pub(super) fn draw(
         size[0].max(0.),
         (size[1] - styles.metric("menu.window.bottom_inset", 20.) - top).max(0.),
     );
-    let card = menu::popup(
-        [starts.get(root).copied().unwrap_or_default(), top],
+    let mut child_entries = if root == 7 {
+        workspaces(panels)
+    } else {
+        Vec::new()
+    };
+    let card = menu::cascade_parent(
+        menu::popup(
+            [starts.get(root).copied().unwrap_or_default(), top],
+            bounds,
+            metrics.width(&entries, &styles, atlas),
+            metrics.height(entries.len(), bounds),
+            false,
+        ),
         bounds,
-        metrics.width(&entries, &styles, atlas),
-        metrics.height(entries.len(), bounds),
-        false,
+        if child_entries.is_empty() {
+            0.
+        } else {
+            metrics.width(&child_entries, &styles, atlas)
+        },
     );
     let hover =
         navigation.mouse != Some(input.mouse) || input.pressed.is_some() || input.wheel[1] != 0.;
@@ -251,11 +264,6 @@ pub(super) fn draw(
         panels.menu_scroll = 0;
         return;
     }
-    let mut child_entries = if root == 7 {
-        workspaces(panels)
-    } else {
-        Vec::new()
-    };
     let child_card = menu::child(
         card,
         metrics.row_rect(
@@ -265,10 +273,15 @@ pub(super) fn draw(
         bounds,
         metrics.width(&child_entries, &styles, atlas),
         metrics.height(child_entries.len(), bounds),
+        metrics.pad,
     );
     let mut parent_input = input.clone();
-    if navigation.child && (child_card.contains(input.mouse)
-        || input.pressed.is_some_and(|(_, point)| child_card.contains(point))) {
+    if navigation.child
+        && (child_card.contains(input.mouse)
+            || input
+                .pressed
+                .is_some_and(|(_, point)| child_card.contains(point)))
+    {
         parent_input.mouse = [f32::MIN, f32::MIN];
         parent_input.pressed = None;
         parent_input.wheel = [0.; 2];
@@ -351,6 +364,7 @@ pub(super) fn draw(
             bounds,
             metrics.width(&child_entries, &styles, atlas),
             metrics.height(child_entries.len(), bounds),
+            metrics.pad,
         );
         #[cfg(test)]
         {

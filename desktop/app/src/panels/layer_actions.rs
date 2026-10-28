@@ -448,12 +448,12 @@ impl Controls {
         let styles = list.styles();
         let metrics = Metrics::context(&styles);
         let row = metrics.row;
-        let card = popup_rect(
+        let card = menu::cascade_parent(popup_rect(
             popup.anchor,
             bounds,
             metrics.width(&root_entries, &styles, atlas),
             metrics.height(root_entries.len(), bounds),
-        );
+        ), bounds, if root_entries.iter().any(|entry| entry.submenu) { metrics.max_width } else { 0. });
         let mut root_highlighted = if page == root_page {
             popup.highlighted
         } else {
@@ -465,8 +465,8 @@ impl Controls {
             popup.root_scroll
         };
         let root_active = page == root_page;
-        // In narrow windows the child may overlap its parent. Only the topmost
-        // card owns pointer input; a child click must never invoke a root action.
+        // Also guard the press coordinate when a pointer moves between events.
+        // Child input must never invoke a root action.
         let mut root_input = active.clone();
         if !root_active {
             let children = entries_with_bindings(
@@ -482,6 +482,7 @@ impl Controls {
                 bounds,
                 metrics.width(&children, &styles, atlas),
                 metrics.height(children.len(), bounds),
+                metrics.pad,
             );
             if child.contains(active.mouse)
                 || active.pressed.is_some_and(|(_, point)| child.contains(point)) {
@@ -556,6 +557,7 @@ impl Controls {
                     bounds,
                     metrics.width(&children, &styles, atlas),
                     metrics.height(children.len(), bounds),
+                    metrics.pad,
                 );
                 child_card = Some(child);
                 let chosen = draw_menu(
@@ -1373,7 +1375,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     mod shared_native;
     #[test]
-    fn shared_menu_overlapping_child_click_cannot_retarget_the_parent_page() {
+    fn shared_menu_compact_child_stays_beside_parent_and_cannot_retarget_it() {
         use motion_ui::widgets::menu::{self, Metrics};
         for cursor_moved_after_press in [false,true] {
         let mut engine=engine();let state=state(&engine);
@@ -1383,12 +1385,14 @@ mod tests {
         let bounds=Rect::new(0.,0.,240.,200.);
         let popup=controls.popup.as_mut().unwrap();
         let root=entries_with_bindings(popup,&state,Locale::En,&controls.shortcut_bindings,&[]);
-        let card=popup_rect(popup.anchor,bounds,metrics.width(&root,&styles,&mut atlas),metrics.height(root.len(),bounds));
+        let card=menu::cascade_parent(popup_rect(popup.anchor,bounds,metrics.width(&root,&styles,&mut atlas),metrics.height(root.len(),bounds)),bounds,metrics.max_width);
         popup.page=Page::Switch;popup.opened=false;
         let children=entries_with_bindings(popup,&state,Locale::En,&controls.shortcut_bindings,&[]);
-        let child=menu::child(card,metrics.row_rect(card,0),bounds,metrics.width(&children,&styles,&mut atlas),metrics.height(children.len(),bounds));
+        let child=menu::child(card,metrics.row_rect(card,0),bounds,metrics.width(&children,&styles,&mut atlas),metrics.height(children.len(),bounds),metrics.pad);
         let area=metrics.row_rect(child,1);let point=[area.min[0]+10.,area.min[1]+10.];
-        assert!(card.contains(point),"negative control must exercise overlapping cards");
+        assert!(!card.contains(point),"compact child must not cover a parent action");
+        assert_eq!(child.min[0],card.max[0]);
+        assert_eq!(metrics.row_rect(child,0).min[1],metrics.row_rect(card,0).min[1]);
         let mut actions=vec![];
         let mut input=click(MouseButton::Left,point);
         if cursor_moved_after_press {input.mouse=[-1.;2];}
@@ -1607,12 +1611,12 @@ mod tests {
                 let metrics=motion_ui::widgets::menu::Metrics::context(&styles);
                 let mut geometry_atlas=TextAtlas::from_system(12.).unwrap();
                 let bounds=Rect::new(0.,0.,800.,500.);
-                let card = popup_rect(
+                let card = motion_ui::widgets::menu::cascade_parent(popup_rect(
                     anchor,
                     bounds,
                     metrics.width(&root,&styles,&mut geometry_atlas),
                     metrics.height(root.len(),bounds),
-                );
+                ), bounds, metrics.max_width);
                 let hover = [card.min[0] + 10., card.min[1] + 13.];
                 assert!(render(
                     &mut panels,
@@ -1628,7 +1632,7 @@ mod tests {
                 assert_eq!(engine.project(), &original); // Hover never edits.
                 let children=entries_with_bindings(popup,&state,Locale::En,&panels.layer_actions.shortcut_bindings,&[]);
                 let child=motion_ui::widgets::menu::child(card,metrics.row_rect(card,0),bounds,
-                    metrics.width(&children,&styles,&mut geometry_atlas),metrics.height(children.len(),bounds));
+                    metrics.width(&children,&styles,&mut geometry_atlas),metrics.height(children.len(),bounds),metrics.pad);
                 if right_edge {assert_eq!(child.max[0],card.min[0]);}else{assert_eq!(child.min[0],card.max[0]);}
                 let child_point = [child.min[0] + 10., child.min[1] + metrics.pad + metrics.row * 0.5];
                 let (actions, paint) = render(&mut panels, &click(MouseButton::Left, child_point));
