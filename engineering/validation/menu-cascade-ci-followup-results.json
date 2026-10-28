@@ -1,0 +1,65 @@
+{
+  "source": "fcf5bfc49ac6460d5b3837be44a9debfcba39c8a",
+  "checks": [
+    {
+      "exit": 0,
+      "source": "fcf5bfc49ac6460d5b3837be44a9debfcba39c8a",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::key_navigation::tests::property_selection",
+        "--",
+        "--test-threads=1"
+      ],
+      "name": "property-selection",
+      "elapsed_ms": 162918
+    },
+    {
+      "exit": 0,
+      "source": "fcf5bfc49ac6460d5b3837be44a9debfcba39c8a",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-ui",
+        "--lib",
+        "--locked",
+        "--offline",
+        "widgets::menu::tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "name": "menu-library",
+      "elapsed_ms": 135469
+    },
+    {
+      "exit": 0,
+      "source": "fcf5bfc49ac6460d5b3837be44a9debfcba39c8a",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-ui",
+        "--test",
+        "style",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "name": "style-integration",
+      "elapsed_ms": 11212
+    }
+  ],
+  "archive": {
+    "file": "menu-cascade-ci-followup.zip",
+    "entries": 13,
+    "bytes": 141096,
+    "sha256": "1ef63b38866d24808b46b505efdb9d128922cdd77a0406b8c4ab8347764a51da"
+  }
+}

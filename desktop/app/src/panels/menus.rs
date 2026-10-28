@@ -1,10 +1,13 @@
 use super::*;
+mod navigation;
+pub(super) use navigation::Navigation;
 
 enum Choice {
     Direct(Action),
     RecentEffect(usize),
     Text(motion_ui::widgets::TextCommand),
     Animation(super::animation_menu::Operation),
+    Workspaces,
 }
 
 // Reuse the existing menu geometry for hit testing before fields process outside clicks.
@@ -64,7 +67,7 @@ pub(super) fn render(
             name,
             false,
         );
-        if clicked(input, r) {
+        if !input.composing && !input.ime_consumed && clicked(input, r) {
             let next = if panels.menu == Some(i) {
                 None
             } else {
@@ -343,129 +346,10 @@ pub(super) fn render(
         } else {
             Vec::new()
         };
-        let row_count = entries.len() + recent.len();
-        let desired_height = row_count as f32 * 32.0 + 8.0;
-        let top = metrics::TITLE_BAR + metrics::MENU_BAR;
-        let bottom = (size[1] - 20.0).max(top + 32.0);
-        let max_height = (bottom - top).max(32.0);
-        let visible_rows = (((max_height - 8.0) / 32.0).floor() as usize)
-            .max(1)
-            .min(row_count);
-        let max_scroll = row_count.saturating_sub(visible_rows);
-        if panels.menu_scroll > max_scroll {
-            panels.menu_scroll = max_scroll;
-        }
-        let popup_height = desired_height.min(max_height);
-        let minimum_width = styles.metric("menu.popup.min_width", styles.metric("context.menu.width", f32::default()));
-        let popup_width = if menu == 1 || menu == 5 {
-            entries.iter().map(|(text,_,_)| atlas.measure(text))
-                .fold(minimum_width, |width, text| width.max(text + styles.metric("padding.panel", f32::default()) * 4.))
-                .min(size[0])
-        } else { minimum_width };
-        let popup = Rect::new(
-            starts
-                .get(menu)
-                .copied()
-                .unwrap_or(8.0)
-                .min((size[0] - popup_width).max(0.0)),
-            top,
-            popup_width,
-            popup_height,
-        );
-        if popup.contains(input.mouse) {
-            if input.wheel[1] < 0.0 {
-                panels.menu_scroll = (panels.menu_scroll + 1).min(max_scroll);
-            } else if input.wheel[1] > 0.0 {
-                panels.menu_scroll = panels.menu_scroll.saturating_sub(1);
-            }
-        }
-        // Text is drawn in a second GPU pass: remove covered labels before drawing the popup.
-        list.retain_glyphs(|g| {
-            g.position[0] + g.size[0] <= popup.min[0]
-                || g.position[0] >= popup.max[0]
-                || g.position[1] + g.size[1] <= popup.min[1]
-                || g.position[1] >= popup.max[1]
-        });
-        let start = panels.menu_scroll;
-        let mut popup_list = list.child();
-        paint::rect(&mut popup_list, popup, colors.CHROME);
-        paint::stroke(&mut popup_list, popup, colors.BORDER, 1.0);
-        let choices = entries
-            .into_iter()
-            .chain(recent.into_iter().map(|(text, index, enabled)| {
-                (text, Choice::RecentEffect(index), enabled)
-            }));
-        for (i, (text, choice, enabled)) in choices
-            .enumerate()
-            .skip(start)
-            .take(visible_rows)
-        {
-            let r = Rect::new(
-                popup.min[0] + 4.0,
-                popup.min[1] + 4.0 + (i - start) as f32 * 32.0,
-                popup.width() - 8.0,
-                30.0,
-            );
-            if r.contains(input.mouse) {
-                paint::rect(&mut popup_list, r, colors.SUNKEN);
-            }
-            let action = match &choice {
-                Choice::Direct(action) => Some(action),
-                Choice::RecentEffect(_) | Choice::Text(_) | Choice::Animation(_) => None,
-            };
-            let checked = match action {
-                Some(Action::TimelineColumnVisibility(next)) => {
-                    let current = panels.timeline.column_visibility;
-                    if next.matte != current.matte { current.matte }
-                    else if next.blend != current.blend { current.blend }
-                    else { current.parent }
-                }
-                Some(Action::ToggleDiagnostics) => state["desktop"]["diagnostics"]["enabled"] == true,
-                Some(Action::SamplingColumnVisibility(next)) => panels.timeline.sampling_visibility.0.iter()
-                    .zip(next.0).find(|(current,next)| **current != *next).is_some_and(|(current,_)|*current),
-                _ => false,
-            };
-            let slot = if matches!(action, Some(Action::TimelineColumnVisibility(_) | Action::SamplingColumnVisibility(_) | Action::ToggleDiagnostics)) {
-                styles.metric("icon.slot", 20.)
-            } else { 0. };
-            if checked {
-                motion_ui::icons::draw(&mut popup_list,
-                    Rect::new(r.max[0] - slot, r.min[1], slot, r.height()),
-                    motion_ui::icons::Icon::Check, styles.metric("checkbox.size", 14.),
-                    if enabled { colors.TEXT } else { styles.color("disabled") });
-            }
-            label(
-                &mut popup_list,
-                atlas,
-                Rect::new(r.min[0] + 8.0, r.min[1], r.width() - 16.0 - slot, r.height()),
-                &text,
-                !enabled,
-            );
-            if clicked(input, r) && enabled {
-                let action = match choice {
-                    Choice::Text(command) => {
-                        super::text_menu::apply(panels, state, command, input.text_clipboard.as_ref());
-                        None
-                    }
-                    Choice::Animation(command) => {
-                        super::animation_menu::apply(panels, state, command, out);
-                        None
-                    }
-                    Choice::Direct(action) => Some(action),
-                    Choice::RecentEffect(index) => super::effect_recent::apply(index, panels, state),
-                };
-                out.extend(action);
-                panels.menu = None;
-                panels.menu_scroll = 0;
-            }
-        }
-        popup_list.clip_to(popup);
-        list.append(popup_list);
-        if input.pressed.is_some_and(|(_, p)| {
-            !popup.contains(p) && p[1] >= metrics::TITLE_BAR + metrics::MENU_BAR
-        }) {
-            panels.menu = None;
-            panels.menu_scroll = 0;
-        }
+        let choices=entries.into_iter().chain(recent.into_iter().map(|(text,index,enabled)|
+            (text,Choice::RecentEffect(index),enabled))).collect();
+        navigation::draw(list,atlas,size,&starts,menu,choices,panels,input,state,out);
+    } else {
+        panels.menu_navigation=Navigation::default();
     }
 }

@@ -1,0 +1,541 @@
+{
+  "schema_version": 1,
+  "issue": 276,
+  "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+  "base": "8c271bd361b0ecdd4d57e29d3bfe2d7ecaff5f4f",
+  "stages": [
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-ui",
+        "--lib",
+        "--locked",
+        "--offline",
+        "widgets::menu"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "ui-menu",
+      "elapsed_ms": 3472,
+      "log_sha256": "78f109f3682382897bc8d3689a2000dd5f089e25d9ff9b28cd9534ebf6db0690",
+      "counts": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-ui",
+        "--test",
+        "style",
+        "--locked",
+        "--offline"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "ui-styles",
+      "elapsed_ms": 1512,
+      "log_sha256": "d24964bbb57bb711cf3b3fbfb01e7be4889a0e3f329066289cb421e761985ef6",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "shared_menu",
+        "--",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "shared-navigation",
+      "elapsed_ms": 137935,
+      "log_sha256": "ce03158ac2ca92c52733e27ae11adfbb073df4522ddfe2a172ea9b77cad417eb",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::layer_actions::tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "layer-actions",
+      "elapsed_ms": 26499,
+      "log_sha256": "4035ddf0620a3f0785bb69adab1a0a0b54921f22bc50dfc385e8a04f8dd49e06",
+      "counts": {
+        "passed": 19,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::effect_controls::removal_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "effect-menu",
+      "elapsed_ms": 8389,
+      "log_sha256": "b55c95ae648fdeeb38d91fbd2b4f8596d766ea735c1733b972fa00b3e3b3bc9c",
+      "counts": {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "text_menu",
+        "--",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "text-menu",
+      "elapsed_ms": 27241,
+      "log_sha256": "3fb4e40737083ec921e9d2938d4116edb1eb7cb90c9b0d24b467954c485a1d51",
+      "counts": {
+        "passed": 12,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "recent_effect_menu_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "recent-effects",
+      "elapsed_ms": 3093,
+      "log_sha256": "3df0058390866dc87853a46c1098010a4aa6b0630e199176cdeaf740c3384282",
+      "counts": {
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "fallback_observation::tests::application_fallbacks_report_real_failures_recover_and_keep_previous_styles",
+        "--",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "style-error-channel",
+      "elapsed_ms": 11969,
+      "log_sha256": "72ec2c7b7cd8e516af74d87541b719f1a68a13d35d1a501824b8f6c0799dd21f",
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::layer_actions::tests::shared_native::shared_menu_native_root_child_shortcuts_checks_and_small_window_owners",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "native-menu",
+      "elapsed_ms": 50464,
+      "log_sha256": "d24feafde44be10f77e8b166c967dbb3ce438007704eb44a2b0334b0fc3ab637",
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "arguments": [
+        "build",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline"
+      ],
+      "source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "exit": 0,
+      "name": "build-ffmpeg",
+      "elapsed_ms": 63385,
+      "log_sha256": "6568cfccbff96fa68015c385998f7dbb9807521ebd032e50689b7829dd0a8b35"
+    }
+  ],
+  "ui_library": {
+    "passed": 76,
+    "failed": 0,
+    "sha256": "a0fd4445b09e60d19195e8aece1fd6f91e0c6df885ad4ebab6de4bde270388e9",
+    "source_equivalence": {
+      "tested_source": "a1b9d8ca75c6ca45297304441ffb158b5255615d",
+      "final_source": "01c8fbf799d06b19cb835729fbdf82b61fc78340",
+      "equivalent_path": "desktop/ui",
+      "git_diff_empty": true
+    }
+  },
+  "captures": [
+    {
+      "name": "shared-menu-en-floating-route-1.5x-child.png",
+      "width": 480,
+      "height": 540,
+      "sha256": "a5ed25b4c39e40ecd01f9b46a05b05780212b9019e33d7a53358a35cc4a95ec0"
+    },
+    {
+      "name": "shared-menu-en-floating-route-1.5x-root.png",
+      "width": 480,
+      "height": 540,
+      "sha256": "9938945e623340c91f1342b975292d47ad960bb6b72de55776b67adda5fbba5d"
+    },
+    {
+      "name": "shared-menu-en-floating-route-1x-child.png",
+      "width": 320,
+      "height": 360,
+      "sha256": "fca6fb78518226ac27276a832d52d9b1e2e2a0f25ad49763d3aac0eb2757bb98"
+    },
+    {
+      "name": "shared-menu-en-floating-route-1x-root.png",
+      "width": 320,
+      "height": 360,
+      "sha256": "5201c901d7279109ddf716a4aea883bf8a0c35ce9d067187f3c8dbd7cc047f0f"
+    },
+    {
+      "name": "shared-menu-en-floating-route-2x-child.png",
+      "width": 640,
+      "height": 720,
+      "sha256": "304508d4dceb6ed90d37b71599129827dd1f745a0693b562f18fa2cb3cc20d88"
+    },
+    {
+      "name": "shared-menu-en-floating-route-2x-root.png",
+      "width": 640,
+      "height": 720,
+      "sha256": "c6633565c895ed754254d2ded27686e1eb7b3d9751c202af6650300fb7d81a9e"
+    },
+    {
+      "name": "shared-menu-en-main-1.5x-child.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "743a76edd5d272ab284af419284c4320e934d4f22b2a008d020af23e706048e2"
+    },
+    {
+      "name": "shared-menu-en-main-1.5x-root.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "7acf0a3b854c7ffce2ccf7a9e7a1b168cf0c79ddae1243d36cf66f7f172115b6"
+    },
+    {
+      "name": "shared-menu-en-main-1.5x-workspaces.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "ae3fffa99dc29b7f406caabd08536e9582df165542b17593d72edee5d9eeef4b"
+    },
+    {
+      "name": "shared-menu-en-main-1x-child.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "2af400738369393e5571387bffc21422b6bd85052f2bf8f58fb91d2e0a743e98"
+    },
+    {
+      "name": "shared-menu-en-main-1x-root.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "0da967231d7c85a2137f79e48568ea4f51bcf060742fe8680e6d5ee7ad724a35"
+    },
+    {
+      "name": "shared-menu-en-main-1x-workspaces.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "77c290e5185c2f30056eb0b8a864ae16ca85839dd61f944974aa735552201895"
+    },
+    {
+      "name": "shared-menu-en-main-2x-child.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "eceb57d341c8866234c175f2edad651f0b324ad5bc291805ae5506084fbedda6"
+    },
+    {
+      "name": "shared-menu-en-main-2x-root.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "62a0dc3cd71d64a98d688ca939d5109f6220cb675a22df1c32e3b9f1fc28cf21"
+    },
+    {
+      "name": "shared-menu-en-main-2x-workspaces.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "fe095bb3f75bf78fdfb9b86ab653878fe11d279a2c3abed876b8adf7e746ff7c"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-1.5x-child.png",
+      "width": 480,
+      "height": 540,
+      "sha256": "039f05026ec2617d9151806df6b64f7e25833ea35607b2e1e41dcb3dd2c08657"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-1.5x-root.png",
+      "width": 480,
+      "height": 540,
+      "sha256": "b2ef5d06878e36e5e6194c13246002edb91afdca968e1efeb7af66311efad070"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-1x-child.png",
+      "width": 320,
+      "height": 360,
+      "sha256": "c7cd8f54d3dc286ec7dfa7ff76f54c7ea46d3d16ca0f4c8c6035c187491344aa"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-1x-root.png",
+      "width": 320,
+      "height": 360,
+      "sha256": "1b409b3a319e00df02184b1ea45e0bfa8719b555269bdfecf4889aea2fb58aa2"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-2x-child.png",
+      "width": 640,
+      "height": 720,
+      "sha256": "d3e5162c1ef71b9758b4d7c978284a59268c3d8107292f7c1c803185702683b1"
+    },
+    {
+      "name": "shared-menu-zh-floating-route-2x-root.png",
+      "width": 640,
+      "height": 720,
+      "sha256": "ee70a6001d6f59a0cd5abfdede7ca7e9d5bb6041e1fa340418168177ec75ef5e"
+    },
+    {
+      "name": "shared-menu-zh-main-1.5x-child.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "aba4518323d739917e9c8ba2bb0def73a98689a7b372bb4286d91f9e079257f5"
+    },
+    {
+      "name": "shared-menu-zh-main-1.5x-root.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "9f9274bbe7f9f8b576e5d5747033fa1a96e7975abebc2bdfdf90916d31041fe3"
+    },
+    {
+      "name": "shared-menu-zh-main-1.5x-workspaces.png",
+      "width": 1350,
+      "height": 900,
+      "sha256": "ff08952e9dd6a0cb0a2dbb557a30952e205aa7e8a7739db07eb5a6e9a4ce8041"
+    },
+    {
+      "name": "shared-menu-zh-main-1x-child.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "32211348a63b6e7c6cbfefceb0cc63e252cc06cb45a040872bf2068c76b1248d"
+    },
+    {
+      "name": "shared-menu-zh-main-1x-root.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "eb5e29ee9eb4f884e7a10eb8e8c7ca545b85002d7feb1a8ec2ed8acdf1a6c4da"
+    },
+    {
+      "name": "shared-menu-zh-main-1x-workspaces.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "10df48ce20c64f966065cdf1142816c58a72813951b0244ca9679d0e0548a801"
+    },
+    {
+      "name": "shared-menu-zh-main-2x-child.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "d9039d2f535954d9e72d9454e0bd56edb1b968835cd6077367b9095d52e9349f"
+    },
+    {
+      "name": "shared-menu-zh-main-2x-root.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "621ebccd19647766033950f9f0521d88816af0dcfa320f2378e5b74cb1c06b5b"
+    },
+    {
+      "name": "shared-menu-zh-main-2x-workspaces.png",
+      "width": 1800,
+      "height": 1200,
+      "sha256": "3a2321f95943b505d7abb8286dda999bc9816e23b5c53824d9da5c68469d7a07"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "e1f8759c7cac3db90d4bbe18b8cb03ea92b06eee7a493e8d23a593efd05fd40c",
+      "git_blob": "750f8ef6d95574dae4969c89bf62e594484e1c68"
+    },
+    {
+      "path": "desktop/app/src/panels/layer_actions.rs",
+      "sha256": "a0aaeb76f3920fc797aa57ee24f034a3e22dd03f0a5d92ca9ad2a29fdbce6f0c",
+      "git_blob": "f533f72ae9c6fd102da5e594127e79afd35f4ac4"
+    },
+    {
+      "path": "desktop/app/src/panels/layer_actions/tests/shared_native.rs",
+      "sha256": "34ca7e9adea7d17f8e635d629e0e4745fef1cb7890d325e4f7cabbba4253e05c",
+      "git_blob": "0609c98975a59307eb50f9968fc625512e3264ac"
+    },
+    {
+      "path": "desktop/app/src/panels/menus.rs",
+      "sha256": "7a4200e6ad925e75b1a0ef98537ce9d5650b7b87768f0a0a88de61c6fa1d05c0",
+      "git_blob": "cb0ecc1cd3a50e72baf6adc7dd512323a207897d"
+    },
+    {
+      "path": "desktop/app/src/panels/menus/navigation.rs",
+      "sha256": "874193c4c1ffca83d86fde496985ab5ca4facd38a50d7184f76726514e50c79e",
+      "git_blob": "c7f519f71ff1171ab1b04b80d5de4cda692edcaa"
+    },
+    {
+      "path": "desktop/app/src/panels/menus/navigation/tests.rs",
+      "sha256": "6f52f4d9785d9b16fffd964c1335c9788e01e137bfd6750a53c8dce609a395ff",
+      "git_blob": "05a9e06725f3fe9312695f407e9e605b30c79652"
+    },
+    {
+      "path": "desktop/app/src/panels/mod.rs",
+      "sha256": "70962d48c76e5d5d462f258050f80188ffdfc169697305b7ff7612bfc32ea6cb",
+      "git_blob": "d1e426da74ace4571243da86864a2c8a4fda261f"
+    },
+    {
+      "path": "desktop/app/src/panels/text_menu.rs",
+      "sha256": "345fe3f0217baa4ab1156bf41864c01f222432614a8b06381c2ff193c07d0639",
+      "git_blob": "1658dc2b7d7d08f244a1e429d4df32c88cb89a84"
+    },
+    {
+      "path": "desktop/app/src/panels/types.rs",
+      "sha256": "9113fd0acc49811a004e3dc3607e35f80b96bdd530e0b79e15cbb2bb772c55a1",
+      "git_blob": "527895c12a6ad08b8c13c49b36c91910a3060e05"
+    },
+    {
+      "path": "desktop/ui/src/style.rs",
+      "sha256": "d52b95fc53e5ba13e62ea34d879253d8af8350a556aa1ab53e296c82b8960441",
+      "git_blob": "9bebe61dcc576bd3a04516ec0df464ad50997b85"
+    },
+    {
+      "path": "desktop/ui/src/widgets.rs",
+      "sha256": "88ff305d8d709d4cdfa5bb833ac8966223023352f66891c3fd289715af41de05",
+      "git_blob": "f2c62b9bb9e826c31e658fcc18ea0c676a20b5ed"
+    },
+    {
+      "path": "desktop/ui/src/widgets/menu.rs",
+      "sha256": "cf9a61cc8d9186d8b801be12d13b499e5ce97bc9e084d1ce89fb6b565d02315b",
+      "git_blob": "6c339915b381500a20a9b6e1fb444ca1c554e7d9"
+    },
+    {
+      "path": "desktop/ui/src/widgets/menu/tests.rs",
+      "sha256": "61ba63fcfca485dfdc22b265ad32e4b1eb5bcca29919cf53ccb421fe5c553cf1",
+      "git_blob": "198169f1592058fd67f9d0dc4b47f811721a53df"
+    },
+    {
+      "path": "desktop/ui/src/widgets/text_commands.rs",
+      "sha256": "92d3ed47bb2677d4edc2eb7228b6ccf9b89146389fc0d9b3090ead92f1ed5331",
+      "git_blob": "9d13c73a83e018f64f0b1d76b2c3008fafff1fc0"
+    },
+    {
+      "path": "desktop/ui/styles/dark.json",
+      "sha256": "9bc2ce18104cd4f9006505a9895965ae39749c221eb356e2ac35c74143a6645c",
+      "git_blob": "80b430db2ca2b45573016d549436fcbb2729a288"
+    }
+  ],
+  "binary": {
+    "Algorithm": "SHA256",
+    "Hash": "FBB049571EF6EB8CD93EA248C2F9D03A57C2446534C1D67F0142EFFA8C08EE62",
+    "Path": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\shared-menu-final-v4\\motion-studio.exe"
+  },
+  "evidence": {
+    "path": "data/shared-menu-navigation-evidence.zip",
+    "sha256": "f9910258c220c4f603f915a3649cf21ee7db0693ae1af5820edf54276d750dfb",
+    "bytes": 3916245,
+    "entries": 155
+  },
+  "limits": [
+    "Controlled normalized input; not OS input injection into an independent floating window.",
+    "Rendering pixel ratios 1/1.5/2; no system DPI change.",
+    "Dedicated library/path/project popups retain their specialized layouts.",
+    "Counts overlap between filtered suites and must not be summed."
+  ]
+}

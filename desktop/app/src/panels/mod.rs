@@ -419,6 +419,7 @@ pub fn chrome(
         panels.locale,
         panels.selected,
         panels.focused == Some(Panel::Timeline)
+            && panels.menu.is_none()
             && !panels.timeline_columns.editing()
             && !panels.timeline.comparison.keyboard_focus()
             && !panels.parent_controls.open
@@ -516,6 +517,8 @@ pub fn chrome(
         );
     }
     if panels.effect_search.is_none()
+        && panels.menu.is_none()
+        && !input.composing && !input.ime_consumed
         && input
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)

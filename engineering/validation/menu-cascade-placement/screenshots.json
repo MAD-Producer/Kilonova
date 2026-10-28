@@ -1,0 +1,45 @@
+[
+  {
+    "source": "shared-menu-zh-main-1x-hover-root.png",
+    "source_sha256": "86b9129fd8e487c5e7d90be5802630ce4967df469628edcb90edefb74f5733a4",
+    "crop": [
+      10,
+      740,
+      500,
+      985
+    ],
+    "result": "zh-before-hover.png",
+    "sha256": "db6090508e899e3c5c40c97795a9f5122a1cc2d4cc84089735eb336a132a43dd"
+  },
+  {
+    "source": "shared-menu-zh-main-1x-hover-child.png",
+    "source_sha256": "dc87bada9f89fda6793ba30bc7af4592a9dc5028dbabf92a0e0ecc04989a9922",
+    "crop": [
+      10,
+      740,
+      500,
+      985
+    ],
+    "result": "zh-hover-right.png",
+    "sha256": "18dab5637eee475e21ae4e6479d7a09acd1a12cb5114edef521128a2fa3c1988"
+  },
+  {
+    "source": "shared-menu-zh-main-1x-child.png",
+    "source_sha256": "28872cfdc02e523024465a5c6e1ed611bf95c9b39fcf30c22140d8c2cb5f9e40",
+    "crop": [
+      1120,
+      740,
+      1600,
+      985
+    ],
+    "result": "zh-right-edge-left.png",
+    "sha256": "0ae044368bb0c6e780a45b3f347c89ab1ef61e06f9e8715e018571b4aca638f6"
+  },
+  {
+    "source": "shared-menu-zh-floating-route-1x-child.png",
+    "source_sha256": "439a29f27710ff151c3eadfc6a6635ca008d871aa4a3655d21c5643b46c4148b",
+    "crop": null,
+    "result": "zh-compact-float.png",
+    "sha256": "7a7a3c983af246ac4b908dda7ec9d8c359c880dbe3d1588df80e8ec4bd7e551d"
+  }
+]

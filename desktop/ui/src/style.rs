@@ -260,6 +260,8 @@ impl StyleSheet {
             "label.caption",
             "label.title",
             "error",
+            "context_menu",
+            "context_menu.row",
         ] {
             if !document.styles.contains_key(class) {
                 return Err(format!("missing framework style {class}"));

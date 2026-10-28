@@ -10,6 +10,8 @@
 
 基础类包括 `panel`、`panel.header`、`toolbar`、`canvas`、`button`、`button.primary`、`field`、`field.number`、`row`、`menu`、`tooltip` 和文本标签。可添加自己的类，如 `button.export` 或 `panel.nodes`。
 
+完整主题必须包含 `context_menu` 和 `context_menu.row`，缺失时在安装前拒绝加载。`row` 是可选属性行样式；主题省略它时，应让必需的菜单行继承其他仍存在的基类（如 `widget`），不能同时删掉菜单行或留下悬空继承。默认主题仍保留原有继承和外观。
+
 ## 覆盖示例
 
 创建一个 JSON 文件，仅写需要改变的值：

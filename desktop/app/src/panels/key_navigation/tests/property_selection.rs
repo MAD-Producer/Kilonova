@@ -12,6 +12,10 @@ fn optional_row_class_uses_required_framework_selection_in_custom_themes() {
     )))
     .unwrap();
     let classes = document["styles"].as_object_mut().unwrap();
+    // This custom theme omits optional property rows, but shared menus now
+    // require their own row class. Give it a required framework ancestor so
+    // pruning optional row descendants does not invalidate the theme itself.
+    classes.get_mut("context_menu.row").unwrap()["extends"] = "widget".into();
     let mut removed = vec!["row".to_owned()];
     classes.remove("row");
     loop {
@@ -32,6 +36,9 @@ fn optional_row_class_uses_required_framework_selection_in_custom_themes() {
             removed.push(child);
         }
     }
+    assert!(!classes.contains_key("row"));
+    assert!(!classes.contains_key("timeline.row"));
+    assert!(classes.contains_key("context_menu.row"));
     let theme = std::sync::Arc::new(
         motion_ui::style::StyleSheet::from_json(&serde_json::to_vec(&document).unwrap()).unwrap(),
     );
