@@ -26,6 +26,7 @@ mod node_effects;
 mod error;
 #[cfg(feature = "ai-depth")]
 pub mod depth;
+pub mod depth_snapshot;
 pub use error::Error;
 pub mod ops;
 pub mod platform;

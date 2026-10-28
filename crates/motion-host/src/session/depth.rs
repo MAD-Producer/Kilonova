@@ -76,6 +76,7 @@ impl Source {
 }
 
 pub(crate) struct CalibrationSample {
+    request: u64,
     estimate: Arc<Estimate>,
     input: PreparedDepthInput,
     source: Source,
@@ -134,6 +135,34 @@ impl Binding {
     }
 }
 impl Session {
+    pub(crate) fn capture_depth_snapshot(&self) -> Result<crate::depth_snapshot::DepthSnapshot> {
+        use crate::depth_snapshot::{DepthSnapshot, Entry};
+        let project = self.engine.project();
+        let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new() };
+        for composition in project.reachable_compositions()? {
+            let view = project.composition_view(&composition)?;
+            for layer in view.layers.iter().filter(|layer| layer.three_d) {
+                let Some(calibration) = &layer.depth_calibration else { continue; };
+                if composition != project.composition_id {
+                    return Err(format!("frozen depth object={} phase=capture: nested depth is not supported", layer.id).into());
+                }
+                let sample = self.saved_depth_sample(&composition, layer.id, calibration)?
+                    .ok_or_else(|| crate::Error::from(format!("frozen depth object={} phase=capture: current source pending or absent", layer.id)))?;
+                let (Source::Image(asset), Identity::Sample(key)) = (sample.source, sample.key) else {
+                    return Err(format!("frozen depth object={} phase=capture: video depth is not supported", layer.id).into());
+                };
+                snapshot.entries.push(Entry {
+                    object: layer.id, asset, key, input: sample.input,
+                    calibration: calibration.clone(), estimate: sample.estimate,
+                    request: sample.request,
+                    decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
+                });
+            }
+        }
+        snapshot.validate()?;
+        Ok(snapshot)
+    }
+
     pub(crate) fn depth_calibration_sample(&mut self) -> Result<Option<CalibrationSample>> {
         self.poll_depth()?;
         let Some(state) = &self.depth else {
@@ -146,6 +175,7 @@ impl Session {
             return Ok(None);
         };
         Ok(Some(CalibrationSample {
+            request: binding.request,
             estimate: estimate.clone(),
             input: *input,
             source: binding.source.clone(),

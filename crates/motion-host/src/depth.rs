@@ -128,7 +128,7 @@ impl Input {
     pub fn rgb(&self) -> &[u8] {
         &self.rgb
     }
-    fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
+    pub(crate) fn fingerprint(&self, cancellation: &Cancellation) -> Result<PreparedDepthInput> {
         let mut hash = Sha256::new();
         hash.update(b"MotionStudio/depth/rgb8-srgb-opaque/v1\0");
         for size in self.size {

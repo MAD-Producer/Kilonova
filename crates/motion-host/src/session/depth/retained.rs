@@ -19,6 +19,7 @@ impl Entry {
     }
     pub fn sample(&self) -> CalibrationSample {
         CalibrationSample {
+            request: self.binding.request,
             estimate: self.estimate.clone(),
             input: self.input,
             source: self.binding.source.clone(),
