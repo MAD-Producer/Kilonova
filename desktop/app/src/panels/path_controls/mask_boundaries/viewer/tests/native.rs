@@ -269,7 +269,7 @@ fn native_boundary_viewer_main_and_independent_float_render_and_transactions() {
                     center,
                     zoom
                 ));
-                let (paint, actions) = draw(&mut shell, size, window, &Input::default());
+                let (_paint, actions) = draw(&mut shell, size, window, &Input::default());
                 assert!(actions.is_empty());
                 let before = shell.state["project"].clone();
                 let before_mask = current_mask(&shell);

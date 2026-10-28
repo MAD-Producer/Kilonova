@@ -58,6 +58,14 @@ fn sections_follow_union_and_erosion_instead_of_a_bounding_rectangle() {
         vec![[16., 36.], [60., 80.]],
     );
     assert!(concave.section(0, 90.).unwrap().is_empty());
+    for axis in [0, 1] {
+        let reference = concave.reference_coordinate(axis).unwrap().unwrap();
+        assert!(
+            !concave.section(axis, reference).unwrap().is_empty(),
+            "reference must cross the actual concave fill"
+        );
+    }
+    assert!(concave.reference_coordinate(2).is_err());
     let offset =
         BoundaryGeometry::new(rectangle(), [-14., -9., 124., 114.], [124., 114.], -8., 2.).unwrap();
     let interval = offset.section(0, 48.).unwrap();
@@ -87,6 +95,8 @@ fn invalid_inputs_are_errors_and_empty_geometry_is_a_normal_miss() {
         assert!(BoundaryGeometry::new(shape, rect, size, expansion, density).is_err());
     }
     let empty = geometry(vec![], 0.);
+    assert_eq!(empty.reference_coordinate(0).unwrap(), None);
+    assert_eq!(empty.reference_coordinate(1).unwrap(), None);
     assert!(empty.section(0, 48.).unwrap().is_empty());
     assert!(empty.section(2, 48.).is_err());
     assert!(empty.section(0, f32::NAN).is_err());

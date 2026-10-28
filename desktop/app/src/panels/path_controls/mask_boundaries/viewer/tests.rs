@@ -432,10 +432,16 @@ fn boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdo
         return;
     }
     let temporary = tempfile::tempdir().unwrap();
+    let evidence = std::env::var_os("MOTION_MASK_BOUNDARY_FAILURE_EVIDENCE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| temporary.path().into());
+    std::fs::create_dir_all(&evidence).unwrap();
     let output=std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact","panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
             "--nocapture","--test-threads=1"])
-        .env_remove("MOTION_LOG").env(CHILD,temporary.path()).output().unwrap();
+        .env_remove("MOTION_LOG").env(CHILD,&evidence).output().unwrap();
+    std::fs::write(evidence.join("stdout.log"), &output.stdout).unwrap();
+    std::fs::write(evidence.join("stderr.log"), &output.stderr).unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "{stdout}\n{stderr}");
