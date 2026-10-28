@@ -67,6 +67,9 @@ fn frozen_image_depth_keeps_results_after_seek_close_and_source_removal_and_veri
         session.poll_depth().unwrap().is_none(),
         "live installation remains frame-bound"
     );
+    assert_eq!(DepthSnapshot::capture(&session).unwrap().layer_count(), 1,
+        "already admitted immutable static sources remain available at another camera time");
+    session.cancel_depth().unwrap();
     assert!(DepthSnapshot::capture(&session)
         .unwrap_err()
         .to_string()

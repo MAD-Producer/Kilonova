@@ -88,7 +88,10 @@ impl ImageInput {
         }
         let rgba = DynamicImage::from_decoder(decoder)?.into_rgba8();
         cancellation.check()?;
-        rgb_from_rgba(self.key, rgba.as_raw(), cancellation)
+        let mut input = rgb_from_rgba(self.key, rgba.as_raw(), cancellation)?;
+        input.image = Some(motion_render::DepthImage::new([w, h], rgba.into_raw())?);
+        cancellation.check()?;
+        Ok(input)
     }
 }
 

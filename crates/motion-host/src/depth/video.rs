@@ -121,16 +121,23 @@ impl VideoInput {
             geometry: self.key.geometry,
             model: self.key.model,
         };
-        let mut input = rgb_from_rgba(key, &rgba, cancellation)?;
+        // Own the same display pixels used for inference. A later decoder call
+        // is not evidence of the same color frame, even at the requested PTS.
+        let mut rgba = rgba.into_owned();
         if encoding == RgbEncoding::Bt709 {
             let lut = bt709_to_srgb();
-            for row in Arc::make_mut(&mut input.rgb).chunks_mut(input.size[0] as usize * 3) {
+            for row in rgba.chunks_mut(width as usize * 4) {
                 cancellation.check()?;
-                for channel in row {
-                    *channel = lut[usize::from(*channel)];
+                for pixel in row.chunks_exact_mut(4) {
+                    for channel in &mut pixel[..3] {
+                        *channel = lut[usize::from(*channel)];
+                    }
                 }
             }
         }
+        let mut input = rgb_from_rgba(key, &rgba, cancellation)?;
+        input.image = Some(motion_render::DepthImage::new([width, height], rgba)?);
+        cancellation.check()?;
         Ok(input)
     }
 }
