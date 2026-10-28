@@ -53,6 +53,20 @@ pub(super) fn width(styles: &motion_ui::style::StyleSheet) -> f32 {
     styles.metric("icon.slot", 20.) * 3.
 }
 
+pub(super) fn inspector_width(styles: &motion_ui::style::StyleSheet, available: f32) -> f32 {
+    if available < styles.metric("inspector.navigation.min_width", 320.) {
+        0.
+    } else {
+        width(styles)
+    }
+}
+
+pub(super) fn inspector_rail(styles: &motion_ui::style::StyleSheet, row: Rect) -> Rect {
+    let mut rect = rail(styles, row);
+    rect.max[0] = rect.min[0] + inspector_width(styles, row.width());
+    rect
+}
+
 pub(super) fn rail(styles: &motion_ui::style::StyleSheet, row: Rect) -> Rect {
     Rect::new(
         row.min[0] + styles.metric("padding.panel", 8.),
@@ -86,6 +100,9 @@ pub(super) fn draw(
     editable: bool,
 ) -> Option<Choice> {
     let styles = list.styles();
+    if area.width() < width(&styles) {
+        return None;
+    }
     let neutral = Input::default();
     let input = if input.focus_lost || input.keys.iter().any(|(key, _)| *key == Key::Escape) {
         &neutral

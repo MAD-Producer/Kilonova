@@ -2,6 +2,8 @@
 pub mod numeric_behavior;
 pub mod menu;
 mod property_layout;
+mod inspector;
+pub use inspector::InspectorColumns;
 mod text_history;
 mod text_input;
 mod text_commands;

@@ -1,8 +1,52 @@
 use super::*;
 use crate::panels::animation_data as data;
 use motion_core::{Axis, Engine, Keyframe, Layer, Project};
-mod property_selection;
+
+#[test]
+fn compact_inspector_rail_has_no_paint_or_hit_targets_and_restores_when_widened() {
+    let styles = PaintList::default().styles();
+    for panel_width in [220., 319., 320., 360., 220., 360.] {
+        let row = Rect::new(137., 91., panel_width, 26.);
+        let rail = inspector_rail(&styles, row);
+        let point = [
+            row.min[0] + styles.metric("padding.panel", 8.) + styles.metric("icon.slot", 20.) * 1.5,
+            row.min[1] + row.height() * 0.5,
+        ];
+        let input = Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        };
+        let mut paint = PaintList::default();
+        let intent = draw(
+            &mut paint,
+            rail,
+            &input,
+            Neighbours {
+                previous: Some(0.),
+                current: true,
+                next: Some(60.),
+            },
+            true,
+        );
+        if panel_width < 320. {
+            assert_eq!(rail.width(), 0.);
+            assert_eq!(intent, None);
+            assert!(paint.order.is_empty(), "hidden controls must not paint");
+        } else {
+            assert_eq!(rail.width(), width(&styles));
+            assert_eq!(intent, Some(Choice::Toggle));
+            assert!(!paint.order.is_empty());
+        }
+        assert_eq!(
+            super::rail(&styles, row).width(),
+            width(&styles),
+            "timeline rail remains available"
+        );
+    }
+}
 mod effect_scope;
+mod property_selection;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
@@ -616,7 +660,8 @@ fn camera_rows_keep_axis_targets_and_cancellation_in_both_native_hosts() {
                     let height = styles.metric("row.height", 22.);
                     Rect::new(
                         0.,
-                        top + crate::panels::timeline::header_height(&styles) + plan.property_offsets[index] as f32 * height,
+                        top + crate::panels::timeline::header_height(&styles)
+                            + plan.property_offsets[index] as f32 * height,
                         1000.,
                         height,
                     )
@@ -802,37 +847,77 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                     let value = controls.test_rects[&(7, effect, param.into(), -4)];
                     let caption = controls.test_rects[&(7, effect, param.into(), -7)];
                     for rect in [caption, value] {
-                        let point = [(rect.min[0] + rect.max[0])*0.5,
-                            (rect.min[1] + rect.max[1])*0.5];
-                        let actions = draw_host(&mut panels, &before,
-                            &Input {mouse:point, pressed:Some((MouseButton::Left,point)),
-                                ..Default::default()}, panel, floating, &mut atlas);
+                        let point = [
+                            (rect.min[0] + rect.max[0]) * 0.5,
+                            (rect.min[1] + rect.max[1]) * 0.5,
+                        ];
+                        let actions = draw_host(
+                            &mut panels,
+                            &before,
+                            &Input {
+                                mouse: point,
+                                pressed: Some((MouseButton::Left, point)),
+                                ..Default::default()
+                            },
+                            panel,
+                            floating,
+                            &mut atlas,
+                        );
                         // Numeric fields may begin a gesture, while captions
                         // only select. Execute the real boundary and cancellation.
                         for action in actions {
                             match action {
-                                Action::History(index) => {host.history(index).unwrap();}
+                                Action::History(index) => {
+                                    host.history(index).unwrap();
+                                }
                                 other => panic!("selection unexpectedly edited data: {other:?}"),
                             }
                         }
                         for controls in [&panels.effect_controls, &panels.properties.effects] {
                             assert!(controls.parameter_selected(&before, 7, effect, param));
                         }
-                        assert_eq!(panels.effect_controls.has_key_channel(), panel==Panel::EffectControls);
-                        assert_eq!(panels.properties.effects.has_key_channel(), panel==Panel::Properties);
-                        let actions = draw_host(&mut panels, &before,
-                            &Input {keys:vec![(Key::Escape,Default::default())],..Default::default()},
-                            panel, floating, &mut atlas);
+                        assert_eq!(
+                            panels.effect_controls.has_key_channel(),
+                            panel == Panel::EffectControls
+                        );
+                        assert_eq!(
+                            panels.properties.effects.has_key_channel(),
+                            panel == Panel::Properties
+                        );
+                        let actions = draw_host(
+                            &mut panels,
+                            &before,
+                            &Input {
+                                keys: vec![(Key::Escape, Default::default())],
+                                ..Default::default()
+                            },
+                            panel,
+                            floating,
+                            &mut atlas,
+                        );
                         for action in actions {
                             match action {
-                                Action::History(index) => {host.history(index).unwrap();}
+                                Action::History(index) => {
+                                    host.history(index).unwrap();
+                                }
                                 other => panic!("cancel unexpectedly edited data: {other:?}"),
                             }
                         }
                         assert_eq!(host.state().unwrap()["project"], before["project"]);
-                        let other = if panel==Panel::Properties {Panel::EffectControls} else {Panel::Properties};
-                        assert!(draw_host(&mut panels, &before, &Input::default(),
-                            other, floating, &mut atlas).is_empty());
+                        let other = if panel == Panel::Properties {
+                            Panel::EffectControls
+                        } else {
+                            Panel::Properties
+                        };
+                        assert!(draw_host(
+                            &mut panels,
+                            &before,
+                            &Input::default(),
+                            other,
+                            floating,
+                            &mut atlas
+                        )
+                        .is_empty());
                         for controls in [&panels.effect_controls, &panels.properties.effects] {
                             assert!(controls.parameter_selected(&before, 7, effect, param));
                         }

@@ -1297,7 +1297,7 @@ pub fn floating_chrome(
             .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
             .or(panels.effect_drag.status())
             .or(panels.message.as_deref())
-            .unwrap_or(panels.locale.t(T::SharedProject)),
+            .unwrap_or(""),
         styles
             .resolve(
                 if render_error.is_some() { "error" } else { "label.small.muted" },

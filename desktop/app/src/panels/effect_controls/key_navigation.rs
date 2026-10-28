@@ -273,7 +273,7 @@ pub(super) fn parameter_navigation(
         && parameter.animatable
         && parameter.implemented
         && frame.is_some();
-    let rect = navigation::rail(&list.styles(), row);
+    let rect = navigation::inspector_rail(&list.styles(), row);
     let choice = navigation::draw(list, rect, input, adjacent, editable);
     let picked = input.pressed.is_some_and(|(button, point)|
         button == MouseButton::Left && row.contains(point));

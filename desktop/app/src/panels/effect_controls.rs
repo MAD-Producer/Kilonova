@@ -1474,22 +1474,19 @@ impl Controls {
                 let kind = parameter["kind"].as_str().unwrap_or("float");
                 let implemented = parameter["implemented"].as_bool().unwrap_or(true);
                 let name = parameter["name"].as_str().unwrap_or(param);
-                let watch_width = styles.metric("effect.watch.width", 24.);
-                let left = header_rect.min[0] + super::key_navigation::width(&styles) + styles.metric("tree.indent", 14.);
-                let caption_x = left + watch_width + gap;
-                let right = (area.max[0] - pad).max(caption_x);
-                let label_x = caption_x;
-                let components = dimensions(kind);
-                let minimum_value = if components > 1 && kind != "color" {
-                    components as f32 * (atlas.measure("000.000") + gap)
-                } else {
-                    styles.metric("value.min_width", 64.)
-                };
-                let label_width = styles
-                    .metric("label.column", 72.)
-                    .min((right - label_x - gap - minimum_value).max(0.));
-                let value_x = (label_x + label_width + gap).min(right);
-                let values = Rect::new(value_x, *y, (right - value_x).max(0.), row);
+                let columns = motion_ui::widgets::InspectorColumns::new(
+                    &styles, area, *y, row,
+                    super::key_navigation::inspector_width(&styles, area.width()) + styles.metric("tree.indent", 14.),
+                    styles.metric("effect.watch.width", 24.),
+                    if kind == "color" { 1 } else { dimensions(kind) },
+                );
+                let watch_width = columns.icon.width();
+                let left = columns.icon.min[0];
+                let right = area.max[0] - pad;
+                let label_x = columns.label.min[0];
+                let label_width = columns.label.width();
+                let value_x = columns.values.min[0];
+                let values = columns.values;
                 self.selection_probe.record(Rect::new(label_x, *y, label_width, row), area);
                 if clicked(input, Rect::new(label_x, *y, (right - label_x).max(0.), row)) {
                     self.choose_parameter(state, object, id, param);
