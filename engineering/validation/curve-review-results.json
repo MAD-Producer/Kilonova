@@ -2178,5 +2178,44 @@
     "Explain paired UI timing differences; do not claim no regression",
     "Build/current-main329f integration, scoped native and all-target checks",
     "Full scoped DESIGN12 dispositions and five exact CI-composed-tree gates; no issue259 closure yet"
-  ]
+  ],
+  "integration_2026_10_28": {
+    "status": "FUNCTIONAL_PASSED_PERFORMANCE_AND_FINAL_MAIN_CI_PENDING",
+    "functional": {
+      "path": "curve-integration-stage-29.zip",
+      "members": 72,
+      "bytes": 611173,
+      "sha256": "6c73079c93ad234ce94f47cfb972aac03945d4597f7eeb1501efbce35cd108c9",
+      "scope": {
+        "head": "1795b50a9375674edb07cb06d6e31903c9f67a12",
+        "binary_sha256": "08b9e8a415c58d6053680ab97287869f96ac98468909a1c3acbf7ff4e055d874",
+        "source_main": "8c271bd361b0ecdd4d57e29d3bfe2d7ecaff5f4f",
+        "portable_passed": 136,
+        "portable_ignored": 1,
+        "actual_fault_sites": 19,
+        "guarded_finite_domain_sites": 1,
+        "native_cases": 32,
+        "generated_images": 160,
+        "images_byte_identical_to_prior_archive": 160,
+        "included_images": 0,
+        "manually_viewed_current_images": [
+          "en-main-property-value-1-locked-menu.png",
+          "zh-main-effect-speed-1.5-readout.png",
+          "en-float-comparison-value-2-locked-menu.png",
+          "zh-float-mini-speed-1-readout.png"
+        ],
+        "limits": "Actual newly executed frozen tests; no reuse of old test outcomes. PNG bytes verified against prior ZIP before deduplication. Four exact window/locale/ratio combinations, not full Cartesian product; no physical OS input or system DPI change. Performance acceptance/all-targets/final current-main CI remain separate."
+      }
+    },
+    "performance": {
+      "path": "curve-panel-profile-stage-29.zip",
+      "members": 56,
+      "bytes": 1684863,
+      "sha256": "90e5d706f2e4f46278203e09bd72392ee956381b9a05b82fbe9d23830cf71d20",
+      "omitted_files": 120
+    },
+    "design_section12_dispositions": "curve-review.md#design-12-范围处置",
+    "whole_product_compliance_claim": false,
+    "latest_main_531_not_yet_integrated": "4eaa2f815470fce4c4fbe6ce5458620317eddb21"
+  }
 }
