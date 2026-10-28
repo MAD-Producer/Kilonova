@@ -82,6 +82,12 @@ fn remap_content(
     if let Some(calibration) = &mut layer.depth_calibration {
         calibration.remap_asset(mapped(assets, calibration.asset(), "calibrated source")?);
     }
+    if let Some(track) = &mut layer.video_depth_calibration {
+        let Content::Video { video } = &layer.content else {
+            return Err(Error::Invalid("video depth clipboard source is not video".into()));
+        };
+        track.remap_asset(video.asset);
+    }
     for effect in &mut layer.effects {
         if let Some(EffectImageInput::Asset { asset }) = &mut effect.image_input {
             *asset = mapped(assets, *asset, "effect image")?;

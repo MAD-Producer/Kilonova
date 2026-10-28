@@ -894,7 +894,8 @@ impl Session {
         result
     }
     /// Rendering admission is separate from semantic sampling: pending depth is
-    /// normal and never starts inference, invents a distance or draws flat data.
+    /// normal. An explicit indexed video track may stage its saved source sample;
+    /// admission never invents a distance or substitutes flat data.
     pub(crate) fn prepare_render_depth(&mut self, scene: Option<&mut Scene>) -> Result<bool> {
         #[cfg(feature = "ai-depth")]
         {

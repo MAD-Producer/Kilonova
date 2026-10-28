@@ -67,11 +67,84 @@ fn entry(asset: u64) -> Entry {
             costs: Costs::default(),
         }),
         image: None,
+        video_end_us: None,
         input: PreparedDepthInput {
             rgb_size: [2, 1],
             rgb_sha256: [asset as u8; 32],
         },
     }
+}
+
+fn video_entry(start: u64, object: u64) -> Entry {
+    let mut sample = entry(74);
+    let mut descriptor = sample.estimate.resource.descriptor().clone();
+    descriptor.source.pts = DepthTime { ticks: start as i64, timescale: 1_000_000 };
+    sample.binding.key = Identity::Video(crate::depth::VideoKey {
+        object, asset: 74, revision: 3, target_us: start,
+        geometry: descriptor.geometry.clone(), model: descriptor.model.clone(),
+    });
+    sample.binding.source = Source::Video { object, asset: motion_core::VideoAsset {
+        id: 74, path: "assets/owned.mp4".into(), bytes: 5, mime: "video/avc".into(), track: 0,
+        width: 2, height: 1, rotation: 0, display_width: 2, display_height: 1,
+        video_start_us: 0, video_end_us: 150_000, duration_us: 150_000,
+        frame_count: 3, variable_frame_rate: true, nominal_frame_rate: 30.,
+        color_standard: 1, color_range: 2, audio_asset: None,
+    }};
+    sample.estimate = Arc::new(Estimate {
+        resource: DepthResource::new(descriptor, vec![1., f32::NAN], Some(vec![1, 0]), Some(vec![0.25, 0.5])).unwrap(),
+        provider: "owned".into(), costs: Costs::default(),
+    });
+    sample.image = Some(motion_render::DepthImage::new([2,1], vec![255;8]).unwrap());
+    sample.video_end_us = Some(start + 10_000);
+    sample
+}
+
+#[test]
+fn temporal_capacity_evicts_oldest_video_and_preserves_pinned_static_and_other_instances() {
+    let mut result = Results::default();
+    result.admit(entry(1), 70, 3).unwrap(); // 18 bytes pinned, video entries are 26 each.
+    let first = video_entry(10_000, 2);
+    let first_weak = Arc::downgrade(&first.estimate);
+    result.admit_video(first, 70, 3, |_| false).unwrap();
+    let other = video_entry(10_000, 3);
+    let other_weak = Arc::downgrade(&other.estimate);
+    result.admit_video(other, 70, 3, |_| false).unwrap();
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes), (3, 54, 16));
+    result.admit_video(video_entry(40_000, 2), 70, 3, |_| false).unwrap();
+    assert!(first_weak.upgrade().is_none());
+    assert!(other_weak.upgrade().is_some());
+    assert_eq!(result.entries[0].estimate.resource.descriptor().source.asset, 1);
+    assert_eq!(result.entries[1].video_interval(), Some((10_000, 20_000)));
+    assert_eq!(result.entries[2].video_interval(), Some((40_000, 50_000)));
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes, result.rejections), (3, 54, 16, 0));
+    result.clear();
+    assert!(other_weak.upgrade().is_none());
+}
+
+#[test]
+fn temporal_oversize_and_pinned_capacity_refusals_do_not_evict_working_samples() {
+    let mut result = Results::default();
+    result.admit(entry(1), 100, 4).unwrap();
+    result.admit_video(video_entry(10_000, 2), 100, 4, |_| false).unwrap();
+    let identities: Vec<_> = result.entries.iter().map(|e| e.estimate.resource.cache_identity()).collect();
+    for (bytes, slots) in [(43,4), (100,1)] {
+        assert!(matches!(result.admit_video(video_entry(40_000, 2), bytes, slots, |_| false), Err(Error::RetentionCapacity { .. })));
+        assert_eq!(result.entries.iter().map(|e| e.estimate.resource.cache_identity()).collect::<Vec<_>>(), identities);
+        assert_eq!((result.bytes, result.image_bytes), (36,8));
+    }
+    assert_eq!(result.rejections, 2);
+}
+
+#[test]
+fn temporal_cache_refuses_to_evict_another_objects_current_render_sample() {
+    let mut result = Results::default();
+    result.admit_video(video_entry(10_000, 1), 52, 2, |_| false).unwrap();
+    result.admit_video(video_entry(40_000, 2), 52, 2, |_| false).unwrap();
+    let identities: Vec<_> = result.entries.iter().map(|e| e.estimate.resource.cache_identity()).collect();
+    assert!(matches!(result.admit_video(video_entry(110_000, 3), 52, 2, |_| true),
+        Err(Error::RetentionCapacity { required_bytes: 78, required_samples: 3, .. })));
+    assert_eq!(result.entries.iter().map(|e| e.estimate.resource.cache_identity()).collect::<Vec<_>>(), identities);
+    assert_eq!((result.entries.len(), result.bytes, result.image_bytes, result.rejections), (2,36,16,1));
 }
 
 #[test]

@@ -1,4 +1,6 @@
 #![cfg(feature = "ai-depth")]
+#[path = "depth_video/timeline.rs"]
+mod timeline;
 use motion_core::{Content, Layer, Project, VideoAsset, VideoClip};
 use motion_host::{
     depth::{Backend, Cancellation, Costs, Estimate, Input, Key},
@@ -422,6 +424,107 @@ fn done(session: &mut Session, count: u64) {
         assert!(Instant::now() < until, "video depth completion timed out");
         std::thread::sleep(Duration::from_millis(1));
     }
+}
+
+fn author_indexed_sample(session: &mut Session, low: f64) -> motion_core::Command {
+    use motion_model::depth::{CalibrationCurve, CalibrationExtrapolation, DepthAnchor};
+    session.video_depth_calibration_command(1, [
+        DepthAnchor { value: low, camera_z_meters: 8. },
+        DepthAnchor { value: low + 5., camera_z_meters: 4. },
+    ], CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject, 20.).unwrap()
+}
+
+#[test]
+fn indexed_authoring_checks_actual_decoder_interval_rgb_and_object_before_commit() {
+    use motion_model::depth::VideoDepthSample;
+    let mut f = fixture(Mode::Rgba);
+    let mut project = f.session.engine.snapshot();
+    let mut other = project.layers[0].clone();
+    other.id = 2;
+    project.layers.push(other);
+    f.session.replace_project(motion_core::Engine::new(project).unwrap(), f.dir.path().into()).unwrap();
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 1);
+    f.session.poll_depth().unwrap().unwrap();
+    let command = author_indexed_sample(&mut f.session, 10.);
+    let motion_core::Command::VideoDepthCalibration { sample, .. } = &command else { panic!("wrong command"); };
+    assert_eq!((sample.start_us(), sample.end_us()), (10_000, 40_000));
+    let before = f.session.engine.snapshot();
+    let history = f.session.engine.history_diagnostics();
+    let wrong_object = f.session.apply_command_batch(vec![motion_core::Command::VideoDepthCalibration {
+        object: 2, sample: sample.clone(),
+    }]).unwrap_err();
+    assert!(wrong_object.to_string().contains("current original source"), "{wrong_object}");
+    assert_eq!(f.session.engine.snapshot(), before);
+    assert_eq!(f.session.engine.history_diagnostics(), history);
+    let wrong_end = VideoDepthSample::new(sample.calibration().clone(), 39_999).unwrap();
+    let mut wrong_rgb = serde_json::to_value(sample).unwrap();
+    wrong_rgb["calibration"]["input"]["rgb_sha256"][0] = 99.into();
+    let wrong_rgb = serde_json::from_value(wrong_rgb).unwrap();
+    for sample in [wrong_end, wrong_rgb] {
+        let error = f.session.apply_command_batch(vec![motion_core::Command::VideoDepthCalibration { object: 1, sample }]).unwrap_err();
+        assert!(error.to_string().contains("actual"), "{error}");
+        assert_eq!(f.session.engine.snapshot(), before);
+        assert_eq!(f.session.engine.history_diagnostics(), history);
+    }
+    f.session.apply_command_batch(vec![command.clone()]).unwrap();
+    assert_eq!(f.session.engine.project().layers[0].video_depth_calibration.as_ref().unwrap().samples().len(), 1);
+    f.session.frame = 1.;
+    request(&mut f.session).unwrap();
+    done(&mut f.session, 2);
+    f.session.poll_depth().unwrap().unwrap();
+    let before = f.session.engine.snapshot();
+    assert!(f.session.apply_command_batch(vec![command]).unwrap_err().to_string().contains("actual"));
+    assert_eq!(f.session.engine.snapshot(), before);
+    // Multiple surviving entries in one batch cannot be laundered through the
+    // last command: each one must match the installed current decoder result.
+    let valid = author_indexed_sample(&mut f.session, 40.);
+    let old = before.layers[0].video_depth_calibration.as_ref().unwrap().samples()[0].clone();
+    assert!(f.session.apply_command_batch(vec![
+        motion_core::Command::VideoDepthCalibration { object: 1, sample: old }, valid,
+    ]).is_err());
+    assert_eq!(f.session.engine.snapshot(), before);
+}
+
+#[test]
+fn indexed_track_reuses_only_matching_vfr_intervals_and_revisions_release_all_cached_pixels() {
+    let mut f = fixture(Mode::Rgba);
+    for (index, frame, low, pts, end) in [
+        (1, 0., 10., 10_000, 40_000), (2, 1., 40., 40_000, 110_000), (3, 3., 110., 110_000, 150_000),
+    ] {
+        f.session.frame = frame;
+        request(&mut f.session).unwrap();
+        done(&mut f.session, index);
+        f.session.poll_depth().unwrap().unwrap();
+        let command = author_indexed_sample(&mut f.session, low);
+        let motion_core::Command::VideoDepthCalibration { sample, .. } = &command else { panic!("wrong command"); };
+        assert_eq!((sample.start_us(), sample.end_us()), (pts, end));
+        f.session.apply_command_batch(vec![command]).unwrap();
+    }
+    assert_eq!(f.session.engine.project().layers[0].video_depth_calibration.as_ref().unwrap().samples().len(), 3);
+    // After the last authoring revision, prewarm independently verified frames.
+    for (index, frame) in [(4, 0.), (5, 1.), (6, 3.)] {
+        f.session.frame = frame;
+        request(&mut f.session).unwrap();
+        done(&mut f.session, index);
+        f.session.poll_depth().unwrap().unwrap();
+    }
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.retained_samples, status.retained_image_bytes), (3, 72));
+    let opens = f.platform.opens.load(Ordering::SeqCst);
+    for frame in [0., 0.5, 1., 2., 2.9, 3., 0.] {
+        f.session.frame = frame;
+        assert!(f.session.bound_depth_calibration(1).unwrap().is_some(), "frame={frame}");
+        assert_eq!(f.session.depth_status().unwrap().unwrap().retained_samples, 3);
+    }
+    assert_eq!(f.platform.opens.load(Ordering::SeqCst), opens);
+    // Same-path document replacement has a distinct generation, even when its
+    // revision number happens to match. Saved metadata survives, live RGB does not.
+    let replacement = motion_core::Engine::new(f.session.engine.snapshot()).unwrap();
+    f.session.replace_project(replacement, f.dir.path().into()).unwrap();
+    assert!(f.session.bound_depth_calibration(1).unwrap().is_none());
+    let status = f.session.depth_status().unwrap().unwrap();
+    assert_eq!((status.retained_samples, status.retained_image_bytes), (0, 0));
 }
 
 #[test]

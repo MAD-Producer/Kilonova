@@ -123,6 +123,8 @@ impl SavedDepthCalibration {
     pub fn input(&self) -> PreparedDepthInput {
         self.0.input
     }
+    pub fn geometry(&self) -> &DepthGeometry { &self.0.interpretation.geometry }
+    pub fn model(&self) -> &DepthModel { &self.0.interpretation.model }
     pub fn pixels_per_metre(&self) -> f32 {
         self.0.pixels_per_metre
     }

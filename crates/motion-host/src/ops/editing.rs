@@ -112,8 +112,17 @@ impl Session {
         let mut depth_targets = std::collections::BTreeMap::new();
         for command in &commands { calibration_targets(command, &self.engine.project().composition_id, &mut depth_targets); }
         let depth_targets: Vec<_> = depth_targets.into_iter().filter_map(|(target, selected)| selected.then_some(target)).collect();
+        fn video_calibrations(command: &Command, composition: &str, targets: &mut Vec<(String, Command)>) {
+            match command {
+                Command::InComposition { composition, command } => video_calibrations(command, composition, targets),
+                Command::VideoDepthCalibration { .. } => targets.push((composition.to_owned(), command.clone())),
+                _ => {},
+            }
+        }
+        let mut video_samples = Vec::new();
+        for command in &commands { video_calibrations(command, &self.engine.project().composition_id, &mut video_samples); }
         #[cfg(feature = "ai-depth")]
-        let depth_sample = if depth_targets.is_empty() { None } else { self.depth_calibration_sample()? };
+        let depth_sample = if depth_targets.is_empty() && video_samples.is_empty() { None } else { self.depth_calibration_sample()? };
         fn selects_camera(command: &Command) -> bool {
             match command {
                 Command::CameraImported { .. } => true,
@@ -135,6 +144,22 @@ impl Session {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
         let results = apply_prepared_with_cameras(&mut self.engine, commands, &previous_models, |project| {
+                for (composition, command) in &video_samples {
+                    let Command::VideoDepthCalibration { object, sample } = command else { continue; };
+                    let view = project.composition_view(composition)?;
+                    let selected = view.layers.iter().find(|layer| layer.id == *object)
+                        .and_then(|layer| layer.video_depth_calibration.as_ref())
+                        .and_then(|track| track.at(sample.start_us()));
+                    // A later command may clear or replace this exact sample.
+                    // Every sample surviving the transaction must have come
+                    // from the independently installed decoder/inference result.
+                    if selected != Some(sample) { continue; }
+                    #[cfg(feature = "ai-depth")]
+                    depth_sample.as_ref().ok_or("video depth calibration requires an installed current result")?
+                        .validate_video(project, composition, *object, sample)?;
+                    #[cfg(not(feature = "ai-depth"))]
+                    return Err("video depth calibration authoring requires an enabled native depth backend".into());
+                }
                 for (composition, object) in &depth_targets {
                     let view = project.composition_view(composition)?;
                     if let Some(_calibration) = view.layers.iter().find(|layer| layer.id == *object)

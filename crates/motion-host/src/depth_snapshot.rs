@@ -67,7 +67,7 @@ impl DepthSnapshot {
                     .composition_view(&id)?
                     .layers
                     .iter()
-                    .any(|layer| layer.three_d && layer.depth_calibration.is_some())
+                    .any(|layer| layer.three_d && (layer.depth_calibration.is_some() || layer.video_depth_calibration.is_some()))
                 {
                     return Err("frozen calibrated depth requires the ai-depth feature".into());
                 }
@@ -160,7 +160,7 @@ impl DepthSnapshot {
             for layer in view
                 .layers
                 .iter()
-                .filter(|l| l.three_d && l.depth_calibration.is_some())
+                .filter(|l| l.three_d && (l.depth_calibration.is_some() || l.video_depth_calibration.is_some()))
             {
                 #[cfg(feature = "ai-depth")]
                 {

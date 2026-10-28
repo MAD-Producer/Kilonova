@@ -222,6 +222,16 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             ensure(!layer.locked, "calibrated layer is locked")?;
             if let Some(calibration) = &calibration { calibration.validate()?; }
             layer.depth_calibration = calibration;
+            layer.video_depth_calibration = None;
+        },
+        Command::VideoDepthCalibration { object, sample } => {
+            let layer = project.layer_mut(object)?;
+            ensure(!layer.locked, "calibrated layer is locked")?;
+            ensure(matches!(layer.content, Content::Video { .. }), "video depth calibration requires a video layer")?;
+            let mut track = layer.video_depth_calibration.clone().unwrap_or_default();
+            track.upsert(sample)?;
+            layer.video_depth_calibration = Some(track);
+            layer.depth_calibration = None;
         },
         Command::SetGuides { guides } => motion_model::guides::set(project, guides)?,
         Command::SetWorkArea { in_frame, out_frame } => {

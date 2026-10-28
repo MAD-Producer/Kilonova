@@ -100,6 +100,7 @@ pub struct Input {
     size: [u32; 2],
     rgb: Arc<[u8]>,
     image: Option<motion_render::DepthImage>,
+    video_end_us: Option<u64>,
 }
 
 impl Input {
@@ -119,7 +120,7 @@ impl Input {
         if rgb.len() as u64 != u64::from(size[0]) * u64::from(size[1]) * 3 {
             return Err(Error::Invalid("RGB byte count differs from dimensions"));
         }
-        Ok(Self { key, size, rgb, image: None })
+        Ok(Self { key, size, rgb, image: None, video_end_us: None })
     }
     pub fn key(&self) -> &Key {
         &self.key
@@ -186,6 +187,7 @@ pub struct PreparedEstimate {
     estimate: Estimate,
     input: PreparedDepthInput,
     image: Option<motion_render::DepthImage>,
+    video_end_us: Option<u64>,
 }
 impl PreparedEstimate {
     pub fn estimate(&self) -> &Estimate {
@@ -194,8 +196,8 @@ impl PreparedEstimate {
     pub fn input(&self) -> PreparedDepthInput {
         self.input
     }
-    pub(crate) fn into_owned_parts(self) -> (Estimate, PreparedDepthInput, Option<motion_render::DepthImage>) {
-        (self.estimate, self.input, self.image)
+    pub(crate) fn into_owned_parts(self) -> (Estimate, PreparedDepthInput, Option<motion_render::DepthImage>, Option<u64>) {
+        (self.estimate, self.input, self.image, self.video_end_us)
     }
     pub fn into_parts(self) -> (Estimate, PreparedDepthInput) {
         (self.estimate, self.input)
@@ -273,6 +275,7 @@ pub struct InFlight {
 /// A requested video timeline coordinate, distinct from the decoded frame PTS.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct VideoKey {
+    pub object: u64,
     pub asset: u64,
     pub revision: u64,
     pub target_us: u64,
@@ -333,8 +336,8 @@ impl Identity {
         match self {
             Self::Sample(key) => log::info!("start #{} depth_infer asset={} revision={} pts={}/{} model={} model_revision={}",
                 request,key.source.asset,key.source.revision,key.source.pts.ticks,key.source.pts.timescale,key.model.id,key.model.revision),
-            Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode model={} model_revision={}",
-                request,key.asset,key.revision,key.target_us,key.model.id,key.model.revision),
+            Self::Video(key) => log::info!("start #{} depth_infer asset={} revision={} target_us={} phase=video_decode object={} model={} model_revision={}",
+                request,key.asset,key.revision,key.target_us,key.object,key.model.id,key.model.revision),
         }
     }
 }
@@ -663,7 +666,7 @@ fn run(mut backend: impl Backend, shared: Shared) {
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
             estimate.costs.total = began.elapsed();
-            Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image })
+            Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us })
         }))
         .unwrap_or_else(|p| Err(Error::Panic(panic_cause(p.as_ref()))))
         .map_err(|error| match error {
