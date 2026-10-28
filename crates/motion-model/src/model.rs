@@ -169,6 +169,9 @@ pub struct Layer {
     pub blend:crate::compositing::LayerBlend,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub track_matte:Option<crate::compositing::TrackMatte>,
+    /// Optional authoring calibration; inference output is never saved here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_calibration: Option<crate::depth::SavedDepthCalibration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
     #[serde(default,skip_serializing_if="Option::is_none")]
@@ -199,6 +202,7 @@ impl Layer {
             effects: Vec::new(),
             masks: Vec::new(),
             blend:Default::default(),track_matte:None,
+            depth_calibration: None,
             timeline: None,
             subframe_range:None,
             audio_levels: None,
@@ -491,6 +495,26 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
             layer.sampling.validate_content(&layer.content)?;
+            if let Some(calibration) = &layer.depth_calibration {
+                calibration.validate()?;
+                let (asset, size) = match &layer.content {
+                    Content::Image { asset } => {
+                        let source = self.assets.iter().find(|source| source.id == *asset)
+                            .ok_or_else(|| crate::Error::Invalid("calibrated image asset missing".into()))?;
+                        ensure(calibration.source_time().same_instant(crate::depth::DepthTime { ticks: 0, timescale: 1 }),
+                            "static image calibration must use source time zero")?;
+                        (*asset, [source.width, source.height])
+                    },
+                    Content::Video { video } => {
+                        let source = self.video_assets.iter().find(|source| source.id == video.asset)
+                            .ok_or_else(|| crate::Error::Invalid("calibrated video asset missing".into()))?;
+                        (video.asset, [source.display_width, source.display_height])
+                    },
+                    _ => return Err(crate::Error::Invalid(format!("layer {}: saved depth calibration requires an image or video source", layer.id))),
+                };
+                ensure(calibration.asset() == asset && calibration.source_size() == size,
+                    "saved depth calibration differs from layer source or geometry")?;
+            }
             crate::audio_edit::validate(layer)?;
             if let Some(levels)=&layer.audio_levels {
                 ensure(matches!(layer.content,Content::Audio{..}|Content::Video{..}|Content::Composition{..}),

@@ -109,6 +109,84 @@ fn wait_done(jobs: &Jobs, count: u64) {
 }
 
 #[test]
+fn prepared_input_fingerprint_comes_from_actual_pixels_and_dimensions() {
+    let mut jobs = Jobs::start(Immediate).unwrap();
+    let initial = key();
+    jobs.request(input(initial.clone())).unwrap();
+    wait_done(&jobs, 1);
+    let prepared = jobs.take_prepared_ready(&initial).unwrap().unwrap();
+    let fingerprint = prepared.input();
+    assert_eq!(fingerprint.rgb_size, [2, 1]);
+    // Independently computed with Python hashlib over the documented byte contract.
+    assert_eq!(
+        fingerprint
+            .rgb_sha256
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>(),
+        "b750c3dee235af29380294c7c909247089a1d06c770d37a6416c566dfd264d61"
+    );
+    assert_eq!(prepared.estimate().resource.values(), &[0.25, 2.]);
+    let mut reopened = initial.clone();
+    reopened.source.revision += 100;
+    jobs.request(input(reopened.clone())).unwrap();
+    wait_done(&jobs, 2);
+    assert_eq!(
+        jobs.take_prepared_ready(&reopened)
+            .unwrap()
+            .unwrap()
+            .input(),
+        fingerprint
+    );
+    jobs.request(Input::new(reopened.clone(), [2, 1], Arc::from([1, 2, 3, 4, 5, 7])).unwrap())
+        .unwrap();
+    wait_done(&jobs, 3);
+    let changed = jobs.take_prepared_ready(&reopened).unwrap().unwrap();
+    assert_ne!(changed.input(), fingerprint);
+    // An identical backend output does not prove identical inference inputs.
+    assert_eq!(
+        changed.estimate().resource.values(),
+        prepared.estimate().resource.values()
+    );
+    let mut vertical = reopened;
+    vertical.geometry.source_size = [1, 2];
+    vertical.geometry.crop = [0, 0, 1, 2];
+    jobs.request(Input::new(vertical.clone(), [1, 2], Arc::from([1, 2, 3, 4, 5, 6])).unwrap())
+        .unwrap();
+    wait_done(&jobs, 4);
+    assert_ne!(
+        jobs.take_prepared_ready(&vertical)
+            .unwrap()
+            .unwrap()
+            .input(),
+        fingerprint
+    );
+}
+
+#[test]
+fn prepared_output_cannot_escape_live_key_or_cancellation_guards() {
+    let (mut jobs, entered, release) = controlled();
+    jobs.request(input(key())).unwrap();
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    jobs.cancel().unwrap();
+    release.send(()).unwrap();
+    wait_done(&jobs, 1);
+    assert!(jobs.take_prepared_ready(&key()).unwrap().is_none());
+    jobs.request(input(key())).unwrap();
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&jobs, 2);
+    let mut stale = key();
+    stale.source.revision += 1;
+    assert!(jobs.take_prepared_ready(&stale).unwrap().is_none());
+    assert_eq!(jobs.counts().unwrap().stale, 1);
+    assert!(jobs.take_prepared_ready(&key()).unwrap().is_none());
+    jobs.request(input(key())).unwrap();
+    entered.recv_timeout(Duration::from_secs(5)).unwrap();
+    wait_done(&jobs, 3);
+    assert!(jobs.take_prepared_ready(&key()).unwrap().is_some());
+}
+
+#[test]
 fn blocked_depth_publishes_flight_before_backend_and_retains_only_latest_pending_sample() {
     init_log();
     let (mut jobs, entered, release) = controlled();

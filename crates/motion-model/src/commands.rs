@@ -5,6 +5,10 @@ fn deserialize_camera_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
     -> std::result::Result<Option<crate::ImportedCamera>, D::Error> {
     Option::<crate::ImportedCamera>::deserialize(deserializer)
 }
+fn deserialize_depth_calibration<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::depth::SavedDepthCalibration>, D::Error> {
+    Option::<crate::depth::SavedDepthCalibration>::deserialize(deserializer)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,6 +37,11 @@ impl Property {
 pub enum Command {
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
+    DepthCalibration {
+        object: u64,
+        #[serde(deserialize_with = "deserialize_depth_calibration")]
+        calibration: Option<crate::depth::SavedDepthCalibration>,
+    },
     /// Zero edits the active composition background. Visual layer source
     /// colors remain static; animated color uses a color effect or vector paint.
     SetColor { object:u64, value:[f32;4] },

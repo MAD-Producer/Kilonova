@@ -17,7 +17,7 @@ gpu-tests = []
 # advertises it, so an acceptance build on either platform reports the same key.
 diagnostics = []
 # Optional desktop inference orchestration; no inference engine enters model/render.
-ai-depth = ["dep:motion-model", "dep:tempfile"]
+ai-depth = ["dep:motion-model", "dep:tempfile", "dep:sha2"]
 
 [dependencies]
 thiserror.workspace = true
@@ -28,6 +28,7 @@ motion-render = { path = "../motion-render", default-features = false }
 motion-media = { path = "../motion-media" }
 motion-model = { path = "../motion-model", optional = true }
 tempfile = { version = "3", optional = true }
+sha2 = { version = "0.10", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 pollster.workspace = true

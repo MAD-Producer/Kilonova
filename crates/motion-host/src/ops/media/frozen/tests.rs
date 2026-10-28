@@ -3,6 +3,94 @@ use crate::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 use motion_core::{AudioAsset, AudioClip, Content, Layer, Project};
 use std::{fs, path::Path};
 
+#[path = "../../../../../motion-render/tests/support/imported_camera.rs"]
+mod camera_fixture;
+
+#[test]
+fn frozen_camera_keeps_owned_sources_and_independent_clock_after_edits_and_close() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = camera_fixture::project(temp.path(), true);
+    let id = crate::session::open(temp.path().into(), project.clone(), Arc::new(Stub)).unwrap();
+    let weak = crate::session::with_session(id, |session| {
+        Ok(Arc::downgrade(session.scene.model_source_catalog().scene(7).unwrap()))
+    }).unwrap();
+    let report = freeze_video(id).unwrap();
+    assert_eq!(report["project"], serde_json::to_value(&project).unwrap());
+    let handle = report["handle"].as_i64().unwrap();
+    fs::remove_file(temp.path().join(&project.model_assets[0].path)).unwrap();
+    crate::session::with_session(id, |session| {
+        let mut binding = project.camera.imported.clone().unwrap();
+        binding.animation.as_mut().unwrap().offset_seconds = 1.;
+        session.apply_command_batch(vec![motion_core::Command::CameraImported { object: 0, binding: Some(binding) }])?;
+        assert_eq!(session.scene.camera.eye, glam::Vec3::new(10., 0., 60.));
+        Ok(())
+    }).unwrap();
+    crate::session::close(id);
+    assert!(weak.upgrade().is_some());
+    for (sequence, frame, x) in [(1, 0., 0.), (2, 15., 5.), (3, 30., 10.)] {
+        assert_eq!(request_frozen_composition_frame(handle, frame, sequence).unwrap(),
+            json!({"state":"ready","sequence":sequence,"instances":[]}));
+        video().with(handle, context("verify_frozen_camera", 0, sequence), |reader| {
+            assert_eq!(reader.project, project);
+            let scene = reader.sample_scene(frame)?;
+            assert_eq!(scene.camera.eye, glam::Vec3::new(x, 0., 60.));
+            assert_eq!(scene.camera_viewport, [16., 0., 64., 64.]);
+            Ok(())
+        }).unwrap();
+    }
+    // A failed frame does not replace the previously prepared sequence/time.
+    assert!(matches!(request_frozen_composition_frame(handle, f64::NAN, 4), Err(Error::Model(_))));
+    assert_eq!(request_frozen_composition_frame(handle, 30., 3).unwrap()["state"], "ready");
+    assert_eq!(release_frozen_video(handle).unwrap()["released"], true);
+    assert!(weak.upgrade().is_none(), "releasing the last reader must release its owned parsed source");
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn frozen_camera_native_pixels_match_live_sampling_at_all_precisions_after_source_removal() {
+    use motion_effects::image_contract::ChannelPrecision;
+    fn capture(project: &Project, root: &Path, scene: &motion_render::Scene) -> Vec<u8> {
+        let mut renderer = pollster::block_on(motion_render::Renderer::headless_with_working_precision(
+            project.working_precision, motion_render::AllocationBudget::default())).unwrap();
+        renderer.configure_assets_with_model_catalog(project, root, &scene.model_source_catalog()).unwrap();
+        let target = renderer.sdr_capture_target(96, 64, motion_render::OutputTransform::SDR_CLIP).unwrap();
+        renderer.capture_sdr(scene, &target).unwrap().0.pixels
+    }
+    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Unorm16,
+        ChannelPrecision::Float16, ChannelPrecision::Float32] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project = camera_fixture::project(temp.path(), true);
+        project.working_precision = precision;
+        let id = crate::session::open(temp.path().into(), project, Arc::new(Stub)).unwrap();
+        let expected = crate::session::with_session(id, |session| {
+            let mut pixels = Vec::new();
+            for frame in [0., 30.] {
+                session.frame = frame; session.sample()?;
+                pixels.push(capture(session.engine.project(), &session.root, &session.scene));
+            }
+            Ok(pixels)
+        }).unwrap();
+        assert_ne!(expected[0], expected[1], "independent source camera animation must move the rendered mesh at {precision:?}");
+        assert!(expected.iter().all(|pixels| pixels.chunks_exact(4).any(|p| p[0] > 200 && p[1] < 20 && p[2] < 20 && p[3] > 200)));
+        let handle = freeze_video(id).unwrap()["handle"].as_i64().unwrap();
+        crate::session::with_session(id, |session| {
+            fs::remove_file(session.root.join(&session.engine.project().model_assets[0].path))?;
+            Ok(())
+        }).unwrap();
+        crate::session::close(id);
+        for (index, frame) in [0., 30.].into_iter().enumerate() {
+            let sequence = index as u64 + 1;
+            assert_eq!(request_frozen_composition_frame(handle, frame, sequence).unwrap()["state"], "ready");
+            let actual = video().with(handle, context("capture_frozen_camera", 0, sequence), |reader| {
+                let scene = reader.sample_scene(frame)?;
+                Ok(capture(&reader.project, &reader.root, &scene))
+            }).unwrap();
+            assert_eq!(actual, expected[index], "precision={precision:?} frame={frame}");
+        }
+        assert_eq!(release_frozen_video(handle).unwrap()["released"], true);
+    }
+}
+
 #[test]
 fn blend_read_keeps_native_render_source_and_recovers_the_same_reader() {
     use crate::video_frame::{DecodedFrame, PreparedVideoFrame, VideoPixels};
