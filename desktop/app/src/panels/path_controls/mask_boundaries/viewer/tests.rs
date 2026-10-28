@@ -421,6 +421,7 @@ fn boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdo
                 && records[1].contains("object=7 mask=1 frame=33 phase=sample")
         );
         log::info!("mask-boundary-info-probe");
+        crate::logging::flush();
         assert!(
             std::fs::read_to_string(root.join("motion-studio.log"))
                 .unwrap()

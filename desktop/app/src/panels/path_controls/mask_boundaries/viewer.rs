@@ -436,7 +436,21 @@ impl Controls {
                 color
             };
             if matches!(grip.property, MaskProperty::Expansion) {
-                paint::diamond(list, grip.screen, radius, fill);
+                // Boundary distances use rings; diamonds remain authored
+                // tangent handles, so both operations retain distinct cues.
+                paint::box_rect(
+                    list,
+                    Rect::new(
+                        grip.screen[0] - radius,
+                        grip.screen[1] - radius,
+                        radius * 2.,
+                        radius * 2.,
+                    ),
+                    colors.PANEL,
+                    fill,
+                    line_width,
+                    radius,
+                );
             } else {
                 paint::box_rect(
                     list,
