@@ -35,6 +35,9 @@ pub struct CameraSample {
 }
 
 pub trait CameraSampler {
+    /// Validate the exact managed metadata before sampling an owned source.
+    /// Editing a source reference must never silently reuse another revision.
+    fn validate_source(&self, asset: &crate::ModelAsset) -> Result<()>;
     fn sample(
         &self,
         camera: &Camera,
@@ -47,6 +50,9 @@ pub trait CameraSampler {
 
 pub struct AuthoredCameraSampler;
 impl CameraSampler for AuthoredCameraSampler {
+    fn validate_source(&self, _asset: &crate::ModelAsset) -> Result<()> {
+        Err(crate::Error::Invalid("imported camera requires a source resolver".into()))
+    }
     fn sample(
         &self,
         camera: &Camera,

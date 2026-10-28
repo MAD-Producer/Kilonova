@@ -46,6 +46,15 @@ impl ModelSourceCatalog {
 }
 
 impl CameraSampler for ModelSourceCatalog {
+    fn validate_source(&self, asset: &motion_model::ModelAsset) -> motion_model::Result<()> {
+        match self.sources.get(&asset.id) {
+            Some(source) if source.asset == *asset => Ok(()),
+            Some(_) => Err(motion_model::Error::Invalid(format!(
+                "imported_camera source={} phase=binding: owned catalog does not match managed source revision", asset.id))),
+            None => Err(motion_model::Error::Invalid(format!(
+                "imported_camera source={} phase=binding: model source not configured", asset.id))),
+        }
+    }
     fn sample(
         &self,
         camera: &Camera,
