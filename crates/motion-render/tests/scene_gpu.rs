@@ -15,6 +15,8 @@ use std::{collections::BTreeMap, io, sync::Arc};
 
 const SIZE: u32 = 65;
 
+#[path = "scene_gpu/calibrated_depth.rs"]
+mod calibrated_depth;
 #[path = "scene_gpu/cameras.rs"]
 mod cameras;
 #[path = "scene_gpu/morph.rs"]

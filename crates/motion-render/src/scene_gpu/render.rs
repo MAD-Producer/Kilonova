@@ -8,7 +8,11 @@ use glam::{Mat4, Vec3};
 use motion_scene::AlphaMode;
 use std::{collections::HashSet, time::Instant};
 
+mod depth_seed;
+mod planes;
 mod shared;
+pub(crate) use planes::ScenePlane;
+pub use depth_seed::SceneDepthInput;
 pub use shared::{ScenePass, ScenePassFrame, ScenePassInstance};
 
 const MAX_LIGHTS: usize = 4;
@@ -96,6 +100,10 @@ pub struct SceneRenderStats {
     pub resident_bytes: u64,
     /// Immutable per-node displaced vertices, separately admitted per encode.
     pub deformation_bytes: u64,
+    /// Immutable calibrated clip-depth/validity texture and viewport constants.
+    pub depth_input_bytes: u64,
+    /// Immutable actual plane vertices for mixed model/plane depth composition.
+    pub plane_vertex_bytes: u64,
 }
 
 #[repr(C)]
@@ -296,10 +304,12 @@ impl GpuScene {
         } = self.uniforms(renderer, &items)?;
         let color = targets.color.as_ref().map_or(&*target.view, |v| &**v);
         let mut stats = SceneRenderStats {
+            plane_vertex_bytes: 0,
             draws: items.len(),
             triangles: 0,
             blended_draws: 0,
             parameter_bytes: size,
+            depth_input_bytes: 0,
             resident_bytes: self.resident_bytes,
             deformation_bytes: items
                 .iter()
