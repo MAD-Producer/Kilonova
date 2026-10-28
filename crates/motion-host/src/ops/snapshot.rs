@@ -243,7 +243,7 @@ impl Session {
                 let mut sample = json!({"id":l.id,"position":l.transform.position.sample(local)?,
             "rotation":l.transform.rotation.sample(local)?,"scale":l.transform.scale.sample(local)?,"anchor":l.transform.anchor.sample(local)?,
             "opacity":l.transform.opacity.sample(local)?.clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
-            "audio_levels":l.audio_levels.as_ref().map(|levels| -> motion_core::Result<_> {let v=levels.sample(local)?;Ok(json!({"left":v[0],"right":v[1]}))}).transpose()?});
+            "audio_levels":l.audio_levels.as_ref().map(|levels| -> motion_core::Result<_> {let v=levels.sample(local)?;Ok(json!({"left":v[0],"right":v[1],"balance":levels.balance}))}).transpose()?});
                 if let Some(camera) = camera {
                     for (key, value) in camera.as_object().into_iter().flatten() {
                         sample[key] = value.clone();
@@ -439,6 +439,8 @@ impl Session {
             "unit":"dB","range":[motion_core::audio_levels::MIN_AUDIO_DB,motion_core::audio_levels::MAX_AUDIO_DB],"channels":["left","right"],"animated":true,
             "sampling":"output_sample","time_coordinates":"layer_local_frames","nested":true,
             "conversion":"10^(dB/20)","expressions":false,"curve_overshoot":"clamp_to_range"});
+        snapshot["capabilities"]["audio"]["balance"]=json!({"supported":true,"command":"audio_levels",
+            "action":"balance","range":[-1,1],"center":0,"law":"linear_attenuation","animated":false,"nested":true});
         snapshot["capabilities"]["audio"]["reference_markers"] = json!({
             "supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"audio_markers","max_count":motion_core::audio_edit::MAX_AUDIO_MARKERS,
             "storage_coordinates":"layer_local_frames","edit_coordinates":"composition_frames",

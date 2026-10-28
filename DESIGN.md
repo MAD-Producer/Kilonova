@@ -405,6 +405,27 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
 
 ---
 
+### 7.4 Audio monitoring
+
+The Audio panel distinguishes the master device-output peak in dBFS from the
+selected clip's prepared source waveform. Meter values come from consumed PCM,
+including mono device downmix; zero samples show silence. A full-scale indicator
+means the submitted samples reached 0 dBFS, not a measurement of pre-limiter
+overshoot. Source waveform values do not include layer gain, balance or mute.
+
+Keep stereo balance on one inline label/value row using the native numeric
+gesture, text and undo controls. Center is unity; moving toward one side
+attenuates only the opposite channel, independently of channel keyframes.
+Disable it explicitly when the backend does not declare support. Use existing
+padding, row, field and border tokens, plus the `audio.*` size tokens for the
+waveform, meter bars and value column. Narrow panels scroll vertically.
+
+Prepare and reduce source waveforms off the UI thread. Display loading and
+failure states, preserve the original error and provide an explicit reload.
+Changing clip/source/composition invalidates the view; cancelled or superseded
+work cannot publish another layer's waveform. Neither metering nor waveform
+cache preparation changes the authored project or its history.
+
 ## 8. Interaction semantics, modifier keys, and input safety
 
 ### 8.1 Existing shortcuts
