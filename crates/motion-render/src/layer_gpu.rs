@@ -313,7 +313,7 @@ impl LayerGpu {
                     .map_err(|error| vector_texture_error(error, id, scene.frame, size, format, "source_allocate"))?;
                 sources.push((key, GpuImage {
                     _texture: target.texture, view: target.view, bind_group: target.composite,
-                    bytes: u64::from(size.0) * u64::from(size.1) * self.color_pixel_bytes(), size, video_stamp: None,
+                    bytes: u64::from(size.0) * u64::from(size.1) * self.color_pixel_bytes(), size, video_stamp: None, plane_image: None,
                 }));
             }
             if groups::GroupGpu::grouped(mesh) { continue; }

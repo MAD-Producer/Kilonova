@@ -215,7 +215,7 @@ impl Renderer {
                 bind_group,
                 bytes,
                 size: (target.width, target.height),
-                video_stamp: None,
+                video_stamp: None, plane_image: None,
             },
         );
         self.texture_bytes = self.texture_bytes.saturating_sub(previous) + bytes;

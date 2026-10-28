@@ -99,7 +99,7 @@ fn checked_mask_import_refuses_stale_precision_and_wrong_cached_format_then_reco
             bind_group: wrong.composite,
             size: (64, 64),
             bytes: 64 * 64 * 4,
-            video_stamp: None,
+            video_stamp: None, plane_image: None,
         },
     );
     let error = prepare(&mut gpu, &builder, &mut images, &mut bytes).unwrap_err();
