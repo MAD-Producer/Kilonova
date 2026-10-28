@@ -1,5 +1,9 @@
 # Opaque static-image planes in native shared geometry depth
 
+This is the historical opaque-only checkpoint. Its alpha-fallback boundary is
+superseded by [shared alpha depth](transparent-plane-depth-current.md); the
+original source-bound evidence below remains unchanged.
+
 ## Behavior and ownership
 
 This increment is based on the exact published PR528 head

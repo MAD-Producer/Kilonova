@@ -4,6 +4,9 @@ use super::*;
 #[path = "textured_planes.rs"]
 mod textured_planes;
 
+#[path = "transparent_planes.rs"]
+mod transparent_planes;
+
 fn mixed_project(root: &std::path::Path, samples: u32) -> Project {
     let mut project = crossing_project(root, samples, false);
     project.layers.truncate(1);

@@ -1,5 +1,5 @@
-//! Contiguous meshes and proven opaque planes share actual geometry depth.
-//! Ordinary 2D, effect, matte, sampling and transparency boundaries stay intact.
+//! Compatible meshes and planes share actual geometry depth and alpha ordering.
+//! Ordinary 2D, effect, matte and sampling boundaries stay intact.
 use super::*;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePassInstance, ScenePlane};
 
@@ -13,20 +13,18 @@ fn samples(layer: &crate::DrawLayer) -> Option<u32> {
     .then_some(samples)
 }
 
-fn opaque_plane(renderer: &Renderer, layer: &crate::DrawLayer) -> bool {
+fn shared_plane(renderer: &Renderer, layer: &crate::DrawLayer) -> bool {
     layer.model_source.is_none()
         && layer.asset.is_none_or(|asset| {
             renderer
                 .images
                 .get(&TextureKey::Static(asset))
-                .is_some_and(|image| image.plane_image.is_some_and(|state| state.opaque))
+                .is_some_and(|image| image.plane_image.is_some())
         })
         && layer.video.is_none()
         && layer.vector.is_none()
         && layer.three_d
         && !layer.screen_overlay
-        && layer.color[3] == 1.
-        && layer.opacity == 1.
         && layer.sampling.is_default()
 }
 
@@ -50,7 +48,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        if samples(&scene.layers[start]).is_none() && !opaque_plane(renderer, &scene.layers[start])
+        if samples(&scene.layers[start]).is_none() && !shared_plane(renderer, &scene.layers[start])
         {
             start += 1;
             continue;
@@ -63,7 +61,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
                     break;
                 }
                 count = Some(current);
-            } else if !opaque_plane(renderer, &scene.layers[end]) {
+            } else if !shared_plane(renderer, &scene.layers[end]) {
                 break;
             }
             end += 1;
@@ -305,7 +303,12 @@ impl Renderer {
                     object: layer.id,
                     world: layer.model,
                     size: layer.size,
-                    color: layer.color,
+                    color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
+                    blend: layer.color[3] != 1. || layer.opacity != 1. || layer.asset.is_some_and(|asset| {
+                        self.images.get(&TextureKey::Static(asset)).is_none_or(|image| {
+                            image.plane_image.is_none_or(|state| !state.opaque)
+                        })
+                    }),
                     texture: layer.asset.map(|asset| {
                         self.images.get(&TextureKey::Static(asset))
                             .ok_or_else(|| RenderError::Invalid(format!(

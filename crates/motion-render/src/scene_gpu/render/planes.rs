@@ -1,4 +1,4 @@
-//! Independently authored opaque plane geometry in the common mesh depth pass.
+//! Independently authored plane geometry in the common mesh depth/alpha pass.
 //! Per-encode clip vertices are immutable and join the existing admission owner.
 use super::{features, invalid, unsupported, Result, ScenePassFrame, SceneRequest};
 use crate::{AdmittedBuffer, AdmittedTextureView, Renderer};
@@ -9,9 +9,11 @@ pub(crate) struct ScenePlane {
     pub object: u64,
     pub world: glam::Mat4,
     pub size: [f32; 2],
-    /// Existing layer sRGB tint; alpha must be opaque for depth writes.
+    /// Existing straight sRGB tint and combined layer/content opacity.
     pub color: [f32; 4],
-    /// Proven opaque static source, retaining its admitted upload revision.
+    /// Alpha sources test opaque depth without writing it.
+    pub blend: bool,
+    /// Static source retaining its admitted upload revision.
     pub texture: Option<AdmittedTextureView>,
 }
 #[repr(C)]
@@ -36,6 +38,7 @@ struct Key {
     format: wgpu::TextureFormat,
     samples: u32,
     textured: bool,
+    blend: bool,
 }
 #[derive(Clone)]
 struct Pipeline {
@@ -48,6 +51,8 @@ pub(super) struct Draw {
     pub pipeline: wgpu::RenderPipeline,
     pub group: Option<wgpu::BindGroup>,
     pub vertices: std::ops::Range<u64>,
+    pub blend: bool,
+    pub distance: f32,
 }
 pub(super) struct Prepared {
     pub vertices: AdmittedBuffer,
@@ -87,10 +92,10 @@ pub(super) fn prepare(
                 .color
                 .iter()
                 .any(|n| !n.is_finite() || !(0. ..=1.).contains(n))
-            || plane.color[3] != 1.
+            || (!plane.blend && plane.color[3] != 1.)
         {
             return Err(crate::RenderError::Invalid(format!(
-                "scene plane object={} phase=shared_plane: requires finite affine opaque plane geometry and color", plane.object
+                "scene plane object={} phase=shared_plane: requires finite affine plane geometry and valid premultiplied color policy", plane.object
             )).into());
         }
         if plane.texture.as_ref().is_some_and(|view| {
@@ -110,7 +115,19 @@ pub(super) fn prepare(
         let first = vertices.len() as u64;
         let mut color = plane.color;
         for c in &mut color[..3] {
-            *c = crate::renderer::srgb_to_linear(*c);
+            *c = crate::renderer::srgb_to_linear(*c) * plane.color[3];
+        }
+        // Use the same camera-forward metric as mesh primitives. Intersecting
+        // translucent geometry still needs a separate fragment-order policy.
+        let center = plane.world.transform_point3(glam::Vec3::ZERO);
+        let forward = (frame.camera.target - frame.camera.eye).normalize();
+        let distance = (center - frame.camera.eye).dot(forward);
+        if !center.is_finite() || !distance.is_finite() {
+            return Err(crate::RenderError::Invalid(format!(
+                "scene plane object={} phase=shared_plane_sort: plane camera distance overflow",
+                plane.object
+            ))
+            .into());
         }
         // Match the authored XY geometry and camera, without assigning a single
         // depth to its raster. Hardware clipping/interpolation supplies every Z.
@@ -154,13 +171,14 @@ pub(super) fn prepare(
             format,
             samples: frame.samples,
             textured: plane.texture.is_some(),
+            blend: plane.blend,
         };
         let pipeline = if let Some(pipeline) = cache.0.get(&key) {
             pipeline.clone()
         } else {
-            // Four working formats x two sample counts x solid/image sources.
+            // Four formats x two sample counts x two sources x two alpha modes.
             // Asset IDs and animation never create additional pipeline keys.
-            if cache.0.len() >= 16 {
+            if cache.0.len() >= 32 {
                 return Err(invalid(
                     "shared_plane_pipeline",
                     0,
@@ -168,8 +186,8 @@ pub(super) fn prepare(
                 ));
             }
             log::info!(
-                "start #{} scene_plane_pipeline source={} object={} format={format:?} samples={} textured={}",
-                request.request, request.source, plane.object, frame.samples, key.textured
+                "start #{} scene_plane_pipeline source={} object={} format={format:?} samples={} textured={} blend={}",
+                request.request, request.source, plane.object, frame.samples, key.textured, key.blend
             );
             let pipeline = pipeline(renderer, key)?;
             cache.0.insert(key, pipeline.clone());
@@ -205,6 +223,8 @@ pub(super) fn prepare(
             pipeline: pipeline.render,
             group,
             vertices: first..vertices.len() as u64,
+            blend: key.blend,
+            distance,
         });
     }
     let vertices =
@@ -236,6 +256,16 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
         ));
     }
     let support = features(renderer, key.format);
+    if key.blend
+        && !support
+            .flags
+            .contains(wgpu::TextureFormatFeatureFlags::BLENDABLE)
+    {
+        return Err(unsupported(
+            0,
+            "shared alpha planes require blendable working storage",
+        ));
+    }
     if !support
         .allowed_usages
         .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
@@ -259,7 +289,7 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
     let shader = renderer
         .device
         .create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("shared opaque plane geometry"),
+            label: Some("shared plane geometry"),
             source: wgpu::ShaderSource::Wgsl(
                 if key.textured {
                     include_str!("textured_planes.wgsl")
@@ -312,7 +342,7 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
     let pipeline = renderer
         .device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("opaque planes in shared mesh depth"),
+            label: Some("planes in shared mesh depth and alpha order"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -338,7 +368,9 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: key.format,
-                    blend: None,
+                    blend: key
+                        .blend
+                        .then_some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -348,7 +380,7 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: Some(true),
+                depth_write_enabled: Some(!key.blend),
                 depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: Default::default(),
                 bias: Default::default(),

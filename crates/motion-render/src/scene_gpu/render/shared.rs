@@ -76,6 +76,17 @@ struct Prepared {
     items: Vec<Item>,
     uniforms: FrameUniforms,
 }
+enum OrderedDraw<'a> {
+    Mesh {
+        instance: usize,
+        item: usize,
+        group: &'a wgpu::BindGroup,
+    },
+    Plane {
+        draw: &'a planes::Draw,
+        vertices: &'a crate::AdmittedBuffer,
+    },
+}
 impl ScenePass {
     pub fn new(renderer: &Renderer, max_draws: usize) -> Result<Self> {
         if max_draws == 0 || max_draws > u32::MAX as usize {
@@ -476,21 +487,52 @@ impl ScenePass {
                         "nonempty draw queue lacks uniforms",
                     )
                 })?;
-                order.extend((0..prepared.items.len()).map(|item| (instance, item, group)));
+                order.extend(prepared.items.iter().enumerate().map(|(index, item)| {
+                    (
+                        item.key.blend,
+                        item.distance,
+                        OrderedDraw::Mesh {
+                            instance,
+                            item: index,
+                            group,
+                        },
+                    )
+                }));
             }
+        }
+        if let Some(planes) = &planes {
+            order.extend(planes.draws.iter().map(|draw| {
+                (
+                    draw.blend,
+                    draw.distance,
+                    OrderedDraw::Plane {
+                        draw,
+                        vertices: &planes.vertices,
+                    },
+                )
+            }));
         }
         // Global ordering, including different meshes/sources and repeated instances.
         // Intersecting transparent triangles still require an explicit OIT policy.
-        order.sort_by(|&(ai, ad, _), &(bi, bd, _)| {
-            let a = &prepared[ai].items[ad];
-            let b = &prepared[bi].items[bd];
-            a.key.blend.cmp(&b.key.blend).then_with(|| {
-                if a.key.blend {
-                    b.distance.total_cmp(&a.distance)
-                } else {
-                    a.distance.total_cmp(&b.distance)
-                }
-            })
+        order.sort_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then_with(|| {
+                    if a.0 {
+                        b.1.total_cmp(&a.1)
+                    } else {
+                        a.1.total_cmp(&b.1)
+                    }
+                })
+                .then_with(|| {
+                    // Preserve the prior opaque coplanar tie: planes were encoded
+                    // first and the mesh won an equal LessEqual depth comparison.
+                    if a.0 {
+                        std::cmp::Ordering::Equal
+                    } else {
+                        matches!(a.2, OrderedDraw::Mesh { .. })
+                            .cmp(&matches!(b.2, OrderedDraw::Mesh { .. }))
+                    }
+                })
         });
         let replacement = if self.targets.as_ref().is_some_and(|t| {
             t.size == (target.width, target.height)
@@ -545,17 +587,24 @@ impl ScenePass {
                 pass.set_bind_group(0, &seed.group, &[]);
                 pass.draw(0..3, 0..1);
             }
-            if let Some(planes) = &planes {
-                for draw in &planes.draws {
-                    pass.set_pipeline(&draw.pipeline);
-                    if let Some(group) = &draw.group {
-                        pass.set_bind_group(0, group, &[]);
+            for (_, _, draw) in order {
+                let (instance_index, item_index, group) = match draw {
+                    OrderedDraw::Plane { draw, vertices } => {
+                        pass.set_pipeline(&draw.pipeline);
+                        if let Some(group) = &draw.group {
+                            pass.set_bind_group(0, group, &[]);
+                        }
+                        pass.set_vertex_buffer(0, vertices.slice(draw.vertices.clone()));
+                        pass.draw(0..6, 0..1);
+                        stats.blended_draws += usize::from(draw.blend);
+                        continue;
                     }
-                    pass.set_vertex_buffer(0, planes.vertices.slice(draw.vertices.clone()));
-                    pass.draw(0..6, 0..1);
-                }
-            }
-            for (instance_index, item_index, group) in order {
+                    OrderedDraw::Mesh {
+                        instance,
+                        item,
+                        group,
+                    } => (instance, item, group),
+                };
                 let prepared = &prepared[instance_index];
                 let item = &prepared.items[item_index];
                 let source = &sources[prepared.source];
