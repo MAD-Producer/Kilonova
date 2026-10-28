@@ -11,6 +11,8 @@ mod exposure;
 mod project_shared;
 #[path = "model_layers/source_catalog.rs"]
 mod source_catalog;
+#[path = "model_layers/imported_cameras.rs"]
+mod imported_cameras;
 
 struct Material;
 impl AssetResolver for Material {

@@ -293,7 +293,8 @@ impl Renderer {
                 instances.push(instance);
             }
             let mut sources: Vec<_> = owned.iter_mut().map(|(_, gpu)| gpu).collect();
-            let mut frame = ScenePassFrame::new(scene.camera);
+            let mut frame = ScenePassFrame::new(scene.native_camera());
+            frame.viewport = scene.native_camera_viewport(w, h);
             frame.samples = clip.samples;
             let planes: Vec<_> = scene
                 .layers

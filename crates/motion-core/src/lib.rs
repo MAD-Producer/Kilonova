@@ -41,7 +41,7 @@ pub use motion_model::audio_edit;
 pub use motion_model::media_assets;
 pub use motion_model::EditSink;
 pub use motion_model::{
-    to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,
+    to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind, ImportedCamera,
 };
 pub use motion_model::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use motion_model::{Curve, CurveSample, CurveShape, CurveSpace, Easing};

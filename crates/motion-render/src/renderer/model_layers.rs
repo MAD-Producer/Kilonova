@@ -2,6 +2,7 @@
 //! contiguous model runs share mesh depth; authored compositing boundaries
 //! retain the isolated receiver path and do not share depth with flat planes.
 mod shared;
+mod cameras;
 use super::*;
 use crate::scene_gpu::{GpuScene, SceneFrame, SceneGpuLimits, SceneRenderStats, SceneRequest};
 use motion_model::ModelAsset;
@@ -25,11 +26,21 @@ pub(super) struct Source {
 pub struct ModelSourceCatalog {
     sources: Arc<HashMap<u64, Source>>,
 }
+impl std::fmt::Debug for ModelSourceCatalog {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModelSourceCatalog").field("sources", &self.len()).finish()
+    }
+}
 impl ModelSourceCatalog {
     /// Prepare a replacement atomically. Unchanged sources reuse the previous
     /// owned scene without reopening files; failures leave `previous` intact.
     pub fn prepare(project: &Project, root: &Path, previous: &Self) -> Result<Self> {
-        Ok(Self { sources: prepare_catalog(project, root, &previous.sources, MAX_CATALOG_RETAINED_BYTES)? })
+        let catalog = Self { sources: prepare_catalog(project, root, &previous.sources, MAX_CATALOG_RETAINED_BYTES)? };
+        if let Err(error) = catalog.validate_camera_selections(project) {
+            log::error!("model catalog phase=camera_selection cause={}", error.to_string().chars().take(1024).collect::<String>());
+            return Err(error.into());
+        }
+        Ok(catalog)
     }
     /// No IO, parsing or GPU allocation occurs when resolving a sampled source.
     pub fn scene(&self, source: u64) -> Option<&Arc<motion_scene::Scene>> {
@@ -41,6 +52,15 @@ impl ModelSourceCatalog {
     }
     pub fn len(&self) -> usize { self.sources.len() }
     pub fn is_empty(&self) -> bool { self.sources.is_empty() }
+    pub fn shares_sources_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.sources, &other.sources) || (self.is_empty() && other.is_empty())
+    }
+    /// Metadata-only revision check; the host replaces this catalog on root changes.
+    pub fn matches_assets(&self, project: &Project) -> bool {
+        self.len() == project.model_assets.len() && project.model_assets.iter()
+            .all(|asset| self.sources.get(&asset.id).is_some_and(|source| source.asset == *asset))
+    }
+    pub(super) fn prepared_sources(&self) -> Arc<HashMap<u64, Source>> { self.sources.clone() }
 }
 #[derive(Default)]
 pub(super) struct Models {
@@ -107,7 +127,7 @@ fn prepare_sources_with_limit(
 fn prepare_catalog(
     project: &Project,
     root: &Path,
-    previous: &HashMap<u64, Source>,
+    previous: &Arc<HashMap<u64, Source>>,
     retained_limit: usize,
 ) -> Result<Arc<HashMap<u64, Source>>> {
     let began = Instant::now();
@@ -157,15 +177,20 @@ fn prepare_catalog(
                 asset.id,
                 asset.bytes
             );
-            let path = root.join(&asset.path).canonicalize()?;
+            let requested = root.join(&asset.path);
+            let io_error = |phase: &str, cause: std::io::Error| RenderError::Context {
+                message: format!("model source={} phase={phase} path={} cause={cause}", asset.id, asset.path),
+                cause: Box::new(cause.into()),
+            };
+            let path = requested.canonicalize().map_err(|cause| io_error("resolve", cause))?;
             if !path.starts_with(&root) {
                 return Err(RenderError::Invalid(format!(
                     "model source={} resolves outside project",
                     asset.id
                 )));
             }
-            let file = File::open(path)?;
-            let metadata = file.metadata()?;
+            let file = File::open(path).map_err(|cause| io_error("open", cause))?;
+            let metadata = file.metadata().map_err(|cause| io_error("metadata", cause))?;
             if !metadata.is_file() || metadata.len() != asset.bytes {
                 return Err(RenderError::Invalid(format!(
                     "model source={} frozen byte count mismatch",
@@ -173,7 +198,7 @@ fn prepare_catalog(
                 )));
             }
             let mut bytes = Vec::new();
-            file.take(asset.bytes + 1).read_to_end(&mut bytes)?;
+            file.take(asset.bytes + 1).read_to_end(&mut bytes).map_err(|cause| io_error("read", cause))?;
             if bytes.len() as u64 != asset.bytes
                 || format!("{:x}", Sha256::digest(&bytes)) != asset.sha256
             {
@@ -235,7 +260,11 @@ fn prepare_catalog(
                 }
             }
         }
-        Ok(Arc::new(sources))
+        if sources.len() == previous.len() && sources.iter().all(|(id, new)|
+            previous.get(id).is_some_and(|old| old.asset == new.asset && old.root == new.root
+                && Arc::ptr_eq(&old.scene, &new.scene))) {
+            Ok(previous.clone())
+        } else { Ok(Arc::new(sources)) }
     })();
     if let Err(error) = &result {
         let cause: String = error.to_string().chars().take(1024).collect();
@@ -372,7 +401,8 @@ impl Renderer {
             }
             _ => self.render_target_in(w, h, crate::TextureCategory::ModelSources)?,
         };
-        let mut frame = SceneFrame::new(scene.camera, clip.scene as usize, clip.pixels_per_metre);
+        let mut frame = SceneFrame::new(scene.native_camera(), clip.scene as usize, clip.pixels_per_metre);
+        frame.viewport = scene.native_camera_viewport(w, h);
         frame.world = layer.model
             * glam::Mat4::from_translation(
                 -glam::Vec3::from_array(clip.pivot) * clip.pixels_per_metre,
