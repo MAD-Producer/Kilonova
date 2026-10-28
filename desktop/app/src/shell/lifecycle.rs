@@ -22,6 +22,7 @@ impl Shell {
         self.render_queue.shutdown();
         self.cancel_layer_clipboard();
         self.cancel_audio_analysis();
+        self.project_image = None;
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
         self.node_installing.clear();

@@ -7,6 +7,23 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if let Some(object) = state["assetPlacement"]["object"].as_u64() {
+            self.panels.select_only(Some(object));
+        }
+        if state["assetRegistration"]["cancelled"] == false {
+            self.panels.message = Some(if self.workspace.locale == Locale::Zh {
+                "已导入项目；选择“放入当前合成”创建图层"
+            } else {
+                "Imported into project; choose Place in composition to create a layer"
+            }.into());
+        }
+        if state["assetOperation"]["cancelled"] == true {
+            self.panels.message = Some(if self.workspace.locale == Locale::Zh {
+                "工程已变化，已取消素材操作"
+            } else {
+                "Project changed; asset operation cancelled"
+            }.into());
+        }
         if state["editorAction"]["operation"]=="project_open" && state["editorAction"]["cancelled"]==false {
             self.frame=state["frame"].as_f64().unwrap_or(0.);
             self.panels.normalize_selection(&state);
@@ -907,6 +924,17 @@ impl Shell {
             #[cfg(target_os = "windows")]
             WindowEvent::CursorEntered { .. } => f.pointer_position.entered(f.scale),
             WindowEvent::DroppedFile(path) => {
+                if f.panel == dock::Panel::Project && super::project_import::media_path(&path) {
+                    let position = f.pointer_position.dropped(&f.window, f.scale);
+                    let size = f.window.inner_size();
+                    let size = [size.width as f32 / f.scale, size.height as f32 / f.scale];
+                    let styles = self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+                    if let Some(bounds) = panels::floating_view_styled(dock::Panel::Project, size, &styles) {
+                        self.drop_project_media(path, position, bounds);
+                    }
+                    self.redraw();
+                    return;
+                }
                 if f.panel == dock::Panel::Nodes && super::node_image_drop::node_image_path(&path) {
                     let position = f.pointer_position.dropped(&f.window, f.scale);
                     let key = f.key;

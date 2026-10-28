@@ -7,6 +7,8 @@ use winit::{
     dpi::PhysicalSize, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows,
     window::Window,
 };
+mod drag;
+mod thumbnails;
 
 fn frame(
     shell: &mut Shell,
@@ -28,9 +30,11 @@ fn frame(
         );
         (paint, actions)
     } else {
-        shell.input = input;
+        let previous=std::mem::replace(&mut shell.input,input);
         let result = shell.draw_commands(size);
-        shell.input = Input::default();
+        // Passive fixture paint must retain native capture coordinates between
+        // CursorMoved and MouseInput::Released, like production end_frame.
+        shell.input = previous;
         result
     }
 }

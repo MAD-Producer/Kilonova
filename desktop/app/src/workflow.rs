@@ -2,6 +2,7 @@
 #[cfg(test)]
 mod media_asset_tests;
 pub mod library_media;
+pub(crate) mod library_image;
 use motion_core::{Asset, Command, Content, Layer, LayerTimeline};
 use motion_host::Session;
 use serde_json::Value;

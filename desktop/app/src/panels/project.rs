@@ -7,6 +7,7 @@ use motion_ui::{
 };
 mod catalogue;
 mod popup;
+pub(crate) mod thumbnails;
 #[cfg(test)]
 mod tests;
 use catalogue::{Catalogue, RowKey};
@@ -52,6 +53,13 @@ pub(super) fn word<'a>(locale: Locale, zh: &'a str, en: &'a str) -> &'a str {
     }
 }
 impl Controls {
+    pub(crate) fn preview(&mut self, state:&Value, target:motion_core::media_assets::AssetRef, owner:Option<Panel>) {
+        self.refresh(state);
+        self.owner=owner;
+        let item=if target.kind==motion_core::media_assets::AssetKind::Video {ProjectItem::Video{id:target.id}}else{ProjectItem::Image{id:target.id}};
+        self.popup=Some(Popup::Preview { key:RowKey::Item(item) });
+        self.popup_fresh=true;
+    }
     pub(crate) fn modal(&self) -> bool {
         self.popup.is_some()
     }
@@ -160,7 +168,7 @@ pub(super) fn render(
     let tool = styles.metric("project.toolbar.height", 26.);
     let border = styles.metric("border", 1.);
     let action = styles.metric("project.action.width", 64.);
-    let slot = styles.metric("icon.slot", 20.);
+    let slot = styles.metric("project.item.preview.slot", 40.);
     let browser = &mut panels.project.browser;
     let old_root = browser.view.root.clone();
     browser.refresh(state);
@@ -311,7 +319,11 @@ pub(super) fn render(
     )
     .clicked
     {
-        out.push(Action::ImportMedia);
+        out.push(Action::ProjectImport {
+            source: catalogue.source.clone(),
+            folder: browser.view.folder,
+            path: None,
+        });
     }
     let viewport = Rect::new(
         bar.min[0],
@@ -380,13 +392,18 @@ pub(super) fn render(
         }
         let style = styles.resolve("row", states).expect("row style");
         box_style(&mut child, rect, style);
-        motion_ui::icons::draw(
+        if let Some(bitmap)=(i-first < motion_ui::paint::MAX_BITMAPS.saturating_sub(1)).then(||panels.project.thumbnails.get(state,&entry.key)).flatten() {
+            let [width,height]=bitmap.dimensions();
+            let fit=(styles.metric("project.item.preview.width",32.)/width as f32).min(styles.metric("project.item.preview.height",18.)/height as f32);
+            let w=width as f32*fit; let h=height as f32*fit;
+            child.push_image(motion_ui::paint::ImageQuad::new(bitmap,Rect::new(rect.min[0]+(slot-w)*0.5,rect.min[1]+(row-h)*0.5,w,h)));
+        } else { motion_ui::icons::draw(
             &mut child,
             Rect::new(rect.min[0], rect.min[1], slot, row),
             entry.key.icon(),
             styles.metric("project.item.icon_size", 14.),
             style.foreground,
-        );
+        ); }
         let width = if narrow {
             rect.width() - slot - pad
         } else {
@@ -433,6 +450,9 @@ pub(super) fn render(
                 .pressed
                 .is_some_and(|(button, _)| button == MouseButton::Left)
             {
+                if let Some(target) = entry.key.media() {
+                    panels.project_drag.begin(target, input.mouse, state);
+                }
                 let now = std::time::Instant::now();
                 if browser.last_click.as_ref().is_some_and(|(key, last)| {
                     key == &entry.key

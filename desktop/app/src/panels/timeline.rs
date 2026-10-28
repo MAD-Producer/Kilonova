@@ -1133,6 +1133,9 @@ pub(super) fn render(
         area.width(),
         (area.max[1] - footer_height - ruler.max[1]).max(0.0),
     );
+    if !graph_mode {
+        panels.project_drag.target(Rect::new(track.min[0], body.min[1], track.width(), body.height()), offset, ppf, total as u32);
+    }
     let selection_input=super::key_selection::ui::begin(panels, state, input,
         Rect::new(track.min[0], body.min[1], track.width(), body.height()),
         [ppf, offset, if graph_mode && panels.timeline.comparison.enabled { panels.timeline.comparison.scroll() } else { panels.timeline.scroll }, panels.timeline.graph_y_zoom, panels.timeline.graph_y_offset], out.len());

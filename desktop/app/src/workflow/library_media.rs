@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Request {
+    PreparedImage {
+        prepared: super::library_image::Prepared,
+        folder: Option<u64>,
+    },
     Image {
         file: PathBuf,
         folder: Option<u64>,
@@ -25,6 +29,7 @@ pub enum Request {
 impl Request {
     pub fn name(&self) -> &'static str {
         match self {
+            Self::PreparedImage { .. } => "project_register_prepared_image",
             Self::Image { .. } => "project_register_image",
             Self::Media { .. } => "project_register_media",
             Self::Place { .. } => "project_place_asset",
@@ -32,6 +37,11 @@ impl Request {
     }
     pub fn run(self, session: &mut Session) -> motion_host::Result<Value> {
         let context = match &self {
+            Self::PreparedImage { prepared, folder } => format!(
+                "{} request={} folder={folder:?} phase=publish",
+                self.name(),
+                prepared.request()
+            ),
             Self::Image { file, folder } => format!(
                 "{} source={:?} folder={folder:?} phase=prepare",
                 self.name(),
@@ -54,6 +64,7 @@ impl Request {
         };
         log::info!("{context}");
         let result = match self {
+            Self::PreparedImage { prepared, folder } => prepared.publish(session, folder),
             Self::Image { file, folder } => super::register_image(session, &file, folder),
             Self::Media { request, folder } => finish_media(session, &request, folder),
             Self::Place { target, at_frame } => place(session, target, at_frame),

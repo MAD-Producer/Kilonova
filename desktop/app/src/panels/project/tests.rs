@@ -116,6 +116,28 @@ fn rect(panels: &Panels, key: &RowKey) -> Rect {
 }
 
 #[test]
+fn project_import_buttons_capture_the_browsed_or_context_folder_in_both_languages_and_windows() {
+    for locale in [Locale::Zh, Locale::En] {
+        for owner in [None, Some(Panel::Project)] {
+            let state = fixture();
+            let mut panels = Panels::default();
+            panels.locale = locale;
+            draw(&mut panels, &state, owner, Input::default());
+            let import = panels.project.browser.buttons[3];
+            let actions = draw(&mut panels, &state, owner, click(import,MouseButton::Left));
+            assert!(matches!(actions.as_slice(),[Action::ProjectImport { source,folder:None,path:None }]
+                if *source==crate::layer_clipboard::KeyframeSource::of(&state)),"{actions:?}");
+            let target = rect(&panels,&RowKey::Folder(7));
+            draw(&mut panels,&state,owner,click(target,MouseButton::Right));
+            let import = *panels.project.browser.buttons.last().unwrap();
+            let actions = draw(&mut panels,&state,owner,click(import,MouseButton::Left));
+            assert!(matches!(actions.as_slice(),[Action::ProjectImport { source,folder:Some(7),path:None }]
+                if *source==crate::layer_clipboard::KeyframeSource::of(&state)),"{actions:?}");
+        }
+    }
+}
+
+#[test]
 fn project_inventory_lists_unreferenced_items_and_all_compositions_without_decoding_animation_payloads(
 ) {
     let mut state = fixture();

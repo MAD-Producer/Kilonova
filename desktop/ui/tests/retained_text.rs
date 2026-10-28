@@ -96,6 +96,7 @@ fn every_retention_mask_preserves_predicate_order_and_interleaved_creation_order
                         PaintOp::Glyph(index) => {
                             kept.iter().position(|id| id == index).map(PaintOp::Glyph)
                         }
+                        PaintOp::Image(_) => unreachable!("this text fixture contains no bitmaps"),
                     })
                     .collect();
                 let colors = list.colors.clone();

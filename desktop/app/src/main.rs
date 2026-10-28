@@ -319,6 +319,9 @@ struct Shell {
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
+    library_import: Option<shell::project_import::Import>,
+    project_image: Option<shell::project_import::ImageImport>,
+    project_image_pool: workflow::library_image::Pool,
     replacing_asset: Option<media_assets::Source>,
     relinking_assets: bool,
     relink_reply: Option<(shell::media_assets::RelinkPhase, std::sync::mpsc::Receiver<Result<Value, String>>)>,
@@ -447,6 +450,9 @@ impl Shell {
             export_notified: false,
             importing_image: None,
             importing_media: None,
+            library_import: None,
+            project_image: None,
+            project_image_pool: Default::default(),
             replacing_asset: None,
             relinking_assets: false,
             relink_reply: None,
@@ -490,6 +496,7 @@ impl Shell {
         shell.panels.node_editor.view_preferences = shell.workspace.node_view;
         shell.panels.project.browser.view = shell.workspace.project_view.clone();
         shell.panels.project.query = shell.workspace.project_view.query.clone();
+        shell.panels.project.thumbnails.enabled = true;
         shell.panels.node_editor.recent_nodes = shell.workspace.node_recents.clone();
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
@@ -561,6 +568,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if self.route_project_drag_event(id, &event) { return; }
         if self.route_effect_drag_event(id, &event) { return; }
         if self.floating.contains_key(&id) {
             self.floating_event(event_loop, id, event);
@@ -639,6 +647,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.lose_focus();
             }
             WindowEvent::DroppedFile(path) => {
+                if self.main_project_media_drop(&path) { self.redraw(); return; }
                 if self.main_node_image_drop(&path) { self.redraw(); return; }
                 let ext = path
                     .extension()
@@ -803,6 +812,15 @@ impl ApplicationHandler<UserEvent> for Shell {
         if let Err(error) = self.poll_import() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
+        }
+        if let Err(error) = self.poll_project_import() {
+            self.panels.message = Some(self.workspace.locale.error(&error));
+            self.dirty = true;
+        }
+        self.panels.project.thumbnails.observe(&self.state);
+        if self.panels.project.thumbnails.poll() { self.dirty = true; }
+        if let Some(cause)=self.panels.project.thumbnails.message.take() {
+            self.panels.message=Some(self.workspace.locale.error(&cause));
         }
         if self.smoke.is_some()
             && self.smoke_stage != 4 // Completed capture may be followed by one final native callback.
@@ -1087,6 +1105,9 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.dirty
             || self.importing_image.is_some()
             || self.importing_media.is_some()
+            || self.library_import.is_some()
+            || self.project_image.is_some()
+            || self.panels.project.thumbnails.busy()
             || self.file_location.is_some()
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()

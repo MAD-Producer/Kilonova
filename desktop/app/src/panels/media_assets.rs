@@ -373,6 +373,21 @@ pub(super) fn overlay(
                 true,
                 Some(Intent::RelinkMissing),
             ),
+            (
+                word(locale, "放入当前合成（播放头）", "Place in composition at playhead"),
+                true,
+                Some(Intent::Place),
+            ),
+            (
+                word(locale, "刷新缩略图", "Refresh thumbnail"),
+                matches!(menu.source.target.kind, AssetKind::Image | AssetKind::Video),
+                Some(Intent::RefreshThumbnail),
+            ),
+            (
+                word(locale, "预览素材…", "Preview asset…"),
+                matches!(menu.source.target.kind, AssetKind::Image | AssetKind::Video),
+                Some(Intent::Preview { owner }),
+            ),
         ]
     };
     let note = if linked {

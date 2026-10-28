@@ -187,6 +187,11 @@ impl Shell {
         {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
+        if (self.library_import.is_some() || self.project_image.is_some())
+            && matches!(&action, Action::New | Action::Open | Action::OpenPath(_))
+        {
+            return Err(self.workspace.locale.t(T::Importing).into());
+        }
         if self.importing_effect.is_some()
             && matches!(
                 &action,
@@ -380,23 +385,22 @@ impl Shell {
                 }
             }
             Action::ImportEffectPath(path) => self.start_effect_import(path)?,
-            Action::ImportMedia => {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_title(self.workspace.locale.t(T::ImportMedia))
-                    .add_filter(
-                        "Media",
-                        &[
-                            "png", "jpg", "jpeg", "mp4", "mov", "mkv", "webm", "m4a", "aac", "mp3",
-                            "wav", "flac", "ogg", "opus", "aiff",
-                        ],
-                    )
-                    .pick_file()
-                {
-                    self.import_file(path)?;
-                }
+            Action::ProjectImport { source, folder, path } => {
+                self.start_project_import(source, folder, path)?;
             }
-            Action::ImportPath(path) => self.import_file(path)?,
+            Action::ImportMedia => {
+                let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
+                self.start_project_import(source, self.project_import_folder(), None)?;
+            }
+            Action::ImportPath(path) => {
+                let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
+                self.start_project_import(source, self.project_import_folder(), Some(path))?;
+            }
             Action::CancelImport => {
+                if self.library_import.is_some() || self.project_image.is_some() {
+                    self.cancel_project_import()?;
+                    return Ok(());
+                }
                 if self.relinking_assets {
                     self.cancel_asset_relink()?;
                     return Ok(());
@@ -928,6 +932,11 @@ impl Shell {
             Action::ProjectOpen {source,composition} => {
                 self.stop();
                 self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectOpen{source,composition,reply})?));
+            }
+            Action::ProjectPlace { source, target, at_frame } => {
+                self.stop();
+                let operation=workflow::library_media::Request::Place { target, at_frame };
+                self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectAsset{source,operation,reply})?));
             }
             Action::ExpressionCheck { ticket, target, text } => {
                 let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });

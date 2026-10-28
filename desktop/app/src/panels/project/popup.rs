@@ -1,7 +1,12 @@
 use super::*;
 use motion_ui::widgets::{ListItem, ListView, TextEvent};
 
+fn child_preview(list:&mut PaintList,bitmap:std::sync::Arc<motion_ui::paint::Bitmap>,area:Rect) {
+    list.push_image(motion_ui::paint::ImageQuad::new(bitmap,area));
+}
+
 pub(super) enum Popup {
+    Preview {key:RowKey},
     Name {
         source: crate::layer_clipboard::KeyframeSource,
         id: Option<u64>,
@@ -90,10 +95,12 @@ pub(super) fn finish(
             input
         };
         let moving = matches!(popup, Popup::Move { .. });
-        let width = styles
+        let preview=matches!(popup, Popup::Preview{..});
+        let width = if preview {styles.metric("project.preview.width",400.)}else{styles
             .metric("project.folder.dialog.width", 400.)
+        }
             .min(bounds.width());
-        let height = if moving {
+        let height = if preview {styles.metric("project.preview.height",320.)} else if moving {
             styles.metric("project.folder.move.height", 360.)
         } else {
             styles.metric("project.folder.dialog.height", 180.)
@@ -153,9 +160,24 @@ pub(super) fn finish(
         {
             browser.buttons = vec![apply, cancel];
         }
+        if let Popup::Preview {key}= &popup {
+            let video=matches!(key,RowKey::Item(ProjectItem::Video{..}));
+            label(list,atlas,title,if video {word(locale,"视频首帧预览","Video first frame")}else{word(locale,"图像预览","Image preview")},false);
+            let content=Rect::new(title.min[0],title.max[1]+pad,title.width(),(apply.min[1]-title.max[1]-pad*2.).max(0.));
+            if let Some(bitmap)=panels.project.thumbnails.get(_state,key) {
+                let [w,h]=bitmap.dimensions();
+                let fit=(content.width()/w as f32).min(content.height()/h as f32);
+                let width=w as f32*fit;let height=h as f32*fit;
+                child_preview(list,bitmap,Rect::new(content.min[0]+(content.width()-width)*0.5,content.min[1]+(content.height()-height)*0.5,width,height));
+            } else {label(list,atlas,content,if panels.project.thumbnails.failed(_state,key) {word(locale,"预览读取失败，请关闭后刷新缩略图或重链接素材","Preview failed; close and refresh thumbnail or relink asset")}else{word(locale,"正在准备预览…","Preparing preview…")},true);}
+            if ui::button(list,atlas,apply,word(locale,"关闭","Close"),input,true).clicked {return;}
+            browser.popup=Some(popup);
+            return;
+        }
         let mut submit = false;
         let enabled;
         match &mut popup {
+            Popup::Preview {..}=>unreachable!("preview handled above"),
             Popup::Name { id, editor, .. } => {
                 label(
                     list,
@@ -270,6 +292,7 @@ pub(super) fn finish(
         .clicked;
         if submit && enabled {
             match popup {
+                Popup::Preview {..}=>unreachable!("preview does not submit document edits"),
                 Popup::Name {
                     source,
                     id,
@@ -494,7 +517,14 @@ pub(super) fn finish(
                     }
                 }
             }
-            Choice::Import => out.push(Action::ImportMedia),
+            Choice::Import => out.push(Action::ProjectImport {
+                source: catalogue.source.clone(),
+                folder: match browser.context {
+                    Some(RowKey::Folder(id)) => Some(id),
+                    _ => browser.view.folder,
+                },
+                path: None,
+            }),
             Choice::Settings => {
                 if let Some(RowKey::Item(ProjectItem::Composition { id })) = &browser.context {
                     if _state["project"]["composition_id"] == *id {
