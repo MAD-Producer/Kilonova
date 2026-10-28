@@ -16,6 +16,8 @@ pub use calibration::{
 };
 pub use projection::{DepthProjection, ProjectedDepth};
 pub use saved::SavedDepthCalibration;
+mod video;
+pub use video::{VideoDepthSample, VideoDepthTrack, MAX_VIDEO_DEPTH_SAMPLES};
 mod surface;
 pub use surface::{DepthReference, DepthSurface, DepthVertex};
 

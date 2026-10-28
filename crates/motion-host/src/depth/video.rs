@@ -137,6 +137,9 @@ impl VideoInput {
         }
         let mut input = rgb_from_rgba(key, &rgba, cancellation)?;
         input.image = Some(motion_render::DepthImage::new([width, height], rgba)?);
+        // Only managed-index/decoder agreement above can construct this end.
+        // Backends cannot extend a color/depth admission to another sample.
+        input.video_end_us = Some(frame.end);
         cancellation.check()?;
         Ok(input)
     }

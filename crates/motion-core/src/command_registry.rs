@@ -190,6 +190,7 @@ registry! {
     Command::CopyPathAs { .. } => "copy_path_as" [("target","PathTarget",true), ("path","u64",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
     Command::DepthCalibration { .. } => "depth_calibration" [("object","u64",true), ("calibration","Option<SavedDepthCalibration>",true)];
+    Command::VideoDepthCalibration { .. } => "video_depth_calibration" [("object","u64",true), ("sample","VideoDepthSample",true)];
     Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
