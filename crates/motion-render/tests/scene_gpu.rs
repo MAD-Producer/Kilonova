@@ -25,6 +25,8 @@ mod morph;
 mod shared;
 #[path = "scene_gpu/skins.rs"]
 mod skins;
+#[path = "scene_gpu/depth_of_field.rs"]
+mod depth_of_field;
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
@@ -575,9 +577,12 @@ fn native_owner_budget_and_corrupt_image_failures_remain_explicit() {
 }
 
 fn center_linear(image: &motion_render::CapturedImage) -> [f64; 4] {
+    linear_at(image, SIZE / 2, SIZE / 2)
+}
+fn linear_at(image: &motion_render::CapturedImage, x: u32, y: u32) -> [f64; 4] {
     use motion_effects::image_contract::ImageStorage;
     let unit = image.storage.bytes_per_pixel() as usize;
-    let offset = (SIZE / 2 * SIZE + SIZE / 2) as usize * unit;
+    let offset = (y * SIZE + x) as usize * unit;
     let pixel = &image.pixels[offset..offset + unit];
     std::array::from_fn(|i| match image.storage {
         ImageStorage::Rgba8UnormSrgb => {

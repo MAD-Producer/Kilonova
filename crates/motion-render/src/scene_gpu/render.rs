@@ -9,6 +9,7 @@ use motion_scene::AlphaMode;
 use std::{collections::HashSet, time::Instant};
 
 mod depth_seed;
+mod depth_of_field;
 mod planes;
 mod shared;
 pub(crate) use planes::ScenePlane;
@@ -104,6 +105,8 @@ pub struct SceneRenderStats {
     pub depth_input_bytes: u64,
     /// Immutable actual plane vertices for mixed model/plane depth composition.
     pub plane_vertex_bytes: u64,
+    /// Per-encode aperture color and immutable camera uniform, zero when disabled.
+    pub depth_of_field_bytes: u64,
 }
 
 #[repr(C)]
@@ -305,6 +308,7 @@ impl GpuScene {
         let color = targets.color.as_ref().map_or(&*target.view, |v| &**v);
         let mut stats = SceneRenderStats {
             plane_vertex_bytes: 0,
+            depth_of_field_bytes: 0,
             draws: items.len(),
             triangles: 0,
             blended_draws: 0,
