@@ -103,10 +103,11 @@ fn resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels() {
         .unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.configure_assets(&project, root.path()).unwrap();
+    let initial_images = renderer.image_count();
     assert!(renderer
         .prepare_scene_assets(&scene, Resolution::Full, false)
         .unwrap());
-    assert_eq!(renderer.image_count(), MAX_PREFETCH_IMAGES);
+    assert_eq!(renderer.image_count(), initial_images + MAX_PREFETCH_IMAGES);
     let mut empty = project.clone();
     empty.layers.clear();
     let mut empty_scene = Scene::new(&empty).unwrap();
