@@ -6,6 +6,9 @@
 use super::*;
 use std::collections::VecDeque;
 
+mod native;
+pub use native::NativeCompositionCandidate;
+
 const MAX_FRAMES: usize = 8;
 
 /// Digests include immutable source/plugin/model content and output interpretation.
@@ -106,6 +109,8 @@ impl CachedCompositionFrame {
 pub struct CompositionFrameCacheInfo {
     pub resident_frames: usize,
     pub resident_bytes: u64,
+    pub pending_frames: usize,
+    pub pending_bytes: u64,
     pub quota_bytes: u64,
     pub max_frames: usize,
     pub hits: u64,
@@ -121,6 +126,8 @@ pub struct CompositionFrameCache {
     owner: Option<Arc<()>>,
     entries: VecDeque<Arc<CachedCompositionFrame>>,
     info: CompositionFrameCacheInfo,
+    epoch: Arc<()>,
+    pending: Option<(std::sync::Weak<()>, u64)>,
 }
 impl CompositionFrameCache {
     pub fn new(
@@ -132,6 +139,8 @@ impl CompositionFrameCache {
         Ok(Self {
             context,
             owner: None,
+            epoch: Arc::new(()),
+            pending: None,
             entries: VecDeque::new(),
             info: CompositionFrameCacheInfo {
                 quota_bytes,
@@ -144,11 +153,16 @@ impl CompositionFrameCache {
         CompositionFrameCacheInfo {
             resident_frames: self.entries.len(),
             resident_bytes: self.bytes(),
+            pending_frames: self.pending_frames(),
+            pending_bytes: self.pending_bytes(),
             ..self.info
         }
     }
     pub fn set_limits(&mut self, quota_bytes: u64, max_frames: usize) -> Result<()> {
         validate_limit(max_frames)?;
+        if self.info.quota_bytes != quota_bytes || self.info.max_frames != max_frames {
+            self.cancel_pending();
+        }
         self.info.quota_bytes = quota_bytes;
         self.info.max_frames = max_frames;
         while self.entries.len() > max_frames || self.bytes() > quota_bytes {
@@ -162,6 +176,7 @@ impl CompositionFrameCache {
         self.owner = None;
     }
     pub fn clear(&mut self) {
+        self.cancel_pending();
         while !self.entries.is_empty() {
             self.evict();
         }
@@ -226,10 +241,9 @@ impl CompositionFrameCache {
         }
         // Evict before allocation. Outstanding consumer handles remain charged
         // to the real shared budget and cannot be mistaken for released capacity.
-        while self.entries.len() >= self.info.max_frames
-            || self.bytes() > self.info.quota_bytes - bytes
-        {
-            self.evict();
+        if !self.make_room(bytes, 1) {
+            self.info.refused = self.info.refused.saturating_add(1);
+            return Ok(false);
         }
         let target = match copy(renderer, source) {
             Ok(target) => target,
@@ -280,19 +294,24 @@ fn validate_limit(frames: usize) -> Result<()> {
     }
 }
 
-fn copy(renderer: &Renderer, source: &RenderTarget) -> Result<RenderTarget> {
+fn allocate(
+    renderer: &Renderer,
+    width: u32,
+    height: u32,
+    format: wgpu::TextureFormat,
+) -> Result<RenderTarget> {
     let texture = renderer.device.create_admitted_texture(
         &wgpu::TextureDescriptor {
             label: Some("Motion Studio cached native composition"),
             size: wgpu::Extent3d {
-                width: source.width,
-                height: source.height,
+                width,
+                height,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: source.texture().format(),
+            format,
             usage: wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -301,13 +320,22 @@ fn copy(renderer: &Renderer, source: &RenderTarget) -> Result<RenderTarget> {
         &renderer.allocation_budget,
         crate::TextureCategory::PreviewTargets,
     )?;
-    let target = RenderTarget {
+    Ok(RenderTarget {
         view: texture.admitted_view()?,
         texture,
-        width: source.width,
-        height: source.height,
+        width,
+        height,
         owner: renderer.allocation_owner.clone(),
-    };
+    })
+}
+
+fn copy(renderer: &Renderer, source: &RenderTarget) -> Result<RenderTarget> {
+    let target = allocate(
+        renderer,
+        source.width,
+        source.height,
+        source.texture().format(),
+    )?;
     let mut encoder = renderer.allocation_command_encoder_for(
         crate::gpu_commands::CommandStage::Composition,
         &wgpu::CommandEncoderDescriptor {

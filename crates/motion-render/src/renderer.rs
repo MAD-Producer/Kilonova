@@ -1,7 +1,7 @@
 mod depth_images;
 mod composition_frames;
 pub use composition_frames::{CachedCompositionFrame, CompositionFrameCache, CompositionFrameCacheInfo,
-    CompositionFrameContext, CompositionFrameKey};
+    CompositionFrameContext, CompositionFrameKey, NativeCompositionCandidate};
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
