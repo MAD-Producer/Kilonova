@@ -152,7 +152,7 @@ fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() {
-    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let source = r.render_target(64, 64).unwrap();
     let mut project = Project::new(64, 64, 30, 1).unwrap();
     project.background = [1., 0., 0., 1.];
