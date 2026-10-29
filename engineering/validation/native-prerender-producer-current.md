@@ -36,7 +36,10 @@ renders and reads native bytes. Incomplete image preparation is an error and
 cannot publish a black completed frame. Authored exposure uses the persistent
 exposure task and native exposure readback. The existing refusal of combined
 frozen calibrated depth and exposure remains explicit. No window surface,
-Present, editor chrome, display transfer, clamp or alpha conversion participates.
+Present or editor chrome participates. Readback adds no display transfer, clamp
+or alpha conversion. The existing renderer's precision policies are retained:
+Unorm8 exposure resolve clamps straight RGB and repremultiplies before its
+native quantization; floating-point exposure retains HDR and negative channels.
 
 Initialization and frame starts are Info records before GPU/decode work. Phase
 callbacks precede the corresponding work, enabling the caller to publish state
@@ -70,6 +73,14 @@ Only the new format/byte oracles were corrected to that verified contract;
 the original failure remains in `native-prerender-producer-v3`. The all-precision
 oracle now expects encoded native blue 99 for a linear sample of 0.125 rather
 than linear-UNORM byte 32. No product format or rendering behavior was changed.
+The subsequent explicit manual run retained another new-oracle failure: Unorm8
+exposure returned red 137 instead of 255. `renderer/exposure.wgsl` independently
+defines this policy: clamp straight red to one, multiply by quantized alpha
+64/255, then encode native sRGB (137). Ordinary Unorm8 rendering instead saturates
+the HDR premultiplied red to 255. The new control now distinguishes these two
+existing policies; float controls still require exact HDR, negative and alpha
+values. The failed run is retained in `native-prerender-producer-v4`; no shader,
+product return value, existing assertion or tolerance was changed.
 The procedural source/effect fixture is independently authored in this repository;
 no new dependency, third-party asset or Adobe binary/resource is introduced.
 
