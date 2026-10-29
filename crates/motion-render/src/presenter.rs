@@ -29,6 +29,10 @@ pub struct Presenter {
     buffer: memory::Buffer,
     view_buffer: memory::Buffer,
     view_channel: ViewChannel,
+    inspection_region: Option<[f32; 4]>,
+    comparison_split: Option<f32>,
+    comparison_group: Option<wgpu::BindGroup>,
+    comparison_allocation: Option<crate::allocation_budget::AllocationLease>,
     // Retire GPU bindings before releasing their source reservation.
     source_allocation: Option<crate::allocation_budget::AllocationLease>,
 }
@@ -155,6 +159,10 @@ impl Presenter {
             view_buffer,
             view_group,
             view_channel: ViewChannel::Color,
+            inspection_region: None,
+            comparison_split: None,
+            comparison_group: None,
+            comparison_allocation: None,
         }
     }
     /// Rebind a preview buffer without rebuilding the presentation pipeline.
@@ -174,6 +182,20 @@ impl Presenter {
         Ok(())
     }
     pub fn view_channel(&self) -> ViewChannel { self.view_channel }
+    /// Bind a retained snapshot once; repeated presentation only updates geometry.
+    pub fn set_comparison_source(&mut self, device: &wgpu::Device, source: &crate::AdmittedTextureView) {
+        self.comparison_group = Some(Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source));
+        self.comparison_allocation = Some(source.lease.clone());
+    }
+    pub fn clear_comparison_source(&mut self) {
+        self.comparison_group = None;
+        self.comparison_allocation = None;
+        self.comparison_split = None;
+    }
+    pub fn set_inspection_geometry(&mut self, region: Option<[f32; 4]>, split: Option<f32>) {
+        self.inspection_region = region;
+        self.comparison_split = split;
+    }
     fn source_group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, buffer: &wgpu::Buffer, source: &wgpu::TextureView) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -190,6 +212,42 @@ impl Presenter {
     pub fn encode_view(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4]) -> Result<(), crate::RenderError> {
+        if self.inspection_region.is_some() || self.comparison_split.is_some() {
+            let comparison = match self.comparison_split {
+                Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
+                    crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
+                None => None,
+            };
+            let (live, captured) = Self::inspection_scissors(viewport, image, self.inspection_region, self.comparison_split)?;
+            let [x, y, w, h] = viewport;
+            let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+            let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
+            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("viewer inspection"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None, view: output, resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: background[0] as f64, g: background[1] as f64,
+                        b: background[2] as f64, a: background[3] as f64,
+                    }), store: wgpu::StoreOp::Store },
+                })],
+                depth_stencil_attachment: None, timestamp_writes: timestamps, occlusion_query_set: None,
+            });
+            pass.set_viewport(x, y, w, h, 0., 1.);
+            pass.set_pipeline(&self.pipeline);
+            if let Some([x, y, w, h]) = live {
+                pass.set_scissor_rect(x, y, w, h);
+                pass.set_bind_group(0, &self.view_group, &[]);
+                pass.draw(0..3, 0..1);
+            }
+            if let (Some([x, y, w, h]), Some((group, _))) = (captured, comparison) {
+                pass.set_scissor_rect(x, y, w, h);
+                pass.set_bind_group(0, group, &[]);
+                pass.draw(0..3, 0..1);
+            }
+            return Ok(());
+        }
         if let Some([ix, iy, iw, ih]) = image {
             let [x, y, w, h] = viewport;
             let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
@@ -210,6 +268,26 @@ impl Presenter {
         output: &wgpu::TextureView, viewport: [f32; 4], image: Option<[f32; 4]>,
         background: [f32; 4], region: Option<[f32; 4]>,
         comparison: Option<(&Presenter, f32)>) -> Result<(), crate::RenderError> {
+        let (live, captured) = Self::inspection_scissors(viewport, image, region, comparison.map(|(_, split)| split))?;
+        if let Some((other, _)) = comparison {
+            if other.format != self.format || other.view_channel != self.view_channel {
+                return Err(crate::RenderError::Invalid("invalid viewer comparison split, format or channel".into()));
+            }
+        }
+        let [x, y, w, h] = viewport;
+        let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+        let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
+        self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+        if let Some((other, _)) = comparison { other.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?; }
+        self.encode_group_region(encoder, output, Some(viewport), background, &self.view_group, live, false);
+        if let Some((other, _)) = comparison {
+            other.encode_group_region(encoder, output, Some(viewport), background, &other.view_group, captured, true);
+        }
+        Ok(())
+    }
+
+    fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
+        split: Option<f32>) -> Result<(Option<[u32; 4]>, Option<[u32; 4]>), crate::RenderError> {
         let [x, y, w, h] = viewport;
         let [ix, iy, iw, ih] = image.unwrap_or(viewport);
         let [rx, ry, rw, rh] = region.unwrap_or([0., 0., 1., 1.]);
@@ -219,15 +297,11 @@ impl Presenter {
             || x + w > u32::MAX as f32 || y + h > u32::MAX as f32 {
             return Err(crate::RenderError::Invalid("invalid viewer inspection viewport, image or region".into()));
         }
-        if let Some((other, split)) = comparison {
-            if !split.is_finite() || !(0. ..=1.).contains(&split)
-                || other.format != self.format || other.view_channel != self.view_channel {
+        if let Some(split) = split {
+            if !split.is_finite() || !(0. ..=1.).contains(&split) {
                 return Err(crate::RenderError::Invalid("invalid viewer comparison split, format or channel".into()));
             }
         }
-        let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
-        self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
-        if let Some((other, _)) = comparison { other.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?; }
         let left = x.max(ix + rx*iw);
         let top = y.max(iy + ry*ih);
         let right = (x+w).min(ix+(rx+rw)*iw);
@@ -240,14 +314,8 @@ impl Presenter {
             let b = (bottom-0.5).ceil().max(0.) as u32;
             (r > l && b > t).then(|| [l, t, r-l, b-t])
         };
-        let cut = comparison.map_or(right, |(_, split)| (ix+split*iw).clamp(left, right.max(left)));
-        self.encode_group_region(encoder, output, Some(viewport), background, &self.view_group,
-            scissor(left, cut), false);
-        if let Some((other, _)) = comparison {
-            other.encode_group_region(encoder, output, Some(viewport), background, &other.view_group,
-                scissor(cut, right), true);
-        }
-        Ok(())
+        let cut = split.map_or(right, |split| (ix+split*iw).clamp(left, right.max(left)));
+        Ok((scissor(left, cut), split.and_then(|_| scissor(cut, right))))
     }
     pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) -> Result<(), crate::RenderError> {
         let mut encoder = renderer

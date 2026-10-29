@@ -151,6 +151,72 @@ fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.render_target(64, 64).unwrap();
+    let mut project = Project::new(64, 64, 30, 1).unwrap();
+    project.background = [1., 0., 0., 1.];
+    let mut scene = Scene::new(&project).unwrap();
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let snapshot = r.snapshot_target(&source).unwrap();
+    project.background = [0., 0., 1., 1.];
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("retained viewer inspection output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let mut presenter = Presenter::new_admitted(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm).unwrap();
+    presenter.set_comparison_source(&r.device, &snapshot.view);
+    drop(snapshot);
+    let render = |presenter: &Presenter| {
+        let mut encoder = r.device.create_command_encoder(&Default::default());
+        presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+            [0., 0., 64., 64.], None, [0., 0., 0., 1.]).unwrap();
+        r.submit_tracked(encoder.finish(), |_| {});
+        presentation_bytes(&r, &output)
+    };
+    let pixel = |data: &[u8], x: usize, y: usize| -> [u8; 4] {
+        data[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap()
+    };
+    presenter.set_inspection_geometry(Some([0.25, 0.25, 0.5, 0.5]), Some(0.5));
+    let first = render(&presenter);
+    assert_eq!(pixel(&first, 8, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&first, 24, 32), [0, 0, 255, 255]);
+    assert_eq!(pixel(&first, 40, 32), [255, 0, 0, 255]);
+    presenter.set_view_channel(&r.queue, motion_render::ViewChannel::Alpha).unwrap();
+    let alpha = render(&presenter);
+    assert_eq!(pixel(&alpha, 24, 32), [255, 255, 255, 255]);
+    assert_eq!(pixel(&alpha, 40, 32), [255, 255, 255, 255]);
+    presenter.set_view_channel(&r.queue, motion_render::ViewChannel::Color).unwrap();
+    presenter.set_inspection_geometry(Some([0., 0., 0.25, 0.25]), None);
+    let second = render(&presenter);
+    assert_eq!(pixel(&second, 8, 8), [0, 0, 255, 255]);
+    assert_eq!(pixel(&second, 24, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&second, 40, 32), [0, 0, 0, 255]);
+    presenter.set_inspection_geometry(Some([0.9, 0., 0.2, 1.]), None);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    assert!(presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());
+    assert_eq!(presentation_bytes(&r, &output), second);
+    presenter.clear_comparison_source();
+    presenter.set_inspection_geometry(None, Some(0.5));
+    assert!(presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());
+    presenter.set_inspection_geometry(None, None);
+    let restored = render(&presenter);
+    assert_eq!(pixel(&restored, 8, 8), [0, 0, 255, 255]);
+    assert_eq!(pixel(&restored, 40, 32), [0, 0, 255, 255]);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged() {
     use motion_render::ViewChannel;
     let r = pollster::block_on(Renderer::headless()).unwrap();
