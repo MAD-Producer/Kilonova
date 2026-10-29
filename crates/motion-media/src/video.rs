@@ -683,12 +683,13 @@ fn update(task: &Mutex<Task>, phase: &str, progress: impl Into<Option<f64>>) -> 
     Ok(())
 }
 pub fn video_cache_path(root: &Path, asset: &VideoAsset) -> Result<PathBuf> {
-    motion_model::storage::validate_relative_path(&asset.path).map_err(crate::Error::from)?;
-    let stem = Path::new(&asset.path)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or("invalid video source name")?;
-    Ok(root.join("cache/video-v2").join(stem).join("index.pts"))
+    // Same identity rule as the PCM cache: the validated relative path, not the
+    // file stem, keeps `assets/a/clip.mp4` and `assets/b/clip.mp4` apart.
+    let key = crate::cache_key(&asset.path, None)?;
+    Ok(root
+        .join(format!("cache/video-v{}", crate::VIDEO_VERSION))
+        .join(key)
+        .join("index.pts"))
 }
 pub fn save_index(path: &Path, asset: &VideoAsset, pts: &[u64]) -> Result<()> {
     validate_index(asset, pts)?;
