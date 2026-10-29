@@ -6,7 +6,7 @@ use motion_core::{
     Track,
 };
 
-fn right_source_half() -> LayerMask {
+pub(super) fn right_source_half() -> LayerMask {
     // Masks use the authored 64x40 layer source rectangle before projection;
     // the independently uploaded red image happens to contain only 2x1 texels.
     LayerMask::new(
