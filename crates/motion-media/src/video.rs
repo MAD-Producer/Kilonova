@@ -450,7 +450,14 @@ impl VideoJobs {
                 .unwrap_or(0)
                 .checked_add(1)
                 .ok_or("object ID exhausted")? };
-            let frames = (p.probe.asset.duration_us * u64::from(project.fps)).div_ceil(1_000_000);
+            // The probe records the visible interval on the source presentation
+            // timeline, and every decoder entry point rejects samples outside
+            // [video_start_us, video_end_us). Layer-local time zero must map to the
+            // first visible frame, and the clip may only cover that visible span:
+            // duration_us can be longer because audio padding outlasts the picture.
+            let offset_us = p.probe.asset.video_start_us;
+            let visible_us = p.probe.asset.video_end_us - p.probe.asset.video_start_us;
+            let frames = (visible_us * u64::from(project.fps)).div_ceil(1_000_000);
             let out = (u64::from(at) + frames).min(u64::from(project.frames)) as u32;
             let stem = p
                 .stage
@@ -481,9 +488,9 @@ impl VideoJobs {
                 [project.width as f32 / 2.0, project.height as f32 / 2.0, 0.0],
                 [1.0; 4],
             );
-            layer.content = Content::Video {
-                video: VideoClip::new(aid),
-            };
+            let mut video = VideoClip::new(aid);
+            video.source_offset_us = offset_us;
+            layer.content = Content::Video { video };
             layer.rotation_order = motion_model::RotationOrder::FixedXyz;
             layer.timeline = Some(LayerTimeline {
                 in_frame: at as i32,
@@ -530,7 +537,7 @@ impl VideoJobs {
                 .apply_batch_saved(commands, &self.root)
                 .map_err(crate::Error::from)?;
             Ok(
-                json!({"op":destination.operation(),"kind":"video","asset":aid,"object":if destination.creates_layer() {Some(object)} else {None},"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
+                json!({"op":destination.operation(),"kind":"video","asset":aid,"object":if destination.creates_layer() {Some(object)} else {None},"in_frame":at,"out_frame":out,"source_offset_us":offset_us,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
             )
         })();
         match result {

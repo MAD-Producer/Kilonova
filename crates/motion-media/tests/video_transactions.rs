@@ -1,5 +1,5 @@
 //! Transaction tests inject probing; real platform decode is covered by Android instrumentation.
-use motion_core::{Command, Engine, Project, VideoAsset};
+use motion_core::{Command, Content, Engine, Project, VideoAsset};
 use motion_media::{AudioMixer, ProbeVideo, VideoImportOptions, VideoJobs, VideoProbe};
 use std::{
     fs::File,
@@ -50,6 +50,43 @@ fn probe_stub() -> ProbeVideo {
         })
     })
 }
+/// Same 24 fps source, but the first visible frame is at 0.250 s (leading
+/// edit) and the visible span ends at 3.000 s. No audio track is reported.
+fn probe_delayed_start() -> ProbeVideo {
+    Arc::new(|source, _, _, check| {
+        check()?;
+        let timestamps = (0..66)
+            .map(|n| 250_000 + (n * 1_000_000 + 12) / 24)
+            .collect::<Vec<_>>();
+        Ok(VideoProbe {
+            asset: VideoAsset {
+                id: 1,
+                path: "assets/probe.mp4".into(),
+                bytes: std::fs::metadata(source).unwrap().len(),
+                mime: "video/avc".into(),
+                track: 0,
+                width: 256,
+                height: 144,
+                rotation: 0,
+                display_width: 256,
+                display_height: 144,
+                video_start_us: 250_000,
+                video_end_us: 3_000_000,
+                duration_us: 3_000_000,
+                frame_count: 66,
+                variable_frame_rate: false,
+                nominal_frame_rate: 24.0,
+                color_standard: 1,
+                color_range: 2,
+                audio_asset: None,
+            },
+            timestamps,
+            audio_track: None,
+            first_rgba: vec![255; 256 * 144 * 4],
+            tracks: serde_json::json!([]),
+        })
+    })
+}
 fn options(id: &str) -> VideoImportOptions {
     VideoImportOptions {
         request_id: id.into(),
@@ -61,15 +98,20 @@ fn options(id: &str) -> VideoImportOptions {
     }
 }
 fn start(jobs: &VideoJobs, id: &str) {
+    start_probe(jobs, id, true, probe_stub());
+}
+fn start_probe(jobs: &VideoJobs, id: &str, with_audio: bool, probe: ProbeVideo) {
+    let mut import = options(id);
+    import.with_audio = with_audio;
     jobs.start(
         || {
             let f = File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(VIDEO)).unwrap();
             let bytes = f.metadata().unwrap().len();
             Ok((Box::new(f), Some(bytes)))
         },
-        options(id),
+        import,
         false,
-        probe_stub(),
+        probe,
     )
     .unwrap();
 }
@@ -271,6 +313,50 @@ fn new_source_cap_accepts_large_declared_lengths_but_still_requires_exact_bytes(
         .file_name()
         .to_string_lossy()
         .starts_with(".video-import")));
+}
+
+/// The clip must map layer-local time zero to the first visible source frame and
+/// cover only the visible span; a source that starts at 0 keeps the old geometry.
+/// Probing is injected, so no decoder runs.
+#[test]
+fn imported_clip_maps_local_time_to_the_visible_source_interval() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let jobs = VideoJobs::new(root.path().into()).unwrap();
+    let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
+    start_probe(&jobs, "visible-head", false, probe_delayed_start());
+    assert_eq!(wait(&jobs, "visible-head").state, "ready");
+    let t = jobs.commit("visible-head", &mut engine).unwrap();
+    assert_eq!(t.state, "succeeded", "{:?}", t.error);
+    jobs.release("visible-head").unwrap();
+    {
+        let p = engine.project();
+        assert_eq!(p.fps, 60);
+        let layer = &p.layers[0];
+        let Content::Video { video } = &layer.content else {
+            panic!("import did not create a video layer");
+        };
+        let clip = layer.clip(p.frames);
+        assert_eq!(clip.in_frame, 0);
+        assert_eq!(video.source_offset_us, 250_000);
+        assert_eq!(video.source_time_us(layer.local_frame(0.0), p.fps), 250_000);
+        assert_eq!(clip.out_frame - clip.in_frame, 165);
+        let last = video.source_time_us(layer.local_frame(f64::from(clip.out_frame - 1)), p.fps);
+        assert!((250_000..3_000_000).contains(&last), "last sample {last}");
+    }
+    start_probe(&jobs, "visible-zero", false, probe_stub());
+    assert_eq!(wait(&jobs, "visible-zero").state, "ready");
+    let t = jobs.commit("visible-zero", &mut engine).unwrap();
+    assert_eq!(t.state, "succeeded", "{:?}", t.error);
+    jobs.release("visible-zero").unwrap();
+    let p = engine.project();
+    let layer = p.layers.last().unwrap();
+    let Content::Video { video } = &layer.content else {
+        panic!("second import did not create a video layer");
+    };
+    let clip = layer.clip(p.frames);
+    assert_eq!(video.source_offset_us, 0);
+    assert_eq!(clip.out_frame - clip.in_frame, 180);
 }
 
 /// Opt-in disk/PCM transaction test. Video probing is injected; this does not
