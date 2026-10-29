@@ -52,3 +52,9 @@ Refs #159。现有 `motion.drag_threshold` 的默认值是 3；数值字段、�
 默认行为、窗口样式覆盖、命中容差、手势历史/释放、2D/3D 数据通路由以上实际交互与完整变换回归证明。低于阈值是正常分支，不记录故障。未改属性行、文字/颜色、窗口布局和绘制，因此相关既有视觉基线 retained with reason。没有新增原生 OS 鼠标注入或跨 DPI 截图，不将这些列为已完成验收，也不宣称整个 #159 完成。
 
 [机器回执及用例清单](transform-drag-threshold-results.json)与[原始日志/源码哈希证据](data/transform-drag-threshold-evidence.zip)保留全部前后阶段，包括失败夹具。证据仅为本项目自制测试产生的 JSON/日志，没有第三方依赖、资产、EXE/DLL/PDB/字体。最终 CI 仍待验证：五项有效检查、三个桌面 job 各 27 项实际用例，以及所有 job 完整代码树与最新 main 组合一致；本地编译不代替这些条件。
+
+## 深度边界主线合入后的组合重验
+
+主线合入深度合成边界修复 `67760b8b` 后，组合 `77baa137` 重新编译并实际通过新三项、完整变换模块 27 项和 FFmpeg 全目标检查。三项是二十七项的子集；本轮重复不累加数量。源码全程保持，二进制 SHA256 `2d950e5e1a80556d28e58cac7a02babdb20fa2fbc3bc5d9b2a638aac55c494b1`。
+
+[当前组合回执](transform-drag-threshold-current-main.json)及[本轮原始证据](data/transform-drag-threshold-current-main.zip)保留这次运行；旧 head 的五项 CI 成功不能替代最终新 head 的检查。后续仅添加这些文档，最终完整代码树与逐项 CI 仍单独核验。
