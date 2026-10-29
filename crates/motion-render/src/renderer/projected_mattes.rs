@@ -12,9 +12,7 @@ pub(super) fn bindings(
         .layers
         .iter()
         .filter_map(|layer| layer.track_matte.map(|matte| matte.source))
-        .filter(|source| {
-            source_scene.depth_surface(*source).is_some() && projected.contains_key(source)
-        })
+        .filter(|source| projected.contains_key(source))
         .collect();
     if needed.is_empty() {
         return Ok(Vec::new());

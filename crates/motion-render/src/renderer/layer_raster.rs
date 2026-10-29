@@ -104,8 +104,8 @@ impl Renderer {
     pub(super) fn project_depth_matte_source(&mut self, scene: &Scene, source: u64,
         width: u32, height: u32, projected: &HashMap<u64, RenderTarget>, retained_bytes: u64,
         materials: &HashMap<u64, DepthMaterial>) -> Result<(RenderTarget, RenderStats)> {
-        if scene.depth_surface(source).is_some() {
-            return self.project_calibrated_matte_source(scene, source, width, height, projected, retained_bytes, materials);
+        if scene.depth_surface(source).is_some() || materials.contains_key(&source) {
+            return self.project_native_matte_source(scene, source, width, height, projected, retained_bytes, materials);
         }
         let mut context = scene.clone();
         let inputs = super::projected_mattes::bindings(self, &mut context, scene, projected)?;

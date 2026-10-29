@@ -609,3 +609,9 @@ fn calibrated_geometry_replacement_with_identical_metadata_uses_the_current_reso
         "previously sampled scenes must keep their immutable geometry"
     );
 }
+
+#[path = "depth_surface/spatial_matte_materials.rs"]
+mod spatial_matte_materials;
+
+#[path = "depth_surface/shared_matte_inputs.rs"]
+mod shared_matte_inputs;

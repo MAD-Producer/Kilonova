@@ -61,11 +61,11 @@ fn blocks(renderer: &Renderer, scene: &Scene, native_mattes: &std::collections::
     // sources: another layer still needs their original independent raster.
     let mut independent_sources: std::collections::HashSet<_> = scene.layers.iter()
         .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
-    // A plain spatial source used only by calibrated receivers has already
+    // A spatial source used only by calibrated receivers has already
     // been independently projected before this run. Its visible geometry must
     // still participate in physical depth rather than overpaint the result.
     independent_sources.retain(|source| {
-        if native_mattes.contains(source) { return false; }
+        if native_mattes.contains(source) || materials.contains_key(source) { return false; }
         scene.depth_surface(*source).is_some()
             || !scene.layers.iter().any(|layer| layer.id == *source && layer.three_d
             && layer.track_matte.is_none() && layer.masks.is_empty())
@@ -84,7 +84,7 @@ fn blocks(renderer: &Renderer, scene: &Scene, native_mattes: &std::collections::
         }
     }
     let eligible = |layer: &crate::DrawLayer| {
-        (layer.masks.is_empty() || (scene.depth_surface(layer.id).is_some() && plane_texture(layer).is_some()))
+        (layer.masks.is_empty() || materials.contains_key(&layer.id) || (scene.depth_surface(layer.id).is_some() && plane_texture(layer).is_some()))
             && (layer.track_matte.is_none() || scene.depth_surface(layer.id).is_some())
             && !independent_sources.contains(&layer.id)
             && layer.blend == motion_model::compositing::LayerBlend::default()
@@ -261,7 +261,12 @@ impl Renderer {
                     2. / scene.width as f32, 2. / scene.height as f32, 1.));
             }
         }
-        output.effects.retain(|effect| !materials.contains_key(&effect.layer));
+        // A visible source outside shared runs still paints its own effects
+        // across an authored 2D boundary. Only strip materials already baked
+        // into shared geometry, or hidden sources consumed independently.
+        output.effects.retain(|effect| !materials.contains_key(&effect.layer)
+            || scene.layers.iter().enumerate().any(|(index, layer)|
+                layer.id == effect.layer && layer.composite_visible && !grouped[index]));
         let inputs = super::super::projected_mattes::bindings(self, &mut output, scene, &mattes)?;
         Ok(Some((output, stats, inputs)))
     }
@@ -447,6 +452,7 @@ impl Renderer {
                 .filter(|layer| layer.model_source.is_none() && layer.composite_visible)
                 .map(|layer| Ok(ScenePlane {
                     object: layer.id,
+                    working_material: materials.contains_key(&layer.id),
                     surface: scene.depth_surface(layer.id),
                     world: layer.model,
                     size: layer.size,
