@@ -930,3 +930,7 @@ mod hit_tests;
 #[cfg(test)]
 #[path = "transform_controls_scale_tests.rs"]
 mod scale_tests;
+
+#[cfg(test)]
+#[path = "transform_controls_threshold_tests.rs"]
+mod threshold_tests;
