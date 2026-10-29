@@ -1,6 +1,6 @@
 # Native composition frame cache (#82)
 
-Status: implementation and new controls authored; not compiled or accepted.
+Status: the primitive cache was accepted at `45241fb31cdbbd0d87a30f4cd47c83435162b4ee`.
 This increment is separate from the model-library checkpoint. It does not
 enable `capabilities.prerender` or claim an integrated background renderer.
 
@@ -29,7 +29,7 @@ from another renderer is refused; an old-generation completion is discarded
 before accessing its retired device. Stored pixels have separate storage, so
 later reuse of the original render target cannot silently alter a cached frame.
 
-## Authored controls, pending execution
+## Executed controls
 
 - Exact fractional keys, negative-zero normalization, all four working formats,
   changed context components, invalid time/layout and bounded capacity
@@ -42,14 +42,24 @@ later reuse of the original render target cannot silently alter a cached frame.
 - An explicit manual four-precision checkpoint for optional adapter features;
   it must be executed with `--ignored --exact`, not counted from an ignored row
 
-The ordinary GPU controls remain in default tests. Compilation or a list of
-these test names is not passing evidence. No prior assertion is changed.
+The source-bound full motion-render run passed **868 tests,
+zero failures, two manual/environment exclusions**. Four focused controls overlap
+that full run. The manual all-four-precision control additionally ran explicitly:
+one passed, zero failed, zero ignored. The external-original-image probe was not
+run and remains excluded. Host ai-depth checking and provenance passed. The
+source stayed unchanged throughout. No prior assertion was changed.
+
+The separate native producer has since supplied authoritative frozen-byte key
+construction; its own acceptance and remaining integration are recorded in
+`native-prerender-producer-current.md`. A future native upload increment requires
+its own source-bound controls; this primitive receipt does not accept it.
 
 ## Remaining #82 delivery
 
-The cache is not yet consumed by Session foreground preview. Immutable bounded
-preparation, authoritative content/output hashing, scheduler-driven actual
-composition-only encoding, cancellation/installation wiring, cold/warm hit
+The cache is not yet consumed by Session foreground preview. Immutable source
+preparation, authoritative hashing and an actual independent native producer
+now have their separate checkpoint. Scheduler-driven job ownership, foreground
+upload and consumption, cancellation/installation wiring, cold/warm hit
 measurements, paired foreground P95 and optional disposable disk storage remain.
 No claim of foreground priority or preemption follows from this cache alone.
 Android and network rendering remain outside the maintained local delivery.
