@@ -1,6 +1,7 @@
 //! Unit groups have independent ordinate ranges and one composition-time axis.
 use super::super::{graph_adaptive::Failure, graph_ranges, graph_view::Range};
 use super::*;
+use motion_ui::input::{InputSource, InputView};
 use std::collections::BTreeMap;
 
 fn identity(unit: &data::Unit, speed: bool) -> graph_ranges::Identity {
@@ -121,11 +122,11 @@ pub(in crate::panels) fn render(
     ppf: f32,
     out: &mut Vec<Action>,
 ) {
-    let neutral = (input.composing || input.ime_consumed || input.focus_lost).then(|| Input {
-        keys: vec![],
-        ..input.clone()
-    });
-    let input = neutral.as_ref().unwrap_or(input);
+    let mut filtered = input.input_view();
+    if filtered.composing || filtered.ime_consumed || filtered.focus_lost {
+        filtered.keys = &[];
+    }
+    let input = &filtered;
     let styles = list.styles();
     let generation = state["document_generation"].as_u64();
     let revision = state["revision"].as_u64();
@@ -290,9 +291,9 @@ pub(in crate::panels) fn render(
     } else {
         (plots.height() / groups.len() as f32).max(min_height)
     };
-    let neutral_wheel = Input {
+    let neutral_wheel = InputView {
         wheel: [0.; 2],
-        ..input.clone()
+        ..*input
     };
     let scroll_input = if input.modifiers.control || input.modifiers.alt || input.modifiers.shift {
         &neutral_wheel
@@ -620,7 +621,7 @@ pub(in crate::panels) fn render(
             controls.range_hits.push((unit.title(false),menu_row));
             // The caption is flexible; the dedicated range slot never shrinks
             // the existing key/handle targets or overlaps a scroll scrollbar.
-            let neutral_menu = Input::default();
+            let neutral_menu = InputView::default();
             let menu_input = if scroll.viewport.contains(input.mouse) {
                 input
             } else {
