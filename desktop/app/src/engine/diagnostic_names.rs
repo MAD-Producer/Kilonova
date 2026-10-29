@@ -31,6 +31,7 @@ impl Command {
             PathOperation { .. } => "path_operation",
             CaptureUi { .. } => "capture_ui",
             CaptureViewerSnapshot { .. } => "capture_viewer_snapshot",
+            SaveViewerSnapshot { .. } => "save_viewer_snapshot",
             Attach { .. } => "attach",
             Resize { .. } => "resize",
             Present { .. } | PresentFrozen { .. } => "present",

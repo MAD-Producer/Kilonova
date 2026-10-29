@@ -251,6 +251,12 @@ pub enum Command {
         window: u64,
         reply: Sender<Result<Value, String>>,
     },
+    SaveViewerSnapshot {
+        window: u64,
+        path: PathBuf,
+        channel: motion_render::ViewChannel,
+        reply: Sender<Result<Value, String>>,
+    },
     Attach {
         target: motion_host::SurfaceTarget,
         reply: Sender<Result<Value, String>>,
@@ -473,7 +479,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | EditorAction { reply, .. } | ProjectOpen { reply, .. } | ProjectAsset { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | CaptureViewerSnapshot { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | EditorAction { reply, .. } | ProjectOpen { reply, .. } | ProjectAsset { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | CaptureViewerSnapshot { reply, .. } | SaveViewerSnapshot { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1271,6 +1277,10 @@ impl Engine {
         -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::CaptureViewerSnapshot { window, reply })
     }
+    pub fn save_viewer_snapshot_async(&self, window: u64, path: PathBuf, channel: motion_render::ViewChannel)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::SaveViewerSnapshot { window, path, channel, reply })
+    }
     pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, String> {
         self.call(|reply| Command::RenderPreview { frame, reply })
     }
@@ -1564,7 +1574,7 @@ fn handle(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
-        | Command::CaptureViewerSnapshot { .. }
+        | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
     ) {
         presentation.retained = None;
     }
@@ -1750,6 +1760,27 @@ fn handle(
                     .unwrap_or((0, "capture_viewer_snapshot", started.elapsed()));
                 log::error!("viewer snapshot failed request={request} session={id} window={window} phase=capture elapsed_ms={} cause={}",
                     elapsed.as_millis(), crate::fallback_observation::error_cause(cause));
+            }
+            respond(reply, result);
+        },
+        Command::SaveViewerSnapshot { window, path, channel, reply } => {
+            let started = Instant::now();
+            let frame = frame_allocation::begin(allocation_budget, motion_render::FrameOperation::ViewerSnapshot);
+            #[cfg(test)]
+            diagnostics.native_test_phase("viewer_snapshot.save");
+            let result = motion_host::session::with_session(id, |s| {
+                if window != 0 && !windows.contains_key(&window) {
+                    return Err("floating viewer window is closed".into());
+                }
+                presentation.inspection.save(s, window, &path, channel).map_err(Into::into)
+            });
+            frame_allocation::finish(frame, &result, |_| true);
+            if let Err(cause) = &result {
+                let (request, _, elapsed) = current_command()
+                    .unwrap_or((0, "save_viewer_snapshot", started.elapsed()));
+                log::error!("viewer snapshot failed operation=save request={request} session={id} window={window} elapsed_ms={} path={} cause={}",
+                    elapsed.as_millis(), crate::fallback_observation::short(path.display()),
+                    crate::fallback_observation::error_cause(cause));
             }
             respond(reply, result);
         },
