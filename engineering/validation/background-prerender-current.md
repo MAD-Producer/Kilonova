@@ -82,7 +82,10 @@ Source-bound evidence: `artifacts/pr-queue/prerender-scheduler-v2/accepted.json`
 Twelve standalone Rust tests passed, including a controlled blocked worker.
 A deliberately faulty copy that releases its canceled slot early fails the
 regression guard. The original product sources remain unchanged by this check.
-No old assertions were modified. Cargo crate integration is still pending.
+No old assertions were modified. The same twelve tests also passed through actual Cargo crate integration after
+rebasing to main `9374ee4e`. The initial environment failures (removed temporary
+directory and a dependency compiler exit without a cause diagnostic) are retained
+in the external v3/v4 logs; v5 passed on unchanged product sources.
 
 This pure policy performs no rendering, IO or GPU reservation and creates no
 worker thread. Its admission boolean must come from an actual shared-budget
@@ -96,3 +99,8 @@ render/install integration, caches and real measurements remain pending above.
 `b8b3b187c669c895dbed3a60c43df98adf41afeba7e5d9cb7843fb1c212a97c3`
 
 All 14 entries were read back and verified. This archive excludes build binaries.
+
+[Cargo integration evidence](data/prerender-scheduler-cargo-v1.zip), SHA-256:
+`0f931819ad255a42f886df9be9a55eb9b52e099cc0faebdb18b072cc1f266065`
+
+This remains scheduling-only evidence; runtime cache/render and P95 are not accepted.
