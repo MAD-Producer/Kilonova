@@ -92,6 +92,7 @@ impl CameraSampler for ModelSourceCatalog {
             * glam::Mat4::from_translation(
                 -glam::Vec3::from_array(binding.pivot) * binding.pixels_per_metre,
             );
+        let depth_of_field = camera.depth_of_field.as_ref().map(|dof| dof.sample(frame)).transpose()?;
         let camera = source
             .camera_view_in_world(
                 binding.scene as usize,
@@ -103,6 +104,7 @@ impl CameraSampler for ModelSourceCatalog {
             )
             .map_err(|error| context(error.to_string()))?;
         Ok(CameraSample {
+            depth_of_field,
             pose: motion_model::CameraPose {
                 eye: camera.eye,
                 target: camera.target,

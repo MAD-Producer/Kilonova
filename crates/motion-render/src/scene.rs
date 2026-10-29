@@ -160,6 +160,18 @@ impl Scene {
         if self.camera_viewport == [0., 0., self.width as f32, self.height as f32] { return self.camera; }
         self.camera_sample.map_or(self.camera, |sample| sample.pose)
     }
+    /// Already sampled in the active camera's local animation clock. Observer
+    /// views have no authored aperture, just as they replace the authored pose.
+    pub fn native_depth_of_field(&self) -> Option<motion_model::SampledDepthOfField> {
+        self.camera_sample.and_then(|sample| sample.depth_of_field)
+            .filter(|sample| sample.aperture_diameter > 0.)
+    }
+    /// Portable plane consumers cannot preserve an active native aperture,
+    /// including one sampled by a child composition's independent camera.
+    pub fn has_native_depth_of_field(&self) -> bool {
+        self.native_depth_of_field().is_some()
+            || self.nested.iter().any(|nested| nested.scene.has_native_depth_of_field())
+    }
     pub(crate) fn native_camera_viewport(&self, width: u32, height: u32) -> Option<[f32; 4]> {
         if self.camera_viewport == [0., 0., self.width as f32, self.height as f32] { return None; }
         let [x,y,w,h] = self.camera_viewport;
