@@ -121,3 +121,25 @@ SHA-256 `0de07aa5f8402019221d1a62a415786d92009d4b31befd90fd39166c24b28020`; all 
 This supersedes the earlier local totals without adding overlapping runs.
 Main alignment, cross-platform CI and the remaining issue scope are separate;
 this does not complete calibrated effects, nesting, exposure, DOF or #87/#82.
+
+## Maintained-main alignment
+
+The complete local implementation was rebased onto main `cd49b72d7cdf03886185b82ba6229220326ac208` before
+this acceptance. Fresh source-bound tests include the incoming image active-set
+implementation and scheduling module, alongside all nine related render targets
+and compositor units. The gate passes 120 distinct tests,
+zero failures or ignores; desktop FFmpeg/AI-depth compilation, panel-style
+consumers and clean-room provenance also pass. Original and current source
+hashes and raw output are retained. Earlier overlapping runs are not added.
+
+[Main-aligned raw gate, native pixels and exact inputs](data/depth-boundaries-main-native-v1.zip),
+SHA-256 `741601ec4d229a27315a00c46ee91f1b9de69063d53d7abd86a272274a6511e7`; all 57 entries read back and verified.
+
+This targeted acceptance includes incoming renderer changes and verifies desktop
+compilation of incoming UI code; it is not a new full-workspace or UI visual
+acceptance. Own code changes do not touch panels. The file-backed video export
+dependency was present as two separate local commits at gate start. After
+PR549 merges, only the later composition commits belong in the next PR. The
+dependency collapse must preserve byte-identical production/test inputs, or
+affected checks must run again. Final cross-platform checks and remaining
+#87/#82 scope still apply.
