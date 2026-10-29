@@ -60,6 +60,8 @@ mod bound_numeric_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod capture_context_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
@@ -1713,22 +1715,29 @@ fn handle(
         Command::PathOperation { source, operation, reply } => respond(reply,
             motion_host::session::with_session(id, |s| crate::layer_clipboard::edit_path(s, source, operation))),
         Command::CaptureUi { ui, path, reply } => {
+            let capture_started = Instant::now();
+            let capture_window = ui.window;
+            let mut capture_phase = "capture.session";
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
+            capture_phase = "capture.target";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
             let (width,height)=if ui.window==0{(g.config.width,g.config.height)}else{let window=windows.get(&ui.window).ok_or("floating screenshot window closed")?;(window.config.width,window.config.height)};
             let target = ui_paint::display_capture_target(&g.renderer, width, height).map_err(|e| e.to_string())?;
+            capture_phase = "capture.painter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
             let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
                 .map_err(|e| format!("phase=capture.painter: {e}"))?;
+            capture_phase = "capture.atlas";
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
             chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)
                 .map_err(|e| format!("phase=capture.atlas: {e}"))?;
+            capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
             let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb)
@@ -1741,28 +1750,40 @@ fn handle(
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
                     .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             } else {clear_target(&mut encoder,target.view());}
+            capture_phase = "capture.paint";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
+            capture_phase = "capture.node";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.node");
 
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
+            capture_phase = "capture.submit";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.submit");
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
             }).map_err(|e|e.to_string())?;
+            capture_phase = "capture.readback";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.readback");
             let pixels = g.renderer.read_image_target(&target).map_err(|e| e.to_string())?.pixels;
+            capture_phase = "capture.save";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.save");
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))
             });
             frame_allocation::finish(frame,&result,|_|true);
+            if let Err(cause) = &result {
+                let (request, _, elapsed) = current_command()
+                    .unwrap_or((0, "capture_ui", capture_started.elapsed()));
+                log::error!("capture failed operation=capture_ui request={request} session={id} window={capture_window} phase={capture_phase} elapsed_ms={} path={} cause={}",
+                    elapsed.as_millis(), crate::fallback_observation::short(path.display()),
+                    crate::fallback_observation::error_cause(cause));
+            }
             respond(reply,result);
         },
         Command::Attach { target, reply } => respond(reply,(|| {

@@ -1,0 +1,119 @@
+{
+  "issue": 138,
+  "scope": "CaptureUi failure context; existing errors/replies retained, not a complete typed-error migration",
+  "before": {
+    "head": "1bf63268d7ac8b2238db57d873596a51289d95c2",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\ui-capture-context\\before-03\\motion-studio-capture-test.exe",
+      "sha256": "684bd70fce47115b432925493033daea7924eadceb96cc30ff6d690310489214"
+    },
+    "exit_code": 101,
+    "passed": 0,
+    "failed": 1,
+    "ignored": 0,
+    "seconds": 16.27,
+    "functional_paths_complete": true
+  },
+  "after": {
+    "head": "e4d9b66d70f635fb85e54c973f978e11fe19947c",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\ui-capture-context\\after-01\\motion-studio-capture-test.exe",
+      "sha256": "1de7ace84d8a80bcf84961f902576d6848e619adb52888724635294b44700574"
+    },
+    "exit_code": 0,
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "seconds": 10.64
+  },
+  "integrated_head": "75b6929d19a431b282e474e6ef723c3c5e7e4dc3",
+  "integrated_tree_identical_to_tested": true,
+  "source_delta": {
+    "before_head": "1bf63268d7ac8b2238db57d873596a51289d95c2",
+    "after_head": "e4d9b66d70f635fb85e54c973f978e11fe19947c",
+    "changed_tracked_inputs": [
+      "desktop/app/src/engine.rs"
+    ],
+    "same_file_set": true,
+    "healthy_pngs_byte_identical_between_implementations": {
+      "before.png": true,
+      "after.png": true
+    }
+  },
+  "existing_regressions": [
+    {
+      "filter": "logging::command_error_tests::",
+      "seconds": 10.6961667,
+      "exit_code": 0,
+      "name": "bounded-errors",
+      "passed": 1
+    },
+    {
+      "filter": "engine::queue_tests::",
+      "seconds": 10.1632925,
+      "exit_code": 0,
+      "name": "queue",
+      "passed": 4
+    },
+    {
+      "filter": "engine::precision_capture_tests::real_worker_ui_and_node_pngs_remain_display_encoded_in_all_four_precisions",
+      "seconds": 10.0751077,
+      "exit_code": 0,
+      "name": "precision",
+      "passed": 1
+    }
+  ],
+  "existing_regressions_passed": 6,
+  "check": {
+    "head": "e4d9b66d70f635fb85e54c973f978e11fe19947c",
+    "exit_code": 0
+  },
+  "unique_passing_tests": 7,
+  "failure_branches": 2,
+  "failing_calls": 3,
+  "healthy_calls": 2,
+  "limits": {
+    "path_chars": 256,
+    "cause_chars": 2048,
+    "new_counters": 0,
+    "retained_context": 0,
+    "real_faults": [
+      "unattached surface, twice including oversized target path",
+      "save PNG to a directory (actual OS IO error)"
+    ],
+    "not_injected": [
+      "session lookup",
+      "target allocation",
+      "painter",
+      "atlas",
+      "presenter",
+      "paint",
+      "node preview",
+      "submit",
+      "readback",
+      "panic",
+      "non-returning capture"
+    ],
+    "existing_boundary": "same respond call and unmodified result; no retry, cleanup, worker restart, UI layout or style change"
+  },
+  "retained_failed_attempts": [
+    {
+      "phase": "before-01",
+      "exit_code": 3221225781,
+      "disposition": "test executable did not load without adjacent runtime DLLs; not an executed negative control"
+    },
+    {
+      "phase": "before-02",
+      "exit_code": 0,
+      "disposition": "--ignored selected zero tests because the GPU-test feature was enabled; rejected, not counted as passing"
+    }
+  ],
+  "archive": {
+    "path": "data/ui-capture-context-evidence.zip",
+    "members": 53,
+    "bytes": 1385224,
+    "sha256": "f7000fde11512adb12701c9b83bf669006d553c9a9fa70051bb56d0605c9f6b6",
+    "contains_executable_dll_pdb_font": false
+  },
+  "ci": "Pending final-head CI; new Windows-only native case must actually execute, all five full job trees must match the fresh-main composition before merge."
+}
