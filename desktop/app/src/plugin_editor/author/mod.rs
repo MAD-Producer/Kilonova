@@ -291,6 +291,19 @@ impl Workspace {
         }
         self.redraw = true;
     }
+    pub(super) fn recovery_source(&mut self) -> Result<(PluginProject, PathBuf), String> {
+        if self.busy {
+            return Err("author source operation is still running; draft retained".into());
+        }
+        self.finish_fields()?;
+        Ok((self.draft.project.clone(), self.path.clone()))
+    }
+    pub(super) fn unsaved(&self) -> bool {
+        self.draft.dirty()
+            || self.designer.busy()
+            || self.parameters.editing()
+            || self.source.editing()
+    }
     pub fn take_ready(&mut self) -> Option<(u64, Ready)> {
         self.ready.take().filter(|(r, _)| *r == self.draft.revision)
     }

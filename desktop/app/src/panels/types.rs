@@ -6,6 +6,7 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    OpenPluginEditor,
     BeginEffectPick(super::effect_pick::Ticket),
     EffectPick { ticket: super::effect_pick::Ticket, point: [f64; 2] },
     SaveAnimationPreset { object: u64, effects: Option<Vec<u64>> },

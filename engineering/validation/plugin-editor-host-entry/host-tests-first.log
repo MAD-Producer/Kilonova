@@ -1,0 +1,27 @@
+
+running 2 tests
+test plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level ... ok
+
+thread 'plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close' (75236) panicked at desktop\app\src\plugin_editor\window_host_tests.rs:210:5:
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1fc7831e130, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1fc7831e130, name: ?)
+
+thread 'plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close' (80672) panicked at desktop\app\src\plugin_editor\window_host_tests.rs:266:9:
+host fixture timeout; message=None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::plugin_editor::window::host: plugin.host phase=dispatch cause=missing flight
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 1407 filtered out; finished in 70.05s
+

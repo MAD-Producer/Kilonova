@@ -58,7 +58,11 @@ fn native_layout_controls_render_and_update_shader_without_recompilation() {
             input: neutral(),
             pointer: Default::default(),
             preview: Some(Preview::new(project.interface.clone(), definitions, true).unwrap()),
-            author:None,author_path:None,author_load:None,author_installing:None,stamp:STAMP,
+            author: None,
+            author_path: None,
+            author_load: None,
+            author_installing: None,
+            stamp: STAMP,
             load: None,
             prepared: None,
             attach: None,
@@ -81,6 +85,9 @@ fn native_layout_controls_render_and_update_shader_without_recompilation() {
             frame_started: false,
             frame_visible: false,
             startup_warned: false,
+            embedded: false,
+            finished: false,
+            _scratch: Scratch::new().unwrap(),
         };
         fn capture(app: &mut App, events: &mut EventLoop<()>, path: PathBuf) -> serde_json::Value {
             let mut frame = app.draw().unwrap();

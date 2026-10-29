@@ -1,0 +1,9 @@
+
+thread 'plugin-author-window' (80096) panicked at desktop\app\src\plugin_editor\window_host.rs:137:23:
+controlled author window panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::plugin_editor::window::host: plugin.host error request=2 phase=controlled_panic elapsed_ms=11 cause=author window worker panicked; original cause recorded by process hook
+
+thread 'plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level' (74436) panicked at desktop\app\src\plugin_editor\window_host_tests.rs:440:13:
+controlled author in-flight poison
+ERROR motion_studio::plugin_editor::window::host: plugin.host phase=controller request=3 cause=author window in-flight state poisoned; job not dispatched

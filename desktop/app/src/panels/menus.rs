@@ -302,7 +302,11 @@ pub(super) fn render(
                 }
                 entries
             }
-            7 => Panel::available()
+            7 => std::iter::once((
+                if locale == Locale::Zh { "插件编辑器…" } else { "Plugin Editor…" }.into(),
+                Action::OpenPluginEditor,
+                true,
+            )).chain(Panel::available()
                 .map(|panel| {
                     (
                         locale.panel(panel.dock()).into(),
@@ -310,7 +314,7 @@ pub(super) fn render(
                         true,
                     )
                 })
-                .chain(std::iter::once((
+                ).chain(std::iter::once((
                     locale.t(T::ResetWorkspace).into(),
                     Action::ResetWorkspace,
                     true,

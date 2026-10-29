@@ -47,6 +47,7 @@ impl Shell {
         self.closing = true;
     }
     pub(crate) fn request_close(&mut self) {
+        if self.plugin_author.request_owner_close() { return; }
         if self.engine.failed() && !self.closing {
             self.request_failed_close();
             return;

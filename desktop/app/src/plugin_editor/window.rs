@@ -22,6 +22,9 @@ const STAMP: (u64, u64) = (1, 1);
 #[cfg(all(test, target_os = "windows"))]
 #[path = "window_acceptance.rs"]
 mod acceptance;
+#[path = "window_host.rs"]
+mod host;
+pub use host::Hosted;
 pub(super) type Prepared = (
     motion_graph::plugin_project::PluginProject,
     crate::node_preview::PreparedPlugin,
@@ -66,6 +69,27 @@ pub fn run_author(source: &Path, zh: bool) -> Result<(), Box<dyn std::error::Err
     run_mode(source, zh, true)
 }
 fn run_mode(source: &Path, zh: bool, author_mode: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let (mut app, worker) = prepare_window(source, zh, author_mode)?;
+    let event_loop = EventLoop::new()?;
+    event_loop.run_app(&mut app)?;
+    if let Err(payload) = worker.join() {
+        let error = format!(
+            "plugin preview prepare worker panicked: {}",
+            motion_media::panic_reason(payload)
+        );
+        log::error!("{}", crate::fallback_observation::error_cause(&error));
+        return Err(error.into());
+    }
+    if let Some(error) = app.error.take() {
+        return Err(error.into());
+    }
+    Ok(())
+}
+fn prepare_window(
+    source: &Path,
+    zh: bool,
+    author_mode: bool,
+) -> Result<(App, std::thread::JoinHandle<()>), String> {
     let scratch = Scratch::new()?;
     let engine = Engine::start(
         scratch.0.clone(),
@@ -111,9 +135,8 @@ fn run_mode(source: &Path, zh: bool, author_mode: bool) -> Result<(), Box<dyn st
             let result = flight.prepare(&path);
             // A closed window intentionally abandons this protocol reply.
             let _receiver_closed = send.send(result);
-        })?;
-    let event_loop = EventLoop::new()?;
-    let mut app = App {
+        }).map_err(|e| format!("start plugin source reader: {e}"))?;
+    let app = App {
         engine,
         atlas,
         styles,
@@ -149,20 +172,11 @@ fn run_mode(source: &Path, zh: bool, author_mode: bool) -> Result<(), Box<dyn st
         frame_started: false,
         frame_visible: false,
         startup_warned: false,
+        embedded: false,
+        finished: false,
+        _scratch: scratch,
     };
-    event_loop.run_app(&mut app)?;
-    if let Err(payload) = worker.join() {
-        let error = format!(
-            "plugin preview prepare worker panicked: {}",
-            motion_media::panic_reason(payload)
-        );
-        log::error!("{}", crate::fallback_observation::error_cause(&error));
-        return Err(error.into());
-    }
-    if let Some(error) = app.error {
-        return Err(error.into());
-    }
-    Ok(())
+    Ok((app, worker))
 }
 struct App {
     engine: Engine,
@@ -197,6 +211,10 @@ struct App {
     frame_started: bool,
     frame_visible: bool,
     startup_warned: bool,
+    embedded: bool,
+    finished: bool,
+    // Last: engine/surfaces and author workers release before scratch cleanup.
+    _scratch: Scratch,
 }
 fn poll<T>(slot: &mut Option<Reply<T>>, operation: &str) -> Option<Result<T, String>> {
     let reply = slot.as_ref()?;
@@ -257,6 +275,22 @@ pub(super) fn paint_outside(
     }
 }
 impl App {
+    fn exit(&mut self, event_loop: &ActiveEventLoop) {
+        self.finished = true;
+        if !self.embedded {
+            event_loop.exit();
+        }
+    }
+    fn pending(&self) -> bool {
+        self.load.is_some()
+            || self.author_load.is_some()
+            || self.author.as_ref().is_some_and(|a| a.pending())
+            || self.attach.is_some()
+            || self.install.is_some()
+            || self.values.is_some()
+            || self.present.is_some()
+            || self.resize.is_some()
+    }
     fn fail(&mut self, operation: &str, cause: String) {
         log::error!(
             "plugin.preview error request=1 phase={operation} cause={}",
@@ -764,7 +798,7 @@ impl ApplicationHandler for App {
         })();
         if let Err(error) = result {
             self.fail("window_attach", error);
-            event_loop.exit();
+            self.exit(event_loop);
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
@@ -781,7 +815,7 @@ impl ApplicationHandler for App {
                 if let Some(p) = &mut self.preview {
                     p.cancel();
                 }
-                event_loop.exit();
+                self.exit(event_loop);
             }
             WindowEvent::Resized(size) => {
                 if let Some(author) = &mut self.author {
@@ -874,7 +908,7 @@ impl ApplicationHandler for App {
                 }
                 if let Err(error) = self.pump() {
                     self.fail("runtime", error);
-                    event_loop.exit();
+                    self.exit(event_loop);
                 }
             }
             _ => {}
@@ -883,10 +917,10 @@ impl ApplicationHandler for App {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Err(error) = self.poll_state() {
             self.fail("runtime", error);
-            event_loop.exit();
+            self.exit(event_loop);
         }
         if self.author.as_ref().is_some_and(|a| a.close_ready) {
-            event_loop.exit();
+            self.exit(event_loop);
             return;
         }
         // Match the owning shell: submit inside RedrawRequested, after the OS
@@ -903,18 +937,12 @@ impl ApplicationHandler for App {
                 }
             }
         }
-        let pending = self.load.is_some()
-            || self.author_load.is_some()
-            || self.author.as_ref().is_some_and(|a| a.pending())
-            || self.attach.is_some()
-            || self.install.is_some()
-            || self.values.is_some()
-            || self.present.is_some()
-            || self.resize.is_some();
-        event_loop.set_control_flow(if pending {
-            ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(8))
-        } else {
-            ControlFlow::Wait
-        });
+        if !self.embedded {
+            event_loop.set_control_flow(if self.pending() {
+                ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(8))
+            } else {
+                ControlFlow::Wait
+            });
+        }
     }
 }

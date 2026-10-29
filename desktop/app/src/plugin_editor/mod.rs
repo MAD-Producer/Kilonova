@@ -19,6 +19,7 @@ use session::Session;
 use std::collections::BTreeMap;
 pub use window::run;
 pub use window::run_author;
+pub use window::Hosted;
 
 #[derive(Default)]
 struct Field {

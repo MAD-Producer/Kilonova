@@ -293,6 +293,7 @@ struct Shell {
     home: Option<home::Home>,
     workspace_manager: Option<workspace::Manager>,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
+    plugin_author: plugin_editor::Hosted,
     next_window: u64,
     panels: panels::Panels,
     node_tasks: node_tasks::NodeTasks,
@@ -435,6 +436,7 @@ impl Shell {
             home: None,
             workspace_manager: None,
             floating: Default::default(),
+            plugin_author: Default::default(),
             next_window: 1,
             panels: Default::default(),
             layer_clipboard: Default::default(),
@@ -591,6 +593,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if self.plugin_author.contains(id) {
+            self.plugin_author.event(event_loop, id, event);
+            return;
+        }
         if self.route_project_drag_event(id, &event) { return; }
         if self.route_effect_drag_event(id, &event) { return; }
         if self.floating.contains_key(&id) {
@@ -705,6 +711,13 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.plugin_author.poll(event_loop) { self.request_close(); }
+        if let Some(message) = self.plugin_author.message.take() {
+            self.panels.message = Some(self.workspace.locale.error(&message));
+            self.dirty = true;
+            self.redraw();
+        }
+
         if self.panels.auxiliary.audio.poll(self.audio.as_ref()) { self.dirty = true; }
         if let Some(receive) = &self.diagnostics_export {
             let result = match receive.try_recv() {
@@ -1123,6 +1136,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
         let presentation_pending = self.presentation_pending();
         if busy
+            || self.plugin_author.pending()
             || node_playing
             || ui_animating
             || presentation_pending

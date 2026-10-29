@@ -1,0 +1,35 @@
+[
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "warning: in the working copy of 'desktop/app/src/main.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'desktop/app/src/panels/menus.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'desktop/app/src/panels/types.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'desktop/app/src/plugin_editor/window_acceptance.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'desktop/app/src/shell/actions.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'desktop/app/src/shell/lifecycle.rs', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'engineering/host-api/plugin-editor-tutorial.md', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'engineering/host-api/plugin-editor.md', CRLF will be replaced by LF the next time Git touches it\n"
+  },
+  {
+    "command": [
+      "rustfmt",
+      "--edition",
+      "2021",
+      "--check",
+      "desktop/app/src/plugin_editor/window.rs",
+      "desktop/app/src/plugin_editor/author/mod.rs"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python",
+      "-c",
+      "from tools.ci_desktop import verify_style_consumers; verify_style_consumers()"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]
