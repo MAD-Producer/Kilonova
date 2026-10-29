@@ -394,6 +394,10 @@ impl Shell {
                 self.start_project_import(source, self.project_import_folder(), None)?;
             }
             Action::ImportPath(path) => {
+                if workflow::model::supported(&path) {
+                    self.import_file(path)?;
+                    return Ok(());
+                }
                 let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
                 self.start_project_import(source, self.project_import_folder(), Some(path))?;
             }

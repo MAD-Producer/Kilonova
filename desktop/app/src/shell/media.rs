@@ -2,7 +2,7 @@ use crate::*;
 
 impl Shell {
     pub(crate) fn import_file(&mut self, path: PathBuf) -> Result<(), String> {
-        if self.importing_media.is_some() || self.library_import.is_some() || self.project_image.is_some() {
+        if self.importing_image.is_some() || self.importing_media.is_some() || self.library_import.is_some() || self.project_image.is_some() {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
         self.stop();
@@ -11,7 +11,9 @@ impl Shell {
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if matches!(ext.as_str(), "png" | "jpg" | "jpeg") {
+        if workflow::model::supported(&path) {
+            self.importing_image = Some(self.engine.request(|reply| engine::Command::ImportModel { file: path, expected_revision: None, source: Some(crate::layer_clipboard::KeyframeSource::of(&self.state)), reply })?);
+        } else if matches!(ext.as_str(), "png" | "jpg" | "jpeg") {
             self.importing_image = Some(
                 self.engine
                     .request(|reply| engine::Command::ImportImage { file: path, reply })?,
@@ -62,6 +64,14 @@ impl Shell {
                 Ok(result) => {
                     self.importing_image = None;
                     let state = result?;
+                    if state["modelImport"]["cancelled"] == true {
+                        self.state = state;
+                        self.panels.message = Some(if self.workspace.locale == Locale::Zh {
+                            "工程已变化，已取消模型导入".into()
+                        } else { "Project changed; model import cancelled".into() });
+                        self.dirty = true;
+                        return Ok(());
+                    }
                     if self.replacing_asset.is_some() {
                         let cancelled=state["asset_operation_cancelled"]==true;
                         self.accept_asset_replacement(state,cancelled);
