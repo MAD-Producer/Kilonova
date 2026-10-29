@@ -1,3 +1,4 @@
+use motion_core::compositing::{MatteMode, TrackMatte};
 use motion_core::{Asset, Command, Content, Engine, Layer, Project, Property};
 use motion_render::Scene;
 fn scene(p: &Project, frame: f64) -> Scene {
@@ -165,4 +166,54 @@ fn camera_parenting_and_cycles_are_atomic() {
         scene(e.project(), 0.0).world_matrix(2),
         scene(&snapshot, 0.0).world_matrix(2)
     );
+}
+#[test]
+fn deleting_a_parent_detaches_children_and_rejects_a_track_matte_source() {
+    // `Delete` carries no frame, so children are detached at the deleted layer's
+    // own in-point; a full-length demo layer starts at frame zero.
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
+    for child in [0, 2] {
+        e.apply(Command::Parent {
+            object: child,
+            parent: Some(1),
+            frame: 21,
+        })
+        .unwrap();
+    }
+    let before = scene(e.project(), 0.0);
+    e.apply(Command::Delete { object: 1 }).unwrap();
+    assert!(e.project().layers.iter().all(|l| l.id != 1));
+    let child = e.project().layers.iter().find(|l| l.id == 2).unwrap();
+    assert_eq!(
+        child.parent.as_ref().and_then(|p| p.object),
+        None,
+        "an orphaned child must survive reparented to the composition root"
+    );
+    assert_eq!(
+        e.project().camera.parent.as_ref().and_then(|p| p.object),
+        None,
+        "a camera parented to the deleted layer must be detached too"
+    );
+    for child in [0, 2] {
+        close(
+            before.world_matrix(child).unwrap(),
+            scene(e.project(), 0.0).world_matrix(child).unwrap(),
+        );
+    }
+    // A track-matte source must fail explicitly instead of leaving a dangling link.
+    let mut matte = Engine::new(Project::demo().unwrap()).unwrap();
+    matte
+        .apply(Command::SetTrackMatte {
+            object: 2,
+            matte: Some(TrackMatte {
+                source: 1,
+                mode: MatteMode::Alpha,
+                hide_source: true,
+            }),
+        })
+        .unwrap();
+    let snapshot = matte.snapshot();
+    let error = matte.apply(Command::Delete { object: 1 }).unwrap_err();
+    assert!(error.to_string().contains("track matte"), "unexpected error: {error}");
+    assert_eq!(matte.snapshot(), snapshot);
 }
