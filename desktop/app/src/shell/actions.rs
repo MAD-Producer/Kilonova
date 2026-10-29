@@ -394,6 +394,10 @@ impl Shell {
                 self.start_project_import(source, self.project_import_folder(), None)?;
             }
             Action::ImportPath(path) => {
+                if workflow::model::supported(&path) {
+                    self.import_file(path)?;
+                    return Ok(());
+                }
                 let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
                 self.start_project_import(source, self.project_import_folder(), Some(path))?;
             }
@@ -957,6 +961,12 @@ impl Shell {
                 self.stop();
                 let operation=workflow::library_media::Request::Place { target, at_frame };
                 self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectAsset{source,operation,reply})?));
+            }
+            Action::ProjectPlaceModel { source, asset, at_frame } => {
+                self.stop();
+                let operation = workflow::library_media::Request::PlaceModel { asset, at_frame };
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::ProjectAsset { source, operation, reply })?));
             }
             Action::ExpressionCheck { ticket, target, text } => {
                 let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });
