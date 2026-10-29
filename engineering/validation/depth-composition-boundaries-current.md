@@ -143,3 +143,15 @@ PR549 merges, only the later composition commits belong in the next PR. The
 dependency collapse must preserve byte-identical production/test inputs, or
 affected checks must run again. Final cross-platform checks and remaining
 #87/#82 scope still apply.
+
+## Dependency collapse before publication
+
+PR549 merged as `274577fa48cb376fb672f9e8493f0edc27619bf0` after all five required checks passed. The four
+composition/evidence commits were then rebased onto that main, dropping only
+the two already-merged video-depth commits. The complete production/test/config
+source map is byte-identical to the successful 120-test gate: zero added,
+removed or changed code inputs. Only dependency evidence/documents differ.
+The [recorded source comparison](data/depth-boundaries-main-equivalence.json)
+binds the compared Git head, main and accepted report hash. This establishes
+source equivalence; it does not upgrade targeted acceptance into full-workspace
+or final cross-platform #87 acceptance.
