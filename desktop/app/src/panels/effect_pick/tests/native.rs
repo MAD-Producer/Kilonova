@@ -413,6 +413,8 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
                 let image = image::open(root.join(format!("effect-{mode}-{width:.0}.png"))).unwrap().to_rgba8();
                 assert!(image.get_pixel(first.min[0] as u32, center(first)[1] as u32)[0] > 80,
                     "cached numeric fields must retain their visible hover outline");
+                assert!(image.get_pixel(center(first)[0] as u32, (first.min[1] + 1.) as u32)[0] < 80,
+                    "visual outline must not fill the full row hit target");
             }
         }
         let mut paint = PaintList::default();

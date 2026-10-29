@@ -205,8 +205,9 @@
       "effect.row.height": 30,
       "effect.enum.max_width": 112,
       "effect.value.min_width": 108,
-      "effect.value.max_width": 120,
-      "effect.number.cell_width": 50,
+      "effect.value.max_width": 108,
+      "effect.number.cell_width": 44,
+      "effect.label.width": 60,
       "effect.header.height": 30,
       "effect.watch.width": 24,
       "effect.enable.width": 28,
@@ -467,6 +468,10 @@
       },
       "radius": "$sizes.radius.control",
       "font_size": "$sizes.font.small"
+    },
+    "field.coordinate_number": {
+      "extends": "field.number",
+      "padding": "$sizes.border"
     },
     "selection": {
       "extends": "widget",

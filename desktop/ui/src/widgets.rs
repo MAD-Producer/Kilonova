@@ -308,6 +308,7 @@ pub struct NumberEditor {
     /// Compact inspector readout; editing still starts with the original value.
     pub compact: bool,
     pub align_left: bool,
+    pub style_class: Option<&'static str>,
     pub text: TextEditor,
     drag: Option<Drag>,
 }
@@ -490,13 +491,18 @@ impl NumberEditor {
         sheet: &crate::style::StyleSheet,
         states: crate::style::States,
     ) {
+        let class = self.style_class.unwrap_or("field.number");
+        let area = if self.compact {
+            let height = sheet.metric("field.height", 18.).min(area.height());
+            Rect::new(area.min[0], area.min[1] + (area.height() - height) * 0.5, area.width(), height)
+        } else { area };
         if self.text.active() {
             self.text
-                .draw_styled(list, atlas, area, sheet, "field.number", states);
+                .draw_styled(list, atlas, area, sheet, class, states);
         } else {
             let value = self.drag.as_ref().map_or(current, |d| d.value);
             let style = sheet
-                .resolve("field.number", states)
+                .resolve(class, states)
                 .expect("numeric field style");
             crate::style::box_style(list, area, style);
             crate::style::text_style(

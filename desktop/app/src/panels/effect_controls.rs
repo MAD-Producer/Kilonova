@@ -1515,11 +1515,14 @@ impl Controls {
                     .max(0.).min((columns.label.width() - styles.metric("label.column", 72.) * 0.5).max(0.));
                 columns.label.max[0] -= reserve;
                 columns.values.min[0] -= reserve;
+                let reclaim = (columns.label.width() - styles.metric("effect.label.width", 60.)).max(0.);
+                columns.label.max[0] -= reclaim;
+                columns.values.min[0] -= reclaim;
                 // The value cluster stops growing once its controls fit. Extra
                 // panel width must not spread coordinates or their actions.
-                let cap = styles.metric("effect.value.max_width", 120.)
+                let cap = styles.metric("effect.value.max_width", 108.)
                     .max(if kind == "color" { 1 } else { dimensions(kind) } as f32
-                        * styles.metric("effect.number.cell_width", 50.));
+                        * styles.metric("effect.number.cell_width", 44.));
                 columns.values.max[0] = columns.values.min[0] + columns.values.width().min(cap);
                 let watch_width = columns.icon.width();
                 let left = columns.icon.min[0];
@@ -1801,7 +1804,7 @@ impl Controls {
                             values.width()
                         } else {
                             ((values.width() + gap) / count.max(2) as f32)
-                                .min(styles.metric("effect.number.cell_width", 50.))
+                                .min(styles.metric("effect.number.cell_width", 44.))
                         };
                         let x = values.min[0] + component as f32 * cell;
                         let mut rect = Rect::new(x, *y, (cell - gap).max(0.), row);
@@ -1919,6 +1922,7 @@ impl Controls {
                                 frame,
                                 input,
                                 !locked && implemented,
+                                count > 1,
                                 out,
                             );
                         }
@@ -2177,6 +2181,7 @@ impl Controls {
                 frame,
                 input,
                 enabled,
+                false,
                 out,
             );
         }
@@ -2198,6 +2203,7 @@ impl Controls {
         frame: u32,
         input: &Input,
         enabled: bool,
+        coordinate: bool,
         out: &mut Vec<Action>,
     ) {
         #[cfg(test)]
@@ -2224,7 +2230,8 @@ impl Controls {
         }) {
             field.rect = rect;
             field.number.editor.compact = true;
-            field.number.editor.align_left = true;
+            field.number.editor.align_left = !coordinate || component > 0;
+            field.number.editor.style_class = coordinate.then_some("field.coordinate_number");
             self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
             let speed = if (max - min).is_finite() && (max - min) <= 2. {
                 0.005
@@ -2263,7 +2270,8 @@ impl Controls {
             if enabled && rect.contains(input.mouse) {
                 self.drag_readout = Some((input.mouse, value[component].to_string()));
             }
-            super::numeric::passive_compact(list, atlas, rect, value[component] as f64, input, enabled);
+            super::numeric::passive_compact(list, atlas, rect, value[component] as f64, input, enabled,
+                coordinate, !coordinate || component > 0);
         }
     }
 }
