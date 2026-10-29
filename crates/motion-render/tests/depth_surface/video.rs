@@ -6,33 +6,7 @@ use motion_render::{image_resources::Resolution, DepthImage};
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn owned_video_geometry_preserves_reverse_submission_quality_and_decoder_transitions() {
     let root = tempfile::tempdir().unwrap();
-    let mut p = project(root.path());
-    p.assets.clear();
-    p.layers[0].content = Content::Video {
-        video: motion_core::VideoClip::new(7),
-    };
-    p.video_assets.push(motion_core::VideoAsset {
-        id: 7,
-        path: "assets/absent.mp4".into(),
-        bytes: 1,
-        mime: "video/avc".into(),
-        track: 0,
-        width: 2,
-        height: 1,
-        rotation: 0,
-        display_width: 2,
-        display_height: 1,
-        video_start_us: 0,
-        video_end_us: 2_000_000,
-        duration_us: 2_000_000,
-        frame_count: 60,
-        variable_frame_rate: false,
-        nominal_frame_rate: 30.,
-        color_standard: 1,
-        color_range: 2,
-        audio_asset: None,
-    });
-    p.validate().unwrap();
+    let p = video_project(root.path());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.configure_assets(&p, root.path()).unwrap();
     let mut red = sampled(&p);
@@ -138,4 +112,36 @@ fn owned_video_geometry_preserves_reverse_submission_quality_and_decoder_transit
         expected_red,
         "eviction must recover without a video file or decoder"
     );
+}
+
+// Shared owned-video inventory; no decoder or external binary fixture.
+pub(super) fn video_project(root: &std::path::Path) -> Project {
+    let mut p = project(root);
+    p.assets.clear();
+    p.layers[0].content = Content::Video {
+        video: motion_core::VideoClip::new(7),
+    };
+    p.video_assets.push(motion_core::VideoAsset {
+        id: 7,
+        path: "assets/absent.mp4".into(),
+        bytes: 1,
+        mime: "video/avc".into(),
+        track: 0,
+        width: 2,
+        height: 1,
+        rotation: 0,
+        display_width: 2,
+        display_height: 1,
+        video_start_us: 0,
+        video_end_us: 2_000_000,
+        duration_us: 2_000_000,
+        frame_count: 60,
+        variable_frame_rate: false,
+        nominal_frame_rate: 30.,
+        color_standard: 1,
+        color_range: 2,
+        audio_asset: None,
+    });
+    p.validate().unwrap();
+    p
 }

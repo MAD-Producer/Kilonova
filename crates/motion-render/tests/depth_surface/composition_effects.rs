@@ -141,7 +141,7 @@ fn unrelated_external_image_inputs_keep_source_and_effects_stages_independent() 
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn calibrated_effect_owner_or_external_input_retains_explicit_rejection() {
+fn unproven_calibrated_material_or_external_input_retains_explicit_rejection() {
     for as_input in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let mut p = project(root.path());
@@ -154,7 +154,9 @@ fn calibrated_effect_owner_or_external_input_retains_explicit_rejection() {
         let mut invert = effect(if as_input {
             "displacement_map"
         } else {
-            "invert"
+            // Proven pointwise Invert/Tint now have a native source-material
+            // contract. Fill is deliberately outside that checked contract.
+            "fill"
         });
         if as_input {
             invert.image_input = Some(EffectImageInput::Layer {
