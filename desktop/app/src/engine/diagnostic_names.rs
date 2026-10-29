@@ -22,6 +22,8 @@ impl Command {
             ChangeProject { .. } => "change_project",
             NodeSource { .. } => "node_source",
             NodeInstall { .. } => "node_install",
+            PluginInstall { .. } => "plugin_preview_install",
+            PluginValues { .. } => "plugin_preview_values",
             NodeCapture { .. } => "node_capture",
             EditChecked { .. } => "edit_checked",
             EditorAction { .. } => "editor_action",

@@ -1,0 +1,11 @@
+ERROR motion_studio::plugin_check: plugin.check error request=1 source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin operation_phase=read elapsed_ms=0 cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio::plugin_editor::preparation: plugin.preview error request=1 phase=1 source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin elapsed_ms=1 cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b73619d0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b73619d0, name: ?)
+ERROR motion_studio::plugin_editor::window: plugin.preview error request=1 phase=prepare cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio: desktop failed: 14288ms reason=prepare: plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+Error: "prepare: plugin project phase=Read path=E:\\Dev\\aem\\artifacts\\plugin-editor-m2\\runtime\\missing.msplugin: 系统找不到指定的文件。 (os error 2)"

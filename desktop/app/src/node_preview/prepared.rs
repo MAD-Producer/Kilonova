@@ -24,10 +24,10 @@ impl PreparedGraph {
     }
 }
 pub(super) fn decode_resources(
-    compiled: &motion_graph::CompiledGraph,
+    compiled: &impl PreviewProgram,
 ) -> Result<Vec<image::RgbaImage>, RenderError> {
     let definition = compiled
-        .manifest
+        .manifest()
         .effects
         .first()
         .ok_or("node preview has no effect")?;
@@ -55,6 +55,18 @@ pub(super) fn decode_resources(
         pixels.push(image);
     }
     Ok(pixels)
+}
+
+pub struct PreparedPlugin {
+    pub(super) compiled: motion_graph::plugin_project::CompiledLogic,
+    pub(super) pixels: Vec<image::RgbaImage>,
+}
+impl PreparedPlugin {
+    pub fn new(compiled:motion_graph::plugin_project::CompiledLogic)->Result<Self,RenderError> {
+        let pixels=decode_resources(&compiled)?;
+        Ok(Self{compiled,pixels})
+    }
+    pub fn definitions(&self)->&[motion_effects::ParamDefinition] {&self.compiled.manifest().effects[0].params}
 }
 /// Direct acceptance/test callers may submit a compiled source. Production live
 /// editing uses the Prepared variant exclusively; this fallback retains the

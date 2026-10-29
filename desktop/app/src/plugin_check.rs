@@ -44,6 +44,13 @@ pub struct Report {
 pub fn run(path: &Path) -> Result<Report> {
     Checker::default().check(path)
 }
+pub fn load_compiled(path: &Path) -> Result<(PluginProject, CompiledLogic)> {
+    Checker::default().prepare_with(
+        path,
+        || PluginProject::load(path),
+        PluginProject::compile_logic,
+    )
+}
 impl Checker {
     fn check(&self, path: &Path) -> Result<Report> {
         self.check_with(
@@ -66,6 +73,31 @@ impl Checker {
         read: impl FnOnce() -> Result<PluginProject>,
         compile: impl FnOnce(&PluginProject) -> Result<CompiledLogic>,
     ) -> Result<Report> {
+        let (project, compiled) = self.prepare_with(path, read, compile)?;
+        fn components(node: &motion_effects::native_layout::LayoutNode) -> usize {
+            let tabs = match &node.content {
+                motion_effects::native_layout::LayoutContent::Tabs { tabs } => tabs.len(),
+                _ => 0,
+            };
+            1 + tabs + node.children().map(components).sum::<usize>()
+        }
+        Ok(Report {
+            ok: true,
+            logic: match project.logic {
+                PluginLogic::Graph { .. } => "graph",
+                PluginLogic::Wgsl { .. } => "wgsl",
+            },
+            parameters: compiled.manifest().effects[0].params.len(),
+            layout_components: components(&project.interface.root),
+            shader_bytes: compiled.source().len(),
+        })
+    }
+    fn prepare_with(
+        &self,
+        path: &Path,
+        read: impl FnOnce() -> Result<PluginProject>,
+        compile: impl FnOnce(&PluginProject) -> Result<CompiledLogic>,
+    ) -> Result<(PluginProject, CompiledLogic)> {
         let flight = Flight {
             request: self.next.fetch_add(1, Ordering::Relaxed) + 1,
             source: short(path.display()).to_string(),
@@ -102,23 +134,7 @@ impl Checker {
             let project = read()?;
             scope.phase("compile");
             let compiled = compile(&project)?;
-            fn components(node: &motion_effects::native_layout::LayoutNode) -> usize {
-                let tabs = match &node.content {
-                    motion_effects::native_layout::LayoutContent::Tabs { tabs } => tabs.len(),
-                    _ => 0,
-                };
-                1 + tabs + node.children().map(components).sum::<usize>()
-            }
-            Ok(Report {
-                ok: true,
-                logic: match project.logic {
-                    PluginLogic::Graph { .. } => "graph",
-                    PluginLogic::Wgsl { .. } => "wgsl",
-                },
-                parameters: compiled.manifest().effects[0].params.len(),
-                layout_components: components(&project.interface.root),
-                shader_bytes: compiled.source().len(),
-            })
+            Ok((project, compiled))
         })();
         match &result {
             Ok(_) => log::debug!("plugin.check done request={} source={} elapsed_ms={}",

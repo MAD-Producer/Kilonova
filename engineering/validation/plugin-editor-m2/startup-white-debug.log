@@ -1,0 +1,37 @@
+1793268048.583 INFO [main] motion_studio::logging: logging initialized level=DEBUG
+1793268048.584 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793268048.584 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-57540-1793268048583528000
+1793268048.585 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793268048.588 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-57540-1793268048583528000
+1793268058.750 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793268058.750 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-57540-1793268048583528000 10166ms
+1793268058.806 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793268058.843 INFO [plugin-preview-prepare] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=read_compile in_flight=true source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin elapsed_ms=0
+1793268058.843 INFO [plugin-preview-prepare] motion_studio::plugin_check: plugin.check start request=1 source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin phase=read in_flight=true
+1793268058.845 INFO [plugin-preview-prepare] motion_studio::plugin_check: plugin.check start request=1 source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin phase=compile in_flight=true
+1793268058.858 DEBUG [plugin-preview-prepare] motion_studio::plugin_check: plugin.check done request=1 source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin elapsed_ms=14
+1793268058.858 INFO [plugin-preview-prepare] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=resource_decode in_flight=true source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin elapsed_ms=15
+1793268058.858 DEBUG [plugin-preview-prepare] motion_studio::plugin_editor::preparation: plugin.preview done request=1 source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin elapsed_ms=15
+1793268059.183 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793268059.183 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f20c79f50, name: ?)
+1793268059.183 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793268059.183 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f20c79f50, name: ?)
+1793268059.609 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793268059.805 DEBUG [main] motion_studio::engine: dispatch #1 attach queue_depth=1
+1793268059.805 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793268059.847 DEBUG [motion-engine] motion_studio::engine: done #1 attach 42ms
+1793268059.847 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793268059.850 DEBUG [motion-diagnostics] motion_studio::diagnostics: diagnostics done #1 checkpoint 2ms path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793268059.852 DEBUG [main] motion_studio::engine: dispatch #2 plugin_preview_install queue_depth=1
+1793268059.852 DEBUG [main] motion_studio::engine: dispatch #3 resize queue_depth=2
+1793268059.852 INFO [motion-engine] motion_studio::engine: start #2 plugin_preview_install
+1793268059.866 DEBUG [motion-engine] motion_studio::engine: done #2 plugin_preview_install 13ms
+1793268059.866 INFO [motion-engine] motion_studio::engine: start #3 resize
+1793268059.871 DEBUG [main] motion_studio::engine: dispatch #4 plugin_preview_values queue_depth=1
+1793268059.876 DEBUG [motion-engine] motion_studio::engine: done #3 resize 9ms
+1793268059.876 INFO [motion-engine] motion_studio::engine: start #4 plugin_preview_values
+1793268059.876 DEBUG [motion-engine] motion_studio::engine: done #4 plugin_preview_values 0ms
+1793268059.881 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[856.0, 664.0]
+1793268059.893 DEBUG [main] motion_studio::plugin_editor::window: plugin.preview done request=1 phase=first_frame elapsed_ms=1050

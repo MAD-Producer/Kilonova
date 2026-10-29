@@ -1,0 +1,31 @@
+1793270405.506 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793270405.507 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793270405.507 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-55724-1793270405506810300
+1793270405.507 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793270405.509 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-55724-1793270405506810300
+1793270416.044 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793270416.045 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-55724-1793270405506810300 10538ms
+1793270416.197 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793270416.319 INFO [plugin-preview-prepare] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=read_compile in_flight=true source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin elapsed_ms=0
+1793270416.320 INFO [plugin-preview-prepare] motion_studio::plugin_check: plugin.check start request=1 source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin phase=read in_flight=true
+1793270416.320 ERROR [plugin-preview-prepare] motion_studio::plugin_check: plugin.check error request=1 source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin operation_phase=read elapsed_ms=0 cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793270416.321 ERROR [plugin-preview-prepare] motion_studio::plugin_editor::preparation: plugin.preview error request=1 phase=1 source=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin elapsed_ms=1 cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793270417.216 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793270417.216 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b73619d0, name: ?)
+1793270417.216 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793270417.216 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b73619d0, name: ?)
+1793270419.008 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793270419.436 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793270419.436 ERROR [main] motion_studio::plugin_editor::window: plugin.preview error request=1 phase=prepare cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793270419.575 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing\appdata\MotionStudio\diagnostics/last-stalls.json
+1793270419.581 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793270419.637 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[856.0, 664.0]
+1793270419.734 INFO [motion-engine] motion_studio::engine: start #4 shutdown
+1793270419.735 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793270419.735 INFO [motion-engine] motion_studio::engine::shutdown: start #5 shutdown_cleanup session=1
+1793270419.787 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793270419.790 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793270419.790 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped
+1793270419.794 ERROR [main] motion_studio: desktop failed: 14288ms reason=prepare: plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m2\runtime\missing.msplugin: 系统找不到指定的文件。 (os error 2)

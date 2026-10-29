@@ -1,0 +1,3 @@
+# Preserve raw acceptance bytes, including runner line endings and blank EOF.
+* -text whitespace=cr-at-eol,-blank-at-eof
+.gitattributes text eol=lf

@@ -1,0 +1,11 @@
+
+running 6 tests
+test node_preview::tests::editable_uniform_and_byte_data_match_baked_preview_and_remain_admitted ... ok
+test node_preview::tests::gpu_preview_obeys_live_time_parameters_alpha_and_pause_cache ... ok
+test node_preview::tests::node_canonical_cache_retains_pipelines_without_candidate_allocations ... ok
+test node_preview::tests::node_preview_respects_occupied_session_admission ... ok
+test node_preview::tests::numeric_candidates_reuse_native_pipelines_and_keep_failures_transactional ... ok
+test node_preview::tests::temporary_output_changes_gpu_pixels_and_restores_canonical_save_and_export ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1392 filtered out; finished in 19.98s
+

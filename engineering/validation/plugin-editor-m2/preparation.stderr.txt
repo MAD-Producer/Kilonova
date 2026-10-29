@@ -1,0 +1,6 @@
+ERROR motion_studio::plugin_editor::preparation: plugin.preview error request=1 phase=2 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=50 cause=plugin resources: GPU validation: Format error decoding Png: Invalid PNG signature.
+
+thread 'plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level' (63752) panicked at desktop\app\src\plugin_editor\tests.rs:254:17:
+controlled plugin resource decoder panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::plugin_editor::preparation: plugin.preview aborted request=1 phase=2 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=73 cause=panic; original cause recorded by process panic hook

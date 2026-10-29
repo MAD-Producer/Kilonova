@@ -1,0 +1,22 @@
+[
+  {
+    "mode": "normal",
+    "exit_code": 0,
+    "stdout_empty": true,
+    "native_client": "E:\\Dev\\aem\\artifacts\\plugin-editor-m2\\runtime\\normal\\native-client.png",
+    "size": [
+      856,
+      664
+    ]
+  },
+  {
+    "mode": "missing",
+    "exit_code": 1,
+    "stdout_empty": true,
+    "native_client": "E:\\Dev\\aem\\artifacts\\plugin-editor-m2\\runtime\\missing\\native-client.png",
+    "size": [
+      856,
+      664
+    ]
+  }
+]

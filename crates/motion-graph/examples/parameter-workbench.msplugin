@@ -1,0 +1,226 @@
+{
+  "format_version": 1,
+  "package": {
+    "id": "studio.motion.examples.parameter_workbench",
+    "version": "0.1.0",
+    "author": "Motion Studio contributors",
+    "license": "MIT"
+  },
+  "logic": {
+    "kind": "wgsl",
+    "document": {
+      "id": "parameter_workbench",
+      "name": "参数交互示例",
+      "english_name": "Parameter Interaction Example",
+      "source": "fn plugin_fx(p: vec2<f32>) -> vec4<f32> {\n  let source = sample_source(p);\n  if (!param_enabled()) { return source; }\n  let weight = param_amount() * (1.0 - smoothstep(0.0, 45.0, distance(p, param_center())));\n  let tint = param_tint().rgb * param_gain();\n  let tinted = select(tint, source.rgb * tint, param_blend() == 1);\n  return vec4<f32>(mix(source.rgb, tinted, weight), source.a);\n}\n",
+      "entry": "plugin_fx",
+      "parameters": [
+        {
+          "id": "enabled",
+          "name": "启用",
+          "kind": "bool",
+          "default": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "min": 0,
+          "max": 1,
+          "step": 1,
+          "units": "",
+          "animatable": false
+        },
+        {
+          "id": "tint",
+          "name": "颜色",
+          "kind": "color",
+          "default": [
+            0.25,
+            0.5,
+            0.75,
+            1
+          ],
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "units": "",
+          "animatable": true
+        },
+        {
+          "id": "amount",
+          "name": "强度",
+          "kind": "float",
+          "default": [
+            0.5,
+            0,
+            0,
+            0
+          ],
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "units": "",
+          "animatable": true
+        },
+        {
+          "id": "center",
+          "name": "中心",
+          "kind": "vec2",
+          "default": [
+            32,
+            32,
+            0,
+            0
+          ],
+          "min": 0,
+          "max": 64,
+          "step": 0.1,
+          "units": "px",
+          "animatable": true
+        },
+        {
+          "id": "gain",
+          "name": "颜色系数",
+          "kind": "vec3",
+          "default": [
+            1,
+            1,
+            1,
+            0
+          ],
+          "min": 0,
+          "max": 2,
+          "step": 0.01,
+          "units": "",
+          "animatable": true
+        },
+        {
+          "id": "blend",
+          "name": "混合",
+          "kind": "enum",
+          "default": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "min": 0,
+          "max": 1,
+          "step": 1,
+          "units": "",
+          "animatable": false,
+          "options": [
+            "着色",
+            "相乘"
+          ]
+        }
+      ],
+      "working_space": "srgb",
+      "alpha_mode": "straight"
+    }
+  },
+  "interface": {
+    "format_version": 1,
+    "root": {
+      "id": "root",
+      "width": {
+        "kind": "auto"
+      },
+      "height": {
+        "kind": "auto"
+      },
+      "content": {
+        "kind": "group",
+        "title": "示例参数",
+        "collapsible": true,
+        "children": [
+          {
+            "id": "enabled-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "enabled",
+              "control": "auto"
+            }
+          },
+          {
+            "id": "amount-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "amount",
+              "control": "auto"
+            }
+          },
+          {
+            "id": "tint-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "tint",
+              "control": "auto"
+            }
+          },
+          {
+            "id": "center-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "center",
+              "control": "auto"
+            }
+          },
+          {
+            "id": "gain-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "gain",
+              "control": "auto"
+            }
+          },
+          {
+            "id": "blend-field",
+            "width": {
+              "kind": "auto"
+            },
+            "height": {
+              "kind": "auto"
+            },
+            "content": {
+              "kind": "parameter",
+              "parameter": "blend",
+              "control": "auto"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
