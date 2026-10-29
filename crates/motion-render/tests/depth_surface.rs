@@ -10,6 +10,9 @@ mod video;
 #[path = "depth_surface/composition_boundaries.rs"]
 mod composition_boundaries;
 
+#[path = "depth_surface/composition_blend.rs"]
+mod composition_blend;
+
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {
     if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {

@@ -39,8 +39,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     if scene.layers.len() > MAX_LAYERS
         || !scene.effects.is_empty()
         || !scene.nested.is_empty()
-        || scene.layers.iter().any(|layer| layer.adjustment || layer.composition
-            || layer.blend != motion_model::compositing::LayerBlend::default())
+        || scene.layers.iter().any(|layer| layer.adjustment || layer.composition)
     {
         return Vec::new();
     }
