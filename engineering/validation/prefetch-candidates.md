@@ -37,3 +37,9 @@ Refs #126。本批只消除 `prefetch_scene_assets` 的候选列表复制，其�
 主线包含标定蒙版、轨道遮罩与逐像素材质后，组合 `7fc46596` 重新编译并实际通过单项原生GPU分配/过滤/解码/像素检查、完整20项图片回归及三个FFmpeg消费者的全目标检查。64次驻留调用仍为0次调用线程分配，对照64次；重复阶段和独立留样不累加，像素与预算断言保持。源码全程不变，二进制SHA256 `cf9b68f177136e4436ee5deecf70b143afc86696a45c06e5f8be00cc507fa2ea`。
 
 [本轮机器回执](prefetch-candidates-current-main-02.json)及[原始证据](data/prefetch-candidates-current-main-02.zip)保留本次运行，前面的有效负对照及旧组合证据不覆盖。后续仅新增证据，最终head的五项有效CI、Rust/GPU逐项20例和实际main组合的完整树仍单独核验。
+
+## 主线 ed1a84a4 合入后的组合重验
+
+主线包含标定蒙版、轨道遮罩、逐像素材质、共享遮罩与相机景深后，组合 `aa5c213e` 重新编译并实际通过单项原生GPU分配/过滤/解码/像素检查、完整20项图片回归及三个FFmpeg消费者的全目标检查。64次驻留调用仍为0次调用线程分配，对照64次；重复阶段和独立留样不累加，像素与预算断言保持。源码全程不变，二进制SHA256 `f44fe0e47a1097dcf4f959bbf5a2d4f3d952b6eb2850baa4d5f47b4157916658`。
+
+[本轮机器回执](prefetch-candidates-current-main-03.json)及[原始证据](data/prefetch-candidates-current-main-03.zip)保留本次运行，前面的有效负对照及旧组合证据不覆盖。后续仅新增证据，最终head的五项有效CI、Rust/GPU逐项20例和实际main组合的完整树仍单独核验。
