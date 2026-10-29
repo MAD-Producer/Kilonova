@@ -326,3 +326,106 @@ fn visible_calibrated_matte_source_keeps_its_physical_depth_behind_the_backdrop(
         );
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn owned_video_calibrated_matte_keeps_color_revisions_and_refuses_missing_owned_pixels() {
+    use motion_render::{image_resources::Resolution, DepthImage};
+    let root = tempfile::tempdir().unwrap();
+    let (mut p, resource) = source_project(root.path());
+    p.assets.retain(|a| a.id != 8);
+    let mut asset = video::video_project(root.path()).video_assets.remove(0);
+    asset.id = 8;
+    p.video_assets.push(asset);
+    p.layers.iter_mut().find(|l| l.id == 91).unwrap().content = Content::Video {
+        video: motion_core::VideoClip::new(8),
+    };
+    p.layers[0].track_matte.as_mut().unwrap().mode = MatteMode::Luma;
+    p.validate().unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&p, root.path()).unwrap();
+    let a = renderer.capture_target(96, 64).unwrap();
+    let b = renderer.capture_target(96, 64).unwrap();
+    let mut scenes = Vec::new();
+    for (i, color, luminance) in [(0, [0, 255, 0, 255], 0.7152), (1, [255, 0, 0, 255], 0.2126)] {
+        let mut scene = sampled(&p);
+        attach(&mut scene);
+        scene
+            .attach_calibrated_depth_image(
+                91,
+                &resource.descriptor().source,
+                &resource,
+                input(),
+                DepthImage::new([2, 1], color.repeat(2)).unwrap(),
+            )
+            .unwrap();
+        assert!(
+            scene.video_decode_layers().is_empty(),
+            "the absent codec file must not be reopened"
+        );
+        assert!(renderer
+            .prepare_scene_assets(&scene, Resolution::Full, false)
+            .unwrap());
+        let pixels = renderer
+            .capture(&scene, if i == 0 { &a } else { &b })
+            .unwrap()
+            .0;
+        let expected = [srgb(luminance), 0, srgb(1. - luminance), 255];
+        assert!(pixels[(32 * 96 + 40) * 4..][..4]
+            .iter()
+            .zip(expected)
+            .all(|(a, b)| a.abs_diff(b) <= 1));
+        assert_eq!(&pixels[(32 * 96 + 60) * 4..][..4], &[0, 0, 255, 255]);
+        retain_fixture(&format!("owned-video-calibrated-matte-{i}.png"), &pixels);
+        scenes.push((scene, pixels));
+    }
+    assert_ne!(scenes[0].1, scenes[1].1);
+    assert!(renderer
+        .prepare_scene_assets(&scenes[0].0, Resolution::Full, false)
+        .unwrap());
+    let mut first = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&scenes[0].0, &a.view, 96, 64, &mut first, None)
+        .unwrap();
+    assert!(renderer
+        .prepare_scene_assets(&scenes[1].0, Resolution::Full, false)
+        .unwrap());
+    let mut last = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&scenes[1].0, &b.view, 96, 64, &mut last, None)
+        .unwrap();
+    renderer.submit_allocated(last.finish(), |_| {}).unwrap();
+    renderer.submit_allocated(first.finish(), |_| {}).unwrap();
+    assert_eq!(renderer.read_target(&a).unwrap(), scenes[0].1);
+    assert_eq!(renderer.read_target(&b).unwrap(), scenes[1].1);
+    // Geometry alone cannot authorize reusing a previous video color revision.
+    let mut missing = sampled(&p);
+    attach(&mut missing);
+    missing
+        .attach_calibrated_depth(91, &resource.descriptor().source, &resource, input())
+        .unwrap();
+    assert_eq!(missing.video_decode_layers().len(), 1);
+    let result = renderer.capture(&missing, &b);
+    assert!(
+        result.is_err(),
+        "stale video pixels must not substitute for the missing owned image"
+    );
+    let cause = result.unwrap_err().to_string();
+    assert!(
+        cause.contains("object=91") && cause.contains("source=8"),
+        "{cause}"
+    );
+    assert_eq!(renderer.read_target(&b).unwrap(), scenes[1].1);
+    renderer.clear_assets();
+    renderer.configure_assets(&p, root.path()).unwrap();
+    for (scene, expected) in &scenes {
+        assert!(renderer
+            .prepare_scene_assets(scene, Resolution::Full, false)
+            .unwrap());
+        assert_eq!(&renderer.capture(scene, &a).unwrap().0, expected);
+    }
+}

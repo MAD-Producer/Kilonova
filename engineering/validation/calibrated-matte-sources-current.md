@@ -91,3 +91,27 @@ changes are included.
 Receipt: `artifacts/pr-queue/calibrated-matte-source-regression-v1/accepted.json`.
 Archive: `data/calibrated-matte-sources-native-v1.zip`; CRC and every entry verified against originals.
 SHA-256: `ae0d685eedeeb4dd4efa94c5a24ada3ec0649c8bf058e5ebac4ba062ba39477a`.
+
+## Owned video source color revisions
+
+The calibrated source now also has a native owned-video control. The registered
+codec path does not exist; decoder inventory must remain empty when a sampled
+source owns exact display pixels. Two explicit incoming RGBA revisions at the
+same source PTS produce independent analytic green/red-luminance mixtures at a
+near red ray and unchanged blue at a far red ray. Repreparing the second source
+and submitting pending commands in reverse preserves both complete references.
+
+After both valid revisions, a sampled source with geometry but no owned display
+pixels must refuse with object=91/source=8 even while the previous video pixels
+remain resident. The completed front must remain unchanged. Full eviction and
+repreparation must recover both valid references. These synthetic incoming
+samples prove native color ownership and refusal, not actual codec decoding,
+indexed playback throughput, long-duration behavior or final #87 acceptance.
+
+The focused source-bound gate passes 60 tests plus desktop compile/style and
+provenance checks. All production/configuration hashes match the broader
+149-test gate; only the test file changed. Fifty-nine tests overlap, giving
+150 distinct related tests across these gates, not 209. Equivalence receipt:
+`artifacts/pr-queue/calibrated-matte-source-video-v1/equivalence.json`.
+Archive: `data/calibrated-matte-source-video-native-v1.zip`; CRC and every entry verified against originals.
+SHA-256: `a8e62392c4e035f6587183977496e63688dfc41d98a02233c24c3baba24d00dc`.
