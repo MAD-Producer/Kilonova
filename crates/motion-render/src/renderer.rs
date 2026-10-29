@@ -1760,8 +1760,12 @@ impl Renderer {
     /// preparation, and at most one cancellable decode allocation exists.
     pub fn prefetch_scene_assets(&mut self, resolution: crate::image_resources::Resolution) -> Result<()> {
         if !self.image_cache_enabled || self.image_decode.busy() { return Ok(()); }
-        for id in self.image_prefetch.clone().into_iter().filter(|id| !self.image_active.contains(id))
-            .take(crate::image_resources::MAX_PREFETCH_IMAGES) {
+        let mut remaining = crate::image_resources::MAX_PREFETCH_IMAGES;
+        for index in 0..self.image_prefetch.len() {
+            if remaining == 0 { break; }
+            let id = self.image_prefetch[index];
+            if self.image_active.contains(&id) { continue; }
+            remaining -= 1;
             if self.images.contains_key(&TextureKey::Static(id)) { continue; }
             if self.image_prefetch_failed.contains(&id) { continue; }
             let Some(source) = self.image_sources.get(&id) else { continue; };
