@@ -358,6 +358,9 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
         assert_eq!(pick.min[0], select.min[0]);
         assert_eq!(pick.min[0], panels.effect_controls.test_rects[&key("scatter", 0)].min[0]);
         assert_eq!(pick.min[0], panels.effect_controls.test_rects[&key("effect_opacity", 0)].min[0]);
+        let opacity = panels.effect_controls.test_rects[&key("effect_opacity", 0)];
+        assert!(opacity.shrink(number.padding).width() >= text_width("100.00", &mut atlas),
+            "fixed decimal places must remain visible in narrow scalar fields");
         assert_eq!(first.min[0], pick.max[0], "position control directly precedes the coordinate pair");
         assert_eq!(first.width(), 39., "retain the established numeric hit width");
         let animation_row = panels.effect_controls.test_rects[&key("start", -3)];

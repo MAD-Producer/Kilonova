@@ -1829,7 +1829,11 @@ impl Controls {
                             (values.width() - gap).max(0.)
                         } else {
                             ((values.width() - count.saturating_sub(1) as f32 * number_gap)
-                                / count as f32).max(0.).min(number_width)
+                                / count as f32).max(0.).min(if count == 1 {
+                                    // A scalar uses the full cell, including room
+                                    // for an integer's two decimal places.
+                                    styles.metric("effect.number.cell_width", 44.)
+                                } else { number_width })
                         };
                         let x = values.min[0] + component as f32 * (field_width + number_gap);
                         let mut rect = Rect::new(x, *y, field_width, row);

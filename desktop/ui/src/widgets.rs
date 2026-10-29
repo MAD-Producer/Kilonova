@@ -519,11 +519,9 @@ impl NumberEditor {
     }
 }
 
-/// Inspector presentation only. The authored value is never rounded or changed.
+/// Fixed two-place inspector presentation; authored precision is unchanged.
 pub fn compact_number(value: f64) -> String {
-    if value == 0. { "0".into() }
-    else if value.fract() == 0. { format!("{value:.0}") }
-    else { format!("{value:.2}") }
+    format!("{:.2}", if value == 0. { 0. } else { value })
 }
 
 #[cfg(test)]
@@ -531,9 +529,10 @@ mod compact_number_tests {
     use super::*;
     use crate::input::Input;
     #[test]
-    fn integers_drop_fraction_and_editing_retains_the_authored_value() {
-        for (value, expected) in [(100., "100"), (12.5, "12.50"), (12.345, "12.35"),
-            (-0., "0"), (-3.125, "-3.12"), (0.0001, "0.00")] {
+    fn two_decimal_display_and_editing_retain_the_authored_precision() {
+        for (value, expected) in [(100., "100.00"), (32., "32.00"), (64., "64.00"),
+            (12.5, "12.50"), (12.345, "12.35"),
+            (-0., "0.00"), (-3.125, "-3.12"), (0.0001, "0.00")] {
             assert_eq!(compact_number(value), expected);
         }
         let current = 12.345678901;
