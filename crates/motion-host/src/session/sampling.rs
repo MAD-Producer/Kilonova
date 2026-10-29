@@ -404,7 +404,8 @@ impl Session {
             let submitting = Instant::now();
             let presentation_command = encoder.command_identity();
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
-                g.scratch.collect_texture_resources(ledger)
+                g.scratch.collect_texture_resources(ledger);
+                g.presenter.collect_inspection_resources(ledger);
             })?;
             let submit_us = micros(submitting.elapsed());
             if let Err(error) = g.renderer.check_health() {

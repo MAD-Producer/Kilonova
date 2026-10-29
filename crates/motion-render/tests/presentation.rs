@@ -172,19 +172,24 @@ fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() 
         view_formats: &[],
     });
     let mut presenter = Presenter::new_admitted(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm).unwrap();
-    presenter.set_comparison_source(&r.device, &snapshot.view);
+    let snapshot_bytes = snapshot.texture_bytes();
+    presenter.set_comparison_source(&r.device, &snapshot);
     drop(snapshot);
     let render = |presenter: &Presenter| {
-        let mut encoder = r.device.create_command_encoder(&Default::default());
+        let mut encoder = r.allocation_command_encoder(&Default::default()).unwrap();
         presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
             [0., 0., 64., 64.], None, [0., 0., 0., 1.]).unwrap();
-        r.submit_tracked(encoder.finish(), |_| {});
+        r.submit_allocated(encoder.finish(), |ledger| presenter.collect_inspection_resources(ledger)).unwrap();
         presentation_bytes(&r, &output)
     };
     let pixel = |data: &[u8], x: usize, y: usize| -> [u8; 4] {
         data[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap()
     };
     presenter.set_inspection_geometry(Some([0.25, 0.25, 0.5, 0.5]), Some(0.5));
+    let mut ledger = motion_render::TextureResourceLedger::default();
+    presenter.collect_inspection_resources(&mut ledger);
+    assert_eq!(ledger.resources().count(), 1);
+    assert_eq!(ledger.total_known_bytes(), snapshot_bytes);
     let first = render(&presenter);
     assert_eq!(pixel(&first, 8, 32), [0, 0, 0, 255]);
     assert_eq!(pixel(&first, 24, 32), [0, 0, 255, 255]);
@@ -213,6 +218,9 @@ fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() 
         [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());
     assert_eq!(presentation_bytes(&r, &output), second);
     presenter.clear_comparison_source();
+    let mut ledger = motion_render::TextureResourceLedger::default();
+    presenter.collect_inspection_resources(&mut ledger);
+    assert_eq!(ledger.resources().count(), 0);
     presenter.set_inspection_geometry(None, Some(0.5));
     assert!(presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
         [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());

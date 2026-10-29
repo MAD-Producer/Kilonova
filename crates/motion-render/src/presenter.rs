@@ -32,6 +32,7 @@ pub struct Presenter {
     inspection_region: Option<[f32; 4]>,
     comparison_split: Option<f32>,
     comparison_group: Option<wgpu::BindGroup>,
+    comparison_ledger: Option<crate::TextureResourceLedger>,
     comparison_allocation: Option<crate::allocation_budget::AllocationLease>,
     // Retire GPU bindings before releasing their source reservation.
     source_allocation: Option<crate::allocation_budget::AllocationLease>,
@@ -162,6 +163,7 @@ impl Presenter {
             inspection_region: None,
             comparison_split: None,
             comparison_group: None,
+            comparison_ledger: None,
             comparison_allocation: None,
         }
     }
@@ -183,14 +185,23 @@ impl Presenter {
     }
     pub fn view_channel(&self) -> ViewChannel { self.view_channel }
     /// Bind a retained snapshot once; repeated presentation only updates geometry.
-    pub fn set_comparison_source(&mut self, device: &wgpu::Device, source: &crate::AdmittedTextureView) {
-        self.comparison_group = Some(Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source));
-        self.comparison_allocation = Some(source.lease.clone());
+    pub fn set_comparison_source(&mut self, device: &wgpu::Device, source: &crate::RenderTarget) {
+        self.comparison_group = Some(Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, &source.view));
+        let mut ledger = crate::TextureResourceLedger::default();
+        source.collect_texture_resources(&mut ledger, "viewer/comparison", crate::TextureState::Retained);
+        self.comparison_ledger = Some(ledger);
+        self.comparison_allocation = Some(source.view.lease.clone());
     }
     pub fn clear_comparison_source(&mut self) {
         self.comparison_group = None;
+        self.comparison_ledger = None;
         self.comparison_allocation = None;
         self.comparison_split = None;
+    }
+    pub fn collect_inspection_resources(&self, ledger: &mut crate::TextureResourceLedger) {
+        if self.comparison_split.is_some() {
+            if let Some(comparison) = &self.comparison_ledger { ledger.merge(comparison.clone()); }
+        }
     }
     pub fn set_inspection_geometry(&mut self, region: Option<[f32; 4]>, split: Option<f32>) {
         self.inspection_region = region;
