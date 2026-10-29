@@ -232,10 +232,11 @@ impl Presenter {
         let right = (x+w).min(ix+(rx+rw)*iw);
         let bottom = (y+h).min(iy+(ry+rh)*ih);
         let scissor = |l: f32, r: f32| -> Option<[u32; 4]> {
-            let l = l.ceil().max(0.) as u32;
-            let t = top.ceil().max(0.) as u32;
-            let r = r.floor().max(0.) as u32;
-            let b = bottom.floor().max(0.) as u32;
+            // Include exactly the pixel centers in each half-open interval.
+            let l = (l-0.5).ceil().max(0.) as u32;
+            let t = (top-0.5).ceil().max(0.) as u32;
+            let r = (r-0.5).ceil().max(0.) as u32;
+            let b = (bottom-0.5).ceil().max(0.) as u32;
             (r > l && b > t).then(|| [l, t, r-l, b-t])
         };
         let cut = comparison.map_or(right, |(_, split)| (ix+split*iw).clamp(left, right.max(left)));
