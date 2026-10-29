@@ -687,6 +687,7 @@ fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens(
                                 }),
                                 logical_size: size,
                                 composition: None,
+                                inspection: Default::default(),
                                 composition_image: None,
                                 window: u64::from(floating),
                                 node_preview: None,

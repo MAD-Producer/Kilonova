@@ -34,6 +34,8 @@ impl Default for Visibility {
 #[derive(Default)]
 pub(crate) struct Controls {
     pub visibility: Visibility,
+    channels: [motion_render::ViewChannel; 2],
+    channel_dropdown: motion_ui::widgets::Dropdown,
     window: Option<Panel>,
     drag: Option<Drag>,
     menu: Option<Menu>,
@@ -381,12 +383,16 @@ impl Controls {
     }
     pub(super) fn open(&mut self, point: [f32; 2], state: &Value) {
         self.drag = None;
+        self.channel_dropdown.open = false;
         self.menu = Some(Menu {
             window: self.window,
             source: KeyframeSource::of(state),
             point,
             opened: true,
         });
+    }
+    pub(crate) fn channel(&self, floating: bool) -> motion_render::ViewChannel {
+        self.channels[usize::from(floating)]
     }
 
     /// Returns pointer ownership even for a rejected attempt; it cannot fall
@@ -616,7 +622,7 @@ impl Controls {
         let width = styles
             .metric("viewer.overlay.menu.width", 232.)
             .min(bounds.width());
-        let height = row * 10. + padding * 2.;
+        let height = row * 11. + padding * 2.;
         let x = menu.point[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
         let top = (bounds.min[1]
             + if self.window.is_some() {
@@ -641,8 +647,10 @@ impl Controls {
             || events.pressed.is_some_and(|(_, p)| !card.contains(p))
             || input.focus_lost
         {
+            self.channel_dropdown.open = false;
             return;
         }
+        let sibling_events = if self.channel_dropdown.open { &neutral } else { events };
         paint::rect(list, card, styles.color("panel"));
         paint::stroke(
             list,
@@ -687,7 +695,7 @@ impl Controls {
                 if index == 4 && handles_busy {
                     &neutral
                 } else {
-                    events
+                    sibling_events
                 },
             );
         }
@@ -723,7 +731,7 @@ impl Controls {
             } else {
                 label.to_owned()
             };
-            if motion_ui::ui::button(list, atlas, rect, &caption, events, enabled).clicked {
+            if motion_ui::ui::button(list, atlas, rect, &caption, sibling_events, enabled).clicked {
                 let mut after = snapshot.as_deref().cloned().unwrap_or_default();
                 if index == 2 {
                     after.clear();
@@ -779,6 +787,17 @@ impl Controls {
             &hint,
             false,
         );
+        let labels = if zh { ["彩色", "红色通道", "绿色通道", "蓝色通道", "Alpha 通道"] }
+            else { ["Color", "Red channel", "Green channel", "Blue channel", "Alpha channel"] };
+        let items: Vec<_> = labels.iter().map(|label| motion_ui::widgets::DropdownItem { label, enabled: true }).collect();
+        let channel_index = usize::from(self.window.is_some());
+        let channels = [motion_render::ViewChannel::Color, motion_render::ViewChannel::Red,
+            motion_render::ViewChannel::Green, motion_render::ViewChannel::Blue, motion_render::ViewChannel::Alpha];
+        let selected = channels.iter().position(|channel| *channel == self.channels[channel_index]).unwrap_or(0);
+        let channel_rect = Rect::new(x + padding, y + padding + row * 10., width - padding * 2., row);
+        if let Some(index) = self.channel_dropdown.draw(list, atlas, channel_rect, card, &items, selected, events, true, false) {
+            if let Some(channel) = channels.get(index) { self.channels[channel_index] = *channel; }
+        }
         self.menu = Some(menu);
     }
 

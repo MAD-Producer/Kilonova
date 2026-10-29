@@ -32,6 +32,7 @@ fn capture(
             atlas: None,
             logical_size: size,
             composition: ui.composition,
+            inspection: ui.inspection,
             composition_image: ui.composition_image,
             window: ui.window,
             node_preview: None,

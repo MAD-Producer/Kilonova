@@ -13,6 +13,7 @@ fn frame() -> UiFrame {
         }),
         logical_size: [64.; 2],
         composition: Some([0., 0., 64., 64.]),
+        inspection: Default::default(),
         composition_image: None,
         window: 0,
         node_preview: None,

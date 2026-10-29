@@ -173,6 +173,7 @@ impl Presenter {
         }
         Ok(())
     }
+    pub fn view_channel(&self) -> ViewChannel { self.view_channel }
     fn source_group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, buffer: &wgpu::Buffer, source: &wgpu::TextureView) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {

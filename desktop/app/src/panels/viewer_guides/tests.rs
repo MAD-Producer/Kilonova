@@ -557,6 +557,40 @@ fn overlay_menu_keeps_native_window_ownership_and_consumes_its_closing_frame() {
 }
 
 #[test]
+fn channel_dropdown_selects_explicitly_and_keeps_window_state_independent() {
+    let mut atlas = TextAtlas::from_system(18.).unwrap();
+    let state = state(vec![]);
+    for locale in [Locale::Zh, Locale::En] {
+        for window in [None, Some(Panel::Composition)] {
+            let mut controls = Controls::default();
+            let bounds = Rect::new(0., 0., 900., 600.);
+            let styles = PaintList::default().styles();
+            let row = styles.metric("row.height", 22.);
+            let padding = styles.metric("padding.panel", 8.);
+            let anchor_y = 400. - padding - row;
+            controls.prepare(window, &state, &Input::default());
+            controls.open([100., 400.], &state);
+            let mut actions = vec![];
+            let mut draw_menu = |controls: &mut Controls, input: &Input| {
+                controls.prepare(window, &state, input);
+                controls.menu(&mut PaintList::default(), &mut atlas, bounds, &state,
+                    input, locale, false, "", &mut actions);
+            };
+            draw_menu(&mut controls, &Input::default());
+            draw_menu(&mut controls, &press([100. + padding + 5., anchor_y + row * 0.5]));
+            assert!(controls.channel_dropdown.open);
+            // The five-item dropdown opens above its anchor; its last row is Alpha.
+            draw_menu(&mut controls, &press([100. + padding + 5., anchor_y - row * 0.5]));
+            assert_eq!(controls.channel(window.is_some()), motion_render::ViewChannel::Alpha);
+            assert_eq!(controls.channel(window.is_none()), motion_render::ViewChannel::Color);
+            assert!(!controls.channel_dropdown.open);
+            assert!(actions.is_empty());
+            assert_eq!(state["revision"], 7);
+        }
+    }
+}
+
+#[test]
 fn handle_shortcut_respects_locale_window_repeat_ime_and_text_ownership() {
     use crate::shortcuts::{Command as Shortcut, Scope};
     let state = state(vec![]);

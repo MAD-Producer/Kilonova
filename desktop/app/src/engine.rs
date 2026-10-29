@@ -80,6 +80,13 @@ use failure::{ErrorReply, Failure, SessionLease};
 pub const REQUEST_LIMIT: usize = 256 * 1024;
 pub const COMMAND_QUEUE_CAPACITY: usize = 128;
 
+/// Per-window viewer settings travel with the frame that uses them.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ViewerInspectionFrame {
+    pub channel: motion_render::ViewChannel,
+    pub region: Option<[f32; 4]>,
+    pub comparison_split: Option<f32>,
+}
 /// CPU draw commands only. All GPU objects stay with the session worker.
 pub struct UiFrame {
     pub paint: motion_ui::paint::PaintList,
@@ -87,6 +94,7 @@ pub struct UiFrame {
     pub logical_size: [f32; 2],
     pub composition: Option<[f32; 4]>,
     pub composition_image: Option<[f32; 4]>,
+    pub inspection: ViewerInspectionFrame,
     pub window: u64,
     pub node_preview: Option<crate::node_preview::Viewport>,
 }
@@ -1740,8 +1748,15 @@ fn handle(
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb)
+            let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
+                &g.scratch.working_front().ok_or("working preview target missing")?.view
+            } else { &g.scratch.view };
+            let mut presenter = motion_render::Presenter::new_admitted(&g.renderer, source, wgpu::TextureFormat::Rgba8UnormSrgb)
                 .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+            if ui.composition.is_some() {
+                presenter.set_view_channel(&g.renderer.queue, ui.inspection.channel)
+                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
+            }
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
@@ -1859,6 +1874,20 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             let result=(|| -> motion_host::Result<bool> {
+                if ui.composition.is_some() {
+                    if let Some(g) = s.graphics.as_mut() {
+                        let previous = g.presenter.view_channel();
+                        g.presenter.set_view_channel(&g.renderer.queue, ui.inspection.channel)?;
+                        if previous != ui.inspection.channel && g.scratch.valid() {
+                            let source = if ui.inspection.channel == motion_render::ViewChannel::Color {
+                                &g.scratch.view
+                            } else {
+                                &g.scratch.working_front().ok_or("working preview target missing")?.view
+                            };
+                            g.presenter.set_admitted_source(&g.renderer.device, source);
+                        }
+                    }
+                }
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");

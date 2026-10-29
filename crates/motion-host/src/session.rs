@@ -757,7 +757,11 @@ impl Session {
                 }
             };
             let acquire_us = acquiring.elapsed().as_micros() as u64;
-            let display = g.scratch.prepared_output()
+            let display = if g.presenter.view_channel() == motion_render::ViewChannel::Color {
+                g.scratch.prepared_output()
+            } else {
+                g.scratch.prepared()
+            }
                 .ok_or("converted preview target missing")?;
             g.presenter.set_admitted_source(&g.renderer.device, &display.view);
             let view = output.texture.create_view(&Default::default());

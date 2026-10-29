@@ -238,6 +238,7 @@ fn frame(host: &mut Host, floating: Option<WindowId>, size: [f32; 2]) -> engine:
         }),
         logical_size: size,
         composition: None,
+        inspection: Default::default(),
         composition_image: None,
         window: if floating.is_some() { 1 } else { 0 },
         node_preview: shell.node_viewport(area, 1.),

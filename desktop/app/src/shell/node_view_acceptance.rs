@@ -75,6 +75,7 @@ impl Shell {
             }),
             logical_size: size,
             window: key,
+            inspection: Default::default(),
             composition_image: None,
             composition: None,
             node_preview: if floating {
