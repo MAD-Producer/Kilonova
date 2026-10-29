@@ -226,8 +226,20 @@ pub(super) fn render(
     let overlay_width = sheet.metric("viewer.overlay.button.width", 64.);
     let overlay_rect = Rect::new(fit_rect.max[0] + gap, fit_rect.min[1], overlay_width, button_height);
     let overlay_fits = overlay_rect.max[0] <= controls.max[0] - padding;
+    let overlay_label = match (panels.locale == Locale::Zh, panels.viewer_guides.current_channel()) {
+        (true, motion_render::ViewChannel::Color) => "辅助显示",
+        (false, motion_render::ViewChannel::Color) => "Overlays",
+        (true, motion_render::ViewChannel::Red) => "辅助 R",
+        (true, motion_render::ViewChannel::Green) => "辅助 G",
+        (true, motion_render::ViewChannel::Blue) => "辅助 B",
+        (true, motion_render::ViewChannel::Alpha) => "辅助 A",
+        (false, motion_render::ViewChannel::Red) => "View R",
+        (false, motion_render::ViewChannel::Green) => "View G",
+        (false, motion_render::ViewChannel::Blue) => "View B",
+        (false, motion_render::ViewChannel::Alpha) => "View A",
+    };
     if overlay_fits && motion_ui::ui::button(list, atlas, overlay_rect,
-        if panels.locale == Locale::Zh { "辅助显示" } else { "Overlays" }, input, true).clicked {
+        overlay_label, input, true).clicked {
         panels.viewer_guides.open(overlay_rect.min, state);
     }
     let left_end = if overlay_fits { overlay_rect.max[0] } else { fit_rect.max[0] };

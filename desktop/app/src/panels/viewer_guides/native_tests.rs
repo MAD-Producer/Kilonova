@@ -254,13 +254,14 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
     let export_before = root.join("export-before.png");
     let exported = engine.capture_async(export_before.clone(), Default::default()).unwrap();
     crate::native_test_support::receive(&mut events, &exported, Duration::from_secs(60)).unwrap().unwrap();
-    let before = engine.state().unwrap()["project"].clone();
+    let before_state = engine.state().unwrap();
+    let before = before_state["project"].clone();
     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
     for (locale_name, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
         let mut panels = Panels::default();
         panels.locale = locale;
         panels.focused = Some(Panel::Composition);
-        for (window, size) in [(0, [900., 600.]), (1, [720., 640.])] {
+        for (window, size, ratio) in [(0, [900., 600.], 1.), (1, [360., 320.], 2.)] {
             let viewport = view(&panels, window, size);
             let mapping = panels.composition.navigation.mapping(viewport, [640., 480.]).unwrap();
             let sample = mapping.screen([320., 240.]);
@@ -269,8 +270,8 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
                 + sheet.metric("viewer.percent.width", 14.) + sheet.metric("viewer.controls.gap", 4.) * 2.
                 + sheet.metric("viewer.fit.width", 40.) + sheet.metric("viewer.overlay.button.width", 64.) * 0.5;
             let button_y = viewport.max[1] + sheet.metric("viewer.canvas.bottom", 6.) + sheet.metric("viewer.controls.height", 28.) * 0.5;
-            let color = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, 1., &root.join(format!("{locale_name}-{window}-color.png")));
-            let initial = *color.get_pixel(sample[0] as u32, sample[1] as u32);
+            let color = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-color.png")));
+            let initial = *color.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32);
             let mut selected = Vec::new();
             for (index, name) in [(1, "red"), (2, "green"), (3, "blue"), (4, "alpha"), (0, "restore")] {
                 assert!(draw(&engine, &mut panels, &mut atlas, window, size, press([button_x, button_y])).1.is_empty());
@@ -290,8 +291,8 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
                 assert_eq!(panels.viewer_guides.channel(window == 0), motion_render::ViewChannel::Color);
                 draw(&engine, &mut panels, &mut atlas, window, size, press([size[0] - 1., 0.]));
                 assert!(panels.viewer_guides.menu.is_none());
-                let pixels = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, 1., &root.join(format!("{locale_name}-{window}-{name}.png")));
-                let pixel = *pixels.get_pixel(sample[0] as u32, sample[1] as u32);
+                let pixels = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-{name}.png")));
+                let pixel = *pixels.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32);
                 if index == 0 { assert_eq!(pixel, initial); }
                 else { assert_eq!(pixel[0], pixel[1]); assert_eq!(pixel[1], pixel[2]); assert_eq!(pixel[3], 255); selected.push(pixel[0]); }
             }
@@ -299,6 +300,8 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
         }
     }
     assert_eq!(engine.state().unwrap()["project"], before);
+    let after_state = engine.state().unwrap();
+    for key in ["revision", "history", "canUndo", "canRedo"] { assert_eq!(after_state[key], before_state[key], "{key}"); }
     let export_after = root.join("export-after.png");
     let exported = engine.capture_async(export_after.clone(), Default::default()).unwrap();
     crate::native_test_support::receive(&mut events, &exported, Duration::from_secs(60)).unwrap().unwrap();

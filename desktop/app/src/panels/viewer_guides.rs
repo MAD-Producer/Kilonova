@@ -396,6 +396,10 @@ impl Controls {
         self.channels[usize::from(floating)]
     }
 
+    pub(super) fn current_channel(&self) -> motion_render::ViewChannel {
+        self.channel(self.window.is_some())
+    }
+
     /// Returns pointer ownership even for a rejected attempt; it cannot fall
     /// through into layer picking or a different gesture on the same press.
     pub(super) fn viewport(
@@ -681,6 +685,13 @@ impl Controls {
             &mut self.visibility.locked,
         ];
         for (index, (label, value)) in labels.into_iter().zip(values).enumerate() {
+            let annotated;
+            let label = if index == 4 && !shortcut_hint.is_empty() {
+                annotated = format!("{label}  {shortcut_hint}");
+                annotated.as_str()
+            } else {
+                label
+            };
             let rect = Rect::new(
                 x + padding,
                 y + padding + row * index as f32,
@@ -770,11 +781,7 @@ impl Controls {
                 "Guides unavailable".into()
             }
         } else {
-            format!(
-                "{}{}",
-                if zh { "手柄：" } else { "Handles: " },
-                shortcut_hint
-            )
+            if zh { "通道".into() } else { "Channel".into() }
         };
         let channel_width = styles.metric("viewer.overlay.button.width", 64.);
         let channel_gap = styles.metric("viewer.controls.gap", 4.);
