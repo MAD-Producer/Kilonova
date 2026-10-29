@@ -58,3 +58,9 @@ Refs #159。现有 `motion.drag_threshold` 的默认值是 3；数值字段、�
 主线合入深度合成边界修复 `67760b8b` 后，组合 `77baa137` 重新编译并实际通过新三项、完整变换模块 27 项和 FFmpeg 全目标检查。三项是二十七项的子集；本轮重复不累加数量。源码全程保持，二进制 SHA256 `2d950e5e1a80556d28e58cac7a02babdb20fa2fbc3bc5d9b2a638aac55c494b1`。
 
 [当前组合回执](transform-drag-threshold-current-main.json)及[本轮原始证据](data/transform-drag-threshold-current-main.zip)保留这次运行；旧 head 的五项 CI 成功不能替代最终新 head 的检查。后续仅添加这些文档，最终完整代码树与逐项 CI 仍单独核验。
+
+## 主线 3865b0fe 合入后的组合重验
+
+组合 `67739b34` 重新编译并实际通过新三项、完整变换模块 27 项和 FFmpeg 全目标检查。三项是二十七项的子集；本轮重复不累加数量。源码全程保持，二进制 SHA256 `12ce69c84b6749a35ab749e781d250db3762ff5cd6b826e9ded7b2fc7d31faea`。
+
+[当前组合回执](transform-drag-threshold-current-main-02.json)及[本轮原始证据](data/transform-drag-threshold-current-main-02.zip)保留这次运行；旧 head 的五项 CI 成功不能替代最终新 head 的检查。后续仅添加这些文档，最终完整代码树与逐项 CI 仍单独核验。
