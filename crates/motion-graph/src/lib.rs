@@ -13,6 +13,7 @@ mod images;
 mod input_defaults;
 mod ports;
 mod runtime_data;
+pub mod plugin_project;
 pub use blend::ColorBlendMode;
 pub use compiler::{
     compile, compile_editable, compile_preview, compile_preview_editable, node_ports, validate,

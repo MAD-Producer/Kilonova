@@ -1,0 +1,14 @@
+{
+  "faults": [
+    "plugin project phase=Read path=C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpukbn2I\\missing.msplugin: 系统找不到指定的文件。 (os error 2)",
+    "plugin project phase=Read JSON line=1 column=18 category=Eof",
+    "plugin project phase=Bindings: native layout node=enable-field field=parameter: public parameter missing",
+    "plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found \"fragment\"",
+    "plugin project phase=Compile: MissingInput at node output.color: required input is not connected",
+    "plugin project phase=Read field=operation: another plugin source check is still running"
+  ],
+  "ok": true,
+  "panic_propagated_and_state_cleared": true,
+  "read_and_compile_published_before_entry": true,
+  "recovery_compiled": true
+}

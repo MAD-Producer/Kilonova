@@ -1112,13 +1112,22 @@ fn param_kind(ty: ValueType) -> Option<ParamKind> {
     })
 }
 fn make_manifest(document: &GraphDocument, options: &CompileOptions) -> Result<PluginManifest> {
-    let params: Vec<ParamDefinition> = document
+    let params = public_parameter_definitions(document)?;
+    make_manifest_with_parameters(document, options, params)
+}
+
+/// One conversion for graph publication and plugin-panel binding; the authoring
+/// document never maintains a second, potentially divergent parameter table.
+pub(crate) fn public_parameter_definitions(document: &GraphDocument) -> Result<Vec<ParamDefinition>> {
+    document
         .public_parameters
         .iter()
-        .map(|p| ParamDefinition {
+        .map(|p| Ok(ParamDefinition {
             id: p.id.clone(),
             name: format!("{} / {}", p.name, p.english_name),
-            kind: param_kind(p.value_type).unwrap(),
+            kind: param_kind(p.value_type).ok_or_else(|| Error::invalid(
+                ErrorCode::TypeMismatch, None, Some(&p.id),
+                "public parameters support float, vec2, vec3, color and bool"))?,
             default: p.default,
             min: p.min,
             max: p.max,
@@ -1130,8 +1139,12 @@ fn make_manifest(document: &GraphDocument, options: &CompileOptions) -> Result<P
             implemented: true,
             options: vec![],
             reference_match_name: String::new(),
-        })
-        .collect();
+        }))
+        .collect()
+}
+
+fn make_manifest_with_parameters(document: &GraphDocument, options: &CompileOptions,
+    params: Vec<ParamDefinition>) -> Result<PluginManifest> {
     let effect_id = options.effect_id.as_ref().unwrap_or(&document.id);
     if effect_id.len() > 96 {
         return Err(Error::invalid(

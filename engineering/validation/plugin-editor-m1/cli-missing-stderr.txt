@@ -1,0 +1,3 @@
+ERROR motion_studio::plugin_check: plugin.check error request=1 source=E:\Dev\aem\artifacts\plugin-editor-m1\cli\not-found.msplugin operation_phase=read elapsed_ms=0 cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m1\cli\not-found.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio: desktop failed: 1ms reason=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m1\cli\not-found.msplugin: 系统找不到指定的文件。 (os error 2)
+Error: plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m1\cli\not-found.msplugin: 系统找不到指定的文件。 (os error 2)

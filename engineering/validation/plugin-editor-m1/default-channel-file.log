@@ -1,0 +1,54 @@
+1793259975.194 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793259975.328 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=1 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.353 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=1 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.504 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=2 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\missing.msplugin phase=read in_flight=true
+1793259975.507 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=2 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\missing.msplugin operation_phase=read elapsed_ms=1 cause=plugin project phase=Read path=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793259975.513 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=3 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.531 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=3 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=read elapsed_ms=18 cause=plugin project phase=Read JSON line=1 column=18 category=Eof
+1793259975.541 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=4 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.557 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=4 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.558 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=4 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=17 cause=plugin project phase=Bindings: native layout node=enable-field field=parameter: public parameter missing
+1793259975.563 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=5 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.578 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=5 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.592 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=5 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=28 cause=plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found "fragment"
+1793259975.614 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=6 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.637 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=6 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.651 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=6 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=37 cause=plugin project phase=Compile: MissingInput at node output.color: required input is not connected
+1793259975.662 INFO [unnamed] motion_studio::plugin_check: plugin.check start request=7 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.696 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check error request=8 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=admission cause=plugin project phase=Read field=operation: another plugin source check is still running
+1793259975.702 INFO [unnamed] motion_studio::plugin_check: plugin.check start request=7 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.751 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=9 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.752 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=9 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true
+1793259975.785 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_check\tests.rs:132:21:
+plugin compiler panic evidence
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: <unknown>
+  22: <unknown>
+  23: <unknown>
+  24: <unknown>
+  25: BaseThreadInitThunk
+  26: RtlUserThreadStart
+
+1793259975.829 ERROR [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check aborted request=9 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile elapsed_ms=76 cause=panic; original cause recorded by process panic hook
+1793259975.831 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=10 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=read in_flight=true
+1793259975.832 INFO [plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels] motion_studio::plugin_check: plugin.check start request=10 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile in_flight=true

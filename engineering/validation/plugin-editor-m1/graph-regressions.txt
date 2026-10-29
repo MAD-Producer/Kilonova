@@ -1,0 +1,281 @@
+   Compiling motion-graph v0.1.0 (E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+warning: function `nested_demo` is never used
+ --> crates\motion-graph\tests\support\group_fixture.rs:4:8
+  |
+4 | pub fn nested_demo(depth: usize) -> GraphDocument {
+  |        ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `motion-graph` (test "naming") generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 38.24s
+     Running unittests src\lib.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\motion_graph-e21cb9965979aef4.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\blend.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\blend-318bf29660835c32.exe)
+
+running 3 tests
+test blend_ports_are_typed_documented_and_do_not_accept_unknown_modes ... ok
+test unused_blend_has_no_helper_cost_or_effect_on_existing_graph_source ... ok
+test all_blend_modes_roundtrip_export_and_validate_on_the_portable_single_pass ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.28s
+
+     Running tests\compiler.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\compiler-6bde366248d07e31.exe)
+
+running 3 tests
+test constant_folding_retains_declared_safe_math_semantics ... ok
+test common_sampling_is_emitted_once_and_loop_work_does_not_stand_in_for_samples ... ok
+test every_n1_node_and_dynamic_math_variant_compiles_to_validated_wgsl_and_gles300 ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+
+     Running tests\drafts.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\drafts-24535797d4bf7b0b.exe)
+
+running 7 tests
+test unused_groups_still_validate_boundary_structure_connections_and_cycles ... ok
+test unused_drafts_still_obey_structure_types_units_cycles_values_and_budgets ... ok
+test unconnected_group_output_ports_are_drafts_until_used_or_previewed ... ok
+test unused_group_interfaces_can_be_incomplete_and_keep_boundary_diagnostics_when_used ... ok
+test wiring_a_draft_into_the_output_reports_the_exact_missing_input_and_recovers ... ok
+test nested_drafts_do_not_block_the_output_but_previewing_them_checks_their_inputs ... ok
+test unfinished_unused_nodes_compile_and_export_without_changing_the_effect ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests\editable_compiler.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\editable_compiler-b30dd19dd1788df5.exe)
+
+running 3 tests
+test folded_and_default_values_use_the_same_actual_compiler_entry ... ok
+test cache_owns_validated_output_and_rechecks_current_budgets_and_data ... ok
+test canonical_and_diagnostic_pair_reuse_and_changed_code_evicts_with_bounds ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\editable_data.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\editable_data-b4d2c7b3c574f3bb.exe)
+
+running 4 tests
+test native_uniform_and_byte_texture_data_match_baked_pixels_in_four_precisions ... ignored, requires an actual GPU
+test defaults_and_folded_values_are_data_without_value_sensitive_cse ... ok
+test all_literal_types_keep_code_stable_across_value_changes ... ok
+test actual_package_loader_checks_data_version_capability_capacity_and_float_bits ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests\examples.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\examples-2c3c51bc67621d5d.exe)
+
+running 3 tests
+test style_collections_have_stable_bilingual_metadata_without_source_payloads ... ok
+test embedded_examples_are_independent_complete_n1_documents ... ok
+test every_example_exports_real_packages_and_changed_public_defaults ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+
+     Running tests\export.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\export-678f54076a2834ab.exe)
+
+running 1 test
+test actual_msfx_reload_registry_and_sibling_source_preserve_public_parameters ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running tests\gpu.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\gpu-99c9ff4446575776.exe)
+
+running 19 tests
+test blend_gpu::blend_all_modes_match_source_over_oracle_in_both_working_spaces_and_alpha_modes ... ignored, requires an actual GPU
+test blend_gpu::blend_strength_animates_and_random_seek_restores_exported_example_pixels ... ignored, requires an actual GPU
+test compact_examples_gpu::compact_examples_preserve_exported_gpu_pixels_parameters_animation_and_seek ... ignored, requires an actual GPU
+test exported_sdf_pixels_preserve_alpha_fractional_time_and_animated_public_slots ... ignored, requires an actual GPU
+test frame_index_and_seconds_remain_fractional_in_the_actual_gpu_uniforms ... ignored, requires an actual GPU
+test gradient_color_interpolation_respects_each_alpha_contract ... ignored, requires an actual GPU
+test gradient_degenerate_span_and_conic_center_return_start_color ... ignored, requires an actual GPU
+test gradient_modes_match_independent_cpu_factors_across_the_image ... ignored, requires an actual GPU
+test gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels ... ignored, requires an actual GPU
+test nested_groups_export_pixel_identically_and_keep_public_parameter_animation ... ignored, requires an actual GPU
+test noise_gpu::noise_modes_and_four_octaves_match_independent_cpu_pixels ... ignored, requires an actual GPU
+test noise_gpu::noise_seed_flooring_recovery_bounds_and_determinism_hold_on_gpu ... ignored, requires an actual GPU
+test sdk6_last_public_slot_is_rendered_and_the_33rd_parameter_is_rejected ... ignored, requires an actual GPU
+test soft_sphere_projects_orbit_lift_shadow_and_independent_surface_rotation ... ignored, requires an actual GPU
+test straight_and_premultiplied_graph_contracts_produce_the_same_visible_pixels ... ignored, requires an actual GPU
+test style_examples_render_animate_and_accept_public_colors_through_exported_packages ... ignored, requires an actual GPU
+test typed_defaults_match_explicit_constants_on_gpu_and_survive_export ... ignored, requires an actual GPU
+test unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes ... ignored, requires an actual GPU
+test uv_mapping_matches_cpu_coordinates_for_rotation_scale_pivot_and_mirror ... ignored, requires an actual GPU
+
+test result: ok. 0 passed; 0 failed; 19 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gradient.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\gradient-6c59be721d153247.exe)
+
+running 2 tests
+test gradient_requires_explicit_uv_and_exposes_units_and_both_outputs ... ok
+test gradient_modes_roundtrip_compile_and_export_a_portable_single_pass ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+     Running tests\groups.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\groups-d8cbb8967847fb27.exe)
+
+running 6 tests
+test root_and_inner_cycles_types_missing_boundaries_and_units_are_rejected ... ok
+test group_structure_does_not_consume_the_soft_shader_leaf_budget ... ok
+test collapse_round_trips_and_does_not_change_shader_or_runtime_costs ... ok
+test nested_groups_keep_root_parameters_and_have_bounded_depth_and_real_leaf_budgets ... ok
+test pure_group_wrapping_preserves_actual_compiled_code_and_runtime_template ... ok
+test group_interfaces_lower_and_preview_resolves_outer_dependencies ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests\images.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\images-bd3324a887ff42f9.exe)
+
+running 7 tests
+test embedded_image_faults_keep_native_sources_after_document_loading ... ok
+test malformed_or_missing_images_retain_original_faults_and_do_not_change_source ... ok
+test sdk_slots_include_numeric_overflow_and_fail_explicitly ... ok
+test image_payload_does_not_expand_metadata_budget_and_decode_is_preflighted ... ok
+test imported_images_are_portable_content_owned_and_exactly_packaged ... ok
+test sharing_one_content_identity_uses_one_slot_in_baked_editable_and_preview ... ok
+test source_reads_and_interactive_metadata_checks_keep_their_independent_limits ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests\images_gpu.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\images_gpu-a90caeec26b8b58d.exe)
+
+running 3 tests
+test all_four_resources_and_numeric_overflow_are_uploaded_in_the_declared_order ... ignored, requires an actual GPU
+test image_pixels_use_asset_dimensions_and_transparent_color_cannot_bleed ... ignored, requires an actual GPU
+test portable_baked_editable_and_image_preview_match_independent_bilinear_pixels ... ignored, requires an actual GPU
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\input_defaults.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\input_defaults-e489ab408eeb0548.exe)
+
+running 7 tests
+test authoring_defaults_match_their_ports_and_leave_context_inputs_required ... ok
+test invalid_defaults_are_rejected_even_when_unused_or_connected ... ok
+test old_documents_stay_v1_and_typed_defaults_round_trip_as_v2 ... ok
+test unresolved_group_wires_cannot_be_masked_by_a_leaf_default ... ok
+test nested_leaf_defaults_round_trip_and_group_boundary_defaults_are_explicitly_rejected ... ok
+test connected_inputs_win_and_disconnect_restores_the_stored_literal ... ok
+test all_storage_types_compile_without_implicit_casts ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\naming.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\naming-ca72ceb395ba69b5.exe)
+
+running 2 tests
+test invalid_names_are_rejected_even_for_unreachable_and_structured_nodes ... ok
+test optional_names_read_legacy_graphs_and_roundtrip_without_changing_wgsl ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests\native_effect_causes.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\native_effect_causes-37763efb39f195dc.exe)
+
+running 3 tests
+test existing_corrupt_zip_keeps_native_loader_cause_and_preserves_both_destinations ... ok
+test existing_corrupt_manifest_retains_native_json_location_without_overwriting_files ... ok
+test version_identity_refusal_keeps_the_registry_cause_and_explicit_next_version_recovers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests\noise.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\noise-9d18fd44875ca5ef.exe)
+
+running 4 tests
+test noise_rejects_unbounded_octaves_with_node_context ... ok
+test noise_requires_uv_and_typed_inputs_and_has_no_implicit_sources ... ok
+test unused_noise_does_not_emit_helper_or_increase_reachable_cost ... ok
+test noise_modes_and_octaves_roundtrip_export_and_compile_on_the_portable_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+
+     Running tests\output_antialiasing.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\output_antialiasing-a91bdf90fcf20412.exe)
+
+running 6 tests
+test aligned_planes_preserve_the_last_row_and_column_of_odd_viewports ... ignored, requires an actual GPU
+test coverage_is_shared_by_plain_masked_matted_and_blended_planes ... ignored, requires an actual GPU
+test magnified_graph_sampling_preserves_source_uvs_and_premultiplied_filtering ... ignored, requires an actual GPU
+test magnified_sdf_output_is_rasterized_at_display_density ... ignored, requires an actual GPU
+test rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge ... ignored, requires an actual GPU
+test soft_sphere_output_preserves_animation_and_random_seek_at_display_density ... ignored, requires an actual GPU
+
+test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\plugin_project.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\plugin_project-82586e1f3eee8b49.exe)
+
+running 10 tests
+test missing_and_incompatible_bindings_are_persisted_and_keep_native_diagnostics ... ok
+test bounded_reads_and_nonfinite_parameter_checks_fail_before_replacing_source ... ok
+test source_and_layout_versions_unknown_fields_and_required_fields_are_checked ... ok
+test graph_image_content_and_native_error_causes_survive_the_authoring_envelope ... ok
+test failed_save_preserves_existing_bytes_and_does_not_leave_a_staged_file ... ok
+test incomplete_graph_and_wgsl_drafts_remain_saveable_and_fail_only_at_compile ... ok
+test all_first_version_wgsl_parameter_types_compile_through_the_actual_portable_validator ... ok
+test wgsl_named_accessors_keep_id_bindings_across_reorder_without_identifier_collisions ... ok
+test graph_and_wgsl_sources_save_reopen_and_overwrite_as_one_authoring_document ... ok
+test graph_parameter_metadata_is_identical_to_the_existing_compiler_and_layout_edits_do_not_change_code ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests\ports.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\ports-3e20f32965ce058e.exe)
+
+running 3 tests
+test known_coordinates_have_units_but_numeric_vectors_remain_generic ... ok
+test authoring_validation_and_compilation_share_known_coordinate_rejection ... ok
+test sample_modes_and_direct_clock_to_pixel_length_check_shared_units ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\preview.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\preview-ae5d5289fb42d5df.exe)
+
+running 3 tests
+test preview_isolates_dependencies_but_keeps_required_inputs_cycles_and_budgets_checked ... ok
+test image_preview_accounts_for_sampling_and_rejects_missing_output ... ok
+test typed_preview_compiles_numeric_color_bool_and_image_without_mutating_export ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+     Running tests\uv_mapping.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\uv_mapping-5abff7e10ccef8a1.exe)
+
+running 3 tests
+test malformed_mapping_inputs_are_rejected_with_node_and_port_context ... ok
+test mapping_has_explicit_uv_units_and_typed_defaults ... ok
+test mapping_roundtrips_exports_and_preserves_editable_parameters ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\validation.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\validation-c19615908b5e3e65.exe)
+
+running 3 tests
+test unsupported_and_unknown_nodes_are_rejected_even_if_unconnected ... ok
+test invalid_dags_have_stable_node_and_port_diagnostics ... ok
+test source_roundtrip_and_layout_changes_preserve_shader_and_parameter_abi ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+   Doc-tests motion_graph
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

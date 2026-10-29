@@ -1,0 +1,11 @@
+ERROR motion_studio::plugin_check: plugin.check error request=2 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\missing.msplugin operation_phase=read elapsed_ms=1 cause=plugin project phase=Read path=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio::plugin_check: plugin.check error request=3 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=read elapsed_ms=18 cause=plugin project phase=Read JSON line=1 column=18 category=Eof
+ERROR motion_studio::plugin_check: plugin.check error request=4 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=17 cause=plugin project phase=Bindings: native layout node=enable-field field=parameter: public parameter missing
+ERROR motion_studio::plugin_check: plugin.check error request=5 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=28 cause=plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found "fragment"
+ERROR motion_studio::plugin_check: plugin.check error request=6 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin operation_phase=compile elapsed_ms=37 cause=plugin project phase=Compile: MissingInput at node output.color: required input is not connected
+ERROR motion_studio::plugin_check: plugin.check error request=8 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=admission cause=plugin project phase=Read field=operation: another plugin source check is still running
+
+thread 'plugin_check::tests::actual_source_checks_publish_before_blocking_and_preserve_default_error_channels' (53680) panicked at desktop\app\src\plugin_check\tests.rs:132:21:
+plugin compiler panic evidence
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::plugin_check: plugin.check aborted request=9 source=C:\Users\nova\AppData\Local\Temp\.tmpukbn2I\source.msplugin phase=compile elapsed_ms=76 cause=panic; original cause recorded by process panic hook
