@@ -194,6 +194,14 @@ fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() 
     assert_eq!(pixel(&alpha, 24, 32), [255, 255, 255, 255]);
     assert_eq!(pixel(&alpha, 40, 32), [255, 255, 255, 255]);
     presenter.set_view_channel(&r.queue, motion_render::ViewChannel::Color).unwrap();
+    presenter.set_inspection_geometry(None, Some(0.));
+    let all_captured = render(&presenter);
+    assert_eq!(pixel(&all_captured, 8, 32), [255, 0, 0, 255]);
+    assert_eq!(pixel(&all_captured, 56, 32), [255, 0, 0, 255]);
+    presenter.set_inspection_geometry(None, Some(1.));
+    let all_live = render(&presenter);
+    assert_eq!(pixel(&all_live, 8, 32), [0, 0, 255, 255]);
+    assert_eq!(pixel(&all_live, 56, 32), [0, 0, 255, 255]);
     presenter.set_inspection_geometry(Some([0., 0., 0.25, 0.25]), None);
     let second = render(&presenter);
     assert_eq!(pixel(&second, 8, 8), [0, 0, 255, 255]);
