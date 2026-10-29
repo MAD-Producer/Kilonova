@@ -39,28 +39,37 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     if scene.layers.len() > MAX_LAYERS
         || !scene.effects.is_empty()
         || !scene.nested.is_empty()
-        || scene.layers.iter().any(|layer| {
-            !layer.masks.is_empty()
-                || layer.track_matte.is_some()
-                || layer.blend != motion_model::compositing::LayerBlend::default()
-                || !layer.composite_visible
-                || layer.adjustment
-                || layer.composition
-        })
+        || scene.layers.iter().any(|layer| layer.adjustment || layer.composition
+            || layer.blend != motion_model::compositing::LayerBlend::default())
     {
         return Vec::new();
     }
+    // A receiver outside a spatial run must not disable that run's depth.
+    // Keep both matte consumers and their sources isolated, including visible
+    // sources: another layer still needs their original independent raster.
+    let matte_sources: std::collections::HashSet<_> = scene.layers.iter()
+        .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
+    let eligible = |layer: &crate::DrawLayer| {
+        layer.masks.is_empty()
+            && layer.track_matte.is_none()
+            && !matte_sources.contains(&layer.id)
+            && layer.blend == motion_model::compositing::LayerBlend::default()
+            && layer.composite_visible
+            && !layer.adjustment
+            && !layer.composition
+            && (samples(layer).is_some() || shared_plane(renderer, scene, layer))
+    };
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
-        if samples(&scene.layers[start]).is_none() && !shared_plane(renderer, scene, &scene.layers[start])
-        {
+        if !eligible(&scene.layers[start]) {
             start += 1;
             continue;
         }
         let mut count = None;
         let mut end = start;
         while end < scene.layers.len() {
+            if !eligible(&scene.layers[end]) { break; }
             if let Some(current) = samples(&scene.layers[end]) {
                 if count.is_some_and(|count| count != current) {
                     break;
