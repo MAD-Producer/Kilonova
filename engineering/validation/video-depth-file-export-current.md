@@ -75,3 +75,28 @@ render artifacts. V6 imports those artifacts with per-file SHA-256 readback
 verification, ties them to the identical source map and successful media exit,
 and performs the final comparison checks. These controller corrections did not
 rerun or alter product assertions; their original records remain archived.
+
+## Main-aligned related acceptance
+
+Rebased onto main `9374ee4e` and reran all related checks on the resulting
+source. Gate v9 passed 238 distinct tests, zero failed or unexecuted;
+the inherited manual media test was explicitly executed. Desktop FFmpeg/AI
+depth, no-depth, style and provenance checks passed. This is related regression
+acceptance, not final full-workspace/cross-platform closure of #87.
+
+[Main-aligned evidence](data/video-depth-file-export-current-main.zip), SHA-256:
+`0096777da9a30ceeef25d7661b50367eccdb0e7f31e8ebc6886ff3b886be5dbd`
+
+All 156 entries were read back and verified. Before the successful gate, a shared Cargo
+target reused the older model library from the #82 worktree; v7 correctly failed
+with E0599 despite the method existing in source. Relevant workspace package
+outputs were cleaned and the successful gate rebuilt from the actual branch. Future #82 builds
+use a separate target directory. Product source and test assertions were unchanged
+for that cache correction.
+
+V8 then passed the host/video/session/job tests but the media harness failed to
+start with STATUS_DLL_NOT_FOUND before executing a test. Seven existing pinned
+FFmpeg DLLs were staged beside that harness, verified by SHA-256, and its startup
+listing succeeded. V9 imports only the four successful source-identical suites
+and reruns all media/output and remaining checks; runtime-staging.json records
+the exact runtime files. No source or product/test assertion changed for staging.
