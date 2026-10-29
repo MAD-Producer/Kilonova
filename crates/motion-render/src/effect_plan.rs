@@ -1385,8 +1385,8 @@ impl PlanBuilder {
                     reserve_scratch(
                         &mut sizes,
                         0,
-                        (next[2].max(region[2]) * scale).ceil() as u32,
-                        (next[3].max(region[3]) * scale).ceil() as u32,
+                        (next[2].max(region[2]) * scale).ceil().max(1.) as u32,
+                        (next[3].max(region[3]) * scale).ceil().max(1.) as u32,
                     );
                     reserve_scratch(
                         &mut sizes,
