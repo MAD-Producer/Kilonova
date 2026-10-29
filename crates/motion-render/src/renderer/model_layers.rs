@@ -2,7 +2,7 @@
 //! contiguous model runs share mesh depth; authored compositing boundaries
 //! retain the isolated receiver path and do not share depth with flat planes.
 mod shared;
-mod matte_sources;
+pub(super) mod matte_sources;
 mod cameras;
 use super::*;
 use crate::scene_gpu::{GpuScene, SceneFrame, SceneGpuLimits, SceneRenderStats, SceneRequest};
