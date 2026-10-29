@@ -544,3 +544,106 @@ fn spatial_matte_uses_edited_camera_and_letterboxed_native_pixels() {
         }
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn changing_video_matte_does_not_replace_a_pending_projected_source() {
+    let root = tempfile::tempdir().unwrap();
+    let mut p = project(root.path());
+    let mut video = video::video_project(root.path()).video_assets.remove(0);
+    video.id = 8;
+    video.width = 8;
+    video.display_width = 8;
+    p.video_assets.push(video);
+    let mut source = Layer::solid(
+        91,
+        "Changing video matte",
+        [64., 40.],
+        [48., 32., 0.],
+        [1.; 4],
+    );
+    source.visible = false;
+    source.content = Content::Video {
+        video: motion_core::VideoClip::new(8),
+    };
+    p.layers.push(source);
+    p.layers[0].track_matte = Some(TrackMatte {
+        source: 91,
+        mode: MatteMode::Luma,
+        hide_source: true,
+    });
+    p.validate().unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &p, root.path());
+    let near = DepthResource::new(field(1).descriptor().clone(), vec![1., 1.], None, None).unwrap();
+    let a = renderer.capture_target(96, 64).unwrap();
+    let b = renderer.capture_target(96, 64).unwrap();
+    let mut scenes = Vec::new();
+    for i in 0..2usize {
+        let mut scene = Scene::new(&p).unwrap();
+        scene
+            .sample(&p, (i * 30) as f64, None, &motion_core::ExpressionEvaluator)
+            .unwrap();
+        scene
+            .attach_calibrated_depth(1, &near.descriptor().source, &near, input())
+            .unwrap();
+        assert_eq!(scene.video_decode_layers().len(), 1);
+        assert_eq!(
+            scene.video_decode_layers()[0]
+                .video
+                .as_ref()
+                .unwrap()
+                .source_time_us,
+            i as u64 * 1_000_000
+        );
+        let colors: Vec<u8> = (0..8)
+            .flat_map(|x| {
+                if (x < 4) == (i == 0) {
+                    [0, 255, 0, 255]
+                } else {
+                    [0; 4]
+                }
+            })
+            .collect();
+        renderer
+            .upload_video_frame(91, 8, i as u64 * 1_000_000, 8, 1, &colors)
+            .unwrap();
+        let target = if i == 0 { &a } else { &b };
+        let pixels = renderer.capture(&scene, target).unwrap().0;
+        let blended = [srgb(0.7152), 0, srgb(1. - 0.7152), 255];
+        let (covered, uncovered) = if i == 0 { (36, 60) } else { (60, 36) };
+        assert!(
+            ray(&pixels, covered)
+                .iter()
+                .zip(blended)
+                .all(|(a, b)| a.abs_diff(b) <= 1),
+            "video matte frame={i}: {:?}",
+            ray(&pixels, covered)
+        );
+        assert_eq!(ray(&pixels, uncovered), &[0, 0, 255, 255]);
+        retain_fixture(&format!("changing-video-matte-{i}.png"), &pixels);
+        scenes.push((scene, colors, pixels));
+    }
+    renderer
+        .upload_video_frame(91, 8, 0, 8, 1, &scenes[0].1)
+        .unwrap();
+    let mut first = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&scenes[0].0, &a.view, 96, 64, &mut first, None)
+        .unwrap();
+    renderer
+        .upload_video_frame(91, 8, 1_000_000, 8, 1, &scenes[1].1)
+        .unwrap();
+    let mut last = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&scenes[1].0, &b.view, 96, 64, &mut last, None)
+        .unwrap();
+    renderer.submit_allocated(last.finish(), |_| {}).unwrap();
+    renderer.submit_allocated(first.finish(), |_| {}).unwrap();
+    assert_eq!(renderer.read_target(&a).unwrap(), scenes[0].2);
+    assert_eq!(renderer.read_target(&b).unwrap(), scenes[1].2);
+}

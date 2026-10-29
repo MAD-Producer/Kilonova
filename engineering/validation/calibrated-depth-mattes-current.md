@@ -61,7 +61,7 @@ acceptance, not final umbrella full-workspace/cross-platform acceptance.
 
 ## Remaining limits
 
-Visible-source stacking and changing-video matte input remain to verify.
+Visible-source stacking and real-codec matte playback remain to verify.
 Dedicated source-mask/chained-matte and spatial camera/letterbox controls are
 now accepted in the follow-up below. General calibrated-source mattes, calibrated image effects,
 nested/exposure depth, intersecting translucent ordering, DOF, long-duration
@@ -122,3 +122,21 @@ full-workspace/cross-platform acceptance remains pending.
 Receipt: `artifacts/pr-queue/calibrated-matte-context-v1/accepted.json`.
 Archive: `data/calibrated-matte-context-native-v1.zip`; every entry verified against its original.
 SHA-256: `984d1f16be95fcc13df83216e36895430036fe38edeab0ce891149cd6b6d2d66`.
+
+## Changing video matte ownership
+
+An independent ordinary video source supplies two explicitly uploaded RGBA
+samples at source PTS 0 and 1,000,000 us. Green/transparent halves exchange sides;
+the calibrated red receiver remains physically in front of the blue plane.
+Independent fixed rays require the expected linear-luminance mixture on the
+current green side and unchanged blue on the transparent side. Both exact source
+timestamps are asserted. Reuploading the second video sample after encoding the
+first and submitting in reverse must preserve both complete reference images.
+
+These are synthetic decoder-output samples, not a codec, latency or sustained
+playback test. The source-bound gate passes 145 distinct related tests plus the
+same desktop compile/style/provenance checks. Earlier 144 tests overlap; counts
+are not additive. Production sources are unchanged by this test.
+Receipt: `artifacts/pr-queue/calibrated-matte-video-v1/accepted.json`.
+Archive: `data/calibrated-matte-video-native-v1.zip`; CRC and every original byte verified.
+SHA-256: `05c7848fd6950489193664276c3fdead31e2cc1ab1e43d137aeb62fb733128c8`.
