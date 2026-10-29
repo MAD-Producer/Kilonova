@@ -922,12 +922,24 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                             assert!(controls.parameter_selected(&before, 7, effect, param));
                         }
                     }
-                    let origin = if panel == Panel::Properties {
-                        PaintList::default().styles().metric("tree.indent", 14.)
+                    // Effect rails now precede their stopwatch inside the
+                    // nested effect tree. Drive the real registered target,
+                    // rather than assuming the generic property-tree origin.
+                    let controls = if panel == Panel::Properties {
+                        &panels.properties.effects
                     } else {
-                        0.
+                        &panels.effect_controls
                     };
-                    let row = Rect::new(origin, value.min[1], 1000. - origin, value.height());
+                    let navigation = controls.test_rects[&(7, effect, param.into(), -9)];
+                    let styles = PaintList::default().styles();
+                    assert_eq!(navigation.width(), width(&styles));
+                    let origin = navigation.min[0] - styles.metric("padding.panel", 8.);
+                    let row = Rect::new(
+                        origin,
+                        navigation.min[1],
+                        1000. - origin,
+                        navigation.height(),
+                    );
                     assert_row_cancellation_and_readonly(
                         &mut panels,
                         &before,
@@ -936,6 +948,26 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                         floating,
                         &mut atlas,
                     );
+                    // Cancellation/read-only probes may release the contextual
+                    // selection. Select the caption again through the real
+                    // host before using its selected-row-only navigation.
+                    let point = [
+                        (caption.min[0] + caption.max[0]) * 0.5,
+                        (caption.min[1] + caption.max[1]) * 0.5,
+                    ];
+                    let selection = draw_host(
+                        &mut panels,
+                        &before,
+                        &Input {
+                            mouse: point,
+                            pressed: Some((MouseButton::Left, point)),
+                            ..Default::default()
+                        },
+                        panel,
+                        floating,
+                        &mut atlas,
+                    );
+                    assert_eq!(mutations(&selection), 0, "{selection:?}");
                     let actions = draw_host(
                         &mut panels,
                         &before,

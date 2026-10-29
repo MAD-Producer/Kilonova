@@ -296,9 +296,10 @@ pub(super) fn render(
         ..input.clone()
     };
     let input = &filtered;
-    if input.pressed.is_some() {
-        panels.properties.effects.clear_key_channel();
-    }
+    // Effect controls arbitrate selection after their contextual navigation
+    // has processed the click. Clearing here hides the selected row's rail
+    // before its buttons can receive input; other property intents are
+    // settled through property_focus after rendering.
     if area.contains(input.mouse) {
         panels.properties.properties_scroll += input.wheel[1];
     }
