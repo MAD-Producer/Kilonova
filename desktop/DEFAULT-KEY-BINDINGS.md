@@ -44,6 +44,7 @@
 | Application | NumpadDecimal | false | false | false | AudioPreview | false |
 | Animation | B | false | false | false | WorkAreaIn | false |
 | Animation | C | true | false | false | CopySelection | false |
+| Animation | E | false | false | false | ToggleEffectGroup | false |
 | Animation | V | true | false | false | PasteSelection | false |
 | Animation | V | true | true | false | PasteInPlace | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
@@ -76,6 +77,7 @@
 | Animation | F9 | false | false | false | EaseBoth | false |
 | Animation | F9 | false | true | false | EaseIncoming | false |
 | Animation | F9 | true | true | false | EaseOutgoing | false |
+| Animation | M | false | false | false | ToggleMaskGroup | false |
 | Animation | X | true | false | false | CutSelection | false |
 | Animation | Equal | false | false | false | ZoomIn | false |
 | Animation | Equal | false | true | false | ZoomIn | false |

@@ -1,0 +1,22 @@
+{
+  "base": "82633385658dcc616edacbcd557f0f477a6f57c1",
+  "archive_bytes": 1084166,
+  "archive_entries": 45,
+  "archive_sha256": "8f5571900a01a539f1a892670c59c78026b0c3cf544a44ab0b1a659bb9a0d0f2",
+  "regressions": {
+    "passed": 117,
+    "failed": 0,
+    "manual_ignored": 1
+  },
+  "final_targeted": {
+    "passed": 7,
+    "failed": 0,
+    "manual_ignored": 1
+  },
+  "manual_native": {
+    "passed": 1,
+    "failed": 0,
+    "captures": 16
+  },
+  "product_sha256": "d7c1b440792dae27f00b5f35edeb6a8365a33d01426bf86625d0c4b3e9c2a8fd"
+}
