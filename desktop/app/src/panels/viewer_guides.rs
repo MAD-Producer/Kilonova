@@ -622,7 +622,7 @@ impl Controls {
         let width = styles
             .metric("viewer.overlay.menu.width", 232.)
             .min(bounds.width());
-        let height = row * 11. + padding * 2.;
+        let height = row * 10. + padding * 2.;
         let x = menu.point[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0]));
         let top = (bounds.min[1]
             + if self.window.is_some() {
@@ -775,26 +775,28 @@ impl Controls {
                 shortcut_hint
             )
         };
+        let channel_width = styles.metric("viewer.overlay.button.width", 64.);
+        let channel_gap = styles.metric("viewer.controls.gap", 4.);
         label(
             list,
             atlas,
             Rect::new(
                 x + padding,
                 y + padding + row * 9.,
-                width - padding * 2.,
+                (width - padding * 2. - channel_width - channel_gap).max(0.),
                 row,
             ),
             &hint,
             false,
         );
-        let labels = if zh { ["彩色", "红色通道", "绿色通道", "蓝色通道", "Alpha 通道"] }
-            else { ["Color", "Red channel", "Green channel", "Blue channel", "Alpha channel"] };
+        let labels = if zh { ["彩色", "红", "绿", "蓝", "Alpha"] }
+            else { ["Color", "Red", "Green", "Blue", "Alpha"] };
         let items: Vec<_> = labels.iter().map(|label| motion_ui::widgets::DropdownItem { label, enabled: true }).collect();
         let channel_index = usize::from(self.window.is_some());
         let channels = [motion_render::ViewChannel::Color, motion_render::ViewChannel::Red,
             motion_render::ViewChannel::Green, motion_render::ViewChannel::Blue, motion_render::ViewChannel::Alpha];
         let selected = channels.iter().position(|channel| *channel == self.channels[channel_index]).unwrap_or(0);
-        let channel_rect = Rect::new(x + padding, y + padding + row * 10., width - padding * 2., row);
+        let channel_rect = Rect::new(x + width - padding - channel_width, y + padding + row * 9., channel_width, row);
         if let Some(index) = self.channel_dropdown.draw(list, atlas, channel_rect, card, &items, selected, events, true, false) {
             if let Some(channel) = channels.get(index) { self.channels[channel_index] = *channel; }
         }

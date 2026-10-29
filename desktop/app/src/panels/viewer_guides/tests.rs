@@ -567,6 +567,9 @@ fn channel_dropdown_selects_explicitly_and_keeps_window_state_independent() {
             let styles = PaintList::default().styles();
             let row = styles.metric("row.height", 22.);
             let padding = styles.metric("padding.panel", 8.);
+            let width = styles.metric("viewer.overlay.menu.width", 232.);
+            let channel_width = styles.metric("viewer.overlay.button.width", 64.);
+            let channel_x = 100. + width - padding - channel_width + 5.;
             let anchor_y = 400. - padding - row;
             controls.prepare(window, &state, &Input::default());
             controls.open([100., 400.], &state);
@@ -577,10 +580,10 @@ fn channel_dropdown_selects_explicitly_and_keeps_window_state_independent() {
                     input, locale, false, "", &mut actions);
             };
             draw_menu(&mut controls, &Input::default());
-            draw_menu(&mut controls, &press([100. + padding + 5., anchor_y + row * 0.5]));
+            draw_menu(&mut controls, &press([channel_x, anchor_y + row * 0.5]));
             assert!(controls.channel_dropdown.open);
             // The five-item dropdown opens above its anchor; its last row is Alpha.
-            draw_menu(&mut controls, &press([100. + padding + 5., anchor_y - row * 0.5]));
+            draw_menu(&mut controls, &press([channel_x, anchor_y - row * 0.5]));
             assert_eq!(controls.channel(window.is_some()), motion_render::ViewChannel::Alpha);
             assert_eq!(controls.channel(window.is_none()), motion_render::ViewChannel::Color);
             assert!(!controls.channel_dropdown.open);
