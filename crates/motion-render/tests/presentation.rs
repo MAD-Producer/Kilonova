@@ -4,6 +4,68 @@ use motion_render::{Presenter, Renderer};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged() {
+    use motion_render::ViewChannel;
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("raw channel fixture"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let original = [64, 128, 192, 32].repeat(64 * 64);
+    r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &source, mip_level: 0,
+        origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &original,
+        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+        wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+    let source_view = source.create_view(&Default::default());
+    for format in [wgpu::TextureFormat::Rgba8Unorm, wgpu::TextureFormat::Rgba8UnormSrgb,
+        wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Bgra8UnormSrgb] {
+        let output = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("raw channel surface"),
+            size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = output.create_view(&Default::default());
+        let mut presenter = Presenter::new(&r, &source_view, format);
+        let mut color = None;
+        for channel in [ViewChannel::Color, ViewChannel::Red, ViewChannel::Green,
+            ViewChannel::Blue, ViewChannel::Alpha, ViewChannel::Color] {
+            presenter.set_view_channel(&r.queue, channel).unwrap();
+            for image in [None, Some([0., 0., 64., 64.])] {
+                let mut encoder = r.device.create_command_encoder(&Default::default());
+                presenter.encode_view(&r.queue, &mut encoder, &view, None, [0., 0., 64., 64.], image, [0.; 4]).unwrap();
+                r.submit_tracked(encoder.finish(), |_| {});
+                let pixels = presentation_bytes(&r, &output);
+                if channel == ViewChannel::Color {
+                    if let Some(expected) = &color { assert_eq!(&pixels, expected, "color did not recover {format:?}"); }
+                    else { color = Some(pixels); }
+                } else {
+                    let intensity = match channel { ViewChannel::Red => 64, ViewChannel::Green => 128,
+                        ViewChannel::Blue => 192, ViewChannel::Alpha => 32, ViewChannel::Color => unreachable!() };
+                    for pixel in pixels.chunks_exact(4) {
+                        assert_eq!(pixel[3], 255);
+                        assert!(pixel[..3].iter().all(|v| v.abs_diff(intensity) <= 1), "raw {channel:?} {format:?}: {pixel:?}");
+                    }
+                    // View inspection must never affect ordinary color encoding.
+                    let mut encoder = r.device.create_command_encoder(&Default::default());
+                    presenter.encode(&mut encoder, &view, None, None, [0.; 4]);
+                    r.submit_tracked(encoder.finish(), |_| {});
+                    assert_eq!(presentation_bytes(&r, &output), *color.as_ref().unwrap());
+                }
+            }
+        }
+        r.check_health().unwrap();
+    }
+    assert_eq!(presentation_bytes(&r, &source), original, "inspection mutated source pixels");
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
     let r = pollster::block_on(Renderer::headless()).unwrap();
     let texture = r.device.create_texture(&wgpu::TextureDescriptor {

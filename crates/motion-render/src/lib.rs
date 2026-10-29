@@ -73,7 +73,7 @@ pub use video_pixels::{rgb_video_to_rgba, ChromaLayout, VideoPlane, VideoRgbForm
 pub use video_gpu::EncodedVideoUpload;
 pub use measurement::{FrameMeasurement, FrameRecorder, FrameResources};
 pub use memory::TextureMemoryBreakdown;
-pub use presenter::Presenter;
+pub use presenter::{Presenter, ViewChannel};
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
 pub use renderer::premultiply_pixels;
 pub use renderer::ModelSourceCatalog;

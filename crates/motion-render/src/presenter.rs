@@ -3,6 +3,19 @@ mod memory;
 #[cfg(test)]
 mod admission_tests;
 
+/// Inspect a stored composition channel as opaque grayscale in the viewer.
+/// This is presentation state; it does not change the source or exported color.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ViewChannel {
+    #[default]
+    Color = 0,
+    Red = 1,
+    Green = 2,
+    Blue = 3,
+    Alpha = 4,
+}
+
 /// GPU-only final presentation keeps the compositor in a predictable sRGB target
 /// even when an Android swapchain exposes a linear UNORM pixel format.
 pub struct Presenter {
@@ -14,6 +27,7 @@ pub struct Presenter {
     sampler: wgpu::Sampler,
     buffer: memory::Buffer,
     view_buffer: memory::Buffer,
+    view_channel: ViewChannel,
     // Retire GPU bindings before releasing their source reservation.
     source_allocation: Option<crate::allocation_budget::AllocationLease>,
 }
@@ -139,6 +153,7 @@ impl Presenter {
             buffer,
             view_buffer,
             view_group,
+            view_channel: ViewChannel::Color,
         }
     }
     /// Rebind a preview buffer without rebuilding the presentation pipeline.
@@ -146,6 +161,16 @@ impl Presenter {
         self.group = Self::source_group(device, &self.layout, &self.sampler, &self.buffer, source);
         self.view_group = Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source);
         self.source_allocation = None;
+    }
+    /// Select a raw stored channel for `encode_view`. The ordinary `encode` /
+    /// `draw` paths keep their color output, including their original alpha.
+    /// Single-channel intensity is a display value, so alpha is not gamma-encoded.
+    pub fn set_view_channel(&mut self, queue: &wgpu::Queue, channel: ViewChannel) -> Result<(), crate::RenderError> {
+        if self.view_channel != channel {
+            self.view_buffer.write(queue, 4, bytemuck::bytes_of(&(channel as u32)))?;
+            self.view_channel = channel;
+        }
+        Ok(())
     }
     fn source_group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, buffer: &wgpu::Buffer, source: &wgpu::TextureView) -> wgpu::BindGroup {
@@ -167,6 +192,9 @@ impl Presenter {
             let [x, y, w, h] = viewport;
             let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
             self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+            self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
+        } else if self.view_channel != ViewChannel::Color {
+            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&[0.0f32, 0., 1., 1.]))?;
             self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
         } else {
             self.encode(encoder, output, timestamps, Some(viewport), background);
