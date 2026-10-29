@@ -1,6 +1,6 @@
 # Native prerender producer checkpoint (#82)
 
-Status: implementation authored; compilation and actual controls are pending.
+Status: producer accepted at `d2dcc698515243eca8fed4c36177020c57715b15`; complete #82 runtime remains pending.
 This document does not establish the complete background-prerender capability.
 Android is retired and excluded from this desktop checkpoint.
 
@@ -49,7 +49,7 @@ replacing a primary render failure. GPU allocation is admitted through the live
 shared budget. The explicit CPU frame limit is checked before GPU initialization
 and completion. This producer retains no completed-frame collection.
 
-## Controls to execute
+## Executed controls
 
 - Actual frozen-source key changes and independence from later original deletion,
   queue scope and revision; fractional keys and invalid-frame refusal
@@ -63,8 +63,14 @@ and completion. This producer retains no completed-frame collection.
 - Explicit manual all-four-precision native HDR/negative/alpha pixel checks,
   both ordinary composition and authored exposure, without SDR conversion
 
-None of these authored controls is counted as passing until the source-bound
-controller records successful execution. No existing assertion was changed.
+The complete motion-desktop-media regression passed **78
+tests, zero failures, two manual exclusions** with ffmpeg and ai-depth enabled.
+Six focused controls overlap that run. The all-four-precision/exposure control
+additionally ran explicitly: one passed, zero failed, zero ignored. Desktop
+checking with ffmpeg/host ai-depth and provenance passed. Source remained
+unchanged throughout the accepted run. The existing manual keyframe-timing
+output proof was not rerun at this source and remains excluded. No pre-existing
+assertion was changed.
 The first source-bound execution retained five successful focused controls and
 one failure in the newly authored moving-image control: its expected storage
 was incorrectly Rgba8Unorm. The implementation returned Rgba8UnormSrgb, matching
@@ -98,3 +104,11 @@ Complete #82 acceptance also needs real foreground cache hits, invalidation on
 edits/source/device changes, pressure behavior and measured playback/seek P95.
 Optional disposable disk storage remains absent. The public background-prerender
 capability stays disabled until that complete runtime is implemented and verified.
+
+## Source-bound evidence
+
+The verified archive `data/native-prerender-producer-v1.zip` contains actual stdout/stderr,
+commands, source hashes, final receipts and both newly authored oracle failures.
+SHA-256: `dcc5142a98d513f99cbe0702097174964b74ca8de0b2a60b21f4d82e561558ca`; 812118 bytes; 39 entries.
+Every entry was read back and hash-checked. This is native producer/cache
+evidence, not a new full-workspace or cross-platform runtime acceptance.
