@@ -37,7 +37,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // Effects/receivers still consume independent layer images. Do not replace
     // their source with a combined raster or silently cross those boundaries.
     if scene.layers.len() > MAX_LAYERS
-        || !scene.effects.is_empty()
+        || scene.effects.iter().any(|effect| effect.scene.is_some())
         || !scene.nested.is_empty()
         || scene.layers.iter().any(|layer| layer.adjustment || layer.composition)
     {
@@ -46,12 +46,21 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // A receiver outside a spatial run must not disable that run's depth.
     // Keep both matte consumers and their sources isolated, including visible
     // sources: another layer still needs their original independent raster.
-    let matte_sources: std::collections::HashSet<_> = scene.layers.iter()
+    let mut independent_sources: std::collections::HashSet<_> = scene.layers.iter()
         .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
+    // Image effects still need their owner's independent raster and the exact
+    // source/effects-stage image of every explicit input. Never substitute the
+    // combined spatial raster for either dependency.
+    for effect in &scene.effects {
+        independent_sources.insert(effect.layer);
+        if let Some(source) = effect.image_input.and_then(motion_model::EffectImageInput::layer) {
+            independent_sources.insert(source);
+        }
+    }
     let eligible = |layer: &crate::DrawLayer| {
         layer.masks.is_empty()
             && layer.track_matte.is_none()
-            && !matte_sources.contains(&layer.id)
+            && !independent_sources.contains(&layer.id)
             && layer.blend == motion_model::compositing::LayerBlend::default()
             && layer.composite_visible
             && !layer.adjustment

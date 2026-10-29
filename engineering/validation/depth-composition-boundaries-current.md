@@ -1,6 +1,6 @@
 # Independent 2D receivers beside calibrated spatial geometry (#87)
 
-Status: local actual-GPU acceptance passed, 88 distinct tests, zero failures
+Status: local actual-GPU acceptance passed, 107 distinct tests, zero failures
 or ignores. Main alignment and exact-head maintained-desktop CI remain separate.
 
 The shared-geometry selector previously rejected every spatial run when any
@@ -10,7 +10,7 @@ Masks, matte dependencies and hidden outputs now form local run boundaries.
 Matte consumers and every referenced source remain isolated, including visible
 3D sources: a receiver still needs its source's independent raster.
 
-Effects, adjustments and nested compositions retain their
+Scene effects, adjustments and nested compositions retain their
 conservative Scene-wide exclusions. Applying a mask or matte to calibrated
 geometry itself, or consuming it as a matte source, retains the contextual
 unsupported error and the previously completed front image. This does not
@@ -56,7 +56,7 @@ pending. This increment does not close either issue.
 
 An unrelated non-normal 2D blend is now also a local boundary. The blended
 receiver stays independent and preserves its authored position around the
-spatial raster. Effects, adjustments and nested scenes remain conservative
+spatial raster. Scene effects, adjustments and nested scenes remain conservative
 Scene-wide exclusions; non-normal blending on calibrated geometry itself is
 still explicitly unsupported and preserves the completed front on failure.
 
@@ -82,3 +82,42 @@ SHA-256 `a88db96b375b0b45ca4fc613690f8f3d283f21601d6a1fa6a629b1252e3c1d8d`. All 
 The source-bound evidence does not replace main alignment or cross-platform CI.
 The remaining issue scope and exclusions above still apply, except that
 unrelated non-normal receivers no longer disable the entire depth scene.
+
+## Subsequent image-effect ownership and input boundary
+
+Ordinary image-effect owners and every explicit layer image-input source now
+remain independent rasters. Their presence no longer disables an unrelated
+calibrated spatial run. Scene effects, adjustments and nested compositions
+retain conservative global exclusions. Effects directly on calibrated geometry,
+and consuming calibrated geometry as an external image source, remain explicit
+errors and preserve the completed front. This does not flatten those semantics.
+
+Three new actual-GPU tests cover green Fill pixels beside depth geometry;
+Source/Effects input stages with visible/hidden and flat/spatial sources; and
+both calibrated-owner/input rejection paths. A known blue displacement map
+shifts input coordinates four pixels left. An independently known uncovered
+left-edge pixel proves consumption of that source, while the receiver interior
+remains green and every pixel outside its bounds matches the native depth
+baseline. The manifest declares unchanged input output-bounds and zero padding;
+the receiver must not expand. All source visibility and stage combinations run.
+
+The first fixture incorrectly used Invert, whose declared contract rejects an
+external image input. The second incorrectly expected displacement to expand
+zero-padding bounds. Both failures and exact inputs are retained. Final fixtures
+use the supported Displacement Map contract, require the uncovered edge, and
+retain an explicit transparent outside-bounds guard. Existing repository tests,
+assertions, budgets and timeouts are unchanged. The final old-selector control
+passes its rejection guard and fails both functional cases (1 passed, 2 failed);
+the desired selector passes all three. Native fixture pixels were inspected.
+
+Fresh related regression passes 105 distinct tests and a
+separate compositor gate passes 2. Latest local
+acceptance is 107 distinct tests, zero failures or ignores. It includes the
+ordinary effect and spatial-effect suites in addition to the earlier targets.
+Panel-style and provenance checks pass against unchanged product source bytes.
+
+[Original failed references, parent control, final native pixels and logs](data/depth-composition-effects-native-v1.zip),
+SHA-256 `0de07aa5f8402019221d1a62a415786d92009d4b31befd90fd39166c24b28020`; all 75 archive entries read back and verified.
+This supersedes the earlier local totals without adding overlapping runs.
+Main alignment, cross-platform CI and the remaining issue scope are separate;
+this does not complete calibrated effects, nesting, exposure, DOF or #87/#82.
