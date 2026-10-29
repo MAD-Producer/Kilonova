@@ -120,6 +120,7 @@ impl Renderer {
         }).transpose()?;
         let plane = ScenePlane {
             object: source,
+            working_material: material.is_some(),
             world: layer.model,
             size: layer.size,
             color: material.map_or([layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity], DepthMaterial::color),

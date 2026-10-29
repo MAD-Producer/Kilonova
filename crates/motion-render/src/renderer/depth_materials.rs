@@ -18,6 +18,39 @@ impl DepthMaterial {
     }
 }
 
+// Only image-backed planar sources exclusively read by calibrated receivers
+// enter this path. Other ordinary consumers still need their independent image
+// bindings; do not remove their source from the authored scene prematurely.
+fn ordinary_material_source(scene: &Scene, layer: &crate::DrawLayer) -> bool {
+    if !layer.three_d
+        || !layer.composite_visible
+        || layer.asset.is_none()
+        || layer.model_source.is_some()
+        || layer.vector.is_some()
+        || layer.screen_overlay
+        || !layer.sampling.is_default()
+        || layer.track_matte.is_some()
+        || layer.blend != Default::default()
+        || scene.effects.iter().any(|e| {
+            e.image_input
+                .and_then(motion_model::EffectImageInput::layer)
+                == Some(layer.id)
+        })
+    {
+        return false;
+    }
+    let mut consumed = false;
+    for receiver in &scene.layers {
+        if receiver.track_matte.is_some_and(|m| m.source == layer.id) {
+            if scene.depth_surface(receiver.id).is_none() {
+                return false;
+            }
+            consumed = true;
+        }
+    }
+    consumed
+}
+
 impl Renderer {
     pub(super) fn prepare_depth_materials(
         &mut self,
@@ -25,18 +58,31 @@ impl Renderer {
         width: u32,
         height: u32,
     ) -> Result<(HashMap<u64, DepthMaterial>, RenderStats)> {
+        // Ordinary-only scenes retain their existing BSP/effects path.
+        if scene.calibrated_depth_layers().next().is_none() {
+            return Ok((HashMap::new(), RenderStats::default()));
+        }
         let mut specs = Vec::new();
-        for (object, calibration) in scene.calibrated_depth_layers() {
-            if !scene
-                .effects
-                .iter()
-                .any(|e| e.layer == object && crate::scene::effect_has_output(e))
+        for layer in &scene.layers {
+            let object = layer.id;
+            let ordinary = ordinary_material_source(scene, layer);
+            if scene.depth_surface(object).is_none() && !ordinary {
+                continue;
+            }
+            if !(ordinary && !layer.masks.is_empty())
+                && !scene
+                    .effects
+                    .iter()
+                    .any(|e| e.layer == object && crate::scene::effect_has_output(e))
             {
                 continue;
             }
             let context = format!(
                 "depth surface object={object} source={} phase=material",
-                calibration.asset()
+                layer
+                    .asset
+                    .or_else(|| layer.video.as_ref().map(|v| v.asset))
+                    .unwrap_or(0)
             );
             let alpha = self.effect_gpu.builder.depth_material_alpha(scene, object)
                 .map_err(|e| { let message = format!("{context}: {e}"); e.with_diagnostic(message) })?
