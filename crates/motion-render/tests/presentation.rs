@@ -4,6 +4,63 @@ use motion_render::{Presenter, Renderer};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_comparison_and_region_clear_previous_pixels() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = |pixel: [u8; 4]| {
+        let texture = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("viewer comparison fixture"),
+            size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0,
+            origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &pixel.repeat(64*64),
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+            wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+        texture
+    };
+    let live = source([255, 0, 0, 255]);
+    let captured = source([0, 0, 255, 255]);
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("viewer comparison output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let target = output.create_view(&Default::default());
+    let a = Presenter::new(&r, &live.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let b = Presenter::new(&r, &captured.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let render = |region, comparison| {
+        let mut encoder = r.device.create_command_encoder(&Default::default());
+        a.encode_inspection_view(&r.queue, &mut encoder, &target, [0., 0., 64., 64.], None,
+            [0., 0., 0., 1.], region, comparison).unwrap();
+        r.submit_tracked(encoder.finish(), |_| {});
+        presentation_bytes(&r, &output)
+    };
+    let pixel = |data: &[u8], x: usize, y: usize| -> [u8; 4] {
+        data[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap()
+    };
+    let first = render(Some([0.25, 0.25, 0.5, 0.5]), Some((&b, 0.5)));
+    assert_eq!(pixel(&first, 8, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&first, 24, 32), [255, 0, 0, 255]);
+    assert_eq!(pixel(&first, 40, 32), [0, 0, 255, 255]);
+    let second = render(Some([0., 0., 0.25, 0.25]), None);
+    assert_eq!(pixel(&second, 8, 8), [255, 0, 0, 255]);
+    assert_eq!(pixel(&second, 24, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&second, 40, 32), [0, 0, 0, 255]);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    assert!(a.encode_inspection_view(&r.queue, &mut encoder, &target, [0., 0., 64., 64.], None,
+        [0., 0., 0., 1.], Some([0.9, 0., 0.2, 1.]), None).is_err());
+    assert_eq!(presentation_bytes(&r, &output), second);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
     use motion_render::{ResourceBudgetScope, ResourceRejection};
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
