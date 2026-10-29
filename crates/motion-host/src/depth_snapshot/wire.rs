@@ -2,7 +2,7 @@
 use super::*;
 use std::io::{Read, Write};
 
-const MAGIC: &[u8; 8] = b"MSDPTH2\0";
+const MAGIC: &[u8; 8] = b"MSDPTH3\0";
 const MAX_METADATA: usize = 8 << 20;
 #[cfg(feature = "ai-depth")]
 const CHUNK: usize = 64 << 10;
@@ -72,11 +72,11 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 struct Metadata {
     composition: String,
-    #[serde(deserialize_with = "bounded")]
+    #[serde(deserialize_with = "bounded_entries")]
     entries: Vec<Layer>,
-    #[serde(deserialize_with = "bounded")]
+    #[serde(deserialize_with = "bounded_videos")]
     videos: Vec<VideoLayer>,
-    #[serde(deserialize_with = "bounded")]
+    #[serde(deserialize_with = "bounded_resources")]
     resources: Vec<Resource>,
 }
 #[cfg(feature = "ai-depth")]
@@ -116,11 +116,11 @@ struct Resource {
 }
 
 #[cfg(feature = "ai-depth")]
-fn bounded<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+fn bounded<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>, const LIMIT: usize>(
     d: D,
 ) -> std::result::Result<Vec<T>, D::Error> {
-    struct Visitor<T>(std::marker::PhantomData<T>);
-    impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for Visitor<T> {
+    struct Visitor<T, const LIMIT: usize>(std::marker::PhantomData<T>);
+    impl<'de, T: Deserialize<'de>, const LIMIT: usize> serde::de::Visitor<'de> for Visitor<T, LIMIT> {
         type Value = Vec<T>;
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             f.write_str("bounded depth snapshot array")
@@ -131,7 +131,7 @@ fn bounded<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
         ) -> std::result::Result<Self::Value, A::Error> {
             let mut values = Vec::new();
             while let Some(value) = seq.next_element()? {
-                if values.len() >= motion_model::MAX_LAYERS {
+                if values.len() >= LIMIT {
                     return Err(serde::de::Error::custom("frozen depth count exceeds limit"));
                 }
                 values.push(value);
@@ -139,7 +139,26 @@ fn bounded<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
             Ok(values)
         }
     }
-    d.deserialize_seq(Visitor(std::marker::PhantomData))
+    d.deserialize_seq(Visitor::<T, LIMIT>(std::marker::PhantomData))
+}
+
+#[cfg(feature = "ai-depth")]
+fn bounded_entries<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> std::result::Result<Vec<T>, D::Error> {
+    bounded::<D, T, { motion_model::MAX_LAYERS }>(d)
+}
+#[cfg(feature = "ai-depth")]
+fn bounded_videos<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> std::result::Result<Vec<T>, D::Error> {
+    bounded::<D, T, { motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES }>(d)
+}
+#[cfg(feature = "ai-depth")]
+fn bounded_resources<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> std::result::Result<Vec<T>, D::Error> {
+    bounded::<D, T, { motion_model::MAX_LAYERS + motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES }>(d)
 }
 
 #[cfg(feature = "ai-depth")]
@@ -148,14 +167,13 @@ fn write_snapshot(
     writer: &mut dyn Write,
     check: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let mut resources: Vec<&Estimate> = Vec::new();
+    let mut resources: Vec<Owned> = Vec::new();
     let mut layers = Vec::new();
     for entry in &snapshot.entries {
-        let index = resources
-            .iter()
-            .position(|r| r.resource.cache_identity() == entry.estimate.resource.cache_identity());
+        let plane = Owned::Memory(entry.estimate.clone());
+        let index = resources.iter().position(|r| r.same(&plane));
         let resource = index.unwrap_or_else(|| {
-            resources.push(&entry.estimate);
+            resources.push(plane);
             resources.len() - 1
         });
         layers.push(Layer {
@@ -173,9 +191,9 @@ fn write_snapshot(
     for entry in &snapshot.videos {
         let resource = resources
             .iter()
-            .position(|r| r.resource.cache_identity() == entry.estimate.resource.cache_identity())
+            .position(|r| r.same(&entry.estimate))
             .unwrap_or_else(|| {
-                resources.push(&entry.estimate);
+                resources.push(entry.estimate.clone());
                 resources.len() - 1
             });
         videos.push(VideoLayer {
@@ -196,10 +214,10 @@ fn write_snapshot(
         resources: resources
             .iter()
             .map(|e| Resource {
-                descriptor: e.resource.descriptor().clone(),
-                provider: e.provider.clone(),
-                validity: e.resource.validity().is_some(),
-                confidence: e.resource.confidence().is_some(),
+                descriptor: e.descriptor().clone(),
+                provider: e.provider().into(),
+                validity: e.flags().0,
+                confidence: e.flags().1,
             })
             .collect(),
     };
@@ -228,7 +246,18 @@ fn write_snapshot(
         check()?;
         writer.write_all(chunk)?;
     }
-    for estimate in resources {
+    for (index, plane) in resources.into_iter().enumerate() {
+        check()?;
+        if let Owned::File(plane) = plane {
+            log::info!("start frozen_depth operation=write_snapshot resource={} source_id={} pts={:?} phase=archive_read",
+                index, plane.descriptor.source.asset, plane.descriptor.source.pts);
+            log::logger().flush();
+            plane.write_to(writer, check)?;
+            continue;
+        }
+        let Owned::Memory(estimate) = plane else {
+            return Err("invalid frozen memory resource".into());
+        };
         floats_out(writer, estimate.resource.values(), check)?;
         if let Some(mask) = estimate.resource.validity() {
             for chunk in mask.chunks(CHUNK) {
@@ -259,37 +288,21 @@ fn read_snapshot(
         .map_err(|e| crate::Error::with_context("deserialize frozen depth metadata", e))?;
     let count = metadata.entries.len() + metadata.videos.len();
     if count == 0
-        || count > motion_model::MAX_LAYERS
+        || metadata.entries.len() > motion_model::MAX_LAYERS
+        || metadata.videos.len() > motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES
         || metadata.resources.is_empty()
         || metadata.resources.len() > count
     {
         return Err("invalid frozen depth resource count".into());
     }
-    let mut total = 0usize;
-    for resource in &metadata.resources {
-        let pixels = resource.descriptor.validate()?;
-        let bytes = pixels
-            .checked_mul(4 + usize::from(resource.validity) + 4 * usize::from(resource.confidence))
-            .ok_or("frozen depth plane size overflow")?;
-        total = total
-            .checked_add(bytes)
-            .ok_or("frozen depth plane total overflow")?;
-        if total > MAX_DEPTH_RESOURCE_BYTES {
-            return Err("frozen depth retained planes exceed 192 MiB".into());
-        }
-        if resource.provider.is_empty()
-            || resource.provider.len() > 256
-            || resource.provider.chars().any(char::is_control)
-        {
-            return Err("invalid bounded frozen depth provider".into());
-        }
-    }
-    // Validate resource indices and forbid unreachable planes before allocation.
+    // Validate indices and classify resident resources before any plane allocation.
     let mut used = vec![false; metadata.resources.len()];
+    let mut resident = vec![false; metadata.resources.len()];
     for layer in &metadata.entries {
         *used
             .get_mut(layer.resource)
             .ok_or("invalid frozen depth resource index")? = true;
+        resident[layer.resource] = true;
     }
     for layer in &metadata.videos {
         *used
@@ -299,8 +312,40 @@ fn read_snapshot(
     if used.contains(&false) {
         return Err("unreferenced frozen depth resource".into());
     }
+    let mut memory = 0u64;
+    let mut disk = 0u64;
+    for (index, resource) in metadata.resources.iter().enumerate() {
+        let pixels = resource.descriptor.validate()?;
+        let bytes = pixels
+            .checked_mul(4 + usize::from(resource.validity) + 4 * usize::from(resource.confidence))
+            .ok_or("frozen depth plane size overflow")?;
+        if bytes > MAX_DEPTH_RESOURCE_BYTES {
+            return Err("frozen depth plane exceeds 192 MiB".into());
+        }
+        let total = if resident[index] {
+            &mut memory
+        } else {
+            &mut disk
+        };
+        *total = total
+            .checked_add(bytes as u64)
+            .ok_or("frozen depth plane total overflow")?;
+        if memory > MAX_DEPTH_RESOURCE_BYTES as u64 {
+            return Err("frozen depth retained planes exceed 192 MiB".into());
+        }
+        if disk > crate::depth::storage::MAX_STORED_BYTES {
+            return Err("frozen depth file planes exceed 2 GiB".into());
+        }
+        if resource.provider.is_empty()
+            || resource.provider.len() > 256
+            || resource.provider.chars().any(char::is_control)
+        {
+            return Err("invalid bounded frozen depth provider".into());
+        }
+    }
     let mut resources = Vec::new();
-    for resource in metadata.resources {
+    let mut spool = crate::depth::storage::Spool::default();
+    for (index, resource) in metadata.resources.into_iter().enumerate() {
         let pixels = resource.descriptor.validate()?;
         let values = floats_in(reader, pixels, check)?;
         let validity = if resource.validity {
@@ -318,11 +363,19 @@ fn read_snapshot(
         } else {
             None
         };
-        resources.push(Arc::new(Estimate {
+        let estimate = Arc::new(Estimate {
             resource: DepthResource::new(resource.descriptor, values, validity, confidence)?,
             provider: resource.provider,
             costs: crate::depth::Costs::default(),
-        }));
+        });
+        if resident[index] {
+            resources.push(Owned::Memory(estimate));
+        } else {
+            log::info!("start frozen_depth operation=read_snapshot resource={} source_id={} pts={:?} phase=archive_write",
+                index, estimate.resource.descriptor().source.asset, estimate.resource.descriptor().source.pts);
+            log::logger().flush();
+            resources.push(Owned::File(spool.append_for_export(&estimate, check)?));
+        }
     }
     end(reader, check)?;
     let snapshot = DepthSnapshot {
@@ -330,17 +383,24 @@ fn read_snapshot(
         entries: metadata
             .entries
             .into_iter()
-            .map(|e| Entry {
-                object: e.object,
-                asset: e.asset,
-                key: e.key,
-                input: e.input,
-                calibration: e.calibration,
-                estimate: resources[e.resource].clone(),
-                request: e.request,
-                decoded_budget: e.decoded_budget,
+            .map(|e| {
+                let Owned::Memory(estimate) = &resources[e.resource] else {
+                    return Err(crate::Error::from(
+                        "frozen static resource was not retained",
+                    ));
+                };
+                Ok(Entry {
+                    object: e.object,
+                    asset: e.asset,
+                    key: e.key,
+                    input: e.input,
+                    calibration: e.calibration,
+                    estimate: estimate.clone(),
+                    request: e.request,
+                    decoded_budget: e.decoded_budget,
+                })
             })
-            .collect(),
+            .collect::<Result<Vec<_>>>()?,
         videos: metadata
             .videos
             .into_iter()
@@ -551,9 +611,8 @@ mod tests {
         assert_eq!(bytes, repeated);
     }
 
-    #[test]
     #[cfg(feature = "ai-depth")]
-    fn temporal_wire_rejects_duplicate_intervals_bad_indices_and_mixed_object_ownership() {
+    fn temporal_fixture() -> (DepthSnapshot, Entry) {
         use motion_model::depth::*;
         let mut snapshot = fixture();
         let old = snapshot.entries.remove(0);
@@ -610,14 +669,21 @@ mod tests {
             },
             input: old.input,
             sample: VideoDepthSample::new(calibration, 33_333).unwrap(),
-            estimate: Arc::new(Estimate {
+            estimate: Owned::Memory(Arc::new(Estimate {
                 resource,
                 provider: "owned-wire-test".into(),
                 costs: Default::default(),
-            }),
+            })),
             request: 42,
             decoded_budget: 1 << 20,
         });
+        (snapshot, old)
+    }
+
+    #[test]
+    #[cfg(feature = "ai-depth")]
+    fn temporal_wire_rejects_duplicate_intervals_bad_indices_and_mixed_object_ownership() {
+        let (mut snapshot, old) = temporal_fixture();
         let mut bytes = Vec::new();
         snapshot.write_to(&mut bytes, &|| Ok(())).unwrap();
         let restored = DepthSnapshot::read_from(&mut &bytes[..], &|| Ok(())).unwrap();
@@ -661,6 +727,119 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("video depth source metadata"));
+    }
+
+    #[test]
+    #[cfg(feature = "ai-depth")]
+    fn temporal_wire_restores_150_planes_as_files_and_streams_identical_bytes() {
+        use motion_model::depth::*;
+        let (mut snapshot, _) = temporal_fixture();
+        let mut base = snapshot.videos.pop().unwrap();
+        base.asset.frame_count = 150;
+        base.asset.video_end_us = 5_000_000;
+        base.asset.duration_us = 5_000_000;
+        for i in 0..150 {
+            let mut descriptor = base.estimate.descriptor().clone();
+            descriptor.source.pts.ticks = i * 33_333;
+            let resource =
+                DepthResource::new(descriptor.clone(), vec![10., 30., 90., 50.], None, None)
+                    .unwrap();
+            let calibration = SavedDepthCalibration::new(
+                &resource,
+                base.input,
+                [
+                    DepthAnchor {
+                        value: 10.,
+                        camera_z_meters: 8.,
+                    },
+                    DepthAnchor {
+                        value: 90.,
+                        camera_z_meters: 4.,
+                    },
+                ],
+                CalibrationCurve::CameraZ,
+                CalibrationExtrapolation::Reject,
+                20.,
+            )
+            .unwrap();
+            let mut entry = base.clone();
+            entry.key.source = descriptor.source;
+            entry.sample = VideoDepthSample::new(calibration, ((i + 1) * 33_333) as u64).unwrap();
+            entry.estimate = Owned::Memory(Arc::new(Estimate {
+                resource,
+                provider: "wire-stream-test".into(),
+                costs: Default::default(),
+            }));
+            snapshot.videos.push(entry);
+        }
+        let mut bytes = Vec::new();
+        snapshot.write_to(&mut bytes, &|| Ok(())).unwrap();
+        let restored = DepthSnapshot::read_from(&mut &bytes[..], &|| Ok(())).unwrap();
+        assert_eq!((restored.videos.len(), restored.layer_count()), (150, 1));
+        assert!(restored
+            .videos
+            .iter()
+            .all(|e| matches!(e.estimate, Owned::File(_))));
+        let owned = restored.clone();
+        drop(restored);
+        drop(snapshot);
+        for (i, entry) in owned.videos.iter().enumerate() {
+            let actual = entry.estimate.load(&|| Ok(())).unwrap();
+            assert_eq!(actual.resource.values(), &[10., 30., 90., 50.]);
+            assert_eq!(
+                actual.resource.descriptor().source.pts.ticks,
+                i as i64 * 33_333
+            );
+        }
+        let mut repeated = Vec::new();
+        owned.write_to(&mut repeated, &|| Ok(())).unwrap();
+        assert_eq!(repeated, bytes);
+    }
+
+    #[test]
+    #[cfg(feature = "ai-depth")]
+    fn temporal_wire_preflights_sample_resource_and_disk_limits_without_plane_payloads() {
+        let (snapshot, _) = temporal_fixture();
+        let mut bytes = Vec::new();
+        snapshot.write_to(&mut bytes, &|| Ok(())).unwrap();
+        let size = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+        let metadata: serde_json::Value = serde_json::from_slice(&bytes[12..12 + size]).unwrap();
+        let mut value = metadata.clone();
+        value["videos"] = serde_json::json!(vec![
+            metadata["videos"][0].clone();
+            motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES + 1
+        ]);
+        assert!(serde_json::from_value::<Metadata>(value)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("count exceeds"));
+        let mut value = metadata.clone();
+        value["resources"] = serde_json::json!(vec![
+            metadata["resources"][0].clone();
+            motion_model::MAX_LAYERS + motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES
+                + 1
+        ]);
+        assert!(serde_json::from_value::<Metadata>(value)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("count exceeds"));
+        let mut value = metadata;
+        value["resources"][0]["descriptor"]["size"] = serde_json::json!([4096, 4096]);
+        value["resources"] = serde_json::json!(vec![value["resources"][0].clone(); 33]);
+        value["videos"] = serde_json::json!(vec![value["videos"][0].clone(); 33]);
+        for i in 0..33 {
+            value["videos"][i]["resource"] = serde_json::json!(i);
+        }
+        let payload = serde_json::to_vec(&value).unwrap();
+        let mut wire = MAGIC.to_vec();
+        wire.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        wire.extend_from_slice(&payload);
+        assert!(DepthSnapshot::read_from(&mut &wire[..], &|| Ok(()))
+            .unwrap_err()
+            .to_string()
+            .contains("2 GiB"));
     }
 
     #[test]

@@ -6,13 +6,68 @@ use motion_model::depth::{VideoDepthSample, VideoDepthTrack};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]
+pub(crate) enum Owned {
+    Memory(Arc<Estimate>),
+    File(Arc<crate::depth::storage::Plane>),
+}
+impl Owned {
+    pub fn descriptor(&self) -> &motion_model::depth::DepthDescriptor {
+        match self {
+            Self::Memory(e) => e.resource.descriptor(),
+            Self::File(p) => &p.descriptor,
+        }
+    }
+    pub fn provider(&self) -> &str {
+        match self {
+            Self::Memory(e) => &e.provider,
+            Self::File(p) => &p.provider,
+        }
+    }
+    pub fn flags(&self) -> (bool, bool) {
+        match self {
+            Self::Memory(e) => (
+                e.resource.validity().is_some(),
+                e.resource.confidence().is_some(),
+            ),
+            Self::File(p) => (p.validity(), p.confidence()),
+        }
+    }
+    pub fn bytes(&self) -> u64 {
+        match self {
+            Self::Memory(e) => {
+                let (validity, confidence) = self.flags();
+                e.resource.values().len() as u64
+                    * (4 + u64::from(validity) + 4 * u64::from(confidence))
+            }
+            Self::File(p) => p.byte_len(),
+        }
+    }
+    pub fn same(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Memory(a), Self::Memory(b)) => {
+                a.resource.cache_identity() == b.resource.cache_identity()
+            }
+            (Self::File(a), Self::File(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+    pub fn load(&self, check: &dyn Fn() -> Result<()>) -> Result<Arc<Estimate>> {
+        check()?;
+        match self {
+            Self::Memory(e) => Ok(e.clone()),
+            Self::File(p) => Ok(Arc::new(p.load_for_export(check)?)),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct VideoEntry {
     pub object: u64,
     pub asset: motion_core::VideoAsset,
     pub key: Key,
     pub input: PreparedDepthInput,
     pub sample: VideoDepthSample,
-    pub estimate: Arc<Estimate>,
+    pub estimate: Owned,
     pub request: u64,
     pub decoded_budget: u64,
 }
@@ -31,13 +86,13 @@ impl DepthSnapshot {
                 || entry.asset.id != entry.key.source.asset
                 || [entry.asset.display_width, entry.asset.display_height]
                     != entry.key.geometry.source_size
-                || entry.estimate.provider.is_empty()
-                || entry.estimate.provider.len() > 256
-                || entry.estimate.provider.chars().any(char::is_control)
+                || entry.estimate.provider().is_empty()
+                || entry.estimate.provider().len() > 256
+                || entry.estimate.provider().chars().any(char::is_control)
             {
                 return Err("invalid bounded frozen video depth source metadata".into());
             }
-            let descriptor = entry.estimate.resource.descriptor();
+            let descriptor = entry.estimate.descriptor();
             if entry.key.source != descriptor.source
                 || entry.key.geometry != descriptor.geometry
                 || entry.key.model != descriptor.model
@@ -47,7 +102,7 @@ impl DepthSnapshot {
             entry
                 .sample
                 .calibration()
-                .rebind(&entry.estimate.resource, entry.input)?;
+                .rebind_descriptor(descriptor, entry.input)?;
             let (asset, track) = tracks
                 .entry(entry.object)
                 .or_insert_with(|| (entry.asset.clone(), VideoDepthTrack::default()));
@@ -61,6 +116,9 @@ impl DepthSnapshot {
             }
             track.upsert(entry.sample.clone())?;
             track.validate_asset(asset)?;
+        }
+        if tracks.len() + static_objects.len() > motion_model::MAX_LAYERS {
+            return Err("frozen depth layer count exceeds limit".into());
         }
         Ok(())
     }

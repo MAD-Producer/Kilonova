@@ -11,6 +11,7 @@ use motion_model::depth::{
 use sha2::{Digest, Sha256};
 pub(crate) mod image;
 pub mod onnx;
+pub(crate) mod storage;
 pub(crate) mod video;
 use std::{
     any::Any,
@@ -44,6 +45,14 @@ pub enum Error {
         required_bytes: usize,
         byte_limit: usize,
         required_samples: usize,
+        sample_limit: usize,
+    },
+    #[error("depth storage request={request} object={object} phase=spill: capacity exceeded; bytes={required_bytes}/{byte_limit} sample_limit={sample_limit}")]
+    StorageCapacity {
+        request: u64,
+        object: u64,
+        required_bytes: u64,
+        byte_limit: u64,
         sample_limit: usize,
     },
     #[error("depth backend panicked: {0}")]
@@ -277,6 +286,8 @@ pub struct Counts {
     pub canceled: u64,
     pub failed: u64,
     pub stale: u64,
+    /// Completed jobs restored from verified scalar spill data, without inference.
+    pub restored: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -380,6 +391,11 @@ pub struct SessionStatus {
     pub retained_image_bytes: usize,
     /// Lifetime host result-admission failures; separate from backend failures.
     pub retention_rejections: u64,
+    /// Document-scoped scalar spill data, independent of the live RGBA cache.
+    pub stored_samples: usize,
+    pub stored_bytes: u64,
+    /// Saturating capacity failures, reset when this document store is disposed.
+    pub storage_rejections: u64,
 }
 
 struct Job {
@@ -391,22 +407,28 @@ struct Job {
 enum Work {
     Prepared(Input),
     Image(image::ImageInput),
-    Video(video::VideoInput),
+    Video(video::VideoInput, Option<Arc<storage::Store>>),
 }
 impl Work {
     fn identity(&self) -> Identity {
         match self {
             Self::Prepared(input) => Identity::Sample(input.key().clone()),
             Self::Image(input) => Identity::Sample(input.key.clone()),
-            Self::Video(input) => Identity::Video(input.key.clone()),
+            Self::Video(input, _) => Identity::Video(input.key.clone()),
         }
     }
     fn prepare(self, cancellation: &Cancellation) -> Result<Input> {
         match self {
             Self::Prepared(input) => Ok(input),
             Self::Image(input) => input.decode(cancellation),
-            Self::Video(input) => input.decode(cancellation),
+            Self::Video(input, _) => input.decode(cancellation),
         }
+    }
+    fn store(&self) -> Option<Arc<storage::Store>> {
+        match self { Self::Video(_, store) => store.clone(), _ => None }
+    }
+    fn store_root(&self) -> Option<std::path::PathBuf> {
+        match self { Self::Video(input, Some(_)) => Some(input.root.clone()), _ => None }
     }
 }
 struct Flight {
@@ -463,8 +485,9 @@ impl Jobs {
         self.submit(Work::Image(input))
     }
 
-    pub(crate) fn request_video(&mut self, input: video::VideoInput) -> Result<u64> {
-        self.submit(Work::Video(input))
+    pub(crate) fn request_video(&mut self, input: video::VideoInput,
+        store: Option<Arc<storage::Store>>) -> Result<u64> {
+        self.submit(Work::Video(input, store))
     }
 
     fn submit(&mut self, input: Work) -> Result<u64> {
@@ -660,6 +683,9 @@ fn run(mut backend: impl Backend, shared: Shared) {
         identity.log_start(job.request);
         let mut stage = "source_prepare";
         let mut source = identity.source();
+        let store = job.input.store();
+        let store_root = job.input.store_root();
+        let mut restored = false;
         let result = catch_unwind(AssertUnwindSafe(|| {
             job.cancellation.check()?;
             let prepare_began = Instant::now();
@@ -679,11 +705,40 @@ fn run(mut backend: impl Backend, shared: Shared) {
                 log::info!("request={} operation=depth_infer asset={} revision={} phase=source_ready pts={}/{} source_prepare_ms={}",
                     job.request,asset,revision,input.key().source.pts.ticks,input.key().source.pts.timescale,source_prepare.as_millis());
             }
-            let mut estimate = backend.infer(&input, &job.cancellation)?;
+            let cached = match (&store, &identity) {
+                (Some(store), Identity::Video(key)) => store.lookup(key)?,
+                _ => None,
+            };
+            let mut estimate = if let Some(sample) = cached {
+                stage = "archive_read";
+                set_phase(&shared, stage)?;
+                log::info!("start #{} depth_restore object={} asset={} pts={:?} phase=archive_read source_request={}",
+                    job.request, match &identity { Identity::Video(key) => key.object, _ => 0 },
+                    asset, input.key().source.pts, sample.request);
+                log::logger().flush();
+                let mut estimate = sample.restore(&input, prepared_input, &job.cancellation)?;
+                estimate.costs = Costs::default();
+                restored = true;
+                estimate
+            } else { backend.infer(&input, &job.cancellation)? };
             job.cancellation.check()?;
             estimate.validate(input.key())?;
             estimate.costs.source_prepare = source_prepare;
             estimate.costs.source_rgb_bytes = input.rgb().len() as u64;
+            estimate.costs.total = began.elapsed();
+            if !restored {
+                if let (Some(store), Identity::Video(key)) = (&store, &identity) {
+                    stage = "archive_write";
+                    set_phase(&shared, stage)?;
+                    log::info!("start #{} depth_spill object={} asset={} pts={:?} phase=archive_write",
+                        job.request, key.object, asset, input.key().source.pts);
+                    log::logger().flush();
+                    // The root is captured with the job; no Session or GPU
+                    // state is accessed on this worker.
+                    store.append(store_root.as_deref().ok_or(Error::State)?, job.request,
+                        key.object, &input, prepared_input, &estimate, &job.cancellation)?;
+                }
+            }
             estimate.costs.total = began.elapsed();
             Ok(PreparedEstimate { estimate, input: prepared_input, image: input.image, video_end_us: input.video_end_us })
         }))
@@ -714,7 +769,10 @@ fn run(mut backend: impl Backend, shared: Shared) {
         };
         state.flight = None;
         match &result {
-            Ok(_) => state.counts.completed = state.counts.completed.saturating_add(1),
+            Ok(_) => {
+                state.counts.completed = state.counts.completed.saturating_add(1);
+                if restored { state.counts.restored = state.counts.restored.saturating_add(1); }
+            },
             Err(Error::Canceled) => state.counts.canceled = state.counts.canceled.saturating_add(1),
             Err(_) => state.counts.failed = state.counts.failed.saturating_add(1),
         }
@@ -741,4 +799,9 @@ fn lock_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>> {
         drop(poison);
         Error::State
     })
+}
+
+fn set_phase(shared: &Shared, phase: &'static str) -> Result<()> {
+    lock_state(shared)?.flight.as_mut().ok_or(Error::State)?.phase = phase;
+    Ok(())
 }

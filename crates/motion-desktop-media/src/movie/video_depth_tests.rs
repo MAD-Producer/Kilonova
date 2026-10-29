@@ -11,6 +11,7 @@ use motion_model::depth::*;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 mod cancellation;
+mod storage;
 
 struct RedDepth;
 impl Backend for RedDepth {
@@ -68,18 +69,22 @@ fn encode(path: &Path, pixels: &[Vec<u8>]) {
 }
 
 fn source(root: &Path) -> (Project, Vec<u64>, Vec<Vec<u8>>) {
+    source_frames(root, 3)
+}
+
+fn source_frames(root: &Path, count: usize) -> (Project, Vec<u64>, Vec<Vec<u8>>) {
     fs::create_dir_all(root.join("assets")).unwrap();
     let path = root.join("assets/source.mp4");
-    let frames: Vec<_> = (0..3)
+    let frames: Vec<_> = (0..count)
         .map(|index| {
             (0..32)
-                .flat_map(|y| (0..32).flat_map(move |_| [24 + index * 40 + y * 2, 4, 4, 255]))
+                .flat_map(|y| (0..32).flat_map(move |_| [24 + (index % 3) as u8 * 40 + y * 2, 4, 4, 255]))
                 .collect()
         })
         .collect();
     encode(&path, &frames);
     let mut probe = crate::av::probe(&path, None, None, &|| Ok(())).unwrap();
-    assert_eq!(probe.timestamps.len(), 3);
+    assert_eq!(probe.timestamps.len(), count);
     probe.asset.id = 74;
     probe.asset.path = "assets/source.mp4".into();
     let index = motion_media::video_cache_path(root, &probe.asset).unwrap();
@@ -100,7 +105,7 @@ fn source(root: &Path) -> (Project, Vec<u64>, Vec<Vec<u8>>) {
             frame.rgba().unwrap().into_owned()
         })
         .collect();
-    let mut project = Project::new(32, 32, 30, 3).unwrap();
+    let mut project = Project::new(32, 32, 30, count as u32).unwrap();
     let mut video = Layer::solid(
         1,
         "Owned real-codec video",
@@ -144,7 +149,7 @@ fn wait(session: &mut Session) -> Arc<Estimate> {
     }
 }
 
-fn author(session: &mut Session, index: usize, pts: u64, decoded: &[u8]) {
+fn stage(session: &mut Session, index: usize) -> Arc<Estimate> {
     session.frame = index as f64;
     session
         .request_video_depth(
@@ -164,7 +169,11 @@ fn author(session: &mut Session, index: usize, pts: u64, decoded: &[u8]) {
         )
         .unwrap()
         .unwrap();
-    let estimate = wait(session);
+    wait(session)
+}
+
+fn author(session: &mut Session, index: usize, pts: u64, decoded: &[u8]) {
+    let estimate = stage(session, index);
     assert_eq!(
         estimate.resource.descriptor().source.pts,
         DepthTime {
