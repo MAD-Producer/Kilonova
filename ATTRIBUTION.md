@@ -162,6 +162,19 @@ and numerical reports are generated; no model or texture enters the product,
 node examples or release artwork. This records technical evaluation, not
 endorsement by the authors or Khronos.
 
+Additional external normative evaluation uses unmodified `SimpleSkin` by Marco
+Hutter (2017, CC0-1.0) and `AlphaBlendModeTest` by Ed Mackey / Analytical
+Graphics, Inc. (2018, CC-BY-4.0), from the same pinned Sample Assets revision
+`8f492390ddc7a2ae221a1369ef560589cf8c70fb`. Model-specific `LICENSE.md` and
+`metadata.json` are retained alongside the external sources; the metadata and
+license descriptions themselves are CC-BY-4.0. Their files remain outside the
+repository's product assets. Evaluation may produce native pixel readbacks,
+independently computed numerical references and exact frozen-restore reports;
+these are validation evidence only. No upstream screenshot or source asset is
+copied into the application, examples, icons or release artwork. The external
+manifest records each source URL and SHA-256. A downloaded fixture is not a
+claim that its rendering acceptance has passed.
+
 The independently authored OBJ/MTL importer references Library of Congress,
 Digital Formats descriptions [fdd000507 (OBJ)](https://www.loc.gov/preservation/digital/formats/fdd/fdd000507.shtml),
 last significant revision 2025-02-18, and

@@ -121,7 +121,7 @@ fn blocks(renderer: &Renderer, scene: &Scene, native_mattes: &std::collections::
             end += 1;
         }
         // A pure-plane run retains its existing exact BSP implementation.
-        if (count.is_some() && end - start >= 2) || scene.layers[start..end].iter().any(|layer| scene.depth_surface(layer.id).is_some()) {
+        if scene.native_depth_of_field().is_some() || (count.is_some() && end - start >= 2) || scene.layers[start..end].iter().any(|layer| scene.depth_surface(layer.id).is_some()) {
             blocks.push(start..end);
         }
         start = end;
@@ -141,6 +141,14 @@ impl Renderer {
         let material_bytes: u64 = materials.values().map(DepthMaterial::bytes).sum();
         let native_mattes = native_matte_sources(self, scene, &materials);
         let blocks = blocks(self, scene, &native_mattes, &materials);
+        if scene.native_depth_of_field().is_some() {
+            for (index, layer) in scene.layers.iter().enumerate().filter(|(_, layer)|
+                layer.three_d && layer.composite_visible && !layer.screen_overlay) {
+                if !blocks.iter().any(|block| block.contains(&index)) {
+                    return Err(RenderError::Invalid(format!("camera depth_of_field object={} phase=shared_geometry: spatial effects, sampling, masks or matte inputs require an explicit aperture path", layer.id)));
+                }
+            }
+        }
         for (object, calibration) in scene.calibrated_depth_layers() {
             let hidden_native = native_mattes.contains(&object)
                 && scene.layers.iter().any(|l| l.id == object && !l.composite_visible);
@@ -201,6 +209,7 @@ impl Renderer {
         }
         let mut grouped = vec![false; scene.layers.len()];
         let mut keep = vec![true; scene.layers.len()];
+        let mut planar_anchors = std::collections::HashSet::new();
         for block in &blocks {
             grouped[block.clone()].fill(true);
             keep[block.clone()].fill(false);
@@ -211,10 +220,12 @@ impl Renderer {
                 .clone()
                 .find(|&index| scene.layers[index].model_source.is_some())
                 .or_else(|| block.clone().find(|&index| scene.depth_surface(scene.layers[index].id).is_some()))
+                .or_else(|| scene.native_depth_of_field().and_then(|_| block.clone().find(|&index| scene.layers[index].composite_visible)))
                 .ok_or_else(|| {
                     RenderError::Invalid("shared geometry block lacks a model anchor".into())
                 })?;
             keep[anchor] = true;
+            if scene.layers[anchor].model_source.is_none() { planar_anchors.insert(scene.layers[anchor].id); }
         }
         // Reuse one bounded scene scratch for isolated models and each run.
         // Every run is encoded in the enclosing command stream; no shared
@@ -243,7 +254,7 @@ impl Renderer {
             retain
         });
         for layer in &mut output.layers {
-            if layer.model_source.is_none() && scene.depth_surface(layer.id).is_some() {
+            if layer.model_source.is_none() && (scene.depth_surface(layer.id).is_some() || planar_anchors.contains(&layer.id)) {
                 output.shared_rasters.insert(layer.id);
                 layer.asset = None;
                 layer.masks = Default::default();
@@ -288,6 +299,7 @@ impl Renderer {
             .iter()
             .find(|layer| layer.model_source.is_some())
             .or_else(|| scene.layers.iter().find(|layer| scene.depth_surface(layer.id).is_some()))
+            .or_else(|| scene.native_depth_of_field().and_then(|_| scene.layers.iter().find(|layer| layer.composite_visible)))
             .ok_or_else(|| RenderError::Invalid("shared model anchor is missing".into()))?;
         let sample_count = anchor.model_source.as_ref().map_or(4, |clip| clip.samples);
         let source_id = anchor.model_source.as_ref().map_or_else(
@@ -444,6 +456,7 @@ impl Renderer {
             }
             let mut sources: Vec<_> = owned.iter_mut().map(|(_, gpu)| gpu).collect();
             let mut frame = ScenePassFrame::new(scene.native_camera());
+            frame.depth_of_field = scene.native_depth_of_field();
             frame.viewport = scene.native_camera_viewport(w, h);
             frame.samples = sample_count;
             let planes: Vec<_> = scene

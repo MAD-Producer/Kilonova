@@ -2,6 +2,8 @@ use crate::{ensure, Result, Track};
 use glam::{Mat4, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 pub mod lens;
+mod depth_of_field;
+pub use depth_of_field::{DepthOfField, SampledDepthOfField};
 mod imported;
 pub use imported::{CameraSample, CameraSampler, ImportedCamera, AuthoredCameraSampler};
 
@@ -29,6 +31,9 @@ pub struct Camera {
     pub fov: Track<f32>,
     /// Horizontal film gate in millimetres; FOV remains the canonical animated projection.
     pub film_width_mm: f32,
+    /// Optional finite aperture; absent keeps the exact pinhole path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_of_field: Option<DepthOfField>,
     pub radius: Track<f32>,
     pub azimuth: Track<f32>,
     pub elevation: Track<f32>,
@@ -79,6 +84,7 @@ impl Camera {
             roll: Track::constant(0.0),
             fov: Track::constant(45.0),
             film_width_mm: lens::default_film_width(),
+            depth_of_field: None,
             radius: Track::constant(distance),
             azimuth: Track::constant(0.0),
             elevation: Track::constant(0.0),
@@ -93,6 +99,7 @@ impl Camera {
     fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
         if let Some(imported) = &self.imported { imported.validate()?; }
         lens::validate_film_width(f64::from(self.film_width_mm))?;
+        if let Some(dof) = &self.depth_of_field { dof.validate(frames)?; }
         for track in [&self.position, &self.target] {
             if let Some(frames) = frames {
                 track.validate(frames)?;
