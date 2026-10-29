@@ -341,11 +341,11 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
         assert_eq!(rail.width() > 0., width >= 320.);
         assert_eq!(panels.effect_controls.test_rects[&key("end", -9)].width(), 0.);
         assert!(
-            first.max[0] <= second.min[0] && second.max[0] <= pick.min[0] && pick.max[0] <= width
+            pick.max[0] <= first.min[0] && first.max[0] <= second.min[0] && second.max[0] <= width
         );
         let number = paint
             .styles()
-            .resolve("field.number", Default::default())
+            .resolve("field.effect_number", Default::default())
             .unwrap();
         let text_width = |value: &str, atlas: &mut TextAtlas| {
             atlas.measure(value) * number.font_size / atlas.font_size()
@@ -355,15 +355,26 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
                 && second.shrink(number.padding).width() >= text_width("34.57", &mut atlas)
         );
         let select = panels.effect_controls.test_rects[&key("shape", -8)];
-        assert_eq!(first.min[0], select.min[0]);
-        assert_eq!(first.min[0], panels.effect_controls.test_rects[&key("scatter", 0)].min[0]);
-        assert_eq!(first.min[0], panels.effect_controls.test_rects[&key("effect_opacity", 0)].min[0]);
+        assert_eq!(pick.min[0], select.min[0]);
+        assert_eq!(pick.min[0], panels.effect_controls.test_rects[&key("scatter", 0)].min[0]);
+        assert_eq!(pick.min[0], panels.effect_controls.test_rects[&key("effect_opacity", 0)].min[0]);
+        assert_eq!(first.min[0], pick.max[0], "position control directly precedes the coordinate pair");
+        assert_eq!(first.width(), 39., "retain the established numeric hit width");
+        assert_eq!(rail.min[0], second.max[0], "navigation follows the pair without an empty slot");
         if width >= 360. {
-            if let Some(previous) = wide_field { assert_eq!(first, previous, "extra width must not spread the coordinate cluster"); }
+            if let Some(previous) = wide_field {
+                let previous: Rect = previous;
+                assert_eq!(first.width(), previous.width(), "extra width must not spread the coordinate cluster");
+                assert!(first.min[0] > previous.min[0], "extra width belongs to the label column");
+            }
             wide_field = Some(first);
         }
         let color_pick = panels.effect_controls.test_rects[&key("start_color", -6)];
-        assert_eq!(color_pick.min[0], pick.min[0], "position and color actions share a column");
+        let swatch = panels.effect_controls.test_rects[&key("start_color", -1)];
+        assert_eq!(swatch.min[0], pick.min[0], "all property types share the value-column boundary");
+        assert_eq!(color_pick.min[0] - swatch.max[0], paint.styles().metric("effect.control.gap", 2.),
+            "color and eyedropper must remain adjacent");
+        assert!(color_pick.max[0] <= width);
         assert!(select.width() <= paint.styles().metric("effect.enum.max_width", 112.));
         assert!(select.height() >= 26.);
         let config = atlas.config();

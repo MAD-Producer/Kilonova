@@ -178,6 +178,22 @@ fn press(
 fn press_icon(list: &mut PaintList, input: &Input, rect: Rect, icon: Icon, enabled: bool) -> bool {
     ui::button_icon(list, rect, icon, input, enabled).clicked
 }
+fn pick_button(list: &mut PaintList, input: &Input, target: Rect, icon: Icon, enabled: bool) -> bool {
+    let styles = list.styles();
+    let mut states = States::default();
+    if !enabled { states = states.with(State::Disabled); }
+    else if target.contains(input.mouse) {
+        states = states.with(State::Hovered);
+        if input.held == Some(MouseButton::Left) { states = states.with(State::Pressed); }
+    }
+    let style = styles.resolve("button.effect_pick", states).unwrap();
+    let edge = styles.metric("field.height", 18.).min(target.width()).min(target.height());
+    let visible = Rect::new(target.max[0] - edge,
+        target.min[1] + (target.height() - edge) * 0.5, edge, edge);
+    box_style(list, visible, style);
+    motion_ui::icons::draw(list, visible, icon, styles.metric("effect.pick.icon.size", 16.), style.foreground);
+    enabled && target.contains(input.mouse) && clicked(input, target)
+}
 
 pub(super) fn category(effect: &Value, locale: Locale) -> String {
     let key = effect["category"].as_str().unwrap_or("").trim();
@@ -956,7 +972,9 @@ impl Controls {
         }
         if !library {
             let node_width = styles.metric("effect.action.size", 26.);
-            let node = Rect::new(area.max[0] - pad - node_width, *y, node_width, toolbar);
+            let add_width = styles.metric("inspector.action.width", 112.)
+                .min((area.width() - pad * 2. - gap - node_width).max(0.));
+            let node = Rect::new(area.min[0] + pad + add_width + gap, *y, node_width, toolbar);
             if press(
                 list,
                 atlas,
@@ -964,7 +982,7 @@ impl Controls {
                 Rect::new(
                     area.min[0] + pad,
                     *y,
-                    (node.min[0] - gap - area.min[0] - pad).max(0.),
+                    add_width,
                     toolbar,
                 ),
                 locale.t(T::AddEffect),
@@ -1373,7 +1391,10 @@ impl Controls {
                 }
             }
             let actions_x = header_rect.max[0] - action;
-            let enable_rect = Rect::new(actions_x - toggle, *y, toggle, header);
+            let name_x = header_rect.min[0] + slot;
+            let enable_x = (name_x + atlas.measure(title) + gap)
+                .min(actions_x - toggle).max(name_x);
+            let enable_rect = Rect::new(enable_x, *y, toggle, header);
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
@@ -1395,7 +1416,6 @@ impl Controls {
                     },
                 }));
             }
-            let name_x = header_rect.min[0] + slot;
             text(
                 list,
                 atlas,
@@ -1511,19 +1531,27 @@ impl Controls {
                     styles.metric("effect.watch.width", 24.),
                     if kind == "color" { 1 } else { dimensions(kind) },
                 );
-                let reserve = (styles.metric("effect.value.min_width", 108.) - columns.values.width())
-                    .max(0.).min((columns.label.width() - styles.metric("label.column", 72.) * 0.5).max(0.));
-                columns.label.max[0] -= reserve;
-                columns.values.min[0] -= reserve;
-                let reclaim = (columns.label.width() - styles.metric("effect.label.width", 60.)).max(0.);
-                columns.label.max[0] -= reclaim;
-                columns.values.min[0] -= reclaim;
-                // The value cluster stops growing once its controls fit. Extra
-                // panel width must not spread coordinates or their actions.
+                // Width belongs to the caption lane, not to the controls. Keep
+                // a shared value-column boundary and compact inline editors.
+                let right = content.max[0] - pad;
+                let label_min = styles.metric("label.column", 72.) * 0.5;
+                let minimum_x = (columns.label.min[0] + label_min + gap).min(right);
+                let preferred_x = area.min[0] + area.width()
+                    * styles.metric("effect.value.column_ratio", 0.5);
+                let value_x = preferred_x.min(right - styles.metric("effect.value.min_width", 108.))
+                    .max(minimum_x);
+                columns.label.max[0] = (value_x - gap).max(columns.label.min[0]);
+                let count = dimensions(kind);
+                let number_width = (styles.metric("effect.number.cell_width", 44.) - gap).max(0.);
+                let number_gap = styles.metric("effect.number.gap", 4.);
                 let cap = styles.metric("effect.value.max_width", 108.)
-                    .max(if kind == "color" { 1 } else { dimensions(kind) } as f32
+                    .max(if kind == "color" { 1 } else { count } as f32
                         * styles.metric("effect.number.cell_width", 44.));
-                columns.values.max[0] = columns.values.min[0] + columns.values.width().min(cap);
+                columns.values = Rect::new(value_x, *y, (right - value_x).max(0.).min(cap), row);
+                let cluster_width = if matches!(kind, "float" | "vec2" | "vec3") {
+                    count as f32 * number_width + count.saturating_sub(1) as f32 * number_gap
+                        + if super::effect_pick::is_position(parameter) { slot } else { 0. }
+                } else { columns.values.width() };
                 let watch_width = columns.icon.width();
                 let left = columns.icon.min[0];
                 let right = area.max[0] - pad;
@@ -1538,6 +1566,9 @@ impl Controls {
                 crate::panels::animation_controls::highlight_row(list,
                     Rect::new(area.min[0], *y, area.width(), row),
                     self.parameter_selected(state, object, id, param));
+                let rule = styles.metric("border", 1.);
+                paint::rect(list, Rect::new(area.min[0] + pad, *y + row - rule,
+                    (area.width() - pad * 2.).max(0.), rule), styles.color("header"));
                 text(
                     list,
                     atlas,
@@ -1588,7 +1619,7 @@ impl Controls {
                     observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
                         "object={object} effect={id} param={param}")
                 }) else { continue };
-                let navigation = Rect::new(columns.values.max[0] + gap, *y,
+                let navigation = Rect::new(columns.values.min[0] + cluster_width.min(columns.values.width()), *y,
                     if show_navigation { navigation_width } else { 0. }, row);
                 #[cfg(test)] self.test_rects.insert((object, id, param.into(), -9), navigation);
                 self.selection_intent |= key_navigation::parameter_navigation_in_rail(&mut self.key_channel, list,
@@ -1786,41 +1817,35 @@ impl Controls {
                     }
                     if super::effect_pick::is_position(parameter) {
                         let slot = styles.metric("icon.slot", 20.);
-                        let pick = Rect::new((values.max[0] - slot).max(values.min[0]), *y, slot, row);
+                        let pick = Rect::new(values.min[0], *y, slot, row);
                         #[cfg(test)] self.test_rects.insert((object, id, param.into(), -6), pick);
                         let enabled = !locked && implemented && state["observing"] != true;
                         if enabled && pick.contains(input.mouse) {
                             self.drag_readout = Some((input.mouse, word(locale, "点选位置 · 点击合成画面", "Pick position · click composition")));
                         }
-                        if press_icon(list, input, pick, Icon::PickPosition, enabled) {
+                        if pick_button(list, input, pick, Icon::PickPosition, enabled) {
                             if self.cancel() { out.push(Action::History(4)); }
                             out.push(Action::BeginEffectPick(super::effect_pick::Ticket::new(state, object, id, param, super::effect_pick::Kind::Position)));
                         }
-                        values.max[0] = (pick.min[0] - gap).max(values.min[0]);
+                        values.min[0] = pick.max[0].min(values.max[0]);
                     }
                     for component in 0..dimensions(kind) {
                         let count = dimensions(kind);
-                        let cell = if kind == "bool" || kind == "enum" {
-                            values.width()
+                        let field_width = if kind == "bool" || kind == "enum" {
+                            (values.width() - gap).max(0.)
                         } else {
-                            ((values.width() + gap) / count.max(2) as f32)
-                                .min(styles.metric("effect.number.cell_width", 44.))
+                            ((values.width() - count.saturating_sub(1) as f32 * number_gap)
+                                / count as f32).max(0.).min(number_width)
                         };
-                        let x = values.min[0] + component as f32 * cell;
-                        let mut rect = Rect::new(x, *y, (cell - gap).max(0.), row);
+                        let x = values.min[0] + component as f32 * (field_width + number_gap);
+                        let mut rect = Rect::new(x, *y, field_width, row);
                         if kind == "enum" {
                             rect.max[0] = rect.min[0] + rect.width().min(styles.metric("effect.enum.max_width", 112.));
                             #[cfg(test)] self.test_rects.insert((object,id,param.into(),-8),rect);
                         }
                         if count > 1 && component + 1 < count {
-                            ui::text(
-                                list,
-                                atlas,
-                                Rect::new(rect.max[0], *y, gap, row),
-                                ",",
-                                colors.TEXT_MUTED,
-                                Align::Left,
-                            );
+                            ui::text(list, atlas, Rect::new(rect.max[0], *y, number_gap, row),
+                                ",", colors.TEXT_MUTED, Align::Left);
                         }
                         if kind == "bool" || kind == "enum" {
                             let enabled = !locked && implemented;
@@ -1863,10 +1888,20 @@ impl Controls {
                                             enabled: true,
                                         })
                                         .collect();
+                                    // Keep the arrow beside its choices instead of
+                                    // making short enums span the entire value group.
+                                    let font = styles.resolve("field.effect_number", States::default()).unwrap().font_size;
+                                    let caption = items.iter().map(|item|
+                                        atlas.measure(item.label) * font / atlas.font_size())
+                                        .fold(0., f32::max);
+                                    let preferred = (caption + styles.metric("icon.slot", 20.)
+                                        + gap * 2.).max(styles.metric("value.min_width", 64.));
+                                    rect.max[0] = rect.min[0] + rect.width().min(preferred);
+                                    #[cfg(test)] self.test_rects.insert((object,id,param.into(),-8),rect);
                                     let is_modal_owner = modal_owner.as_ref()
                                         .is_some_and(|(owner, name)| *owner == id && name == param);
                                     let (result, open) = self.dropdowns.with(id, param, |dropdown| {
-                                        let result = dropdown.draw_inline(
+                                        let result = dropdown.draw_inline_styled(
                                             &mut overlays,
                                             atlas,
                                             rect,
@@ -1877,6 +1912,7 @@ impl Controls {
                                             if is_modal_owner { original_input } else { input },
                                             enabled,
                                             false,
+                                            "field.effect_number",
                                         );
                                         (result, dropdown.open)
                                     });
@@ -1922,7 +1958,8 @@ impl Controls {
                                 frame,
                                 input,
                                 !locked && implemented,
-                                count > 1,
+                                true,
+                                count == 1 || component > 0,
                                 out,
                             );
                         }
@@ -2000,20 +2037,20 @@ impl Controls {
             .insert((object, effect, param.into(), -1), preview);
         let gap = styles.metric("padding", 5.);
         let slot = styles.metric("icon.slot", 20.);
-        let pick = Rect::new((area.max[0] - slot).max(preview.max[0] + gap), y, slot, row);
+        let pick = Rect::new(preview.max[0] + styles.metric("effect.control.gap", 2.), y, slot, row);
         let pick_enabled = enabled && state["observing"] != true;
         #[cfg(test)] self.test_rects.insert((object, effect, param.into(), -6), pick);
         if pick_enabled && pick.contains(input.mouse) {
             self.drag_readout = Some((input.mouse, word(locale, "从合成画面取色", "Pick color from composition")));
         }
-        if press_icon(list, input, pick, Icon::Eyedropper, pick_enabled) {
+        if pick_button(list, input, pick, Icon::Eyedropper, pick_enabled) {
             if self.cancel() { out.push(Action::History(4)); }
             out.push(Action::BeginEffectPick(super::effect_pick::Ticket::new(state, object, effect, param, super::effect_pick::Kind::Color)));
         }
         let text_area = Rect::new(
-            preview.max[0] + gap,
+            pick.max[0] + gap,
             y,
-            (pick.min[0] - preview.max[0] - gap * 2.).max(0.),
+            (area.max[0] - pick.max[0] - gap).max(0.),
             row,
         );
         let alpha = format!("{:.0}%", values[3] * 100.);
@@ -2182,6 +2219,7 @@ impl Controls {
                 input,
                 enabled,
                 false,
+                true,
                 out,
             );
         }
@@ -2203,7 +2241,8 @@ impl Controls {
         frame: u32,
         input: &Input,
         enabled: bool,
-        coordinate: bool,
+        inline_inspector: bool,
+        align_left: bool,
         out: &mut Vec<Action>,
     ) {
         #[cfg(test)]
@@ -2230,8 +2269,8 @@ impl Controls {
         }) {
             field.rect = rect;
             field.number.editor.compact = true;
-            field.number.editor.align_left = !coordinate || component > 0;
-            field.number.editor.style_class = coordinate.then_some("field.coordinate_number");
+            field.number.editor.align_left = align_left;
+            field.number.editor.style_class = inline_inspector.then_some("field.effect_number");
             self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
             let speed = if (max - min).is_finite() && (max - min) <= 2. {
                 0.005
@@ -2271,7 +2310,7 @@ impl Controls {
                 self.drag_readout = Some((input.mouse, value[component].to_string()));
             }
             super::numeric::passive_compact(list, atlas, rect, value[component] as f64, input, enabled,
-                coordinate, !coordinate || component > 0);
+                inline_inspector, align_left);
         }
     }
 }

@@ -207,11 +207,14 @@
       "effect.value.min_width": 108,
       "effect.value.max_width": 108,
       "effect.number.cell_width": 44,
-      "effect.label.width": 60,
+      "effect.number.gap": 4,
+      "effect.control.gap": 2,
+      "effect.value.column_ratio": 0.5,
       "effect.header.height": 30,
       "effect.watch.width": 24,
       "effect.enable.width": 28,
       "effect.action.size": 26,
+      "effect.pick.icon.size": 16,
       "effect.curve.width": 320,
       "effect.curve.graph_height": 320,
       "effect.curve.hit_radius": 7,
@@ -469,9 +472,15 @@
       "radius": "$sizes.radius.control",
       "font_size": "$sizes.font.small"
     },
-    "field.coordinate_number": {
+    "field.effect_number": {
       "extends": "field.number",
-      "padding": "$sizes.border"
+      "padding": "$sizes.border",
+      "font_size": "$sizes.font.body"
+    },
+    "button.effect_pick": {
+      "extends": "button.icon",
+      "border": "$colors.border",
+      "border_width": "$sizes.border"
     },
     "selection": {
       "extends": "widget",

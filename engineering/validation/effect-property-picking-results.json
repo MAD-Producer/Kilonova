@@ -1,21 +1,21 @@
 {
   "branch": "feat/panel-layout-consistency",
   "baseCommit": "59611a5426778b05a97b97a26d0fc58d8fdfa8d2",
-  "sourceState": "coordinate grouping and 18px visible numeric frames implemented; original hit targets retained",
+  "sourceState": "row hierarchy and inline coordinate groups revised; pick and navigation directly adjoin the preserved numeric hit targets",
   "sourceSha256": {
     "crates/motion-render/src/image_capture.rs": "ee8f9b9458b1a49179aaa81af0a05eafa856f8c90180153219aaa411c2e452ba",
     "desktop/app/src/engine.rs": "bb092eda4a08c9c9c16d5e4cc03383bdc526dba8791ebcc101b2e64fd719ca6e",
     "desktop/app/src/engine/diagnostic_names.rs": "a3569b351a80085ad8bb7bb70cce8e5d6fe8c55ee120a58b867bca15aa036ffc",
     "desktop/app/src/engine/effect_pick.rs": "a9b75a11800f17d9a40045b20e5bdb8298935173a7a1c549a91545d2458abfe8",
-    "desktop/app/src/panels/effect_controls.rs": "7d98d9ea8cce982b914c121505214671aefaaf78a4b3849717347281151589df",
+    "desktop/app/src/panels/effect_controls.rs": "fb0b358f055da8ef1a404c9496c7f860f98d8b46c94e4e86fab91c86e099e3ec",
     "desktop/app/src/panels/effect_controls/key_navigation.rs": "c0cb8bae1b2783e7bb445748ebb7ddcca305d74e52cc4fa3ece1154e58638fe0",
     "desktop/app/src/panels/effect_controls/track_cache_tests.rs": "d135745929c5c54748f60c1d560161c2c4355ee933896be3b1f9d3156427c0ee",
     "desktop/app/src/panels/effect_pick.rs": "5bbf397d92027eb6d57a03b01b7840a47b2fae76de28afefdd757008b07aaa77",
     "desktop/app/src/panels/effect_pick/tests.rs": "3edbced4b50311e9facaeaa5b754d06df766eff063eb91e2fd8aea62bbf1b3bf",
-    "desktop/app/src/panels/effect_pick/tests/native.rs": "0462854fb96bca04b475028e2973856929fb214329ae96b53b3c3f8621486456",
+    "desktop/app/src/panels/effect_pick/tests/native.rs": "30081db27833840d0029e98764492d0441db8954604d39ba93870f503d524370",
     "desktop/app/src/panels/key_navigation.rs": "e48090766c116f04d694bc245bba28314e552a696f5d5d411361d1ccfc7ecd6c",
     "desktop/app/src/panels/mod.rs": "cfec87e2c62ed5a7677ff9d485d611daf29479a8d3f168050de70944d20a447f",
-    "desktop/app/src/panels/numeric.rs": "485a729d203d0e64601be54b4941ecd6a30ae8163384792b536d17124e09c1e1",
+    "desktop/app/src/panels/numeric.rs": "9e6ce378aac0833abb3b27f142b12b2e68cef11a778ff5eef4ae3a86314f175a",
     "desktop/app/src/panels/types.rs": "09bc34df26012c299bc383a747a7e4afd85bb17aa3c589b6774cf7e7189598e3",
     "desktop/app/src/shell/actions.rs": "4421c3f50b18b95231ab49481ae2dd277dd6c10d58c12badfa0854f7814c79ba",
     "desktop/app/src/shell/native_input_tests.rs": "d9f707fd7aedb988b959a6a76cfb9321b8020bb3476440d6ae534b7aec55ea82",
@@ -27,17 +27,19 @@
     "desktop/ui/icons/pick_position.svg": "840531db8c67b1279a40d32f7112fd3929eed0efcf1d8e491c294f8002542c8d",
     "desktop/ui/src/icons.rs": "09086ff55271088aae3e730f547feeb727bf01648e4458c017b188f8ed36a3dc",
     "desktop/ui/src/widgets.rs": "e46b543d58f372a26da0aeaa4004c3af8e5044bfdeacc40e174beddface7d456",
-    "desktop/ui/styles/dark.json": "efbd5d0ef43452150d504fddc0b408923d96eca3d072de7f3ece54d6b2af7a68"
+    "desktop/ui/styles/dark.json": "b5171a087acc44651204d0c1c023cb1bf753266e31c36674f67fee099dcb2720",
+    "desktop/ui/src/widgets/composite.rs": "4879610c8144aaa1e4989e71a9881142dd64750411982f57aaa1798c5fee8a18",
+    "DESIGN.md": "b1d0f69bde18f5505d88c632381686d8264355fd666cb2ced321411fd584f172"
   },
   "checks": {
     "ffmpegOfflineDevBuild": {
       "ok": true,
-      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-build.log",
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-build.log",
       "warnings": 28
     },
     "testBuild": {
       "ok": true,
-      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-test-build.log",
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-test-build.log",
       "warnings": 25
     },
     "compactNumber": {
@@ -47,11 +49,11 @@
     },
     "effectPick": {
       "passed": 3,
-      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native.log"
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native.log"
     },
     "effectControls": {
       "passed": 39,
-      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-regressions.log"
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-regressions.log"
     },
     "nativeFocusAndInput": {
       "passed": 1,
@@ -66,124 +68,124 @@
     "diffWhitespace": true,
     "numericGestures": {
       "passed": 2,
-      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-gestures.log"
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-gestures.log"
     }
   },
   "nativeScreens": [
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\color-pick-armed.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\color-pick-armed.png",
       "size": [
         960,
         640
       ],
-      "sha256": "4df85e0a2c26d868ad283d1ae47545d889f4bfab08129261e3d68a8e8de4017b"
+      "sha256": "0df23f064e3777100860ef0952acaeef17cf53a7eb6639b4e056f9a138293fd1"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-dropdown-open.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-dropdown-open.png",
       "size": [
         960,
         640
       ],
-      "sha256": "4f720f3f6f5c29de88aeb5dce861cdda8e2f78a232a7c3bca94933713ad38333"
+      "sha256": "fb3e7bad9a536505de97f7b74440332d07ab0c91aa741945d442c663a98cc802"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-editing-220.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-editing-220.png",
       "size": [
         220,
         560
       ],
-      "sha256": "e493d8c51099f861be93c955413ac19ec55474eb0d1e8a482daca39422d2f66d"
+      "sha256": "8dda07a3e7265212b20d373cf9dd1ffddc64791f7dc001cfa57863793cfeef63"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-editing-360.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-editing-360.png",
       "size": [
         360,
         560
       ],
-      "sha256": "50c81a3dff3aa4211770f4bf3ec4fba7685dc7c84db5eb3b55f6e2806b02f3e3"
+      "sha256": "bb82e0c55de49e08756536f2b6dff9014649f55eb93bac4a65d5f6a68f5c1b1b"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-editing-520.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-editing-520.png",
       "size": [
         520,
         560
       ],
-      "sha256": "79b07186f46aa3ce39376334db95043d94e2d2747153307aa3af59ad382e00a4"
+      "sha256": "527aa0aa72d684e35f392ebafe93a559fdf2945b566305ffc02ad0b0607d2ccc"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-hover-220.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-hover-220.png",
       "size": [
         220,
         560
       ],
-      "sha256": "76268385732ada12921fd716b5240a06c6f456a275d3fe2b02e2054ba06a727d"
+      "sha256": "02d41d9013e5b1eaba223b42419e15c76427092c17e5a3bf2c5167a5d27c98ed"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-hover-360.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-hover-360.png",
       "size": [
         360,
         560
       ],
-      "sha256": "b86a4a0d2d167a79a98f3e18dc27ba1ac10a1cdf369294c898993e085e46b410"
+      "sha256": "cdb51245b3e9c1d0d061f3900014ccc81aa6510cc8fab662627c70c52214e5d9"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-hover-520.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-hover-520.png",
       "size": [
         520,
         560
       ],
-      "sha256": "1bcaa8d4a2dab2d8f5613d6d9aa43fcd86887e47a460ad1cb3e04cf9a8ccbbd8"
+      "sha256": "0b5290a79f9e40d8cf0d85f2fd3cfa5d02b334b08c357cafa6f2e05f1e5bdcf9"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-pickers-220.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-pickers-220.png",
       "size": [
         220,
         560
       ],
-      "sha256": "b196906706a708e710381fd91ac6a4d0fb76aa6667f858b40cfc708e0651f33d"
+      "sha256": "71f8c91f628b801332e27ccad166799da95853ed5564da4149c6a27e80737306"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-pickers-360.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-pickers-360.png",
       "size": [
         360,
         560
       ],
-      "sha256": "9d6b157a4e2fc052edded666f49f7a5fbec94c89a352194827c6412b368fbd9e"
+      "sha256": "b6add29d1a5cf56395404892ec5318c7def745b63c4e95a94d82c86e005b7f1e"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-pickers-520.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-pickers-520.png",
       "size": [
         520,
         560
       ],
-      "sha256": "23d73bdf29428780e60ac6eaf7ca08136c9254d678f7f835823e9e551ee2ad20"
+      "sha256": "2c9e4144e514c676320a619e8a86b42792e8d987565fac4df77290ee71c567bc"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-pickers-main.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-pickers-main.png",
       "size": [
         960,
         640
       ],
-      "sha256": "bf8fe424e8ce46d8b493fd0884687810c117fb03748153f82160d8f2c9c538c4"
+      "sha256": "f14eb42671a1abb912ff1056feb7d25bf32e9f3e7025d43b7ffdbcc2114aa6fa"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\effect-selected-row.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\effect-selected-row.png",
       "size": [
         960,
         640
       ],
-      "sha256": "4ca484733a67c239ef79ab930d4daf42d1fc309612943d9aa1504c77eaab6956"
+      "sha256": "bc078c55a59033310e9f3d15bfcfb9bf2601b67b98ceb284836e1f17b95c6812"
     },
     {
-      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\position-pick-armed.png",
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\position-pick-armed.png",
       "size": [
         960,
         640
       ],
-      "sha256": "62374d7ee0b443442ce0728483ceadecd71d00ca3da4796e40ae00e0b584c2e5"
+      "sha256": "e73788233f9893bd0c820e036afc016bcf0fd918829fe2082278f833da53cd50"
     }
   ],
-  "visualAcceptance": "220/360/520 widths and hover/editing screenshots inspected; user review pending",
+  "visualAcceptance": "native wide/narrow, coordinate group and hover/editing screenshots inspected; awaiting user review",
   "pending": [
     "full OS input playback",
     "real multiple DPI / monitor focus matrix",
@@ -194,8 +196,9 @@
   "reversibleOldBuildBackupManifest": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\old-test-binaries-backup.json",
   "derivedPreview": {
     "files": [
-      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\panels-comparison.png",
-      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\compact-frame-native\\interaction-comparison.png"
+      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\panels-comparison.png",
+      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\coordinate-group.png",
+      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\tight-coordinate-native\\interaction-comparison.png"
     ],
     "operation": "unaltered native screenshot crops; no scaling or repainting"
   },
@@ -210,15 +213,18 @@
     "selected row navigation produces an atomic key transaction and exact undo",
     "hidden navigation selects a row without creating keys",
     "selection preserves value field geometry",
-    "position and color actions share a trailing column",
+    "position action precedes coordinates at the common value-column boundary",
+    "color action adjoins its swatch with the theme control gap",
     "native screenshot retains position icon cardinal arms",
-    "220px numeric text fits after actual field padding",
-    "360 and 520 coordinate geometry is identical",
-    "scalar and enum fields share coordinate starting column",
+    "220px numeric text fits after actual body-font field padding",
+    "360 and 520 coordinate field widths are identical while label space grows",
+    "scalar, enum, position action and swatch share the value-column boundary",
     "black color border remains visible",
     "cached numeric field hover border survives at each width",
     "visible numeric frame excludes the top of the unchanged 30px hit row",
-    "coordinate first component aligns toward comma with minimal internal padding"
+    "coordinate first component aligns toward comma with minimal internal padding",
+    "position action ends where the first 39px numeric hit target begins",
+    "navigation begins where the last numeric hit target ends"
   ],
   "currentRoundTests": 44
 }

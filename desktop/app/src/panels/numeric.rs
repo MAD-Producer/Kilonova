@@ -71,13 +71,13 @@ pub fn passive(
     passive_with_precision(list, atlas, rect, value, input, enabled, 3);
 }
 pub fn passive_compact(list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect,
-    value: f64, input: &Input, enabled: bool, coordinate: bool, left: bool) {
+    value: f64, input: &Input, enabled: bool, inline_inspector: bool, left: bool) {
     let styles = list.styles();
     use motion_ui::style::{box_style, text_style, State, States};
     let mut states = States::default();
     if enabled && rect.contains(input.mouse) { states = states.with(State::Hovered); }
     if !enabled { states = states.with(State::Disabled); }
-    let style = styles.resolve(if coordinate { "field.coordinate_number" } else { "field.number" }, states).unwrap();
+    let style = styles.resolve(if inline_inspector { "field.effect_number" } else { "field.number" }, states).unwrap();
     let height = styles.metric("field.height", 18.).min(rect.height());
     let rect = Rect::new(rect.min[0], rect.min[1] + (rect.height() - height) * 0.5, rect.width(), height);
     box_style(list, rect, style);
