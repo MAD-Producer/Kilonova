@@ -20,7 +20,7 @@ pub(super) fn spec(index: u8, locale: Locale) -> (MaskProperty, &'static str, [f
         ),
         (1, zh) => (
             MaskProperty::Feather,
-            if zh { "羽化 X / Y" } else { "Feather X / Y" },
+            if zh { "羽化" } else { "Feather" },
             [0., 32000.],
         ),
         (_, zh) => (
@@ -51,19 +51,26 @@ pub(super) fn property_row(
         layout.watch.max[0] += indent * 2.;
         layout.caption.min[0] += indent * 2.;
         layout.caption.max[0] = layout.caption.max[0].max(layout.caption.min[0]);
+        if axes == 2 {
+            let value = crate::panels::timeline::property_layout(styles, area, y, row, 0, axes).number.min[0];
+            layout.caption.max[0] = layout.caption.max[0].min(value - styles.metric("icon.slot", 20.)).max(layout.caption.min[0]);
+        }
         return layout;
     }
     let padding = styles.metric("padding.panel", 8.);
     let slot = styles.metric("icon.slot", 20.);
     let field = styles.metric("field.height", 18.).min(row);
     let navigation = crate::panels::key_navigation::width(styles);
-    let start = area.min[0] + padding + navigation + indent * 2.;
+    let preferred_start = area.min[0] + padding + navigation + indent * 2.;
     let value = if host == Panel::Properties {
         area.min[0]
             + (padding + navigation + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.7)
     } else {
         area.min[0] + area.width() * 0.52
-    }.max(start + slot + padding);
+    }.max(preferred_start + slot + padding);
+    // Keep both numeric hit areas intact. The link consumes caption space;
+    // at very narrow widths the existing leading indent yields first.
+    let start = if axes == 2 { preferred_start.min(value - slot * 2.) } else { preferred_start };
     let cell = ((area.max[0] - padding - value) / axes.max(1) as f32)
         .min(styles.metric("value.min_width", 64.));
     crate::panels::timeline::PropertyLayout {
@@ -71,7 +78,7 @@ pub(super) fn property_row(
         caption: Rect::new(
             start + slot,
             y,
-            (value - start - slot - padding).max(0.),
+            (value - start - slot - padding - if axes == 2 { slot } else { 0. }).max(0.),
             row,
         ),
         number: Rect::new(
@@ -141,6 +148,34 @@ fn mode_row(
     }
 }
 impl Controls {
+    pub(super) fn feather_link(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: f32,
+        owner: mask_keys::Owner,
+        mask: &LayerMask,
+        host: Panel,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let styles = list.styles();
+        let slot = styles.metric("icon.slot", 20.);
+        let fields = property_row(&styles, area, y, 0, 2, host);
+        let rect = Rect::new(fields.number.min[0] - slot, y, slot, styles.metric("row.height", 22.));
+        #[cfg(test)]
+        self.feather_link_rects.insert((owner.object,mask.id),rect);
+        if Checkbox::draw(list, atlas, rect, "", mask.feather_linked, input,
+            !owner.locked, false, Some(Icon::Link)).clicked
+        {
+            if self.cancel() { out.push(Action::History(4)); }
+            out.push(Action::Edit(Command::Mask {
+                object: owner.object,
+                action: MaskAction::FeatherLink { mask: mask.id, linked: !mask.feather_linked },
+            }));
+        }
+    }
     pub(super) fn path_value(
         &mut self,
         list: &mut PaintList,
@@ -177,6 +212,7 @@ impl Controls {
         owner: mask_keys::Owner,
         mask: u64,
         property: MaskProperty,
+        linked: bool,
         axis: usize,
         values: &[f32],
         range: [f32; 2],
@@ -231,6 +267,7 @@ impl Controls {
             if self.parameter.take().is_some_and(|p| p.begun) {
                 out.push(Action::History(3));
             }
+            let linked = linked && matches!(property, MaskProperty::Feather);
             self.parameter = Some(Parameter {
                 host,
                 object: owner.object,
@@ -245,6 +282,7 @@ impl Controls {
                 start: Some(input.pressed.unwrap().1[0]),
                 begun: false,
                 last_value: value,
+                linked,
                 range,
             });
             self.parameter_context = Some((
@@ -656,6 +694,9 @@ impl Controls {
                 self.keys
                     .watch(list, fields.watch, state, owner, mask, index, input, out);
                 label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
+                if index == 1 {
+                    self.feather_link(list, atlas, area, *y, owner, mask, host, input, out);
+                }
                 if index == mask_path::CHANNEL {
                     let rect = Rect::new(fields.number.min[0], *y, slot, row);
                     self.path_value(list, rect, owner, mask.id, input, out);
@@ -670,6 +711,7 @@ impl Controls {
                         owner,
                         mask.id,
                         property.clone(),
+                        mask.feather_linked,
                         axis,
                         &values,
                         range,

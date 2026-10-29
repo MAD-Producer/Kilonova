@@ -10,6 +10,30 @@ use std::{
     hash::{Hash, Hasher},
     sync::{Arc, OnceLock},
 };
+mod boundary_geometry;
+pub use boundary_geometry::{BoundaryGeometry, feather_support};
+
+fn shape_vector(mut nodes: Vec<[f32; 6]>, source_rect: [f32; 4], expansion: f32) -> SampledVector {
+    // Center on the raster region while retaining the source top-left origin.
+    for node in &mut nodes {
+        node[0] -= source_rect[0] + source_rect[2] * 0.5;
+        node[1] -= source_rect[1] + source_rect[3] * 0.5;
+    }
+    SampledVector {
+        batches: None,
+        root_opacity: 1.,
+        group_parameters: Default::default(),
+        trim: None,
+        dashes: None,
+        paths: vec![SampledPath { closed: true, nodes }],
+        fill: Some([1.; 4]),
+        fill_rule: FillRule::NonZero,
+        stroke: (expansion != 0.).then_some((
+            if expansion > 0. { [1.; 4] } else { [0., 0., 0., 1.] },
+            expansion.abs() * 2., LineCap::Round, LineJoin::Round, 4.,
+        )),
+    }
+}
 
 pub const SOURCE_TOKEN: i32 = -536_870_912;
 pub const RECORD_BYTES: usize = 64;
@@ -108,37 +132,7 @@ impl MaskCache {
                 let key = (m.nodes.clone(), l.source_rect, m.expansion, density);
                 let cache = (l.id, m.id);
                 if self.shapes.get(&cache).is_none_or(|(k, _, _)| k != &key) {
-                    let mut nodes = m.nodes.clone();
-                    // Center vertices on the actual raster region, preserving
-                    // the source top-left origin even for expanded vector bounds.
-                    for n in &mut nodes {
-                        n[0] -= l.source_rect[0] + l.source_rect[2] * 0.5;
-                        n[1] -= l.source_rect[1] + l.source_rect[3] * 0.5;
-                    }
-                    let vector = SampledVector {
-                        batches: None,
-                        root_opacity: 1.,
-                        group_parameters: Default::default(),
-                        trim: None,
-                        dashes: None,
-                        paths: vec![SampledPath {
-                            closed: true,
-                            nodes,
-                        }],
-                        fill: Some([1.; 4]),
-                        fill_rule: FillRule::NonZero,
-                        stroke: (m.expansion != 0.).then_some((
-                            if m.expansion > 0. {
-                                [1.; 4]
-                            } else {
-                                [0., 0., 0., 1.]
-                            },
-                            m.expansion.abs() * 2.,
-                            LineCap::Round,
-                            LineJoin::Round,
-                            4.,
-                        )),
-                    };
+                    let vector = shape_vector(m.nodes.clone(), l.source_rect, m.expansion);
                     let vertices = Arc::new(
                         vector_mesh::tessellate_with_limit(&vector, l.size, density, remaining)
                             .map_err(|cause| {
