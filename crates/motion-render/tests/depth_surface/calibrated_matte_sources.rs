@@ -11,7 +11,7 @@ fn srgb(c: f32) -> u8 {
     (c * 255.).round() as u8
 }
 
-fn source_project(root: &std::path::Path) -> (Project, DepthResource) {
+pub(super) fn source_project(root: &std::path::Path) -> (Project, DepthResource) {
     let mut p = project(root);
     image::save_buffer(
         root.join("assets/green.png"),

@@ -3,9 +3,8 @@ use super::*;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePlane};
 
 /// Iterative dependency traversal bounds storage by the sampled layer count.
-/// Ordinary leaves retain their existing materialization; calibrated parents
-/// read already projected children. Eligibility checks reject calibrated
-/// children of ordinary receivers until that separate input path exists.
+/// Ordinary and calibrated parents read independently projected dependencies.
+/// Cycles are rejected before any dependency is rendered.
 pub(super) fn source_order(scene: &Scene, roots: &[u64]) -> Result<Vec<u64>> {
     let mut marks = HashMap::new();
     let mut ordered = Vec::new();
@@ -37,10 +36,7 @@ pub(super) fn source_order(scene: &Scene, roots: &[u64]) -> Result<Vec<u64>> {
                 })?;
             marks.insert(source, 1);
             pending.push((source, true));
-            if let Some(matte) = layer
-                .track_matte
-                .filter(|_| scene.depth_surface(source).is_some())
-            {
+            if let Some(matte) = layer.track_matte {
                 pending.push((matte.source, false));
             }
         }

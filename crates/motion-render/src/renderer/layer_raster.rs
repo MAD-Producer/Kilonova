@@ -104,17 +104,19 @@ impl Renderer {
         if scene.depth_surface(source).is_some() {
             return self.project_calibrated_matte_source(scene, source, width, height, projected, retained_bytes);
         }
-        let (mut raster, mut stats) = self.materialize_layer(scene, source, width, height, false)?
+        let mut context = scene.clone();
+        let inputs = super::projected_mattes::bindings(self, &mut context, scene, projected)?;
+        let mut renderer = super::projected_mattes::Inputs::install(self, inputs);
+        let (mut raster, mut stats) = renderer.materialize_layer(&context, source, width, height, false)?
             .ok_or_else(|| RenderError::Invalid(format!("depth matte source={source} phase=materialize: source is absent")))?;
         // Source visibility and transfer describe its contribution to the
         // composition, not the independent image read by a matte consumer.
         raster.plane.composite_visible = true;
         raster.plane.blend = Default::default();
         raster.additive = false;
-        let target = self.render_target_in(width, height, crate::TextureCategory::MatteBlendScratch)?;
-        let mut context = scene.clone();
+        let target = renderer.render_target_in(width, height, crate::TextureCategory::MatteBlendScratch)?;
         context.background = [0.; 4];
-        stats.add(self.draw_layer_rasters(&context, &[&raster], &target.view, width, height)?);
+        stats.add(renderer.draw_layer_rasters(&context, &[&raster], &target.view, width, height)?);
         Ok((target, stats))
     }
     fn allocate_layer_raster_image(

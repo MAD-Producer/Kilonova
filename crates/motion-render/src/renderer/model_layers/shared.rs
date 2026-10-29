@@ -40,9 +40,7 @@ fn native_matte_sources(renderer: &Renderer, scene: &Scene) -> std::collections:
     }
     scene.calibrated_depth_layers().map(|(id, _)| id).filter(|&id| {
         let consumed = scene.layers.iter().any(|l| l.track_matte.is_some_and(|m| m.source == id));
-        consumed && scene.layers.iter().all(|l| !l.track_matte.is_some_and(|m| m.source == id)
-            || scene.depth_surface(l.id).is_some())
-            && scene.layers.iter().any(|l| l.id == id && shared_plane(renderer, scene, l))
+        consumed && scene.layers.iter().any(|l| l.id == id && shared_plane(renderer, scene, l))
             && !scene.effects.iter().any(|e| e.layer == id || e.image_input.and_then(motion_model::EffectImageInput::layer) == Some(id))
     }).collect()
 }
@@ -135,7 +133,7 @@ impl Renderer {
         width: u32,
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
-    ) -> Result<Option<(Scene, RenderStats)>> {
+    ) -> Result<Option<(Scene, RenderStats, Vec<(TextureKey, GpuImage)>)>> {
         let native_mattes = native_matte_sources(self, scene);
         let blocks = blocks(self, scene, &native_mattes);
         for (object, calibration) in scene.calibrated_depth_layers() {
@@ -158,7 +156,7 @@ impl Renderer {
                 }
             }
         }
-        if blocks.is_empty() {
+        if blocks.is_empty() && native_mattes.is_empty() {
             return Ok(None);
         }
         let [_, _, mw, mh] = crate::fit_viewport([0., 0., width as f32, height as f32], [scene.width, scene.height]);
@@ -167,7 +165,8 @@ impl Renderer {
         let mut matte_stats = RenderStats::default();
         let mut matte_bytes = 0u64;
         let roots: Vec<_> = blocks.iter().flat_map(|b| scene.layers[b.clone()].iter())
-            .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
+            .filter_map(|layer| layer.track_matte.map(|matte| matte.source))
+            .chain(native_mattes.iter().copied()).collect();
         for source in super::matte_sources::source_order(scene, &roots)? {
             let cost = u64::from(mw) * u64::from(mh) * crate::image_formats::color_storage(self.working_precision()).bytes_per_pixel();
             let required = self.resident_source_texture_bytes().saturating_add(matte_bytes).saturating_add(cost);
@@ -256,7 +255,8 @@ impl Renderer {
                     2. / scene.width as f32, 2. / scene.height as f32, 1.));
             }
         }
-        Ok(Some((output, stats)))
+        let inputs = super::super::projected_mattes::bindings(self, &mut output, scene, &mattes)?;
+        Ok(Some((output, stats, inputs)))
     }
 
     fn prepare_shared_model_block(

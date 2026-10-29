@@ -28,6 +28,9 @@ mod calibrated_mattes;
 #[path = "depth_surface/calibrated_matte_sources.rs"]
 mod calibrated_matte_sources;
 
+#[path = "depth_surface/ordinary_calibrated_mattes.rs"]
+mod ordinary_calibrated_mattes;
+
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {
     if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {

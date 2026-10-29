@@ -115,3 +115,12 @@ provenance checks. All production/configuration hashes match the broader
 `artifacts/pr-queue/calibrated-matte-source-video-v1/equivalence.json`.
 Archive: `data/calibrated-matte-source-video-native-v1.zip`; CRC and every entry verified against originals.
 SHA-256: `a8e62392c4e035f6587183977496e63688dfc41d98a02233c24c3baba24d00dc`.
+
+## Later ordinary-receiver checkpoint
+
+[Ordinary calibrated matte input acceptance](ordinary-calibrated-mattes-current.md)
+supersedes the exclusively-calibrated-consumer restriction of this checkpoint. It
+adds independent native inputs for ordinary receivers and mixed dependency
+chains while retaining visible physical depth. Effect owners/explicit image
+inputs and the broader limits remain open; the counts and restrictions above
+describe their historical source checkpoint.
