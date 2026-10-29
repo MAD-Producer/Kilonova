@@ -962,6 +962,12 @@ impl Shell {
                 let operation=workflow::library_media::Request::Place { target, at_frame };
                 self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectAsset{source,operation,reply})?));
             }
+            Action::ProjectPlaceModel { source, asset, at_frame } => {
+                self.stop();
+                let operation = workflow::library_media::Request::PlaceModel { asset, at_frame };
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::ProjectAsset { source, operation, reply })?));
+            }
             Action::ExpressionCheck { ticket, target, text } => {
                 let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });
                 self.start_expression_task(ticket, false, receive)?;

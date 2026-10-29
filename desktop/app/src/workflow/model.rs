@@ -11,6 +11,12 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
+#[derive(Clone, Copy)]
+enum Destination {
+    Layer,
+    Library { folder: Option<u64> },
+}
+
 pub(crate) fn supported(path: &Path) -> bool {
     path.extension()
         .and_then(|s| s.to_str())
@@ -22,33 +28,62 @@ pub(crate) fn supported(path: &Path) -> bool {
 }
 
 pub(crate) fn import(session: &mut Session, path: &Path) -> Result<Value> {
+    publish(session, path, Destination::Layer)
+}
+
+pub(crate) fn register(session: &mut Session, path: &Path, folder: Option<u64>) -> Result<Value> {
+    publish(session, path, Destination::Library { folder })
+}
+
+fn publish(session: &mut Session, path: &Path, destination: Destination) -> Result<Value> {
     let request = crate::engine::current_command().map_or(0, |c| c.0);
     let source: String = path.to_string_lossy().chars().take(1024).collect();
     let began = Instant::now();
-    log::info!("start #{request} model_import source={source:?} phase=read");
-    let result = load(session, path, request);
+    let operation = match destination {
+        Destination::Layer => "model_import",
+        Destination::Library { .. } => "model_register",
+    };
+    log::info!("start #{request} {operation} source={source:?} phase=read");
+    let result = load(session, path, request, destination);
     match &result {
         Ok(_) => log::debug!(
-            "done #{request} model_import elapsed_ms={}",
+            "done #{request} {operation} elapsed_ms={}",
             began.elapsed().as_millis()
         ),
         Err(cause) => log::error!(
-            "model_import #{request} source={source:?} elapsed_ms={} cause={}",
+            "{operation} #{request} source={source:?} elapsed_ms={} cause={}",
             began.elapsed().as_millis(),
             cause.to_string().chars().take(1024).collect::<String>()
         ),
     }
     result.map_err(|cause| {
-        motion_host::Error::with_context(
-            format!("model_import #{request} source={source:?}"),
-            cause,
-        )
+        motion_host::Error::with_context(format!("{operation} #{request} source={source:?}"), cause)
     })
 }
 
-fn load(session: &mut Session, path: &Path, request: u64) -> Result<Value> {
+fn load(
+    session: &mut Session,
+    path: &Path,
+    request: u64,
+    destination: Destination,
+) -> Result<Value> {
     if !supported(path) {
         return Err("model source must be glTF, GLB or OBJ".into());
+    }
+    if let Destination::Library {
+        folder: Some(folder),
+    } = destination
+    {
+        if !session
+            .engine
+            .project()
+            .library
+            .folders
+            .iter()
+            .any(|f| f.id == folder)
+        {
+            return Err("model destination folder no longer exists".into());
+        }
     }
     let limits = ImportLimits::default();
     let file = fs::File::open(path)?;
@@ -75,7 +110,10 @@ fn load(session: &mut Session, path: &Path, request: u64) -> Result<Value> {
         .unwrap_or(0)
         .checked_add(1)
         .ok_or("asset IDs exhausted")?;
-    let object = super::next_layer_id(&session.snapshot()?)?;
+    let object = match destination {
+        Destination::Layer => Some(super::next_layer_id(&session.snapshot()?)?),
+        Destination::Library { .. } => None,
+    };
     let mut resolver = DirectoryResolver::new(path.parent().ok_or("model source parent missing")?)?;
     let context = ImportContext {
         request,
@@ -121,50 +159,42 @@ fn load(session: &mut Session, path: &Path, request: u64) -> Result<Value> {
         owned.file().write_all(&frozen)?;
         owned.file().sync_all()?;
         owned.close();
-        let project = session.engine.project();
-        let at = (session.frame.floor().max(0.) as u32).min(project.frames - 1);
-        let mut layer = Layer::solid(
-            object,
-            &path
+        let mut commands = vec![Command::RegisterModelAsset {
+            asset: ModelAsset {
+                id: asset,
+                path: relative,
+                bytes: frozen.len() as u64,
+                sha256: format!("{:x}", Sha256::digest(&frozen)),
+            },
+        }];
+        if let Some(object) = object {
+            let project = session.engine.project();
+            let at = (session.frame.floor().max(0.) as u32).min(project.frames - 1);
+            let name = path
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("Model")
                 .chars()
                 .take(128)
-                .collect::<String>(),
-            [200.; 2],
-            [project.width as f32 / 2., project.height as f32 / 2., 0.],
-            [1.; 4],
-        );
-        layer.three_d = true;
-        layer.content = Content::Model {
-            model: ModelClip {
-                asset,
-                scene: selected as u32,
-                pixels_per_metre: 100.,
-                pivot: [0.; 3],
-                samples: 1,
-                animation: None,
-            },
-        };
-        layer.timeline = Some(LayerTimeline {
-            in_frame: at as i32,
-            out_frame: project.frames as i32,
-            offset_frame: at as i32,
-        });
-        let mut state = session.apply_command_batch(vec![
-            Command::RegisterModelAsset {
-                asset: ModelAsset {
-                    id: asset,
-                    path: relative,
-                    bytes: frozen.len() as u64,
-                    sha256: format!("{:x}", Sha256::digest(&frozen)),
+                .collect::<String>();
+            commands.push(Command::Add {
+                layer: model_layer(project, object, asset, selected as u32, &name, at),
+            });
+        } else if let Destination::Library { folder } = destination {
+            commands.push(Command::ProjectLibrary {
+                action: motion_core::LibraryAction::MoveItems {
+                    items: vec![motion_core::ProjectItem::Model { id: asset }],
+                    folder,
                 },
-            },
-            Command::Add { layer },
-        ])?;
+            });
+        }
+        let mut state = session.apply_command_batch(commands)?;
         state["modelImport"] = json!({"asset":asset,"object":object,"scene":selected,
             "pixelsPerMetre":100,"samples":1,"animation":null,"owned":true});
+        if let Destination::Library { folder } = destination {
+            state["assetRegistration"] =
+                json!({"cancelled":false,"asset":asset,"kind":"model","folder":folder});
+        }
         Ok(state)
     })();
     match publication {
@@ -174,9 +204,75 @@ fn load(session: &mut Session, path: &Path, request: u64) -> Result<Value> {
         }
         Err(primary) => {
             if let Err(cleanup) = owned.discard() {
-                log::error!("model_import #{request} asset={asset} object={object} phase=rollback primary={primary} cleanup={cleanup}");
+                log::error!("model_import #{request} asset={asset} object={object:?} phase=rollback primary={primary} cleanup={cleanup}");
             }
             Err(primary)
         }
     }
+}
+
+/// Place an existing immutable source; never read the original model again.
+pub(crate) fn place(session: &mut Session, asset: u64, at_frame: u32) -> Result<Value> {
+    let project = session.engine.project();
+    if at_frame >= project.frames {
+        return Err("model placement outside composition".into());
+    }
+    if !project.model_assets.iter().any(|source| source.id == asset) {
+        return Err("placement model source no longer exists".into());
+    }
+    let catalog = session.scene.model_source_catalog();
+    let source = catalog
+        .scene(asset)
+        .ok_or("placement model source is not prepared")?;
+    let selected = source.default_scene().unwrap_or(0);
+    if source.instances(selected, 1.)?.is_empty() {
+        return Err("selected model scene has no mesh instances".into());
+    }
+    let object = super::next_layer_id(&session.snapshot()?)?;
+    let layer = model_layer(
+        project,
+        object,
+        asset,
+        selected as u32,
+        &format!("Model {asset}"),
+        at_frame,
+    );
+    let mut state = session.apply_command_batch(vec![Command::Add { layer }])?;
+    state["assetPlacement"] = json!({"cancelled":false,"object":object,
+        "target":{"kind":"model","id":asset},"frame":at_frame});
+    Ok(state)
+}
+
+fn model_layer(
+    project: &motion_core::Project,
+    object: u64,
+    asset: u64,
+    scene: u32,
+    name: &str,
+    at: u32,
+) -> Layer {
+    let mut layer = Layer::solid(
+        object,
+        name,
+        [200.; 2],
+        [project.width as f32 / 2., project.height as f32 / 2., 0.],
+        [1.; 4],
+    );
+    layer.three_d = true;
+    layer.content = Content::Model {
+        model: ModelClip {
+            asset,
+            scene,
+            pixels_per_metre: 100.,
+            pivot: [0.; 3],
+            samples: 1,
+            animation: None,
+        },
+    };
+    layer.timeline = Some(LayerTimeline {
+        in_frame: at as i32,
+        out_frame: project.frames as i32,
+        offset_frame: at as i32,
+    });
+    layer
 }

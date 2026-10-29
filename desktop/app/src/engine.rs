@@ -44,7 +44,9 @@ mod project_library_tests;
 #[cfg(test)]
 mod project_library_import_tests;
 #[cfg(test)]
-mod model_import_tests;
+pub(crate) mod model_import_tests;
+#[cfg(test)]
+mod model_library_tests;
 #[cfg(test)]
 mod keyframe_timing_tests;
 #[cfg(test)]
