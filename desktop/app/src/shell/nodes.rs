@@ -158,11 +158,13 @@ impl Shell {
             else {
                 unreachable!()
             };
-            self.state = self
-                .engine
-                .node_source(snapshot.clone())?
-                .recv()
-                .map_err(|_| "node source worker disconnected")??;
+            // Bounded like every other round trip on this thread: a bare
+            // `recv` waited forever whenever the serial worker still had
+            // queued work, freezing project open/close, pack, undo/redo and
+            // window close with no timeout and no record. `self.state` is
+            // replaced only after the reply is in hand, so a timeout leaves
+            // the previous snapshot intact.
+            self.state = await_node_source(self.engine.node_source(snapshot.clone())?)?;
             self.panels.node_editor.accept_project_saved(&snapshot);
         }
         Ok(())
@@ -603,5 +605,29 @@ impl Shell {
         self.schedule_node_compile()?;
         self.dirty = true;
         Ok(())
+    }
+}
+
+/// Wait for a queued node-source reply without blocking the UI thread forever.
+///
+/// Mirrors `Engine::call`: the same 60 s bound and the same timeout wording.
+/// A timeout is a fault, not a cancellation — the serial worker still owns the
+/// request and its reply can arrive later, so the caller must not treat this
+/// as a completed save.
+fn await_node_source(
+    receive: std::sync::mpsc::Receiver<Result<Value, String>>,
+) -> Result<Value, String> {
+    const WAIT: Duration = Duration::from_secs(60);
+    let began = Instant::now();
+    match receive.recv_timeout(WAIT) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            Err("node source worker disconnected".into())
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            let elapsed = began.elapsed().as_millis();
+            log::error!("node source refresh timed out: operation=node_source waited={elapsed}ms pending=true state=unchanged reason=node source worker reply has not arrived");
+            Err(format!("node_source timed out after {elapsed}ms; its result is still pending; check project state before retrying"))
+        }
     }
 }
