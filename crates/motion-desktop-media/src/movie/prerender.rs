@@ -13,6 +13,7 @@ use std::{
 };
 
 mod key;
+pub mod worker;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase {
