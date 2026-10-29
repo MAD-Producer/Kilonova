@@ -16,6 +16,7 @@ pub(super) struct State {
     installed: Option<(Arc<Estimate>, PreparedDepthInput, Option<u64>)>,
     retained: retained::Results,
     archive: Option<(Binding, Arc<depth::storage::Store>)>,
+    storage_directory: PathBuf,
 }
 #[derive(Clone)]
 struct Binding {
@@ -201,7 +202,7 @@ impl Binding {
 }
 impl Session {
     pub(crate) fn capture_depth_snapshot(&self) -> Result<crate::depth_snapshot::DepthSnapshot> {
-        use crate::depth_snapshot::{DepthSnapshot, Entry, VideoEntry};
+        use crate::depth_snapshot::{DepthSnapshot, Entry, Owned, VideoEntry};
         let project = self.engine.project();
         let mut snapshot = DepthSnapshot { composition: project.composition_id.clone(), entries: Vec::new(), videos: Vec::new() };
         for composition in project.reachable_compositions()? {
@@ -212,6 +213,26 @@ impl Session {
                         return Err(format!("frozen depth object={} phase=capture: nested depth is not supported", layer.id).into());
                     }
                     for authored in track.samples() {
+                        if let Some((scope, store)) = self.depth.as_ref().and_then(|state| state.archive.as_ref()) {
+                            if scope.document_matches(self) {
+                                let lookup = VideoKey { object: layer.id, asset: authored.calibration().asset(),
+                                    revision: self.engine.revision(), target_us: authored.start_us(),
+                                    geometry: authored.calibration().geometry().clone(), model: authored.calibration().model().clone() };
+                                if let Some(sample) = store.lookup(&lookup)? {
+                                    if sample.end_us == authored.end_us()
+                                        && authored.calibration().rebind_descriptor(&sample.plane.descriptor, sample.input).is_ok() {
+                                        let asset = project.video_assets.iter().find(|a| a.id == lookup.asset)
+                                            .filter(|a| matches!(&layer.content, Content::Video { video } if video.asset == a.id))
+                                            .ok_or("frozen depth video admission has no registered source")?;
+                                        snapshot.videos.push(VideoEntry { object: layer.id, asset: asset.clone(),
+                                            key: sample.key.clone(), input: sample.input, sample: authored.clone(),
+                                            estimate: Owned::File(sample.plane.clone()), request: sample.request,
+                                            decoded_budget: scope.decoded_budget });
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                         let entry = self.depth.as_ref().and_then(|state| state.retained.entries.iter().find(|entry| {
                             matches!(&entry.binding.source, Source::Video { object, .. } if *object == layer.id)
                                 && entry.binding.cache_current(self, entry.image.is_some(), entry.video_interval())
@@ -226,7 +247,7 @@ impl Session {
                         snapshot.videos.push(VideoEntry {
                             object: layer.id, asset: asset.clone(),
                             key: Key { source: descriptor.source.clone(), geometry: descriptor.geometry.clone(), model: descriptor.model.clone() },
-                            input: entry.input, sample: authored.clone(), estimate: entry.estimate.clone(),
+                            input: entry.input, sample: authored.clone(), estimate: Owned::Memory(entry.estimate.clone()),
                             request: entry.binding.request, decoded_budget: entry.binding.decoded_budget,
                         });
                     }
@@ -502,6 +523,13 @@ impl Session {
     /// The default Session creates no inference worker or runtime. Configure
     /// once per Session; cancel does not replace or restart a failed backend.
     pub fn configure_depth(&mut self, backend: impl Backend) -> Result<()> {
+        self.configure_depth_in(backend, std::env::temp_dir())
+    }
+
+    /// Anonymous scalar files live independently of project sources and output
+    /// destinations. The directory is trusted application cache configuration;
+    /// creating files is deferred to the worker and obeys the existing quota.
+    pub fn configure_depth_in(&mut self, backend: impl Backend, directory: PathBuf) -> Result<()> {
         self.check_thread()?;
         if self.depth.is_some() {
             return Err(
@@ -514,6 +542,7 @@ impl Session {
             installed: None,
             retained: retained::Results::default(),
             archive: None,
+            storage_directory: directory,
         });
         Ok(())
     }
@@ -664,7 +693,7 @@ impl Session {
             decoded_budget: self.effects.memory_policy().decoded_image_budget_bytes,
         };
         let store = if timeline {
-            Some(state.archive.get_or_insert_with(|| (binding.clone(), Arc::new(depth::storage::Store::new()))).1.clone())
+            Some(state.archive.get_or_insert_with(|| (binding.clone(), Arc::new(depth::storage::Store::with_directory(state.storage_directory.clone())))).1.clone())
         } else { None };
         let request = state.jobs.request_video(VideoInput {
             key: key.clone(),

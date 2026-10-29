@@ -96,13 +96,14 @@ fn indexed_spill_io_failure_is_reported_at_default_info_without_publishing_a_suc
     authored.session.poll_depth().unwrap().unwrap();
     let command = author_indexed_sample(&mut authored.session, 10.);
     authored.session.apply_command_batch(vec![command]).unwrap();
-    let mut f = fixture(Mode::BlockBackend);
+    let cache = tempfile::tempdir().unwrap();
+    let mut f = fixture_with_storage(Mode::BlockBackend, Some(cache.path()));
     f.session.replace_project(motion_core::Engine::new(authored.session.engine.snapshot()).unwrap(), f.dir.path().into()).unwrap();
     let request_id = request(&mut f.session).unwrap();
     f.seen.recv_timeout(Duration::from_secs(5)).unwrap();
     // Decoding has completed and the backend is controlled. Removing the test
-    // root now forces a real tempfile creation failure in the storage phase.
-    std::fs::remove_dir_all(f.dir.path()).unwrap();
+    // configured cache now forces a real tempfile creation failure in storage.
+    cache.close().unwrap();
     f.release.send(()).unwrap();
     done(&mut f.session, 1);
     assert!(f.session.poll_depth().is_err());

@@ -88,3 +88,7 @@ regression gate, with their previously documented scope.
 
 Android is outside the maintained acceptance scope. No panel, layout, style,
 asset/dependency or compatibility migration is introduced by this increment.
+
+The subsequent [file-backed frozen export increment](video-depth-file-export-current.md)
+implements archived capture and streaming restoration, with a real-codec
+150-frame ownership proof. Its separate acceptance and remaining limits apply.

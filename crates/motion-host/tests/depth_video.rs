@@ -320,6 +320,9 @@ struct Fixture {
     seen: mpsc::Receiver<Seen>,
 }
 fn fixture(mode: Mode) -> Fixture {
+    fixture_with_storage(mode, None)
+}
+fn fixture_with_storage(mode: Mode, storage: Option<&Path>) -> Fixture {
     init_log();
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("assets")).unwrap();
@@ -387,12 +390,13 @@ fn fixture(mode: Mode) -> Fixture {
     });
     let mut session = Session::new(project, dir.path().into(), platform.clone()).unwrap();
     let (seen, receiver) = mpsc::channel();
-    session
-        .configure_depth(Echo {
+    let backend = Echo {
             seen,
             release: backend_release,
-        })
-        .unwrap();
+        };
+    if let Some(storage) = storage {
+        session.configure_depth_in(backend, storage.into()).unwrap();
+    } else { session.configure_depth(backend).unwrap(); }
     Fixture {
         dir,
         session,

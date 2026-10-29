@@ -23,16 +23,17 @@ struct Index {
     stats: Stats,
 }
 #[derive(Default)]
-struct Writer {
+pub(crate) struct Spool {
     file: Option<Arc<File>>,
     extent: u64,
 }
 pub(crate) struct Store {
     // Never acquire this worker-only lock from the Session owner.
-    writer: Mutex<Writer>,
+    writer: Mutex<Spool>,
     index: Mutex<Index>,
     byte_limit: u64,
     sample_limit: usize,
+    directory: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug)]
@@ -60,12 +61,19 @@ impl Store {
     pub fn new() -> Self {
         Self::with_limits(MAX_STORED_BYTES, MAX_VIDEO_DEPTH_SAMPLES)
     }
+    pub fn with_directory(directory: std::path::PathBuf) -> Self {
+        Self {
+            directory: Some(directory),
+            ..Self::new()
+        }
+    }
     fn with_limits(byte_limit: u64, sample_limit: usize) -> Self {
         Self {
-            writer: Mutex::new(Writer::default()),
+            writer: Mutex::new(Spool::default()),
             index: Mutex::new(Index::default()),
             byte_limit,
             sample_limit,
+            directory: None,
         }
     }
     pub fn stats(&self) -> Result<Stats> {
@@ -148,11 +156,63 @@ impl Store {
                 });
             }
         }
-        if writer.file.is_none() {
-            writer.file = Some(Arc::new(tempfile::tempfile_in(root)?));
+        let plane = writer.append(
+            Some(self.directory.as_deref().unwrap_or(root)),
+            estimate,
+            check,
+        )?;
+        let sample = Arc::new(Sample {
+            request,
+            key: input.key.clone(),
+            input: fingerprint,
+            end_us,
+            plane,
+        });
+        // The index lock never spans file IO. Publish only a complete sample;
+        // its file Arc remains valid after Store/Session teardown.
+        let mut index = self.index.lock().map_err(|_| Error::State)?;
+        index.entries.insert(id, sample);
+        writer.extent = required_bytes;
+        index.stats.samples = index.entries.len();
+        index.stats.bytes = required_bytes;
+        Ok(())
+    }
+}
+
+impl Spool {
+    /// Used by streaming snapshot restoration on the export worker. All planes
+    /// share one anonymous file, rather than keeping one open handle per frame.
+    pub fn append_for_export(
+        &mut self,
+        estimate: &Estimate,
+        check: &dyn Fn() -> crate::Result<()>,
+    ) -> crate::Result<Arc<Plane>> {
+        export_control(check, |checked| self.append(None, estimate, checked))
+    }
+    fn append(
+        &mut self,
+        root: Option<&Path>,
+        estimate: &Estimate,
+        check: &dyn Fn() -> Result<()>,
+    ) -> Result<Arc<Plane>> {
+        check()?;
+        let resource = &estimate.resource;
+        let bytes = resource.values().len() as u64
+            * (4 + u64::from(resource.validity().is_some())
+                + 4 * u64::from(resource.confidence().is_some()));
+        let end = self
+            .extent
+            .checked_add(bytes)
+            .filter(|n| *n <= MAX_STORED_BYTES)
+            .ok_or(Error::Invalid("frozen depth spool exceeds 2 GiB"))?;
+        if self.file.is_none() {
+            self.file = Some(Arc::new(match root {
+                Some(root) => tempfile::tempfile_in(root)?,
+                None => tempfile::tempfile()?,
+            }));
         }
-        let file = writer.file.as_ref().ok_or(Error::State)?.clone();
-        let offset = writer.extent;
+        let file = self.file.as_ref().ok_or(Error::State)?.clone();
+        let offset = self.extent;
         let result = (|| {
             let mut out = Output {
                 file: &file,
@@ -167,45 +227,60 @@ impl Store {
                 out.floats(scores, check)?;
             }
             check()?;
-            Ok(Arc::new(Sample {
-                request,
-                key: input.key.clone(),
-                input: fingerprint,
-                end_us,
-                plane: Arc::new(Plane {
-                    file: file.clone(),
-                    offset,
-                    bytes,
-                    digest: out.hash.finalize().into(),
-                    descriptor: resource.descriptor().clone(),
-                    provider: estimate.provider.clone(),
-                    costs: estimate.costs.clone(),
-                    validity: resource.validity().is_some(),
-                    confidence: resource.confidence().is_some(),
-                }),
+            Ok(Arc::new(Plane {
+                file: file.clone(),
+                offset,
+                bytes,
+                digest: out.hash.finalize().into(),
+                descriptor: resource.descriptor().clone(),
+                provider: estimate.provider.clone(),
+                costs: estimate.costs.clone(),
+                validity: resource.validity().is_some(),
+                confidence: resource.confidence().is_some(),
             }))
         })();
-        let sample = match result {
-            Ok(sample) => sample,
-            Err(primary) => {
-                return match file.set_len(offset) {
-                    Ok(()) => Err(primary),
-                    Err(cleanup) => Err(Error::Cleanup {
-                        primary: Box::new(primary),
-                        cleanup,
-                    }),
-                }
+        match result {
+            Ok(plane) => {
+                self.extent = end;
+                Ok(plane)
             }
-        };
-        // The index lock never spans file IO. Publish only a complete sample;
-        // its file Arc remains valid after Store/Session teardown.
-        let mut index = self.index.lock().map_err(|_| Error::State)?;
-        index.entries.insert(id, sample);
-        writer.extent = required_bytes;
-        index.stats.samples = index.entries.len();
-        index.stats.bytes = required_bytes;
-        Ok(())
+            Err(primary) => match file.set_len(offset) {
+                Ok(()) => Err(primary),
+                Err(cleanup) => Err(Error::Cleanup {
+                    primary: Box::new(primary),
+                    cleanup,
+                }),
+            },
+        }
     }
+}
+
+// Callback failures are protocol values. Preserve the first original failure
+// across the depth IO boundary, including a second cleanup/closure failure.
+fn export_control<T>(
+    check: &dyn Fn() -> crate::Result<()>,
+    run: impl FnOnce(&dyn Fn() -> Result<()>) -> Result<T>,
+) -> crate::Result<T> {
+    let primary = std::cell::RefCell::new(None);
+    let result = run(&|| match check() {
+        Ok(()) => Ok(()),
+        Err(cause) => {
+            if primary.borrow().is_none() {
+                *primary.borrow_mut() = Some(cause);
+            }
+            Err(Error::Canceled)
+        }
+    });
+    if let Some(cause) = primary.into_inner() {
+        if let Err(Error::Cleanup { cleanup, .. }) = &result {
+            log::warn!(
+                "operation=frozen_depth phase=rollback cause={}",
+                cleanup.to_string().chars().take(512).collect::<String>()
+            );
+        }
+        return Err(cause);
+    }
+    result.map_err(crate::Error::from)
 }
 
 impl Sample {
@@ -228,6 +303,49 @@ impl Sample {
 }
 
 impl Plane {
+    pub fn byte_len(&self) -> u64 {
+        self.bytes
+    }
+    pub fn validity(&self) -> bool {
+        self.validity
+    }
+    pub fn confidence(&self) -> bool {
+        self.confidence
+    }
+    pub fn load_for_export(
+        &self,
+        check: &dyn Fn() -> crate::Result<()>,
+    ) -> crate::Result<Estimate> {
+        export_control(check, |checked| self.load_checked(checked))
+    }
+    pub fn write_to(
+        &self,
+        writer: &mut dyn io::Write,
+        check: &dyn Fn() -> crate::Result<()>,
+    ) -> crate::Result<()> {
+        export_control(check, |checked| {
+            let mut input = Reader {
+                file: &self.file,
+                offset: self.offset,
+                hash: Sha256::new(),
+            };
+            let mut buffer = [0; CHUNK];
+            let mut remaining = self.bytes;
+            while remaining > 0 {
+                let count = remaining.min(CHUNK as u64) as usize;
+                input.bytes(&mut buffer[..count], checked)?;
+                checked()?;
+                writer.write_all(&buffer[..count])?;
+                remaining -= count as u64;
+            }
+            checked()?;
+            let digest: [u8; 32] = input.hash.finalize().into();
+            if digest != self.digest {
+                return Err(Error::Invalid("stored depth plane SHA-256 mismatch"));
+            }
+            Ok(())
+        })
+    }
     pub fn load(&self, cancel: &Cancellation) -> Result<Estimate> {
         self.load_checked(&|| cancel.check())
     }

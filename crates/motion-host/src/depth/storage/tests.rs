@@ -2,6 +2,60 @@ use super::*;
 use motion_model::depth::{DepthMeasure, DepthTime, NearDirection};
 use std::cell::Cell;
 
+#[test]
+fn export_spool_shares_one_file_and_preserves_original_cancellation_between_io_chunks() {
+    let (_, estimate) = fixture(10, true);
+    let mut spool = Spool::default();
+    let calls = Cell::new(0);
+    let error = spool
+        .append_for_export(&estimate, &|| {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                Err("primary export cancellation".into())
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+    assert_eq!(error.to_string(), "primary export cancellation");
+    assert_eq!(spool.extent, 0);
+    assert_eq!(spool.file.as_ref().unwrap().metadata().unwrap().len(), 0);
+    let a = spool.append_for_export(&estimate, &|| Ok(())).unwrap();
+    let b = spool.append_for_export(&estimate, &|| Ok(())).unwrap();
+    assert!(Arc::ptr_eq(&a.file, &b.file));
+    drop(spool);
+    let calls = Cell::new(0);
+    let error = a
+        .load_for_export(&|| {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                Err("original plane cancellation".into())
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+    assert_eq!(error.to_string(), "original plane cancellation");
+    let calls = Cell::new(0);
+    let mut output = Vec::new();
+    let error = b
+        .write_to(&mut output, &|| {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                Err("original stream cancellation".into())
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+    assert_eq!(error.to_string(), "original stream cancellation");
+    assert_eq!(output.len(), CHUNK);
+    a.load_for_export(&|| Ok(())).unwrap();
+    let mut all = Vec::new();
+    b.write_to(&mut all, &|| Ok(())).unwrap();
+    assert_eq!(all.len() as u64, b.bytes);
+}
+
 fn fixture(pts: i64, masked: bool) -> (Input, Estimate) {
     let key = Key {
         source: DepthSource {

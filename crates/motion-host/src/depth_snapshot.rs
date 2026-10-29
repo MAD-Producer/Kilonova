@@ -8,6 +8,8 @@ mod video;
 mod wire;
 #[cfg(feature = "ai-depth")]
 pub(crate) use video::VideoEntry;
+#[cfg(feature = "ai-depth")]
+pub(crate) use video::Owned;
 
 #[cfg(feature = "ai-depth")]
 use crate::depth::{image::ImageInput, Cancellation, Estimate, Key};
@@ -120,7 +122,8 @@ impl DepthSnapshot {
         if self.composition.len() > 256 || self.composition.chars().any(char::is_control) {
             return Err("invalid bounded frozen depth composition".into());
         }
-        if self.entries.len() + self.videos.len() > motion_model::MAX_LAYERS {
+        if self.entries.len() > motion_model::MAX_LAYERS
+            || self.videos.len() > motion_model::depth::MAX_VIDEO_DEPTH_SAMPLES {
             return Err("frozen depth layer count exceeds limit".into());
         }
         let mut objects = std::collections::HashSet::new();
@@ -155,28 +158,21 @@ impl DepthSnapshot {
                 .rebind(&entry.estimate.resource, entry.input)?;
         }
         self.validate_videos(&objects)?;
-        let mut identities = Vec::new();
-        let mut bytes = 0usize;
-        for estimate in self
-            .entries
-            .iter()
-            .map(|e| &e.estimate)
-            .chain(self.videos.iter().map(|e| &e.estimate))
-        {
-            let resource = &estimate.resource;
-            let identity = resource.cache_identity();
-            if !identities.contains(&identity) {
-                bytes = bytes
-                    .checked_add(
-                        resource.values().len() * 4
-                            + resource.validity().map_or(0, |v| v.len())
-                            + resource.confidence().map_or(0, |v| v.len() * 4),
-                    )
-                    .ok_or("frozen depth byte count overflow")?;
-                if bytes > MAX_DEPTH_RESOURCE_BYTES {
+        let mut identities: Vec<Owned> = Vec::new();
+        let mut memory = 0u64;
+        let mut disk = 0u64;
+        for plane in self.entries.iter().map(|e| Owned::Memory(e.estimate.clone()))
+            .chain(self.videos.iter().map(|e| e.estimate.clone())) {
+            if !identities.iter().any(|old| old.same(&plane)) {
+                let total = match &plane { Owned::Memory(_) => &mut memory, Owned::File(_) => &mut disk };
+                *total = total.checked_add(plane.bytes()).ok_or("frozen depth byte count overflow")?;
+                if memory > MAX_DEPTH_RESOURCE_BYTES as u64 {
                     return Err("frozen depth retained planes exceed 192 MiB".into());
                 }
-                identities.push(identity);
+                if disk > crate::depth::storage::MAX_STORED_BYTES {
+                    return Err("frozen depth file planes exceed 2 GiB".into());
+                }
+                identities.push(plane);
             }
         }
         Ok(())
@@ -357,10 +353,14 @@ impl DepthSnapshot {
                     let (root, platform) =
                         video_source.ok_or("frozen video depth has no verified source")?;
                     let image = entry.decode(root, platform.clone(), check)?;
+                    log::info!("start frozen_depth operation=attach object={} source_id={} pts_us={} phase=archive_read",
+                        original, entry.asset.id, entry.sample.start_us());
+                    log::logger().flush();
+                    let estimate = entry.estimate.load(check)?;
                     prepared.attach_calibrated_depth_image(
                         object,
                         &entry.key.source,
-                        &entry.estimate.resource,
+                        &estimate.resource,
                         entry.input,
                         image,
                     )?;
