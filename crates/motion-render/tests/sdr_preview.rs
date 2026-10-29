@@ -166,6 +166,7 @@ fn native_working_front_snapshot_preserves_bytes_across_four_precisions() {
         let mut targets = SdrPreviewFrameTargets::new(&renderer, SIZE, SIZE).unwrap();
         assert!(targets.working_front().is_none());
         render(&mut renderer, &mut targets, &scene, SIZE, SIZE);
+        expect_pixels(&read_output(&renderer, &targets));
         let working = targets.working_front().unwrap();
         let format = motion_render::image_formats::native_format(motion_render::image_formats::color_storage(precision));
         assert_eq!(working.view.texture().format(), format);
