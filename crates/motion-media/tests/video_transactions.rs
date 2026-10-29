@@ -57,7 +57,7 @@ fn probe_delayed_start() -> ProbeVideo {
         check()?;
         let timestamps = (0..66)
             .map(|n| 250_000 + (n * 1_000_000 + 12) / 24)
-            .collect::<Vec<_>>();
+            .collect::<Vec<u64>>();
         Ok(VideoProbe {
             asset: VideoAsset {
                 id: 1,
