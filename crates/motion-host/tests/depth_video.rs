@@ -49,6 +49,7 @@ fn init_log() {
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Mode {
     Rgba,
+    ManyFrames,
     BlockOpen,
     BlockFrame,
     BlockBackend,
@@ -95,7 +96,11 @@ impl Platform for VideoPlatform {
     ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         assert!(path.is_absolute());
         assert_eq!(std::fs::metadata(path).unwrap().len(), asset.bytes);
-        assert_eq!(pts, vec![10_000, 40_000, 110_000]);
+        if self.mode == Mode::ManyFrames {
+            assert_eq!(pts, (0..150).map(|i| 10_000 + i * 40_000).collect::<Vec<_>>());
+        } else {
+            assert_eq!(pts, vec![10_000, 40_000, 110_000]);
+        }
         let first = self.opens.fetch_add(1, Ordering::SeqCst) == 0;
         self.events
             .send(Event::Open(std::thread::current().id()))
@@ -315,6 +320,9 @@ struct Fixture {
     seen: mpsc::Receiver<Seen>,
 }
 fn fixture(mode: Mode) -> Fixture {
+    fixture_with_storage(mode, None)
+}
+fn fixture_with_storage(mode: Mode, storage: Option<&Path>) -> Fixture {
     init_log();
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("assets")).unwrap();
@@ -332,9 +340,9 @@ fn fixture(mode: Mode) -> Fixture {
         display_width: if rotated { 2 } else { 3 },
         display_height: if rotated { 3 } else { 2 },
         video_start_us: 10_000,
-        video_end_us: 150_000,
-        duration_us: 200_000,
-        frame_count: 3,
+        video_end_us: if mode == Mode::ManyFrames { 6_010_000 } else { 150_000 },
+        duration_us: if mode == Mode::ManyFrames { 6_010_000 } else { 200_000 },
+        frame_count: if mode == Mode::ManyFrames { 150 } else { 3 },
         variable_frame_rate: true,
         nominal_frame_rate: 30.,
         color_standard: 1,
@@ -343,8 +351,12 @@ fn fixture(mode: Mode) -> Fixture {
     };
     let path = motion_media::video_cache_path(dir.path(), &asset).unwrap();
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    motion_media::save_index(&path, &asset, &[10_000, 40_000, 110_000]).unwrap();
-    let mut project = Project::new(32, 32, 30, 12).unwrap();
+    let pts = if mode == Mode::ManyFrames {
+        (0..150).map(|i| 10_000 + i * 40_000).collect::<Vec<_>>()
+    } else { vec![10_000, 40_000, 110_000] };
+    motion_media::save_index(&path, &asset, &pts).unwrap();
+    let frames = if mode == Mode::ManyFrames { 150 } else { 12 };
+    let mut project = Project::new(32, 32, if mode == Mode::ManyFrames { 25 } else { 30 }, frames).unwrap();
     let mut layer = Layer::solid(1, "Owned video", [3., 2.], [0.; 3], [1.; 4]);
     layer.content = Content::Video {
         video: VideoClip {
@@ -354,10 +366,10 @@ fn fixture(mode: Mode) -> Fixture {
     };
     layer
         .set_interval(
-            12,
+            frames,
             motion_core::ClipRange {
                 in_frame: 0.,
-                out_frame: 4.,
+                out_frame: if mode == Mode::ManyFrames { 150. } else { 4. },
             },
         )
         .unwrap();
@@ -378,12 +390,13 @@ fn fixture(mode: Mode) -> Fixture {
     });
     let mut session = Session::new(project, dir.path().into(), platform.clone()).unwrap();
     let (seen, receiver) = mpsc::channel();
-    session
-        .configure_depth(Echo {
+    let backend = Echo {
             seen,
             release: backend_release,
-        })
-        .unwrap();
+        };
+    if let Some(storage) = storage {
+        session.configure_depth_in(backend, storage.into()).unwrap();
+    } else { session.configure_depth(backend).unwrap(); }
     Fixture {
         dir,
         session,

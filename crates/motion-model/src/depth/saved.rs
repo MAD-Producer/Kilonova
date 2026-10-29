@@ -144,8 +144,14 @@ impl SavedDepthCalibration {
         resource: &DepthResource,
         actual_input: PreparedDepthInput,
     ) -> Result<RelativeDepthCalibration> {
+        self.rebind_descriptor(resource.descriptor(), actual_input)
+    }
+
+    /// Metadata-only binding for a validated immutable file-backed resource.
+    /// Plane integrity is independently checked when its values are read.
+    pub fn rebind_descriptor(&self, actual: &DepthDescriptor,
+        actual_input: PreparedDepthInput) -> Result<RelativeDepthCalibration> {
         let p = &self.0;
-        let actual = resource.descriptor();
         ensure(actual.source.asset == p.asset && actual.source.pts.same_instant(p.pts)
             && actual_input == p.input && Interpretation::from_descriptor(actual) == p.interpretation,
             &format!("saved_depth_calibration source={} phase=rebind: actual source pixels, time, model or interpretation differ", p.asset))?;

@@ -136,3 +136,7 @@ intersecting transparency, DOF, normative asset comparisons and final current-ma
 full-workspace/maintained-desktop acceptance remain open. Missing calibration
 intervals and unsupported combinations continue to fail explicitly. Existing
 Unorm/float precision behavior is preserved; no Android validation is claimed.
+
+Follow-up: [scalar spill storage](video-depth-storage-current.md) adds verified
+worker recovery beyond the live FIFO. Capturing and persisting those file planes
+in independent frozen exports remains open.
