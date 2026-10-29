@@ -23,6 +23,7 @@ fn image_project(root: &Path, color: [u8; 4]) -> Project {
     )
     .unwrap();
     let mut p = Project::new(32, 24, 30, 6).unwrap();
+    p.background = [0., 0., 0., 1.];
     p.assets.push(Asset {
         id: 17,
         path: "assets/image.png".into(),
