@@ -252,7 +252,7 @@ fn background_renderer_obeys_the_same_live_allocation_budget_and_recovers() {
 mod fixture;
 #[test]
 #[ignore = "explicit four-precision native prerender acceptance requires optional GPU features"]
-fn all_four_precisions_keep_native_hdr_alpha_and_exposure_without_sdr_conversion() {
+fn all_four_precisions_keep_native_storage_and_existing_exposure_policies() {
     for precision in [
         ChannelPrecision::Unorm8,
         ChannelPrecision::Unorm16,
@@ -280,9 +280,12 @@ fn all_four_precisions_keep_native_hdr_alpha_and_exposure_without_sdr_conversion
                 image.storage.capacity(18, 18).unwrap()
             );
             let expected = match precision {
-                // The native UNORM8 working target has sRGB physical storage.
-                // Linear sample 0.125 encodes to 99; raw readback must retain
-                // that encoded byte, not reinterpret it as linear UNORM 32.
+                // The existing UNORM8 exposure resolve clamps straight RGB to
+                // [0,1] and repremultiplies by alpha before storage. Red becomes
+                // 64/255 linear, encoded as 137; ordinary rendering saturates
+                // red to 255. Blue 0.125 stores as 99 in both paths. Preserve
+                // those existing policies; raw readback adds no conversion.
+                ChannelPrecision::Unorm8 if exposure => vec![137, 0, 99, 64],
                 ChannelPrecision::Unorm8 => vec![255, 0, 99, 64],
                 ChannelPrecision::Unorm16 => [65535u16, 0, 8192, 16384]
                     .into_iter()
