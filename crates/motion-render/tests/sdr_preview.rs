@@ -153,7 +153,7 @@ fn native_working_front_snapshot_preserves_bytes_across_four_precisions() {
         buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| { let _ = send.send(result); });
         renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
         receive.recv().unwrap().unwrap();
-        let mapped = buffer.slice(..).get_mapped_range();
+        let mapped = buffer.slice(..).get_mapped_range().unwrap();
         let mut result = Vec::with_capacity((row * target.height) as usize);
         for y in 0..target.height { let begin = (y * stride) as usize; result.extend_from_slice(&mapped[begin..begin + row as usize]); }
         drop(mapped);
