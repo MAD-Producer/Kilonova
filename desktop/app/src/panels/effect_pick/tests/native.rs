@@ -360,7 +360,10 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
         assert_eq!(pick.min[0], panels.effect_controls.test_rects[&key("effect_opacity", 0)].min[0]);
         assert_eq!(first.min[0], pick.max[0], "position control directly precedes the coordinate pair");
         assert_eq!(first.width(), 39., "retain the established numeric hit width");
-        assert_eq!(rail.min[0], second.max[0], "navigation follows the pair without an empty slot");
+        let animation_row = panels.effect_controls.test_rects[&key("start", -3)];
+        assert_eq!(rail.max[0], animation_row.min[0],
+            "navigation belongs immediately before the stopwatch, outside the value region");
+        assert!(rail.max[0] <= panels.effect_controls.test_rects[&key("start", -7)].min[0]);
         if width >= 360. {
             if let Some(previous) = wide_field {
                 let previous: Rect = previous;

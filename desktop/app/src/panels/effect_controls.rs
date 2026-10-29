@@ -1519,21 +1519,19 @@ impl Controls {
                         _ => parameter["name"].as_str().unwrap_or(param),
                     }
                 } else { parameter["name"].as_str().unwrap_or(param) };
-                // Reserve the same trailing lane on every row, so selecting a
+                // Reserve the same animation lane on every row, so selecting a
                 // parameter never moves its value fields under the pointer.
                 let navigation_width = super::key_navigation::inspector_width(&styles, area.width());
                 let show_navigation = self.parameter_selected(state, object, id, param);
-                let mut content = area;
-                if navigation_width > 0. { content.max[0] -= navigation_width + gap; }
                 let mut columns = motion_ui::widgets::InspectorColumns::new(
-                    &styles, content, *y, row,
-                    styles.metric("tree.indent", 14.),
+                    &styles, area, *y, row,
+                    styles.metric("tree.indent", 14.) + navigation_width,
                     styles.metric("effect.watch.width", 24.),
                     if kind == "color" { 1 } else { dimensions(kind) },
                 );
                 // Width belongs to the caption lane, not to the controls. Keep
                 // a shared value-column boundary and compact inline editors.
-                let right = content.max[0] - pad;
+                let right = area.max[0] - pad;
                 let label_min = styles.metric("label.column", 72.) * 0.5;
                 let minimum_x = (columns.label.min[0] + label_min + gap).min(right);
                 let preferred_x = area.min[0] + area.width()
@@ -1548,10 +1546,6 @@ impl Controls {
                     .max(if kind == "color" { 1 } else { count } as f32
                         * styles.metric("effect.number.cell_width", 44.));
                 columns.values = Rect::new(value_x, *y, (right - value_x).max(0.).min(cap), row);
-                let cluster_width = if matches!(kind, "float" | "vec2" | "vec3") {
-                    count as f32 * number_width + count.saturating_sub(1) as f32 * number_gap
-                        + if super::effect_pick::is_position(parameter) { slot } else { 0. }
-                } else { columns.values.width() };
                 let watch_width = columns.icon.width();
                 let left = columns.icon.min[0];
                 let right = area.max[0] - pad;
@@ -1619,7 +1613,7 @@ impl Controls {
                     observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
                         "object={object} effect={id} param={param}")
                 }) else { continue };
-                let navigation = Rect::new(columns.values.min[0] + cluster_width.min(columns.values.width()), *y,
+                let navigation = Rect::new(columns.icon.min[0] - navigation_width, *y,
                     if show_navigation { navigation_width } else { 0. }, row);
                 #[cfg(test)] self.test_rects.insert((object, id, param.into(), -9), navigation);
                 self.selection_intent |= key_navigation::parameter_navigation_in_rail(&mut self.key_channel, list,
