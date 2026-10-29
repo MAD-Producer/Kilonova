@@ -9,6 +9,10 @@ supersede only the boundaries they explicitly implement.
 The [composition boundary inventory](scene3d-composition-boundaries-current.md)
 lists implemented pixel behavior, actual control locations and explicit limits
 separately. It is not a claim of universal effect/nesting/alpha support.
+The [original-scope disposition](scene3d-composition-disposition-current.md)
+binds nineteen existing controls to actual execution and reconciles this
+inventory with the original mixed-composition/BSP acceptance; it adds no new
+tests to the counts.
 The [native normative checkpoint](scene3d-normative-native-current.md) adds
 independent source-based Box material/coordinate and SimpleSkin animation
 comparisons. The [independent alpha checkpoint](scene3d-normative-alpha-native-current.md)
@@ -46,9 +50,12 @@ integration and the advertised capability remain incomplete/false.
    failures and zero unexecuted ignored fixtures. The one existing ignored
    manual history control was explicitly executed unchanged and counted once.
    Packed/legacy and nested aperture omission is guarded with actual refusal,
-   unchanged caller buffers and zero-aperture recovery. Archive and publish
-   this increment (committed as `023ef4b6`); final latest-main workspace/platform acceptance remains
-   required. Native output proof does not establish portable optical support.
+   unchanged caller buffers and zero-aperture recovery. The increment was
+   merged through [PR 558](https://github.com/MAD-Producer/Kilonova/pull/558)
+   as `ed1a84a4` after all five exact-head required checks passed. Its actual
+   squash title and body are Chinese. The merge tree is byte-identical to
+   source head `594e810d`, which is running the separate full maintained
+   workspace gate. Native output proof does not establish portable optical support.
 2. Official sample comparisons passed their own source-bound gates. Unmodified pinned Box
    rendering now matches an independent rough-metal, vertex-color and coordinate
    reference over 5,256 interior pixels in each of four precisions. Unmodified
@@ -60,10 +67,12 @@ integration and the advertised capability remain incomplete/false.
    wrong-opaque and wrong-cutoff negative controls, default-budget refusal and
    exact frozen restoration. These separate checkpoints do not replace the
    latest-main workspace and platform gates.
-3. Finish the advertised composition boundary inventory: distinguish actual
-   supported nested/effect/exposure/transparent behavior from explicit refusal,
-   and verify ordinary 2D/BSP results remain unchanged. A documented refusal is
-   not an implementation of the refused operation.
+3. The original mixed-composition inventory is reconciled against nineteen
+   actually executed existing controls and exact source hashes. Mixed
+   depth/parent/camera/matte cases and ordinary BSP behavior are demonstrated
+   within the documented profile. Arbitrary nested/effect/exposure/transparent
+   combinations retain their explicit limitations; they are not implementations
+   of the refused operations. The full local workspace remains separate.
 4. The sustained native host checkpoint passed 60.010626 seconds with 1,762
    newly presented frames, 1,775 stored depth samples, 128 live samples and zero
    logical admission after actual owner retirement. Its 62 checkpoints verify
@@ -71,10 +80,12 @@ integration and the advertised capability remain incomplete/false.
    the earlier short-export-only playback evidence. It proves this bounded
    32x32 controlled-backend run, not trained-model quality or high-resolution
    throughput; keep those limits visible in the final acceptance.
-5. Fetch/rebase onto current main, run the complete maintained workspace and
-   desktop checks on those imported sources, then require maintained-desktop
-   cross-platform CI for the exact published head. Do not add overlapping
-   checkpoint test counts into a cumulative coverage number.
+5. Main was fetched after the PR 558 merge and its complete Git tree was
+   checked identical to the source-bound full-workspace run. That run is
+   still active and must pass; exact-head cross-platform checks for PR 558
+   have passed. The later model-import source still needs its own regression,
+   latest-main alignment and published-head platform checks. Do not add
+   overlapping checkpoint test counts into a cumulative coverage number.
 6. Close the actual desktop model-import gap. Existing scene/project loading
    accepts owned models, but the normal desktop file route previously treated
    model files as audio. A new worker operation connects composition file

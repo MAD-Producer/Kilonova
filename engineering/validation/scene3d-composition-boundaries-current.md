@@ -4,6 +4,10 @@ This inventory follows issue 87's mixed 2D/3D, parent/camera/matte and existing
 BSP requirements. It distinguishes actual pixel behavior from explicit refusal.
 It does not turn a documented refusal into support for the refused operation.
 The maintained acceptance scope is desktop; Android is retired and excluded.
+The [original-scope disposition](scene3d-composition-disposition-current.md)
+binds nineteen existing controls to actual native/CI execution, including
+independent ordinary BSP regressions. It reconciles this inventory without
+claiming universal compositor support or adding overlapping test counts.
 
 Source boundary: `crates/motion-render/src/renderer/model_layers/shared.rs`,
 especially `samples`, `shared_plane`, `native_matte_sources`, `blocks` and
