@@ -59,7 +59,8 @@ The source-bound aperture gate passed 1041 distinct related tests, zero
 failures and zero unexecuted ignored controls. Its ten actual rendering targets
 passed 191 tests. Receipt:
 `artifacts/pr-queue/native-camera-dof-regression-v2/accepted.json`.
-Official sample rendering, sustained native real-codec playback and latest-main
-full-workspace / maintained
-desktop cross-platform CI are separate gates. This inventory alone closes none
-of those gates and does not close issue 87 or background prerender issue 82.
+Official Box and SimpleSkin rendering and the measured 60-second native
+real-codec host run have separate accepted checkpoints. Official alpha
+comparison and latest-main full-workspace / maintained-desktop cross-platform
+CI remain open. This inventory alone does not close issue 87 or background
+prerender issue 82.

@@ -12,6 +12,10 @@ separately. It is not a claim of universal effect/nesting/alpha support.
 The [native normative checkpoint](scene3d-normative-native-current.md) adds
 independent source-based Box material/coordinate and SimpleSkin animation
 comparisons. Its official alpha comparison remains outstanding.
+The [sustained native playback checkpoint](scene3d-long-native-playback-current.md)
+records a measured 60-second real-codec host run, bounded retention and actual
+owner retirement. Its small controlled fixture is not a high-resolution or
+trained-model benchmark.
 
 The maintained scope is desktop. Android was explicitly excluded by the
 requester after its retirement. Later scene nodes, ray tracing and volumes are
@@ -55,10 +59,13 @@ integration and the advertised capability remain incomplete/false.
    supported nested/effect/exposure/transparent behavior from explicit refusal,
    and verify ordinary 2D/BSP results remain unchanged. A documented refusal is
    not an implementation of the refused operation.
-4. Exercise sustained real-codec playback with measured duration and resource
-   ownership. The accepted 150-frame/five-second beyond-cache export fixture
-   proves durable temporal ownership and output matching, not long-duration
-   playback throughput or trained-depth-model quality.
+4. The sustained native host checkpoint passed 60.010626 seconds with 1,762
+   newly presented frames, 1,775 stored depth samples, 128 live samples and zero
+   logical admission after actual owner retirement. Its 62 checkpoints verify
+   original decoded PTS/fingerprint and physical occlusion/color. This replaces
+   the earlier short-export-only playback evidence. It proves this bounded
+   32x32 controlled-backend run, not trained-model quality or high-resolution
+   throughput; keep those limits visible in the final acceptance.
 5. Fetch/rebase onto current main, run the complete maintained workspace and
    desktop checks on those imported sources, then require maintained-desktop
    cross-platform CI for the exact published head. Do not add overlapping

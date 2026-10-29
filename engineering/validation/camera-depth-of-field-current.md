@@ -112,9 +112,13 @@ remained unchanged after every stage. Focused tests overlap this gate and are
 not additional distinct coverage. Initial focused fixture/build errors are
 retained and are not claimed as product-red controls.
 
-Final current-main full-workspace/maintained-desktop CI, normative comparisons,
-long-duration real-codec depth ownership/playback and #82 actual prerender
-cache integration remain separate outstanding work.
+The [normative checkpoint](scene3d-normative-native-current.md) separately proves
+official Box material/coordinate and SimpleSkin animation rendering. The
+[60-second native playback checkpoint](scene3d-long-native-playback-current.md)
+separately proves bounded real-codec depth pairing and retirement; it is not
+sustained aperture or high-resolution/trained-model performance evidence.
+Final current-main full-workspace/maintained-desktop CI, the official alpha
+comparison and #82 actual prerender cache integration remain outstanding.
 
 Receipt: `artifacts/pr-queue/native-camera-dof-regression-v2/accepted.json`.
 Archive: `data/camera-depth-of-field-native-v1.zip`; CRC and every entry verified against originals.
