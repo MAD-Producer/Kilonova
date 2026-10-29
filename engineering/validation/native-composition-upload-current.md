@@ -1,6 +1,6 @@
 # Native composition upload checkpoint (#82)
 
-Status: implementation authored; compilation and actual controls are pending.
+Status: foreground reservation/upload accepted at `13c8ae6d91d5a1e47be7a9a1757f6dda4e938dda`.
 This adds a foreground destination API, not an Engine runtime or preview cache
 consumer. The prerender capability remains disabled. Android is excluded.
 
@@ -32,7 +32,7 @@ device/policy generation changes, and shared-budget refusal/recovery/retirement.
 The explicit manual control checks all four native storage formats byte for
 byte, including encoded Unorm8 and floating HDR/negative/alpha values. Existing
 cache assertions are unchanged; three test helpers only gain sibling visibility.
-These controls are not counted as passing until the source-bound run completes.
+These controls require the source-bound results below; they are not an Engine runtime acceptance.
 
 The independent native producer's preceding accepted source is recorded in
 `native-prerender-producer-current.md`. This new upload code requires its own
@@ -40,3 +40,17 @@ regression and cannot inherit that acceptance. Actual bounded job ownership,
 CPU completion quotas, Engine cancellation/observations, Session foreground
 consumption, profile invalidation and paired foreground P95 remain pending.
 No UI code, layout, style, hit tolerance, dependency or asset is changed.
+
+## Executed source-bound controls
+
+The full motion-render regression passed **872 tests, zero failures, three
+manual/environment exclusions**. Eight focused controls overlap that run.
+Both all-four-precision controls additionally ran explicitly: two passed,
+zero failed, zero ignored. The external-original-image probe was not run and
+remains excluded. Desktop checking with ffmpeg/host ai-depth and provenance
+passed; source remained unchanged throughout. No prior assertion was weakened.
+
+Verified archive: `data/native-composition-upload-v1.zip`; SHA-256 `e810514babb501a8bcb7b83ee10434176cfb793daf7ff72cdc46f792953b2749`;
+223512 bytes; 14 entries. Every entry was read back and
+hash-checked. This source precedes the next owner/runtime integration and must
+not be used to claim a later rebased tree's combined regression.
