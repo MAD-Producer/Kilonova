@@ -167,3 +167,13 @@ This does not implement calibrated matte sources, processed visible spatial
 sources, general calibrated effects/nesting/exposure depth, DOF, real-codec
 sustained throughput, final full-workspace/cross-platform acceptance or #82's
 actual prerender render/cache integration. Those remain explicit pending work.
+
+## Later independent calibrated-source checkpoint
+
+The later [calibrated-source geometry acceptance](calibrated-matte-sources-current.md)
+supersedes this receiver-only checkpoint's blanket calibrated-source rejection
+for sources consumed exclusively by calibrated receivers. It supplies independent
+native geometry, source masks, calibrated chains and visible physical-depth
+controls. Calibrated sources feeding ordinary receivers or effect inputs and
+general calibrated image effects remain explicitly unsupported. Earlier counts
+and limits above describe their own historical checkpoints; #87 remains open.

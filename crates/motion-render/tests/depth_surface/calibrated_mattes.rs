@@ -64,7 +64,7 @@ fn processed_visible_spatial_matte_refuses_without_flat_overpainting() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn calibrated_source_for_calibrated_receiver_refuses_flat_materialization_and_keeps_front() {
+fn effected_calibrated_source_for_calibrated_receiver_refuses_flat_materialization_and_keeps_front() {
     let root = tempfile::tempdir().unwrap();
     let mut p = project(root.path());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -80,6 +80,13 @@ fn calibrated_source_for_calibrated_receiver_refuses_flat_materialization_and_ke
         mode: MatteMode::Alpha,
         hide_source: false,
     });
+    // Plain calibrated sources now have an independent geometry path. An
+    // effected calibrated source still requires its separate effects contract.
+    let package = motion_effects::builtin::package().unwrap();
+    let definition = package.manifest.effects.iter().find(|e| e.id == "fill").unwrap();
+    p.layers[0].effects.push(motion_core::EffectInstance::new(1, &package.manifest.id,
+        &package.manifest.version, &package.hash, definition, [64., 40.]));
+    p.rebuild_plugin_dependencies();
     p.validate().unwrap();
     let mut scene = sampled(&p);
     attach(&mut scene);

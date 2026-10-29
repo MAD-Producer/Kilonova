@@ -100,7 +100,10 @@ impl Renderer {
     /// Retain an independent effects-stage source, then project its own matte
     /// chain into a private screen image. Never reuse this encode's target.
     pub(super) fn project_depth_matte_source(&mut self, scene: &Scene, source: u64,
-        width: u32, height: u32) -> Result<(RenderTarget, RenderStats)> {
+        width: u32, height: u32, projected: &HashMap<u64, RenderTarget>, retained_bytes: u64) -> Result<(RenderTarget, RenderStats)> {
+        if scene.depth_surface(source).is_some() {
+            return self.project_calibrated_matte_source(scene, source, width, height, projected, retained_bytes);
+        }
         let (mut raster, mut stats) = self.materialize_layer(scene, source, width, height, false)?
             .ok_or_else(|| RenderError::Invalid(format!("depth matte source={source} phase=materialize: source is absent")))?;
         // Source visibility and transfer describe its contribution to the

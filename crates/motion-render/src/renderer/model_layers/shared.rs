@@ -33,7 +33,21 @@ fn shared_plane(renderer: &Renderer, scene: &Scene, layer: &crate::DrawLayer) ->
         && layer.sampling.is_default()
 }
 
-fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
+fn native_matte_sources(renderer: &Renderer, scene: &Scene) -> std::collections::HashSet<u64> {
+    if !scene.nested.is_empty() || scene.effects.iter().any(|e| e.scene.is_some())
+        || scene.layers.iter().any(|l| l.adjustment || l.composition) {
+        return Default::default();
+    }
+    scene.calibrated_depth_layers().map(|(id, _)| id).filter(|&id| {
+        let consumed = scene.layers.iter().any(|l| l.track_matte.is_some_and(|m| m.source == id));
+        consumed && scene.layers.iter().all(|l| !l.track_matte.is_some_and(|m| m.source == id)
+            || scene.depth_surface(l.id).is_some())
+            && scene.layers.iter().any(|l| l.id == id && shared_plane(renderer, scene, l))
+            && !scene.effects.iter().any(|e| e.layer == id || e.image_input.and_then(motion_model::EffectImageInput::layer) == Some(id))
+    }).collect()
+}
+
+fn blocks(renderer: &Renderer, scene: &Scene, native_mattes: &std::collections::HashSet<u64>) -> Vec<std::ops::Range<usize>> {
     // Effects/receivers still consume independent layer images. Do not replace
     // their source with a combined raster or silently cross those boundaries.
     if scene.layers.len() > MAX_LAYERS
@@ -52,6 +66,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // been independently projected before this run. Its visible geometry must
     // still participate in physical depth rather than overpaint the result.
     independent_sources.retain(|source| {
+        if native_mattes.contains(source) { return false; }
         scene.depth_surface(*source).is_some()
             || !scene.layers.iter().any(|layer| layer.id == *source && layer.three_d
             && layer.track_matte.is_none() && layer.masks.is_empty())
@@ -80,8 +95,8 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // Hidden ordinary image dependencies have no compositing contribution.
     // Retain them for consumers, but do not split physical depth around them.
     let hidden_input = |layer: &crate::DrawLayer| !layer.composite_visible
-        && independent_sources.contains(&layer.id) && layer.model_source.is_none()
-        && scene.depth_surface(layer.id).is_none() && !layer.adjustment && !layer.composition;
+        && (native_mattes.contains(&layer.id) || (independent_sources.contains(&layer.id) && layer.model_source.is_none()
+        && scene.depth_surface(layer.id).is_none() && !layer.adjustment && !layer.composition));
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
@@ -121,9 +136,12 @@ impl Renderer {
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<Option<(Scene, RenderStats)>> {
-        let blocks = blocks(self, scene);
+        let native_mattes = native_matte_sources(self, scene);
+        let blocks = blocks(self, scene, &native_mattes);
         for (object, calibration) in scene.calibrated_depth_layers() {
-            if !blocks.iter().any(|block| scene.layers[block.clone()].iter().any(|layer| layer.id == object)) {
+            let hidden_native = native_mattes.contains(&object)
+                && scene.layers.iter().any(|l| l.id == object && !l.composite_visible);
+            if !hidden_native && !blocks.iter().any(|block| scene.layers[block.clone()].iter().any(|layer| layer.id == object)) {
                 return Err(RenderError::Invalid(format!("depth surface object={object} source={} phase=shared_geometry: effects, masks, mattes, nested or unsupported sampling require an explicit depth composition path", calibration.asset())));
             }
         }
@@ -148,16 +166,16 @@ impl Renderer {
         let mut mattes = HashMap::new();
         let mut matte_stats = RenderStats::default();
         let mut matte_bytes = 0u64;
-        for source in blocks.iter().flat_map(|b| scene.layers[b.clone()].iter())
-            .filter_map(|layer| layer.track_matte.map(|matte| matte.source)) {
-            if mattes.contains_key(&source) { continue; }
+        let roots: Vec<_> = blocks.iter().flat_map(|b| scene.layers[b.clone()].iter())
+            .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
+        for source in super::matte_sources::source_order(scene, &roots)? {
             let cost = u64::from(mw) * u64::from(mh) * crate::image_formats::color_storage(self.working_precision()).bytes_per_pixel();
             let required = self.resident_source_texture_bytes().saturating_add(matte_bytes).saturating_add(cost);
             if required > self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, required,
                     self.effect_gpu.builder.source_texture_budget, format!("depth matte source={source} phase=project: source texture budget exceeded")));
             }
-            let (target, stats) = self.project_depth_matte_source(scene, source, mw, mh)?;
+            let (target, stats) = self.project_depth_matte_source(scene, source, mw, mh, &mattes, matte_bytes)?;
             matte_stats.add(stats);
             matte_bytes += cost;
             mattes.insert(source, target);
@@ -214,8 +232,8 @@ impl Renderer {
         }
         let mut output = scene.clone();
         let mut index = 0;
-        output.layers.retain(|_| {
-            let retain = keep[index];
+        output.layers.retain(|layer| {
+            let retain = keep[index] && (layer.composite_visible || !native_mattes.contains(&layer.id));
             index += 1;
             retain
         });
