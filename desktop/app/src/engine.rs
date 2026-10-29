@@ -28,6 +28,7 @@ mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
+mod viewer_inspection;
 mod shutdown;
 #[cfg(test)]
 mod native_test_evidence;
@@ -136,6 +137,7 @@ impl CompositionStamp {
 #[derive(Default)]
 struct PresentationState {
     retained: Option<CompositionStamp>,
+    inspection: viewer_inspection::State,
     composition_renders: u64,
     composition_reuses: u64,
     last_present_us: u64,
@@ -243,6 +245,10 @@ pub enum Command {
     CaptureUi {
         ui: UiFrame,
         path: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
+    CaptureViewerSnapshot {
+        window: u64,
         reply: Sender<Result<Value, String>>,
     },
     Attach {
@@ -467,7 +473,7 @@ impl Command {
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
             | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | EditorAction { reply, .. } | ProjectOpen { reply, .. } | ProjectAsset { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | ClipboardCommit { reply, .. }
+            | EditChecked { reply, .. } | EditorAction { reply, .. } | ProjectOpen { reply, .. } | ProjectAsset { reply, .. } | ExpressionCheck { reply, .. } | PathOperation { reply, .. } | CaptureUi { reply, .. } | CaptureViewerSnapshot { reply, .. } | ClipboardCommit { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
@@ -1261,6 +1267,10 @@ impl Engine {
         -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::Capture { output: Some(output), control, reply })
     }
+    pub fn capture_viewer_snapshot_async(&self, window: u64)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::CaptureViewerSnapshot { window, reply })
+    }
     pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, String> {
         self.call(|reply| Command::RenderPreview { frame, reply })
     }
@@ -1554,6 +1564,7 @@ fn handle(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
+        | Command::CaptureViewerSnapshot { .. }
     ) {
         presentation.retained = None;
     }
@@ -1722,12 +1733,33 @@ fn handle(
         })),
         Command::PathOperation { source, operation, reply } => respond(reply,
             motion_host::session::with_session(id, |s| crate::layer_clipboard::edit_path(s, source, operation))),
+        Command::CaptureViewerSnapshot { window, reply } => {
+            let started = Instant::now();
+            let frame = frame_allocation::begin(allocation_budget, motion_render::FrameOperation::ViewerSnapshot);
+            #[cfg(test)]
+            diagnostics.native_test_phase("viewer_snapshot.capture");
+            let result = motion_host::session::with_session(id, |s| {
+                if window != 0 && !windows.contains_key(&window) {
+                    return Err("floating viewer window is closed".into());
+                }
+                presentation.inspection.capture(s, presentation.retained.as_ref(), window).map_err(Into::into)
+            });
+            frame_allocation::finish(frame, &result, |_| true);
+            if let Err(cause) = &result {
+                let (request, _, elapsed) = current_command()
+                    .unwrap_or((0, "capture_viewer_snapshot", started.elapsed()));
+                log::error!("viewer snapshot failed request={request} session={id} window={window} phase=capture elapsed_ms={} cause={}",
+                    elapsed.as_millis(), crate::fallback_observation::error_cause(cause));
+            }
+            respond(reply, result);
+        },
         Command::CaptureUi { ui, path, reply } => {
             let capture_started = Instant::now();
             let capture_window = ui.window;
             let mut capture_phase = "capture.session";
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
+            presentation.inspection.reconcile(s);
             capture_phase = "capture.target";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
@@ -1757,6 +1789,8 @@ fn handle(
                 presenter.set_view_channel(&g.renderer.queue, ui.inspection.channel)
                     .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             }
+            presentation.inspection.configure_capture(&ui, &g.renderer, &mut presenter)
+                .map_err(|e| format!("phase=capture.inspection: {e}"))?;
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
@@ -1780,6 +1814,7 @@ fn handle(
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
+                presenter.collect_inspection_resources(ledger);
             }).map_err(|e|e.to_string())?;
             capture_phase = "capture.readback";
             #[cfg(test)]
@@ -1847,7 +1882,13 @@ fn handle(
             if key==0 || windows.contains_key(&key){return Err("invalid floating window id".into());}
             windows.insert(key,target);s.snapshot()
         })),
-        Command::CloseWindow {key,reply} => {windows.remove(&key);respond(reply,project::state(id));},
+        Command::CloseWindow {key,reply} => {
+            windows.remove(&key);
+            respond(reply, motion_host::session::with_session(id, |s| {
+                presentation.inspection.close_window(s, key);
+                s.snapshot()
+            }));
+        },
         Command::Resize { window, width, height, reply } => respond(reply,motion_host::session::with_session(id, |s| {
             if width == 0 || height == 0 {
                 log::debug!("surface resize deferred width={width} height={height} reason=zero_extent");
@@ -1874,6 +1915,7 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             let result=(|| -> motion_host::Result<bool> {
+                presentation.inspection.configure(s, &ui).map_err(motion_host::Error::from)?;
                 if ui.composition.is_some() {
                     if let Some(g) = s.graphics.as_mut() {
                         let previous = g.presenter.view_channel();
