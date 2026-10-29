@@ -16,6 +16,9 @@ mod composition_blend;
 #[path = "depth_surface/composition_effects.rs"]
 mod composition_effects;
 
+#[path = "depth_surface/calibrated_masks.rs"]
+mod calibrated_masks;
+
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {
     if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {
