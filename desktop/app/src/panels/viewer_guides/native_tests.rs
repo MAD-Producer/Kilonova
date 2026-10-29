@@ -308,6 +308,126 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
     assert_eq!(std::fs::read(export_before).unwrap(), std::fs::read(export_after).unwrap());
 }
 
+#[test]
+#[ignore = "manual native GPU viewer snapshot captures; executed explicitly with retained artifacts"]
+fn viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs() {
+    const CHILD: &str = "MOTION_VIEWER_SNAPSHOT_NATIVE_CHILD";
+    const NAME: &str = "panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs";
+    let Some(root) = std::env::var_os(CHILD) else {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = std::env::var_os("MOTION_VIEWER_SNAPSHOT_ARTIFACTS")
+            .map(PathBuf::from).unwrap_or_else(|| temporary.path().into());
+        std::fs::create_dir_all(&root).unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--ignored", "--nocapture", "--test-threads=1"])
+            .env_remove("MOTION_LOG").env(CHILD, &root)
+            .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(240);
+        loop {
+            if child.try_wait().unwrap().is_some() { break; }
+            if std::time::Instant::now() >= deadline {
+                child.kill().unwrap();
+                let output = child.wait_with_output().unwrap();
+                std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+                std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+                panic!("native viewer snapshot capture timed out");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let output = child.wait_with_output().unwrap();
+        std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+        std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+        assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("viewer snapshot failed operation=save") && stderr.contains("phase=save"), "{stderr}");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("viewer snapshot failed"));
+        let log = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        assert!(log.contains("capture_viewer_snapshot") && log.contains("save_viewer_snapshot"));
+        assert!(log.contains("viewer snapshot failed operation=save") && log.contains("phase=save"));
+        return;
+    };
+    let root = PathBuf::from(root);
+    let _logger = crate::logging::init(root.clone()).unwrap();
+    let project_root = tempfile::tempdir().unwrap();
+    let mut project = motion_core::Project::new(640, 480, 30, 24).unwrap();
+    project.background = [0., 0., 0., 0.];
+    project.layers.push(motion_core::Layer::solid(7, "Snapshot fixture", [640., 480.], [320., 240., 0.], [0.8, 0.2, 0.1, 0.25]));
+    motion_core::storage::save(project_root.path(), &project).unwrap();
+    let engine = Engine::start(project_root.path().into(), motion_desktop_media::platform(), 8 << 30).unwrap();
+    let mut events = EventLoop::builder().with_any_thread(true).build().unwrap();
+    #[allow(deprecated)]
+    let main = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(900, 600))).unwrap());
+    #[allow(deprecated)]
+    let float = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(720, 640))).unwrap());
+    let attached = engine.attach_async(main, 900, 600).unwrap();
+    crate::native_test_support::receive(&mut events, &attached, Duration::from_secs(30)).unwrap().unwrap();
+    engine.float_window(1, float, 720, 640).unwrap();
+    let missing_frame = engine.capture_viewer_snapshot_async(0).unwrap();
+    assert!(crate::native_test_support::receive(&mut events, &missing_frame, Duration::from_secs(30)).unwrap().is_err());
+    let before = engine.state().unwrap();
+    let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    let frame = |window, inspection, atlas: Option<AtlasUpload>| UiFrame {
+        paint: PaintList::default(), atlas, logical_size: if window == 0 { [900., 600.] } else { [720., 640.] },
+        composition: Some([50., 50., 640., 480.]), composition_image: Some([50., 50., 640., 480.]),
+        inspection, window, node_preview: None,
+    };
+    let present = |events: &mut EventLoop<()>, window, inspection| {
+        let reply = engine.present_async(frame(window, inspection, None)).unwrap();
+        assert!(crate::native_test_support::receive(events, &reply, Duration::from_secs(30)).unwrap().unwrap());
+    };
+    for window in [0, 1] {
+        present(&mut events, window, Default::default());
+        let reply = engine.capture_viewer_snapshot_async(window).unwrap();
+        let result = crate::native_test_support::receive(&mut events, &reply, Duration::from_secs(60)).unwrap().unwrap();
+        assert_eq!(result["window"], window);
+    }
+    let save = |events: &mut EventLoop<()>, window, name: &str, channel| {
+        let path = root.join(name);
+        let reply = engine.save_viewer_snapshot_async(window, path.clone(), channel).unwrap();
+        crate::native_test_support::receive(events, &reply, Duration::from_secs(60)).unwrap().unwrap();
+        image::open(path).unwrap().to_rgba8()
+    };
+    let color = save(&mut events, 0, "snapshot-color.png", motion_render::ViewChannel::Color);
+    let color = color.get_pixel(320, 240);
+    assert!(color[0] > color[1] && color[1] > color[2] && (60..=68).contains(&color[3]), "{color:?}");
+    let alpha = save(&mut events, 0, "snapshot-alpha.png", motion_render::ViewChannel::Alpha);
+    let alpha = alpha.get_pixel(320, 240);
+    assert!((60..=68).contains(&alpha[0]) && alpha[0] == alpha[1] && alpha[1] == alpha[2] && alpha[3] == 255, "{alpha:?}");
+    let bad_path = root.join("absent").join("snapshot.png");
+    let failed = engine.save_viewer_snapshot_async(0, bad_path, motion_render::ViewChannel::Color).unwrap();
+    assert!(crate::native_test_support::receive(&mut events, &failed, Duration::from_secs(60)).unwrap().is_err());
+    for key in ["project", "revision", "history", "canUndo", "canRedo"] { assert_eq!(engine.state().unwrap()[key], before[key], "{key}"); }
+    engine.edit(serde_json::to_string(&Command::SetColor { object: 7, value: [0.1, 0.2, 0.8, 0.25] }).unwrap()).unwrap();
+    for window in [0, 1] {
+        let inspection = crate::engine::ViewerInspectionFrame { channel: motion_render::ViewChannel::Color,
+            region: Some([0.25, 0.25, 0.5, 0.5]), comparison_split: Some(0.5) };
+        present(&mut events, window, inspection);
+        let config = atlas.config();
+        let upload = AtlasUpload { pixels: atlas.pixel_data().to_vec(), width: config.width, height: config.height };
+        let path = root.join(format!("comparison-{window}.png"));
+        crate::native_test_support::capture_ui(&mut events, &engine, frame(window, inspection, Some(upload)), path.clone()).unwrap();
+        let pixels = image::open(path).unwrap().to_rgba8();
+        let outside = pixels.get_pixel(100, 290);
+        let live = pixels.get_pixel(250, 290);
+        let captured = pixels.get_pixel(490, 290);
+        assert!(live[2] > live[0] && captured[0] > captured[2], "live={live:?} captured={captured:?}");
+        assert!(outside[0] < live[0] && outside[2] < live[2], "outside={outside:?} live={live:?}");
+        let cleared = crate::engine::ViewerInspectionFrame { region: Some([0., 0., 0.25, 0.25]), ..Default::default() };
+        present(&mut events, window, cleared);
+        let config = atlas.config();
+        let upload = AtlasUpload { pixels: atlas.pixel_data().to_vec(), width: config.width, height: config.height };
+        let path = root.join(format!("cleared-{window}.png"));
+        crate::native_test_support::capture_ui(&mut events, &engine, frame(window, cleared, Some(upload)), path.clone()).unwrap();
+        let pixels = image::open(path).unwrap().to_rgba8();
+        assert_eq!(*pixels.get_pixel(490, 290), *pixels.get_pixel(100, 290));
+    }
+    let preserved = save(&mut events, 0, "snapshot-after-edit.png", motion_render::ViewChannel::Color);
+    assert_eq!(preserved.get_pixel(320, 240), color);
+    engine.close_window(1).unwrap();
+    let closed = engine.save_viewer_snapshot_async(1, root.join("closed.png"), motion_render::ViewChannel::Color).unwrap();
+    assert!(crate::native_test_support::receive(&mut events, &closed, Duration::from_secs(30)).unwrap().is_err());
+}
+
 fn line_pixels(pixels: &image::RgbaImage, mapping: Mapping, viewport: Rect, ratio: f32) -> Value {
     let position = mapping.screen([333.25, 251.5]);
     let mut measurements = vec![];
