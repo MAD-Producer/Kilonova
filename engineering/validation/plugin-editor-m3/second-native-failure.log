@@ -1,0 +1,30 @@
+
+running 5 tests
+test plugin_editor::author::tests::source_and_layout_share_history_and_old_save_cannot_clear_new_edits ... ok
+test plugin_editor::author::tests::layout_transactions_are_atomic_and_preserve_author_source ... ok
+test plugin_editor::author::tests::authored_diagnostics_exclude_host_prelude_and_keep_utf8_presentation ... ok
+test plugin_editor::author::tests::worker_failure_channels_publish_before_blocking_and_preserve_drafts ... ok
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (63984) panicked at desktop\app\src\plugin_editor\author\native.rs:287:5:
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x146b7dbb850, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x146b7dbb850, name: ?)
+ERROR motion_studio::plugin_editor::author::worker: plugin.author error request=3 phase=compile elapsed_ms=25 location=Some((2, 14)) cause=plugin project phase=Compile: phase=wgsl_parse: expected expression, found ";"
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (63728) panicked at desktop\app\src\plugin_editor\author\native.rs:239:9:
+assertion failed: before["fingerprint"].is_u64()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::author::native::author_drag_source_history_save_and_native_rendering
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 1398 filtered out; finished in 33.42s
+

@@ -1,5 +1,14 @@
 # Motion Studio — UI Design Specification
 
+Plugin authoring uses the same native controls and row rules. Its structured
+canvas, library and inspector reference `plugin.author.*` size tokens. WGSL
+presentation references `syntax.keyword`, `syntax.type`, `syntax.number` and
+`syntax.comment`; token values live in `dark.json`. Syntax coloring changes only
+text paint, preserving the multiline editor's selection, caret and IME geometry.
+Author selection outlines and split guides are design-mode overlays and are
+absent from the interaction preview. See
+[the M3 authoring contract](engineering/host-api/plugin-editor-authoring.md).
+
 > **Version: V4.0** — full English translation of V3.2; scope narrowed to Windows desktop only (Android content removed). Supersedes V3.0–V3.2.1.
 >
 > **Scope**: UI appearance, native drawing layouts, and consistency with existing interactions only. **Goals**: improve density, hierarchy, alignment, and operation feedback.

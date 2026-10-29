@@ -1,4 +1,5 @@
 //! Native authoring preview. This renderer is independent of the host shell.
+mod author;
 mod layout;
 mod preparation;
 mod session;
@@ -17,6 +18,7 @@ use motion_ui::{
 use session::Session;
 use std::collections::BTreeMap;
 pub use window::run;
+pub use window::run_author;
 
 #[derive(Default)]
 struct Field {

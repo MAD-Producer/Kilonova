@@ -144,4 +144,7 @@ WGSL 源码与图编译产物不得同时成为同一效果的可写权威；切
 M1 见 [验收记录](../validation/plugin-editor-m1.md)。M2 已加入共用原生布局运行时、
 独立参数/着色器预览入口，见 [实现边界](plugin-editor-runtime.md) 与
 [验收记录](../validation/plugin-editor-m2.md)。操作系统真实 DPI/IME、多平台与主工作区
-嵌入尚未完成验收；M3–M5 仍待实现。这不表示拖拽作者界面、宿主适配或粒子能力已经实现。
+嵌入尚未完成验收。M3 已实现独立节点/WGSL 与结构化布局作者工作区，见
+[作者界面说明](plugin-editor-authoring.md) 与 [M3 验收](../validation/plugin-editor-m3.md)。
+原 M3 验收条目中的主/浮动宿主窗口矩阵仍需 M4 接入后验证；M4 宿主适配与 M5 粒子/发布能力
+仍待实现，不能将独立示例视为已经连接实际用户工程。

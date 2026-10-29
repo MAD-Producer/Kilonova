@@ -220,6 +220,36 @@ fn loop_iterations(start: i64, end: i64, inclusive: bool, unsigned: bool) -> Res
 pub fn compile(source: &str, entry: &str) -> Result<CompiledShader> {
     compile_mode(source, entry, false, false)
 }
+/// Locate a regular image-effect error in its authored source, excluding the
+/// host ABI and generated parameter accessors. Never infer a row from text.
+pub fn author_location(
+    error: &Error,
+    source: &str,
+    authored: &str,
+    entry: &str,
+) -> Option<(usize, usize)> {
+    let full = format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return sdk_store(mix(sample_source(p),{entry}(p),fx.output_mode.z));}}\n");
+    let full = legacy_select::normalize(&full);
+    let start = full.find(authored)?;
+    let location = match error {
+        Error::ShaderParse { cause, .. } => cause
+            .downcast_ref::<naga::front::wgsl::ParseError>()?
+            .location(&full)?,
+        Error::ShaderValidation { cause, .. } => cause
+            .downcast_ref::<naga::WithSpan<naga::valid::ValidationError>>()?
+            .location(&full)?,
+        _ => return None,
+    };
+    let byte = location.offset as usize;
+    if byte < start || byte >= start + authored.len() {
+        return None;
+    }
+    let prefix = authored.get(..byte - start)?;
+    Some((
+        prefix.bytes().filter(|b| *b == b'\n').count() + 1,
+        prefix.rsplit('\n').next()?.chars().count() + 1,
+    ))
+}
 pub fn compile_mode(
     source: &str,
     entry: &str,

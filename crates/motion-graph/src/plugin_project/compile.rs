@@ -33,6 +33,21 @@ pub struct ParameterAccessor {
 }
 
 impl PluginProject {
+    pub fn compile_error_location(&self, error: &Error) -> Option<(usize, usize)> {
+        let PluginLogic::Wgsl { document } = &self.logic else {
+            return None;
+        };
+        let Error::Effect { cause, .. } = error else {
+            return None;
+        };
+        let (prelude, _) = parameter_prelude(&document.parameters).ok()?;
+        shader::author_location(
+            cause,
+            &format!("{prelude}\n{}", document.source),
+            &document.source,
+            &document.entry,
+        )
+    }
     pub fn compile_logic(&self) -> Result<CompiledLogic> {
         self.validate_bindings()?;
         match &self.logic {

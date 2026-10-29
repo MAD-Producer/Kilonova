@@ -1,0 +1,34 @@
+1793275524.845 INFO [plugin_editor::author::tests::worker_failure_channels_publish_before_blocking_and_preserve_drafts] motion_studio::logging: logging initialized level=INFO
+1793275524.845 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=controlled_block in_flight=true revision=None object= source=
+1793275524.868 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 phase=read in_flight=true revision=None object= source=E:/Dev/aem/artifacts/plugin-editor-m3/failures-delivery\missing.msplugin
+1793275524.869 ERROR [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author error request=2 phase=read elapsed_ms=1 location=None cause=plugin project phase=Read path=E:/Dev/aem/artifacts/plugin-editor-m3/failures-delivery\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793275524.873 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=write in_flight=true revision=Some(1) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/plugin-editor-m3/failures-delivery\regular-file\draft.msplugin
+1793275524.874 ERROR [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author error request=1 phase=write elapsed_ms=1 location=None cause=plugin project phase=Write: graph I/O: 当文件已存在时，无法创建该文件。 (os error 183)
+1793275524.877 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 phase=compile in_flight=true revision=Some(1) object=studio.motion.examples.parameter_workbench source=
+1793275524.910 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 revision=1 phase=resource_decode in_flight=true
+1793275524.913 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=3 phase=controlled_panic in_flight=true revision=None object= source=
+1793275524.914 ERROR [plugin-author-source] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_editor\author\worker.rs:221:27:
+controlled plugin author handler panic
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: BaseThreadInitThunk
+  19: RtlUserThreadStart
+
+1793275524.943 ERROR [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author aborted request=3 phase=controlled_panic elapsed_ms=29 cause=panic; original cause recorded by process hook
+1793275524.962 ERROR [plugin_editor::author::tests::worker_failure_channels_publish_before_blocking_and_preserve_drafts] motion_studio::plugin_editor::author::worker: plugin.author worker panic cause=controlled plugin author handler panic

@@ -80,7 +80,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --plugin-check <source.msplugin>  validate plugin source and compile logic without a window\n  --plugin-preview <source.msplugin>  open the native parameter and shader preview\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --video-smoke <video>  verify video decoding without a window\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --plugin-check <source.msplugin>  validate plugin source and compile logic without a window\n  --plugin-editor <source.msplugin>  edit plugin logic, interface and live preview\n  --plugin-preview <source.msplugin>  open the native parameter and shader preview\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --video-smoke <video>  verify video decoding without a window\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -94,11 +94,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     if let Some(source) = argument("--plugin-check")? {
-        if args.iter().any(|a| matches!(a.as_str(), "--commands" | "--mcp" | "--mcp-ui" | "--video-smoke" | "--plugin-preview")) {
+        if args.iter().any(|a| matches!(a.as_str(), "--commands" | "--mcp" | "--mcp-ui" | "--video-smoke" | "--plugin-preview" | "--plugin-editor")) {
             return Err("--plugin-check cannot run with another command or MCP mode".into());
         }
         println!("{}", serde_json::to_string(&plugin_check::run(&source)?)?);
         return Ok(());
+    }
+    if let Some(source)=argument("--plugin-editor")? {
+        if args.iter().any(|a|matches!(a.as_str(),"--commands"|"--mcp"|"--mcp-ui"|"--video-smoke"|"--plugin-check"|"--plugin-preview")){return Err("--plugin-editor cannot run with another command, preview or MCP mode".into());}
+        let locale=argument("--locale")?.map(|p|Locale::parse(&p.to_string_lossy()).ok_or("locale must be zh or en")).transpose()?.unwrap_or(Locale::Zh);
+        return plugin_editor::run_author(&source,locale==Locale::Zh);
     }
     if let Some(source)=argument("--plugin-preview")? {
         if args.iter().any(|a|matches!(a.as_str(),"--commands"|"--mcp"|"--mcp-ui"|"--video-smoke")) {return Err("--plugin-preview cannot run with another command or MCP mode".into());}

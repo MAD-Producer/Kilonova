@@ -60,6 +60,12 @@ impl Drop for Scratch {
     }
 }
 pub fn run(source: &Path, zh: bool) -> Result<(), Box<dyn std::error::Error>> {
+    run_mode(source, zh, false)
+}
+pub fn run_author(source: &Path, zh: bool) -> Result<(), Box<dyn std::error::Error>> {
+    run_mode(source, zh, true)
+}
+fn run_mode(source: &Path, zh: bool, author_mode: bool) -> Result<(), Box<dyn std::error::Error>> {
     let scratch = Scratch::new()?;
     let engine = Engine::start(
         scratch.0.clone(),
@@ -69,12 +75,39 @@ pub fn run(source: &Path, zh: bool) -> Result<(), Box<dyn std::error::Error>> {
     let styles = motion_ui::style::default_stylesheet_arc();
     let atlas = TextAtlas::from_family(styles.font_family(), styles.base_font_size(), zh)?;
     let (send, load) = mpsc::sync_channel(1);
+    let (author_send, author_load) = mpsc::sync_channel(1);
     let path = source.to_owned();
     let preparation = Arc::new(super::preparation::Preparation::new(source));
     let flight = preparation.clone();
     let worker = std::thread::Builder::new()
         .name("plugin-preview-prepare".into())
         .spawn(move || {
+            if author_mode {
+                flight.phase.store(3, std::sync::atomic::Ordering::Release);
+                log::info!(
+                    "plugin.author start request=0 phase=read in_flight=true source={}",
+                    crate::fallback_observation::short(path.display())
+                );
+                struct ReadScope(Arc<super::preparation::Preparation>);
+                impl Drop for ReadScope { fn drop(&mut self) {
+                    self.0.phase.store(0,std::sync::atomic::Ordering::Release);
+                    if std::thread::panicking() { log::error!("plugin.author aborted request=0 phase=read elapsed_ms={} cause=panic; original cause recorded by process hook",self.0.began.elapsed().as_millis()); }
+                    else { log::debug!("plugin.author done request=0 phase=read elapsed_ms={}",self.0.began.elapsed().as_millis()); }
+                } }
+                let scope = ReadScope(flight);
+                crate::logging::flush();
+                let result = motion_graph::plugin_project::PluginProject::load(&path)
+                    .map_err(|e| e.to_string());
+                if let Err(error) = &result {
+                    log::error!(
+                        "plugin.author error request=0 phase=read cause={}",
+                        crate::fallback_observation::error_cause(error)
+                    );
+                }
+                drop(scope);
+                let _receiver_closed = author_send.send(result);
+                return;
+            }
             let result = flight.prepare(&path);
             // A closed window intentionally abandons this protocol reply.
             let _receiver_closed = send.send(result);
@@ -91,7 +124,12 @@ pub fn run(source: &Path, zh: bool) -> Result<(), Box<dyn std::error::Error>> {
         },
         pointer: Default::default(),
         preview: None,
-        load: Some(load),
+        load: (!author_mode).then_some(load),
+        author: None,
+        author_path: author_mode.then(|| source.to_owned()),
+        author_load: author_mode.then_some(author_load),
+        author_installing: None,
+        stamp: STAMP,
         prepared: None,
         attach: None,
         install: None,
@@ -134,6 +172,11 @@ struct App {
     input: Input,
     pointer: crate::shell::pointer_position::PointerPosition,
     preview: Option<Preview>,
+    author: Option<super::author::Workspace>,
+    author_path: Option<PathBuf>,
+    author_load: Option<Reply<motion_graph::plugin_project::PluginProject>>,
+    author_installing: Option<(u64, Vec<motion_effects::ParamDefinition>)>,
+    stamp: (u64, u64),
     load: Option<Reply<Prepared>>,
     prepared: Option<crate::node_preview::PreparedPlugin>,
     attach: Option<Reply<serde_json::Value>>,
@@ -171,7 +214,12 @@ fn poll<T>(slot: &mut Option<Reply<T>>, operation: &str) -> Option<Result<T, Str
         }
     }
 }
-fn paint_outside(list: &mut PaintList, area: Rect, hole: Option<Rect>, color: motion_ui::Color) {
+pub(super) fn paint_outside(
+    list: &mut PaintList,
+    area: Rect,
+    hole: Option<Rect>,
+    color: motion_ui::Color,
+) {
     let Some(hole) = hole
         .map(|h| h.intersection(area))
         .filter(|h| h.width() > 0. && h.height() > 0.)
@@ -217,6 +265,9 @@ impl App {
         // Keep the original failure visible if presenting/closing its message
         // also fails. The secondary cause still has its own Error record.
         if self.error.is_none() {
+            if let Some(author) = &mut self.author {
+                author.runtime_error(format!("{operation}: {cause}"));
+            }
             self.error = Some(format!(
                 "{operation}: {}",
                 crate::fallback_observation::short(cause)
@@ -240,6 +291,47 @@ impl App {
         let row = s.metric("panel.header.height", 24.);
         let mut paint = self.engine.take_paint();
         paint.stylesheet = Some(s.clone());
+        if let Some(author) = &mut self.author {
+            let slot = author.draw(&mut paint, &mut self.atlas, bounds.shrink(pad), &self.input)?;
+            let viewport = slot
+                .filter(|r| self.installed && r.width() > 0. && r.height() > 0.)
+                .map(|r| crate::node_preview::Viewport {
+                    rect: [
+                        r.min[0] * self.scale,
+                        r.min[1] * self.scale,
+                        r.width() * self.scale,
+                        r.height() * self.scale,
+                    ],
+                    seconds: 0.,
+                });
+            let mut background = PaintList {
+                stylesheet: Some(s.clone()),
+                ..Default::default()
+            };
+            paint_outside(
+                &mut background,
+                bounds,
+                viewport.map(|v| {
+                    Rect::new(
+                        v.rect[0] / self.scale,
+                        v.rect[1] / self.scale,
+                        v.rect[2] / self.scale,
+                        v.rect[3] / self.scale,
+                    )
+                }),
+                colors.PANEL,
+            );
+            background.append(paint);
+            return Ok(UiFrame {
+                paint: background,
+                atlas: None,
+                logical_size: [width, height],
+                composition: None,
+                composition_image: None,
+                window: 0,
+                node_preview: viewport,
+            });
+        }
         let mut background_canvas = None;
         let mut preview_hole = None;
         let title = tr(
@@ -428,6 +520,34 @@ impl App {
         })
     }
     fn poll_state(&mut self) -> Result<(), String> {
+        if let Some(result) = poll(&mut self.author_load, "author_read") {
+            match result {
+                Ok(project) => {
+                    self.author = Some(super::author::Workspace::new(
+                        project,
+                        self.author_path
+                            .clone()
+                            .ok_or("author source path missing")?,
+                        self.zh,
+                    )?);
+                    self.dirty = true;
+                }
+                Err(error) => self.fail("author_read", error),
+            }
+        }
+        if let Some(author) = &mut self.author {
+            author.poll()?;
+            self.dirty |= author.redraw;
+            if self.attach.is_none() && self.install.is_none() && self.values.is_none() {
+                if let Some((revision, ready)) = author.take_ready() {
+                    let definitions = ready.prepared.definitions().to_vec();
+                    self.stamp = (2, revision);
+                    self.engine.node_expect(self.stamp)?;
+                    self.install = Some(self.engine.plugin_install(self.stamp, ready.prepared)?);
+                    self.author_installing = Some((revision, definitions));
+                }
+            }
+        }
         if let Some(result) = poll(&mut self.load, "prepare") {
             match result {
                 Ok((project, prepared)) => {
@@ -444,7 +564,7 @@ impl App {
         }
         if let Some(result) = poll(&mut self.attach, "attach") {
             result?;
-            self.engine.node_expect(STAMP)?;
+            self.engine.node_expect(self.stamp)?;
             self.dirty = true;
         }
         if self.attach.is_none() && self.window.is_some() && self.install.is_none() {
@@ -453,14 +573,35 @@ impl App {
             }
         }
         if let Some(result) = poll(&mut self.install, "install") {
-            if !result? {
-                return Err("plugin preview installation was superseded".into());
+            if let Some((revision, definitions)) = self.author_installing.take() {
+                if let Some(author) = &mut self.author {
+                    match result {
+                        Ok(true) => {
+                            author.install_preview(revision, definitions)?;
+                            self.installed = true;
+                            self.revision = u64::MAX;
+                        }
+                        Ok(false) => {}
+                        Err(error) => author.runtime_error(error),
+                    }
+                }
+                self.dirty = true;
+            } else {
+                if !result? {
+                    return Err("plugin preview installation was superseded".into());
+                }
+                self.installed = true;
+                self.dirty = true;
             }
-            self.installed = true;
-            self.dirty = true;
         }
         if let Some(result) = poll(&mut self.values, "values") {
-            if !result? {
+            if let Some(author) = &mut self.author {
+                match result {
+                    Ok(true) => {}
+                    Ok(false) => { /* Normal superseded runtime revision. */ }
+                    Err(error) => author.runtime_error(error),
+                }
+            } else if !result? {
                 return Err("plugin preview parameters were superseded".into());
             }
             self.dirty = true;
@@ -511,12 +652,22 @@ impl App {
         if self.dirty && drawable {
             self.latest = Some(self.draw()?);
             self.input.begin_frame();
-            self.dirty = self.preview.as_ref().is_some_and(|p| p.redraw);
+            self.dirty = self.preview.as_ref().is_some_and(|p| p.redraw)
+                || self.author.as_ref().is_some_and(|a| a.redraw);
             if let (Some(window), Some(preview)) = (&self.window, &self.preview) {
                 window.set_cursor(preview.cursor);
             }
         }
         if self.installed && self.values.is_none() {
+            if let Some(author) = &self.author {
+                if author.runtime_current() && author.value_revision() != self.revision {
+                    self.values = Some(
+                        self.engine
+                            .plugin_values(self.stamp, author.values().to_vec())?,
+                    );
+                    self.revision = author.value_revision();
+                }
+            }
             if let Some(preview) = &self.preview {
                 if preview.session.revision != self.revision {
                     self.values = Some(
@@ -581,6 +732,19 @@ impl ApplicationHandler for App {
                     s.metric("plugin.preview.window.min_width", 360.),
                     s.metric("plugin.preview.window.min_height", 400.),
                 ));
+            let attributes = if self.author_path.is_some() {
+                let unit = s.metric("plugin.author.window.unit", 480.);
+                attributes
+                    .with_title(tr(
+                        self.zh,
+                        "Motion Studio · 插件编辑器",
+                        "Motion Studio · Plugin Editor",
+                    ))
+                    .with_inner_size(LogicalSize::new(unit * 3., unit * 1.75))
+                    .with_min_inner_size(LogicalSize::new(unit * 1.6, unit * 1.2))
+            } else {
+                attributes
+            };
             let window = Arc::new(
                 event_loop
                     .create_window(attributes)
@@ -609,12 +773,20 @@ impl ApplicationHandler for App {
         }
         match event {
             WindowEvent::CloseRequested => {
+                if let Some(author) = &mut self.author {
+                    author.request_close();
+                    self.dirty = true;
+                    return;
+                }
                 if let Some(p) = &mut self.preview {
                     p.cancel();
                 }
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {
+                if let Some(author) = &mut self.author {
+                    author.cancel();
+                }
                 if let Some(p) = &mut self.preview {
                     p.cancel();
                 }
@@ -624,6 +796,9 @@ impl ApplicationHandler for App {
                 self.dirty = true;
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(author) = &mut self.author {
+                    author.cancel();
+                }
                 if let Some(p) = &mut self.preview {
                     p.cancel();
                 }
@@ -651,6 +826,9 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::CursorLeft { .. } => {
+                if let Some(author) = &mut self.author {
+                    author.cancel();
+                }
                 if let Some(preview) = &mut self.preview {
                     preview.cancel();
                 }
@@ -683,7 +861,12 @@ impl ApplicationHandler for App {
                     self.event(event)
                 }
             }
-            WindowEvent::Focused(false) => self.event(Event::FocusLost),
+            WindowEvent::Focused(false) => {
+                if let Some(author) = &mut self.author {
+                    author.cancel();
+                }
+                self.event(Event::FocusLost);
+            }
             WindowEvent::RedrawRequested => {
                 self.dirty = true;
                 if let Some(window) = &self.window {
@@ -702,6 +885,10 @@ impl ApplicationHandler for App {
             self.fail("runtime", error);
             event_loop.exit();
         }
+        if self.author.as_ref().is_some_and(|a| a.close_ready) {
+            event_loop.exit();
+            return;
+        }
         // Match the owning shell: submit inside RedrawRequested, after the OS
         // paint notification. Worker polling itself never presents a surface.
         let can_submit = self.attach.is_none()
@@ -717,6 +904,8 @@ impl ApplicationHandler for App {
             }
         }
         let pending = self.load.is_some()
+            || self.author_load.is_some()
+            || self.author.as_ref().is_some_and(|a| a.pending())
             || self.attach.is_some()
             || self.install.is_some()
             || self.values.is_some()

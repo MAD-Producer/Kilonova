@@ -233,6 +233,31 @@ impl TextEditor {
         area: Rect,
         input: &impl InputSource,
     ) -> Option<TextEvent> {
+        self.multiline_view_impl(viewport, list, atlas, area, input, None)
+    }
+    /// Native syntax presentation shares all selection, IME, clipboard, caret
+    /// and history behavior with the ordinary multiline editor. The callback
+    /// must preserve the expanded line's text exactly.
+    pub fn multiline_view_colored(
+        &mut self,
+        viewport: &mut TextViewport,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        input: &impl InputSource,
+        colors: &dyn Fn(usize, &str) -> Vec<(String, crate::Color)>,
+    ) -> Option<TextEvent> {
+        self.multiline_view_impl(viewport, list, atlas, area, input, Some(colors))
+    }
+    fn multiline_view_impl(
+        &mut self,
+        viewport: &mut TextViewport,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        input: &impl InputSource,
+        colors: Option<&dyn Fn(usize, &str) -> Vec<(String, crate::Color)>>,
+    ) -> Option<TextEvent> {
         let sheet = list.styles();
         let states = crate::style::States::default().with(crate::style::State::Focused);
         let style = sheet
@@ -416,15 +441,43 @@ impl TextEditor {
                     }
                 }
                 let text_width = measure(atlas, text) + pad;
-                ui::text_sized(
-                    &mut text_paint,
-                    atlas,
-                    Rect::new(body.min[0] - viewport.scroll[0], y, text_width, line_height),
-                    &expand_tabs(text, tabs),
-                    style.foreground,
-                    Align::Left,
-                    style.font_size,
-                );
+                if let Some(colors) = colors {
+                    let expanded = expand_tabs(text, tabs);
+                    let parts = colors(index, &expanded);
+                    let mut prefix = String::new();
+                    for (part, color) in parts {
+                        let x = atlas.measure(&prefix) * style.font_size / atlas.font_size();
+                        prefix.push_str(&part);
+                        ui::text_sized(
+                            &mut text_paint,
+                            atlas,
+                            Rect::new(
+                                body.min[0] - viewport.scroll[0] + x,
+                                y,
+                                text_width,
+                                line_height,
+                            ),
+                            &part,
+                            color,
+                            Align::Left,
+                            style.font_size,
+                        );
+                    }
+                    debug_assert_eq!(
+                        prefix, expanded,
+                        "syntax presentation must preserve source text"
+                    );
+                } else {
+                    ui::text_sized(
+                        &mut text_paint,
+                        atlas,
+                        Rect::new(body.min[0] - viewport.scroll[0], y, text_width, line_height),
+                        &expand_tabs(text, tabs),
+                        style.foreground,
+                        Align::Left,
+                        style.font_size,
+                    );
+                }
                 if self.active && index + 1 == line {
                     let x = body.min[0] + caret_x - viewport.scroll[0];
                     paint::line(

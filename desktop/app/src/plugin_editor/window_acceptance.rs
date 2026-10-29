@@ -58,6 +58,7 @@ fn native_layout_controls_render_and_update_shader_without_recompilation() {
             input: neutral(),
             pointer: Default::default(),
             preview: Some(Preview::new(project.interface.clone(), definitions, true).unwrap()),
+            author:None,author_path:None,author_load:None,author_installing:None,stamp:STAMP,
             load: None,
             prepared: None,
             attach: None,
