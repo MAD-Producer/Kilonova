@@ -4,6 +4,53 @@ use motion_render::{Presenter, Renderer};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
+    use motion_render::{ResourceBudgetScope, ResourceRejection};
+    let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.render_target(64, 64).unwrap();
+    let mut project = Project::new(64, 64, 30, 1).unwrap();
+    project.background = [1., 0., 0., 1.];
+    let mut scene = Scene::new(&project).unwrap();
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let snapshot = r.snapshot_target(&source).unwrap();
+    assert_eq!(snapshot.texture_bytes(), source.texture_bytes());
+    project.background = [0., 0., 1., 1.];
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("viewer snapshot pixel fixture"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let view = output.create_view(&Default::default());
+    let inspect = |image: &motion_render::AdmittedTextureView| {
+        Presenter::new(&r, image, wgpu::TextureFormat::Rgba8Unorm).draw(&r, &view).unwrap();
+        presentation_bytes(&r, &output)
+    };
+    let red = [255, 0, 0, 255].repeat(64 * 64);
+    assert_eq!(inspect(&source.view), [0, 0, 255, 255].repeat(64 * 64));
+    assert_eq!(inspect(&snapshot.view), red);
+    let budget = r.allocation_budget();
+    let before = budget.info().unwrap();
+    budget.set_limit(before.admitted_bytes).unwrap();
+    let error = r.snapshot_target(&source).err().expect("replacement must refuse before copying");
+    assert_eq!(error.resource_rejection(), Some(&ResourceRejection::Budget {
+        scope: ResourceBudgetScope::RenderAllocations,
+        required_bytes: before.admitted_bytes + source.texture_bytes(),
+        budget_bytes: before.admitted_bytes,
+    }));
+    assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
+    assert_eq!(inspect(&snapshot.view), red);
+    budget.set_limit(before.budget_bytes).unwrap();
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged() {
     use motion_render::ViewChannel;
     let r = pollster::block_on(Renderer::headless()).unwrap();
