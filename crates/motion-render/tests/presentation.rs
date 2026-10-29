@@ -48,7 +48,7 @@ fn raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged
                     let intensity = match channel { ViewChannel::Red => 64, ViewChannel::Green => 128,
                         ViewChannel::Blue => 192, ViewChannel::Alpha => 32, ViewChannel::Color => unreachable!() };
                     for pixel in pixels.chunks_exact(4) {
-                        assert_eq!(pixel[3], 255);
+                        assert_eq!(pixel[3], 255, "raw {channel:?} {format:?} inspection must be opaque");
                         assert!(pixel[..3].iter().all(|v| v.abs_diff(intensity) <= 1), "raw {channel:?} {format:?}: {pixel:?}");
                     }
                     // View inspection must never affect ordinary color encoding.
