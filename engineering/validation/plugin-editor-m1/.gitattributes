@@ -1,0 +1,3 @@
+# Preserve raw acceptance bytes and original failure evidence.
+* -text whitespace=cr-at-eol,-blank-at-eof,-blank-at-eol
+.gitattributes text eol=lf
