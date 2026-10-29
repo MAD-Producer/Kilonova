@@ -1,0 +1,110 @@
+{
+  "revalidations": [
+    {
+      "main": "cd49b72d7cdf03886185b82ba6229220326ac208",
+      "head": "3c15df5c8115d611f6628b93f684939e6300bd15",
+      "binary": {
+        "path": "E:\\Dev\\aem\\.tools\\ui-capture-context\\current-main-01\\motion-studio-capture-test.exe",
+        "sha256": "f3415e9546fa3247d3c9e176333b640058a3fc83cb1cf1f1169b510be00ded05"
+      },
+      "native": {
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ui-capture-context\\current-main-01\\motion-studio-capture-test.exe",
+          "--exact",
+          "engine::capture_context_tests::actual_capture_failures_report_bounded_paths_and_phases_without_changing_replies",
+          "--include-ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 13.34
+      },
+      "existing_regressions": [
+        {
+          "seconds": 7.8365773,
+          "exit_code": 0,
+          "filter": "logging::command_error_tests::",
+          "name": "bounded-errors",
+          "passed": 1
+        },
+        {
+          "seconds": 9.4832423,
+          "exit_code": 0,
+          "filter": "engine::queue_tests::",
+          "name": "queue",
+          "passed": 4
+        },
+        {
+          "seconds": 12.5698016,
+          "exit_code": 0,
+          "filter": "engine::precision_capture_tests::real_worker_ui_and_node_pngs_remain_display_encoded_in_all_four_precisions",
+          "name": "precision",
+          "passed": 1
+        }
+      ],
+      "unique_passing_tests": 7,
+      "check": {
+        "head": "3c15df5c8115d611f6628b93f684939e6300bd15",
+        "exit_code": 0
+      },
+      "source_unchanged": true
+    },
+    {
+      "main": "274577fa48cb376fb672f9e8493f0edc27619bf0",
+      "head": "eba16ff594eff39cb26a7af7bda7413b2b595422",
+      "binary": {
+        "path": "E:\\Dev\\aem\\.tools\\ui-capture-context\\current-main-02\\motion-studio-capture-test.exe",
+        "sha256": "e70af0548f24a240e9e9620c7309745bb3c3c1fa78c6f5ee84a1028b62373fd8"
+      },
+      "native": {
+        "command": [
+          "E:\\Dev\\aem\\.tools\\ui-capture-context\\current-main-02\\motion-studio-capture-test.exe",
+          "--exact",
+          "engine::capture_context_tests::actual_capture_failures_report_bounded_paths_and_phases_without_changing_replies",
+          "--include-ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 9.27
+      },
+      "existing_regressions": [
+        {
+          "exit_code": 0,
+          "seconds": 6.7340206,
+          "filter": "logging::command_error_tests::",
+          "name": "bounded-errors",
+          "passed": 1
+        },
+        {
+          "exit_code": 0,
+          "seconds": 9.887899,
+          "filter": "engine::queue_tests::",
+          "name": "queue",
+          "passed": 4
+        },
+        {
+          "exit_code": 0,
+          "seconds": 9.0945912,
+          "filter": "engine::precision_capture_tests::real_worker_ui_and_node_pngs_remain_display_encoded_in_all_four_precisions",
+          "name": "precision",
+          "passed": 1
+        }
+      ],
+      "unique_passing_tests": 7,
+      "check": {
+        "head": "eba16ff594eff39cb26a7af7bda7413b2b595422",
+        "exit_code": 0
+      },
+      "source_unchanged": true
+    }
+  ],
+  "counts_are_not_added_together": true,
+  "archive": {
+    "path": "data/ui-capture-context-current-main.zip",
+    "members": 64,
+    "bytes": 980333,
+    "sha256": "2e3d5947c04acd7ad164a464ebed9ed15f21e3551b186669a05dab4f03dd24b4"
+  },
+  "scope": "Two actual new full-combination revalidations after other actors merged prerender and video depth storage. Original negative control and its failed setup attempts remain in the separate original archive. Final PR CI is still required."
+}
