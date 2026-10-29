@@ -185,6 +185,26 @@ fn native_working_front_snapshot_preserves_bytes_across_four_precisions() {
 }
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn snapshot_display_matches_live_sdr_with_highlights_and_transparency() {
+    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Unorm16, ChannelPrecision::Float16, ChannelPrecision::Float32] {
+        let mut renderer = renderer(precision);
+        let (mut project, registry) = fixture("return vec4(0.5,0.25,0.125,0.25);");
+        project.background = [0.; 4];
+        renderer.set_effect_registry(registry);
+        let mut scene = Scene::new(&project).unwrap();
+        scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+        let mut targets = SdrPreviewFrameTargets::new(&renderer, SIZE, SIZE).unwrap();
+        render(&mut renderer, &mut targets, &scene, SIZE, SIZE);
+        let snapshot = motion_render::ViewerSnapshot::capture(&renderer, targets.working_front().unwrap()).unwrap();
+        assert_eq!(snapshot.native().view.texture().format(), targets.working_front().unwrap().view.texture().format());
+        let live = read_output(&renderer, &targets);
+        assert_eq!(read_output(&renderer, snapshot.display()), live, "snapshot display precision={precision:?}");
+        assert!(live.chunks_exact(4).any(|pixel| pixel[0] != 0 && pixel[3] != 0));
+        renderer.check_health().unwrap();
+    }
+}
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_sdr_fronts_budget_native_and_output_storage_and_reuse_both_slots() {
     for (precision, pixel_bytes) in [
         (ChannelPrecision::Unorm8, 4),
