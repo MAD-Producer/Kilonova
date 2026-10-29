@@ -61,9 +61,9 @@ acceptance, not final umbrella full-workspace/cross-platform acceptance.
 
 ## Remaining limits
 
-Dedicated source-mask and chained-matte native controls, spatial matte camera
-and letterbox controls, visible-source stacking, and changing-video matte input
-remain to verify. General calibrated-source mattes, calibrated image effects,
+Visible-source stacking and changing-video matte input remain to verify.
+Dedicated source-mask/chained-matte and spatial camera/letterbox controls are
+now accepted in the follow-up below. General calibrated-source mattes, calibrated image effects,
 nested/exposure depth, intersecting translucent ordering, DOF, long-duration
 real-codec throughput and current-main full-workspace/cross-platform acceptance
 remain unfinished. Android is retired and excluded by request. No UI/panel,
@@ -95,3 +95,30 @@ receiver error being reported before the unsupported calibrated-source error.
 All calibrated-source membership checks now run before dependent spatial-boundary
 checks, preserving the primary unsupported-source context. The failed v3 log is
 retained along with the successful v4 execution.
+
+## Independent context controls
+
+A hidden green source with its own source-local hard mask consumes a second
+screen-space matte. Opposite source-mask and inner-matte revisions independently
+match the expected linear-luminance blend at both fixed rays. Two pending encodes
+submitted in reverse retain the full independently rendered frame for each.
+This proves this ordinary-source chain, not arbitrary calibrated-source chains.
+
+A hidden spatial green matte is checked against analytic world-ray/plane
+intersections, separately from the calibrated red surface and ordinary blue
+plane. Both initial and edited camera/rotated-source scenes use a 192x160 output
+with a native 192x128 composition and 16 transparent rows above/below. Every
+sampled interior must match its independently computed coverage and physical
+depth; each of the three red/matte/blue categories must include at least 30 rays.
+The AA/filter boundary is excluded by an explicit two-local-unit margin.
+
+The source-bound context gate passes 144 distinct related tests, zero failures
+and zero ignored tests, plus desktop FFmpeg/AI-depth compile, style-consumer and
+provenance checks. This repeats the earlier 142 tests and adds two; totals are
+not additive across these gates. Production sources are unchanged by these
+controls. No UI/panel, dependencies or external assets changed. Final umbrella
+full-workspace/cross-platform acceptance remains pending.
+
+Receipt: `artifacts/pr-queue/calibrated-matte-context-v1/accepted.json`.
+Archive: `data/calibrated-matte-context-native-v1.zip`; every entry verified against its original.
+SHA-256: `984d1f16be95fcc13df83216e36895430036fe38edeab0ce891149cd6b6d2d66`.

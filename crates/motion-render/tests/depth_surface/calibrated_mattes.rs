@@ -346,3 +346,201 @@ fn effected_matte_and_source_mask_keep_reverse_frames_and_budget_recovery() {
     retain_fixture("effected-matte-mask-first.png", &expected_a);
     retain_fixture("effected-matte-mask-last.png", &expected_b);
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn masked_chained_matte_keeps_each_sources_coordinates_and_pending_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let mut p = project(root.path());
+    let mut source = Layer::solid(
+        91,
+        "Masked green source",
+        [64., 40.],
+        [48., 32., 0.],
+        [0., 1., 0., 1.],
+    );
+    source.visible = false;
+    source.transform.opacity.value = 0.5;
+    source.masks.push(calibrated_masks::right_source_half());
+    source.track_matte = Some(TrackMatte {
+        source: 92,
+        mode: MatteMode::Alpha,
+        hide_source: true,
+    });
+    let mut cut = Layer::solid(92, "Right screen half", [48., 64.], [72., 32., 0.], [1.; 4]);
+    cut.visible = false;
+    p.layers.extend([source, cut]);
+    p.layers[0].track_matte = Some(TrackMatte {
+        source: 91,
+        mode: MatteMode::Luma,
+        hide_source: true,
+    });
+    p.validate().unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &p, root.path());
+    let near = DepthResource::new(field(1).descriptor().clone(), vec![1., 1.], None, None).unwrap();
+    let sample = |p: &Project| {
+        let mut scene = sampled(p);
+        scene
+            .attach_calibrated_depth(1, &near.descriptor().source, &near, input())
+            .unwrap();
+        scene
+    };
+    let a_scene = sample(&p);
+    p.layers.iter_mut().find(|l| l.id == 91).unwrap().masks[0].inverted = true;
+    p.layers
+        .iter_mut()
+        .find(|l| l.id == 91)
+        .unwrap()
+        .track_matte
+        .as_mut()
+        .unwrap()
+        .mode = MatteMode::AlphaInverted;
+    let b_scene = sample(&p);
+    let a = renderer.capture_target(96, 64).unwrap();
+    let b = renderer.capture_target(96, 64).unwrap();
+    let expected_a = renderer.capture(&a_scene, &a).unwrap().0;
+    let expected_b = renderer.capture(&b_scene, &b).unwrap().0;
+    let blended = [srgb(0.7152 * 0.5), 0, srgb(1. - 0.7152 * 0.5), 255];
+    for (pixels, covered, uncovered) in [(&expected_a, 60, 36), (&expected_b, 36, 60)] {
+        assert!(
+            ray(pixels, covered)
+                .iter()
+                .zip(blended)
+                .all(|(a, b)| a.abs_diff(b) <= 1),
+            "chain coverage: {:?}",
+            ray(pixels, covered)
+        );
+        assert_eq!(ray(pixels, uncovered), &[0, 0, 255, 255]);
+    }
+    let mut first = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&a_scene, &a.view, 96, 64, &mut first, None)
+        .unwrap();
+    let mut last = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    renderer
+        .encode(&b_scene, &b.view, 96, 64, &mut last, None)
+        .unwrap();
+    renderer.submit_allocated(last.finish(), |_| {}).unwrap();
+    renderer.submit_allocated(first.finish(), |_| {}).unwrap();
+    assert_eq!(renderer.read_target(&a).unwrap(), expected_a);
+    assert_eq!(renderer.read_target(&b).unwrap(), expected_b);
+    retain_fixture("chained-matte-source-mask-a.png", &expected_a);
+    retain_fixture("chained-matte-source-mask-b.png", &expected_b);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn spatial_matte_uses_edited_camera_and_letterboxed_native_pixels() {
+    let root = tempfile::tempdir().unwrap();
+    let mut p = project(root.path());
+    let mut source = Layer::solid(
+        91,
+        "Spatial green half",
+        [32., 64.],
+        [40., 32., 0.],
+        [0., 1., 0., 1.],
+    );
+    source.three_d = true;
+    source.visible = false;
+    p.layers.push(source);
+    p.layers[0].track_matte = Some(TrackMatte {
+        source: 91,
+        mode: MatteMode::Luma,
+        hide_source: true,
+    });
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &p, root.path());
+    let (width, height) = (192usize, 160usize);
+    let target = renderer
+        .capture_target(width as u32, height as u32)
+        .unwrap();
+    for moved in [false, true] {
+        if moved {
+            p.camera.position.set_at(0, [61., 27., -100.]).unwrap();
+            p.layers
+                .iter_mut()
+                .find(|l| l.id == 91)
+                .unwrap()
+                .transform
+                .rotation
+                .set_at(0, [0., 18., 12.])
+                .unwrap();
+        }
+        p.validate().unwrap();
+        let mut scene = sampled(&p);
+        attach(&mut scene);
+        let pixels = renderer.capture(&scene, &target).unwrap().0;
+        // Composition 96x64 fits 192x128, with 16 transparent rows per side.
+        assert!(pixels[..16 * width * 4].iter().all(|v| *v == 0));
+        assert!(pixels[144 * width * 4..].iter().all(|v| *v == 0));
+        let inverse = scene.camera.view_projection.as_dmat4().inverse();
+        let red = scene.layers.iter().find(|l| l.id == 1).unwrap();
+        let blue = scene.layers.iter().find(|l| l.id == 2).unwrap();
+        let source = scene.layers.iter().find(|l| l.id == 91).unwrap();
+        let mut checked = [0usize; 3];
+        for y in 18..142usize {
+            for x in 2..190usize {
+                let ndc = [
+                    (x as f64 + 0.5) / 96. - 1.,
+                    1. - (y as f64 + 0.5 - 16.) / 64.,
+                ];
+                let a = inverse * DVec4::new(ndc[0], ndc[1], 0., 1.);
+                let b = inverse * DVec4::new(ndc[0], ndc[1], 0.5, 1.);
+                let origin = a.truncate() / a.w;
+                let direction = (b.truncate() / b.w - origin).normalize();
+                let Some(red_t) = surface_hit(origin, direction, red.model.as_dmat4()) else {
+                    continue;
+                };
+                let intersect = |layer: &motion_render::DrawLayer| {
+                    let inv = layer.model.as_dmat4().inverse();
+                    let o = inv.transform_point3(origin);
+                    let d = inv.transform_vector3(direction);
+                    let t = -o.z / d.z;
+                    (t, o + d * t)
+                };
+                let (blue_t, q) = intersect(blue);
+                if blue_t <= 0. || q.x.abs() > 30. || q.y.abs() > 18. || (red_t - blue_t).abs() < 2.
+                {
+                    continue;
+                }
+                let (matte_t, q) = intersect(source);
+                // Skip the projected AA/filter footprint, test both interiors.
+                if (q.x.abs() - 16.).abs() < 2. || (q.y.abs() - 32.).abs() < 2. {
+                    continue;
+                }
+                let covered = matte_t > 0. && q.x.abs() < 16. && q.y.abs() < 32.;
+                let category = if red_t > blue_t {
+                    0
+                } else if covered {
+                    1
+                } else {
+                    2
+                };
+                let c = if category == 1 { 0.7152 } else { 0. };
+                let expected = [srgb(c), 0, srgb(1. - c), 255];
+                let actual = &pixels[(y * width + x) * 4..][..4];
+                assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1), "moved={moved} ray={x},{y} category={category} actual={actual:?} expected={expected:?}");
+                checked[category] += 1;
+            }
+        }
+        assert!(
+            checked.iter().all(|n| *n >= 30),
+            "each physical/matte region needs coverage: {checked:?}"
+        );
+        if let Some(dir) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {
+            image::save_buffer(
+                std::path::PathBuf::from(dir).join(format!("spatial-matte-letterbox-{moved}.png")),
+                &pixels,
+                width as u32,
+                height as u32,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+    }
+}
