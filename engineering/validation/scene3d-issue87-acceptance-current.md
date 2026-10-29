@@ -11,7 +11,9 @@ lists implemented pixel behavior, actual control locations and explicit limits
 separately. It is not a claim of universal effect/nesting/alpha support.
 The [native normative checkpoint](scene3d-normative-native-current.md) adds
 independent source-based Box material/coordinate and SimpleSkin animation
-comparisons. Its official alpha comparison remains outstanding.
+comparisons. The [independent alpha checkpoint](scene3d-normative-alpha-native-current.md)
+adds the whole unmodified AlphaBlendModeTest scene, source-derived filtering,
+cutoff and blending references, four precisions and exact frozen restoration.
 The [sustained native playback checkpoint](scene3d-long-native-playback-current.md)
 records a measured 60-second real-codec host run, bounded retention and actual
 owner retirement. Its small controlled fixture is not a high-resolution or
@@ -28,8 +30,8 @@ integration and the advertised capability remain incomplete/false.
 | Original requirement | Current evidence | Limit before final acceptance |
 | --- | --- | --- |
 | 87.1: static glTF/GLB mesh and owned buffers/textures | [Ingestion and native rendering](gltf-scene-current.md), [first-class project layers](project-model-depth-current.md) | Importing a file alone is not proof of rendering or project ownership |
-| Paths, asset relinking, bounds, units and coordinates | Same scene/project ledgers; owned snapshot and asset validation controls | Final normative rendered-coordinate comparison remains open |
-| 87.2: metallic-roughness PBR, normal/tangent, alpha modes, lights and instancing | Native pixel and budget controls in the scene ledger; shared geometry and [transparent planes](transparent-plane-depth-current.md) | External rendered-material comparison remains open; supported light/material profile is bounded |
+| Paths, asset relinking, bounds, units and coordinates | Same scene/project ledgers; owned snapshot and asset validation controls; independent native Box coordinate comparison | Desktop file import is being integrated separately; its pending tests are not accepted evidence |
+| 87.2: metallic-roughness PBR, normal/tangent, alpha modes, lights and instancing | Native pixel and budget controls in the scene ledger; shared geometry and [transparent planes](transparent-plane-depth-current.md); independent Box and AlphaBlendModeTest references | Supported light/material profile is bounded; alpha comparison does not prove general intersecting transparency |
 | 87.3: morph/skin/animation and camera tracks | [Morph](gltf-morph-current.md), [skin](gltf-skin-current.md), [transform interpolation](gltf-transform-animation-current.md), [camera sampling](gltf-cameras-current.md), [camera activation](depth-camera-integrated-current.md) | Imported pose interpolation remains separate from authored Euler tracks; latest-main full regression is still needed |
 | 87.4: calibrated AI depth and native camera depth | [Calibration](depth-calibration-current.md), [authoring](depth-calibration-authoring-current.md), [native depth surface](depth-surface-native-current.md), [project integration](depth-project-final-current.md) | Uncalibrated relative depth is explicitly refused rather than treated as metres |
 | Mesh/plane occlusion and shared depth ownership | [Mixed planes](mixed-plane-depth-current.md), [textured planes](textured-plane-depth-current.md), [transparent planes](transparent-plane-depth-current.md), [image ownership](owned-depth-image-current.md) | General intersecting transparency is not order-independent transparency; see explicit native alpha policy |
@@ -47,14 +49,17 @@ integration and the advertised capability remain incomplete/false.
    unchanged caller buffers and zero-aperture recovery. Archive and publish
    this increment (committed as `023ef4b6`); final latest-main workspace/platform acceptance remains
    required. Native output proof does not establish portable optical support.
-2. Complete the remaining official alpha comparison. Unmodified pinned Box
+2. Official sample comparisons passed their own source-bound gates. Unmodified pinned Box
    rendering now matches an independent rough-metal, vertex-color and coordinate
    reference over 5,256 interior pixels in each of four precisions. Unmodified
    SimpleSkin matches raw-source LBS silhouettes at four times in each
    precision, including interpolated and negative rotations; frozen restore
    pixels match exactly. These are actual native comparisons, separate from
-   the earlier ingestion-only checks. AlphaBlendModeTest is downloaded but
-   has not passed an independent rendered reference.
+   the earlier ingestion-only checks. Whole unmodified AlphaBlendModeTest
+   matches 2,024 independently selected interior pixels per precision, with
+   wrong-opaque and wrong-cutoff negative controls, default-budget refusal and
+   exact frozen restoration. These separate checkpoints do not replace the
+   latest-main workspace and platform gates.
 3. Finish the advertised composition boundary inventory: distinguish actual
    supported nested/effect/exposure/transparent behavior from explicit refusal,
    and verify ordinary 2D/BSP results remain unchanged. A documented refusal is
@@ -70,6 +75,15 @@ integration and the advertised capability remain incomplete/false.
    desktop checks on those imported sources, then require maintained-desktop
    cross-platform CI for the exact published head. Do not add overlapping
    checkpoint test counts into a cumulative coverage number.
+6. Close the actual desktop model-import gap. Existing scene/project loading
+   accepts owned models, but the normal desktop file route previously treated
+   model files as audio. A new worker operation connects composition file
+   drops and revision-checked MCP import to bounded glTF/GLB/OBJ ingestion,
+   owned frozen dependencies and one atomic undo boundary. Its implementation
+   is awaiting actual import/reopen/undo/failure and native-editor tests; do
+   not report those tests as passed yet. Project-library model registration,
+   library placement and file-picker filters remain separate missing entry
+   routes, not implied by composition-drop support.
 
 No item above is closed by compilation alone, by a passing narrow control, or
 by an earlier branch's green CI. This map keeps #87 open. #82's runtime is not

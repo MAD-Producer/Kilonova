@@ -59,8 +59,10 @@ The source-bound aperture gate passed 1041 distinct related tests, zero
 failures and zero unexecuted ignored controls. Its ten actual rendering targets
 passed 191 tests. Receipt:
 `artifacts/pr-queue/native-camera-dof-regression-v2/accepted.json`.
-Official Box and SimpleSkin rendering and the measured 60-second native
-real-codec host run have separate accepted checkpoints. Official alpha
-comparison and latest-main full-workspace / maintained-desktop cross-platform
-CI remain open. This inventory alone does not close issue 87 or background
+Official Box, SimpleSkin and AlphaBlendModeTest rendering and the measured
+60-second native real-codec host run have separate accepted checkpoints.
+The [independent alpha comparison](scene3d-normative-alpha-native-current.md)
+does not establish arbitrary intersecting transparency. Latest-main
+full-workspace / maintained-desktop cross-platform CI remain open. This
+inventory alone does not close issue 87 or background
 prerender issue 82.
