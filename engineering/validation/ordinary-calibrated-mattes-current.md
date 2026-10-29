@@ -70,3 +70,11 @@ There are no panel/UI, dependency or third-party asset changes.
 Receipt: `artifacts/pr-queue/ordinary-calibrated-matte-regression-v1/accepted.json`.
 Archive: `data/ordinary-calibrated-mattes-native-v1.zip`; CRC and every entry verified against originals.
 SHA-256: `30c3252420ae4c22dd0057a4b5fbd6b9c2772d92791a689a1ab07cb9d82a42a5`.
+
+## Later material checkpoint
+
+[Calibrated source-space material acceptance](calibrated-depth-materials-current.md)
+adds implementation-proven Invert/Tint image effects to calibrated owners and
+matte sources. It supersedes only that earlier blanket effect-owner restriction;
+external effect image inputs, unproved operations and broader depth limits remain
+open. The earlier counts and restrictions describe their historical checkpoint.

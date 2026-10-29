@@ -13,6 +13,8 @@ mod nested_exposure;
 mod working_precision;
 mod model_layers;
 mod projected_mattes;
+mod depth_materials;
+use depth_materials::DepthMaterial;
 pub use model_layers::ModelSourceCatalog;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};

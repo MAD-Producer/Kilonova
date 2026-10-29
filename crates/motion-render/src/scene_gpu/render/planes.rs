@@ -180,7 +180,8 @@ pub(super) fn prepare(
         }
         if plane.texture.as_ref().is_some_and(|view| {
             let texture = view.texture();
-            texture.format() != wgpu::TextureFormat::Rgba8UnormSrgb
+            (texture.format() != wgpu::TextureFormat::Rgba8UnormSrgb
+                && !(plane.surface.is_some() && texture.format() == format))
                 || texture.dimension() != wgpu::TextureDimension::D2
                 || texture.depth_or_array_layers() != 1
                 || texture.sample_count() != 1
@@ -189,7 +190,7 @@ pub(super) fn prepare(
                     .contains(wgpu::TextureUsages::TEXTURE_BINDING)
         }) {
             return Err(crate::RenderError::Invalid(format!(
-                "scene plane object={} phase=shared_plane_image: expected admitted single-sample RGBA8 sRGB source", plane.object
+                "scene plane object={} phase=shared_plane_image: expected admitted single-sample sRGB source or calibrated working-color material", plane.object
             )).into());
         }
         let first = vertices.len() as u64;

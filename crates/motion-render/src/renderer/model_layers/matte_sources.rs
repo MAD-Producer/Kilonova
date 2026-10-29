@@ -1,5 +1,6 @@
 //! Independent calibrated matte images use actual projected source geometry.
 use super::*;
+use crate::renderer::depth_materials::DepthMaterial;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePlane};
 
 /// Iterative dependency traversal bounds storage by the sampled layer count.
@@ -53,6 +54,7 @@ impl Renderer {
         height: u32,
         projected: &HashMap<u64, RenderTarget>,
         retained_bytes: u64,
+        materials: &HashMap<u64, DepthMaterial>,
     ) -> Result<(RenderTarget, RenderStats)> {
         let began = Instant::now();
         let layer = scene
@@ -73,9 +75,10 @@ impl Renderer {
                     "depth matte source={source} phase=geometry: source color is absent"
                 ))
             })?;
-        let texture = self.images.get(&key)
+        let material = materials.get(&source);
+        let texture = if let Some(material) = material { material.view()? } else { self.images.get(&key)
             .ok_or_else(|| RenderError::Invalid(format!("depth matte object={source} key={key:?} phase=geometry: prepared color is missing")))?
-            ._texture.admitted_view()?;
+            ._texture.admitted_view()? };
         let target =
             self.render_target_in(width, height, crate::TextureCategory::MatteBlendScratch)?;
         let mut encoder = self.allocation_command_encoder_for(
@@ -86,6 +89,7 @@ impl Renderer {
         )?;
         let mut mask_scene = scene.clone();
         mask_scene.layers = vec![layer.clone()];
+        if material.is_some() { mask_scene.layers[0].masks = Default::default(); }
         let masks = crate::mask_plan::MaskCache::default().build(&mask_scene, 1., false)?;
         let mut coverage = HashMap::new();
         let mut coverage_bytes = 0;
@@ -118,12 +122,7 @@ impl Renderer {
             object: source,
             world: layer.model,
             size: layer.size,
-            color: [
-                layer.color[0],
-                layer.color[1],
-                layer.color[2],
-                layer.color[3] * layer.opacity,
-            ],
+            color: material.map_or([layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity], DepthMaterial::color),
             texture: Some(texture),
             surface: scene.depth_surface(source),
             coverage: coverage

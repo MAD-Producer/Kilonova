@@ -51,7 +51,9 @@ pub struct LayerRaster {
     frame: f64,
     reservation: super::exposure::Reservation,
 }
+
 impl LayerRaster {
+    pub(super) fn material_image(&self) -> Result<crate::AdmittedTextureView> { self.image.texture.admitted_view() }
     pub fn layer(&self) -> &crate::DrawLayer {
         &self.plane
     }
@@ -100,9 +102,10 @@ impl Renderer {
     /// Retain an independent effects-stage source, then project its own matte
     /// chain into a private screen image. Never reuse this encode's target.
     pub(super) fn project_depth_matte_source(&mut self, scene: &Scene, source: u64,
-        width: u32, height: u32, projected: &HashMap<u64, RenderTarget>, retained_bytes: u64) -> Result<(RenderTarget, RenderStats)> {
+        width: u32, height: u32, projected: &HashMap<u64, RenderTarget>, retained_bytes: u64,
+        materials: &HashMap<u64, DepthMaterial>) -> Result<(RenderTarget, RenderStats)> {
         if scene.depth_surface(source).is_some() {
-            return self.project_calibrated_matte_source(scene, source, width, height, projected, retained_bytes);
+            return self.project_calibrated_matte_source(scene, source, width, height, projected, retained_bytes, materials);
         }
         let mut context = scene.clone();
         let inputs = super::projected_mattes::bindings(self, &mut context, scene, projected)?;
