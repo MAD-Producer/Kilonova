@@ -60,6 +60,8 @@ mod bound_numeric_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod precision_capture_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod capture_context_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
