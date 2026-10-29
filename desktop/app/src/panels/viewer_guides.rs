@@ -295,6 +295,7 @@ impl Controls {
     pub(super) fn cancel(&mut self) {
         self.drag = None;
         self.menu = None;
+        self.channel_dropdown.open = false;
         self.invalid_attempts = 0;
     }
     /// Foreign passive paints retain the owner. Foreign real input cancels and
