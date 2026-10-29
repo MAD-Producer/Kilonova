@@ -3,7 +3,8 @@ mod memory;
 #[cfg(test)]
 mod admission_tests;
 
-/// Inspect a stored composition channel as opaque grayscale in the viewer.
+/// Inspect a composition channel before presentation encoding as opaque grayscale.
+/// RGB is sampled in working linear light; Alpha is the original coverage value.
 /// This is presentation state; it does not change the source or exported color.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u32)]
