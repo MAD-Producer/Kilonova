@@ -97,6 +97,23 @@ impl PhaseLayer<'_> {
 }
 
 impl Renderer {
+    /// Retain an independent effects-stage source, then project its own matte
+    /// chain into a private screen image. Never reuse this encode's target.
+    pub(super) fn project_depth_matte_source(&mut self, scene: &Scene, source: u64,
+        width: u32, height: u32) -> Result<(RenderTarget, RenderStats)> {
+        let (mut raster, mut stats) = self.materialize_layer(scene, source, width, height, false)?
+            .ok_or_else(|| RenderError::Invalid(format!("depth matte source={source} phase=materialize: source is absent")))?;
+        // Source visibility and transfer describe its contribution to the
+        // composition, not the independent image read by a matte consumer.
+        raster.plane.composite_visible = true;
+        raster.plane.blend = Default::default();
+        raster.additive = false;
+        let target = self.render_target_in(width, height, crate::TextureCategory::MatteBlendScratch)?;
+        let mut context = scene.clone();
+        context.background = [0.; 4];
+        stats.add(self.draw_layer_rasters(&context, &[&raster], &target.view, width, height)?);
+        Ok((target, stats))
+    }
     fn allocate_layer_raster_image(
         &self,
         scene: &Scene,

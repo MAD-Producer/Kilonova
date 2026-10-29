@@ -17,6 +17,8 @@ pub(crate) struct ScenePlane {
     pub texture: Option<AdmittedTextureView>,
     /// Source-local scalar coverage, owned by this encode.
     pub coverage: Option<AdmittedTextureView>,
+    /// Independent projected screen color; alpha/luma is read before depth.
+    pub matte: Option<(AdmittedTextureView, motion_model::compositing::MatteMode)>,
     pub surface: Option<std::sync::Arc<motion_model::depth::DepthSurface>>,
 }
 #[repr(C)]
@@ -52,6 +54,7 @@ struct Key {
     textured: bool,
     projected: bool,
     masked: bool,
+    matte_mode: u32,
     blend: bool,
 }
 #[derive(Clone)]
@@ -124,6 +127,22 @@ pub(super) fn prepare(
     let mut draws = Vec::with_capacity(planes.len());
     let projection = frame.camera.view_projection.as_dmat4();
     for plane in planes {
+        if let Some((view, _)) = &plane.matte {
+            let texture = view.texture();
+            if plane.texture.is_none()
+                || plane.surface.is_none()
+                || !plane.blend
+                || texture.format() != format
+                || texture.dimension() != wgpu::TextureDimension::D2
+                || texture.depth_or_array_layers() != 1
+                || texture.sample_count() != 1
+                || !texture
+                    .usage()
+                    .contains(wgpu::TextureUsages::TEXTURE_BINDING)
+            {
+                return Err(crate::RenderError::Invalid(format!("scene plane object={} phase=shared_plane_matte: invalid projected working-color input", plane.object)).into());
+            }
+        }
         if let Some(coverage) = &plane.coverage {
             let precision = crate::image_formats::color_precision(format).ok_or_else(|| {
                 invalid("shared_plane_coverage", 0, "unsupported working precision")
@@ -261,14 +280,16 @@ pub(super) fn prepare(
             textured: plane.texture.is_some(),
             projected: plane.texture.is_some() && plane.surface.is_some(),
             masked: plane.coverage.is_some(),
+            matte_mode: plane.matte.as_ref().map_or(0, |(_, mode)| mode.code()),
             blend: plane.blend,
         };
         let pipeline = if let Some(pipeline) = cache.0.get(&key) {
             pipeline.clone()
         } else {
-            // Four formats x two sample counts x four sources x two alpha modes.
+            // Four formats, two sample counts, base source/alpha combinations
+            // and four matte modes with/without a source mask fit in 128 keys.
             // Asset IDs and animation never create additional pipeline keys.
-            if cache.0.len() >= 64 {
+            if cache.0.len() >= 128 {
                 return Err(invalid(
                     "shared_plane_pipeline",
                     0,
@@ -303,6 +324,12 @@ pub(super) fn prepare(
                             entries.push(wgpu::BindGroupEntry {
                                 binding: 2,
                                 resource: wgpu::BindingResource::TextureView(coverage),
+                            });
+                        }
+                        if let Some((matte, _)) = &plane.matte {
+                            entries.push(wgpu::BindGroupEntry {
+                                binding: 3,
+                                resource: wgpu::BindingResource::TextureView(matte),
                             });
                         }
                         entries
@@ -392,22 +419,46 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
     let validation = renderer
         .device
         .push_error_scope(wgpu::ErrorFilter::Validation);
+    let mut source = if key.masked {
+        include_str!("masked_projected_planes.wgsl")
+    } else if key.projected {
+        include_str!("projected_planes.wgsl")
+    } else if key.textured {
+        include_str!("textured_planes.wgsl")
+    } else {
+        include_str!("planes.wgsl")
+    }
+    .to_owned();
+    if key.matte_mode != 0 {
+        source = source
+            .replace(
+                " * input.color;",
+                " * input.color * matte_coverage(input.position.xy);",
+            )
+            .replace(
+                " * input.color * mask;",
+                " * input.color * mask * matte_coverage(input.position.xy);",
+            );
+        source.push_str(&format!(
+            r#"
+@group(0) @binding(3) var projected_matte: texture_2d<f32>;
+fn matte_coverage(p: vec2<f32>) -> f32 {{
+    let size = vec2<i32>(textureDimensions(projected_matte));
+    let c = textureLoad(projected_matte, clamp(vec2<i32>(p), vec2(0), size - vec2(1)), 0);
+    var coverage = c.a;
+    if {mode}u >= 3u {{ coverage = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); }}
+    if {mode}u == 2u || {mode}u == 4u {{ coverage = 1.0 - coverage; }}
+    return clamp(coverage, 0.0, 1.0);
+}}
+"#,
+            mode = key.matte_mode
+        ));
+    }
     let shader = renderer
         .device
         .create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shared plane geometry"),
-            source: wgpu::ShaderSource::Wgsl(
-                if key.masked {
-                    include_str!("masked_projected_planes.wgsl")
-                } else if key.projected {
-                    include_str!("projected_planes.wgsl")
-                } else if key.textured {
-                    include_str!("textured_planes.wgsl")
-                } else {
-                    include_str!("planes.wgsl")
-                }
-                .into(),
-            ),
+            source: wgpu::ShaderSource::Wgsl(source.into()),
         });
     let image = key.textured.then(|| {
         let layout = renderer
@@ -436,6 +487,18 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
                     if key.masked {
                         entries.push(wgpu::BindGroupLayoutEntry {
                             binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        });
+                    }
+                    if key.matte_mode != 0 {
+                        entries.push(wgpu::BindGroupLayoutEntry {
+                            binding: 3,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
                                 sample_type: wgpu::TextureSampleType::Float { filterable: false },

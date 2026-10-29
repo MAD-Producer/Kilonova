@@ -22,6 +22,9 @@ mod calibrated_masks;
 #[path = "depth_surface/masked_video.rs"]
 mod masked_video;
 
+#[path = "depth_surface/calibrated_mattes.rs"]
+mod calibrated_mattes;
+
 // Explicit local acceptance output; CI and ordinary tests perform no extra IO.
 fn retain_fixture(name: &str, pixels: &[u8]) {
     if let Some(root) = std::env::var_os("MOTION_DEPTH_ACCEPTANCE_DIR") {
@@ -418,7 +421,8 @@ fn missing_or_changed_current_depth_cannot_render_flat_and_admission_recovers() 
     attach(&mut scene);
     assert_eq!(renderer.capture(&scene, &target).unwrap().0, good);
     let mut unsupported = p.clone();
-    // A matte boundary must refuse rather than silently rendering flat depth.
+    // A supported ordinary spatial matte source must retain its own geometry
+    // and the calibrated receiver's fragment depth, rather than flattening it.
     unsupported.layers[0].track_matte = Some(motion_model::compositing::TrackMatte {
         source: 2,
         mode: motion_model::compositing::MatteMode::Alpha,
@@ -426,11 +430,8 @@ fn missing_or_changed_current_depth_cannot_render_flat_and_admission_recovers() 
     });
     let mut scene = sampled(&unsupported);
     attach(&mut scene);
-    let error = renderer.capture(&scene, &target).unwrap_err().to_string();
-    assert!(
-        error.contains("object=1") && error.contains("depth composition path"),
-        "{error}"
-    );
+    let pixels = renderer.capture(&scene, &target).unwrap().0;
+    check_oracle(&scene, &pixels);
 }
 
 #[test]

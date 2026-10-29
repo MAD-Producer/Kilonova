@@ -48,6 +48,16 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     // sources: another layer still needs their original independent raster.
     let mut independent_sources: std::collections::HashSet<_> = scene.layers.iter()
         .filter_map(|layer| layer.track_matte.map(|matte| matte.source)).collect();
+    // A plain spatial source used only by calibrated receivers has already
+    // been independently projected before this run. Its visible geometry must
+    // still participate in physical depth rather than overpaint the result.
+    independent_sources.retain(|source| {
+        scene.depth_surface(*source).is_some()
+            || !scene.layers.iter().any(|layer| layer.id == *source && layer.three_d
+            && layer.track_matte.is_none() && layer.masks.is_empty())
+            || scene.layers.iter().any(|layer| layer.track_matte.is_some_and(|matte| matte.source == *source)
+                && scene.depth_surface(layer.id).is_none())
+    });
     // Image effects still need their owner's independent raster and the exact
     // source/effects-stage image of every explicit input. Never substitute the
     // combined spatial raster for either dependency.
@@ -59,7 +69,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
     }
     let eligible = |layer: &crate::DrawLayer| {
         (layer.masks.is_empty() || (scene.depth_surface(layer.id).is_some() && plane_texture(layer).is_some()))
-            && layer.track_matte.is_none()
+            && (layer.track_matte.is_none() || scene.depth_surface(layer.id).is_some())
             && !independent_sources.contains(&layer.id)
             && layer.blend == motion_model::compositing::LayerBlend::default()
             && layer.composite_visible
@@ -67,6 +77,11 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
             && !layer.composition
             && (samples(layer).is_some() || shared_plane(renderer, scene, layer))
     };
+    // Hidden ordinary image dependencies have no compositing contribution.
+    // Retain them for consumers, but do not split physical depth around them.
+    let hidden_input = |layer: &crate::DrawLayer| !layer.composite_visible
+        && independent_sources.contains(&layer.id) && layer.model_source.is_none()
+        && scene.depth_surface(layer.id).is_none() && !layer.adjustment && !layer.composition;
     let mut blocks = Vec::new();
     let mut start = 0;
     while start < scene.layers.len() {
@@ -77,6 +92,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
         let mut count = None;
         let mut end = start;
         while end < scene.layers.len() {
+            if hidden_input(&scene.layers[end]) { end += 1; continue; }
             if !eligible(&scene.layers[end]) { break; }
             if let Some(current) = samples(&scene.layers[end]) {
                 if count.is_some_and(|count| count != current) {
@@ -111,8 +127,40 @@ impl Renderer {
                 return Err(RenderError::Invalid(format!("depth surface object={object} source={} phase=shared_geometry: effects, masks, mattes, nested or unsupported sampling require an explicit depth composition path", calibration.asset())));
             }
         }
+        // Validate every calibrated source before reporting a dependent
+        // receiver's spatial boundary, preserving the primary missing path.
+        for (object, calibration) in scene.calibrated_depth_layers() {
+            if let Some(matte) = scene.layers.iter().find(|layer| layer.id == object).and_then(|layer| layer.track_matte) {
+                if scene.layers.iter().any(|source| source.id == matte.source && source.three_d && source.composite_visible)
+                    && !blocks.iter().any(|block| {
+                        let run = &scene.layers[block.clone()];
+                        run.iter().any(|layer| layer.id == object) && run.iter().any(|layer| layer.id == matte.source)
+                    }) {
+                    return Err(RenderError::Invalid(format!("depth surface object={object} source={} phase=shared_geometry: visible spatial matte source={} requires an explicit depth composition path", calibration.asset(), matte.source)));
+                }
+            }
+        }
         if blocks.is_empty() {
             return Ok(None);
+        }
+        let [_, _, mw, mh] = crate::fit_viewport([0., 0., width as f32, height as f32], [scene.width, scene.height]);
+        let (mw, mh) = (mw.ceil().max(1.) as u32, mh.ceil().max(1.) as u32);
+        let mut mattes = HashMap::new();
+        let mut matte_stats = RenderStats::default();
+        let mut matte_bytes = 0u64;
+        for source in blocks.iter().flat_map(|b| scene.layers[b.clone()].iter())
+            .filter_map(|layer| layer.track_matte.map(|matte| matte.source)) {
+            if mattes.contains_key(&source) { continue; }
+            let cost = u64::from(mw) * u64::from(mh) * crate::image_formats::color_storage(self.working_precision()).bytes_per_pixel();
+            let required = self.resident_source_texture_bytes().saturating_add(matte_bytes).saturating_add(cost);
+            if required > self.effect_gpu.builder.source_texture_budget {
+                return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, required,
+                    self.effect_gpu.builder.source_texture_budget, format!("depth matte source={source} phase=project: source texture budget exceeded")));
+            }
+            let (target, stats) = self.project_depth_matte_source(scene, source, mw, mh)?;
+            matte_stats.add(stats);
+            matte_bytes += cost;
+            mattes.insert(source, target);
         }
         // Mask coverage must enter the physical fragment before spatial
         // composition, not cut a hole in the combined raster afterwards.
@@ -120,20 +168,23 @@ impl Renderer {
         // 2D preparation nor another pending encode may overwrite this frame.
         let mut mask_scene = scene.clone();
         mask_scene.layers = blocks.iter().flat_map(|block| scene.layers[block.clone()].iter())
-            .filter(|layer| !layer.masks.is_empty()).cloned().collect();
+            .filter(|layer| scene.depth_surface(layer.id).is_some() && !layer.masks.is_empty()).cloned().collect();
         let masks = crate::mask_plan::MaskCache::default().build(&mask_scene, 1., false)?;
         let mut coverage = HashMap::new();
         let mut coverage_bytes = 0;
         if !masks.is_empty() {
             self.mask_gpu.fresh_frame().prepare_checked(&self.device, &self.queue, encoder,
                 &self.image_layout, &mask_scene, &masks, &mut coverage, &mut coverage_bytes,
-                self.resident_source_texture_bytes(), self.effect_gpu.builder.source_texture_budget, None)?;
+                self.resident_source_texture_bytes().saturating_add(matte_bytes), self.effect_gpu.builder.source_texture_budget, None)?;
         }
         let mut grouped = vec![false; scene.layers.len()];
         let mut keep = vec![true; scene.layers.len()];
         for block in &blocks {
             grouped[block.clone()].fill(true);
             keep[block.clone()].fill(false);
+            for index in block.clone() {
+                if !scene.layers[index].composite_visible { keep[index] = true; }
+            }
             let anchor = block
                 .clone()
                 .find(|&index| scene.layers[index].model_source.is_some())
@@ -155,10 +206,11 @@ impl Renderer {
             .map(|(_, layer)| layer.clone())
             .collect();
         let mut stats = self.prepare_models(&scratch, width, height)?;
+        stats.add(matte_stats);
         for block in blocks {
             scratch.layers.clear();
             scratch.layers.extend_from_slice(&scene.layers[block]);
-            stats.add(self.prepare_shared_model_block(&scratch, width, height, encoder, &coverage, coverage_bytes)?);
+            stats.add(self.prepare_shared_model_block(&scratch, width, height, encoder, &coverage, coverage_bytes + matte_bytes, &mattes)?);
         }
         let mut output = scene.clone();
         let mut index = 0;
@@ -172,6 +224,7 @@ impl Renderer {
                 output.shared_rasters.insert(layer.id);
                 layer.asset = None;
                 layer.masks = Default::default();
+                layer.track_matte = None;
                 layer.video = None;
                 layer.size = [scene.width as f32, scene.height as f32];
                 layer.source_size = layer.size;
@@ -196,6 +249,7 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         coverage: &HashMap<TextureKey, GpuImage>,
         coverage_bytes: u64,
+        mattes: &HashMap<u64, RenderTarget>,
     ) -> Result<RenderStats> {
         let began = Instant::now();
         let anchor = scene
@@ -364,7 +418,7 @@ impl Renderer {
             let planes: Vec<_> = scene
                 .layers
                 .iter()
-                .filter(|layer| layer.model_source.is_none())
+                .filter(|layer| layer.model_source.is_none() && layer.composite_visible)
                 .map(|layer| Ok(ScenePlane {
                     object: layer.id,
                     surface: scene.depth_surface(layer.id),
@@ -372,7 +426,10 @@ impl Renderer {
                     size: layer.size,
                     color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
                     coverage: coverage.get(&TextureKey::Mask(layer.id)).map(|image| image._texture.admitted_view()).transpose()?,
-                    blend: !layer.masks.is_empty() || layer.color[3] != 1. || layer.opacity != 1. || plane_texture(layer).is_some_and(|key| {
+                    matte: layer.track_matte.map(|matte| -> Result<_> { Ok((mattes.get(&matte.source)
+                        .ok_or_else(|| RenderError::Invalid(format!("depth matte object={} source={} phase=bind: projected source missing", layer.id, matte.source)))?
+                        .texture.admitted_view()?, matte.mode)) }).transpose()?,
+                    blend: layer.track_matte.is_some() || !layer.masks.is_empty() || layer.color[3] != 1. || layer.opacity != 1. || plane_texture(layer).is_some_and(|key| {
                         self.images.get(&key).is_none_or(|image| {
                             image.plane_image.is_none_or(|state| !state.opaque)
                         })
