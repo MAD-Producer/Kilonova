@@ -1,0 +1,29 @@
+1793279961.644 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793279961.645 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793279961.645 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-79308-1793279961644632700
+1793279961.645 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793279961.647 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-79308-1793279961644632700
+1793279967.641 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793279967.641 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-79308-1793279961644632700 5996ms
+1793279967.694 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793279967.736 INFO [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author start request=0 phase=read in_flight=true source=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\missing.msplugin
+1793279967.737 ERROR [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author error request=0 phase=read cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793279968.203 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793279968.203 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258d5b5b750, name: ?)
+1793279968.203 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793279968.204 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258d5b5b750, name: ?)
+1793279969.107 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793279969.418 ERROR [main] motion_studio::plugin_editor::window: plugin.preview error request=1 phase=author_read cause=plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+1793279969.418 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793279969.487 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\missing\appdata\MotionStudio\diagnostics/last-stalls.json
+1793279969.491 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793279969.517 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[1440.0, 840.0]
+1793279969.740 INFO [motion-engine] motion_studio::engine: start #4 shutdown
+1793279969.740 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793279969.740 INFO [motion-engine] motion_studio::engine::shutdown: start #5 shutdown_cleanup session=1
+1793279969.769 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793279969.771 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793279969.771 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped
+1793279969.773 ERROR [main] motion_studio: desktop failed: 8128ms reason=author_read: plugin project phase=Read path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\missing.msplugin: 系统找不到指定的文件。 (os error 2)

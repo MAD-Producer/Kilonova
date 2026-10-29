@@ -9,6 +9,22 @@ Author selection outlines and split guides are design-mode overlays and are
 absent from the interaction preview. See
 [the M3 authoring contract](engineering/host-api/plugin-editor-authoring.md).
 
+The plugin component library presents a native-rendered, noninteractive miniature,
+name and short purpose per item. Miniatures may scale drawing only; real controls
+retain their original hit targets. Example children do not become inserted data.
+Hovering an item shows a larger read-only example inside canvas bounds; a drag
+hides that overlay and retains the existing insertion gesture.
+Use `plugin.author.library.*` for library geometry and existing hover/border tokens.
+Empty author containers show a drop hint; interaction previews omit design hints.
+The inspector has an explicit heading. Narrow WGSL workspaces switch parameters
+and code via tabs instead of compressing two columns below their usable minimum.
+Code assistance uses native result rows and `plugin.author.code.details_height`;
+its connection state is always visible. Completion/diagnostic result hit regions
+own their input and never pass it into the source editor. Source replacements use
+the original text editor transaction and preserve its undo, IME and byte limit.
+The offline Guide is a separate workspace page (F1), with readable wrapped text
+bounded by `plugin.author.guide.*`; navigation must preserve the author draft.
+
 > **Version: V4.0** — full English translation of V3.2; scope narrowed to Windows desktop only (Android content removed). Supersedes V3.0–V3.2.1.
 >
 > **Scope**: UI appearance, native drawing layouts, and consistency with existing interactions only. **Goals**: improve density, hierarchy, alignment, and operation feedback.

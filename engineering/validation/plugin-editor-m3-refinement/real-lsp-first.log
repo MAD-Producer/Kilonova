@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics' (48724) panicked at desktop\app\src\plugin_editor\author\lsp.rs:708:9:
+assertion failed: hover.reply.unwrap().result.to_string().contains("f32")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1406 filtered out; finished in 1.53s
+

@@ -1,9 +1,24 @@
 use super::*;
+#[path = "source_assistance.rs"]
+mod assistance;
 #[derive(Default)]
 pub struct Source {
     editor: TextEditor,
     viewport: TextViewport,
     focus: bool,
+    language: Option<lsp::Client>,
+    language_attempted: bool,
+    language_snapshot: Option<lsp::Snapshot>,
+    language_seen: u64,
+    language_error: Option<String>,
+    language_synced: Option<u64>,
+    language_sent: Option<Instant>,
+    language_reply: Option<std::sync::Arc<lsp::Reply>>,
+    language_reply_id: u64,
+    definition_applied: u64,
+    completion_index: usize,
+    completion_scroll: usize,
+    completion_open: bool,
 }
 impl Source {
     pub fn read_only(
@@ -72,7 +87,7 @@ impl Source {
         draft.commit();
         self.focus = false;
     }
-    pub fn draw(
+    fn draw_text(
         &mut self,
         draft: &mut model::Draft,
         list: &mut PaintList,

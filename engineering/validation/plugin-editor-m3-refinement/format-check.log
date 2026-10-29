@@ -1,0 +1,243 @@
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader\store_policy_tests.rs:48:
+         broken.wgsl = broken
+             .wgsl
+             .replace("const SDK_STORE_FLOAT16: bool = false;", replacement);
+-        assert!(
+-            native_output_wgsl(&broken, true)
+-                .unwrap_err()
+-                .to_string()
+-                .contains("unique SDK store policy")
+-        );
++        assert!(native_output_wgsl(&broken, true)
++            .unwrap_err()
++            .to_string()
++            .contains("unique SDK store policy"));
+     }
+     assert_eq!(
+         native_output_wgsl(&shader, true).unwrap(),
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:3:
+ mod sample_bounds;
+ #[cfg(test)]
+ mod store_policy_tests;
+-pub use identity::{CompiledCodeIdentity, compiled_code_identity};
+ use crate::{ensure, Error, Result};
++pub use identity::{compiled_code_identity, CompiledCodeIdentity};
+ use naga::{
+     back::glsl,
+     valid::{Capabilities, ValidationFlags, Validator},
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:205:
+ }
+ 
+ fn loop_iterations(start: i64, end: i64, inclusive: bool, unsigned: bool) -> Result<u64> {
+-    let (minimum, maximum) = if unsigned { (0, i64::from(u32::MAX)) }
+-        else { (i64::from(i32::MIN), i64::from(i32::MAX)) };
+-    ensure((minimum..=maximum).contains(&start) && (minimum..=maximum).contains(&end),
+-        "loop bound outside counter's 32-bit range")?;
++    let (minimum, maximum) = if unsigned {
++        (0, i64::from(u32::MAX))
++    } else {
++        (i64::from(i32::MIN), i64::from(i32::MAX))
++    };
++    ensure(
++        (minimum..=maximum).contains(&start) && (minimum..=maximum).contains(&end),
++        "loop bound outside counter's 32-bit range",
++    )?;
+     // An inclusive maximum would execute a unit increment past the counter's range.
+-    ensure(!inclusive || end < maximum, "loop counter can overflow at inclusive bound")?;
+-    let count = end.checked_sub(start).and_then(|n| n.checked_add(i64::from(inclusive)))
+-        .ok_or_else(|| Error::Invalid("loop iteration count overflow".into()))?.max(0) as u64;
++    ensure(
++        !inclusive || end < maximum,
++        "loop counter can overflow at inclusive bound",
++    )?;
++    let count = end
++        .checked_sub(start)
++        .and_then(|n| n.checked_add(i64::from(inclusive)))
++        .ok_or_else(|| Error::Invalid("loop iteration count overflow".into()))?
++        .max(0) as u64;
+     ensure(count <= 1024, "loop exceeds 1024 iterations")?;
+     Ok(count)
+ }
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:270:
+ pub(crate) fn compile_spatial_image(source: &str, entry: &str) -> Result<CompiledShader> {
+     compile_internal(source, entry, false, false, true, true, false)
+ }
+-pub(crate) fn compile_spatial_v6(source:&str,entry:&str)->Result<CompiledShader> {
+-    compile_internal(source,entry,false,false,true,true,true)
++pub(crate) fn compile_spatial_v6(source: &str, entry: &str) -> Result<CompiledShader> {
++    compile_internal(source, entry, false, false, true, true, true)
+ }
+ fn compile_internal(
+     source: &str,
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:297:
+     } else if convert_output {
+         let original = if finite_source {
+             "select(sample_source(p),vec4(0.0),any(p<fx.source_region.xy)||any(p>fx.source_region.xy+fx.source_region.zw))"
+-        } else { "sample_source(p)" };
+-        let mix=if coverage_mix {
++        } else {
++            "sample_source(p)"
++        };
++        let mix = if coverage_mix {
+             format!("let original={original};let filtered={entry}(p);var c=mix(original,filtered,fx.output_mode.z);if fx.mode.z>0.5 {{let alpha=c.a;let rgb=mix(original.rgb*original.a,filtered.rgb*filtered.a,fx.output_mode.z);c=vec4(rgb/max(alpha,0.000001),alpha);}}")
+-        }else{format!("let c=mix({original},{entry}(p),fx.output_mode.z);")};
++        } else {
++            format!("let c=mix({original},{entry}(p),fx.output_mode.z);")
++        };
+         format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;{mix}if all(fx.mode.yz==fx.output_mode.xy) {{return sdk_store(c);}} return sdk_store(convert_pixel(c,fx.mode.yz,fx.output_mode.xy));}}\n")
+     } else {
+         format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return sdk_store(mix(sample_source(p),{entry}(p),fx.output_mode.z));}}\n")
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:331:
+         })?;
+     let samples_per_fragment = Some(sample_bounds::fragment_reads(&module, loop_work)?);
+     let glsl = host_glsl(&module, &info, "sdk_vertex", "sdk_fragment")?;
+-    Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work, samples_per_fragment })
++    Ok(CompiledShader {
++        wgsl,
++        glsl,
++        sprite,
++        additive,
++        loop_work,
++        samples_per_fragment,
++    })
+ }
+ 
+ /// Host-owned geometry programs use the same Naga reflection and ES compiler.
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:338:
+ /// Package shaders still pass through the SDK binding and instruction checks.
+ pub fn compile_host_program(source: &str, vertex: &str, fragment: &str) -> Result<GlslShader> {
+-    let module=naga::front::wgsl::parse_str(source).map_err(|cause|Error::ShaderParse {
+-        message: cause.emit_to_string(source), cause: Box::new(cause),
++    let module = naga::front::wgsl::parse_str(source).map_err(|cause| Error::ShaderParse {
++        message: cause.emit_to_string(source),
++        cause: Box::new(cause),
+     })?;
+-    let info=Validator::new(ValidationFlags::all(),Capabilities::empty()).validate(&module)
+-        .map_err(|cause|Error::ShaderValidation {
+-            context: "host WGSL validation", cause: Box::new(cause),
++    let info = Validator::new(ValidationFlags::all(), Capabilities::empty())
++        .validate(&module)
++        .map_err(|cause| Error::ShaderValidation {
++            context: "host WGSL validation",
++            cause: Box::new(cause),
+         })?;
+-    host_glsl(&module,&info,vertex,fragment)
++    host_glsl(&module, &info, vertex, fragment)
+ }
+-fn host_glsl(module: &naga::Module, info: &naga::valid::ModuleInfo, vertex: &str, fragment: &str) -> Result<GlslShader> {
++fn host_glsl(
++    module: &naga::Module,
++    info: &naga::valid::ModuleInfo,
++    vertex: &str,
++    fragment: &str,
++) -> Result<GlslShader> {
+     let options = glsl::Options {
+         version: glsl::Version::new_gles(300),
+         ..Default::default()
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:376:
+             naga::proc::BoundsCheckPolicies::default(),
+         )
+         .map_err(|cause| Error::ShaderGlsl {
+-            phase: "writer_init", stage,
++            phase: "writer_init",
++            stage,
+             cause: Box::new(cause),
+         })?;
+-        let reflection = writer
+-            .write()
+-            .map_err(|cause| Error::ShaderGlsl {
+-                phase: "writer_output", stage,
+-                cause: Box::new(cause),
+-            })?;
++        let reflection = writer.write().map_err(|cause| Error::ShaderGlsl {
++            phase: "writer_output",
++            stage,
++            cause: Box::new(cause),
++        })?;
+         for (handle, name) in reflection.uniforms {
+             if let Some(b) = &module.global_variables[handle].binding {
+                 output = output.replace(
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:429:
+ 
+     #[test]
+     fn extreme_literal_boundaries_never_panic_or_bypass_the_portable_gate() {
+-        for (ty, suffix, min, max) in [("i32", "i", i64::from(i32::MIN), i64::from(i32::MAX)),
+-            ("u32", "u", 0, i64::from(u32::MAX))] {
+-            let values = [i64::MIN, min-1, min, min+1, 0, 1024, max-1, max, max+1, i64::MAX];
+-            for start in values { for end in values { for inclusive in [false, true] {
+-                // Independent wide arithmetic oracle for the permitted counter domain.
+-                let count = (i128::from(end)-i128::from(start)+i128::from(inclusive)).max(0);
+-                let valid = (min..=max).contains(&start) && (min..=max).contains(&end)
+-                    && (!inclusive || end < max) && count <= 1024;
+-                let comparison = if inclusive { "<=" } else { "<" };
+-                let source = format!("for(var i:{ty}={start}{suffix};i{comparison}{end}{suffix};i=i+1{suffix}){{}}");
+-                let result = portable_source(&source);
+-                assert_eq!(result.is_ok(), valid, "{source}: {result:?}");
+-                if valid { assert_eq!(result.unwrap(), (count as u64).max(1)); }
+-            } } }
++        for (ty, suffix, min, max) in [
++            ("i32", "i", i64::from(i32::MIN), i64::from(i32::MAX)),
++            ("u32", "u", 0, i64::from(u32::MAX)),
++        ] {
++            let values = [
++                i64::MIN,
++                min - 1,
++                min,
++                min + 1,
++                0,
++                1024,
++                max - 1,
++                max,
++                max + 1,
++                i64::MAX,
++            ];
++            for start in values {
++                for end in values {
++                    for inclusive in [false, true] {
++                        // Independent wide arithmetic oracle for the permitted counter domain.
++                        let count =
++                            (i128::from(end) - i128::from(start) + i128::from(inclusive)).max(0);
++                        let valid = (min..=max).contains(&start)
++                            && (min..=max).contains(&end)
++                            && (!inclusive || end < max)
++                            && count <= 1024;
++                        let comparison = if inclusive { "<=" } else { "<" };
++                        let source = format!("for(var i:{ty}={start}{suffix};i{comparison}{end}{suffix};i=i+1{suffix}){{}}");
++                        let result = portable_source(&source);
++                        assert_eq!(result.is_ok(), valid, "{source}: {result:?}");
++                        if valid {
++                            assert_eq!(result.unwrap(), (count as u64).max(1));
++                        }
++                    }
++                }
++            }
+         }
+     }
+ 
+Diff in \\?\E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects\src\shader.rs:454:
+             "for(var i:u32=0u;i<-1;i=i+1u){}",
+             "for(var i:i32=-9223372036854775808;i<=9223372036854775807;i=i+1){}",
+             "for(var i=99999999999999999999999999;i<0;i=i+1){}",
+-        ] { assert!(portable_source(source).is_err(), "{source}"); }
+-        assert_eq!(portable_source("for(var i=4294967294u;i<4294967295u;i=i+1u){}").unwrap(), 1);
+-        assert_eq!(portable_source("for(var i:i32=0;i<256;i=i+1){for(var j:i32=0;j<256;j=j+1){}}").unwrap(), 65536);
+-        assert!(portable_source("for(var i:i32=0;i<257;i=i+1){for(var j:i32=0;j<256;j=j+1){}}").is_err());
++        ] {
++            assert!(portable_source(source).is_err(), "{source}");
++        }
++        assert_eq!(
++            portable_source("for(var i=4294967294u;i<4294967295u;i=i+1u){}").unwrap(),
++            1
++        );
++        assert_eq!(
++            portable_source("for(var i:i32=0;i<256;i=i+1){for(var j:i32=0;j<256;j=j+1){}}")
++                .unwrap(),
++            65536
++        );
++        assert!(
++            portable_source("for(var i:i32=0;i<257;i=i+1){for(var j:i32=0;j<256;j=j+1){}}")
++                .is_err()
++        );
+     }
+ }
+ 

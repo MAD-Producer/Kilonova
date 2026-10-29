@@ -123,6 +123,15 @@ fn author_drag_source_history_save_and_native_rendering() {
             ..neutral()
         };
         render(&mut ws, &click(70., 115.), None); // component library
+        render(&mut ws, &neutral(), Some("component-library.png"));
+        let component = ws.designer.component_rects[2];
+        let component_origin = [
+            (component.min[0] + component.max[0]) * 0.5,
+            (component.min[1] + component.max[1]) * 0.5,
+        ];
+        let mut hover = neutral();
+        hover.mouse = component_origin;
+        render(&mut ws, &hover, Some("component-hover.png"));
         let mut drag = |ws: &mut Workspace, from: [f32; 2], to: [f32; 2]| {
             let mut input = neutral();
             ui::accumulate(
@@ -146,7 +155,7 @@ fn author_drag_source_history_save_and_native_rendering() {
             );
             render(ws, &input, None);
         };
-        drag(&mut ws, [50., 181.], [430., 145.]); // Group -> native canvas
+        drag(&mut ws, component_origin, [430., 145.]); // Group -> native canvas
         let group = ws
             .designer
             .selected
@@ -215,10 +224,15 @@ fn author_drag_source_history_save_and_native_rendering() {
         );
         // Insert a split, then drag its real divider instead of mutating its ratio.
         render(&mut ws, &click(70., 115.), None);
+        let component = ws.designer.component_rects[4];
+        let split_origin = [
+            (component.min[0] + component.max[0]) * 0.5,
+            (component.min[1] + component.max[1]) * 0.5,
+        ];
         let mut input = neutral();
         for event in [
             Event::MousePressed {
-                position: [60., 225.],
+                position: split_origin,
                 button: MouseButton::Left,
             },
             Event::MouseMoved {
@@ -308,6 +322,74 @@ fn author_drag_source_history_save_and_native_rendering() {
         render(&mut ws, &neutral(), Some("preview.png"));
         ws.page = 0;
         render(&mut ws, &neutral(), Some("wgsl-editor.png"));
+        if std::env::var_os("MOTION_WGSL_ANALYZER").is_some() {
+            let began = Instant::now();
+            while !ws
+                .source
+                .test_language_snapshot()
+                .is_some_and(|s| s.status == lsp::Status::Ready && s.flight.is_none())
+            {
+                ws.source.poll_language().unwrap();
+                render(&mut ws, &neutral(), None);
+                assert!(began.elapsed() < Duration::from_secs(30));
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let text = match &ws.draft.project.logic {
+                PluginLogic::Wgsl { document } => document.source.clone(),
+                _ => unreachable!(),
+            };
+            let column = text.lines().nth(3).unwrap().find("param_amount").unwrap()
+                + "param_amount".len()
+                + 1;
+            ws.source.locate(4, column);
+            let mut complete = neutral();
+            complete.keys.push((
+                Key::Space,
+                motion_ui::input::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            ));
+            render(&mut ws, &complete, None);
+            let began = Instant::now();
+            while !ws.source.test_language_snapshot().is_some_and(|s| {
+                s.reply
+                    .as_ref()
+                    .is_some_and(|r| r.request.kind == lsp::Kind::Completion)
+            }) {
+                ws.source.poll_language().unwrap();
+                render(&mut ws, &neutral(), None);
+                assert!(began.elapsed() < Duration::from_secs(30));
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            render(&mut ws, &neutral(), Some("wgsl-completion.png"));
+            let labels = ws.source.test_completion_labels();
+            let index = labels
+                .iter()
+                .position(|label| label.starts_with("param_amount"))
+                .expect("real host-parameter suggestion");
+            for _ in 0..index {
+                let mut down = neutral();
+                down.keys.push((Key::Down, Default::default()));
+                render(&mut ws, &down, None);
+            }
+            let mut enter = neutral();
+            enter.keys.push((Key::Enter, Default::default()));
+            render(&mut ws, &enter, None);
+            assert_eq!(
+                ws.source.test_text(),
+                text,
+                "real completion must replace just the identifier and preserve native source"
+            );
+        }
+        // In-product help is a separate owner and never edits the draft.
+        let before_guide = ws.draft.project.clone();
+        let mut help = neutral();
+        help.keys.push((Key::F1, Default::default()));
+        render(&mut ws, &help, Some("guide-quickstart.png"));
+        assert_eq!(ws.page, 3);
+        assert_eq!(ws.draft.project, before_guide);
+        ws.page = 0;
         // Coalesced native text input and Ctrl+S must save the latest edit.
         ws.source.locate(1, 1);
         let mut input = neutral();

@@ -1,0 +1,8 @@
+
+running 3 tests
+test plugin_editor::author::lsp::failures::language_failures_publish_before_blocking_and_use_default_error_channels ... ok
+test plugin_editor::author::lsp::tests::protocol_bounds_and_utf16_positions ... ok
+test plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1404 filtered out; finished in 1.67s
+

@@ -1,0 +1,20 @@
+// Independently authored, protocol-only failure fixture. Compiled by the explicit
+// acceptance test; never linked into or distributed with Motion Studio.
+use std::{io::{self,BufRead,Read,Write},path::PathBuf};
+fn send(body:&str){let mut out=io::stdout().lock();write!(out,"Content-Length: {}\r\n\r\n{}",body.len(),body).unwrap();out.flush().unwrap();}
+fn main(){
+    let path=std::env::current_exe().unwrap();let name=path.file_stem().unwrap().to_string_lossy();
+    let mut input=io::BufReader::new(io::stdin());
+    loop{let mut length=0;loop{let mut line=String::new();if input.read_line(&mut line).unwrap()==0{return;}
+        if line=="\r\n"{break;}if let Some(value)=line.strip_prefix("Content-Length:"){length=value.trim().parse().unwrap();}}
+        let mut bytes=vec![0;length];input.read_exact(&mut bytes).unwrap();let body=String::from_utf8(bytes).unwrap();
+        let Some(id)=body.split("\"id\":").nth(1) else{continue;};let id:String=id.trim_start().chars().take_while(char::is_ascii_digit).collect();
+        if body.contains("\"initialize\""){send(&format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"result\":{{\"capabilities\":{{\"completionProvider\":{{}},\"hoverProvider\":true,\"definitionProvider\":true}}}}}}"));continue;}
+        if name.contains("block"){
+            std::fs::write(PathBuf::from(&path).with_extension("blocked"),std::process::id().to_string()).unwrap();
+            loop{std::thread::park();}
+        }
+        if name.contains("malformed"){print!("Content-Length: 1048577\r\n\r\n");io::stdout().flush().unwrap();loop{std::thread::park();}}
+        send(&format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"error\":{{\"code\":-32001,\"message\":\"controlled request rejection\"}}}}"));
+    }
+}

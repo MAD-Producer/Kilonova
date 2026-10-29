@@ -1,3 +1,5 @@
+#[path = "catalog.rs"]
+mod catalog;
 #[path = "inspector.rs"]
 mod inspector;
 use super::*;
@@ -44,6 +46,9 @@ pub struct Designer {
     fields: BTreeMap<String, Field>,
     pub text: Option<(String, TextEditor)>,
     overlays: Vec<PaintList>,
+    catalog: Option<catalog::Catalog>,
+    #[cfg(test)]
+    pub component_rects: Vec<Rect>,
 }
 #[derive(Default)]
 struct Field {
@@ -212,6 +217,29 @@ impl Designer {
                 (sidebar.height() - row).max(0.),
             )
         };
+        // Separate the three working regions without introducing another theme.
+        paint::rect(list, sidebar, sheet.color("panel"));
+        if wide {
+            paint::rect(list, inspector, sheet.color("panel"));
+            ui::text(
+                list,
+                atlas,
+                Rect::new(inspector.min[0], inspector.min[1], inspector.width(), row),
+                &tr(zh, "布局检查器", "Layout inspector"),
+                sheet.color("muted"),
+                Align::Left,
+            );
+        }
+        let inspector = if wide {
+            Rect::new(
+                inspector.min[0],
+                inspector.min[1] + row,
+                inspector.width(),
+                (inspector.height() - row).max(0.),
+            )
+        } else {
+            inspector
+        };
         if !wide {
             if let Some(tab) = ui::tab_strip(
                 list,
@@ -238,7 +266,7 @@ impl Designer {
             if !wide {
                 r.min[1] += row;
             }
-            target = self.library(draft, list, atlas, r, content_input, zh)?;
+            target = self.library(draft, list, atlas, r, canvas, content_input, zh)?;
         }
         let mode = Rect::new(canvas.min[0], canvas.min[1], canvas.width(), row);
         if let Some(size) = ui::tab_strip(
@@ -400,6 +428,28 @@ impl Designer {
         let mut overlay = list.child();
         outline(&mut overlay, viewport, sheet.color("border"));
         for p in &placed {
+            if p.node.children().next().is_none()
+                && matches!(
+                    p.node.content,
+                    LayoutContent::Row { .. }
+                        | LayoutContent::Column { .. }
+                        | LayoutContent::Group { .. }
+                )
+            {
+                outline(&mut overlay, p.rect, sheet.color("border"));
+                let mut hint = p.rect.shrink(pad);
+                if matches!(p.node.content, LayoutContent::Group { .. }) {
+                    hint.min[1] += row;
+                }
+                ui::text(
+                    &mut overlay,
+                    atlas,
+                    hint,
+                    &tr(zh, "拖入组件或参数", "Drop a component or parameter"),
+                    sheet.color("muted"),
+                    Align::Center,
+                );
+            }
             if let LayoutContent::Split { axis, ratio, .. } = &p.node.content {
                 let b = sheet.metric("border", 1.);
                 let r = if *axis == LayoutAxis::Horizontal {
@@ -599,6 +649,7 @@ impl Designer {
         list: &mut PaintList,
         atlas: &mut TextAtlas,
         area: Rect,
+        canvas: Rect,
         input: &Input,
         zh: bool,
     ) -> Result<Option<Target>, String> {
@@ -626,6 +677,31 @@ impl Designer {
             area.width(),
             (area.height() - row).max(0.),
         );
+        if self.library_tab == 1 {
+            if self.catalog.is_none() {
+                self.catalog = Some(catalog::Catalog::new(zh)?);
+            }
+            let catalog = self.catalog.as_mut().expect("catalog initialized");
+            let (payload, rects) = catalog.draw(list, atlas, body, input, &mut self.scroll, zh)?;
+            #[cfg(test)]
+            {
+                self.component_rects = rects;
+            }
+            #[cfg(not(test))]
+            let _ = rects;
+            if let Some(component) = payload {
+                self.gesture = Some(Gesture::Move {
+                    payload: Payload::Add(component),
+                    origin: input.mouse,
+                });
+            }
+            if self.gesture.is_none() {
+                if let Some(popover) = catalog.popover(list, atlas, canvas, zh)? {
+                    self.overlays.push(popover);
+                }
+            }
+            return Ok(None);
+        }
         if body.contains(input.mouse) {
             self.scroll += input.wheel[1];
         }
@@ -642,18 +718,6 @@ impl Designer {
                 }
             }
             visit(&draft.project.interface.root, 0, &mut rows);
-        } else if self.library_tab == 1 {
-            for (c, label) in [
-                (Component::Row, tr(zh, "行", "Row")),
-                (Component::Column, tr(zh, "列", "Column")),
-                (Component::Group, tr(zh, "分组", "Group")),
-                (Component::Tabs, tr(zh, "标签页", "Tabs")),
-                (Component::Split, tr(zh, "分栏", "Split")),
-                (Component::Preview, tr(zh, "效果预览", "Effect preview")),
-                (Component::Note, tr(zh, "说明", "Note")),
-            ] {
-                rows.push((0, label, Some(Payload::Add(c))));
-            }
         } else {
             for p in draft.project.parameters().map_err(|e| e.to_string())? {
                 rows.push((

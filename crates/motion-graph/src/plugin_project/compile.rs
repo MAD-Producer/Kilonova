@@ -33,6 +33,18 @@ pub struct ParameterAccessor {
 }
 
 impl PluginProject {
+    /// Unsaved virtual WGSL document for a language server, including real ABI
+    /// declarations and stable public-parameter helpers. Returns author row offset.
+    /// Language analysis is advisory; compile_logic retains every runtime check.
+    pub fn wgsl_language_document(&self) -> Result<Option<(String, usize)>> {
+        let PluginLogic::Wgsl { document } = &self.logic else {
+            return Ok(None);
+        };
+        let (parameters, _) = parameter_prelude(&document.parameters)?;
+        let prefix = format!("{}{parameters}\n", shader::authoring_prelude());
+        let rows = prefix.bytes().filter(|b| *b == b'\n').count();
+        Ok(Some((format!("{prefix}{}", document.source), rows)))
+    }
     pub fn compile_error_location(&self, error: &Error) -> Option<(usize, usize)> {
         let PluginLogic::Wgsl { document } = &self.logic else {
             return None;

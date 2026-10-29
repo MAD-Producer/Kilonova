@@ -1,5 +1,7 @@
 //! Shared author workspace; window ownership and engine delivery stay outside.
 mod designer;
+mod guide;
+mod lsp;
 mod model;
 #[cfg(all(test, target_os = "windows"))]
 mod native;
@@ -37,6 +39,8 @@ pub struct Workspace {
     generated: String,
     generated_view: source::Source,
     logic_tab: usize,
+    source_tab: usize,
+    guide: guide::Guide,
     pub ready: Option<(u64, Ready)>,
     pub message: Option<worker::Fault>,
     pub close_prompt: bool,
@@ -80,6 +84,8 @@ impl Workspace {
             generated: String::new(),
             generated_view: Default::default(),
             logic_tab: 0,
+            source_tab: 1,
+            guide: Default::default(),
             ready: None,
             message: None,
             close_prompt: false,
@@ -110,7 +116,8 @@ impl Workspace {
         self.redraw = true;
     }
     pub fn pending(&self) -> bool {
-        !self.worker_failed && (self.busy || self.checked != self.draft.revision)
+        self.source.pending()
+            || !self.worker_failed && (self.busy || self.checked != self.draft.revision)
     }
     pub fn cancel(&mut self) {
         self.designer.cancel(&mut self.draft);
@@ -125,7 +132,7 @@ impl Workspace {
         self.redraw = true;
     }
     fn sync_views(&mut self) {
-        self.source = source::Source::new(&self.draft.project);
+        self.source.replace_project(&self.draft.project);
         match &self.draft.project.logic {
             PluginLogic::Graph { document } => {
                 if let Some(n) = &mut self.nodes {
@@ -153,6 +160,10 @@ impl Workspace {
         Ok(())
     }
     pub fn poll(&mut self) -> Result<(), String> {
+        match self.source.poll_language() {
+            Ok(changed) => self.redraw |= changed,
+            Err(error) => self.fault("language", error),
+        }
         if self.worker_failed {
             return Ok(());
         }
@@ -320,6 +331,11 @@ impl Workspace {
                 .as_ref()
                 .is_some_and(|n| n.text_editing() || n.popup_open());
         if !input.composing && !input.ime_consumed && !input.focus_lost {
+            if input.key_presses().any(|(k, _, r)| k == Key::F1 && !r) {
+                self.draft.commit();
+                self.cancel();
+                self.page = 3;
+            }
             for (k, m, r) in input.key_presses() {
                 if !r && m.control {
                     match k {
@@ -417,6 +433,7 @@ impl Workspace {
                 &tr(self.zh, "逻辑", "Logic"),
                 &tr(self.zh, "界面", "Interface"),
                 &tr(self.zh, "预览与诊断", "Preview & diagnostics"),
+                &tr(self.zh, "使用教程", "Guide"),
             ],
             self.page,
             input,
@@ -435,7 +452,12 @@ impl Workspace {
         );
         let mut slot = None;
         let result: Result<(), String> = (|| {
-            if self.page == 0 {
+            if self.page == 3 {
+                if let Some(page) = self.guide.draw(list, atlas, content, input, self.zh) {
+                    self.page = page;
+                    self.redraw = true;
+                }
+            } else if self.page == 0 {
                 if let Some(nodes) = &mut self.nodes {
                     let mut filtered = input.clone();
                     let text_owner = nodes.text_editing() || nodes.popup_open();
@@ -537,26 +559,64 @@ impl Workspace {
                     }
                 } else {
                     let width = sheet.metric("plugin.preview.row.min_width", 288.);
-                    let params = Rect::new(content.min[0], content.min[1], width, content.height());
-                    self.parameters
-                        .draw(&mut self.draft, list, atlas, params, input, self.zh)?;
-                    let code = Rect::new(
-                        params.max[0] + pad,
-                        content.min[1],
-                        (content.width() - width - pad).max(0.),
-                        content.height(),
+                    let wide = content.width()
+                        >= width + sheet.metric("plugin.author.code.min_width", 480.) + pad;
+                    let mut body = content;
+                    if !wide {
+                        if let Some(tab) = ui::tab_strip(
+                            list,
+                            atlas,
+                            Rect::new(content.min[0], content.min[1], content.width(), row),
+                            &[&tr(self.zh, "公开参数", "Public parameters"), "WGSL"],
+                            self.source_tab,
+                            input,
+                        ) {
+                            self.parameters.finish(&mut self.draft)?;
+                            self.source.cancel(&mut self.draft);
+                            self.source_tab = tab;
+                        }
+                        body.min[1] += row + pad;
+                    }
+                    let params = Rect::new(
+                        body.min[0],
+                        body.min[1],
+                        if wide { width } else { body.width() },
+                        body.height(),
                     );
-                    self.source.draw(
-                        &mut self.draft,
-                        list,
-                        atlas,
-                        code,
-                        if self.parameters.editing() {
-                            &disabled
+                    if wide || self.source_tab == 0 {
+                        self.parameters.draw(
+                            &mut self.draft,
+                            list,
+                            atlas,
+                            params,
+                            input,
+                            self.zh,
+                        )?;
+                    }
+                    if wide || self.source_tab == 1 {
+                        let code = if wide {
+                            Rect::new(
+                                params.max[0] + pad,
+                                body.min[1],
+                                (body.width() - width - pad).max(0.),
+                                body.height(),
+                            )
                         } else {
-                            input
-                        },
-                    )?;
+                            body
+                        };
+                        self.source.draw(
+                            &mut self.draft,
+                            list,
+                            atlas,
+                            code,
+                            if self.parameters.editing() {
+                                &disabled
+                            } else {
+                                input
+                            },
+                            self.zh,
+                        )?;
+                    }
                 }
             } else if self.page == 1 {
                 let mode = Rect::new(content.min[0], content.min[1], content.width(), row);

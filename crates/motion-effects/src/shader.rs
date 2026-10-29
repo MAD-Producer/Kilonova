@@ -220,6 +220,11 @@ fn loop_iterations(start: i64, end: i64, inclusive: bool, unsigned: bool) -> Res
 pub fn compile(source: &str, entry: &str) -> Result<CompiledShader> {
     compile_mode(source, entry, false, false)
 }
+/// Editor analysis sees the same host declarations as regular image effects.
+/// This does not compile, normalize, install or grant additional bindings.
+pub fn authoring_prelude() -> String {
+    format!("{HEADER}\n{HALF_STORE_WGSL}\n{STORE_POLICY}\n")
+}
 /// Locate a regular image-effect error in its authored source, excluding the
 /// host ABI and generated parameter accessors. Never infer a row from text.
 pub fn author_location(
