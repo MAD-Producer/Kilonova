@@ -58,7 +58,7 @@ fn blocks(renderer: &Renderer, scene: &Scene) -> Vec<std::ops::Range<usize>> {
         }
     }
     let eligible = |layer: &crate::DrawLayer| {
-        layer.masks.is_empty()
+        (layer.masks.is_empty() || (scene.depth_surface(layer.id).is_some() && plane_texture(layer).is_some()))
             && layer.track_matte.is_none()
             && !independent_sources.contains(&layer.id)
             && layer.blend == motion_model::compositing::LayerBlend::default()
@@ -114,6 +114,21 @@ impl Renderer {
         if blocks.is_empty() {
             return Ok(None);
         }
+        // Mask coverage must enter the physical fragment before spatial
+        // composition, not cut a hole in the combined raster afterwards.
+        // Use private, admitted per-encode targets and uniforms: neither normal
+        // 2D preparation nor another pending encode may overwrite this frame.
+        let mut mask_scene = scene.clone();
+        mask_scene.layers = blocks.iter().flat_map(|block| scene.layers[block.clone()].iter())
+            .filter(|layer| !layer.masks.is_empty()).cloned().collect();
+        let masks = crate::mask_plan::MaskCache::default().build(&mask_scene, 1., false)?;
+        let mut coverage = HashMap::new();
+        let mut coverage_bytes = 0;
+        if !masks.is_empty() {
+            self.mask_gpu.fresh_frame().prepare_checked(&self.device, &self.queue, encoder,
+                &self.image_layout, &mask_scene, &masks, &mut coverage, &mut coverage_bytes,
+                self.resident_source_texture_bytes(), self.effect_gpu.builder.source_texture_budget, None)?;
+        }
         let mut grouped = vec![false; scene.layers.len()];
         let mut keep = vec![true; scene.layers.len()];
         for block in &blocks {
@@ -143,7 +158,7 @@ impl Renderer {
         for block in blocks {
             scratch.layers.clear();
             scratch.layers.extend_from_slice(&scene.layers[block]);
-            stats.add(self.prepare_shared_model_block(&scratch, width, height, encoder)?);
+            stats.add(self.prepare_shared_model_block(&scratch, width, height, encoder, &coverage, coverage_bytes)?);
         }
         let mut output = scene.clone();
         let mut index = 0;
@@ -156,6 +171,7 @@ impl Renderer {
             if layer.model_source.is_none() && scene.depth_surface(layer.id).is_some() {
                 output.shared_rasters.insert(layer.id);
                 layer.asset = None;
+                layer.masks = Default::default();
                 layer.video = None;
                 layer.size = [scene.width as f32, scene.height as f32];
                 layer.source_size = layer.size;
@@ -178,6 +194,8 @@ impl Renderer {
         width: u32,
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
+        coverage: &HashMap<TextureKey, GpuImage>,
+        coverage_bytes: u64,
     ) -> Result<RenderStats> {
         let began = Instant::now();
         let anchor = scene
@@ -220,7 +238,7 @@ impl Renderer {
                 .effect_gpu
                 .builder
                 .source_texture_budget
-                .saturating_sub(self.resident_source_texture_bytes());
+                .saturating_sub(self.resident_source_texture_bytes().saturating_add(coverage_bytes));
             let gpu = GpuScene::upload(
                 self,
                 SceneRequest {
@@ -254,6 +272,7 @@ impl Renderer {
         let required = self
             .resident_source_texture_bytes()
             .checked_sub(previous_bytes)
+            .and_then(|n| n.checked_add(coverage_bytes))
             .and_then(|n| n.checked_add(bytes))
             .ok_or_else(|| {
                 RenderError::Invalid("shared model source accounting overflow".into())
@@ -352,7 +371,8 @@ impl Renderer {
                     world: layer.model,
                     size: layer.size,
                     color: [layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity],
-                    blend: layer.color[3] != 1. || layer.opacity != 1. || plane_texture(layer).is_some_and(|key| {
+                    coverage: coverage.get(&TextureKey::Mask(layer.id)).map(|image| image._texture.admitted_view()).transpose()?,
+                    blend: !layer.masks.is_empty() || layer.color[3] != 1. || layer.opacity != 1. || plane_texture(layer).is_some_and(|key| {
                         self.images.get(&key).is_none_or(|image| {
                             image.plane_image.is_none_or(|state| !state.opaque)
                         })

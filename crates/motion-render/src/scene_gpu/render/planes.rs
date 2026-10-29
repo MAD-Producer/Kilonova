@@ -15,6 +15,8 @@ pub(crate) struct ScenePlane {
     pub blend: bool,
     /// Static source retaining its admitted upload revision.
     pub texture: Option<AdmittedTextureView>,
+    /// Source-local scalar coverage, owned by this encode.
+    pub coverage: Option<AdmittedTextureView>,
     pub surface: Option<std::sync::Arc<motion_model::depth::DepthSurface>>,
 }
 #[repr(C)]
@@ -49,6 +51,7 @@ struct Key {
     samples: u32,
     textured: bool,
     projected: bool,
+    masked: bool,
     blend: bool,
 }
 #[derive(Clone)]
@@ -121,6 +124,28 @@ pub(super) fn prepare(
     let mut draws = Vec::with_capacity(planes.len());
     let projection = frame.camera.view_projection.as_dmat4();
     for plane in planes {
+        if let Some(coverage) = &plane.coverage {
+            let precision = crate::image_formats::color_precision(format).ok_or_else(|| {
+                invalid("shared_plane_coverage", 0, "unsupported working precision")
+            })?;
+            let texture = coverage.texture();
+            if plane.texture.is_none()
+                || plane.surface.is_none()
+                || !plane.blend
+                || texture.format()
+                    != crate::image_formats::native_format(
+                        motion_effects::image_contract::coverage_storage(precision),
+                    )
+                || texture.dimension() != wgpu::TextureDimension::D2
+                || texture.depth_or_array_layers() != 1
+                || texture.sample_count() != 1
+                || !texture
+                    .usage()
+                    .contains(wgpu::TextureUsages::TEXTURE_BINDING)
+            {
+                return Err(crate::RenderError::Invalid(format!("scene plane object={} phase=shared_plane_coverage: expected source-local admitted scalar coverage at working precision", plane.object)).into());
+            }
+        }
         if !plane.world.is_finite()
             || plane.world.row(3) != glam::Vec4::W
             || plane.size.iter().any(|n| !n.is_finite() || *n < 0.)
@@ -235,14 +260,15 @@ pub(super) fn prepare(
             samples: frame.samples,
             textured: plane.texture.is_some(),
             projected: plane.texture.is_some() && plane.surface.is_some(),
+            masked: plane.coverage.is_some(),
             blend: plane.blend,
         };
         let pipeline = if let Some(pipeline) = cache.0.get(&key) {
             pipeline.clone()
         } else {
-            // Four formats x two sample counts x three sources x two alpha modes.
+            // Four formats x two sample counts x four sources x two alpha modes.
             // Asset IDs and animation never create additional pipeline keys.
-            if cache.0.len() >= 48 {
+            if cache.0.len() >= 64 {
                 return Err(invalid(
                     "shared_plane_pipeline",
                     0,
@@ -262,16 +288,25 @@ pub(super) fn prepare(
                 &wgpu::BindGroupDescriptor {
                     label: Some("immutable shared plane image revision"),
                     layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(view),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(sampler),
-                        },
-                    ],
+                    entries: &{
+                        let mut entries = vec![
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(sampler),
+                            },
+                        ];
+                        if let Some(coverage) = &plane.coverage {
+                            entries.push(wgpu::BindGroupEntry {
+                                binding: 2,
+                                resource: wgpu::BindingResource::TextureView(coverage),
+                            });
+                        }
+                        entries
+                    },
                 },
             )),
             (None, None) => None,
@@ -362,7 +397,9 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
         .create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shared plane geometry"),
             source: wgpu::ShaderSource::Wgsl(
-                if key.projected {
+                if key.masked {
+                    include_str!("masked_projected_planes.wgsl")
+                } else if key.projected {
                     include_str!("projected_planes.wgsl")
                 } else if key.textured {
                     include_str!("textured_planes.wgsl")
@@ -377,24 +414,39 @@ fn pipeline(renderer: &Renderer, key: Key) -> Result<Pipeline> {
             .device
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("shared plane static source"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
+                entries: &{
+                    let mut entries = vec![
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ];
+                    if key.masked {
+                        entries.push(wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        });
+                    }
+                    entries
+                },
             });
         let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("shared plane linear clamp"),
