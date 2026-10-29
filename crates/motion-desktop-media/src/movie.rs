@@ -20,6 +20,7 @@ use std::{
 
 pub mod frame;
 pub mod durable;
+pub mod prerender;
 mod allocation_observation;
 
 #[cfg(test)]
