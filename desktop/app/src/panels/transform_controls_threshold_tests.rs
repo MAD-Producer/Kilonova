@@ -147,9 +147,13 @@ fn small_window_threshold_starts_real_gizmo_edits_with_one_undo() {
                 "three_d={three_d} tool={tool_index}"
             );
             assert!(
-                actions
-                    .iter()
-                    .any(|a| matches!(a, Action::PreviewDrag { .. } | Action::EditBatch(_))),
+                actions.iter().any(|action| match (tool, action) {
+                    (Tool::Move, Action::PreviewDrag { object: 7, .. }) => true,
+                    (Tool::Rotate | Tool::Scale, Action::EditBatch(commands)) =>
+                        !commands.is_empty(),
+                    (Tool::Anchor, Action::Edit(Command::Anchor { object: 7, .. })) => true,
+                    _ => false,
+                }),
                 "three_d={three_d} tool={tool_index}"
             );
             super::tests::apply(&engine, actions);

@@ -175,7 +175,7 @@ fn uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves
             .unwrap();
             apply(
                 &engine,
-                drag.commands_with_guides(&state, &pointer(end), Some(&context(&state, mapping)), &PaintList::default().styles()),
+                drag.commands_with_guides(&state, &pointer(end), Some(&context(&state, mapping))),
             );
             engine.history(3).unwrap();
             let after = engine.state().unwrap();
@@ -240,7 +240,6 @@ fn edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets(
                     ..pointer(end)
                 },
                 Some(&context(&state, mapping)),
-                &PaintList::default().styles(),
             ),
         );
         engine.history(3).unwrap();
