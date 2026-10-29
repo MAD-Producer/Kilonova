@@ -7,7 +7,7 @@ use motion_render::{Presenter, Renderer};
 fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
     use motion_render::{ResourceBudgetScope, ResourceRejection};
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
-    let source = r.render_target(64, 64).unwrap();
+    let mut source = r.render_target(64, 64).unwrap();
     let mut project = Project::new(64, 64, 30, 1).unwrap();
     project.background = [1., 0., 0., 1.];
     let mut scene = Scene::new(&project).unwrap();
@@ -36,6 +36,11 @@ fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
     assert_eq!(inspect(&snapshot.view), red);
     let budget = r.allocation_budget();
     let before = budget.info().unwrap();
+    source.width += 1;
+    let invalid = r.snapshot_target(&source).err().expect("mismatched source dimensions must be rejected");
+    assert!(matches!(invalid, motion_render::RenderError::Invalid(_)));
+    assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
+    source.width -= 1;
     budget.set_limit(before.admitted_bytes).unwrap();
     let error = r.snapshot_target(&source).err().expect("replacement must refuse before copying");
     assert_eq!(error.resource_rejection(), Some(&ResourceRejection::Budget {

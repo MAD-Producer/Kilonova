@@ -2682,6 +2682,12 @@ impl Renderer {
     /// intact. Both allocations remain owned through the submitted GPU transfer.
     pub fn snapshot_target(&self, source: &RenderTarget) -> Result<RenderTarget> {
         source.check_owner(self)?;
+        if source.width != source.texture.width() || source.height != source.texture.height() {
+            return Err(RenderError::Invalid(format!(
+                "viewer snapshot source dimensions {}x{} do not match texture {}x{}",
+                source.width, source.height, source.texture.width(), source.texture.height()
+            )));
+        }
         let snapshot = self.render_target_with_usages(source.width, source.height,
             source.texture.format(), crate::TextureCategory::CaptureTargets, wgpu::TextureUsages::COPY_DST)?;
         let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
