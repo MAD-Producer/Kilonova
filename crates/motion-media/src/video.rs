@@ -452,12 +452,19 @@ impl VideoJobs {
                 .ok_or("object ID exhausted")? };
             // The probe records the visible interval on the source presentation
             // timeline, and every decoder entry point rejects samples outside
-            // [video_start_us, video_end_us). Layer-local time zero must map to the
-            // first visible frame, and the clip may only cover that visible span:
-            // duration_us can be longer because audio padding outlasts the picture.
+            // [video_start_us, video_end_us). Layer-local time zero must therefore
+            // map to the first visible frame, otherwise a source whose first
+            // visible PTS is not zero shows a blank head.
             let offset_us = p.probe.asset.video_start_us;
-            let visible_us = p.probe.asset.video_end_us - p.probe.asset.video_start_us;
-            let frames = (visible_us * u64::from(project.fps)).div_ceil(1_000_000);
+            // The length stays duration-derived. Preparation raises duration_us to the
+            // audio track length, so it outlasts the picture by AAC encoder padding,
+            // and composition clamps audio voices to the layer interval: sizing the
+            // clip from the visible span would cut that audio tail.
+            // The applied offset is subtracted because the clip now starts at
+            // offset_us, and Project::validate bounds source_offset_us + clip length
+            // by duration_us. With no offset this is exactly main's length.
+            let audio_window_us = p.probe.asset.duration_us.saturating_sub(offset_us);
+            let frames = (audio_window_us * u64::from(project.fps)).div_ceil(1_000_000);
             let out = (u64::from(at) + frames).min(u64::from(project.frames)) as u32;
             let stem = p
                 .stage

@@ -51,7 +51,9 @@ fn probe_stub() -> ProbeVideo {
     })
 }
 /// Same 24 fps source, but the first visible frame is at 0.250 s (leading
-/// edit) and the visible span ends at 3.000 s. No audio track is reported.
+/// edit), the picture ends at 3.000 s, and the container duration is 3.250 s
+/// because the audio track outlasts the picture (AAC padding). No audio track is
+/// reported, so preparation does not raise `duration_us` itself.
 fn probe_delayed_start() -> ProbeVideo {
     Arc::new(|source, _, _, check| {
         check()?;
@@ -72,7 +74,7 @@ fn probe_delayed_start() -> ProbeVideo {
                 display_height: 144,
                 video_start_us: 250_000,
                 video_end_us: 3_000_000,
-                duration_us: 3_000_000,
+                duration_us: 3_250_000,
                 frame_count: 66,
                 variable_frame_rate: false,
                 nominal_frame_rate: 24.0,
@@ -315,11 +317,14 @@ fn new_source_cap_accepts_large_declared_lengths_but_still_requires_exact_bytes(
         .starts_with(".video-import")));
 }
 
-/// The clip must map layer-local time zero to the first visible source frame and
-/// cover only the visible span; a source that starts at 0 keeps the old geometry.
+/// The offset and the length are independent. The source offset maps layer-local
+/// time zero to the first visible source frame (no blank head), while the clip
+/// length stays derived from `duration_us`: audio voices are clamped to the layer
+/// interval, so sizing from the visible span would cut an AAC tail that outlasts
+/// the picture. A source that starts at 0 keeps the old geometry.
 /// Probing is injected, so no decoder runs.
 #[test]
-fn imported_clip_maps_local_time_to_the_visible_source_interval() {
+fn imported_clip_offsets_the_head_but_keeps_the_duration_derived_length() {
     let _guard = TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();
     let jobs = VideoJobs::new(root.path().into()).unwrap();
@@ -338,11 +343,31 @@ fn imported_clip_maps_local_time_to_the_visible_source_interval() {
         };
         let clip = layer.clip(p.frames);
         assert_eq!(clip.in_frame, 0);
+        // Head: layer-local zero is the first visible sample, not source PTS zero.
         assert_eq!(video.source_offset_us, 250_000);
         assert_eq!(video.source_time_us(layer.local_frame(0.0), p.fps), 250_000);
-        assert_eq!(clip.out_frame - clip.in_frame, 165);
+        // Length is duration-derived, not span-derived: 3.250 s of container
+        // duration minus the 0.250 s offset is 3.000 s at 60 fps. A visible-span
+        // length would be 2.750 s = 165 frames and would drop the audio padding
+        // past video_end_us, which composition clamps to this same layer interval.
+        assert_eq!(clip.out_frame - clip.in_frame, 180);
+        // Project::validate bounds source_offset_us + length by duration_us, so the
+        // clip stays inside the recoverable source: 250_000 + 179 frames.
         let last = video.source_time_us(layer.local_frame(f64::from(clip.out_frame - 1)), p.fps);
-        assert!((250_000..3_000_000).contains(&last), "last sample {last}");
+        assert_eq!(last, 3_233_333);
+        assert!(last < 3_250_000, "clip exceeds duration_us: {last}");
+        // The picture itself still ends at 3.000 s: the last frame inside
+        // [video_start_us, video_end_us) is frame 164 (165 frames = 2.750 s). Frames
+        // 165..180 cover only the audio padding and sample as the pre-existing
+        // non-fatal "outside" state; that tail is a known follow-up, not fixed here.
+        let visible_frames = (2_750_000u64 * u64::from(p.fps)).div_ceil(1_000_000);
+        assert_eq!(visible_frames, 165);
+        let last_visible =
+            video.source_time_us(layer.local_frame(f64::from(visible_frames - 1)), p.fps);
+        assert!(
+            (250_000..3_000_000).contains(&last_visible),
+            "last visible sample {last_visible}"
+        );
     }
     start_probe(&jobs, "visible-zero", false, probe_stub());
     assert_eq!(wait(&jobs, "visible-zero").state, "ready");
@@ -354,6 +379,9 @@ fn imported_clip_maps_local_time_to_the_visible_source_interval() {
     let Content::Video { video } = &layer.content else {
         panic!("second import did not create a video layer");
     };
+    // A source whose first visible PTS is zero keeps the `main` geometry: no
+    // offset and the same duration-derived length, so its audio window is
+    // bit-identical to `main`.
     let clip = layer.clip(p.frames);
     assert_eq!(video.source_offset_us, 0);
     assert_eq!(clip.out_frame - clip.in_frame, 180);
