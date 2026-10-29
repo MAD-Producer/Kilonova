@@ -1,0 +1,125 @@
+{
+  "head": "819c12239ec33da91d80b7936122bdc4af54ff65",
+  "binary_sha256": "dea91f27a50cec74ff82fa16fd38c7b669a62814f3973c63fb6f3344b0c3eb64",
+  "source_unchanged": true,
+  "portable_passed": 134,
+  "portable_ignored": 1,
+  "counts": {
+    "adaptive": 7,
+    "sampling": 4,
+    "timeline": 50,
+    "handles": 2,
+    "ranges": 23,
+    "axes": 7,
+    "effects": 16,
+    "comparison": 14,
+    "mini": 11
+  },
+  "new_failure_sites": [
+    "timeline.graph_view_bounds",
+    "effect.graph_view_bounds",
+    "curve.comparison.view_bounds",
+    "timeline.graph_adaptive",
+    "effect.graph_adaptive",
+    "curve.comparison.adaptive",
+    "timeline.graph_fit_all",
+    "timeline.graph_fit_selection",
+    "effect.graph_fit_all",
+    "effect.graph_fit_selection",
+    "curve.comparison.fit_all",
+    "curve.comparison.fit_selection"
+  ],
+  "verified_new_sites": [
+    "curve.comparison.adaptive",
+    "curve.comparison.fit_all",
+    "curve.comparison.fit_selection",
+    "curve.comparison.view_bounds",
+    "curve.mini.fit_all",
+    "curve.mini.readout_fps",
+    "curve.mini.readout_load",
+    "curve.mini.readout_sample",
+    "effect.graph_adaptive",
+    "effect.graph_fit_all",
+    "effect.graph_fit_selection",
+    "effect.graph_view_bounds",
+    "timeline.graph_adaptive",
+    "timeline.graph_fit_all",
+    "timeline.graph_fit_selection",
+    "timeline.graph_view_bounds"
+  ],
+  "pending_new_sites": [
+    "curve.comparison.readout",
+    "curve.mini.adaptive",
+    "curve.mini.normalized_readout",
+    "effect.graph_readout"
+  ],
+  "processes": [
+    {
+      "process": "first-process",
+      "result": {
+        "actualRenderers": true,
+        "comparisonNegativeCache": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid style tolerance and unrepresentable offsets are presentation boundaries, not legal stored project faults. Budget failures use Engine-validated project tracks. Other readout/Mini guard sites are not covered.",
+        "noEditsOrHistory": true,
+        "selectedFitRecoversOnShorterInterval": true,
+        "sites": [
+          "timeline.graph_view_bounds",
+          "effect.graph_view_bounds",
+          "curve.comparison.view_bounds",
+          "timeline.graph_adaptive",
+          "effect.graph_adaptive",
+          "curve.comparison.adaptive",
+          "timeline.graph_fit_all",
+          "timeline.graph_fit_selection",
+          "effect.graph_fit_all",
+          "effect.graph_fit_selection",
+          "curve.comparison.fit_all",
+          "curve.comparison.fit_selection"
+        ],
+        "suppressedAfter60": true,
+        "validatedKeysPerTrack": 33000
+      }
+    },
+    {
+      "process": "reset-process",
+      "result": {
+        "actualRenderers": true,
+        "comparisonNegativeCache": true,
+        "firstWarnAndErrorAtLifetime60": true,
+        "healthyRecoveryPreservesCounterScope": true,
+        "limits": "Invalid style tolerance and unrepresentable offsets are presentation boundaries, not legal stored project faults. Budget failures use Engine-validated project tracks. Other readout/Mini guard sites are not covered.",
+        "noEditsOrHistory": true,
+        "selectedFitRecoversOnShorterInterval": true,
+        "sites": [
+          "timeline.graph_view_bounds",
+          "effect.graph_view_bounds",
+          "curve.comparison.view_bounds",
+          "timeline.graph_adaptive",
+          "effect.graph_adaptive",
+          "curve.comparison.adaptive",
+          "timeline.graph_fit_all",
+          "timeline.graph_fit_selection",
+          "effect.graph_fit_all",
+          "effect.graph_fit_selection",
+          "curve.comparison.fit_all",
+          "curve.comparison.fit_selection"
+        ],
+        "suppressedAfter60": true,
+        "validatedKeysPerTrack": 33000
+      }
+    }
+  ],
+  "archive": {
+    "path": "data/curve-range-faults-stage-23.zip",
+    "bytes": 273645,
+    "entries": 55,
+    "sha256": "5b7ee4eab5a9a164821135646a8ba9d6405cb13f88becfe86c49fc7c05d6ef50"
+  },
+  "remaining": [
+    "Four readout/Mini observation sites need actual fault evidence or justified guarded-boundary dispositions",
+    "Final generation/revision context audit, performance, formatting/all-targets and latest-main integration",
+    "Complete DESIGN12 audit and own259 PR with actual current-composed-tree CI; no closure yet"
+  ]
+}

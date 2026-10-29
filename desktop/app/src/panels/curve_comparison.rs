@@ -4,9 +4,9 @@ use super::*;
 use motion_core::KeyframeTarget;
 use motion_ui::widgets::{Checkbox, Dropdown, DropdownItem, ScrollArea};
 use std::sync::Arc;
-mod data;
+pub(in crate::panels) mod data;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 mod toolbar;
 mod view;
 use data::{Data, Unavailable};
@@ -67,6 +67,21 @@ struct Entry {
     visible: bool,
     data: Result<Arc<Data>, Arc<Unavailable>>,
     points: Option<([f64; 4], Arc<Vec<(f64, f32)>>)>,
+    tessellation: Option<Tessellation>,
+    #[cfg(test)]
+    tessellation_attempts: u32,
+}
+#[derive(Clone)]
+struct Tessellation {
+    key: [f64; 10],
+    points: Option<Arc<Vec<(f64, f32)>>>,
+}
+
+#[derive(Clone, PartialEq)]
+pub(super) struct RangeContext {
+    enabled: bool,
+    unit: Option<data::Unit>,
+    channels: Vec<(Channel, bool)>,
 }
 #[derive(Default)]
 pub(super) struct Controls {
@@ -89,6 +104,10 @@ pub(super) struct Controls {
     marks: Vec<(Channel, u32, [f32; 2])>,
     #[cfg(test)]
     legend_hits: Vec<(usize, Rect)>,
+    #[cfg(test)]
+    range_hits: Vec<(String, Rect)>,
+    #[cfg(test)]
+    range_debug:Vec<String>,
 }
 impl Clone for Controls {
     fn clone(&self) -> Self {
@@ -167,6 +186,39 @@ fn record_fault(state: &Value, target: &KeyframeTarget, failure: &Unavailable, e
 }
 impl Controls {
     #[cfg(test)]
+    pub(super) fn test_range_header(&self, unit: &str) -> Rect {
+        self.range_hits
+            .iter()
+            .find(|(name, _)| name == unit)
+            .expect("visible group header")
+            .1
+    }
+    #[cfg(test)]
+    pub(super) fn test_range_debug(&self)->&[String] {&self.range_debug}
+    pub(super) fn range_context(&self) -> RangeContext {
+        RangeContext {
+            enabled: self.enabled,
+            unit: self.unit.clone(),
+            channels: self
+                .entries
+                .iter()
+                .map(|entry| (entry.channel.clone(), entry.visible))
+                .collect(),
+        }
+    }
+    pub(super) fn matches_range_context(&self, context: &RangeContext) -> bool {
+        self.enabled == context.enabled
+            && self.unit == context.unit
+            && self.entries.len() == context.channels.len()
+            && self
+                .entries
+                .iter()
+                .zip(&context.channels)
+                .all(|(entry, (channel, visible))| {
+                    entry.channel == *channel && entry.visible == *visible
+                })
+    }
+    #[cfg(test)]
     pub fn test_anchor(&self, index: usize) -> Rect {
         self.anchors.unwrap()[index]
     }
@@ -227,6 +279,11 @@ impl Controls {
                 entry.data = Err(Arc::new(Unavailable::Unsupported));
             }
             entry.points = None;
+            entry.tessellation = None;
+            #[cfg(test)]
+            {
+                entry.tessellation_attempts = 0;
+            }
             if let Ok(data) = &entry.data {
                 entry.label = data.title(entry.channel.component);
             }
@@ -275,6 +332,9 @@ impl Controls {
                         visible: true,
                         data: Ok(data.clone()),
                         points: None,
+                        tessellation: None,
+                        #[cfg(test)]
+                        tessellation_attempts: 0,
                     });
                 }
             }

@@ -1,0 +1,81 @@
+{
+  "issue": 259,
+  "status": "IN_PROGRESS; incomplete UI; no PR; do not close issue259",
+  "source_head": "33168950e8f072ea20d72cb87f5a45c8ffdc0c67",
+  "base_main": "bcaeb8d0970b54714b2adb5b8eb15de2986014ce",
+  "current_app_test_runs": [
+    {
+      "name": "adaptive",
+      "filter": "panels::graph_adaptive::",
+      "exit_code": 0,
+      "seconds": 1.45,
+      "summary": [
+        [
+          "ok",
+          "6",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "sampling",
+      "filter": "panels::graph_sampling::",
+      "exit_code": 0,
+      "seconds": 0.41,
+      "summary": [
+        [
+          "ok",
+          "4",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "timeline",
+      "filter": "panels::timeline_shortcuts_tests::",
+      "exit_code": 0,
+      "seconds": 10.47,
+      "summary": [
+        [
+          "ok",
+          "50",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "handles",
+      "filter": "panels::graph_handles::",
+      "exit_code": 0,
+      "seconds": 0.08,
+      "summary": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  ],
+  "current_unique_desktop_cases": 62,
+  "binary_sha256": "94ec029ab8356b07d16704de5782e92c45dde5208d968a85c9d5dfac4fd473bf",
+  "source_unchanged": true,
+  "archive": {
+    "path": "data/curve-view-ranges-adaptive-progress.zip",
+    "entries": 43,
+    "bytes": 265075,
+    "sha256": "d7ac1f971b1aa5b0fe35bb25be219680c15b72daf93bd04e38efebbeb55bcecc"
+  },
+  "remaining": [
+    "Fit Selection/Fit All and locked axes actual GUI and context isolation",
+    "effect/comparison/mini graph integration and unit-correct readouts",
+    "actual failure file/Error stderr/stdout and counter lifetime/normal-branch audit",
+    "nativeENZHmainfloat minimum/default/DPI input+screenshots",
+    "history/filebytes unchanged from real view operations",
+    "full DESIGN0.7/12 scoped acceptance and current-main fulltree CI before PRmerge"
+  ]
+}

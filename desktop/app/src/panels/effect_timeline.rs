@@ -5,7 +5,7 @@ use motion_core::{Ease, Easing, EffectAction, EffectParam};
 use std::collections::BTreeSet;
 pub(super) mod graph;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 
 #[derive(Clone)]
 pub(super) enum PlannedRow {
@@ -187,6 +187,11 @@ impl Controls {
             || self.handle.is_some()
             || self.menu.is_some()
             || self.enum_owner.is_some()
+    }
+    pub(super) fn range_key(&self)->Option<key_selection::Key> {
+        self.key.as_ref().map(|(target,frame)|key_selection::Key {
+            target:motion_core::KeyframeTarget::Effect {object:target.object,effect:target.effect,param:target.param.clone()},frame:*frame,
+        })
     }
     pub(crate) fn gesture_active(&self) -> bool {
         self.drag.as_ref().is_some_and(|d| d.begun)

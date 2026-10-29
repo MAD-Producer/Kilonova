@@ -52,7 +52,7 @@ impl Scope {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 struct Channel {
     target: Option<KeyframeTarget>,
     frames: BTreeSet<u32>,
@@ -80,6 +80,11 @@ pub(crate) struct Set {
     validated: Cell<Option<(u64, Status)>>,
 }
 impl Set {
+    /// Popup identity excludes the mutable presence cache and one-frame intent.
+    pub(crate) fn same_selection(&self, other: &Self) -> bool {
+        self.claimed == other.claimed && self.scope == other.scope
+            && self.channels == other.channels && self.primary == other.primary
+    }
     pub fn owns_keys(&self) -> bool {
         self.claimed
     }

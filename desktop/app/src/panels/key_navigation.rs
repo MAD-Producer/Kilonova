@@ -63,6 +63,7 @@ pub(super) fn rail(styles: &motion_ui::style::StyleSheet, row: Rect) -> Rect {
 }
 
 pub(super) fn follow(view: &mut types::TimelineState, total: f64, frame: f64) {
+    if view.graph_mode && view.graph_ranges.locked_x() {return;}
     let span = total / f64::from(view.zoom.max(1.));
     if frame < f64::from(view.offset) || frame > f64::from(view.offset) + span {
         view.offset = (frame - span * 0.5).clamp(0., (total - span).max(0.)) as f32;

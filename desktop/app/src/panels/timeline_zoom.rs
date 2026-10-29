@@ -3,6 +3,7 @@ use super::*;
 use crate::shortcuts::Command as Shortcut;
 
 pub(super) fn zoom_at(view: &mut types::TimelineState, total: f32, next: f32, fraction: f32) {
+    if view.graph_mode && view.graph_ranges.locked_x() {return;}
     if !total.is_finite() || total < 1. || !next.is_finite() || !fraction.is_finite() {
         return;
     }
@@ -45,6 +46,7 @@ pub(super) fn shortcut(
     {
         return true;
     }
+    if panels.timeline.graph_mode && panels.timeline.graph_ranges.locked_x() {return true;}
     let total = (last_frame(state) + 1.) as f32;
     let frame = (state["frame"].as_f64().unwrap_or(0.) as f32).clamp(0., total - 1.);
     let view = &mut panels.timeline;

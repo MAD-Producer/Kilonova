@@ -306,6 +306,7 @@ fn legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_display
             &input,
             Locale::En,
             &mut actions,
+            None,
         );
         actions
     };
@@ -358,6 +359,7 @@ fn legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_display
         &click(),
         Locale::En,
         &mut actions,
+        None,
     );
     assert!(actions.is_empty());
     assert_eq!(controls.user_key().unwrap().frame, 32);
