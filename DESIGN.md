@@ -201,6 +201,26 @@ with the existing keyboard command. An active gesture retains input until it
 finishes or cancels; handle toggles defer while it is active. Ruler strips clip
 editing decoration and tool hit regions while preserving the full preview mapping.
 
+### 4.3 曲线视图与绘制
+
+Graph ranges are ephemeral, document/composition/channel/unit-scoped view state.
+Fit All, Fit Selection, pan and zoom respect explicit X/Y checkbox locks.
+Locking captures the displayed range; playback, scrolling and automatic extrema
+must not move it. Unlocking retains that range until an explicit automatic fit.
+View operations never modify authored data or project history. Use one range
+contract across timeline, effect, comparison and mini curves; keep incompatible
+units in distinct groups. A mini view of a selected key interval derives readouts
+from its actual model sample and physical speed, with an explicit mapping for
+normalized easing coordinates. Never label normalized progress as physical speed.
+
+Drawing uses model samples and screen-error subdivision with
+`graph.sample.error` in logical pixels. Include authored key/shape boundaries and
+discontinuity limits; preserve the existing visible-centerline and hit contracts.
+An existing seed density is a baseline, not the final drawing resolution. Bound
+work and retained geometry; failure must preserve its cause and must not return
+a silently truncated successful curve. Dense model oracles and native visual/input
+acceptance are required before claiming the complete graph-view feature.
+
 ## 5. Consistent panel visual grammar
 
 ### 5.1 Visual hierarchy

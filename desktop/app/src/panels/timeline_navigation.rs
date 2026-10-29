@@ -62,6 +62,9 @@ fn update_at(
     if view.navigation_paint_only {
         return;
     }
+    if view.graph_mode && view.graph_ranges.locked_x() {
+        view.horizontal_drag=None;view.edge_pan_at=None;return;
+    }
     if input.focus_lost || input.keys.iter().any(|(key, _)| *key == Key::Escape) {
         view.horizontal_drag = None;
         view.edge_pan_at = None;

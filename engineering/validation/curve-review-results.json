@@ -1,0 +1,2254 @@
+{
+  "status": "DRAFT_FUNCTIONAL_ACCEPTANCE_PASSED_PERFORMANCE_UNRESOLVED",
+  "runtime_head": "23c0f96c58a97711eadab0ce5ee15f7d05cda35b",
+  "runtime_main": "21093ee76231b76bbeb53055689cae4858c51897",
+  "newly_integrated_main": "7dfab923a1b4005e2c8b31460bbe766738f78a10",
+  "binary_sha256": "ee1bce6d041c505252930e69696f2b0c57c9a3a8b49319d65b050cb8988fea43",
+  "portable_passed": 136,
+  "portable_ignored": 1,
+  "native_cases": 32,
+  "native_pngs": 160,
+  "maximum_nearest_curve_pixel_distance_physical": 0.6672616528793786,
+  "saved_files": [
+    {
+      "path": "project.json",
+      "bytes": 10595,
+      "sha256": "e99f89894b2abe643fd2dea81ae239239257b76a1355389965750e07375ad93a"
+    }
+  ],
+  "actual_fault_sites": [
+    "curve.comparison.adaptive",
+    "curve.comparison.fit_all",
+    "curve.comparison.fit_selection",
+    "curve.comparison.readout",
+    "curve.comparison.view_bounds",
+    "curve.mini.adaptive",
+    "curve.mini.fit_all",
+    "curve.mini.readout_fps",
+    "curve.mini.readout_load",
+    "curve.mini.readout_sample",
+    "effect.graph_adaptive",
+    "effect.graph_fit_all",
+    "effect.graph_fit_selection",
+    "effect.graph_readout",
+    "effect.graph_view_bounds",
+    "timeline.graph_adaptive",
+    "timeline.graph_fit_all",
+    "timeline.graph_fit_selection",
+    "timeline.graph_view_bounds"
+  ],
+  "guarded_sites": [
+    "curve.mini.normalized_readout"
+  ],
+  "performance": {
+    "status": "PAIRED_REPEATED_MEASUREMENT_COMPLETE",
+    "schema": 3,
+    "builds": {
+      "baseline": {
+        "head": "f69b0d81858951911c1105778b5254bd9ade51d5",
+        "binary_sha256": "08d36b89b115684093eb575e684e8e5848166d5e5d2fb552c8bfdd2bff22a273",
+        "folder": "performance-baseline-06"
+      },
+      "current": {
+        "head": "78d341d79c78833105e2225e630aaf64fcca5acb",
+        "binary_sha256": "5593f1708a9c105053e7f4c5157295f82c1fb31f41867a7b8780f87cf578d995",
+        "folder": "performance-current-02"
+      }
+    },
+    "runs_per_variant": 2,
+    "measured_frames": 6720,
+    "warmup_frames": 560,
+    "cases": [
+      {
+        "case": "property-value-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12108.5,
+            "p95_us": 16054.95,
+            "p99_us": 17232.7
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6977.0,
+            "p95_us": 9429.5,
+            "p99_us": 10551.59
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7964.0,
+            "p95_us": 10895.4,
+            "p99_us": 11973.980000000001
+          },
+          "ui_run_medians": [
+            12920.0,
+            11483.0
+          ],
+          "ui_thread_cpu_mean_us": 11848.958333333334,
+          "ui_thread_cycle_mean": 29267914.016666666,
+          "ui_thread_cpu_run_means_us": [
+            12760.416666666666,
+            10937.5
+          ],
+          "ui_thread_cycle_run_means": [
+            31001935.633333333,
+            27533892.4
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13594.0,
+            "p95_us": 17727.5,
+            "p99_us": 19579.64
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6583.5,
+            "p95_us": 10231.1,
+            "p99_us": 10518.86
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7905.5,
+            "p95_us": 11631.449999999999,
+            "p99_us": 12137.77
+          },
+          "ui_run_medians": [
+            16436.5,
+            9156.0
+          ],
+          "ui_thread_cpu_mean_us": 12369.791666666666,
+          "ui_thread_cycle_mean": 30452855.791666668,
+          "ui_thread_cpu_run_means_us": [
+            15885.416666666666,
+            8854.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            39070240.7,
+            21835470.883333333
+          ]
+        },
+        "ui_p50_delta_us": 1485.5,
+        "ui_p50_delta_percent": 12.268241318082328,
+        "ui_thread_cpu_mean_us_delta_percent": 4.39560439560438,
+        "ui_thread_cycle_mean_delta_percent": 4.048603444458787
+      },
+      {
+        "case": "property-value-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14771.0,
+            "p95_us": 18263.649999999998,
+            "p99_us": 18729.77
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9138.5,
+            "p95_us": 15025.0,
+            "p99_us": 15976.51
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10232.0,
+            "p95_us": 16565.35,
+            "p99_us": 17713.2
+          },
+          "ui_run_medians": [
+            16617.0,
+            9360.0
+          ],
+          "ui_thread_cpu_mean_us": 13020.833333333334,
+          "ui_thread_cycle_mean": 30900541.891666666,
+          "ui_thread_cpu_run_means_us": [
+            17187.5,
+            8854.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            39400099.3,
+            22400984.483333334
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 10376.5,
+            "p95_us": 14003.0,
+            "p99_us": 14561.12
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8041.0,
+            "p95_us": 11661.1,
+            "p99_us": 13107.810000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8715.0,
+            "p95_us": 12460.8,
+            "p99_us": 14021.7
+          },
+          "ui_run_medians": [
+            12221.5,
+            9381.5
+          ],
+          "ui_thread_cpu_mean_us": 10286.458333333334,
+          "ui_thread_cycle_mean": 25690074.341666665,
+          "ui_thread_cpu_run_means_us": [
+            11458.333333333334,
+            9114.583333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            29042602.75,
+            22337545.933333334
+          ]
+        },
+        "ui_p50_delta_us": -4394.5,
+        "ui_p50_delta_percent": -29.750863177848487,
+        "ui_thread_cpu_mean_us_delta_percent": -20.999999999999996,
+        "ui_thread_cycle_mean_delta_percent": -16.86205882171009
+      },
+      {
+        "case": "property-value-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13188.0,
+            "p95_us": 16828.8,
+            "p99_us": 17820.910000000003
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7532.5,
+            "p95_us": 9659.099999999999,
+            "p99_us": 10872.370000000003
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8657.5,
+            "p95_us": 10917.2,
+            "p99_us": 11793.68
+          },
+          "ui_run_medians": [
+            14154.0,
+            11833.5
+          ],
+          "ui_thread_cpu_mean_us": 12890.625,
+          "ui_thread_cycle_mean": 30901045.725,
+          "ui_thread_cpu_run_means_us": [
+            14843.75,
+            10937.5
+          ],
+          "ui_thread_cycle_run_means": [
+            33903058.516666666,
+            27899032.933333334
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 10368.0,
+            "p95_us": 12217.9,
+            "p99_us": 13566.67
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 5308.5,
+            "p95_us": 7369.4,
+            "p99_us": 7663.86
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 6429.5,
+            "p95_us": 8617.4,
+            "p99_us": 9104.33
+          },
+          "ui_run_medians": [
+            11158.0,
+            9477.5
+          ],
+          "ui_thread_cpu_mean_us": 9895.833333333334,
+          "ui_thread_cycle_mean": 24594436.366666667,
+          "ui_thread_cpu_run_means_us": [
+            10677.083333333334,
+            9114.583333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            26595122.583333332,
+            22593750.15
+          ]
+        },
+        "ui_p50_delta_us": -2820.0,
+        "ui_p50_delta_percent": -21.383075523202912,
+        "ui_thread_cpu_mean_us_delta_percent": -23.232323232323225,
+        "ui_thread_cycle_mean_delta_percent": -20.409048335963178
+      },
+      {
+        "case": "property-value-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 10245.5,
+            "p95_us": 12444.1,
+            "p99_us": 13803.87
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8238.0,
+            "p95_us": 10347.699999999999,
+            "p99_us": 11106.61
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9065.5,
+            "p95_us": 11729.3,
+            "p99_us": 12409.960000000001
+          },
+          "ui_run_medians": [
+            9802.0,
+            11118.5
+          ],
+          "ui_thread_cpu_mean_us": 9635.416666666666,
+          "ui_thread_cycle_mean": 24900980.1,
+          "ui_thread_cpu_run_means_us": [
+            9114.583333333334,
+            10156.25
+          ],
+          "ui_thread_cycle_run_means": [
+            23289067.566666666,
+            26512892.633333333
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 9865.5,
+            "p95_us": 12944.099999999999,
+            "p99_us": 13647.62
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7325.5,
+            "p95_us": 10722.399999999998,
+            "p99_us": 11879.86
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8168.5,
+            "p95_us": 12331.2,
+            "p99_us": 12713.39
+          },
+          "ui_run_medians": [
+            10284.5,
+            9495.5
+          ],
+          "ui_thread_cpu_mean_us": 9244.791666666666,
+          "ui_thread_cycle_mean": 24212337.425,
+          "ui_thread_cpu_run_means_us": [
+            9635.416666666666,
+            8854.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            25966114.75,
+            22458560.1
+          ]
+        },
+        "ui_p50_delta_us": -380.0,
+        "ui_p50_delta_percent": -3.708945390659313,
+        "ui_thread_cpu_mean_us_delta_percent": -4.054054054054057,
+        "ui_thread_cycle_mean_delta_percent": -2.7655243778938687
+      },
+      {
+        "case": "property-speed-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11397.0,
+            "p95_us": 13265.7,
+            "p99_us": 13570.91
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6669.5,
+            "p95_us": 8536.9,
+            "p99_us": 9185.61
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7603.5,
+            "p95_us": 9649.099999999999,
+            "p99_us": 10757.570000000002
+          },
+          "ui_run_medians": [
+            10459.5,
+            12767.0
+          ],
+          "ui_thread_cpu_mean_us": 10807.291666666666,
+          "ui_thread_cycle_mean": 27448495.6,
+          "ui_thread_cpu_run_means_us": [
+            9635.416666666666,
+            11979.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            24993466.633333333,
+            29903524.566666666
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11450.0,
+            "p95_us": 12964.1,
+            "p99_us": 14542.290000000003
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6593.0,
+            "p95_us": 8256.6,
+            "p99_us": 8806.23
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7656.0,
+            "p95_us": 9540.05,
+            "p99_us": 10444.09
+          },
+          "ui_run_medians": [
+            12358.5,
+            10415.5
+          ],
+          "ui_thread_cpu_mean_us": 11067.708333333334,
+          "ui_thread_cycle_mean": 26923873.275,
+          "ui_thread_cpu_run_means_us": [
+            12239.583333333334,
+            9895.833333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            29312353.3,
+            24535393.25
+          ]
+        },
+        "ui_p50_delta_us": 53.0,
+        "ui_p50_delta_percent": 0.46503465824339063,
+        "ui_thread_cpu_mean_us_delta_percent": 2.4096385542168752,
+        "ui_thread_cycle_mean_delta_percent": -1.9112971896354192
+      },
+      {
+        "case": "property-speed-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15836.5,
+            "p95_us": 21035.5,
+            "p99_us": 22096.600000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 12620.5,
+            "p95_us": 16214.5,
+            "p99_us": 16856.82
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 13783.0,
+            "p95_us": 17609.7,
+            "p99_us": 18232.57
+          },
+          "ui_run_medians": [
+            11782.5,
+            18363.0
+          ],
+          "ui_thread_cpu_mean_us": 14583.333333333334,
+          "ui_thread_cycle_mean": 36256979.916666664,
+          "ui_thread_cpu_run_means_us": [
+            11458.333333333334,
+            17708.333333333332
+          ],
+          "ui_thread_cycle_run_means": [
+            29455610.75,
+            43058349.083333336
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13538.5,
+            "p95_us": 19931.7,
+            "p99_us": 20484.98
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 10038.0,
+            "p95_us": 15537.95,
+            "p99_us": 15856.18
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10872.0,
+            "p95_us": 17093.45,
+            "p99_us": 17801.51
+          },
+          "ui_run_medians": [
+            18159.0,
+            9063.0
+          ],
+          "ui_thread_cpu_mean_us": 13671.875,
+          "ui_thread_cycle_mean": 31899994.283333335,
+          "ui_thread_cpu_run_means_us": [
+            17968.75,
+            9375.0
+          ],
+          "ui_thread_cycle_run_means": [
+            42397857.45,
+            21402131.116666667
+          ]
+        },
+        "ui_p50_delta_us": -2298.0,
+        "ui_p50_delta_percent": -14.51078205411549,
+        "ui_thread_cpu_mean_us_delta_percent": -6.25,
+        "ui_thread_cycle_mean_delta_percent": -12.016956854507633
+      },
+      {
+        "case": "property-speed-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14617.5,
+            "p95_us": 18377.65,
+            "p99_us": 19917.49
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7833.5,
+            "p95_us": 10959.55,
+            "p99_us": 11935.49
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9143.5,
+            "p95_us": 12455.65,
+            "p99_us": 14278.550000000003
+          },
+          "ui_run_medians": [
+            11555.0,
+            16742.5
+          ],
+          "ui_thread_cpu_mean_us": 13411.458333333334,
+          "ui_thread_cycle_mean": 33524344.366666667,
+          "ui_thread_cpu_run_means_us": [
+            11979.166666666666,
+            14843.75
+          ],
+          "ui_thread_cycle_run_means": [
+            27365102.883333333,
+            39683585.85
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11665.5,
+            "p95_us": 16671.55,
+            "p99_us": 16925.65
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6301.0,
+            "p95_us": 9667.7,
+            "p99_us": 10444.570000000002
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7590.0,
+            "p95_us": 10912.8,
+            "p99_us": 11441.86
+          },
+          "ui_run_medians": [
+            14788.5,
+            9806.0
+          ],
+          "ui_thread_cpu_mean_us": 11979.166666666666,
+          "ui_thread_cycle_mean": 28930661.525,
+          "ui_thread_cpu_run_means_us": [
+            13802.083333333334,
+            10156.25
+          ],
+          "ui_thread_cycle_run_means": [
+            34195923.45,
+            23665399.6
+          ]
+        },
+        "ui_p50_delta_us": -2952.0,
+        "ui_p50_delta_percent": -20.194971780400206,
+        "ui_thread_cpu_mean_us_delta_percent": -10.679611650485443,
+        "ui_thread_cycle_mean_delta_percent": -13.702528501151479
+      },
+      {
+        "case": "property-speed-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 10634.5,
+            "p95_us": 12301.1,
+            "p99_us": 12943.98
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8038.0,
+            "p95_us": 10620.699999999999,
+            "p99_us": 11475.69
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9099.0,
+            "p95_us": 11856.25,
+            "p99_us": 12499.890000000001
+          },
+          "ui_run_medians": [
+            10171.0,
+            10965.0
+          ],
+          "ui_thread_cpu_mean_us": 11197.916666666666,
+          "ui_thread_cycle_mean": 25309607.766666666,
+          "ui_thread_cpu_run_means_us": [
+            11458.333333333334,
+            10937.5
+          ],
+          "ui_thread_cycle_run_means": [
+            24601447.1,
+            26017768.433333334
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 10455.5,
+            "p95_us": 14473.75,
+            "p99_us": 16560.080000000005
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7707.5,
+            "p95_us": 11314.949999999999,
+            "p99_us": 12656.050000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8644.5,
+            "p95_us": 12901.95,
+            "p99_us": 13980.51
+          },
+          "ui_run_medians": [
+            12716.5,
+            8783.0
+          ],
+          "ui_thread_cpu_mean_us": 10677.083333333334,
+          "ui_thread_cycle_mean": 25718808.225,
+          "ui_thread_cpu_run_means_us": [
+            12500.0,
+            8854.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            30284912.766666666,
+            21152703.683333334
+          ]
+        },
+        "ui_p50_delta_us": -179.0,
+        "ui_p50_delta_percent": -1.6832009027222705,
+        "ui_thread_cpu_mean_us_delta_percent": -4.6511627906976605,
+        "ui_thread_cycle_mean_delta_percent": 1.6167791382064145
+      },
+      {
+        "case": "effect-value-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13689.0,
+            "p95_us": 16205.8,
+            "p99_us": 17024.0
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6381.0,
+            "p95_us": 7969.15,
+            "p99_us": 8892.83
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7451.5,
+            "p95_us": 9227.75,
+            "p99_us": 10494.920000000002
+          },
+          "ui_run_medians": [
+            13594.0,
+            13814.0
+          ],
+          "ui_thread_cpu_mean_us": 12760.416666666666,
+          "ui_thread_cycle_mean": 32731031.866666667,
+          "ui_thread_cpu_run_means_us": [
+            12239.583333333334,
+            13281.25
+          ],
+          "ui_thread_cycle_run_means": [
+            32412794.666666668,
+            33049269.066666666
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15792.0,
+            "p95_us": 24587.95,
+            "p99_us": 25174.3
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6373.0,
+            "p95_us": 11582.6,
+            "p99_us": 11949.85
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7840.0,
+            "p95_us": 12793.7,
+            "p99_us": 13537.45
+          },
+          "ui_run_medians": [
+            22339.5,
+            12087.0
+          ],
+          "ui_thread_cpu_mean_us": 16276.041666666666,
+          "ui_thread_cycle_mean": 40213681.78333333,
+          "ui_thread_cpu_run_means_us": [
+            20312.5,
+            12239.583333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            51158781.983333334,
+            29268581.583333332
+          ]
+        },
+        "ui_p50_delta_us": 2103.0,
+        "ui_p50_delta_percent": 15.362699978084592,
+        "ui_thread_cpu_mean_us_delta_percent": 27.55102040816326,
+        "ui_thread_cycle_mean_delta_percent": 22.861026646358205
+      },
+      {
+        "case": "effect-value-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14060.5,
+            "p95_us": 17526.3,
+            "p99_us": 23219.54
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8899.5,
+            "p95_us": 11694.249999999993,
+            "p99_us": 15814.930000000002
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10138.5,
+            "p95_us": 12875.099999999993,
+            "p99_us": 17035.33
+          },
+          "ui_run_medians": [
+            14039.5,
+            14072.5
+          ],
+          "ui_thread_cpu_mean_us": 14192.708333333334,
+          "ui_thread_cycle_mean": 34335417.00833333,
+          "ui_thread_cpu_run_means_us": [
+            13802.083333333334,
+            14583.333333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            35170876.833333336,
+            33499957.183333334
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13521.5,
+            "p95_us": 18869.75,
+            "p99_us": 19498.920000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7340.0,
+            "p95_us": 12137.6,
+            "p99_us": 12965.970000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8566.0,
+            "p95_us": 13229.25,
+            "p99_us": 14342.54
+          },
+          "ui_run_medians": [
+            15900.0,
+            11630.0
+          ],
+          "ui_thread_cpu_mean_us": 12760.416666666666,
+          "ui_thread_cycle_mean": 32908009.483333334,
+          "ui_thread_cpu_run_means_us": [
+            14843.75,
+            10677.083333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            37920014.0,
+            27896004.966666665
+          ]
+        },
+        "ui_p50_delta_us": -539.0,
+        "ui_p50_delta_percent": -3.8334340884036866,
+        "ui_thread_cpu_mean_us_delta_percent": -10.091743119266061,
+        "ui_thread_cycle_mean_delta_percent": -4.157245344227389
+      },
+      {
+        "case": "effect-value-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 21655.5,
+            "p95_us": 24458.4,
+            "p99_us": 25807.78
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9857.0,
+            "p95_us": 11633.6,
+            "p99_us": 11982.16
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10766.5,
+            "p95_us": 12854.449999999999,
+            "p99_us": 13315.83
+          },
+          "ui_run_medians": [
+            21737.5,
+            21481.0
+          ],
+          "ui_thread_cpu_mean_us": 20182.291666666668,
+          "ui_thread_cycle_mean": 48278603.266666666,
+          "ui_thread_cpu_run_means_us": [
+            21093.75,
+            19270.833333333332
+          ],
+          "ui_thread_cycle_run_means": [
+            50866566.53333333,
+            45690640.0
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14449.5,
+            "p95_us": 16697.25,
+            "p99_us": 17502.940000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 5618.5,
+            "p95_us": 7695.6,
+            "p99_us": 8041.370000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 6546.5,
+            "p95_us": 8973.35,
+            "p99_us": 9674.710000000001
+          },
+          "ui_run_medians": [
+            14714.0,
+            13328.5
+          ],
+          "ui_thread_cpu_mean_us": 13671.875,
+          "ui_thread_cycle_mean": 33790904.108333334,
+          "ui_thread_cpu_run_means_us": [
+            14062.5,
+            13281.25
+          ],
+          "ui_thread_cycle_run_means": [
+            35291028.56666667,
+            32290779.65
+          ]
+        },
+        "ui_p50_delta_us": -7206.0,
+        "ui_p50_delta_percent": -33.27561127658101,
+        "ui_thread_cpu_mean_us_delta_percent": -32.25806451612904,
+        "ui_thread_cycle_mean_delta_percent": -30.00853002791026
+      },
+      {
+        "case": "effect-value-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 19916.0,
+            "p95_us": 25181.05,
+            "p99_us": 27594.65
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 12175.5,
+            "p95_us": 16082.4,
+            "p99_us": 17863.14
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 13249.0,
+            "p95_us": 17199.5,
+            "p99_us": 20012.160000000003
+          },
+          "ui_run_medians": [
+            17854.5,
+            22404.0
+          ],
+          "ui_thread_cpu_mean_us": 19791.666666666668,
+          "ui_thread_cycle_mean": 48026261.766666666,
+          "ui_thread_cpu_run_means_us": [
+            17447.916666666668,
+            22135.416666666668
+          ],
+          "ui_thread_cycle_run_means": [
+            42780716.11666667,
+            53271807.416666664
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14584.0,
+            "p95_us": 16992.95,
+            "p99_us": 18604.16
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8293.0,
+            "p95_us": 10953.6,
+            "p99_us": 11452.210000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9378.5,
+            "p95_us": 12148.3,
+            "p99_us": 12671.91
+          },
+          "ui_run_medians": [
+            14806.0,
+            14119.0
+          ],
+          "ui_thread_cpu_mean_us": 14843.75,
+          "ui_thread_cycle_mean": 34759032.34166667,
+          "ui_thread_cpu_run_means_us": [
+            16145.833333333334,
+            13541.666666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            35912571.25,
+            33605493.43333333
+          ]
+        },
+        "ui_p50_delta_us": -5332.0,
+        "ui_p50_delta_percent": -26.77244426591685,
+        "ui_thread_cpu_mean_us_delta_percent": -25.0,
+        "ui_thread_cycle_mean_delta_percent": -27.624947137168842
+      },
+      {
+        "case": "effect-speed-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 17398.0,
+            "p95_us": 24187.399999999998,
+            "p99_us": 25904.030000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7982.5,
+            "p95_us": 11460.699999999999,
+            "p99_us": 12208.210000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9091.5,
+            "p95_us": 12680.15,
+            "p99_us": 13642.990000000002
+          },
+          "ui_run_medians": [
+            15693.5,
+            19940.5
+          ],
+          "ui_thread_cpu_mean_us": 16666.666666666668,
+          "ui_thread_cycle_mean": 42645379.4,
+          "ui_thread_cpu_run_means_us": [
+            15364.583333333334,
+            17968.75
+          ],
+          "ui_thread_cycle_run_means": [
+            37088999.0,
+            48201759.8
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15470.5,
+            "p95_us": 19427.899999999998,
+            "p99_us": 21417.22
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6098.0,
+            "p95_us": 8983.15,
+            "p99_us": 9348.0
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7522.0,
+            "p95_us": 9947.6,
+            "p99_us": 10823.050000000001
+          },
+          "ui_run_medians": [
+            17534.0,
+            14322.5
+          ],
+          "ui_thread_cpu_mean_us": 14843.75,
+          "ui_thread_cycle_mean": 37201127.90833333,
+          "ui_thread_cpu_run_means_us": [
+            15364.583333333334,
+            14322.916666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            40568940.266666666,
+            33833315.55
+          ]
+        },
+        "ui_p50_delta_us": -1927.5,
+        "ui_p50_delta_percent": -11.078859639038974,
+        "ui_thread_cpu_mean_us_delta_percent": -10.93750000000001,
+        "ui_thread_cycle_mean_delta_percent": -12.766333816851139
+      },
+      {
+        "case": "effect-speed-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15818.5,
+            "p95_us": 20446.25,
+            "p99_us": 23211.840000000004
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 10149.5,
+            "p95_us": 13732.699999999999,
+            "p99_us": 14338.87
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 11095.5,
+            "p95_us": 14989.15,
+            "p99_us": 15586.48
+          },
+          "ui_run_medians": [
+            14684.5,
+            17742.5
+          ],
+          "ui_thread_cpu_mean_us": 16536.458333333332,
+          "ui_thread_cycle_mean": 38746542.208333336,
+          "ui_thread_cpu_run_means_us": [
+            15364.583333333334,
+            17708.333333333332
+          ],
+          "ui_thread_cycle_run_means": [
+            34985585.86666667,
+            42507498.55
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15014.0,
+            "p95_us": 17158.25,
+            "p99_us": 18325.83
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8373.0,
+            "p95_us": 11418.25,
+            "p99_us": 12533.710000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9698.5,
+            "p95_us": 12759.3,
+            "p99_us": 13506.89
+          },
+          "ui_run_medians": [
+            15828.5,
+            13759.5
+          ],
+          "ui_thread_cpu_mean_us": 14322.916666666666,
+          "ui_thread_cycle_mean": 35399408.375,
+          "ui_thread_cpu_run_means_us": [
+            15364.583333333334,
+            13281.25
+          ],
+          "ui_thread_cycle_run_means": [
+            37612434.36666667,
+            33186382.383333333
+          ]
+        },
+        "ui_p50_delta_us": -804.5,
+        "ui_p50_delta_percent": -5.08581723930841,
+        "ui_thread_cpu_mean_us_delta_percent": -13.38582677165354,
+        "ui_thread_cycle_mean_delta_percent": -8.638535576507412
+      },
+      {
+        "case": "effect-speed-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 16272.5,
+            "p95_us": 21862.949999999997,
+            "p99_us": 23127.25
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7626.0,
+            "p95_us": 10109.599999999999,
+            "p99_us": 10854.14
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8819.0,
+            "p95_us": 11420.85,
+            "p99_us": 12367.310000000001
+          },
+          "ui_run_medians": [
+            16652.0,
+            15102.5
+          ],
+          "ui_thread_cpu_mean_us": 16015.625,
+          "ui_thread_cycle_mean": 39732925.3,
+          "ui_thread_cpu_run_means_us": [
+            15885.416666666666,
+            16145.833333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            39384673.55,
+            40081177.05
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15157.0,
+            "p95_us": 17862.15,
+            "p99_us": 18709.94
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6076.0,
+            "p95_us": 8096.95,
+            "p99_us": 10126.410000000003
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7433.5,
+            "p95_us": 9360.949999999999,
+            "p99_us": 11382.410000000003
+          },
+          "ui_run_medians": [
+            15565.0,
+            14563.5
+          ],
+          "ui_thread_cpu_mean_us": 14713.541666666666,
+          "ui_thread_cycle_mean": 35838275.15833333,
+          "ui_thread_cpu_run_means_us": [
+            15625.0,
+            13802.083333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            37217056.733333334,
+            34459493.583333336
+          ]
+        },
+        "ui_p50_delta_us": -1115.5,
+        "ui_p50_delta_percent": -6.855123674911656,
+        "ui_thread_cpu_mean_us_delta_percent": -8.130081300813007,
+        "ui_thread_cycle_mean_delta_percent": -9.80207249343069
+      },
+      {
+        "case": "effect-speed-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 17730.5,
+            "p95_us": 21008.9,
+            "p99_us": 21635.71
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 11176.0,
+            "p95_us": 13495.25,
+            "p99_us": 14131.89
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 12338.0,
+            "p95_us": 14472.0,
+            "p99_us": 15489.720000000001
+          },
+          "ui_run_medians": [
+            17401.0,
+            18215.5
+          ],
+          "ui_thread_cpu_mean_us": 16666.666666666668,
+          "ui_thread_cycle_mean": 42166397.34166667,
+          "ui_thread_cpu_run_means_us": [
+            16927.083333333332,
+            16406.25
+          ],
+          "ui_thread_cycle_run_means": [
+            40787271.13333333,
+            43545523.55
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15545.5,
+            "p95_us": 18100.2,
+            "p99_us": 21232.870000000003
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8893.0,
+            "p95_us": 11266.85,
+            "p99_us": 13042.66
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9781.0,
+            "p95_us": 12564.1,
+            "p99_us": 13695.17
+          },
+          "ui_run_medians": [
+            16224.5,
+            14678.0
+          ],
+          "ui_thread_cpu_mean_us": 14713.541666666666,
+          "ui_thread_cycle_mean": 36801373.791666664,
+          "ui_thread_cpu_run_means_us": [
+            15625.0,
+            13802.083333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            38685937.983333334,
+            34916809.6
+          ]
+        },
+        "ui_p50_delta_us": -2185.0,
+        "ui_p50_delta_percent": -12.32339753532049,
+        "ui_thread_cpu_mean_us_delta_percent": -11.71875000000001,
+        "ui_thread_cycle_mean_delta_percent": -12.723457274588078
+      },
+      {
+        "case": "comparison-value-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12969.5,
+            "p95_us": 16701.85,
+            "p99_us": 17527.02
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7615.5,
+            "p95_us": 10491.75,
+            "p99_us": 11070.19
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8962.0,
+            "p95_us": 11402.449999999999,
+            "p99_us": 12495.92
+          },
+          "ui_run_medians": [
+            13099.5,
+            12717.0
+          ],
+          "ui_thread_cpu_mean_us": 12109.375,
+          "ui_thread_cycle_mean": 31828787.183333334,
+          "ui_thread_cpu_run_means_us": [
+            11197.916666666666,
+            13020.833333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            31619737.2,
+            32037837.166666668
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11899.5,
+            "p95_us": 14842.15,
+            "p99_us": 15722.43
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6472.0,
+            "p95_us": 9472.85,
+            "p99_us": 10102.11
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7632.0,
+            "p95_us": 10583.6,
+            "p99_us": 11174.83
+          },
+          "ui_run_medians": [
+            13568.0,
+            11283.5
+          ],
+          "ui_thread_cpu_mean_us": 12109.375,
+          "ui_thread_cycle_mean": 29042072.533333335,
+          "ui_thread_cpu_run_means_us": [
+            12760.416666666666,
+            11458.333333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            30851910.033333335,
+            27232235.033333335
+          ]
+        },
+        "ui_p50_delta_us": -1070.0,
+        "ui_p50_delta_percent": -8.250125293958899,
+        "ui_thread_cpu_mean_us_delta_percent": 0.0,
+        "ui_thread_cycle_mean_delta_percent": -8.755327791626378
+      },
+      {
+        "case": "comparison-value-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12364.0,
+            "p95_us": 13992.6,
+            "p99_us": 14417.39
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9674.5,
+            "p95_us": 12013.85,
+            "p99_us": 13004.51
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10654.0,
+            "p95_us": 12986.999999999998,
+            "p99_us": 14589.06
+          },
+          "ui_run_medians": [
+            12425.5,
+            11960.0
+          ],
+          "ui_thread_cpu_mean_us": 10937.5,
+          "ui_thread_cycle_mean": 29052183.933333334,
+          "ui_thread_cpu_run_means_us": [
+            9635.416666666666,
+            12239.583333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            29427667.316666666,
+            28676700.55
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 15393.5,
+            "p95_us": 20686.15,
+            "p99_us": 21546.3
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 12407.5,
+            "p95_us": 16548.649999999998,
+            "p99_us": 17633.22
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 13719.0,
+            "p95_us": 17783.3,
+            "p99_us": 18959.62
+          },
+          "ui_run_medians": [
+            18469.0,
+            12651.0
+          ],
+          "ui_thread_cpu_mean_us": 15755.208333333334,
+          "ui_thread_cycle_mean": 37126743.7,
+          "ui_thread_cpu_run_means_us": [
+            18750.0,
+            12760.416666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            43585675.083333336,
+            30667812.316666666
+          ]
+        },
+        "ui_p50_delta_us": 3029.5,
+        "ui_p50_delta_percent": 24.50258815917179,
+        "ui_thread_cpu_mean_us_delta_percent": 44.047619047619044,
+        "ui_thread_cycle_mean_delta_percent": 27.79329700374862
+      },
+      {
+        "case": "comparison-value-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12337.5,
+            "p95_us": 16332.5,
+            "p99_us": 17311.530000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7484.5,
+            "p95_us": 10278.4,
+            "p99_us": 10760.11
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 8359.5,
+            "p95_us": 11232.1,
+            "p99_us": 12330.87
+          },
+          "ui_run_medians": [
+            12760.0,
+            11853.5
+          ],
+          "ui_thread_cpu_mean_us": 12239.583333333334,
+          "ui_thread_cycle_mean": 30174815.675,
+          "ui_thread_cpu_run_means_us": [
+            13020.833333333334,
+            11458.333333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            31773714.1,
+            28575917.25
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13481.0,
+            "p95_us": 19154.1,
+            "p99_us": 20851.12
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8110.5,
+            "p95_us": 11611.15,
+            "p99_us": 12461.310000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9184.0,
+            "p95_us": 12857.199999999999,
+            "p99_us": 14122.68
+          },
+          "ui_run_medians": [
+            15869.0,
+            12188.5
+          ],
+          "ui_thread_cpu_mean_us": 14322.916666666666,
+          "ui_thread_cycle_mean": 33935848.6,
+          "ui_thread_cpu_run_means_us": [
+            16666.666666666668,
+            11979.166666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            38917827.18333333,
+            28953870.016666666
+          ]
+        },
+        "ui_p50_delta_us": 1143.5,
+        "ui_p50_delta_percent": 9.268490374873362,
+        "ui_thread_cpu_mean_us_delta_percent": 17.02127659574466,
+        "ui_thread_cycle_mean_delta_percent": 12.464145483135592
+      },
+      {
+        "case": "comparison-value-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12372.0,
+            "p95_us": 14954.3,
+            "p99_us": 15938.060000000001
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8595.0,
+            "p95_us": 12966.5,
+            "p99_us": 14110.140000000003
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9584.0,
+            "p95_us": 13719.9,
+            "p99_us": 15358.230000000001
+          },
+          "ui_run_medians": [
+            12967.5,
+            11752.0
+          ],
+          "ui_thread_cpu_mean_us": 12500.0,
+          "ui_thread_cycle_mean": 29360447.2,
+          "ui_thread_cpu_run_means_us": [
+            13802.083333333334,
+            11197.916666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            30662397.3,
+            28058497.1
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 12181.0,
+            "p95_us": 14907.05,
+            "p99_us": 16141.210000000001
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9536.5,
+            "p95_us": 11674.65,
+            "p99_us": 12222.720000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10638.0,
+            "p95_us": 12823.449999999999,
+            "p99_us": 13849.11
+          },
+          "ui_run_medians": [
+            11059.0,
+            13439.5
+          ],
+          "ui_thread_cpu_mean_us": 11588.541666666666,
+          "ui_thread_cycle_mean": 29243784.566666666,
+          "ui_thread_cpu_run_means_us": [
+            9635.416666666666,
+            13541.666666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            26787945.083333332,
+            31699624.05
+          ]
+        },
+        "ui_p50_delta_us": -191.0,
+        "ui_p50_delta_percent": -1.5438086000646667,
+        "ui_thread_cpu_mean_us_delta_percent": -7.291666666666674,
+        "ui_thread_cycle_mean_delta_percent": -0.3973462411476225
+      },
+      {
+        "case": "comparison-speed-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14185.0,
+            "p95_us": 17052.3,
+            "p99_us": 18981.31
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 8611.5,
+            "p95_us": 10877.75,
+            "p99_us": 12085.74
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9460.5,
+            "p95_us": 12599.4,
+            "p99_us": 13611.970000000003
+          },
+          "ui_run_medians": [
+            13819.0,
+            14864.0
+          ],
+          "ui_thread_cpu_mean_us": 13802.083333333334,
+          "ui_thread_cycle_mean": 33981418.916666664,
+          "ui_thread_cpu_run_means_us": [
+            14062.5,
+            13541.666666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            32388567.55,
+            35574270.28333333
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 14008.0,
+            "p95_us": 20497.399999999998,
+            "p99_us": 21543.13
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7994.5,
+            "p95_us": 11982.85,
+            "p99_us": 12849.79
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 9154.0,
+            "p95_us": 13130.3,
+            "p99_us": 14136.32
+          },
+          "ui_run_medians": [
+            12480.5,
+            16119.5
+          ],
+          "ui_thread_cpu_mean_us": 14192.708333333334,
+          "ui_thread_cycle_mean": 34795452.43333333,
+          "ui_thread_cpu_run_means_us": [
+            11458.333333333334,
+            16927.083333333332
+          ],
+          "ui_thread_cycle_run_means": [
+            29394216.166666668,
+            40196688.7
+          ]
+        },
+        "ui_p50_delta_us": -177.0,
+        "ui_p50_delta_percent": -1.2477969686288337,
+        "ui_thread_cpu_mean_us_delta_percent": 2.8301886792452935,
+        "ui_thread_cycle_mean_delta_percent": 2.39552538598502
+      },
+      {
+        "case": "comparison-speed-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13260.5,
+            "p95_us": 20974.85,
+            "p99_us": 21873.72
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 10197.0,
+            "p95_us": 17635.1,
+            "p99_us": 18390.59
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 11089.5,
+            "p95_us": 18898.8,
+            "p99_us": 20372.97
+          },
+          "ui_run_medians": [
+            12388.5,
+            15943.5
+          ],
+          "ui_thread_cpu_mean_us": 14973.958333333334,
+          "ui_thread_cycle_mean": 34602666.291666664,
+          "ui_thread_cpu_run_means_us": [
+            12239.583333333334,
+            17708.333333333332
+          ],
+          "ui_thread_cycle_run_means": [
+            29477768.816666666,
+            39727563.766666666
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 13099.5,
+            "p95_us": 15454.5,
+            "p99_us": 16390.45
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 10139.0,
+            "p95_us": 12648.4,
+            "p99_us": 13068.4
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 11162.0,
+            "p95_us": 13769.35,
+            "p99_us": 14751.860000000002
+          },
+          "ui_run_medians": [
+            11192.0,
+            14081.5
+          ],
+          "ui_thread_cpu_mean_us": 13020.833333333334,
+          "ui_thread_cycle_mean": 30564097.391666666,
+          "ui_thread_cpu_run_means_us": [
+            11979.166666666666,
+            14062.5
+          ],
+          "ui_thread_cycle_run_means": [
+            27247475.066666666,
+            33880719.71666667
+          ]
+        },
+        "ui_p50_delta_us": -161.0,
+        "ui_p50_delta_percent": -1.2141321971268049,
+        "ui_thread_cpu_mean_us_delta_percent": -13.043478260869568,
+        "ui_thread_cycle_mean_delta_percent": -11.671265057897006
+      },
+      {
+        "case": "comparison-speed-x128-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 16310.5,
+            "p95_us": 19703.75,
+            "p99_us": 21172.530000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9955.5,
+            "p95_us": 12375.5,
+            "p99_us": 12906.28
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10928.0,
+            "p95_us": 13856.449999999999,
+            "p99_us": 15143.380000000001
+          },
+          "ui_run_medians": [
+            15146.0,
+            18138.5
+          ],
+          "ui_thread_cpu_mean_us": 15234.375,
+          "ui_thread_cycle_mean": 38929990.75,
+          "ui_thread_cpu_run_means_us": [
+            14322.916666666666,
+            16145.833333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            35150000.7,
+            42709980.8
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11475.0,
+            "p95_us": 15742.3,
+            "p99_us": 16887.62
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6871.0,
+            "p95_us": 9476.4,
+            "p99_us": 10248.44
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7692.5,
+            "p95_us": 10775.45,
+            "p99_us": 11510.87
+          },
+          "ui_run_medians": [
+            10843.0,
+            13602.5
+          ],
+          "ui_thread_cpu_mean_us": 11718.75,
+          "ui_thread_cycle_mean": 29052369.475,
+          "ui_thread_cpu_run_means_us": [
+            10416.666666666666,
+            13020.833333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            25966525.833333332,
+            32138213.116666667
+          ]
+        },
+        "ui_p50_delta_us": -4835.5,
+        "ui_p50_delta_percent": -29.646546703044052,
+        "ui_thread_cpu_mean_us_delta_percent": -23.076923076923073,
+        "ui_thread_cycle_mean_delta_percent": -25.37278094524078
+      },
+      {
+        "case": "comparison-speed-x128-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 18438.0,
+            "p95_us": 54007.9,
+            "p99_us": 63641.52000000001
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 12010.5,
+            "p95_us": 26544.649999999998,
+            "p99_us": 29639.2
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 13150.5,
+            "p95_us": 28831.149999999998,
+            "p99_us": 31084.04
+          },
+          "ui_run_medians": [
+            12123.0,
+            26634.5
+          ],
+          "ui_thread_cpu_mean_us": 19401.041666666668,
+          "ui_thread_cycle_mean": 45624533.55833333,
+          "ui_thread_cpu_run_means_us": [
+            12239.583333333334,
+            26562.5
+          ],
+          "ui_thread_cycle_run_means": [
+            28967029.3,
+            62282037.81666667
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 11981.5,
+            "p95_us": 15772.8,
+            "p99_us": 17040.52
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 9346.5,
+            "p95_us": 12101.25,
+            "p99_us": 13191.29
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 10444.0,
+            "p95_us": 13052.15,
+            "p99_us": 14291.89
+          },
+          "ui_run_medians": [
+            10875.0,
+            13199.0
+          ],
+          "ui_thread_cpu_mean_us": 11979.166666666666,
+          "ui_thread_cycle_mean": 29325559.283333335,
+          "ui_thread_cpu_run_means_us": [
+            11197.916666666666,
+            12760.416666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            26686323.333333332,
+            31964795.233333334
+          ]
+        },
+        "ui_p50_delta_us": -6456.5,
+        "ui_p50_delta_percent": -35.017355461546806,
+        "ui_thread_cpu_mean_us_delta_percent": -38.25503355704699,
+        "ui_thread_cycle_mean_delta_percent": -35.72414445434475
+      },
+      {
+        "case": "mini-value-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 9482.5,
+            "p95_us": 12354.4,
+            "p99_us": 15282.200000000006
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 4759.5,
+            "p95_us": 6882.849999999999,
+            "p99_us": 7325.01
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 5957.5,
+            "p95_us": 8122.1,
+            "p99_us": 9455.740000000003
+          },
+          "ui_run_medians": [
+            8547.5,
+            10921.5
+          ],
+          "ui_thread_cpu_mean_us": 8984.375,
+          "ui_thread_cycle_mean": 22680997.641666666,
+          "ui_thread_cpu_run_means_us": [
+            6770.833333333333,
+            11197.916666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            19677907.866666667,
+            25684087.416666668
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8237.0,
+            "p95_us": 10698.5,
+            "p99_us": 11676.330000000002
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 4673.5,
+            "p95_us": 6118.15,
+            "p99_us": 6323.42
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 5881.5,
+            "p95_us": 7616.6,
+            "p99_us": 7772.82
+          },
+          "ui_run_medians": [
+            7593.5,
+            9867.0
+          ],
+          "ui_thread_cpu_mean_us": 7291.666666666667,
+          "ui_thread_cycle_mean": 20537291.616666667,
+          "ui_thread_cpu_run_means_us": [
+            4947.916666666667,
+            9635.416666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            18069885.25,
+            23004697.983333334
+          ]
+        },
+        "ui_p50_delta_us": -1245.5,
+        "ui_p50_delta_percent": -13.134721856050625,
+        "ui_thread_cpu_mean_us_delta_percent": -18.840579710144922,
+        "ui_thread_cycle_mean_delta_percent": -9.45155084828302
+      },
+      {
+        "case": "mini-value-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8321.5,
+            "p95_us": 9649.85,
+            "p99_us": 10188.28
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6120.5,
+            "p95_us": 8026.35,
+            "p99_us": 8772.550000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7234.5,
+            "p95_us": 9313.15,
+            "p99_us": 10008.44
+          },
+          "ui_run_medians": [
+            8059.5,
+            8632.0
+          ],
+          "ui_thread_cpu_mean_us": 8072.916666666667,
+          "ui_thread_cycle_mean": 19908928.508333333,
+          "ui_thread_cpu_run_means_us": [
+            7031.25,
+            9114.583333333334
+          ],
+          "ui_thread_cycle_run_means": [
+            19077786.316666666,
+            20740070.7
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8292.0,
+            "p95_us": 9678.95,
+            "p99_us": 9956.77
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 7120.5,
+            "p95_us": 8731.75,
+            "p99_us": 9820.19
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7882.0,
+            "p95_us": 9716.55,
+            "p99_us": 10703.6
+          },
+          "ui_run_medians": [
+            7865.0,
+            8764.0
+          ],
+          "ui_thread_cpu_mean_us": 8593.75,
+          "ui_thread_cycle_mean": 19819592.833333332,
+          "ui_thread_cpu_run_means_us": [
+            7552.083333333333,
+            9635.416666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            18764941.066666666,
+            20874244.6
+          ]
+        },
+        "ui_p50_delta_us": -29.5,
+        "ui_p50_delta_percent": -0.35450339482064885,
+        "ui_thread_cpu_mean_us_delta_percent": 6.451612903225801,
+        "ui_thread_cycle_mean_delta_percent": -0.44872166255761625
+      },
+      {
+        "case": "mini-speed-x2-static",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8994.5,
+            "p95_us": 12517.6,
+            "p99_us": 15933.780000000006
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 4187.0,
+            "p95_us": 6192.05,
+            "p99_us": 6497.55
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 5052.5,
+            "p95_us": 7606.6,
+            "p99_us": 8045.22
+          },
+          "ui_run_medians": [
+            7377.0,
+            10909.0
+          ],
+          "ui_thread_cpu_mean_us": 8463.541666666666,
+          "ui_thread_cycle_mean": 22066855.941666666,
+          "ui_thread_cpu_run_means_us": [
+            6510.416666666667,
+            10416.666666666666
+          ],
+          "ui_thread_cycle_run_means": [
+            17630514.8,
+            26503197.083333332
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8887.5,
+            "p95_us": 11153.6,
+            "p99_us": 12299.130000000001
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 4864.5,
+            "p95_us": 6064.45,
+            "p99_us": 6941.190000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 5942.5,
+            "p95_us": 7512.9,
+            "p99_us": 7981.79
+          },
+          "ui_run_medians": [
+            8095.0,
+            9625.5
+          ],
+          "ui_thread_cpu_mean_us": 8854.166666666666,
+          "ui_thread_cycle_mean": 21487965.166666668,
+          "ui_thread_cpu_run_means_us": [
+            8333.333333333334,
+            9375.0
+          ],
+          "ui_thread_cycle_run_means": [
+            19580035.45,
+            23395894.883333333
+          ]
+        },
+        "ui_p50_delta_us": -107.0,
+        "ui_p50_delta_percent": -1.189615876368888,
+        "ui_thread_cpu_mean_us_delta_percent": 4.615384615384621,
+        "ui_thread_cycle_mean_delta_percent": -2.623349590581847
+      },
+      {
+        "case": "mini-speed-x2-seek",
+        "baseline": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8651.0,
+            "p95_us": 11878.0,
+            "p99_us": 12238.59
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6024.5,
+            "p95_us": 9555.55,
+            "p99_us": 10158.730000000001
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7185.5,
+            "p95_us": 10808.699999999999,
+            "p99_us": 11120.01
+          },
+          "ui_run_medians": [
+            6825.5,
+            10500.5
+          ],
+          "ui_thread_cpu_mean_us": 8072.916666666667,
+          "ui_thread_cycle_mean": 20727387.133333333,
+          "ui_thread_cpu_run_means_us": [
+            6770.833333333333,
+            9375.0
+          ],
+          "ui_thread_cycle_run_means": [
+            16527660.616666667,
+            24927113.65
+          ]
+        },
+        "current": {
+          "ui": {
+            "samples": 120,
+            "p50_us": 8413.0,
+            "p95_us": 11068.85,
+            "p99_us": 11411.9
+          },
+          "worker": {
+            "samples": 120,
+            "p50_us": 6695.0,
+            "p95_us": 9523.15,
+            "p99_us": 9784.02
+          },
+          "reply": {
+            "samples": 120,
+            "p50_us": 7740.5,
+            "p95_us": 10618.05,
+            "p99_us": 11094.710000000001
+          },
+          "ui_run_medians": [
+            7333.0,
+            9643.5
+          ],
+          "ui_thread_cpu_mean_us": 8854.166666666666,
+          "ui_thread_cycle_mean": 20400886.425,
+          "ui_thread_cpu_run_means_us": [
+            6770.833333333333,
+            10937.5
+          ],
+          "ui_thread_cycle_run_means": [
+            17427911.45,
+            23373861.4
+          ]
+        },
+        "ui_p50_delta_us": -238.0,
+        "ui_p50_delta_percent": -2.7511270373367203,
+        "ui_thread_cpu_mean_us_delta_percent": 9.677419354838701,
+        "ui_thread_cycle_mean_delta_percent": -1.5752140211066967
+      }
+    ],
+    "project_sha256": "2f84079bed87f40430d15d7caabbfd4a4a3d08763823f7421c136d04ca75c0db",
+    "fixture_sha256": "373d492e552d2eb6f97ac962ab8372d0d6e7b432b852eeefd47c4527393fe3d1",
+    "harness_sha256": "b70a7f8dde0f5b02e54416576cdc0e674b01948efbb21d7188e13e4f82a81eec",
+    "all_static_measured_frames_reuse": true,
+    "all_distinct_seek_frames_render": true,
+    "no_new_curve_degradation": true,
+    "limits": "Debug ffmpeg build; fixed1280x800 test layout with small composition viewport and single owned effect layer. Direct seeks, not application playback/input dispatch; Mini default scale only. State observation outside timed UI/Present. Development-machine load/thermals not controlled. Timing differences need interpretation; no shipping FPS or cross-device speedup claim. Final latest-main/native/all-targets/PR acceptance remains separate."
+  },
+  "archive": {
+    "path": "data/curve-review-stage-27.zip",
+    "bytes": 22142671,
+    "entries": 483,
+    "sha256": "d3f7a2ee1f28f72a497517dfbaade1683fb575babed60bce3dea623118510a59"
+  },
+  "remaining": [
+    "Explain paired UI timing differences; do not claim no regression",
+    "Build/current-main329f integration, scoped native and all-target checks",
+    "Full scoped DESIGN12 dispositions and five exact CI-composed-tree gates; no issue259 closure yet"
+  ],
+  "integration_2026_10_28": {
+    "status": "FUNCTIONAL_PASSED_PERFORMANCE_AND_FINAL_MAIN_CI_PENDING",
+    "functional": {
+      "path": "curve-integration-stage-29.zip",
+      "members": 72,
+      "bytes": 611173,
+      "sha256": "6c73079c93ad234ce94f47cfb972aac03945d4597f7eeb1501efbce35cd108c9",
+      "scope": {
+        "head": "1795b50a9375674edb07cb06d6e31903c9f67a12",
+        "binary_sha256": "08b9e8a415c58d6053680ab97287869f96ac98468909a1c3acbf7ff4e055d874",
+        "source_main": "8c271bd361b0ecdd4d57e29d3bfe2d7ecaff5f4f",
+        "portable_passed": 136,
+        "portable_ignored": 1,
+        "actual_fault_sites": 19,
+        "guarded_finite_domain_sites": 1,
+        "native_cases": 32,
+        "generated_images": 160,
+        "images_byte_identical_to_prior_archive": 160,
+        "included_images": 0,
+        "manually_viewed_current_images": [
+          "en-main-property-value-1-locked-menu.png",
+          "zh-main-effect-speed-1.5-readout.png",
+          "en-float-comparison-value-2-locked-menu.png",
+          "zh-float-mini-speed-1-readout.png"
+        ],
+        "limits": "Actual newly executed frozen tests; no reuse of old test outcomes. PNG bytes verified against prior ZIP before deduplication. Four exact window/locale/ratio combinations, not full Cartesian product; no physical OS input or system DPI change. Performance acceptance/all-targets/final current-main CI remain separate."
+      }
+    },
+    "performance": {
+      "path": "curve-panel-profile-stage-29.zip",
+      "members": 56,
+      "bytes": 1684863,
+      "sha256": "90e5d706f2e4f46278203e09bd72392ee956381b9a05b82fbe9d23830cf71d20",
+      "omitted_files": 120
+    },
+    "design_section12_dispositions": "curve-review.md#design-12-范围处置",
+    "whole_product_compliance_claim": false,
+    "latest_main_531_not_yet_integrated": "4eaa2f815470fce4c4fbe6ce5458620317eddb21"
+  },
+  "final_local_2026_10_28": {
+    "status": "LOCAL_SCOPED_ACCEPTANCE_COMPLETE_FINAL_CI_TREE_PENDING",
+    "compiled_head": "12f1322c082d4d6ea31b67c539d1cbbf56db01f1",
+    "source_main": "4eaa2f815470fce4c4fbe6ce5458620317eddb21",
+    "native_and_integration": {
+      "path": "curve-final-native-stage-30.zip",
+      "members": 33,
+      "bytes": 587278,
+      "sha256": "093442ae0254af803b00d6700f3c123f070d1a619e05cb677906035ea084511d",
+      "scope": {
+        "head": "12f1322c082d4d6ea31b67c539d1cbbf56db01f1",
+        "binary_sha256": "216527ed58bc8e1bb35e24d40710d12727fe239bd7cbfa2928d85ca2ac2a6e4c",
+        "source_main": "4eaa2f815470fce4c4fbe6ce5458620317eddb21",
+        "native_cases": 32,
+        "generated_images": 160,
+        "images_byte_identical_to_prior_archive": 160,
+        "included_images": 0,
+        "actual_integration_passed": 20,
+        "existing_unexecuted_project_audio_native_tests": 4,
+        "nine_suite_reference": "curve-integration-stage-29.zip records actual136 cases at1795/main8c; not relabeled as12f cases.",
+        "scope": "Fresh native graph worker/window/input/saved-file acceptance and actual three integration suites/all-targets at recorded source. Original four project/audio native tests remain ignored and are not counted as executed. Performance and final current-main CI are separate records."
+      }
+    },
+    "performance": {
+      "path": "curve-cost-breakdown-stage-30.zip",
+      "members": 56,
+      "bytes": 1765282,
+      "sha256": "097bf5dd4abdfba46e1c70dab9f4ccbf5706ecc8b6b982b07ed64e742c0a93e5",
+      "omitted_files": 120
+    },
+    "performance_conclusion": "Extra Mini glyph/control work and measured adaptive sampling costs explain the main graph/control differences; actual absolute timing, common-control variation and debug/background limits retained. Not a release FPS or global performance equivalence claim.",
+    "whole_product_design_compliance": false
+  }
+}
