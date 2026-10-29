@@ -56,3 +56,9 @@ cargo test -p motion-desktop --bin motion-studio --features ffmpeg,gpu-tests --l
 [机器回执](ui-capture-context-results.json)记录源码/二进制哈希和精确数量；[原始证据包](data/ui-capture-context-evidence.zip)包含启动失败、零用例拒绝、有效负对照、修复后日志/PNG、既有回归及消费者检查。只含本项目自制夹具产生的日志、JSON 和 PNG，无 EXE/DLL/PDB/字体。Linux/macOS 本批仅由 CI 编译验证，未冒称执行 Windows 原生失败用例。
 
 最终 PR CI 仍待验证；合并还要求五项有效检查、Windows 新用例实际执行以及全部 job 的完整代码树与最新 main 组合一致。主分支发布 CI 不在本地通过声明内。
+
+## 后续主线组合重验
+
+后台预渲染合入 `cd49b72d` 后，组合 `3c15df5c` 重新执行新原生用例（13.34 秒）、六项已有回归及 FFmpeg 全目标检查，均通过。视频深度存储再合入 `274577fa` 后，最终组合 `eba16ff5` 又实际通过同一七项测试及全目标检查，新原生用例耗时 9.27 秒。每轮源码全程保持；重复七项不累加为十四项，亦不冒称新的负对照或性能研究。
+
+[当前组合机器回执](ui-capture-context-current-main.json)及[当前组合原始证据](data/ui-capture-context-current-main.zip)保留两轮真实日志、PNG、源码和二进制哈希。最终 head 的文档提交仅添加这些证据，五项最终 CI、Windows 逐项用例及完整组合树仍需单独核验。
