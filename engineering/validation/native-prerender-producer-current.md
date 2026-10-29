@@ -22,6 +22,10 @@ extra nonvisual data may produce a conservative cache miss.
 The output profile is explicitly full-resolution, authored camera, linear
 premultiplied native RGBA at the project's Unorm8, Unorm16, Float16 or Float32
 precision. Preview quality and observer modes are not covered by this profile.
+For Unorm8, native color storage is `Rgba8UnormSrgb`: the physical bytes are
+sRGB-encoded while sampling produces the declared linear values. Other native
+working formats are Rgba16Unorm, Rgba16Float and Rgba32Float. Raw readback retains
+the actual storage without an additional transfer or reinterpretation.
 Exact fractional frame time and owner document/device generations remain in the
 frame key. Required optional GPU features are checked by the existing renderer;
 there is no precision fallback.
@@ -58,6 +62,14 @@ and completion. This producer retains no completed-frame collection.
 
 None of these authored controls is counted as passing until the source-bound
 controller records successful execution. No existing assertion was changed.
+The first source-bound execution retained five successful focused controls and
+one failure in the newly authored moving-image control: its expected storage
+was incorrectly Rgba8Unorm. The implementation returned Rgba8UnormSrgb, matching
+both the existing `color_storage(Unorm8)` mapping and ImageContract negotiation.
+Only the new format/byte oracles were corrected to that verified contract;
+the original failure remains in `native-prerender-producer-v3`. The all-precision
+oracle now expects encoded native blue 99 for a linear sample of 0.125 rather
+than linear-UNORM byte 32. No product format or rendering behavior was changed.
 The procedural source/effect fixture is independently authored in this repository;
 no new dependency, third-party asset or Adobe binary/resource is introduced.
 

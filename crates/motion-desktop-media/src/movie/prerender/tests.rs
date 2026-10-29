@@ -162,7 +162,7 @@ fn actual_background_worker_renders_owned_animated_sources_after_session_close()
     drop(session);
     let (first, last) = worker.join().unwrap();
     let at = |image: &CapturedImage, x: usize| image.pixels[(12 * 32 + x) * 4];
-    assert_eq!(first.image().storage, ImageStorage::Rgba8Unorm);
+    assert_eq!(first.image().storage, ImageStorage::Rgba8UnormSrgb);
     assert!(at(first.image(), 6) > 240 && at(first.image(), 26) < 10);
     assert!(at(last.image(), 6) < 10 && at(last.image(), 26) > 240);
     assert_ne!(first.key(), last.key());
@@ -280,7 +280,10 @@ fn all_four_precisions_keep_native_hdr_alpha_and_exposure_without_sdr_conversion
                 image.storage.capacity(18, 18).unwrap()
             );
             let expected = match precision {
-                ChannelPrecision::Unorm8 => vec![255, 0, 32, 64],
+                // The native UNORM8 working target has sRGB physical storage.
+                // Linear sample 0.125 encodes to 99; raw readback must retain
+                // that encoded byte, not reinterpret it as linear UNORM 32.
+                ChannelPrecision::Unorm8 => vec![255, 0, 99, 64],
                 ChannelPrecision::Unorm16 => [65535u16, 0, 8192, 16384]
                     .into_iter()
                     .flat_map(u16::to_le_bytes)
