@@ -9,6 +9,9 @@ supersede only the boundaries they explicitly implement.
 The [composition boundary inventory](scene3d-composition-boundaries-current.md)
 lists implemented pixel behavior, actual control locations and explicit limits
 separately. It is not a claim of universal effect/nesting/alpha support.
+The [native normative checkpoint](scene3d-normative-native-current.md) adds
+independent source-based Box material/coordinate and SimpleSkin animation
+comparisons. Its official alpha comparison remains outstanding.
 
 The maintained scope is desktop. Android was explicitly excluded by the
 requester after its retirement. Later scene nodes, ray tracing and volumes are
@@ -38,13 +41,16 @@ integration and the advertised capability remain incomplete/false.
    manual history control was explicitly executed unchanged and counted once.
    Packed/legacy and nested aperture omission is guarded with actual refusal,
    unchanged caller buffers and zero-aperture recovery. Archive and publish
-   this increment; final latest-main workspace/platform acceptance remains
+   this increment (committed as `023ef4b6`); final latest-main workspace/platform acceptance remains
    required. Native output proof does not establish portable optical support.
-2. Compare unmodified, pinned normative sample rendering with an independent
-   reference. The earlier Avocado/BoxVertexColors JSON/GLB and frozen checks
-   establish ingestion identity, not external rendered-material equivalence.
-   Independently authored analytical skin/alpha fixtures are useful evidence,
-   but must not be described as official rendered reference images.
+2. Complete the remaining official alpha comparison. Unmodified pinned Box
+   rendering now matches an independent rough-metal, vertex-color and coordinate
+   reference over 5,256 interior pixels in each of four precisions. Unmodified
+   SimpleSkin matches raw-source LBS silhouettes at four times in each
+   precision, including interpolated and negative rotations; frozen restore
+   pixels match exactly. These are actual native comparisons, separate from
+   the earlier ingestion-only checks. AlphaBlendModeTest is downloaded but
+   has not passed an independent rendered reference.
 3. Finish the advertised composition boundary inventory: distinguish actual
    supported nested/effect/exposure/transparent behavior from explicit refusal,
    and verify ordinary 2D/BSP results remain unchanged. A documented refusal is
