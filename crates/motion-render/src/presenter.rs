@@ -232,7 +232,8 @@ impl Presenter {
                         b: background[2] as f64, a: background[3] as f64,
                     }), store: wgpu::StoreOp::Store },
                 })],
-                depth_stencil_attachment: None, timestamp_writes: timestamps, occlusion_query_set: None,
+                depth_stencil_attachment: None, timestamp_writes: timestamps,
+                occlusion_query_set: None, multiview_mask: None,
             });
             pass.set_viewport(x, y, w, h, 0., 1.);
             pass.set_pipeline(&self.pipeline);
