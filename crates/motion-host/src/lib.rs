@@ -31,6 +31,7 @@ pub use error::Error;
 pub mod ops;
 pub mod platform;
 pub mod preview_inputs;
+pub mod prerender;
 pub mod session;
 pub mod video_cache;
 pub mod video_decode_policy;
