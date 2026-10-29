@@ -9,6 +9,9 @@ use std::sync::Arc;
 
 #[cfg(test)]
 mod error_tests;
+#[cfg(test)]
+mod depth_material_tests;
+mod depth_material;
 mod scratch_graph;
 mod scratch_lifetimes;
 mod scratch;

@@ -12,6 +12,9 @@ mod exposure_frame;
 mod nested_exposure;
 mod working_precision;
 mod model_layers;
+mod projected_mattes;
+mod depth_materials;
+use depth_materials::DepthMaterial;
 pub use model_layers::ModelSourceCatalog;
 pub use working_precision::WorkingPrecisionChange;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
@@ -1900,12 +1903,13 @@ impl Renderer {
         scene.validate_depth_ready()?;
         self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
-        let (model_scene, model_stats) = match self.prepare_shared_model_scene(scene, width, height, encoder)? {
-            Some((shared, stats)) => (Some(shared), stats),
-            None => (None, self.prepare_models(scene, width, height)?),
+        let (model_scene, model_stats, inputs) = match self.prepare_shared_model_scene(scene, width, height, encoder)? {
+            Some((shared, stats, inputs)) => (Some(shared), stats, inputs),
+            None => (None, self.prepare_models(scene, width, height)?, Vec::new()),
         };
-        let mut stats=self.encode_local(model_scene.as_ref().unwrap_or(scene),view,width,height,encoder,timestamps,preview)?;
-        stats.add(child_stats);stats.add(model_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
+        let mut renderer = projected_mattes::Inputs::install(self, inputs);
+        let mut stats=renderer.encode_local(model_scene.as_ref().unwrap_or(scene),view,width,height,encoder,timestamps,preview)?;
+        stats.add(child_stats);stats.add(model_stats);renderer.effect_diagnostics.extend(child_diagnostics);Ok(stats)
     }
     fn resident_source_texture_bytes(&self) -> u64 {
         self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes()
