@@ -2,6 +2,17 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
+fn hash_cause(context: &str, error: impl std::fmt::Display) -> String {
+    let cause = error.to_string();
+    // ExportControl is an existing textual boundary. Keep its exact normal
+    // cancellation result through serializers instead of promoting it to Error.
+    if cause == "movie export cancelled" {
+        cause
+    } else {
+        format!("{context}: {cause}")
+    }
+}
+
 struct HashWriter<'a> {
     digest: Sha256,
     bytes: u64,
@@ -87,7 +98,7 @@ pub(super) fn context(
     digest.update(b"motion-studio/native-prerender-content/v1\0");
     let mut project = HashWriter::new(super::super::durable::MAX_MANIFEST, control);
     serde_json::to_writer(&mut project, &frozen.project)
-        .map_err(|e| format!("hash frozen document: {e}"))?;
+        .map_err(|e| hash_cause("hash frozen document", e))?;
     record(&mut digest, b"project", project.finish());
     let mut total = 0u64;
     let mut buffer = vec![0; motion_core::storage::TRANSFER_BUFFER_BYTES];
@@ -148,7 +159,7 @@ pub(super) fn context(
     frozen
         .depth
         .write_to(&mut depth, &|| control.check().map_err(Into::into))
-        .map_err(|e| format!("hash frozen depth: {e}"))?;
+        .map_err(|e| hash_cause("hash frozen depth", e))?;
     record(&mut digest, b"depth", depth.finish());
     let mut output = Sha256::new();
     // A fixed full-resolution authored-camera profile. Observer/preview modes
@@ -163,4 +174,36 @@ pub(super) fn context(
         content: digest.finalize().into(),
         output: output.finalize().into(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn actual_serializer_and_depth_cancellation_keep_normal_identity_and_real_limits_keep_context()
+    {
+        let cancelled = ExportControl::default();
+        let mut writer = HashWriter::new(1024, &cancelled);
+        assert!(cancelled.cancel());
+        let error = serde_json::to_writer(&mut writer, &vec![1u8; 16]).unwrap_err();
+        assert_eq!(
+            hash_cause("hash frozen document", error),
+            "movie export cancelled"
+        );
+        let error = motion_host::depth_snapshot::DepthSnapshot::default()
+            .write_to(&mut writer, &|| cancelled.check().map_err(Into::into))
+            .unwrap_err();
+        assert_eq!(
+            hash_cause("hash frozen depth", error),
+            "movie export cancelled"
+        );
+        let healthy = ExportControl::default();
+        let mut limited = HashWriter::new(1, &healthy);
+        let error = serde_json::to_writer(&mut limited, &vec![1u8; 16]).unwrap_err();
+        let cause = hash_cause("hash frozen document", error);
+        assert!(
+            cause.starts_with("hash frozen document:") && cause.contains("byte limit"),
+            "{cause}"
+        );
+    }
 }
