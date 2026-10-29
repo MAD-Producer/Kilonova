@@ -13,8 +13,11 @@ pub(crate) struct ScenePlane {
     pub color: [f32; 4],
     /// Alpha sources test opaque depth without writing it.
     pub blend: bool,
-    /// Static source retaining its admitted upload revision.
+    /// Admitted source upload or implementation-proven material revision.
     pub texture: Option<AdmittedTextureView>,
+    /// Caller has materialized an implementation-proven source-space image.
+    /// Raw ordinary sources continue to require the sRGB upload format.
+    pub working_material: bool,
     /// Source-local scalar coverage, owned by this encode.
     pub coverage: Option<AdmittedTextureView>,
     /// Independent projected screen color; alpha/luma is read before depth.
@@ -180,8 +183,8 @@ pub(super) fn prepare(
         }
         if plane.texture.as_ref().is_some_and(|view| {
             let texture = view.texture();
-            (texture.format() != wgpu::TextureFormat::Rgba8UnormSrgb
-                && !(plane.surface.is_some() && texture.format() == format))
+            (if plane.working_material { texture.format() != format }
+                else { texture.format() != wgpu::TextureFormat::Rgba8UnormSrgb })
                 || texture.dimension() != wgpu::TextureDimension::D2
                 || texture.depth_or_array_layers() != 1
                 || texture.sample_count() != 1
@@ -190,7 +193,7 @@ pub(super) fn prepare(
                     .contains(wgpu::TextureUsages::TEXTURE_BINDING)
         }) {
             return Err(crate::RenderError::Invalid(format!(
-                "scene plane object={} phase=shared_plane_image: expected admitted single-sample sRGB source or calibrated working-color material", plane.object
+                "scene plane object={} phase=shared_plane_image: expected admitted single-sample sRGB source or proven working-color material", plane.object
             )).into());
         }
         let first = vertices.len() as u64;
