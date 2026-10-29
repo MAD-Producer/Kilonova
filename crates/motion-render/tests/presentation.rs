@@ -4,6 +4,44 @@ use motion_render::{Presenter, Renderer};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_region_includes_pixels_whose_centers_are_inside_fractional_edges() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("fractional region source"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &source, mip_level: 0,
+        origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &[255, 0, 0, 255].repeat(64*64),
+        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+        wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("fractional region output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let presenter = Presenter::new(&r, &source.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    presenter.encode_inspection_view(&r.queue, &mut encoder, &output.create_view(&Default::default()),
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.], Some([16.25/64., 16.25/64., 15.5/64., 15.5/64.]), None).unwrap();
+    r.submit_tracked(encoder.finish(), |_| {});
+    let pixels = presentation_bytes(&r, &output);
+    let pixel = |x: usize, y: usize| -> [u8; 4] { pixels[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap() };
+    assert_eq!(pixel(16, 16), [255, 0, 0, 255], "first pixel center lies inside region");
+    assert_eq!(pixel(31, 31), [255, 0, 0, 255], "last pixel center lies inside region");
+    assert_eq!(pixel(15, 16), [0, 0, 0, 255]);
+    assert_eq!(pixel(32, 31), [0, 0, 0, 255]);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn viewer_comparison_and_region_clear_previous_pixels() {
     let r = pollster::block_on(Renderer::headless()).unwrap();
     let source = |pixel: [u8; 4]| {
