@@ -49,9 +49,19 @@ Receipt: `artifacts/pr-queue/calibrated-mask-regression-v2/accepted.json`.
 Archive: `data/calibrated-depth-masks-native-v1.zip`. Every archived entry was read back and compared
 with its original. SHA-256: `0aedd6e9fedb0f67d62d7cf41d891c57689580bc81a87e29d0a6c714777acc7f`.
 
-The native mask fixtures use a static owned source; the same plane binding accepts
-owned video, but a dedicated changing-video-with-masks native fixture remains
-pending and is not established by these static tests.
+A dedicated native owned-video fixture now samples two nonoverlapping indexed
+source intervals at 0 and 1 second. Color, calibrated geometry and mask direction
+change together. Independent interior rays require red at the first near surface
+and green at the second, with the masked-out half revealing the blue spatial
+plane. Reverse submissions, Full/Preview/Full changes and cache eviction preserve
+both immutable frames. All 19 depth-surface tests pass in the source-bound v3
+gate; this includes the original 18, so it adds one distinct test, not 19, to the
+previous 136. Production and configuration hashes match the earlier broader gate.
+
+This is a synthetic owned-video render fixture, not a real-codec playback or
+sustained-throughput proof. The initial new fixture compilation error (borrowed
+reference instead of an owned clone) is retained separately and is not counted
+as an expected failure-path test.
 
 This increment does not establish sustained playback throughput or a performance
 budget. Per-encode mutable resources deliberately prioritize immutable commands;
@@ -60,3 +70,7 @@ intersecting translucent primitive-order limitations remain. Calibrated mattes,
 effects, nesting, exposure integration, DOF and final current-main/full-workspace
 and cross-platform acceptance remain open. No UI or panel code, dependencies or
 third-party assets are changed. Android validation remains excluded by request.
+
+Video receipt: `artifacts/pr-queue/calibrated-mask-video-v3/accepted.json`.
+Video archive: `data/calibrated-depth-masked-video-native-v1.zip`; readback verified against every original.
+SHA-256: `fa179d595c9b23821656ef42fd798757166463261d2cc67ee54766753c8ca42f`.
