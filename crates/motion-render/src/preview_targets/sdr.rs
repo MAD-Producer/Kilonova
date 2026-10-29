@@ -68,6 +68,11 @@ impl SdrPreviewFrameTargets {
     pub fn valid(&self) -> bool {
         self.working.valid()
     }
+    /// The last submitted working image, before the optional SDR conversion.
+    /// It is unavailable until a frame has been successfully committed.
+    pub fn working_front(&self) -> Option<&RenderTarget> {
+        self.working.valid().then_some(&*self.working)
+    }
     pub fn prepared(&self) -> Option<&RenderTarget> {
         self.working.prepared()
     }
