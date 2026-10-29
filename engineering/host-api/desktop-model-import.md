@@ -1,8 +1,9 @@
 # Desktop owned model import
 
-Implementation status: the worker, MCP tool and main-window dropped-file
-action are connected. Their new regression suite is pending execution; this
-document specifies the source contract, not a completed acceptance claim.
+The worker, MCP tool, composition import and project-library registration/
+placement routes are connected. Executed source-bound controls and their limits
+are recorded in [the model-library checkpoint](../validation/scene3d-model-library-current.md).
+Published-head CI is a separate acceptance gate.
 
 ## Entry points
 
@@ -25,11 +26,15 @@ superseded work returns `modelImport.cancelled=true` before opening the file.
 Cancellation is normal, not a model-import error. No physical OS input
 injection is claimed by the automated shell capture.
 
-The standard project-library picker and registration/placement workflow remain
-separate entry routes and do not yet admit models. A model file drop creates a
-layer; it is not library-only registration. Floating-window drops are not
-covered by this increment. Shared host media capabilities remain separate;
-desktop support is declared under `desktop.modelImport`.
+The standard project-library picker admits these model extensions. Project
+panel drops, including floating project windows, register an owned model in
+the captured folder without creating a layer. Composition drops create a layer.
+An existing model row offers Place in composition and can be dragged onto a
+timeline track. Each placement is an independent undo transaction and shares
+the registered asset. Production routes and controlled native pointer/menu
+inputs are covered; physical OS file-drop injection is not claimed. Shared
+host media capabilities remain separate; desktop support is declared under
+`desktop.modelImport`.
 
 ## Ownership, placement and history
 
@@ -71,5 +76,6 @@ actual native red pixels, one-step undo/redo, missing dependencies, asset-ID
 namespace sharing, schema/access/revision checks, superseded UI work, real
 publication refusal at the existing layer limit, owned-file cleanup and
 recovery. A separate native-editor capture enters through `Action::ImportPath`
-and checks actual composition pixels. These controls must actually pass before
-this increment is accepted; listing them here is not evidence of execution.
+and checks actual composition pixels. Executed counts, exact source heads,
+default logging/stdout evidence and the known narrow-window limitation are
+linked in the checkpoint above. Source inspection alone is not acceptance.

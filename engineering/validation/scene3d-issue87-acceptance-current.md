@@ -34,9 +34,9 @@ integration and the advertised capability remain incomplete/false.
 | Original requirement | Current evidence | Limit before final acceptance |
 | --- | --- | --- |
 | 87.1: static glTF/GLB mesh and owned buffers/textures | [Ingestion and native rendering](gltf-scene-current.md), [first-class project layers](project-model-depth-current.md) | Importing a file alone is not proof of rendering or project ownership |
-| Paths, asset relinking, bounds, units and coordinates | Same scene/project ledgers; owned snapshot and asset validation controls; independent native Box coordinate comparison | Desktop file import is being integrated separately; its pending tests are not accepted evidence |
+| Paths, asset relinking, bounds, units and coordinates | Same scene/project ledgers; owned snapshot and asset validation controls; independent native Box coordinate comparison; [desktop import/library checkpoint](scene3d-model-library-current.md) | Controlled native routes are accepted locally; physical OS input and automatic bounds fit are not claimed |
 | 87.2: metallic-roughness PBR, normal/tangent, alpha modes, lights and instancing | Native pixel and budget controls in the scene ledger; shared geometry and [transparent planes](transparent-plane-depth-current.md); independent Box and AlphaBlendModeTest references | Supported light/material profile is bounded; alpha comparison does not prove general intersecting transparency |
-| 87.3: morph/skin/animation and camera tracks | [Morph](gltf-morph-current.md), [skin](gltf-skin-current.md), [transform interpolation](gltf-transform-animation-current.md), [camera sampling](gltf-cameras-current.md), [camera activation](depth-camera-integrated-current.md) | Imported pose interpolation remains separate from authored Euler tracks; latest-main full regression is still needed |
+| 87.3: morph/skin/animation and camera tracks | [Morph](gltf-morph-current.md), [skin](gltf-skin-current.md), [transform interpolation](gltf-transform-animation-current.md), [camera sampling](gltf-cameras-current.md), [camera activation](depth-camera-integrated-current.md); [maintained workspace](scene3d-maintained-workspace-current.md) | Imported pose interpolation remains separate from authored Euler tracks; later source needs its own published-head CI |
 | 87.4: calibrated AI depth and native camera depth | [Calibration](depth-calibration-current.md), [authoring](depth-calibration-authoring-current.md), [native depth surface](depth-surface-native-current.md), [project integration](depth-project-final-current.md) | Uncalibrated relative depth is explicitly refused rather than treated as metres |
 | Mesh/plane occlusion and shared depth ownership | [Mixed planes](mixed-plane-depth-current.md), [textured planes](textured-plane-depth-current.md), [transparent planes](transparent-plane-depth-current.md), [image ownership](owned-depth-image-current.md) | General intersecting transparency is not order-independent transparency; see explicit native alpha policy |
 | Masks and logical mattes retain source/material and physical depth semantics | [Masks](calibrated-depth-masks-current.md), [mattes](calibrated-depth-mattes-current.md), [materialization](calibrated-depth-materials-current.md), [spatial material](spatial-matte-materials-current.md), [shared consumers](shared-matte-inputs-current.md) | General external-input effects, nested/exposure configurations and unsupported source combinations retain explicit refusals; this is not universal effect support |
@@ -44,7 +44,7 @@ integration and the advertised capability remain incomplete/false.
 | Saved/frozen reproducibility | Model/skin/morph ledgers plus [static frozen depth](frozen-depth-current.md), [temporal frozen depth](frozen-temporal-depth-current.md), [file-backed video export](video-depth-file-export-current.md) | Latest-main combined acceptance remains open |
 | Budget admission and explicit capability refusal | Scene, shared-depth, deformation, calibrated material and frozen-output refusal/recovery controls | Local adapter results are not cross-platform or retired-device acceptance |
 
-## Outstanding acceptance
+## Acceptance status and remaining gate
 
 1. The corrected aperture source passed 1041 distinct related tests, zero
    failures and zero unexecuted ignored fixtures. The one existing ignored
@@ -54,8 +54,10 @@ integration and the advertised capability remain incomplete/false.
    merged through [PR 558](https://github.com/MAD-Producer/Kilonova/pull/558)
    as `ed1a84a4` after all five exact-head required checks passed. Its actual
    squash title and body are Chinese. The merge tree is byte-identical to
-   source head `594e810d`, which is running the separate full maintained
-   workspace gate. Native output proof does not establish portable optical support.
+   source head `594e810d`. Its separate maintained-workspace gate passed,
+   including the three explicitly executed manual controls; all four main
+   release platforms passed. [Exact counts and limits](scene3d-maintained-workspace-current.md)
+   remain source-bound. Native output proof does not establish portable optical support.
 2. Official sample comparisons passed their own source-bound gates. Unmodified pinned Box
    rendering now matches an independent rough-metal, vertex-color and coordinate
    reference over 5,256 interior pixels in each of four precisions. Unmodified
@@ -81,20 +83,28 @@ integration and the advertised capability remain incomplete/false.
    32x32 controlled-backend run, not trained-model quality or high-resolution
    throughput; keep those limits visible in the final acceptance.
 5. Main was fetched after the PR 558 merge and its complete Git tree was
-   checked identical to the source-bound full-workspace run. That run is
-   still active and must pass; exact-head cross-platform checks for PR 558
-   have passed. The later model-import source still needs its own regression,
-   latest-main alignment and published-head platform checks. Do not add
-   overlapping checkpoint test counts into a cumulative coverage number.
+   checked identical to the accepted full-workspace source. The distinct
+   maintained total is 3,782 passed, zero failed, with 27 other manual controls
+   excluded and enumerated. The resulting main release run passed all eight
+   jobs, including all four platforms. Import/library work is aligned with
+   that main baseline and passed its own local affected regression. Its
+   published-head cross-platform CI remains pending; the older green run
+   cannot substitute for that gate. Do not add overlapping checkpoint counts.
 6. Close the actual desktop model-import gap. Existing scene/project loading
    accepts owned models, but the normal desktop file route previously treated
    model files as audio. A new worker operation connects composition file
    drops and revision-checked MCP import to bounded glTF/GLB/OBJ ingestion,
-   owned frozen dependencies and one atomic undo boundary. Its implementation
-   is awaiting actual import/reopen/undo/failure and native-editor tests; do
-   not report those tests as passed yet. Project-library model registration,
-   library placement and file-picker filters remain separate missing entry
-   routes, not implied by composition-drop support.
+   owned frozen dependencies and one atomic undo boundary. Import/reopen,
+   independent undo/redo, actual failures, default file/Error stderr and
+   JSON-RPC-only stdout passed their source-bound controls. Project-library
+   registration, repeated placement, picker filters, actual context-menu and
+   pointer-release drag routes are now connected. The current library source
+   passed 1,392 desktop tests, zero failures and a separately executed native
+   control with four locale/size cases. The 26 ignored rows are enumerated,
+   not passes. [Verified evidence](scene3d-model-library-current.md) retains
+   the initial 900x600 layout failure: the default Project viewport is still
+   unavailable there; the narrow native controls use supported tab docking.
+   No product layout or hit geometry was changed to conceal that limitation.
 
 No item above is closed by compilation alone, by a passing narrow control, or
 by an earlier branch's green CI. This map keeps #87 open. #82's runtime is not

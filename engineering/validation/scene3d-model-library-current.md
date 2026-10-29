@@ -1,8 +1,11 @@
 # Desktop model library integration
 
-Status: implementation in progress, not accepted. The source derives from
-the separate desktop-import increment `45903c0d`; its queued regression is
-unchanged by this worktree. New tests listed here have not executed.
+Local source-bound acceptance completed against `f325bfe54a3da4540fe5533a5287d78348f8763a`.
+The full desktop run passed 1,392 tests with zero failures;
+26 existing/manual controls remain enumerated, not passed.
+The four-case model-library screenshot control ran explicitly and passed
+separately. Sixteen focused controls overlap the full run and are not added
+again. Published-head cross-platform CI remains a separate gate.
 
 ## Library registration and source ownership
 
@@ -31,7 +34,7 @@ increment does not invent one: placement names use the stable asset ID, while
 the initial composition import retains the source stem. Automatic bounds fit,
 animation selection and imported-camera activation remain separate decisions.
 
-## Pending controls
+## Executed controls
 
 - `engine::model_library_tests::model_library_registration_and_repeated_placement_have_independent_undo_boundaries`:
   three source formats, captured folder, unchanged layers during registration,
@@ -44,9 +47,9 @@ animation selection and imported-camera activation remain separate decisions.
   production project-drop action, three formats, captured folder despite
   browser navigation, no implicit layer and one-step registration history
 
-These controls supplement the existing import suite, not replace it. Neither
-source inspection nor inclusion of test names proves execution. No passing
-count or enabled background-prerender capability is asserted here.
+These controls supplement the existing import suite. Their actual commands,
+outputs, source/configuration hashes and counts are retained in the verified
+archive below. This increment does not enable background prerendering.
 
 ## UI boundary
 
@@ -61,7 +64,7 @@ semantics. No new layout, style value or hit tolerance is introduced.
 Two new drag controls cover time mapping, exactly one placement action,
 cancellation and stale-document rejection. A native child-process control,
 `panels::project::tests::native::models::model_library_native_menu_and_placement_reuse_owned_sources_in_both_languages`,
-is authored to capture library registration, the actual model context menu and
+executed library registration, the actual model context menu and
 rendered placement at 1600x1000 and 900x600 in both languages. The 1600 capture
 uses the default workspace. The 900 capture first retains the default layout,
 then tabs Effect Controls with Project using existing workspace docking so
@@ -71,9 +74,11 @@ actual red composition pixels, a default-level missing-source Error, and
 a second shared placement through the production pointer-release route.
 The drag preview is captured before release, and its independent undo/redo
 boundary is verified afterward.
-These controls and screenshots are still pending execution. They use controlled
-production Input with a 1x fixture projection; they do not claim physical OS
-input injection or a test of every system DPI.
+All four native cases passed and the actual screenshots were visually
+inspected. They use controlled production Input with a 1x fixture projection;
+they do not claim physical OS input injection or every system DPI. The 1600
+cases produced 13,713 red composition pixels; the retabbed 900 cases produced
+3,272. The shared-asset, source-deletion and independent-history checks passed.
 
 The first native checkpoint passed both 1600 language cases but failed at
 900x600: the unchanged default Project dock has zero item viewport height,
@@ -116,3 +121,30 @@ remediation attempted. Existing violations are not silently marked fixed.
 | `effect_controls.rs` hierarchy | Retained; no effect hierarchy changes |
 | `timeline.rs` label gutter coordinates | Retained compatibility baseline; no coordinate changes |
 | `timeline.rs` snap guide color | Retained compatibility baseline; no styling changes |
+
+
+## Verified evidence and limits
+
+[Executed import/library checkpoint](data/scene3d-model-library-native-v1.zip),
+SHA-256 `1874928d8d4c1fa7fd9d36452e5ef7f4a869599e673c69e07d2f739348708c12`.
+All 138 entries were read back and verified,
+including the sixteen menu/registration/placement/drag captures, the retained
+initial narrow-window failure and default file/Error-stderr evidence.
+
+The separate imported-model source `960e5bdb5d7e31a298efda2a87bfa317adcbca45`
+passed 1,387 desktop tests and 136 host tests, native editor rendering and an
+actual desktop-binary MCP stdio/save/reopen control. That stdio control produced
+20,000 red pixels, removed the original model/MTL and reopened exact native
+pixels. Its default Info start, file Error, Error stderr and JSON-RPC-only
+stdout were verified. It is evidence for that exact import source, not a claim
+that the later library binary was run through the same stdio script.
+
+The current library source separately passed full desktop tests, desktop check,
+style-consumer validation and provenance. The older complete maintained-workspace
+checkpoint is [documented separately](scene3d-maintained-workspace-current.md);
+its counts must not be presented as a full-workspace run of this newer source.
+
+No Android, automatic bounds fitting, automatic animation choice, arbitrary DPI
+or physical OS input injection is accepted here. The default 900x600 Project
+viewport limitation remains unfixed. No third-party asset, dependency or Adobe
+content is introduced; the triangle and screenshots are independently authored.
