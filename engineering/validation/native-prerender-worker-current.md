@@ -1,6 +1,6 @@
 # Bounded native prerender worker (#82)
 
-Status: worker and six controls authored; compilation/execution are pending.
+Status: focused worker controls accepted at `21649d87d0c46827457bbad65b2fc66830f57a5a` after rebase onto main `de5659779dcfddabe98314526e10eb43a700cd5a`.
 This is a backend owner component, not an integrated Engine/Session feature.
 The background-prerender capability remains disabled; Android is excluded.
 
@@ -30,12 +30,15 @@ running native owner. The worker releases its resources after actual operation
 acknowledgment. A panic preserves the process hook, publishes failure and retires
 that native owner; there is no automatic thread restart or native-owner reuse.
 
-Six authored controls cover CPU ownership/quota, cancellation before enqueue
+Six executed controls cover CPU ownership/quota, cancellation before enqueue
 and cross-thread observation, shutdown returning before a controlled Freeze is
 released, actual native pixels after Session closure, controlled blocked Draw
 publication/cancellation/recovery, and an actual worker panic with no owner reuse.
-These are not passing counts until the source-bound controller finishes. Existing
-cache/producer controls are retained. No UI, dependency or asset is changed.
+The six worker controls passed with zero failures or exclusions. The combined
+producer/worker filter passed 12 tests with one manual exclusion; the excluded
+four-precision control ran explicitly and passed. These counts overlap. Desktop
+checking with ffmpeg/host ai-depth and provenance passed with unchanged source.
+This focused checkpoint is not a new full-workspace regression. No UI, dependency or asset is changed.
 
 ## Remaining before runtime acceptance
 
@@ -52,3 +55,5 @@ cache/producer controls are retained. No UI, dependency or asset is changed.
 
 The preceding cache/producer/upload receipts accept their recorded sources only;
 they do not accept this next component or changes brought in by a later rebase.
+
+Verified evidence: `data/native-prerender-worker-v1.zip`; SHA-256 `9c7a53a702372147a3e4caa71bde0bfcbe938032b3f4d9b2daca7dbdfe8443ed`; 199191 bytes; 14 entries. Every archived entry was read back and hash-checked.
