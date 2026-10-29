@@ -76,3 +76,12 @@ changes are included.
 Receipt: `artifacts/pr-queue/spatial-matte-material-regression-v1/accepted.json`.
 Archive: `data/spatial-matte-materials-native-v1.zip`; CRC and every entry verified against originals.
 SHA-256: `fd482c506bd112b5fc79567006fef3ac75743108746b00dc467f3994d9851d8f`.
+
+## Later shared-consumer checkpoint
+
+[Shared independent matte input acceptance](shared-matte-inputs-current.md)
+supersedes the exclusively-calibrated-consumer restriction for the supported
+visible image materials. It adds ordinary consumers/intermediate parents,
+retains physical geometry and authored 2D boundaries, and keeps external effect
+image inputs explicitly unsupported. The earlier counts and rejection fixture
+describe their historical checkpoint.

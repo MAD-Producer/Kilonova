@@ -12,7 +12,7 @@ fn srgb(c: f32) -> u8 {
     };
     (255. * c).round() as u8
 }
-fn authored(root: &std::path::Path) -> Project {
+pub(super) fn authored(root: &std::path::Path) -> Project {
     let mut p = project(root);
     image::save_buffer(
         root.join("assets/green.png"),
@@ -214,7 +214,7 @@ fn spatial_matte_material_pending_revisions_budget_and_eviction_preserve_front()
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn spatial_matte_material_mask_only_and_unproven_or_shared_sources_keep_boundaries() {
+fn spatial_matte_material_mask_only_and_unproven_or_external_inputs_keep_boundaries() {
     let root = tempfile::tempdir().unwrap();
     let mut p = authored(root.path());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -284,7 +284,30 @@ fn spatial_matte_material_mask_only_and_unproven_or_shared_sources_keep_boundari
         mode: MatteMode::Alpha,
         hide_source: false,
     });
+    // Shared ordinary matte consumers now use an independent projected alias.
+    // Keep the original refusal/front assertions for still-unsupported explicit
+    // effect image reads instead of rejecting the newly supported consumer.
+    let definition = package
+        .manifest
+        .effects
+        .iter()
+        .find(|e| e.id == "displacement_map")
+        .unwrap();
+    let mut external = motion_core::EffectInstance::new(
+        1,
+        &package.manifest.id,
+        &package.manifest.version,
+        &package.hash,
+        definition,
+        [96., 64.],
+    );
+    external.image_input = Some(motion_model::EffectImageInput::Layer {
+        layer: 91,
+        stage: motion_model::EffectImageStage::Effects,
+    });
+    ordinary.effects.push(external);
     p.layers.push(ordinary);
+    p.rebuild_plugin_dependencies();
     p.validate().unwrap();
     let error = renderer
         .capture(&scene_for(&p), &target)

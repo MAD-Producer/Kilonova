@@ -261,7 +261,12 @@ impl Renderer {
                     2. / scene.width as f32, 2. / scene.height as f32, 1.));
             }
         }
-        output.effects.retain(|effect| !materials.contains_key(&effect.layer));
+        // A visible source outside shared runs still paints its own effects
+        // across an authored 2D boundary. Only strip materials already baked
+        // into shared geometry, or hidden sources consumed independently.
+        output.effects.retain(|effect| !materials.contains_key(&effect.layer)
+            || scene.layers.iter().enumerate().any(|(index, layer)|
+                layer.id == effect.layer && layer.composite_visible && !grouped[index]));
         let inputs = super::super::projected_mattes::bindings(self, &mut output, scene, &mattes)?;
         Ok(Some((output, stats, inputs)))
     }

@@ -18,10 +18,14 @@ impl DepthMaterial {
     }
 }
 
-// Only image-backed planar sources exclusively read by calibrated receivers
-// enter this path. Other ordinary consumers still need their independent image
-// bindings; do not remove their source from the authored scene prematurely.
-fn ordinary_material_source(scene: &Scene, layer: &crate::DrawLayer) -> bool {
+// Visible image-backed matte sources retain geometry separately from the
+// projected images read by all consumers. The dependency set starts at
+// calibrated receivers and includes ordinary intermediate matte parents.
+fn ordinary_material_source(
+    scene: &Scene,
+    layer: &crate::DrawLayer,
+    dependencies: &std::collections::HashSet<u64>,
+) -> bool {
     if !layer.three_d
         || !layer.composite_visible
         || layer.asset.is_none()
@@ -39,16 +43,7 @@ fn ordinary_material_source(scene: &Scene, layer: &crate::DrawLayer) -> bool {
     {
         return false;
     }
-    let mut consumed = false;
-    for receiver in &scene.layers {
-        if receiver.track_matte.is_some_and(|m| m.source == layer.id) {
-            if scene.depth_surface(receiver.id).is_none() {
-                return false;
-            }
-            consumed = true;
-        }
-    }
-    consumed
+    dependencies.contains(&layer.id)
 }
 
 impl Renderer {
@@ -62,10 +57,24 @@ impl Renderer {
         if scene.calibrated_depth_layers().next().is_none() {
             return Ok((HashMap::new(), RenderStats::default()));
         }
+        let roots: Vec<_> = scene
+            .calibrated_depth_layers()
+            .filter_map(|(id, _)| {
+                scene
+                    .layers
+                    .iter()
+                    .find(|l| l.id == id)?
+                    .track_matte
+                    .map(|m| m.source)
+            })
+            .collect();
+        let dependencies = super::model_layers::matte_sources::source_order(scene, &roots)?
+            .into_iter()
+            .collect();
         let mut specs = Vec::new();
         for layer in &scene.layers {
             let object = layer.id;
-            let ordinary = ordinary_material_source(scene, layer);
+            let ordinary = ordinary_material_source(scene, layer, &dependencies);
             if scene.depth_surface(object).is_none() && !ordinary {
                 continue;
             }
