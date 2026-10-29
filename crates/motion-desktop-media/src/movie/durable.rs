@@ -9,9 +9,9 @@ const VERSION: u32 = 2;
 const MANIFEST: &str = "snapshot.json";
 const DEPTH: &str = "depth.snapshot";
 // 2 GiB temporal file planes + 192 MiB resident planes + 8 MiB metadata/header.
-const MAX_DEPTH_PAYLOAD: u64 = (2 << 30) + (200 << 20) + 12;
-const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
-const MAX_FILES: usize = 8192;
+pub(super) const MAX_DEPTH_PAYLOAD: u64 = (2 << 30) + (200 << 20) + 12;
+pub(super) const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
+pub(super) const MAX_FILES: usize = 8192;
 const MAX_PACKAGE_FILE: u64 = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

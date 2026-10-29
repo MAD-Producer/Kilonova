@@ -1,0 +1,77 @@
+# Native prerender producer checkpoint (#82)
+
+Status: implementation authored; compilation and actual controls are pending.
+This document does not establish the complete background-prerender capability.
+Android is retired and excluded from this desktop checkpoint.
+
+## Implemented boundary
+
+`PrerenderPlan::capture` runs on the Session owner and captures the immutable
+document, effect registry, source handles, depth snapshot, platform factory and
+the **same live allocation budget**. It excludes audio decoding. Materialization
+and GPU initialization belong on the background worker. `PreparedPrerender` can
+cross threads; `NativePrerender` deliberately cannot. No Session is transferred.
+
+Content keys hash the actual private source copies, serialized frozen document,
+resolved effect-package bytes and frozen depth payload. They do not substitute
+a revision, file path, mtime, queue range or export destination for content.
+Hashing streams bounded chunks and checks cancellation. Existing snapshot byte
+and entry limits apply; traversal also bounds directory depth. A project with
+extra nonvisual data may produce a conservative cache miss.
+
+The output profile is explicitly full-resolution, authored camera, linear
+premultiplied native RGBA at the project's Unorm8, Unorm16, Float16 or Float32
+precision. Preview quality and observer modes are not covered by this profile.
+Exact fractional frame time and owner document/device generations remain in the
+frame key. Required optional GPU features are checked by the existing renderer;
+there is no precision fallback.
+
+The producer samples a fresh scene with the owned model catalog, verifies frozen
+depth, synchronously prepares original images, waits for exact video frames, then
+renders and reads native bytes. Incomplete image preparation is an error and
+cannot publish a black completed frame. Authored exposure uses the persistent
+exposure task and native exposure readback. The existing refusal of combined
+frozen calibrated depth and exposure remains explicit. No window surface,
+Present, editor chrome, display transfer, clamp or alpha conversion participates.
+
+Initialization and frame starts are Info records before GPU/decode work. Phase
+callbacks precede the corresponding work, enabling the caller to publish state
+and cancel. Actual failures retain request/frame/phase/elapsed context at Error;
+normal cancellation is not an Error. Decoder cleanup failures are logged without
+replacing a primary render failure. GPU allocation is admitted through the live
+shared budget. The explicit CPU frame limit is checked before GPU initialization
+and completion. This producer retains no completed-frame collection.
+
+## Controls to execute
+
+- Actual frozen-source key changes and independence from later original deletion,
+  queue scope and revision; fractional keys and invalid-frame refusal
+- Cancellation and CPU frame admission before initialization/publication
+- A real independent rendering thread, original image deletion, animated endpoint
+  pixels, unchanged live snapshot/time/history and Session closure
+- Cancellation at the actual Draw and Readback phase, no readback publication,
+  then successful rendering with a fresh cancellation token
+- Lowering the same live GPU budget, actual refusal, restoring it, successful
+  native output and GPU allocation retirement
+- Explicit manual all-four-precision native HDR/negative/alpha pixel checks,
+  both ordinary composition and authored exposure, without SDR conversion
+
+None of these authored controls is counted as passing until the source-bound
+controller records successful execution. No existing assertion was changed.
+The procedural source/effect fixture is independently authored in this repository;
+no new dependency, third-party asset or Adobe binary/resource is introduced.
+
+## Remaining integration
+
+The owner scheduler still needs to launch/cancel bounded actual jobs, retain at
+most its admitted completion quota, reject obsolete tickets and upload/cache
+completed native bytes on the foreground renderer. Cross-device RenderTargets
+must never be reused. Foreground consumption must use a matching output profile;
+full authored output is not interchangeable with a reduced/observer preview.
+GPU driver operations cannot be preempted inside a submitted call. The current
+phase cancellation contract is not a foreground latency/P95 proof.
+
+Complete #82 acceptance also needs real foreground cache hits, invalidation on
+edits/source/device changes, pressure behavior and measured playback/seek P95.
+Optional disposable disk storage remains absent. The public background-prerender
+capability stays disabled until that complete runtime is implemented and verified.
