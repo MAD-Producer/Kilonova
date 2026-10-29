@@ -62,7 +62,10 @@ Two new drag controls cover time mapping, exactly one placement action,
 cancellation and stale-document rejection. A native child-process control,
 `panels::project::tests::native::models::model_library_native_menu_and_placement_reuse_owned_sources_in_both_languages`,
 is authored to capture library registration, the actual model context menu and
-rendered placement at 1600x1000 and 900x600 in both languages. It also checks
+rendered placement at 1600x1000 and 900x600 in both languages. The 1600 capture
+uses the default workspace. The 900 capture first retains the default layout,
+then tabs Effect Controls with Project using existing workspace docking so
+the model rows have a viewport. It also checks
 source deletion, unchanged shared asset identity, separate placement undo/redo,
 actual red composition pixels, a default-level missing-source Error, and
 a second shared placement through the production pointer-release route.
@@ -71,6 +74,15 @@ boundary is verified afterward.
 These controls and screenshots are still pending execution. They use controlled
 production Input with a 1x fixture projection; they do not claim physical OS
 input injection or a test of every system DPI.
+
+The first native checkpoint passed both 1600 language cases but failed at
+900x600: the unchanged default Project dock has zero item viewport height,
+so the model row cannot be clicked. Its screenshot, panic hook/backtrace and
+test output remain in `model-library-regression-v1`. The replacement fixture
+uses the supported tab-docking operation above while preserving all original
+menu, pixel, drag and history assertions. This does not fix or accept the
+default minimum-window layout limitation. No production layout/style/hit
+geometry is changed; that existing limitation remains pending separately.
 
 Following the existing native screenshot fixtures, the four-process capture
 is an explicitly run manual control (`--ignored --exact <name>`). The checkpoint

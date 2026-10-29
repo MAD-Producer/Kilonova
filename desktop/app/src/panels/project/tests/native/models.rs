@@ -58,7 +58,7 @@ fn model_library_native_menu_and_placement_reuse_owned_sources_in_both_languages
     }
     std::fs::write(root.join("accepted.json"), serde_json::to_vec_pretty(&serde_json::json!({
         "cases":cases,"nativeGpu":true,"physicalOsInputInjected":false,
-        "scope":"Controlled production project-drop/menu actions, existing default workspace, 1x fixture projection, minimum/default sizes and both locales"
+        "scope":"Controlled production project-drop/menu actions, default1600 workspace and existing Project/EffectControls tab docking at900, 1x fixture projection, both locales"
     })).unwrap()).unwrap();
 }
 
@@ -150,6 +150,30 @@ fn capture_model_case(out: PathBuf) {
         .unwrap();
     shell.window = Some(window);
     shell.attached = true;
+    if case.ends_with("900") {
+        // The existing default Project dock has no item viewport at this size.
+        // Retain that baseline, then use supported tab docking to expose rows;
+        // do not change product layout, row geometry or the assertions below.
+        present(&mut shell, &mut events, size);
+        let (paint, actions) = frame(&mut shell, None, size, Input::default());
+        assert!(actions.is_empty());
+        screenshot(
+            &mut shell,
+            &mut events,
+            paint,
+            size,
+            out.join("registered-model-default-layout.png"),
+        );
+        assert!(shell.workspace.move_panel(
+            Panel::EffectControls.dock(),
+            Panel::Project.dock(),
+            None
+        ));
+        assert!(shell
+            .workspace
+            .root
+            .activate(Panel::Project.dock(), Panel::Project.dock()));
+    }
     present(&mut shell, &mut events, size);
     let (paint, actions) = frame(&mut shell, None, size, Input::default());
     assert!(actions.is_empty());
@@ -283,6 +307,7 @@ fn capture_model_case(out: PathBuf) {
         "case":case,"size":size,"fixturePixelRatio":1,"redCompositionPixels":red,
         "object":object,"asset":asset,"originalSourcesRemoved":true,"sharedAsset":true,
         "separatePlacementUndoRedo":true,"dragPlacementFrame":expected,
+        "projectEffectsTabbedAtMinimum":case.ends_with("900"),
         "screenshots":[out.join("registered-model.png"),out.join("model-context-menu.png"),path,drag_path],
         "physicalOsInputInjected":false
     })).unwrap()).unwrap();
