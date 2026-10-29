@@ -1,7 +1,7 @@
 use super::*;
 use motion_effects::image_contract::ChannelPrecision;
 
-fn context() -> CompositionFrameContext {
+pub(super) fn context() -> CompositionFrameContext {
     CompositionFrameContext {
         document_generation: 1,
         device_generation: 2,
@@ -9,7 +9,7 @@ fn context() -> CompositionFrameContext {
         output: [4; 32],
     }
 }
-fn key(source: &RenderTarget, frame: f64) -> CompositionFrameKey {
+pub(super) fn key(source: &RenderTarget, frame: f64) -> CompositionFrameKey {
     CompositionFrameKey::new(
         context(),
         frame,
@@ -41,7 +41,7 @@ fn clear(renderer: &Renderer, source: &RenderTarget, color: wgpu::Color) {
     }));
     renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
 }
-fn read(renderer: &Renderer, target: &RenderTarget) -> Vec<u8> {
+pub(super) fn read(renderer: &Renderer, target: &RenderTarget) -> Vec<u8> {
     let row = target.width * target.texture().format().block_copy_size(None).unwrap();
     let stride =
         row.div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;

@@ -84,7 +84,7 @@ pub use renderer::FIXED_RENDERER_ALLOCATION_BYTES;
 pub use renderer::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use renderer::WorkingPrecisionChange;
 pub use renderer::{CachedCompositionFrame, CompositionFrameCache, CompositionFrameCacheInfo,
-    CompositionFrameContext, CompositionFrameKey};
+    CompositionFrameContext, CompositionFrameKey, NativeCompositionCandidate};
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
