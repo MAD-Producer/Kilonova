@@ -203,6 +203,108 @@ fn release(point: [f32; 2]) -> Input {
     }
 }
 
+#[test]
+#[ignore = "manual native GPU viewer-channel captures; executed explicitly with retained artifacts"]
+fn viewer_channel_native_main_float_locales_pixels_and_export() {
+    const CHILD: &str = "MOTION_VIEWER_CHANNEL_NATIVE_CHILD";
+    const NAME: &str = "panels::viewer_guides::native_tests::viewer_channel_native_main_float_locales_pixels_and_export";
+    let Some(root) = std::env::var_os(CHILD) else {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = std::env::var_os("MOTION_VIEWER_CHANNEL_ARTIFACTS")
+            .map(PathBuf::from).unwrap_or_else(|| temporary.path().into());
+        std::fs::create_dir_all(&root).unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--ignored", "--nocapture", "--test-threads=1"])
+            .env_remove("MOTION_LOG").env(CHILD, &root)
+            .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
+            .spawn().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(240);
+        loop {
+            if child.try_wait().unwrap().is_some() { break; }
+            if std::time::Instant::now() >= deadline {
+                child.kill().unwrap();
+                let output = child.wait_with_output().unwrap();
+                std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+                std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+                panic!("native viewer channel capture timed out");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let output = child.wait_with_output().unwrap();
+        std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+        std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+        assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        return;
+    };
+    let root = PathBuf::from(root);
+    let _logger = crate::logging::init(root.clone()).unwrap();
+    let project_root = tempfile::tempdir().unwrap();
+    let mut project = motion_core::Project::new(640, 480, 30, 24).unwrap();
+    project.layers.push(motion_core::Layer::solid(7, "Channel fixture", [80., 60.], [320., 240., 0.], [0.8, 0.2, 0.1, 1.]));
+    motion_core::storage::save(project_root.path(), &project).unwrap();
+    let engine = Engine::start(project_root.path().into(), motion_desktop_media::platform(), 8 << 30).unwrap();
+    let mut events = EventLoop::builder().with_any_thread(true).build().unwrap();
+    #[allow(deprecated)]
+    let main = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(900, 600))).unwrap());
+    #[allow(deprecated)]
+    let float = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(720, 640))).unwrap());
+    let attached = engine.attach_async(main, 900, 600).unwrap();
+    crate::native_test_support::receive(&mut events, &attached, Duration::from_secs(30)).unwrap().unwrap();
+    engine.float_window(1, float, 720, 640).unwrap();
+    let export_before = root.join("export-before.png");
+    let exported = engine.capture_async(export_before.clone(), Default::default()).unwrap();
+    crate::native_test_support::receive(&mut events, &exported, Duration::from_secs(60)).unwrap().unwrap();
+    let before = engine.state().unwrap()["project"].clone();
+    let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    for (locale_name, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
+        let mut panels = Panels::default();
+        panels.locale = locale;
+        panels.focused = Some(Panel::Composition);
+        for (window, size) in [(0, [900., 600.]), (1, [720., 640.])] {
+            let viewport = view(&panels, window, size);
+            let mapping = panels.composition.navigation.mapping(viewport, [640., 480.]).unwrap();
+            let sample = mapping.screen([320., 240.]);
+            let sheet = PaintList::default().styles();
+            let button_x = viewport.min[0] + sheet.metric("viewer.zoom.width", 64.)
+                + sheet.metric("viewer.percent.width", 14.) + sheet.metric("viewer.controls.gap", 4.) * 2.
+                + sheet.metric("viewer.fit.width", 40.) + sheet.metric("viewer.overlay.button.width", 64.) * 0.5;
+            let button_y = viewport.max[1] + sheet.metric("viewer.canvas.bottom", 6.) + sheet.metric("viewer.controls.height", 28.) * 0.5;
+            let color = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, 1., &root.join(format!("{locale_name}-{window}-color.png")));
+            let initial = *color.get_pixel(sample[0] as u32, sample[1] as u32);
+            let mut selected = Vec::new();
+            for (index, name) in [(1, "red"), (2, "green"), (3, "blue"), (4, "alpha"), (0, "restore")] {
+                assert!(draw(&engine, &mut panels, &mut atlas, window, size, press([button_x, button_y])).1.is_empty());
+                let point = panels.viewer_guides.menu.as_ref().unwrap().point;
+                let padding = sheet.metric("padding.panel", 8.);
+                let row = sheet.metric("row.height", 22.);
+                let width = sheet.metric("viewer.overlay.menu.width", 232.).min(size[0]);
+                let x = point[0].clamp(0., (size[0] - width).max(0.));
+                let top = if window == 0 { CHROME_HEIGHT } else { sheet.metric("viewer.floating.top", 30.) };
+                let y = (point[1] - row * 10. - padding * 2.).clamp(top, (size[1] - row * 10. - padding * 2.).max(top));
+                let channel_x = x + width - padding - sheet.metric("viewer.overlay.button.width", 64.) * 0.5;
+                let anchor_y = y + padding + row * 9.;
+                draw(&engine, &mut panels, &mut atlas, window, size, press([channel_x, anchor_y + row * 0.5]));
+                assert!(panels.viewer_guides.channel_dropdown.open);
+                draw(&engine, &mut panels, &mut atlas, window, size, press([channel_x, anchor_y - row * (4.5 - index as f32)]));
+                assert!(!panels.viewer_guides.channel_dropdown.open);
+                assert_eq!(panels.viewer_guides.channel(window == 0), motion_render::ViewChannel::Color);
+                draw(&engine, &mut panels, &mut atlas, window, size, press([size[0] - 1., 0.]));
+                assert!(panels.viewer_guides.menu.is_none());
+                let pixels = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, 1., &root.join(format!("{locale_name}-{window}-{name}.png")));
+                let pixel = *pixels.get_pixel(sample[0] as u32, sample[1] as u32);
+                if index == 0 { assert_eq!(pixel, initial); }
+                else { assert_eq!(pixel[0], pixel[1]); assert_eq!(pixel[1], pixel[2]); assert_eq!(pixel[3], 255); selected.push(pixel[0]); }
+            }
+            assert!(selected[0] > selected[1] && selected[1] > selected[2] && selected[3] > selected[0], "{selected:?}");
+        }
+    }
+    assert_eq!(engine.state().unwrap()["project"], before);
+    let export_after = root.join("export-after.png");
+    let exported = engine.capture_async(export_after.clone(), Default::default()).unwrap();
+    crate::native_test_support::receive(&mut events, &exported, Duration::from_secs(60)).unwrap().unwrap();
+    assert_eq!(std::fs::read(export_before).unwrap(), std::fs::read(export_after).unwrap());
+}
+
 fn line_pixels(pixels: &image::RgbaImage, mapping: Mapping, viewport: Rect, ratio: f32) -> Value {
     let position = mapping.screen([333.25, 251.5]);
     let mut measurements = vec![];
