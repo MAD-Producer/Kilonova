@@ -647,3 +647,58 @@ fn changing_video_matte_does_not_replace_a_pending_projected_source() {
     assert_eq!(renderer.read_target(&a).unwrap(), scenes[0].2);
     assert_eq!(renderer.read_target(&b).unwrap(), scenes[1].2);
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn visible_matte_source_keeps_its_independent_alpha_and_authored_stacking() {
+    let root = tempfile::tempdir().unwrap();
+    let authored = project(root.path());
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    prepare(&mut renderer, &authored, root.path());
+    let near = DepthResource::new(field(1).descriptor().clone(), vec![1., 1.], None, None).unwrap();
+    let target = renderer.capture_target(96, 64).unwrap();
+    for front in [false, true] {
+        let mut p = authored.clone();
+        let mut source = Layer::solid(
+            91,
+            "Visible half-alpha green matte",
+            [64., 40.],
+            [48., 32., 0.],
+            [0., 1., 0., 1.],
+        );
+        source.transform.opacity.value = 0.5;
+        p.layers[0].track_matte = Some(TrackMatte {
+            source: 91,
+            mode: MatteMode::Alpha,
+            hide_source: false,
+        });
+        // Authored project layers are stored back-to-front.
+        p.layers.insert(if front { 2 } else { 0 }, source);
+        p.validate().unwrap();
+        let mut scene = sampled(&p);
+        scene
+            .attach_calibrated_depth(1, &near.descriptor().source, &near, input())
+            .unwrap();
+        let actual = renderer.capture(&scene, &target).unwrap().0;
+        // Independent alpha first leaves red/blue at 1/2 each. A visible
+        // foreground green then contributes 1/2, leaving red/blue at 1/4;
+        // behind the opaque blue plane it contributes nothing to these rays.
+        let linear = if front {
+            [0.25, 0.5, 0.25]
+        } else {
+            [0.5, 0., 0.5]
+        };
+        let expected = [srgb(linear[0]), srgb(linear[1]), srgb(linear[2]), 255];
+        for x in [36, 60] {
+            assert!(
+                ray(&actual, x)
+                    .iter()
+                    .zip(expected)
+                    .all(|(a, b)| a.abs_diff(b) <= 1),
+                "front={front} x={x}: {:?} expected={expected:?}",
+                ray(&actual, x)
+            );
+        }
+        retain_fixture(&format!("visible-matte-front-{front}.png"), &actual);
+    }
+}

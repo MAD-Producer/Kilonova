@@ -61,7 +61,8 @@ acceptance, not final umbrella full-workspace/cross-platform acceptance.
 
 ## Remaining limits
 
-Visible-source stacking and real-codec matte playback remain to verify.
+General processed-spatial-source stacking and real-codec matte playback remain
+to verify; ordinary visible-source stacking is accepted below.
 Dedicated source-mask/chained-matte and spatial camera/letterbox controls are
 now accepted in the follow-up below. General calibrated-source mattes, calibrated image effects,
 nested/exposure depth, intersecting translucent ordering, DOF, long-duration
@@ -140,3 +141,29 @@ are not additive. Production sources are unchanged by this test.
 Receipt: `artifacts/pr-queue/calibrated-matte-video-v1/accepted.json`.
 Archive: `data/calibrated-matte-video-native-v1.zip`; CRC and every original byte verified.
 SHA-256: `05c7848fd6950489193664276c3fdead31e2cc1ab1e43d137aeb62fb733128c8`.
+
+## Visible ordinary source stacking
+
+A visible ordinary 2D green source has opacity 1/2 and supplies the calibrated
+red receiver's independent alpha matte. The receiver therefore mixes red/blue
+1/2 each. Behind the opaque spatial backdrop the source adds no visible green;
+in front it adds 1/2 green, leaving red/blue at 1/4 each. Two independent fixed
+rays assert these analytic linear-light source-over results in both stack orders.
+The new fixture initially inverted the repository's documented back-to-front
+array convention; only insertion indices were corrected, preserving the exact
+color expectations. The failed v1 log and its source snapshot are retained.
+This is fixture repair, not evidence of a product failure or behavior change.
+
+The focused source-bound gate passes 56 tests (depth surface 28, compositor 2,
+mask GPU 14, scheduler 12), plus desktop compile/style/provenance. All production
+and configuration hashes are identical to the broader 145-test video gate;
+only this test file changed. Fifty-five focused tests overlap: 146 distinct
+related tests are covered across these two gates, not 201. Equivalence receipt:
+`artifacts/pr-queue/calibrated-matte-visible-v2/equivalence.json`.
+Archive: `data/calibrated-matte-visible-native-v1.zip`; all entries verified against their originals.
+SHA-256: `9799c7808a0ad6f96387e1de6183da2d75dce79961b70b9bc3600fc3a72b5cb4`.
+
+This does not implement calibrated matte sources, processed visible spatial
+sources, general calibrated effects/nesting/exposure depth, DOF, real-codec
+sustained throughput, final full-workspace/cross-platform acceptance or #82's
+actual prerender render/cache integration. Those remain explicit pending work.
