@@ -23,6 +23,7 @@ use std::{
     time::{Duration, Instant},
 };
 mod diagnostic_names;
+mod effect_pick;
 mod failure;
 mod ui_paint;
 mod frame_capture;
@@ -205,6 +206,11 @@ pub enum Command {
     EditChecked {
         text: String,
         revision: u64,
+        reply: Sender<Result<Value, String>>,
+    },
+    EffectPick {
+        ticket: crate::panels::effect_pick::Ticket,
+        point: [f64; 2],
         reply: Sender<Result<Value, String>>,
     },
     EditorAction {
@@ -465,6 +471,7 @@ impl Command {
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
             | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. } | SeekAudioPreview { reply, .. }
+            | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
@@ -1546,6 +1553,7 @@ fn handle(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
+        | Command::EffectPick { .. }
     ) {
         presentation.retained = None;
     }
@@ -1695,6 +1703,10 @@ fn handle(
             // an edit or runtime evaluation. Syntax feedback is a normal reply.
             respond(reply, Ok(serde_json::json!({"target":target,
                 "diagnostic":motion_core::expression_source_diagnostic(&source)})));
+        },
+        Command::EffectPick { ticket, point, reply } => {
+            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref()));
+            presentation.retained = None;
         },
         Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
             if !source.current(s) {

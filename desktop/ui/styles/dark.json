@@ -202,7 +202,11 @@
       "dropdown.max_width": 320,
       "dropdown.menu_min_width": 160,
       "node.dropdown.row.height": 28,
-      "effect.row.height": 26,
+      "effect.row.height": 30,
+      "effect.enum.max_width": 112,
+      "effect.value.min_width": 108,
+      "effect.value.max_width": 120,
+      "effect.number.cell_width": 50,
       "effect.header.height": 30,
       "effect.watch.width": 24,
       "effect.enable.width": 28,
@@ -449,6 +453,10 @@
       "foreground": "$colors.focus",
       "border_width": 0,
       "states": {
+        "hovered": {
+          "border": "$colors.muted",
+          "border_width": "$sizes.border"
+        },
         "focused": {
           "background": "$colors.field",
           "border_width": "$sizes.border"
@@ -498,7 +506,12 @@
     },
     "color_well": {
       "extends": "button",
-      "padding": "$sizes.border"
+      "padding": "$sizes.border",
+      "border": "$colors.muted",
+      "border_width": "$sizes.border",
+      "states": {
+        "hovered": { "border": "$colors.focus" }
+      }
     },
     "menu": {
       "extends": "panel",

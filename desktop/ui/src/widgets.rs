@@ -305,6 +305,9 @@ struct Drag {
 #[derive(Default)]
 pub struct NumberEditor {
     pub drag_threshold: Option<f32>,
+    /// Compact inspector readout; editing still starts with the original value.
+    pub compact: bool,
+    pub align_left: bool,
     pub text: TextEditor,
     drag: Option<Drag>,
 }
@@ -426,8 +429,11 @@ impl NumberEditor {
                     button == MouseButton::Left && area.contains(point)
                 }) && !self.text.active()
                 {
-                    self.text
-                        .begin(&format!("{:.*}", options.decimals.min(8), current));
+                    self.text.begin(&if self.compact {
+                        current.to_string()
+                    } else {
+                        format!("{:.*}", options.decimals.min(8), current)
+                    });
                 }
                 self.drag = None;
             }
@@ -497,11 +503,45 @@ impl NumberEditor {
                 list,
                 atlas,
                 area.shrink(style.padding),
-                &format!("{:.*}", options.decimals.min(8), value),
+                &if self.compact { compact_number(value) } else {
+                    format!("{:.*}", options.decimals.min(8), value)
+                },
                 style,
-                Align::Right,
+                if self.align_left { Align::Left } else { Align::Right },
             );
         }
+    }
+}
+
+/// Inspector presentation only. The authored value is never rounded or changed.
+pub fn compact_number(value: f64) -> String {
+    if value == 0. { "0".into() }
+    else if value.fract() == 0. { format!("{value:.0}") }
+    else { format!("{value:.2}") }
+}
+
+#[cfg(test)]
+mod compact_number_tests {
+    use super::*;
+    use crate::input::Input;
+    #[test]
+    fn integers_drop_fraction_and_editing_retains_the_authored_value() {
+        for (value, expected) in [(100., "100"), (12.5, "12.50"), (12.345, "12.35"),
+            (-0., "0"), (-3.125, "-3.12"), (0.0001, "0.00")] {
+            assert_eq!(compact_number(value), expected);
+        }
+        let current = 12.345678901;
+        let mut editor = NumberEditor { compact: true, ..Default::default() };
+        let area = Rect::new(0., 0., 120., 24.);
+        let point = [60., 12.];
+        let options = NumberOptions::default();
+        assert!(editor.update(current, options, &Input { mouse: point,
+            pressed: Some((MouseButton::Left, point)), held: Some(MouseButton::Left), ..Default::default() }, area).is_empty());
+        assert!(editor.update(current, options, &Input { mouse: point,
+            released: Some((MouseButton::Left, point)), ..Default::default() }, area).is_empty());
+        assert_eq!(editor.text.text, current.to_string());
+        let events = editor.update(current, options, &Input { keys: vec![(Key::Enter, Default::default())], ..Default::default() }, area);
+        assert!(!events.iter().any(|e| matches!(e, NumberEvent::Change {..})));
     }
 }
 

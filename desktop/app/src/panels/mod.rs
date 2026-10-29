@@ -37,6 +37,7 @@ mod work_area;
 pub(crate) mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
+pub(crate) mod effect_pick;
 mod toolbar_style;
 mod composition;
 mod viewer_guides;
@@ -253,7 +254,17 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
     }
 }
 
+pub(crate) fn cancel_for_focus_loss(panels: &mut Panels) -> Vec<Action> {
+    // A one-click pick has no held pointer. Preserve it while the user moves
+    // from an inspector window to a composition window; cancel actual drags.
+    let ticket = panels.effect_pick.ticket.take();
+    let actions = cancel_interaction(panels);
+    panels.effect_pick.ticket = ticket;
+    actions
+}
+
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.effect_pick.ticket = None;
     panels.key_gestures.cancel();
     panels.tools.cancel();
     panels.effect_drag.cancel();
@@ -369,6 +380,10 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let pick_input = input;
+    let pick_owned = panels.effect_pick.prepare(state, input);
+    let pick_neutral = Input::default();
+    let input = if pick_owned { &pick_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(None, input)
         | panels.effect_controls.prepare_context_window(None, input)
@@ -1059,6 +1074,10 @@ pub fn chrome(
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
+    if pick_owned {
+        let clips: Vec<_> = frames(layout, size).into_iter().map(|f| (f.panel, f.content)).collect();
+        effect_pick::finish(panels, list, atlas, &clips, state, pick_input, &mut out);
+    }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -1087,6 +1106,10 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    let pick_input = input;
+    let pick_owned = panels.effect_pick.prepare(state, input);
+    let pick_neutral = Input::default();
+    let input = if pick_owned { &pick_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(Some(panel), input)
         | panels.effect_controls.prepare_context_window(Some(panel), input)
@@ -1402,6 +1425,9 @@ pub fn floating_chrome(
         &mut out,
     );
     media_assets::overlay(list, atlas, Rect::new(0., 0., size[0], size[1]), panels, state, asset_input, Some(panel), &mut out);
+    if pick_owned {
+        effect_pick::finish(panels, list, atlas, &[(panel, body)], state, pick_input, &mut out);
+    }
     if expressions::picking::active(panels, Some(panel)) {
         expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), Some(panel), &[(panel, body)], state, input, &mut out);
     }

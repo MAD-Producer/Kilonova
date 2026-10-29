@@ -12,6 +12,17 @@ impl Shell {
         else { self.engine.present_async(ui) }
     }
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if state["editorAction"]["operation"] == "effect_pick" && state["editorAction"]["cancelled"] == true {
+            let text = match (self.workspace.locale, state["editorAction"]["reason"].as_str()) {
+                (Locale::Zh, Some("preview_pending")) => "合成预览尚未就绪，请画面更新后重新取色",
+                (Locale::Zh, Some("out_of_range")) => "所选值超出参数范围，未作修改",
+                (Locale::Zh, _) => "目标或工程已变化，已取消拾取",
+                (_, Some("preview_pending")) => "Preview is not ready; pick again after it updates",
+                (_, Some("out_of_range")) => "Picked value is outside the parameter range; no change made",
+                _ => "Target or project changed; pick cancelled",
+            };
+            self.panels.message = Some(text.into());
+        }
         if let Some(object) = state["assetPlacement"]["object"].as_u64() {
             self.panels.select_only(Some(object));
         }
@@ -88,7 +99,7 @@ impl Shell {
         }
         self.workspace.cancel();
         self.actions
-            .extend(panels::cancel_interaction(&mut self.panels));
+            .extend(panels::cancel_for_focus_loss(&mut self.panels));
         self.translate(Event::FocusLost);
     }
     pub(crate) fn pointer_left(&mut self) {
@@ -1004,7 +1015,7 @@ impl Shell {
                     self.panels.project.preview.close();
                 }
                 self.actions
-                    .extend(panels::cancel_interaction(&mut self.panels));
+                    .extend(panels::cancel_for_focus_loss(&mut self.panels));
                 Some(Event::FocusLost)
             }
             _ => None,

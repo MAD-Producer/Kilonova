@@ -250,10 +250,31 @@ impl Controls {
     }
 }
 
+#[cfg(test)]
 pub(super) fn parameter_navigation(
     key_channel: &mut Option<Channel>,
     list: &mut PaintList,
     row: Rect,
+    state: &Value,
+    input: &Input,
+    object: u64,
+    effect: u64,
+    param: &str,
+    parameter: &EffectParam,
+    local: f64,
+    locked: bool,
+    out: &mut Vec<Action>,
+) -> bool {
+    let rail = navigation::inspector_rail(&list.styles(), row);
+    parameter_navigation_in_rail(key_channel, list, row, rail, state, input,
+        object, effect, param, parameter, local, locked, out)
+}
+
+pub(super) fn parameter_navigation_in_rail(
+    key_channel: &mut Option<Channel>,
+    list: &mut PaintList,
+    row: Rect,
+    rail: Rect,
     state: &Value,
     input: &Input,
     object: u64,
@@ -273,8 +294,7 @@ pub(super) fn parameter_navigation(
         && parameter.animatable
         && parameter.implemented
         && frame.is_some();
-    let rect = navigation::inspector_rail(&list.styles(), row);
-    let choice = navigation::draw(list, rect, input, adjacent, editable);
+    let choice = navigation::draw(list, rail, input, adjacent, editable);
     let picked = input.pressed.is_some_and(|(button, point)|
         button == MouseButton::Left && row.contains(point));
     if choice.is_none() && !picked { return false; }

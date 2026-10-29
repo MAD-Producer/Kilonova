@@ -61,6 +61,7 @@ pub(super) fn inspector_width(styles: &motion_ui::style::StyleSheet, available: 
     }
 }
 
+#[cfg(test)]
 pub(super) fn inspector_rail(styles: &motion_ui::style::StyleSheet, row: Rect) -> Rect {
     let mut rect = rail(styles, row);
     rect.max[0] = rect.min[0] + inspector_width(styles, row.width());

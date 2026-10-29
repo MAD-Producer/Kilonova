@@ -1,0 +1,219 @@
+{
+  "branch": "feat/panel-layout-consistency",
+  "baseCommit": "59611a5426778b05a97b97a26d0fc58d8fdfa8d2",
+  "sourceState": "compact aligned value clusters and hover feedback implemented; native screenshots awaiting user review",
+  "sourceSha256": {
+    "crates/motion-render/src/image_capture.rs": "ee8f9b9458b1a49179aaa81af0a05eafa856f8c90180153219aaa411c2e452ba",
+    "desktop/app/src/engine.rs": "bb092eda4a08c9c9c16d5e4cc03383bdc526dba8791ebcc101b2e64fd719ca6e",
+    "desktop/app/src/engine/diagnostic_names.rs": "a3569b351a80085ad8bb7bb70cce8e5d6fe8c55ee120a58b867bca15aa036ffc",
+    "desktop/app/src/engine/effect_pick.rs": "a9b75a11800f17d9a40045b20e5bdb8298935173a7a1c549a91545d2458abfe8",
+    "desktop/app/src/panels/effect_controls.rs": "4dca6aeb1daf9ac1e3949a1f51b37a21e039b5e5e684bf914552e1944277f1f7",
+    "desktop/app/src/panels/effect_controls/key_navigation.rs": "c0cb8bae1b2783e7bb445748ebb7ddcca305d74e52cc4fa3ece1154e58638fe0",
+    "desktop/app/src/panels/effect_controls/track_cache_tests.rs": "d135745929c5c54748f60c1d560161c2c4355ee933896be3b1f9d3156427c0ee",
+    "desktop/app/src/panels/effect_pick.rs": "5bbf397d92027eb6d57a03b01b7840a47b2fae76de28afefdd757008b07aaa77",
+    "desktop/app/src/panels/effect_pick/tests.rs": "3edbced4b50311e9facaeaa5b754d06df766eff063eb91e2fd8aea62bbf1b3bf",
+    "desktop/app/src/panels/effect_pick/tests/native.rs": "a4860c8bc6a2c45d9141a907cc80a629b81d7203c15ced5943c0e7eb809648a5",
+    "desktop/app/src/panels/key_navigation.rs": "e48090766c116f04d694bc245bba28314e552a696f5d5d411361d1ccfc7ecd6c",
+    "desktop/app/src/panels/mod.rs": "cfec87e2c62ed5a7677ff9d485d611daf29479a8d3f168050de70944d20a447f",
+    "desktop/app/src/panels/numeric.rs": "6ff6e1e0290f5b2dd4fd1f2e36d0a37f654062a937ade5a1fc65599f98de8876",
+    "desktop/app/src/panels/types.rs": "09bc34df26012c299bc383a747a7e4afd85bb17aa3c589b6774cf7e7189598e3",
+    "desktop/app/src/shell/actions.rs": "4421c3f50b18b95231ab49481ae2dd277dd6c10d58c12badfa0854f7814c79ba",
+    "desktop/app/src/shell/native_input_tests.rs": "d9f707fd7aedb988b959a6a76cfb9321b8020bb3476440d6ae534b7aec55ea82",
+    "desktop/app/src/shell/presentation.rs": "64f2f3f48c67d355f897368c5ad706ed5603081e0ab8a51dea9974eedc32072a",
+    "desktop/ui/icons/README.md": "1e98e6d0121df26a0c616371fc2b628fca5899cd3b4fd5f6f8d05f796c269c63",
+    "desktop/ui/icons/eyedropper.svg": "7dbd70bd0917e636392567e0593191cd45ef0a396a835cad975f53cd439a79bc",
+    "desktop/ui/icons/manifest.json": "48b6c262cd4d48feb0ada07f03d75daeecb926a1c79364e113681056e9c4fab9",
+    "desktop/ui/icons/paths.json": "073e59226593225917a7e36dc592c095fd3e32a74f03f389e0fc126bef28899f",
+    "desktop/ui/icons/pick_position.svg": "840531db8c67b1279a40d32f7112fd3929eed0efcf1d8e491c294f8002542c8d",
+    "desktop/ui/src/icons.rs": "09086ff55271088aae3e730f547feeb727bf01648e4458c017b188f8ed36a3dc",
+    "desktop/ui/src/widgets.rs": "1c99dc165db0ef9e55ab8fedfa728e6d76fda699a923e29b9078a94e03d6cb2e",
+    "desktop/ui/styles/dark.json": "816b1eb63d3e4dc80d776d4eef707262a3846916b2d024e57c1f5be5f3e232e0"
+  },
+  "checks": {
+    "ffmpegOfflineDevBuild": {
+      "ok": true,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-build.log",
+      "warnings": 28
+    },
+    "testBuild": {
+      "ok": true,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-test-build.log",
+      "warnings": 25
+    },
+    "compactNumber": {
+      "passed": 1,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-number.log"
+    },
+    "effectPick": {
+      "passed": 3,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native.log"
+    },
+    "effectControls": {
+      "passed": 39,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-regressions.log"
+    },
+    "nativeFocusAndInput": {
+      "passed": 1,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-focus.log"
+    },
+    "styleConsumers": true,
+    "iconGeneration": {
+      "ok": true,
+      "count": 56
+    },
+    "diffWhitespace": true,
+    "numericGestures": {
+      "passed": 2,
+      "log": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-numeric-gestures.log"
+    }
+  },
+  "nativeScreens": [
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\color-pick-armed.png",
+      "size": [
+        960,
+        640
+      ],
+      "sha256": "f765771841e8ccd3b739216175ddc1fcf5d55e299abc49f29971c7719067c499"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-dropdown-open.png",
+      "size": [
+        960,
+        640
+      ],
+      "sha256": "e128c62956125f5931f7a51cc17b8d585f39c92d27ff150d0126e584c9fa418e"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-editing-220.png",
+      "size": [
+        220,
+        560
+      ],
+      "sha256": "e59a940a9ca118a715ef25bc40798de8d056ee4546b2e6d4c835d9bc7d934b34"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-editing-360.png",
+      "size": [
+        360,
+        560
+      ],
+      "sha256": "631a833b6a8593184acc7ce361bd02b3a7b7acf63e5c67bbdc795abab671d28e"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-editing-520.png",
+      "size": [
+        520,
+        560
+      ],
+      "sha256": "ba1349b5f41dee02ce9e264faa136085464a2ffe46625cdb37501402c0be5fef"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-hover-220.png",
+      "size": [
+        220,
+        560
+      ],
+      "sha256": "01d720939e797506ea6abc2b2604e13bcc87887b451db84dadef0aea2133ecdd"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-hover-360.png",
+      "size": [
+        360,
+        560
+      ],
+      "sha256": "0af2ecc0955dc1aa1729c9d01863ddf37c21a1135a24edac5aa3bc86e3086a5c"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-hover-520.png",
+      "size": [
+        520,
+        560
+      ],
+      "sha256": "204cd6a17dca58895b0594f08801c307fb9a7ae53b469671158b1cc47a88a58d"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-pickers-220.png",
+      "size": [
+        220,
+        560
+      ],
+      "sha256": "06a05c795a9dafc5d8cfdb6d191bedf492fc36f3834463b86607f77e7fafe662"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-pickers-360.png",
+      "size": [
+        360,
+        560
+      ],
+      "sha256": "0f0f66a24126589bffdbe5d7773a6ac03f4aacf98d01361f191bfe9b17bfef85"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-pickers-520.png",
+      "size": [
+        520,
+        560
+      ],
+      "sha256": "50779cda3d6c5b1ed4f7192b8feb54fe84138568087547b0c7116dacdaf4ac81"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-pickers-main.png",
+      "size": [
+        960,
+        640
+      ],
+      "sha256": "6d2cdc0db7b357e1211348a180bb6a87553c564a4817532404d77bef06f69bf6"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\effect-selected-row.png",
+      "size": [
+        960,
+        640
+      ],
+      "sha256": "1d8a5be172b9c7ff8d9613b60b1e4966488353840253deaeb879b0321cf397bd"
+    },
+    {
+      "file": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\position-pick-armed.png",
+      "size": [
+        960,
+        640
+      ],
+      "sha256": "f60beda6751793f9f692b94d002965725cd310cb36926ab83d385b66cd02171b"
+    }
+  ],
+  "visualAcceptance": "220/360/520 widths and hover/editing screenshots inspected; user review pending",
+  "pending": [
+    "full OS input playback",
+    "real multiple DPI / monitor focus matrix",
+    "GPU fault/hang injection",
+    "new combined picking tests for transformed parents / 3D / animated layer offsets",
+    "user review of the final B layout; arbitrary long effect labels retain existing ellipsis and full hover text"
+  ],
+  "reversibleOldBuildBackupManifest": "E:\\Dev\\aem\\artifacts\\effect-property-picking\\old-test-binaries-backup.json",
+  "derivedPreview": {
+    "files": [
+      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\panels-comparison.png",
+      "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-hover-native\\interaction-comparison.png"
+    ],
+    "operation": "unaltered native screenshot crops; side by side; no scaling or repainting"
+  },
+  "failureEvidence": [
+    "E:\\Dev\\aem\\artifacts\\effect-property-picking\\b-native.log",
+    "E:\\Dev\\aem\\artifacts\\effect-property-picking\\b-native\\effect-selected-row.png",
+    "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-confirm-build.log",
+    "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-native.log",
+    "E:\\Dev\\aem\\artifacts\\effect-property-picking\\cluster-native-runtime-fixed.log"
+  ],
+  "nativeBChecks": [
+    "selected row navigation produces an atomic key transaction and exact undo",
+    "hidden navigation selects a row without creating keys",
+    "selection preserves value field geometry",
+    "position and color actions share a trailing column",
+    "native screenshot retains position icon cardinal arms",
+    "220px numeric text fits after actual field padding",
+    "360 and 520 coordinate geometry is identical",
+    "scalar and enum fields share coordinate starting column",
+    "black color border remains visible",
+    "cached numeric field hover border survives at each width"
+  ]
+}

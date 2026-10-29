@@ -455,11 +455,16 @@ impl Controls {
         out: &mut Vec<Action>,
     ) {
         if input.pressed.is_some() {
-            self.clear_key_channel();
+            // Keep the previous selection while hit-testing its contextual
+            // navigation. Clear it afterward only if no property took the click.
+            self.selection_intent = false;
         }
         self.render_mode(
             false, list, atlas, area, y, layer, state, input, locale, out,
         );
+        if input.pressed.is_some() && !self.selection_intent {
+            self.clear_key_channel();
+        }
     }
 
     pub fn finish_context_menu(
@@ -1473,20 +1478,56 @@ impl Controls {
                     self.property_filter,&effect["params"][param],state,object,id,param) { continue; }
                 let kind = parameter["kind"].as_str().unwrap_or("float");
                 let implemented = parameter["implemented"].as_bool().unwrap_or(true);
-                let name = parameter["name"].as_str().unwrap_or(param);
-                let columns = motion_ui::widgets::InspectorColumns::new(
-                    &styles, area, *y, row,
-                    super::key_navigation::inspector_width(&styles, area.width()) + styles.metric("tree.indent", 14.),
+                let name = if param == "effect_opacity" {
+                    if locale == Locale::Zh { "不透明度" } else { "Opacity" }
+                } else if effect["effect"] == "gradient_ramp" {
+                    match (param, locale == Locale::Zh) {
+                        ("start", true) => "起点",
+                        ("end", true) => "终点",
+                        ("start_color", true) => "起始色",
+                        ("end_color", true) => "结束色",
+                        ("shape", true) => "形状",
+                        ("scatter", true) => "散射",
+                        ("blend", true) => "原图混合",
+                        ("start", false) => "Start",
+                        ("end", false) => "End",
+                        ("start_color", false) => "Start color",
+                        ("end_color", false) => "End color",
+                        ("shape", false) => "Shape",
+                        ("scatter", false) => "Scatter",
+                        ("blend", false) => "Original mix",
+                        _ => parameter["name"].as_str().unwrap_or(param),
+                    }
+                } else { parameter["name"].as_str().unwrap_or(param) };
+                // Reserve the same trailing lane on every row, so selecting a
+                // parameter never moves its value fields under the pointer.
+                let navigation_width = super::key_navigation::inspector_width(&styles, area.width());
+                let show_navigation = self.parameter_selected(state, object, id, param);
+                let mut content = area;
+                if navigation_width > 0. { content.max[0] -= navigation_width + gap; }
+                let mut columns = motion_ui::widgets::InspectorColumns::new(
+                    &styles, content, *y, row,
+                    styles.metric("tree.indent", 14.),
                     styles.metric("effect.watch.width", 24.),
                     if kind == "color" { 1 } else { dimensions(kind) },
                 );
+                let reserve = (styles.metric("effect.value.min_width", 108.) - columns.values.width())
+                    .max(0.).min((columns.label.width() - styles.metric("label.column", 72.) * 0.5).max(0.));
+                columns.label.max[0] -= reserve;
+                columns.values.min[0] -= reserve;
+                // The value cluster stops growing once its controls fit. Extra
+                // panel width must not spread coordinates or their actions.
+                let cap = styles.metric("effect.value.max_width", 120.)
+                    .max(if kind == "color" { 1 } else { dimensions(kind) } as f32
+                        * styles.metric("effect.number.cell_width", 50.));
+                columns.values.max[0] = columns.values.min[0] + columns.values.width().min(cap);
                 let watch_width = columns.icon.width();
                 let left = columns.icon.min[0];
                 let right = area.max[0] - pad;
                 let label_x = columns.label.min[0];
                 let label_width = columns.label.width();
                 let value_x = columns.values.min[0];
-                let values = columns.values;
+                let mut values = columns.values;
                 self.selection_probe.record(Rect::new(label_x, *y, label_width, row), area);
                 if clicked(input, Rect::new(label_x, *y, (right - label_x).max(0.), row)) {
                     self.choose_parameter(state, object, id, param);
@@ -1544,8 +1585,11 @@ impl Controls {
                     observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
                         "object={object} effect={id} param={param}")
                 }) else { continue };
-                self.selection_intent |= key_navigation::parameter_navigation(&mut self.key_channel, list,
-                    Rect::new(area.min[0], *y, area.width(), row), state, input, object, id, param,
+                let navigation = Rect::new(columns.values.max[0] + gap, *y,
+                    if show_navigation { navigation_width } else { 0. }, row);
+                #[cfg(test)] self.test_rects.insert((object, id, param.into(), -9), navigation);
+                self.selection_intent |= key_navigation::parameter_navigation_in_rail(&mut self.key_channel, list,
+                    Rect::new(area.min[0], *y, area.width(), row), navigation, state, input, object, id, param,
                     track, local, locked, out);
                 if kind == "curve" {
                     let key = (object, id, param.to_string());
@@ -1711,6 +1755,8 @@ impl Controls {
                             &value,
                             input,
                             !locked && implemented,
+                            state,
+                            locale,
                             out,
                         );
                         *y += row;
@@ -1735,15 +1781,34 @@ impl Controls {
                         }
                         continue;
                     }
+                    if super::effect_pick::is_position(parameter) {
+                        let slot = styles.metric("icon.slot", 20.);
+                        let pick = Rect::new((values.max[0] - slot).max(values.min[0]), *y, slot, row);
+                        #[cfg(test)] self.test_rects.insert((object, id, param.into(), -6), pick);
+                        let enabled = !locked && implemented && state["observing"] != true;
+                        if enabled && pick.contains(input.mouse) {
+                            self.drag_readout = Some((input.mouse, word(locale, "点选位置 · 点击合成画面", "Pick position · click composition")));
+                        }
+                        if press_icon(list, input, pick, Icon::PickPosition, enabled) {
+                            if self.cancel() { out.push(Action::History(4)); }
+                            out.push(Action::BeginEffectPick(super::effect_pick::Ticket::new(state, object, id, param, super::effect_pick::Kind::Position)));
+                        }
+                        values.max[0] = (pick.min[0] - gap).max(values.min[0]);
+                    }
                     for component in 0..dimensions(kind) {
                         let count = dimensions(kind);
                         let cell = if kind == "bool" || kind == "enum" {
                             values.width()
                         } else {
-                            (values.width() / count as f32).min(styles.metric("value.min_width", 64.))
+                            ((values.width() + gap) / count.max(2) as f32)
+                                .min(styles.metric("effect.number.cell_width", 50.))
                         };
                         let x = values.min[0] + component as f32 * cell;
-                        let rect = Rect::new(x, *y, (cell - gap).max(0.), row);
+                        let mut rect = Rect::new(x, *y, (cell - gap).max(0.), row);
+                        if kind == "enum" {
+                            rect.max[0] = rect.min[0] + rect.width().min(styles.metric("effect.enum.max_width", 112.));
+                            #[cfg(test)] self.test_rects.insert((object,id,param.into(),-8),rect);
+                        }
                         if count > 1 && component + 1 < count {
                             ui::text(
                                 list,
@@ -1798,7 +1863,7 @@ impl Controls {
                                     let is_modal_owner = modal_owner.as_ref()
                                         .is_some_and(|(owner, name)| *owner == id && name == param);
                                     let (result, open) = self.dropdowns.with(id, param, |dropdown| {
-                                        let result = dropdown.draw(
+                                        let result = dropdown.draw_inline(
                                             &mut overlays,
                                             atlas,
                                             rect,
@@ -1910,6 +1975,8 @@ impl Controls {
         values: &[f32; 4],
         input: &Input,
         enabled: bool,
+        state: &Value,
+        locale: Locale,
         out: &mut Vec<Action>,
     ) {
         let styles = list.styles();
@@ -1927,17 +1994,34 @@ impl Controls {
         #[cfg(test)]
         self.test_rects
             .insert((object, effect, param.into(), -1), preview);
+        let gap = styles.metric("padding", 5.);
+        let slot = styles.metric("icon.slot", 20.);
+        let pick = Rect::new((area.max[0] - slot).max(preview.max[0] + gap), y, slot, row);
+        let pick_enabled = enabled && state["observing"] != true;
+        #[cfg(test)] self.test_rects.insert((object, effect, param.into(), -6), pick);
+        if pick_enabled && pick.contains(input.mouse) {
+            self.drag_readout = Some((input.mouse, word(locale, "从合成画面取色", "Pick color from composition")));
+        }
+        if press_icon(list, input, pick, Icon::Eyedropper, pick_enabled) {
+            if self.cancel() { out.push(Action::History(4)); }
+            out.push(Action::BeginEffectPick(super::effect_pick::Ticket::new(state, object, effect, param, super::effect_pick::Kind::Color)));
+        }
         let text_area = Rect::new(
-            preview.max[0] + styles.metric("padding", 5.),
+            preview.max[0] + gap,
             y,
-            (area.max[0] - preview.max[0] - styles.metric("padding", 5.)).max(0.),
+            (pick.min[0] - preview.max[0] - gap * 2.).max(0.),
             row,
         );
+        let alpha = format!("{:.0}%", values[3] * 100.);
+        let caption = if values[3] != 1. && text_area.width() >= atlas.measure(&alpha) { alpha } else { String::new() };
+        if enabled && (preview.contains(input.mouse) || text_area.contains(input.mouse)) {
+            self.drag_readout = Some((input.mouse, color_well::caption(values)));
+        }
         ui::text(
             list,
             atlas,
             text_area,
-            &color_well::caption(values),
+            &caption,
             styles.colors().TEXT_MUTED,
             Align::Left,
         );
@@ -2139,6 +2223,8 @@ impl Controls {
             f.object == object && f.effect == effect && f.param == param && f.component == component
         }) {
             field.rect = rect;
+            field.number.editor.compact = true;
+            field.number.editor.align_left = true;
             self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
             let speed = if (max - min).is_finite() && (max - min) <= 2. {
                 0.005
@@ -2175,9 +2261,9 @@ impl Controls {
         } else {
             self.cursor |= enabled && rect.contains(input.mouse);
             if enabled && rect.contains(input.mouse) {
-                self.drag_readout = Some((input.mouse, format!("{:.3}", value[component])));
+                self.drag_readout = Some((input.mouse, value[component].to_string()));
             }
-            super::numeric::passive(list, atlas, rect, value[component] as f64, input, enabled);
+            super::numeric::passive_compact(list, atlas, rect, value[component] as f64, input, enabled);
         }
     }
 }
