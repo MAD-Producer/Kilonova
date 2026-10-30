@@ -314,6 +314,7 @@ impl Controls {
                         },
                     ),
             );
+            if super::key_navigation::inspector_width(&styles, area.width()) > 0. {
             if object == 0 {
                 let adjacent = super::key_navigation::neighbours(
                     keys.iter().copied(),
@@ -330,6 +331,7 @@ impl Controls {
                 list, row, state, input, object, property, axis, &keys,
             ) {
                 choice = Some((property, axis, intent));
+            }
             }
             super::timeline::property_branch(list, layout.watch);
             let source =

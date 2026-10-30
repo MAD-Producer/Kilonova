@@ -167,7 +167,9 @@ fn refused_key_toggle_emits_no_edits_and_preserves_default_failure_channels_then
         let list = PaintList::default();
         let styles = list.styles();
         let slot = styles.metric("icon.slot", 20.);
-        let row = Rect::new(0., 0., slot * 8., styles.metric("effect.row.height", 26.));
+        // Exercise a visible navigation control; compact inspectors intentionally hide it.
+        let row = Rect::new(0., 0., styles.metric("inspector.navigation.min_width", 320.),
+            styles.metric("effect.row.height", 26.));
         let point = [
             styles.metric("padding.panel", 8.) + slot * 1.5,
             row.height() * 0.5,

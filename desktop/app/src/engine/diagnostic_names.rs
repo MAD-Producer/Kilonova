@@ -25,6 +25,7 @@ impl Command {
             NodeCapture { .. } => "node_capture",
             EditChecked { .. } => "edit_checked",
             EditorAction { .. } => "editor_action",
+            EffectPick { .. } => "effect_pick",
             ProjectOpen { .. } => "project_open",
             ProjectAsset { operation, .. } => operation.name(),
             ExpressionCheck { .. } => "expression_check",

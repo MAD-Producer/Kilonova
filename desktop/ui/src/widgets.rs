@@ -2,6 +2,8 @@
 pub mod numeric_behavior;
 pub mod menu;
 mod property_layout;
+mod inspector;
+pub use inspector::InspectorColumns;
 mod text_history;
 mod text_input;
 mod text_commands;
@@ -303,6 +305,10 @@ struct Drag {
 #[derive(Default)]
 pub struct NumberEditor {
     pub drag_threshold: Option<f32>,
+    /// Compact inspector readout; editing still starts with the original value.
+    pub compact: bool,
+    pub align_left: bool,
+    pub style_class: Option<&'static str>,
     pub text: TextEditor,
     drag: Option<Drag>,
 }
@@ -424,8 +430,11 @@ impl NumberEditor {
                     button == MouseButton::Left && area.contains(point)
                 }) && !self.text.active()
                 {
-                    self.text
-                        .begin(&format!("{:.*}", options.decimals.min(8), current));
+                    self.text.begin(&if self.compact {
+                        current.to_string()
+                    } else {
+                        format!("{:.*}", options.decimals.min(8), current)
+                    });
                 }
                 self.drag = None;
             }
@@ -482,24 +491,62 @@ impl NumberEditor {
         sheet: &crate::style::StyleSheet,
         states: crate::style::States,
     ) {
+        let class = self.style_class.unwrap_or("field.number");
+        let area = if self.compact {
+            let height = sheet.metric("field.height", 18.).min(area.height());
+            Rect::new(area.min[0], area.min[1] + (area.height() - height) * 0.5, area.width(), height)
+        } else { area };
         if self.text.active() {
             self.text
-                .draw_styled(list, atlas, area, sheet, "field.number", states);
+                .draw_styled(list, atlas, area, sheet, class, states);
         } else {
             let value = self.drag.as_ref().map_or(current, |d| d.value);
             let style = sheet
-                .resolve("field.number", states)
+                .resolve(class, states)
                 .expect("numeric field style");
             crate::style::box_style(list, area, style);
             crate::style::text_style(
                 list,
                 atlas,
                 area.shrink(style.padding),
-                &format!("{:.*}", options.decimals.min(8), value),
+                &if self.compact { compact_number(value) } else {
+                    format!("{:.*}", options.decimals.min(8), value)
+                },
                 style,
-                Align::Right,
+                if self.align_left { Align::Left } else { Align::Right },
             );
         }
+    }
+}
+
+/// Fixed two-place inspector presentation; authored precision is unchanged.
+pub fn compact_number(value: f64) -> String {
+    format!("{:.2}", if value == 0. { 0. } else { value })
+}
+
+#[cfg(test)]
+mod compact_number_tests {
+    use super::*;
+    use crate::input::Input;
+    #[test]
+    fn two_decimal_display_and_editing_retain_the_authored_precision() {
+        for (value, expected) in [(100., "100.00"), (32., "32.00"), (64., "64.00"),
+            (12.5, "12.50"), (12.345, "12.35"),
+            (-0., "0.00"), (-3.125, "-3.12"), (0.0001, "0.00")] {
+            assert_eq!(compact_number(value), expected);
+        }
+        let current = 12.345678901;
+        let mut editor = NumberEditor { compact: true, ..Default::default() };
+        let area = Rect::new(0., 0., 120., 24.);
+        let point = [60., 12.];
+        let options = NumberOptions::default();
+        assert!(editor.update(current, options, &Input { mouse: point,
+            pressed: Some((MouseButton::Left, point)), held: Some(MouseButton::Left), ..Default::default() }, area).is_empty());
+        assert!(editor.update(current, options, &Input { mouse: point,
+            released: Some((MouseButton::Left, point)), ..Default::default() }, area).is_empty());
+        assert_eq!(editor.text.text, current.to_string());
+        let events = editor.update(current, options, &Input { keys: vec![(Key::Enter, Default::default())], ..Default::default() }, area);
+        assert!(!events.iter().any(|e| matches!(e, NumberEvent::Change {..})));
     }
 }
 

@@ -57,38 +57,24 @@ pub(super) fn property_row(
         }
         return layout;
     }
-    let padding = styles.metric("padding.panel", 8.);
-    let slot = styles.metric("icon.slot", 20.);
-    let field = styles.metric("field.height", 18.).min(row);
-    let navigation = crate::panels::key_navigation::width(styles);
-    let preferred_start = area.min[0] + padding + navigation + indent * 2.;
-    let value = if host == Panel::Properties {
-        area.min[0]
-            + (padding + navigation + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.7)
-    } else {
-        area.min[0] + area.width() * 0.52
-    }.max(preferred_start + slot + padding);
-    // Keep both numeric hit areas intact. The link consumes caption space;
-    // at very narrow widths the existing leading indent yields first.
-    let start = if axes == 2 { preferred_start.min(value - slot * 2.) } else { preferred_start };
-    let cell = ((area.max[0] - padding - value) / axes.max(1) as f32)
-        .min(styles.metric("value.min_width", 64.));
+    let columns = motion_ui::widgets::InspectorColumns::new(
+        styles, area, y, row,
+        crate::panels::key_navigation::inspector_width(styles, area.width()) + styles.metric("tree.indent", 14.),
+        styles.metric("effect.watch.width", 24.), axes,
+    );
+    let mut caption = columns.label;
+    if axes == 2 {
+        caption.max[0] = caption.max[0]
+            .min(columns.values.min[0] - styles.metric("icon.slot", 20.))
+            .max(caption.min[0]);
+    }
     crate::panels::timeline::PropertyLayout {
-        watch: Rect::new(start, y, slot, row),
-        caption: Rect::new(
-            start + slot,
-            y,
-            (value - start - slot - padding - if axes == 2 { slot } else { 0. }).max(0.),
-            row,
-        ),
-        number: Rect::new(
-            value + axis as f32 * cell,
-            y + (row - field) * 0.5,
-            (cell - styles.metric("border", 1.) * 2.).max(0.),
-            field,
-        ),
+        watch: columns.icon_target(styles.metric("icon.slot", 20.)),
+        caption,
+        number: columns.number(axis),
     }
 }
+
 pub(super) fn icon(
     list: &mut PaintList,
     input: &Input,
@@ -688,7 +674,8 @@ impl Controls {
                 crate::panels::animation_controls::highlight_row(list,
                     Rect::new(area.min[0], *y, area.width(), row),
                     self.keys.selected_in(state, owner.object, mask.id, index));
-                if self.keys.navigation(list, Rect::new(area.min[0], *y, area.width(), row), state, owner, mask, index, input, out) {
+                if crate::panels::key_navigation::inspector_width(&styles, area.width()) > 0.
+                    && self.keys.navigation(list, Rect::new(area.min[0], *y, area.width(), row), state, owner, mask, index, input, out) {
                     self.groups.keys.clear_selection();
                 }
                 self.keys
@@ -750,7 +737,7 @@ mod tests {
             for host in [Panel::Properties, Panel::Masks] {
             let x = property_row(&styles, area, 120., 0, 2, host);
             let y = property_row(&styles, area, 120., 1, 2, host);
-            let rail = crate::panels::key_navigation::rail(&styles, Rect::new(area.min[0], 120., width, styles.metric("row.height", 22.)));
+            let rail = crate::panels::key_navigation::inspector_rail(&styles, Rect::new(area.min[0], 120., width, styles.metric("row.height", 22.)));
             assert!(rail.max[0] <= x.watch.min[0]);
             assert!(x.watch.max[0] <= x.caption.min[0]);
             assert!(x.caption.max[0] <= x.number.min[0]);
