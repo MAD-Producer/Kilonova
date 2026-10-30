@@ -34,6 +34,31 @@ fn ready() -> Scheduler {
 }
 
 #[test]
+fn destination_peek_does_not_consume_or_bypass_admission_and_holds() {
+    let mut scheduler = ready();
+    let key = scheduler.next_key().unwrap();
+    assert_eq!(key.frame(), 11.25);
+    assert_eq!(scheduler.next_key(), Some(key));
+    assert_eq!(scheduler.status().counts.started, 0);
+    assert!(scheduler.take_next(false).unwrap().is_none());
+    assert_eq!(scheduler.next_key(), Some(key));
+    let ticket = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(ticket.key(), key);
+    assert!(scheduler.next_key().is_none());
+    scheduler.finish(&ticket);
+    assert_eq!(scheduler.next_key().unwrap().frame(), 12.25);
+    scheduler
+        .update(Demand {
+            editing: true,
+            ..demand()
+        })
+        .unwrap();
+    assert!(scheduler.next_key().is_none());
+    scheduler.set_policy(Policy::default()).unwrap();
+    assert!(scheduler.next_key().is_none());
+}
+
+#[test]
 fn exact_fractional_directional_window_is_bounded() {
     let mut scheduler = ready();
     let mut frames = Vec::new();

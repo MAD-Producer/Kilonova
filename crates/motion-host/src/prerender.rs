@@ -280,6 +280,14 @@ impl Scheduler {
             self.hold = Hold::Empty;
         }
     }
+    /// Inspect the exact eligible destination before reserving real storage.
+    /// This does not consume a ticket, count a start or bypass any hold.
+    pub fn next_key(&self) -> Option<FrameKey> {
+        if self.flight.is_some() || !matches!(self.hold, Hold::Ready | Hold::Budget) {
+            return None;
+        }
+        self.pending.front().copied()
+    }
     /// Admission must represent an actual shared-budget reservation owned by
     /// the consumer, not merely a guessed free-byte count. This scheduler never
     /// acquires a GPU resource or creates another unbounded worker queue.
