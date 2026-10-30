@@ -276,9 +276,9 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
     let main = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(900, 600))).unwrap());
     #[allow(deprecated)]
     let float = Arc::new(events.create_window(Window::default_attributes().with_visible(false).with_inner_size(PhysicalSize::new(720, 640))).unwrap());
-    let attached = engine.attach_async(main, 900, 600).unwrap();
+    let attached = engine.attach_async(main.clone(), 900, 600).unwrap();
     crate::native_test_support::receive(&mut events, &attached, Duration::from_secs(30)).unwrap().unwrap();
-    engine.float_window(1, float, 720, 640).unwrap();
+    engine.float_window(1, float.clone(), 720, 640).unwrap();
     let export_before = root.join("export-before.png");
     let exported = engine.capture_async(export_before.clone(), Default::default()).unwrap();
     crate::native_test_support::receive(&mut events, &exported, Duration::from_secs(60)).unwrap().unwrap();
@@ -289,7 +289,16 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
         let mut panels = Panels::default();
         panels.locale = locale;
         panels.focused = Some(Panel::Composition);
-        for (window, size, ratio) in [(0, [900., 600.], 1.), (1, [360., 320.], 2.)] {
+        for (window_name, window, size, ratio) in [
+            ("main-min", 0, [900., 600.], 1.),
+            ("main-default", 0, [1600., 1000.], 1.5),
+            ("float", 1, [360., 320.], 2.),
+        ] {
+            let dimensions = [(size[0] * ratio) as u32, (size[1] * ratio) as u32];
+            let _ = if window == 0 { main.request_inner_size(PhysicalSize::new(dimensions[0], dimensions[1])) }
+                else { float.request_inner_size(PhysicalSize::new(dimensions[0], dimensions[1])) };
+            let resized = engine.resize_async(window, dimensions[0], dimensions[1]).unwrap();
+            crate::native_test_support::receive(&mut events, &resized, Duration::from_secs(30)).unwrap().unwrap();
             let viewport = view(&panels, window, size);
             let mapping = panels.composition.navigation.mapping(viewport, [640., 480.]).unwrap();
             let sample = mapping.screen([320., 240.]);
@@ -298,7 +307,7 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
                 + sheet.metric("viewer.percent.width", 14.) + sheet.metric("viewer.controls.gap", 4.) * 2.
                 + sheet.metric("viewer.fit.width", 40.) + sheet.metric("viewer.overlay.button.width", 64.) * 0.5;
             let button_y = viewport.max[1] + sheet.metric("viewer.canvas.bottom", 6.) + sheet.metric("viewer.controls.height", 28.) * 0.5;
-            let color = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-color.png")));
+            let color = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window_name}-color.png")));
             let initial = *color.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32);
             let mut selected = Vec::new();
             for (index, name) in [(1, "red"), (2, "green"), (3, "blue"), (4, "alpha"), (0, "restore")] {
@@ -319,7 +328,7 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
                 assert_eq!(panels.viewer_guides.channel(window == 0), motion_render::ViewChannel::Color);
                 draw(&engine, &mut panels, &mut atlas, window, size, press([size[0] - 1., 0.]));
                 assert!(panels.viewer_guides.menu.is_none());
-                let pixels = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-{name}.png")));
+                let pixels = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window_name}-{name}.png")));
                 let pixel = *pixels.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32);
                 if index == 0 { assert_eq!(pixel, initial); }
                 else { assert_eq!(pixel[0], pixel[1]); assert_eq!(pixel[1], pixel[2]); assert_eq!(pixel[3], 255); selected.push(pixel[0]); }
@@ -344,7 +353,7 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
             assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).comparison_split, Some(0.5));
             let actions = draw(&engine, &mut panels, &mut atlas, window, size, press(click(1.))).1;
             assert!(matches!(actions.as_slice(), [Action::SaveViewerSnapshot { floating }] if *floating == (window != 0)));
-            let saved = root.join(format!("{locale_name}-{window}-ui-snapshot.png"));
+            let saved = root.join(format!("{locale_name}-{window_name}-ui-snapshot.png"));
             let receive = engine.save_viewer_snapshot_async(window, saved.clone(), motion_render::ViewChannel::Color).unwrap();
             crate::native_test_support::receive(&mut events, &receive, Duration::from_secs(30)).unwrap().unwrap();
             assert!(image::open(saved).unwrap().to_rgba8().get_pixel(320, 240)[0] > 0);
@@ -360,7 +369,7 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
             for (actual, expected) in region.into_iter().zip([0.25, 0.25, 0.5, 0.5]) {
                 assert!((actual - expected).abs() < 1e-6, "region={region:?}");
             }
-            let inspected = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-ui-region.png")));
+            let inspected = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window_name}-ui-region.png")));
             assert_eq!(*inspected.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32), initial);
         }
     }
