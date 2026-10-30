@@ -9,6 +9,7 @@ enum Control {
 
 #[derive(Default)]
 struct State {
+    input: super::input::InputGate,
     generation: u64,
     next_ticket: u64,
     active: Option<(u64, Control)>,
@@ -20,6 +21,31 @@ struct State {
 pub(crate) struct Signals(Mutex<State>);
 
 impl Signals {
+    pub fn input(&self, activity: super::InputActivity) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "prerender dispatch gate poisoned")?;
+        if state.input.observe(activity)? {
+            Self::interrupt_state(&mut state, true)?;
+        }
+        Ok(())
+    }
+    pub fn input_pending(&self) -> Result<bool, String> {
+        Ok(self
+            .0
+            .lock()
+            .map_err(|_| "prerender dispatch gate poisoned")?
+            .input
+            .pending())
+    }
+    pub fn preempt_for_present(&self) -> Result<u64, String> {
+        let mut state = self.0.lock().map_err(|_| "prerender dispatch gate poisoned")?;
+        Self::interrupt_state(&mut state, true)?;
+        Ok(state.input.token())
+    }
+    pub fn presented(&self, input_token: u64) -> Result<bool, String> {
+        let mut state = self.0.lock().map_err(|_| "prerender dispatch gate poisoned")?;
+        state.input.presented(input_token);
+        Ok(state.playing)
+    }
     pub fn playing(&self) -> Result<bool, String> {
         Ok(self
             .0
@@ -108,7 +134,7 @@ impl Signals {
             .0
             .lock()
             .map_err(|_| "prerender dispatch gate poisoned")?;
-        if state.generation != generation {
+        if state.generation != generation || state.input.pending() {
             return Ok(None);
         }
         if state.active.is_some() {
@@ -154,6 +180,44 @@ impl Signals {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn input_preempts_before_dispatch_and_blocks_publication_until_its_own_frame() {
+        let gate = Signals::default();
+        let active = worker::YieldControl::default();
+        let ticket = gate
+            .publish_yield(gate.generation().unwrap(), active.clone())
+            .unwrap()
+            .unwrap();
+        let old_frame = gate.preempt_for_present().unwrap();
+        // Publish a fresh token after the old frame's ordinary yield, so the
+        // input itself must interrupt it without help from another dispatch.
+        gate.finish(ticket).unwrap();
+        let active = worker::YieldControl::default();
+        let ticket = gate
+            .publish_yield(gate.generation().unwrap(), active.clone())
+            .unwrap()
+            .unwrap();
+        gate.input(super::super::InputActivity::Button { index: 0, pressed: true })
+            .unwrap();
+        assert_eq!(active.control().check().unwrap_err(), "movie export cancelled");
+        assert!(gate.input_pending().unwrap());
+        gate.finish(ticket).unwrap();
+        assert!(gate
+            .publish_yield(gate.generation().unwrap(), worker::YieldControl::default())
+            .unwrap()
+            .is_none());
+        gate.input(super::super::InputActivity::Button { index: 0, pressed: false })
+            .unwrap();
+        gate.presented(old_frame).unwrap();
+        assert!(gate.input_pending().unwrap());
+        let current_frame = gate.preempt_for_present().unwrap();
+        gate.presented(current_frame).unwrap();
+        assert!(!gate.input_pending().unwrap());
+        assert!(gate
+            .publish_yield(gate.generation().unwrap(), worker::YieldControl::default())
+            .unwrap()
+            .is_some());
+    }
     #[test]
     fn playback_changes_invalidate_old_publication_but_repeated_state_does_not() {
         let gate = Signals::default();

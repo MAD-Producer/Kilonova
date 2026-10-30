@@ -22,6 +22,7 @@ pub(crate) mod audio_analysis;
 mod nodes;
 mod node_image_drop;
 mod presentation;
+mod prerender_input;
 pub(crate) mod viewer_inspection;
 #[cfg(test)]
 mod audio_preview_tests;

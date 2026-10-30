@@ -14,6 +14,8 @@ use std::{
     time::{Duration, Instant},
 };
 mod signals;
+mod input;
+pub(crate) use input::InputActivity;
 #[cfg(all(test, target_os = "windows"))]
 mod tests;
 pub(super) use signals::Signals;
@@ -78,13 +80,17 @@ impl Runtime {
     pub fn polling(&self) -> bool {
         self.enabled || self.lease.is_some()
     }
-    pub fn foreground_presented(&mut self) {
+    pub fn foreground_presented(&mut self, input_token: u64) {
         // Wake optional work immediately after a successful playback frame,
         // when the next frame has the most slack. A free-running timer can
         // instead start a render just before the next foreground preemption.
         // This only arms the existing queued polling path: no IO or native work
         // occurs here, and queued foreground requests still win recv_timeout.
-        if self.enabled && self.fault.is_none() && matches!(self.signals.playing(), Ok(true)) {
+        let playing = match self.signals.presented(input_token) {
+            Ok(playing) => playing,
+            Err(error) => { self.fail("input_acknowledgment", error); return; }
+        };
+        if self.enabled && self.fault.is_none() && playing {
             self.last_poll = None;
         }
     }
@@ -269,6 +275,10 @@ impl Runtime {
             self.hold = if pressure { "pressure" } else { "foreground" };
             return Ok(());
         }
+        if self.signals.input_pending()? {
+            self.hold = "input";
+            return Ok(());
+        }
         // An acknowledged edit can leave the command queue empty while the UI
         // builds its next Present. Give that revision's foreground redraw the
         // first GPU slot even with a zero idle delay. Keep reconciliation and
@@ -383,6 +393,7 @@ impl Runtime {
     pub fn status(&self) -> serde_json::Value {
         let scheduler = self.owner.as_ref().map(Coordinator::status);
         serde_json::json!({"enabled":self.enabled,"experimental":true,"hold":self.hold,
+            "inputPending":self.signals.input_pending().ok(),
             "policy":{"enabled":self.policy.enabled,"window":self.policy.window,
                 "idleDelayMs":self.policy.idle_delay.as_millis(),
                 "maxSeekFramesPerSecond":self.policy.max_seek_frames_per_second},
