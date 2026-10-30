@@ -241,3 +241,75 @@ fn canceled_render_preserves_completed_pixels_only_after_matching_source_acknowl
     assert_eq!(owner.cache_info().unwrap().resident_frames, 0);
     assert!(owner.get(&renderer, 1.).unwrap().is_none());
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn completed_due_playback_frame_installs_before_poll_but_invalidation_still_wins() {
+    let root = tempfile::tempdir().unwrap();
+    let session = session(root.path());
+    let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+        session.engine.project().working_precision,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    for invalidation in ["yield", "strong", "pressure", "generation"] {
+        let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+        prepare(&mut owner, &session, &renderer);
+        owner.advance_playback(demand()).unwrap();
+        let token = YieldControl::default();
+        assert!(owner.schedule_with_yield(&renderer, token.clone()).unwrap());
+        let began = Instant::now();
+        while !token.completed() {
+            assert!(began.elapsed() < Duration::from_secs(30));
+            std::thread::yield_now();
+        }
+        assert!(!owner.poll_due(&renderer, 2.).unwrap());
+        assert!(owner.busy());
+        assert_eq!(owner.cache_info().unwrap().resident_frames, 0);
+        assert!(!token.preempt());
+        if invalidation == "strong" {
+            token.control().cancel();
+        }
+        if invalidation == "generation" {
+            owner.invalidate().unwrap();
+        }
+        owner
+            .advance_playback(Demand {
+                frame: 1.,
+                pressure: invalidation == "pressure",
+                now: Duration::from_millis(34),
+                ..demand()
+            })
+            .unwrap();
+        let mut installed = false;
+        while owner.busy() {
+            installed |= owner.poll_due(&renderer, 1.).unwrap();
+            assert!(began.elapsed() < Duration::from_secs(30));
+            std::thread::yield_now();
+        }
+        assert_eq!(installed, invalidation == "yield", "{invalidation}");
+        assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+        assert_eq!(
+            owner
+                .observation()
+                .unwrap()
+                .snapshot()
+                .unwrap()
+                .retained_cpu_bytes,
+            0
+        );
+        if installed {
+            let frame = owner.get(&renderer, 1.).unwrap().unwrap();
+            assert_eq!(frame.key().frame(), 1.);
+            assert_eq!(
+                pixels(&renderer, frame.source()),
+                [255, 0, 0, 255].repeat(32 * 24)
+            );
+            assert_eq!(owner.status().counts.completed, 1);
+        } else {
+            assert!(owner.get(&renderer, 1.).unwrap().is_none());
+            assert_eq!(owner.cache_info().unwrap().installed, 0);
+            assert_eq!(owner.status().counts.completed, 0);
+        }
+    }
+}

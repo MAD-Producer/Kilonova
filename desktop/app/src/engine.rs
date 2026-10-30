@@ -585,9 +585,13 @@ impl Engine {
     pub fn prerender_observation(&self) -> Result<Option<motion_desktop_media::movie::prerender::worker::Snapshot>, String> {
         self.prerender_signals.snapshot()
     }
-    /// Experimental idle-only profile; no UI setting or capability is enabled.
+    /// Experimental profile; no UI setting or capability is enabled.
     pub fn configure_prerender(&self, policy: motion_host::prerender::Policy) -> Result<Value, String> {
         self.call(|reply| Command::ConfigurePrerender { policy, reply })
+    }
+    pub fn set_prerender_playing(&self, playing: bool) -> Result<(), String> {
+        self.check_running()?;
+        self.prerender_signals.set_playing(playing)
     }
     /// Inspect executing work without asking the (possibly blocked) worker.
     pub fn in_flight(&self) -> Option<(String, Duration)> {
@@ -1006,7 +1010,9 @@ impl Engine {
         self.check_running()?;
         // Publication uses the same generation before any background enqueue.
         // Never take the cancellation gate while holding the dispatch gate.
-        if !matches!(&command, Command::State(_) | Command::PreviewInfo(_) | Command::ProjectTicket(_)) {
+        if matches!(&command, Command::Present { .. } | Command::PresentFrozen { .. } | Command::Seek { .. } | Command::SeekAudioPreview { .. }) {
+            self.prerender_signals.preempt()?;
+        } else if !matches!(&command, Command::State(_) | Command::PreviewInfo(_) | Command::ProjectTicket(_)) {
             self.prerender_signals.interrupt()?;
         }
         let request = self.diagnostics.next_request();
