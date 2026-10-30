@@ -18,6 +18,9 @@ it does not measure OS device delivery or scheduler latency.
 - Configure the policy through the production tool router outside measurement
   and reset its generation before each sample; enabled samples must actually
   warm native frames and retain an independent worker observation
+- Successfully present the current revision before that reset in both modes,
+  outside timing; undo/redo verification can author a revision after the prior
+  measured Present, and optional work must not precede its foreground refresh
 - Begin timing before event translation; include every control pass, command
   acknowledgment, UI build and successful native Present; stop before artifact
   serialization, state diagnostics, pixel readback or undo/redo verification
