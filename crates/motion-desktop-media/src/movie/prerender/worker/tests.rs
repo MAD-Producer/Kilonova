@@ -1,5 +1,6 @@
 use super::*;
 use std::sync::atomic::AtomicBool;
+mod yielding;
 
 fn session(root: &Path) -> Session {
     let mut p = Project::new(32, 24, 30, 8).unwrap();
