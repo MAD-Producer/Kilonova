@@ -186,8 +186,9 @@ impl Coordinator {
             return Err(format!(
                 "prerender source watcher failed: {}",
                 snapshot
-                    .cause
+                    .fault_cause
                     .as_deref()
+                    .or(snapshot.cause.as_deref())
                     .unwrap_or("unknown native watcher fault")
             ));
         }
@@ -294,8 +295,9 @@ impl Coordinator {
             Ok(Some(snapshot)) if snapshot.fault => Some(format!(
                 "prerender source watcher failed: {}",
                 snapshot
-                    .cause
+                    .fault_cause
                     .as_deref()
+                    .or(snapshot.cause.as_deref())
                     .unwrap_or("unknown native watcher fault")
             )),
             Err(cause) => Some(cause),
