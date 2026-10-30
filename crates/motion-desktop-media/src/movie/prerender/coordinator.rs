@@ -44,6 +44,9 @@ pub struct Coordinator {
     worker: Option<Worker>,
     active: Option<Active>,
     profile: Option<Profile>,
+    // Cache validity survives cooperative render cancellation, but lookup stays
+    // closed until a new preparation acknowledges the complete frozen context.
+    cache_profile: Option<Profile>,
     cache: Option<CompositionFrameCache>,
     cpu_bytes: u64,
     gpu_bytes: u64,
@@ -58,6 +61,7 @@ impl Coordinator {
             worker: None,
             active: None,
             profile: None,
+            cache_profile: None,
             cache: None,
             cpu_bytes,
             gpu_bytes,
@@ -108,7 +112,7 @@ impl Coordinator {
             self.worker = None;
             self.retiring = false;
         }
-        self.invalidate()?;
+        self.suspend()?;
         if self.worker.is_none() {
             self.worker = Some(Worker::start(self.cpu_bytes)?);
         }
@@ -128,6 +132,14 @@ impl Coordinator {
     }
     /// Cancel cooperatively; keep the actual destination and job slot until ack.
     pub fn invalidate(&mut self) -> Result<()> {
+        self.suspend()?;
+        self.cache_profile = None;
+        if let Some(cache) = &mut self.cache {
+            cache.clear();
+        }
+        Ok(())
+    }
+    fn suspend(&mut self) -> Result<()> {
         self.epoch = self
             .epoch
             .checked_add(1)
@@ -137,9 +149,6 @@ impl Coordinator {
             worker.cancel();
         }
         self.profile = None;
-        if let Some(cache) = &mut self.cache {
-            cache.clear();
-        }
         Ok(())
     }
     pub fn update(&mut self, demand: Demand) -> Result<()> {
@@ -184,14 +193,20 @@ impl Coordinator {
         match active {
             Active::Prepare { epoch, .. } => match complete.outcome {
                 Outcome::Prepared(profile) if epoch == self.epoch => {
-                    self.cache = Some(
-                        CompositionFrameCache::new(
-                            profile.context,
-                            self.gpu_bytes,
-                            self.policy.window,
-                        )
-                        .map_err(|e| e.to_string())?,
-                    );
+                    // Reopening the same immutable source must not discard
+                    // completed native frames. No old entry becomes readable
+                    // before this full content/output/generation acknowledgment.
+                    if self.cache_profile != Some(profile) || self.cache.is_none() {
+                        self.cache = Some(
+                            CompositionFrameCache::new(
+                                profile.context,
+                                self.gpu_bytes,
+                                self.policy.window,
+                            )
+                            .map_err(|e| e.to_string())?,
+                        );
+                    }
+                    self.cache_profile = Some(profile);
                     self.profile = Some(profile);
                     Ok(false)
                 }
