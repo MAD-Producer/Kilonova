@@ -72,6 +72,9 @@ impl Coordinator {
     pub fn profile(&self) -> Option<Profile> {
         self.profile
     }
+    pub fn busy(&self) -> bool {
+        self.active.is_some()
+    }
     pub fn status(&self) -> schedule::Status {
         self.scheduler.status()
     }
