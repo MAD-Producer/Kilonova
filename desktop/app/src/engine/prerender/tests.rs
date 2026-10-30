@@ -6,6 +6,7 @@ mod playback;
 mod pressure_lifecycle;
 mod static_window;
 mod foreground_refresh;
+mod source_freshness;
 
 fn frame() -> UiFrame {
     UiFrame {
