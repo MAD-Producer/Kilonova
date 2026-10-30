@@ -172,28 +172,37 @@ impl Renderer {
             },
             precision,
         );
-        let output = self.image_capture_target(source.width, source.height, contract)?;
-        if output.texture.format() != source.texture().format() {
+        let storage = crate::image_formats::color_storage(precision);
+        if crate::image_formats::native_format(storage) != source.texture().format() {
             return Err(RenderError::Invalid(
                 "native readback refuses implicit format conversion".into(),
             ));
         }
-        let mut encoder = self.allocation_command_encoder_for(
-            crate::gpu_commands::CommandStage::ReadbackCopy,
-            &wgpu::CommandEncoderDescriptor {
-                label: Some("native cache readback copy"),
+        let layout = capture_layout(source.width, source.height, storage, &self.device.limits())?;
+        let buffer = crate::allocation_buffer::AllocationBuffer::new(
+            &self.device,
+            self.allocation_budget(),
+            &wgpu::BufferDescriptor {
+                label: Some("native cache readback staging"),
+                size: layout.buffer_bytes,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
             },
         )?;
-        encoder.copy_texture_to_texture(
-            source.texture().as_image_copy(),
-            output.texture.as_image_copy(),
-            wgpu::Extent3d {
-                width: source.width,
-                height: source.height,
-                depth_or_array_layers: 1,
-            },
-        );
-        self.submit_allocated(encoder.finish(), |_| {})?;
+        // Retain the admitted native source; allocate only staging, with no
+        // intermediate texture or COPY_DST requirement on render-only targets.
+        let output = ImageCaptureTarget {
+            texture: source.texture().clone(),
+            view: source.view.clone(),
+            buffer,
+            owner: self.allocation_owner.clone(),
+            contract,
+            storage,
+            width: source.width,
+            height: source.height,
+            row_bytes: layout.row_bytes,
+            row_stride: layout.row_stride,
+        };
         self.read_image_target(&output)
     }
 

@@ -249,6 +249,13 @@ fn all_four_native_completion_uploads_preserve_encoded_storage_hdr_negative_and_
         assert_eq!(candidate.texture_bytes(), image.pixels.len() as u64);
         assert!(cache.install_native(&renderer, candidate, &image).unwrap());
         let stored = cache.get(&renderer, key).unwrap().unwrap();
+        assert_eq!(
+            renderer
+                .read_native_render_target(stored.source())
+                .unwrap()
+                .pixels,
+            image.pixels
+        );
         assert_eq!(stored.key(), key);
         assert_eq!(
             read(&renderer, stored.source()),
