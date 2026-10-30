@@ -54,7 +54,7 @@ pub(super) struct Runtime {
     last_poll: Option<Instant>,
     previous_frame: Option<f64>,
     direction: Direction,
-    idle_delay: Duration,
+    policy: Policy,
 }
 impl Runtime {
     pub fn new(signals: Arc<Signals>) -> Self {
@@ -70,7 +70,7 @@ impl Runtime {
             last_poll: None,
             previous_frame: None,
             direction: Direction::Forward,
-            idle_delay: Policy::default().idle_delay,
+            policy: Policy::default(),
         }
     }
     pub fn polling(&self) -> bool {
@@ -97,7 +97,7 @@ impl Runtime {
             None => {}
         }
         self.enabled = policy.enabled && policy.window != 0;
-        self.idle_delay = policy.idle_delay;
+        self.policy = policy;
         self.signature = None;
         self.fault = None;
         self.hold = if self.enabled {
@@ -249,7 +249,7 @@ impl Runtime {
             self.hold = "busy";
             return Ok(());
         }
-        if !demand.playing && self.signals.quiet_for()? < self.idle_delay {
+        if !demand.playing && self.signals.quiet_for()? < self.policy.idle_delay {
             self.hold = "idle_delay";
             return Ok(());
         }
@@ -336,6 +336,9 @@ impl Runtime {
     pub fn status(&self) -> serde_json::Value {
         let scheduler = self.owner.as_ref().map(Coordinator::status);
         serde_json::json!({"enabled":self.enabled,"experimental":true,"hold":self.hold,
+            "policy":{"enabled":self.policy.enabled,"window":self.policy.window,
+                "idleDelayMs":self.policy.idle_delay.as_millis(),
+                "maxSeekFramesPerSecond":self.policy.max_seek_frames_per_second},
             "profile":"high_authored_single_time","playing":self.signals.playing().ok(),"fault":self.fault,
             "cache":self.owner.as_ref().and_then(Coordinator::cache_info),
             "pending":scheduler.map(|s|s.pending),

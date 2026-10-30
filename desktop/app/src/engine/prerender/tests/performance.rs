@@ -168,12 +168,15 @@ fn paced_model_playback_records_paired_foreground_costs_and_real_cache_hits() {
                 .unwrap(),
         );
         show(&mut events, &engine);
-        engine
-            .configure_prerender(motion_host::prerender::Policy {
-                enabled,
-                window: 3,
-                ..Default::default()
-            })
+        let control = crate::mcp::ToolRouter {
+            engine: &engine,
+            access: crate::mcp::Access::Edit,
+        };
+        control
+            .call(
+                "configure_prerender",
+                serde_json::json!({"enabled":enabled,"window":3}),
+            )
             .unwrap();
         engine.set_prerender_playing(true).unwrap();
         if enabled {
@@ -240,7 +243,9 @@ fn paced_model_playback_records_paired_foreground_costs_and_real_cache_hits() {
             assert_eq!(hits, 0);
         }
         engine.set_prerender_playing(false).unwrap();
-        engine.configure_prerender(Default::default()).unwrap();
+        control
+            .call("configure_prerender", serde_json::json!({"enabled":false}))
+            .unwrap();
         drop(engine);
     }
     // Actual cost ratios are evaluated from the persisted paired raw samples;

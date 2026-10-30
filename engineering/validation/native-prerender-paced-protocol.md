@@ -13,6 +13,11 @@ three-frame window, then must actually consume at least 30/60 cached presentatio
 Warmup alone never contributes a hit. Final retained-front pixels must match all
 four episodes exactly, show the model, and leave the authored project unchanged.
 
+Both new native controls configure policy through the public MCP ToolRouter,
+outside the timed foreground interval. This proves the same public entry that
+clients use, rather than only an otherwise uncalled Rust Engine method. It does
+not replace the separate real-binary JSON-RPC transport smoke test.
+
 Each raw frame records Seek plus successful Present foreground cost, their separate
 costs, Present polls, deadline misses, actual cachedPresented and bounded runtime
 status. State collection and final readback are outside the timed interval. No
