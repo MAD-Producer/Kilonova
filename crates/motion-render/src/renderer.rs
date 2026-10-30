@@ -394,8 +394,8 @@ impl Renderer {
             .await?;
         // The native initializer owns large pipeline futures. Keep the new
         // adapter-sharing boundary from embedding another copy of that state
-        // in every caller's future, including the default-stack GUI thread.
-        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes)).await
+        // or its large return value in callers on the default-stack GUI thread.
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes)).await.map(|renderer| *renderer)
     }
     async fn new_on_adapter_with_options(
         adapter: wgpu::Adapter,
@@ -403,7 +403,7 @@ impl Renderer {
         timestamps: bool,
         allocation_budget: crate::AllocationBudget,
         precision_changes: bool,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         let precision = crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter_info = adapter.get_info();
@@ -553,7 +553,7 @@ impl Renderer {
             allocation_budget.clone(), allocation_uploads.clone(),
             image_capabilities.clone())?;
         effect_gpu.builder.set_precision(precision);
-        let mut renderer = Self {
+        let mut renderer = Box::new(Self {
             memory_pressure_probe: Default::default(),
             allocation_budget,
             allocation_owner: Arc::new(()),
@@ -621,7 +621,7 @@ impl Renderer {
             compositing_gpu: None,
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
-        };
+        });
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
         renderer.upload_image(0, 1, 1, &[255; 4])?;
@@ -656,7 +656,7 @@ impl Renderer {
         budget: crate::AllocationBudget,
     ) -> Result<Self> {
         let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
-        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true)).await
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true)).await.map(|renderer| *renderer)
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     /// Successfully encoded snapshot draws in the latest local composition
