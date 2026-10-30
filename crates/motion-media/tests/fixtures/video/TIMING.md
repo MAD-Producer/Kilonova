@@ -19,3 +19,24 @@ nearest conversion of movie ticks to media ticks and the zero clamp for
 preroll. Stagefright ignores longer edit lists and media rates; this change does
 not add general multi-edit/rate playback parity. Non-MOV containers retain the
 platform native-duration/fallback contract.
+
+`video-delayed-with-audio-tail.mp4` is a stream-copy combination of the existing
+synthetic `video-delayed.mp4` picture and `sound-24fps.mp4` audio, authored by
+Motion Studio contributors under the repository MIT license. No external media
+is added. Its picture starts at 0.250000s and lasts 1.333333s; audio starts at
+0s and lasts 3.008000s. The decoded audio extends beyond the picture interval.
+SHA-256: `59468c3249e681f0c66c9e1b120823a5d0ca91ac9cc097fac7fb84e34d7584f3`.
+
+The fixture was generated with FFmpeg
+`n8.1.3-16-ge0a878dd70-20261009`, without transcoding:
+
+```sh
+ffmpeg -y -t 1.25 -i video-delayed.mp4 -i sound-24fps.mp4 \
+  -map 0:v:0 -map 1:a:0 -c copy -copyts -avoid_negative_ts disabled \
+  video-delayed-with-audio-tail.mp4
+```
+
+`motion-desktop-media/tests/libav/delayed_import.rs` uses real probing,
+transactional import, libav picture decoding, PCM mixing, save/reopen and
+undo/redo. It does not inject timestamps or a decoder and does not claim GPU
+preview or native-window acceptance.

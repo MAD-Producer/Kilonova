@@ -37,8 +37,9 @@ enum Source {
 }
 fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64) -> Option<u64> {
     let clip = layer.clip(project.frames);
-    // Original sources may be inspected while hidden, but empty time intervals
-    // remain normal misses. No clamp/repeat of another source frame is allowed.
+    // Original sources may be inspected while hidden, but empty clip intervals
+    // remain normal misses. A clip may explicitly hold its first picture inside
+    // its active interval; picture_time_us applies the same policy as rendering.
     if !frame.is_finite()
         || frame < 0.
         || frame >= f64::from(project.frames)
@@ -50,7 +51,7 @@ fn video_target(project: &Project, layer: &Layer, asset: &VideoAsset, frame: f64
     let Content::Video { video } = &layer.content else {
         return None;
     };
-    let time = video.source_time_us(layer.local_frame(frame), project.fps);
+    let time = video.picture_time_us(layer.local_frame(frame), project.fps, asset);
     let time = u64::try_from(time).ok()?;
     (time >= asset.video_start_us && time < asset.video_end_us).then_some(time)
 }

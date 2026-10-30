@@ -428,6 +428,7 @@ fn video_uses_local_clip_time_vfr_pts_rotation_and_latest_request() {
         video: VideoClip {
             asset: 2,
             source_offset_us: 100_000,
+            hold_first_frame: false,
             volume: 1.,
             muted: false,
         },
@@ -461,5 +462,43 @@ fn video_uses_local_clip_time_vfr_pts_rotation_and_latest_request() {
     assert_eq!(frame.pts, 300_000);
     assert_eq!(frame.end, 500_000);
     assert!(matches!(frame.pixels, VideoPixels::Yuv(_)));
+    assert_eq!(project, before);
+}
+
+#[test]
+fn held_first_frame_is_readable_before_delayed_picture_start() {
+    let folder = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(folder.path().join("assets")).unwrap();
+    std::fs::write(folder.path().join("assets/test.mp4"), b"123").unwrap();
+    let mut project = Project::new(320, 180, 30, 120).unwrap();
+    let asset = VideoAsset {
+        id: 2, path: "assets/test.mp4".into(), bytes: 3, mime: "video/avc".into(), track: 0,
+        width: 4, height: 2, rotation: 90, display_width: 2, display_height: 4,
+        video_start_us: 100_000, video_end_us: 800_000, duration_us: 800_000,
+        frame_count: 3, variable_frame_rate: true, nominal_frame_rate: 5.,
+        color_standard: 1, color_range: 2, audio_asset: None,
+    };
+    let cache = motion_media::video_cache_path(folder.path(), &asset).unwrap();
+    std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    motion_media::save_index(&cache, &asset, &[100_000, 300_000, 500_000]).unwrap();
+    project.video_assets.push(asset);
+    let mut layer = Layer::solid(8, "Video", [2., 4.], [0.; 3], [1.; 4]);
+    let mut video = VideoClip::new(2);
+    video.hold_first_frame = true;
+    layer.content = Content::Video { video };
+    layer.timeline = Some(LayerTimeline { in_frame: 0, out_frame: 24, offset_frame: 0 });
+    project.layers.push(layer);
+    project.validate().unwrap();
+    let before = project.clone();
+    let mut reader = PreviewInputReader::new(Arc::new(PlatformStub));
+    let source = InputSource::Layer { composition: "comp-main".into(), object: 8 };
+    for (sequence, frame, clock, expected) in [(1, 0., 0, 100_000),
+        (2, 3., 100_000, 100_000), (3, 9., 300_000, 300_000)] {
+        let info = reader.request(&project, folder.path(), 9, request(sequence, source.clone(), frame)).unwrap();
+        assert_eq!(info.clock.source_time_us, Some(clock));
+        let packet = ready(&mut reader, sequence, 9);
+        let InputPixels::Video(decoded) = packet.pixels else { panic!("expected video pixels") };
+        assert_eq!(decoded.pts, expected);
+    }
     assert_eq!(project, before);
 }

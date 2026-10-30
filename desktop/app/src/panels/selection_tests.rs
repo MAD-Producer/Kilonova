@@ -276,11 +276,20 @@ fn duplicate_delete_batches_are_atomic_single_undo_and_preserve_locked_layers() 
             None,
             &mut actions,
         );
-        let Action::EditBatch(commands) = actions.pop().unwrap() else {
-            panic!("expected batch")
-        };
-        assert_eq!(commands.len(), 2);
-        engine.apply_batch(commands).unwrap();
+        match actions.pop().unwrap() {
+            Action::EditBatch(commands) if key == Key::D => {
+                assert_eq!(commands.len(), 2);
+                engine.apply_batch(commands).unwrap();
+            }
+            Action::Edit(Command::RemoveLayers { objects, frame }) if key == Key::Delete => {
+                let mut selected = objects.clone();
+                selected.sort_unstable();
+                assert_eq!(selected, vec![1, 3]);
+                assert_eq!(frame, 0);
+                engine.apply(Command::RemoveLayers { objects, frame }).unwrap();
+            }
+            action => panic!("unexpected action: {action:?}"),
+        }
         assert_eq!(
             engine.project().layers.len(),
             if key == Key::D { 5 } else { 1 }
