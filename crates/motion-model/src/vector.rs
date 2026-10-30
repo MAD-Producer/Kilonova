@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashSet};
 pub const MAX_PATHS: usize = 64;
 pub const MAX_NODES: usize = 2048;
 pub mod path_ops;
+pub mod auto_tangents;
 pub mod groups;
 mod authored;
 
