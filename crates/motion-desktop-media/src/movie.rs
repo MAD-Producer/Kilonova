@@ -626,6 +626,7 @@ pub struct ExportControl(Arc<Mutex<ControlState>>, Arc<AtomicU64>);
 #[derive(Default)]
 struct ControlState {
     cancelled: bool,
+    yielded: bool,
     published: bool,
 }
 impl ExportControl {
@@ -644,16 +645,31 @@ impl ExportControl {
         true
     }
     pub fn check(&self) -> Result<()> {
-        if self
+        let state = self
             .0
             .lock()
-            .map_err(|_| "export cancellation state poisoned")?
-            .cancelled
-        {
+            .map_err(|_| "export cancellation state poisoned")?;
+        if state.cancelled || state.yielded {
             Err("movie export cancelled".into())
         } else {
             Ok(())
         }
+    }
+
+    // Only prerender uses cooperative yield. Explicit cancellation always wins,
+    // including when it follows a yield before acknowledgment is consumed.
+    fn yield_to_foreground(&self) -> bool {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if state.published || state.cancelled {
+            return false;
+        }
+        state.yielded = true;
+        true
+    }
+    fn yielded_only(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|state| state.yielded && !state.cancelled)
     }
 }
 
@@ -1197,7 +1213,7 @@ impl FrozenMovie {
                 .0
                 .lock()
                 .map_err(|_| "export cancellation state poisoned")?;
-            if state.cancelled {
+            if state.cancelled || state.yielded {
                 return Err("movie export cancelled".into());
             }
             let published = if overwrite {

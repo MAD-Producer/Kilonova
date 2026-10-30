@@ -105,7 +105,7 @@ impl YieldControl {
         if self.completed() {
             false
         } else {
-            self.control.cancel()
+            self.control.yield_to_foreground()
         }
     }
     fn claim(&self) -> Result<()> {
@@ -118,6 +118,9 @@ impl YieldControl {
 pub struct Completion {
     pub id: u64,
     pub outcome: Outcome,
+    /// A yielded render published no pixels, but its immutable native owner is
+    /// reusable. Preparation, strong cancellation and failures never set this.
+    pub retained_native: bool,
 }
 #[derive(Clone, Debug)]
 pub struct Flight {
@@ -208,7 +211,7 @@ impl Worker {
     pub fn start(cpu_limit_bytes: u64) -> Result<Self> {
         Self::start_with_phase_hook(cpu_limit_bytes, |_, _| {})
     }
-    fn start_with_phase_hook(
+    pub(super) fn start_with_phase_hook(
         cpu_limit_bytes: u64,
         phase_hook: impl Fn(u64, &'static str) + Send + 'static,
     ) -> Result<Self> {
@@ -236,6 +239,7 @@ impl Worker {
                     if let Some(id) = flight {
                         let _ = completed.try_send(Completion {
                             id,
+                            retained_native: false,
                             outcome: Outcome::Failed(
                                 "prerender worker panicked; native owner retired".into(),
                             ),
@@ -398,6 +402,9 @@ impl Worker {
         }
         // Cancellation after worker publication still cannot expose a usable frame.
         if let Err(cause) = control.check() {
+            if !control.yielded_only() {
+                complete.retained_native = false;
+            }
             if !matches!(complete.outcome, Outcome::Failed(_)) {
                 complete.outcome = if cause == "movie export cancelled" {
                     Outcome::Cancelled
@@ -418,6 +425,7 @@ impl Worker {
         self.profile = match &complete.outcome {
             Outcome::Prepared(profile) => Some(*profile),
             Outcome::Frame(_) => self.profile,
+            Outcome::Cancelled if complete.retained_native => self.profile,
             Outcome::Cancelled | Outcome::Failed(_) => None,
         };
         self.state
@@ -582,7 +590,11 @@ fn run(
         if let Outcome::Failed(cause) = &outcome {
             log::error!("prerender worker ticket={id} operation={operation} frame={frame:?} elapsed_ms={} cause={cause}", began.elapsed().as_millis());
         }
-        if matches!(outcome, Outcome::Cancelled | Outcome::Failed(_)) {
+        let retained_native = operation == "render"
+            && matches!(outcome, Outcome::Cancelled)
+            && control.yielded_only()
+            && renderer.is_some();
+        if !retained_native && matches!(outcome, Outcome::Cancelled | Outcome::Failed(_)) {
             // Failed/canceled generations release their source and native owner
             // only after real operation acknowledgment; no interactive join.
             retiring(state, phase_hook, id);
@@ -610,14 +622,18 @@ fn run(
         if let Some(yielding) = yielding {
             yielding.completed.store(true, Ordering::Release);
         }
-        if let Err(error) = completed.try_send(Completion { id, outcome }) {
+        if let Err(error) = completed.try_send(Completion {
+            id,
+            outcome,
+            retained_native,
+        }) {
             if matches!(error, TrySendError::Full(_)) {
                 log::error!("prerender worker ticket={id} operation={operation} phase=completion: bounded mailbox already occupied");
             }
             return;
         }
         log::debug!(
-            "done #{id} prerender_worker operation={operation} elapsed_ms={}",
+            "done #{id} prerender_worker operation={operation} retained_native={retained_native} elapsed_ms={}",
             began.elapsed().as_millis()
         );
     }
