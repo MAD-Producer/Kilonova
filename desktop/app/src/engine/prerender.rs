@@ -76,9 +76,20 @@ impl Runtime {
     pub fn polling(&self) -> bool {
         self.enabled || self.lease.is_some()
     }
+    fn poll_interval(&self) -> Duration {
+        // An idle 50 ms clock cannot replenish a three-frame window during
+        // 30 fps playback. Drain and admit on a bounded playback cadence while
+        // preserving the slower idle clock and foreground queue priority.
+        // A poisoned publication gate is reported by tick, not by this timer.
+        if matches!(self.signals.playing(), Ok(true)) {
+            Duration::from_millis(16)
+        } else {
+            POLL_INTERVAL
+        }
+    }
     pub fn wait_interval(&self) -> Duration {
         self.last_poll.map_or(Duration::ZERO, |last| {
-            POLL_INTERVAL.saturating_sub(last.elapsed())
+            self.poll_interval().saturating_sub(last.elapsed())
         })
     }
     pub fn session_failure(&mut self, error: String) {
@@ -174,7 +185,7 @@ impl Runtime {
         }
         if self
             .last_poll
-            .is_some_and(|last| last.elapsed() < POLL_INTERVAL)
+            .is_some_and(|last| last.elapsed() < self.poll_interval())
         {
             return;
         }
