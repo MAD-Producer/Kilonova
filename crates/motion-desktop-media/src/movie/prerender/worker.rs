@@ -1,7 +1,7 @@
 //! One native rendering owner, one command and one bounded completion mailbox.
 use super::*;
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
     Arc, Mutex,
 };
@@ -85,6 +85,36 @@ pub enum Outcome {
     Cancelled,
     Failed(String),
 }
+/// A single-use foreground-yield token, distinct from invalidation. Yielding
+/// after completion keeps the result; explicit cancellation still rejects it.
+/// The token belongs to exactly one job, including across owner replacement.
+#[derive(Clone, Default)]
+pub struct YieldControl {
+    control: ExportControl,
+    completed: Arc<AtomicBool>,
+    claimed: Arc<AtomicBool>,
+}
+impl YieldControl {
+    pub fn control(&self) -> ExportControl {
+        self.control.clone()
+    }
+    pub fn completed(&self) -> bool {
+        self.completed.load(Ordering::Acquire)
+    }
+    pub fn preempt(&self) -> bool {
+        if self.completed() {
+            false
+        } else {
+            self.control.cancel()
+        }
+    }
+    fn claim(&self) -> Result<()> {
+        self.claimed
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map(|_| ())
+            .map_err(|_| "prerender yield token already submitted".into())
+    }
+}
 pub struct Completion {
     pub id: u64,
     pub outcome: Outcome,
@@ -157,6 +187,7 @@ struct Job {
     id: u64,
     control: ExportControl,
     work: Work,
+    yielding: Option<YieldControl>,
 }
 
 /// The caller must not create a replacement while this owner is still running.
@@ -240,11 +271,26 @@ impl Worker {
     }
     pub fn prepare_with_control(
         &mut self,
-        mut plan: PrerenderPlan,
+        plan: PrerenderPlan,
         control: ExportControl,
     ) -> Result<Option<u64>> {
+        self.prepare_job(plan, control, None)
+    }
+    pub fn prepare_with_yield(
+        &mut self,
+        plan: PrerenderPlan,
+        control: YieldControl,
+    ) -> Result<Option<u64>> {
+        self.prepare_job(plan, control.control(), Some(control))
+    }
+    fn prepare_job(
+        &mut self,
+        mut plan: PrerenderPlan,
+        control: ExportControl,
+        yielding: Option<YieldControl>,
+    ) -> Result<Option<u64>> {
         plan.max_frame_bytes = plan.max_frame_bytes.min(self.cpu.limit);
-        let accepted = self.send(Work::Prepare(plan), control)?;
+        let accepted = self.send_observed(Work::Prepare(plan), control, yielding)?;
         if accepted.is_some() {
             self.profile = None;
         }
@@ -259,6 +305,17 @@ impl Worker {
         frame: f64,
         control: ExportControl,
     ) -> Result<Option<u64>> {
+        self.render_job(frame, control, None)
+    }
+    pub fn render_with_yield(&mut self, frame: f64, control: YieldControl) -> Result<Option<u64>> {
+        self.render_job(frame, control.control(), Some(control))
+    }
+    fn render_job(
+        &mut self,
+        frame: f64,
+        control: ExportControl,
+        yielding: Option<YieldControl>,
+    ) -> Result<Option<u64>> {
         if self.active.is_some() {
             return Ok(None);
         }
@@ -269,7 +326,7 @@ impl Worker {
         let Some(permit) = self.cpu.reserve(profile.bytes()?) else {
             return Ok(None);
         };
-        self.send(Work::Render { frame, permit }, control)
+        self.send_observed(Work::Render { frame, permit }, control, yielding)
     }
     pub fn discard(&mut self) -> Result<Option<u64>> {
         let accepted = self.send(Work::Discard, ExportControl::default())?;
@@ -279,6 +336,14 @@ impl Worker {
         Ok(accepted)
     }
     fn send(&mut self, work: Work, control: ExportControl) -> Result<Option<u64>> {
+        self.send_observed(work, control, None)
+    }
+    fn send_observed(
+        &mut self,
+        work: Work,
+        control: ExportControl,
+        yielding: Option<YieldControl>,
+    ) -> Result<Option<u64>> {
         if self.active.is_some() {
             return Ok(None);
         }
@@ -291,10 +356,14 @@ impl Worker {
             .ok_or("prerender worker ticket exhausted")?;
         control.check()?;
         let sender = self.sender.as_ref().ok_or("prerender worker is closing")?;
+        if let Some(yielding) = &yielding {
+            yielding.claim()?;
+        }
         match sender.try_send(Job {
             id,
             control: control.clone(),
             work,
+            yielding,
         }) {
             Ok(()) => {
                 self.active = Some((id, control));
@@ -398,7 +467,13 @@ fn run(
     let mut input: Option<PreparedPrerender> = None;
     let mut renderer: Option<NativePrerender> = None;
     let mut last_id = 0;
-    while let Ok(Job { id, control, work }) = jobs.recv() {
+    while let Ok(Job {
+        id,
+        control,
+        work,
+        yielding,
+    }) = jobs.recv()
+    {
         last_id = id;
         let (operation, frame) = match &work {
             Work::Prepare(_) => ("prepare", None),
@@ -528,6 +603,12 @@ fn run(
             }
         } else {
             return;
+        }
+        // No native work remains. Publish on this job's own single-use token
+        // before the reply so foreground yield cannot mistake another owner's
+        // completed job for this one. Strong cancellation remains unconditional.
+        if let Some(yielding) = yielding {
+            yielding.completed.store(true, Ordering::Release);
         }
         if let Err(error) = completed.try_send(Completion { id, outcome }) {
             if matches!(error, TrySendError::Full(_)) {
