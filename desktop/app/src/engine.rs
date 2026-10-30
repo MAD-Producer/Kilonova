@@ -944,7 +944,7 @@ impl Engine {
                         } else {
                             let delay = [frame_completions.delay(),
                                 worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL),
-                                optional_poll.then_some(prerender::POLL_INTERVAL)].into_iter().flatten().min();
+                                optional_poll.then_some(prerender.wait_interval())].into_iter().flatten().min();
                             let received = if let Some(delay) = delay {
                                 match receiver.recv_timeout(delay) {
                                     Ok(command) => Some((command, true)),

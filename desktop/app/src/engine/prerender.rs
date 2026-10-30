@@ -78,6 +78,11 @@ impl Runtime {
     pub fn polling(&self) -> bool {
         self.enabled || self.lease.is_some()
     }
+    pub fn wait_interval(&self) -> Duration {
+        self.last_poll.map_or(Duration::ZERO, |last| {
+            POLL_INTERVAL.saturating_sub(last.elapsed())
+        })
+    }
     pub fn session_failure(&mut self, error: String) {
         self.fail("session", error);
     }
