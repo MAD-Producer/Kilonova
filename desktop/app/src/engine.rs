@@ -2193,6 +2193,9 @@ fn handle(
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
         frame_allocation::finish(frame,&result,|rendered|*rendered);
+        if matches!(&result, Ok(true)) && !frozen && ui.composition.is_some() {
+            prerender.foreground_presented();
+        }
         respond(reply,result);
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
