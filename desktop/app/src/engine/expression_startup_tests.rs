@@ -78,7 +78,9 @@ fn persisted_expression_preparation_keeps_first_frame_authored_data_and_default_
     ]).env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
     assert!(
         output.status.success(),
-        "{}",
+        "child status={}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     let log = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();

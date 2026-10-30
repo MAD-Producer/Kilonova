@@ -66,7 +66,8 @@ render. That setup failure is retained separately. Seeding the product lock
 and matching its existing GPU backends resolved the probe setup; no product
 source or expected rendering assertion was changed to make it pass.
 
-The downloaded AlphaBlendModeTest has not yet passed an independent native
-reference comparison. Existing analytical alpha fixtures are separate
-evidence. Latest-main full-workspace and maintained-desktop cross-platform
+The later [independent alpha checkpoint](scene3d-normative-alpha-native-current.md)
+completes the AlphaBlendModeTest native reference comparison in four working
+precisions. Existing analytical alpha fixtures remain separate evidence.
+Latest-main full-workspace and maintained-desktop cross-platform
 CI remain required. This checkpoint alone does not close issue 87 or 82.

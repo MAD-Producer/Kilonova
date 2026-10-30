@@ -1,5 +1,7 @@
 //! One numeric gesture contract for property providers and effect parameters.
 use super::Action;
+#[cfg(test)]
+mod contract_tests;
 use motion_core::Command;
 use motion_ui::{
     paint::{self, PaintList},
@@ -12,11 +14,35 @@ use motion_ui::{
 pub struct Field {
     pub editor: NumberEditor,
 }
+/// Resolve drafts before the receiving panel changes focus or selection.
+pub(super) fn prepare_pointer(panels: &mut super::Panels, state: &serde_json::Value,
+    input: &Input, owner: Option<motion_ui::dock::Panel>, property_owned: bool,
+    out: &mut Vec<Action>) -> Option<Input> {
+    input.pressed?;
+    let active = property_owned && panels.properties.field.is_some()
+        || panels.effect_controls.numeric_active_in(owner)
+        || panels.properties.effects.numeric_active_in(owner);
+    if !active { return None; }
+    if input.composing || input.ime_consumed {
+        return Some(Input { pressed:None,released:None,..input.clone() });
+    }
+    let property_outside = property_owned && panels.properties.field.as_ref().is_some_and(|f|
+        f.scrubbing.is_none() && input.pressed.is_some_and(|(b,p)|
+            b == motion_ui::MouseButton::Left && !f.rect.contains(p)));
+    let mut blocked = false;
+    if property_outside {
+        super::properties::process_field(panels,state,input,out);
+        blocked = panels.properties.field.is_some();
+    }
+    blocked |= panels.effect_controls.numeric_outside(state,input,owner,out);
+    blocked |= panels.properties.effects.numeric_outside(state,input,owner,out);
+    blocked.then(Input::default)
+}
 impl Field {
     pub fn readout(&self) -> Option<String> {
         self.editor
             .drag_values()
-            .map(|(start, value)| format!("{value:.3}  ({:+.3})", value - start))
+            .map(|(start, value)| format!("{value:.2}  ({:+.2})", value - start))
     }
     pub fn cancel(&mut self) -> bool {
         !self.editor.cancel().is_empty()
@@ -35,12 +61,20 @@ impl Field {
 
         self.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = self.editor.update(value, options, input, rect);
-        self.editor.draw(list, atlas, rect, value, options);
+        let mut states = motion_ui::style::States::default();
+        if rect.contains(input.mouse) {
+            states = states.with(motion_ui::style::State::Hovered);
+        }
+        self.editor.draw_styled(list, atlas, rect, value, options, styles.as_ref(), states);
+        let rect = if self.editor.compact {
+            let height = styles.metric("field.height", 18.).min(rect.height());
+            Rect::new(rect.min[0], rect.min[1] + (rect.height() - height) * 0.5, rect.width(), height)
+        } else { rect };
         if self.editor.dragging() {
             paint::stroke(list, rect, colors.ACCENT, 1.);
         }
         let shown = self.editor.display_value(value);
-        if options.min.is_finite() && options.max.is_finite() && options.max > options.min {
+        if self.editor.dragging() && options.min.is_finite() && options.max.is_finite() && options.max > options.min {
             let fraction =
                 ((shown - options.min) / (options.max - options.min)).clamp(0., 1.) as f32;
             paint::rect(
@@ -61,6 +95,20 @@ pub fn passive(
     enabled: bool,
 ) {
     passive_with_precision(list, atlas, rect, value, input, enabled, 3);
+}
+pub fn passive_compact(list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect,
+    value: f64, input: &Input, enabled: bool, inline_inspector: bool, left: bool) {
+    let styles = list.styles();
+    use motion_ui::style::{box_style, text_style, State, States};
+    let mut states = States::default();
+    if enabled && rect.contains(input.mouse) { states = states.with(State::Hovered); }
+    if !enabled { states = states.with(State::Disabled); }
+    let style = styles.resolve(if inline_inspector { "field.effect_number" } else { "field.number" }, states).unwrap();
+    let height = styles.metric("field.height", 18.).min(rect.height());
+    let rect = Rect::new(rect.min[0], rect.min[1] + (rect.height() - height) * 0.5, rect.width(), height);
+    box_style(list, rect, style);
+    text_style(list, atlas, rect.shrink(style.padding),
+        &motion_ui::widgets::compact_number(value), style, if left { Align::Left } else { Align::Right });
 }
 pub fn passive_with_precision(
     list: &mut PaintList,

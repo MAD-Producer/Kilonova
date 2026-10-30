@@ -4,6 +4,10 @@ This inventory follows issue 87's mixed 2D/3D, parent/camera/matte and existing
 BSP requirements. It distinguishes actual pixel behavior from explicit refusal.
 It does not turn a documented refusal into support for the refused operation.
 The maintained acceptance scope is desktop; Android is retired and excluded.
+The [original-scope disposition](scene3d-composition-disposition-current.md)
+binds nineteen existing controls to actual native/CI execution, including
+independent ordinary BSP regressions. It reconciles this inventory without
+claiming universal compositor support or adding overlapping test counts.
 
 Source boundary: `crates/motion-render/src/renderer/model_layers/shared.rs`,
 especially `samples`, `shared_plane`, `native_matte_sources`, `blocks` and
@@ -59,8 +63,10 @@ The source-bound aperture gate passed 1041 distinct related tests, zero
 failures and zero unexecuted ignored controls. Its ten actual rendering targets
 passed 191 tests. Receipt:
 `artifacts/pr-queue/native-camera-dof-regression-v2/accepted.json`.
-Official Box and SimpleSkin rendering and the measured 60-second native
-real-codec host run have separate accepted checkpoints. Official alpha
-comparison and latest-main full-workspace / maintained-desktop cross-platform
-CI remain open. This inventory alone does not close issue 87 or background
+Official Box, SimpleSkin and AlphaBlendModeTest rendering and the measured
+60-second native real-codec host run have separate accepted checkpoints.
+The [independent alpha comparison](scene3d-normative-alpha-native-current.md)
+does not establish arbitrary intersecting transparency. Latest-main
+full-workspace / maintained-desktop cross-platform CI remain open. This
+inventory alone does not close issue 87 or background
 prerender issue 82.

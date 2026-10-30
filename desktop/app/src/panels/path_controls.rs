@@ -21,6 +21,7 @@ use serde_json::Value;
 pub(in crate::panels) mod groups;
 pub(in crate::panels) mod mask_header;
 mod mask_inspector;
+mod mask_boundaries;
 mod mask_keys;
 mod mask_path;
 mod source_geometry;
@@ -230,6 +231,7 @@ pub struct Controls {
     #[cfg(test)]
     pub(crate) context_rows: Vec<(String, Rect, bool)>,
     geometry_failures: motion_render::observability::FailureCounter,
+    boundaries: mask_boundaries::Viewer,
     pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
     pub mask: Option<u64>,
@@ -249,6 +251,8 @@ pub struct Controls {
     inspector_overlays: Option<PaintList>,
     #[cfg(test)]
     pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
+    #[cfg(test)]
+    feather_link_rects: std::collections::HashMap<(u64, u64), Rect>,
     add_mask_menu: motion_ui::widgets::Dropdown,
     timeline_add_mask_menu: Option<mask_header::AddMenu>,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
@@ -275,6 +279,7 @@ struct Parameter {
     start: Option<f32>,
     begun: bool,
     last_value: f32,
+    linked: bool,
     range: [f32; 2],
 }
 fn label(list: &mut PaintList, atlas: &mut TextAtlas, r: Rect, text: &str, color: Color) {
@@ -460,6 +465,7 @@ impl Controls {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }
     pub fn cancel(&mut self) -> bool {
+        self.boundaries.cancel();
         self.context_menu = None;
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let points = self.point_selection.cancel();
@@ -744,6 +750,20 @@ impl Controls {
         // Keep source/selection validation, but never pick hidden authored grips.
         // The pen's own local draft remains available for new authoring.
         let sampled = if handles_visible {sampled} else {vec![]};
+        // Boundary measurement grips yield to every visible authored control,
+        // including the faded handles of an unselected node.
+        let authored: Vec<_> = sampled.iter().flat_map(|path|
+            path["nodes"].as_array().into_iter().flatten()).filter_map(geometry)
+            .flat_map(|g| [0,2,4].into_iter().filter_map(move |axis| {
+                if axis != 0 && g[axis].abs()+g[axis+1].abs()<0.01 {return None;}
+                let point=if axis==0 {[g[0],g[1]]} else {[g[0]+g[axis],g[1]+g[axis+1]]};
+                Some([point[0]-offset[0],point[1]-offset[1]])
+            })).filter_map(|point|projection.as_ref()?.screen(point)).collect();
+        let mut boundary_overlay = list.child();
+        let boundary_owned = self.mask_boundaries(&mut boundary_overlay, atlas, clip,
+            projection.as_ref(), target.as_ref(), state, input, locale, handles_visible, &authored, out);
+        let boundary_neutral = Input { mouse: input.mouse, ..Default::default() };
+        let input = if boundary_owned { &boundary_neutral } else { input };
         let context_owned = self.open_context_menu(clip, &sampled, projection.as_ref(), offset, state, selected, input);
         let context_neutral = Input { mouse: input.mouse, ..Default::default() };
         let input = if context_owned { &context_neutral } else { input };
@@ -1176,6 +1196,8 @@ impl Controls {
             }),
             colors.TEXT_MUTED,
         );
+        boundary_overlay.clip_to(clip);
+        list.append(boundary_overlay);
         list.append(tool_overlay);
         clip.contains(input.mouse) || self.editing()
     }
@@ -1547,9 +1569,9 @@ impl Controls {
             !layers.iter().any(|l| {
                 l["id"].as_u64() == Some(p.object)
                     && l["locked"] != true
-                    && l["masks"]
-                        .as_array()
-                        .is_some_and(|masks| masks.iter().any(|m| m["id"].as_u64() == Some(p.mask)))
+                    && l["masks"].as_array().is_some_and(|masks| masks.iter().any(|m|
+                        m["id"].as_u64() == Some(p.mask) && (!matches!(p.property, MaskProperty::Feather)
+                            || m["feather_linked"].as_bool() == Some(p.linked))))
             })
         });
         if stale {
@@ -1560,7 +1582,11 @@ impl Controls {
         }
         let command = |p: &Parameter, value: f32| {
             let mut v = p.values.clone();
-            v[p.axis] = value;
+            if p.linked && matches!(p.property, MaskProperty::Feather) {
+                v = mask_boundaries::linked_feather([v[0], v[1]], p.axis, value, p.range[1]).to_vec();
+            } else {
+                v[p.axis] = value;
+            }
             Action::Edit(Command::Mask {
                 object: p.object,
                 action: MaskAction::Set {
@@ -1578,6 +1604,11 @@ impl Controls {
             }
             return;
         }
+        if p.begun && input.pressed.is_some_and(|(button,_)| button == MouseButton::Left) {
+            // A new press starts a new gesture, even if a prior release was lost.
+            out.push(Action::History(3));
+            return;
+        }
         if p.start.is_none()
             && !input.composing
             && input
@@ -1586,7 +1617,12 @@ impl Controls {
         {
             if let Ok(value) = p.text.parse::<f32>() {
                 if value.is_finite() {
-                    p.values[p.axis] = value.clamp(p.range[0], p.range[1]);
+                    let value = value.clamp(p.range[0], p.range[1]);
+                    if p.linked && matches!(p.property, MaskProperty::Feather) {
+                        p.values = mask_boundaries::linked_feather([p.values[0],p.values[1]],p.axis,value,p.range[1]).to_vec();
+                    } else {
+                        p.values[p.axis] = value;
+                    }
                 }
             }
             p.start = Some(input.pressed.unwrap().1[0]);
@@ -1597,7 +1633,15 @@ impl Controls {
             .pressed
             .is_some_and(|(_, point)| !p.rect.contains(point));
         if let Some(start) = p.start {
-            let delta = input.mouse[0] - start;
+            if !input.dragging() && !release && !input.pressed.is_some_and(|(button,_)| button == MouseButton::Left) {
+                if p.begun {
+                    out.push(Action::History(3));
+                    return;
+                }
+                p.start = None;
+            }
+            let point = input.released.filter(|(b,_)| *b == MouseButton::Left).map_or(input.mouse, |(_,point)| point);
+            let delta = point[0] - start;
             if (input.dragging() || release)
                 && (motion_ui::widgets::numeric_behavior::started(
                     delta,
@@ -1611,6 +1655,9 @@ impl Controls {
                 }
                 let step = motion_ui::widgets::numeric_behavior::step(input) as f32;
                 let value = (p.values[p.axis] + delta * step).clamp(p.range[0], p.range[1]);
+                let value = if p.linked && matches!(p.property, MaskProperty::Feather) {
+                    mask_boundaries::linked_feather([p.values[0],p.values[1]],p.axis,value,p.range[1])[p.axis]
+                } else { value };
                 p.text = format!("{value:.1}");
                 if value != p.last_value {
                     p.last_value = value;
@@ -1851,6 +1898,7 @@ mod numeric_tests {
                     start: Some(100.),
                     begun: false,
                     last_value: 50.,
+                    linked: false,
                     range: [0., 100.],
                 });
                 let state = serde_json::json!({"frame":0});

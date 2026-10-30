@@ -23,6 +23,7 @@ use std::{
     time::{Duration, Instant},
 };
 mod diagnostic_names;
+mod effect_pick;
 mod failure;
 mod ui_paint;
 mod frame_capture;
@@ -43,6 +44,10 @@ mod animation_action_tests;
 mod project_library_tests;
 #[cfg(test)]
 mod project_library_import_tests;
+#[cfg(test)]
+pub(crate) mod model_import_tests;
+#[cfg(test)]
+mod model_library_tests;
 #[cfg(test)]
 mod keyframe_timing_tests;
 #[cfg(test)]
@@ -207,6 +212,11 @@ pub enum Command {
         revision: u64,
         reply: Sender<Result<Value, String>>,
     },
+    EffectPick {
+        ticket: crate::panels::effect_pick::Ticket,
+        point: [f64; 2],
+        reply: Sender<Result<Value, String>>,
+    },
     EditorAction {
         source: crate::layer_clipboard::KeyframeSource,
         commands: Vec<motion_core::Command>,
@@ -288,6 +298,12 @@ pub enum Command {
     },
     ImportImage {
         file: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
+    ImportModel {
+        file: PathBuf,
+        expected_revision: Option<u64>,
+        source: Option<crate::layer_clipboard::KeyframeSource>,
         reply: Sender<Result<Value, String>>,
     },
     ReplaceImage {
@@ -463,8 +479,9 @@ impl Command {
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
-            | ImportImage { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
+            | ImportImage { reply, .. } | ImportModel { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. } | SeekAudioPreview { reply, .. }
+            | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
@@ -1265,6 +1282,9 @@ impl Engine {
     pub fn import_image(&self, file: PathBuf) -> Result<Value, String> {
         self.call(|reply| Command::ImportImage { file, reply })
     }
+    pub fn import_model(&self, file: PathBuf, expected_revision: u64) -> Result<Value, String> {
+        self.call(|reply| Command::ImportModel { file, expected_revision: Some(expected_revision), source: None, reply })
+    }
     pub fn create_text(
         &self,
         text: String,
@@ -1546,6 +1566,7 @@ fn handle(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
+        | Command::EffectPick { .. }
     ) {
         presentation.retained = None;
     }
@@ -1695,6 +1716,10 @@ fn handle(
             // an edit or runtime evaluation. Syntax feedback is a normal reply.
             respond(reply, Ok(serde_json::json!({"target":target,
                 "diagnostic":motion_core::expression_source_diagnostic(&source)})));
+        },
+        Command::EffectPick { ticket, point, reply } => {
+            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref()));
+            presentation.retained = None;
         },
         Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
             if !source.current(s) {
@@ -1980,6 +2005,7 @@ fn handle(
             state["capabilities"]["layer_sampling"]["desktop_movie"]=serde_json::json!({
                 "exposure_renderer":cfg!(feature="ffmpeg"),"codec_check":"export_start","requires":["h264","aac"]});
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
+                "modelImport":{"supported":true,"formats":["gltf","glb","obj"],"tool":"import_model","owned":true,"pixelsPerMetre":100,"samples":1,"automaticAnimation":false},
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
                 "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"candidatePipelineBuilds":node_preview.active.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalCandidatePipelineBuilds":node_preview.canonical.as_ref().map_or(0,|p|p.pipeline_builds),"canonicalRetainedShaderCodeBytes":node_preview.canonical.as_ref().map_or(0,|p|p.shader_code_bytes()),"retainedShaderCodeBytes":node_preview.active.as_ref().map_or(0,|p|p.shader_code_bytes()),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
@@ -1994,6 +2020,17 @@ fn handle(
         })()),
         Command::ImportProject { file, reply } => respond(reply,guard.changed(project::import_project(id, &file))),
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
+        Command::ImportModel {file,expected_revision,source,reply} => respond(reply,motion_host::session::with_session(id,|s|{
+            if source.as_ref().is_some_and(|source| !source.current(s)) {
+                let mut state = s.snapshot()?;
+                state["modelImport"] = serde_json::json!({"cancelled":true,"reason":"context_changed"});
+                return Ok(state);
+            }
+            if expected_revision.is_some_and(|revision| revision != s.engine.revision()) {
+                return Err("project revision changed before model import".into());
+            }
+            crate::workflow::model::import(s,&file)
+        })),
         Command::ReplaceImage {file,asset,revision,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::replace_image(s,&file,asset,revision))),
         Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
         Command::TextLayout { source, request, reply }=>respond(reply,motion_host::session::with_session(id,|s| {

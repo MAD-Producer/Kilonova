@@ -28,6 +28,7 @@ macro_rules! observe {
 
 mod align;
 mod frame_cache;
+mod input_routes;
 #[cfg(test)]
 mod frame_cache_tests;
 pub(crate) mod animation_controls;
@@ -37,6 +38,7 @@ mod work_area;
 pub(crate) mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
+pub(crate) mod effect_pick;
 mod toolbar_style;
 mod composition;
 mod viewer_guides;
@@ -253,7 +255,17 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
     }
 }
 
+pub(crate) fn cancel_for_focus_loss(panels: &mut Panels) -> Vec<Action> {
+    // A one-click pick has no held pointer. Preserve it while the user moves
+    // from an inspector window to a composition window; cancel actual drags.
+    let ticket = panels.effect_pick.ticket.take();
+    let actions = cancel_interaction(panels);
+    panels.effect_pick.ticket = ticket;
+    actions
+}
+
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.effect_pick.ticket = None;
     panels.key_gestures.cancel();
     panels.tools.cancel();
     panels.effect_drag.cancel();
@@ -369,6 +381,10 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let pick_input = input;
+    let pick_owned = panels.effect_pick.prepare(state, input);
+    let pick_neutral = Input::default();
+    let input = if pick_owned { &pick_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(None, input)
         | panels.effect_controls.prepare_context_window(None, input)
@@ -418,6 +434,11 @@ pub fn chrome(
     panels.drag_readout = None;
     let text_menu_owned = text_menu::prepare(panels, state, input, atlas);
     let path_context_owned = panels.path_controls.prepare_context_menu(None, state, panels.selected, input);
+    let property_owned = panels.focused.is_some_and(|p| layout.find(p.dock()).is_some());
+    let numeric_input = if text_menu_owned || path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,None,property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let text_menu_neutral = Input::default();
     let editing_input = if text_menu_owned || path_context_owned { &text_menu_neutral } else { input };
     let toolbar_was_editing = panels.toolbar_style.editing();
@@ -609,6 +630,8 @@ pub fn chrome(
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
     panels.header_size = Some(size);
+    let mut raw_routes = input_routes::Routes::new(input);
+    let mut body_routes = input_routes::Routes::new(body_input);
     for f in frames(layout, size) {
         let title = panels.locale.panel(f.panel.dock());
         let (dock, tabs, active) = match layout.find(f.panel.dock()) {
@@ -715,9 +738,9 @@ pub fn chrome(
                     || (timeline_popup && f.panel == Panel::Timeline)
                     || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
                 {
-                    input
+                    &mut raw_routes
                 } else {
-                    body_input
+                    &mut body_routes
                 },
                 &mut out,
             );
@@ -1059,6 +1082,10 @@ pub fn chrome(
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
+    if pick_owned {
+        let clips: Vec<_> = frames(layout, size).into_iter().map(|f| (f.panel, f.content)).collect();
+        effect_pick::finish(panels, list, atlas, &clips, state, pick_input, &mut out);
+    }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -1087,6 +1114,10 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    let pick_input = input;
+    let pick_owned = panels.effect_pick.prepare(state, input);
+    let pick_neutral = Input::default();
+    let input = if pick_owned { &pick_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(Some(panel), input)
         | panels.effect_controls.prepare_context_window(Some(panel), input)
@@ -1155,6 +1186,11 @@ pub fn floating_chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let property_owned = panels.focused == Some(panel);
+    let numeric_input = if path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,Some(panel),property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let timeline_dropdown = panels.timeline_columns.editing() || panels.timeline.comparison.popup_open();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel))
         || panels.timeline.comparison.popup_open() && matches!(panel,Panel::Timeline|Panel::Curves);
@@ -1248,7 +1284,7 @@ pub fn floating_chrome(
         body,
         panels,
         state,
-        body_input,
+        &mut input_routes::Routes::new(body_input),
         &mut out,
     );
     content.clip_to(body);
@@ -1297,7 +1333,7 @@ pub fn floating_chrome(
             .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
             .or(panels.effect_drag.status())
             .or(panels.message.as_deref())
-            .unwrap_or(panels.locale.t(T::SharedProject)),
+            .unwrap_or(""),
         styles
             .resolve(
                 if render_error.is_some() { "error" } else { "label.small.muted" },
@@ -1402,6 +1438,9 @@ pub fn floating_chrome(
         &mut out,
     );
     media_assets::overlay(list, atlas, Rect::new(0., 0., size[0], size[1]), panels, state, asset_input, Some(panel), &mut out);
+    if pick_owned {
+        effect_pick::finish(panels, list, atlas, &[(panel, body)], state, pick_input, &mut out);
+    }
     if expressions::picking::active(panels, Some(panel)) {
         expressions::picking::finish(panels, list, atlas, Rect::new(0., 0., size[0], size[1]), Some(panel), &[(panel, body)], state, input, &mut out);
     }
@@ -2182,22 +2221,14 @@ fn render_panel(
     area: Rect,
     panels: &mut Panels,
     state: &Value,
-    input: &Input,
+    routes: &mut input_routes::Routes<'_>,
     out: &mut Vec<Action>,
 ) {
     #[cfg(all(test, target_os = "windows"))]
     let panel_timer = graph_native_performance_tests::PanelTimer::start(panel, list);
-    let mut local = input.clone();
     let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
         || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
-    if !owns_popup {
-        local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
-    }
-    if panels.focused != Some(panel) {
-        local.keys.clear();
-        local.text.clear();
-    }
-    let input = &local;
+    let input = routes.for_panel(panels.focused == Some(panel), area, owns_popup);
     match panel {
         Panel::Project => project(list, atlas, area, panels, state, input, out),
         Panel::Composition => composition(list, atlas, area, panels, state, input, out),

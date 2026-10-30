@@ -222,6 +222,18 @@
     {
       "name": "align_right",
       "source": "Motion Studio 补充图标，段落右对齐"
+    },
+    {
+      "name": "eyedropper",
+      "node": "original:effect-color-pick",
+      "author": "Motion Studio contributors",
+      "license": "MIT"
+    },
+    {
+      "name": "pick_position",
+      "node": "original:effect-position-pick",
+      "author": "Motion Studio contributors",
+      "license": "MIT"
     }
   ]
 }

@@ -299,10 +299,6 @@ pub fn draw<T>(
         );
         let label_x = (area.min[0] + slot).min(area.max[0]);
         let label_end = if !show_hint { end } else { hint.min[0] - inset };
-        let caption = atlas.ellipsize(
-            entry.caption(),
-            (label_end - label_x).max(0.) * atlas.font_size() / style.font_size,
-        );
         text_style(
             &mut paint,
             atlas,
@@ -312,7 +308,7 @@ pub fn draw<T>(
                 (label_end - label_x).max(0.),
                 area.height(),
             ),
-            &caption,
+            entry.caption(),
             style,
             Align::Left,
         );
