@@ -529,3 +529,5 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
 }
 
 mod prerender_logging;
+
+mod prerender_runtime;
