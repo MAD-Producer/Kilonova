@@ -349,7 +349,12 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
 
             let menu = open_inspection(&engine, &mut panels, &mut atlas, window, size);
             let click = |index: f32| [menu.min[0] + menu.width() * 0.5, menu.min[1] + row * (index + 0.5)];
+            let was_comparing = panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).comparison_split.is_some();
             assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(click(2.))).1.is_empty());
+            assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).comparison_split.is_some(), !was_comparing);
+            if was_comparing {
+                assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(click(2.))).1.is_empty());
+            }
             assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).comparison_split, Some(0.5));
             let actions = draw(&engine, &mut panels, &mut atlas, window, size, press(click(1.))).1;
             assert!(matches!(actions.as_slice(), [Action::SaveViewerSnapshot { floating }] if *floating == (window != 0)));
