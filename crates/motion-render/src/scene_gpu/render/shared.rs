@@ -34,6 +34,7 @@ impl ScenePassInstance<'static> {
 /// silently introduce another camera, clear the depth, or change MSAA midway.
 pub struct ScenePassFrame {
     pub camera: motion_model::CameraPose,
+    pub depth_of_field: Option<motion_model::SampledDepthOfField>,
     pub background: [f32; 4],
     pub samples: u32,
     pub viewport: Option<[f32; 4]>,
@@ -42,6 +43,7 @@ impl ScenePassFrame {
     pub fn new(camera: motion_model::CameraPose) -> Self {
         Self {
             camera,
+            depth_of_field: None,
             background: [0.; 4],
             samples: 1,
             viewport: None,
@@ -50,6 +52,7 @@ impl ScenePassFrame {
     pub fn from_imported_camera(camera: &motion_scene::CameraView) -> Self {
         Self {
             camera: imported_camera_pose(camera),
+            depth_of_field: None,
             background: [0.; 4],
             samples: 1,
             viewport: Some(camera.viewport),
@@ -67,6 +70,7 @@ pub struct ScenePass {
     depth_input: Option<AdmittedTexture>,
     depth_pipelines: std::collections::HashMap<depth_seed::Key, depth_seed::Pipeline>,
     plane_pipelines: planes::Pipelines,
+    aperture_pipelines: std::collections::HashMap<depth_of_field::Key, depth_of_field::Pipeline>,
     max_draws: usize,
     // Consecutive failed pass calls; reset by any successful encode/draw.
     failures: u8,
@@ -103,6 +107,7 @@ impl ScenePass {
             depth_input: None,
             depth_pipelines: Default::default(),
             plane_pipelines: Default::default(),
+            aperture_pipelines: Default::default(),
             max_draws,
             failures: 0,
         })
@@ -373,6 +378,7 @@ impl ScenePass {
         common.background = frame.background;
         validate_frame(&common)?;
         validate_viewport(frame.viewport, target)?;
+        depth_of_field::validate(frame)?;
         if instances
             .len()
             .checked_add(planes.len())
@@ -551,6 +557,14 @@ impl ScenePass {
             .as_ref()
             .or(self.targets.as_ref())
             .ok_or_else(|| invalid("shared_targets", 0, "shared attachments missing"))?;
+        if frame.depth_of_field.is_some_and(|dof| dof.aperture_diameter > 0.)
+            && order.iter().any(|draw| draw.0) {
+            return Err(unsupported(0, "depth of field for blended geometry requires a transparent-depth policy"));
+        }
+        let aperture = depth_of_field::prepare(renderer, target, frame, targets, &mut self.aperture_pipelines)?;
+        stats.depth_of_field_bytes = aperture.as_ref().map_or(0, |prepared| prepared.bytes);
+        stats.parameter_bytes += aperture.as_ref().map_or(0, |prepared| prepared.uniform_bytes());
+        let scene_color = aperture.as_ref().map_or(target, |prepared| &prepared.color);
         if let Some((seed, input)) = seed.as_ref().zip(depth) {
             depth_seed::upload(renderer, seed, input)?;
         }
@@ -558,9 +572,9 @@ impl ScenePass {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("globally ordered shared scene pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: targets.color.as_ref().map_or(&*target.view, |v| &**v),
+                    view: targets.color.as_ref().map_or(&*scene_color.view, |v| &**v),
                     depth_slice: None,
-                    resolve_target: targets.color.as_ref().map(|_| &*target.view),
+                    resolve_target: targets.color.as_ref().map(|_| &*scene_color.view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: f64::from(frame.background[0] * frame.background[3]),
@@ -633,6 +647,7 @@ impl ScenePass {
                 stats.blended_draws += usize::from(item.key.blend);
             }
         }
+        if let Some(aperture) = &aperture { aperture.encode(encoder, target); }
         if let Some(targets) = replacement {
             self.targets = Some(targets);
         }

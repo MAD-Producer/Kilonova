@@ -1,0 +1,16 @@
+[
+  {
+    "file": "zh-floating-linked.png",
+    "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\ui-phase-rebuilt\\native\\mask-feather-zh-floating-route-1x-linked.png",
+    "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+    "sha256": "5e6eb0e24575a992ca8e4033ff47f130f69ca3c02a7d62b8e74da01ca8f7ac95",
+    "modified": false
+  },
+  {
+    "file": "zh-floating-unlinked.png",
+    "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\ui-phase-rebuilt\\native\\mask-feather-zh-floating-route-1x-unlinked.png",
+    "source": "d47cd6e81dce25a0f92cb1396bcef75153e8236c",
+    "sha256": "6709e7c3a2a9bc3abd422084f70eda4b81989266ad5c19dd19a8ec7e63869818",
+    "modified": false
+  }
+]

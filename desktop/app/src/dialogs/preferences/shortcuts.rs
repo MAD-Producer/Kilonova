@@ -429,6 +429,8 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         LeaveGroup => ("返回父图", "Leave group"),
         AnimatedProperties => ("显示动画属性", "Reveal animated properties"),
         ModifiedProperties => ("显示已修改属性", "Reveal modified properties"),
+        ToggleEffectGroup => ("展开／折叠时间轴效果组", "Toggle timeline effects"),
+        ToggleMaskGroup => ("展开／折叠时间轴蒙版组", "Toggle timeline masks"),
         PreviousKey => ("上一个关键帧", "Previous keyframe"),
         NextKey => ("下一个关键帧", "Next keyframe"),
         NudgeKeyEarlier => ("关键帧提前一帧", "Nudge keys one frame earlier"),

@@ -10,6 +10,7 @@ fn enter() -> Input {
         ..Default::default()
     }
 }
+#[track_caller]
 fn assert_quiet(shell: &mut Shell, size: [f32; 2], window: u64, input: Input) {
     let (_, actions) = draw(shell, size, window, input);
     assert!(

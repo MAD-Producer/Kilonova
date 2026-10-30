@@ -188,12 +188,20 @@ pub(super) fn run(
     shell.panels.path_controls = Default::default();
     let heading = [area.min[0] + pad + slot * 2., area.min[1] + pad + row * 1.5];
     assert_quiet(shell, size, 0, click(heading));
-    let mask_value = (area.min[0]
-        + (pad + slot * 3. + styles.metric("label.column", 72.) + slot * 2.)
-            .min(area.width() * 0.7))
-    .max(area.min[0] + pad + slot * 3. + pad * 2. + slot + pad);
-    let mask_cell = (area.max[0] - pad - mask_value).min(styles.metric("value.min_width", 64.));
-    let opacity = [mask_value + mask_cell * 0.5, area.min[1] + pad + row * 5.5];
+    let navigation = if area.width() < styles.metric("inspector.navigation.min_width", 320.) {
+        0.
+    } else {
+        slot * 3.
+    };
+    let opacity_rect = motion_ui::widgets::InspectorColumns::new(
+        &styles, area, area.min[1] + pad + row * 5., row,
+        navigation + styles.metric("tree.indent", 14.),
+        styles.metric("effect.watch.width", 24.), 1,
+    ).number(0);
+    let opacity = [
+        (opacity_rect.min[0] + opacity_rect.max[0]) * 0.5,
+        (opacity_rect.min[1] + opacity_rect.max[1]) * 0.5,
+    ];
     let (_, actions) = draw(shell, size, 0, click(opacity));
     assert!(
         actions
@@ -203,6 +211,7 @@ pub(super) fn run(
     );
     shell.state = shell.engine.seek(0.).unwrap();
     assert_quiet(shell, size, 0, release(opacity));
+    assert!(shell.panels.path_controls.editing(), "real mask opacity field click");
     shell.text_clipboard.store("80").unwrap();
     assert_quiet(shell, size, 0, chord(Key::V, false));
     assert_quiet(shell, size, 0, chord(Key::Z, false));

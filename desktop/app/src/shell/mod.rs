@@ -12,6 +12,8 @@ mod effect_application;
 mod effect_drag;
 mod lifecycle;
 mod media;
+#[cfg(all(test, target_os = "windows"))]
+mod model_import_tests;
 pub(crate) mod project_import;
 mod project_drag;
 pub(crate) mod media_assets;

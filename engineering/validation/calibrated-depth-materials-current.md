@@ -101,3 +101,11 @@ Receipts: `artifacts/pr-queue/calibrated-material-regression-v1/accepted.json`
 and `artifacts/pr-queue/calibrated-material-camera-v1/accepted.json`.
 Archive: `data/calibrated-depth-materials-native-v1.zip`; CRC and every entry verified against originals.
 SHA-256: `80b461d1271453ad9b9586f08a88139994f67657b2575a315a3464f5fc19385a`.
+
+## Later ordinary spatial source checkpoint
+
+[Visible ordinary spatial matte material acceptance](spatial-matte-materials-current.md)
+adds image-backed visible planar sources with masks and proven pointwise effects
+when their receivers are exclusively calibrated. Their own visible geometry
+retains physical depth. Shared ordinary/effect consumers and the remaining
+general composition/depth limits remain open.

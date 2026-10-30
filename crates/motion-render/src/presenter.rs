@@ -2,6 +2,8 @@ use crate::Renderer;
 mod memory;
 #[cfg(test)]
 mod admission_tests;
+#[cfg(test)]
+mod source_tests;
 
 /// Inspect a composition channel before presentation encoding as opaque grayscale.
 /// RGB is sampled in working linear light; Alpha is the original coverage value.
@@ -23,6 +25,8 @@ pub struct Presenter {
     pipeline: wgpu::RenderPipeline,
     group: wgpu::BindGroup,
     view_group: wgpu::BindGroup,
+    // Identity of the view already retained by both bindings, not its contents.
+    source: wgpu::TextureView,
     format: wgpu::TextureFormat,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
@@ -150,6 +154,7 @@ impl Presenter {
             cache: None,
         });
         Self {
+            source: source.clone(),
             source_allocation: None,
             pipeline,
             group,
@@ -169,8 +174,12 @@ impl Presenter {
     }
     /// Rebind a preview buffer without rebuilding the presentation pipeline.
     pub fn set_source(&mut self, device: &wgpu::Device, source: &wgpu::TextureView) {
-        self.group = Self::source_group(device, &self.layout, &self.sampler, &self.buffer, source);
-        self.view_group = Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source);
+        if self.source != *source {
+            self.group = Self::source_group(device, &self.layout, &self.sampler, &self.buffer, source);
+            self.view_group = Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source);
+            self.source = source.clone();
+        }
+        // Raw rebinding still relinquishes admission ownership on a cache hit.
         self.source_allocation = None;
     }
     /// Select a raw stored channel for `encode_view`. The ordinary `encode` /

@@ -1,0 +1,13 @@
+{
+  "base": "2ecfc4e8e6ac4cbe9d62c7d3acb60f2e99aca93f",
+  "render_passed": 280,
+  "render_failed": 0,
+  "render_ignored": 0,
+  "restored_presenter_passed": 4,
+  "negative_control": "failed on bind group identity as expected",
+  "source_sha256": "4ed6ab3569a085962827e669f7fb00fbd0e9465015f6d55fa264caf4eb236dce",
+  "archive_entries": 7,
+  "archive_bytes": 14869,
+  "archive_sha256": "93f84c80f565f03f121b880604d19c4af154c09f55861fe6adf7d3a5777b1b73",
+  "product_sha256": "30132c1e270e8ca08c0f12d40c6e51a534a99a6182916e9f8521977da39cb497"
+}

@@ -181,7 +181,6 @@ pub(super) fn layout(
 ) -> crate::panels::timeline::PropertyLayout {
     let row = styles.metric("row.height", 22.);
     let pad = styles.metric("padding.panel", 8.);
-    let slot = styles.metric("icon.slot", 20.);
     if matches!(host, Panel::Timeline | Panel::Curves) {
         let mut f = crate::panels::timeline::property_layout(styles, area, y, row, axis, axes);
         let indent = ((depth + 1) as f32 * styles.metric("tree.indent", 14.))
@@ -192,25 +191,24 @@ pub(super) fn layout(
         f.caption.max[0] = f.caption.max[0].max(f.caption.min[0]);
         return f;
     }
-    let navigation = crate::panels::key_navigation::width(styles);
-    let base = area.min[0] + pad + navigation;
-    let x = area.min[0]
-        + (pad + navigation + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.7);
-    let start = base + (depth as f32 * pad).min((x - base - slot - pad).max(0.));
-    let field = styles.metric("field.height", 18.).min(row);
-    let cell =
-        ((area.max[0] - pad - x) / axes.max(1) as f32).min(styles.metric("value.min_width", 64.));
+    let mut columns = motion_ui::widgets::InspectorColumns::new(
+        styles, area, y, row,
+        crate::panels::key_navigation::inspector_width(styles, area.width())
+            + styles.metric("tree.indent", 14.),
+        styles.metric("effect.watch.width", 24.), axes,
+    );
+    let indent = (depth.saturating_sub(1) as f32 * styles.metric("tree.indent", 14.))
+        .min((columns.label.width() - styles.metric("icon.slot", 20.)).max(0.));
+    columns.icon.min[0] += indent;
+    columns.icon.max[0] += indent;
+    columns.label.min[0] += indent;
     crate::panels::timeline::PropertyLayout {
-        watch: Rect::new(start, y, slot, row),
-        caption: Rect::new(start + slot, y, (x - start - slot - pad).max(0.), row),
-        number: Rect::new(
-            x + axis as f32 * cell,
-            y + (row - field) * 0.5,
-            (cell - styles.metric("border", 1.) * 2.).max(0.),
-            field,
-        ),
+        watch: columns.icon_target(styles.metric("icon.slot", 20.)),
+        caption: columns.label,
+        number: columns.number(axis),
     }
 }
+
 impl Controls {
     pub(in crate::panels) fn reveal_tree(&mut self, object: u64, tree: &parameters::Node) {
         self.initialized.insert(object);
@@ -594,7 +592,10 @@ impl Controls {
         crate::panels::animation_controls::highlight_row(list,
             Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)),
             self.keys.selected_in(state, object, item, &p.id));
-        self.keys.navigation(list, Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)), state, object, item, p, input, enabled, out);
+        if matches!(host, Panel::Timeline | Panel::Curves)
+            || crate::panels::key_navigation::inspector_width(&styles, area.width()) > 0. {
+            self.keys.navigation(list, Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)), state, object, item, p, input, enabled, out);
+        }
         if matches!(host, Panel::Timeline | Panel::Curves) {
             crate::panels::timeline::property_branch(list, f.watch);
         }
