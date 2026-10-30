@@ -460,6 +460,32 @@ fn author_drag_source_history_save_and_native_rendering() {
         assert!(ws.close_prompt);
         render(&mut ws, &neutral(), Some("unsaved-close.png"));
         assert!(!ws.close_ready);
+        ws.checked = ws.draft.revision;
+        let pad = styles.metric("padding.panel", 8.);
+        let row = styles.metric("panel.header.height", 24.);
+        let action = styles.metric("plugin.author.action.width", 80.);
+        let width = (action + pad) * 3. + pad;
+        let modal_button = |index: usize| [
+            area.min[0] + (area.width() - width) * 0.5 + pad
+                + index as f32 * (action + pad) + action * 0.5,
+            area.min[1] + area.height() * 0.5 + row * 1.5 + pad,
+        ];
+        let p = modal_button(0);
+        render(&mut ws, &click(p[0], p[1]), None);
+        assert!(ws.busy && ws.close_after_save);
+        render(&mut ws, &neutral(), Some("save-close-pending.png"));
+        let p = modal_button(2);
+        render(&mut ws, &click(p[0], p[1]), None);
+        assert!(!ws.close_prompt && !ws.close_after_save && !ws.close_ready);
+        let began = Instant::now();
+        while ws.busy {
+            ws.poll().unwrap();
+            assert!(began.elapsed() < Duration::from_secs(30));
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(!ws.close_ready);
+        assert_eq!(PluginProject::load(&path).unwrap(), ws.draft.project);
+        render(&mut ws, &neutral(), Some("save-close-cancelled.png"));
         // Existing node editor, with graph controls and root graph snapshots.
         let graph = motion_graph::plugin_project::PluginProject::from_graph(
             crate::node_editor::NodeEditor::default()

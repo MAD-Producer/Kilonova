@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'diagnostics::tests::automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records' (58772) panicked at desktop\app\src\diagnostics\tests.rs:11:5:
+assertion failed: d.state.lock().unwrap().last_checkpoint.is_none()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test diagnostics::tests::automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records ... FAILED
+
+failures:
+
+failures:
+    diagnostics::tests::automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1486 filtered out; finished in 0.01s
+

@@ -6,6 +6,91 @@ pub(super) fn example() -> PluginProject {
     .unwrap()
 }
 #[test]
+fn cancelling_save_and_close_keeps_the_window_open_after_the_real_save_finishes() {
+    for zh in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("draft.msplugin");
+        let original = example();
+        original.save(&path).unwrap();
+        let mut ws = Workspace::new(original, path.clone(), zh).unwrap();
+        ws.draft
+            .edit(|p| {
+                p.package.version = "0.3.0".into();
+                Ok(())
+            })
+            .unwrap();
+        ws.checked = ws.draft.revision;
+        let saved = ws.draft.project.clone();
+        let styles = motion_ui::style::default_stylesheet_arc();
+        let mut atlas =
+            TextAtlas::from_family(styles.font_family(), styles.base_font_size(), zh).unwrap();
+        let area = Rect::new(0., 0., 1440., 900.);
+        let pad = styles.metric("padding.panel", 8.);
+        let row = styles.metric("panel.header.height", 24.);
+        let action = styles.metric("plugin.author.action.width", 80.);
+        let width = (action + pad) * 3. + pad;
+        let mut click = |ws: &mut Workspace, index: usize| {
+            let point = [
+                area.min[0]
+                    + (area.width() - width) * 0.5
+                    + pad
+                    + index as f32 * (action + pad)
+                    + action * 0.5,
+                area.min[1] + area.height() * 0.5 + row * 1.5 + pad,
+            ];
+            let mut paint = PaintList {
+                stylesheet: Some(styles.clone()),
+                ..Default::default()
+            };
+            ws.draw(
+                &mut paint,
+                &mut atlas,
+                area,
+                &Input {
+                    mouse: point,
+                    pressed: Some((MouseButton::Left, point)),
+                    ..neutral()
+                },
+            )
+            .unwrap();
+        };
+        ws.request_close();
+        click(&mut ws, 0); // Save & close: the real source worker writes the file.
+        assert!(ws.busy && ws.close_after_save && !ws.close_ready);
+        // Completion is not consumed until poll(), so this ordering needs no sleep.
+        click(&mut ws, 2); // Keep editing must revoke the previous close approval.
+        assert!(!ws.close_prompt && !ws.close_after_save && !ws.close_ready);
+        let began = Instant::now();
+        while ws.busy {
+            ws.poll().unwrap();
+            assert!(began.elapsed() < Duration::from_secs(10));
+            std::thread::yield_now();
+        }
+        assert_eq!(PluginProject::load(&path).unwrap(), saved);
+        assert_eq!(ws.draft.project, saved);
+        assert!(!ws.draft.dirty() && !ws.close_ready);
+        assert!(ws.message.is_none());
+        // A later, explicit approval must still close after a successful save.
+        ws.draft
+            .edit(|p| {
+                p.package.version = "0.4.0".into();
+                Ok(())
+            })
+            .unwrap();
+        ws.checked = ws.draft.revision;
+        ws.request_close();
+        click(&mut ws, 0);
+        let began = Instant::now();
+        while ws.busy {
+            ws.poll().unwrap();
+            assert!(began.elapsed() < Duration::from_secs(10));
+            std::thread::yield_now();
+        }
+        assert!(ws.close_ready);
+        assert_eq!(PluginProject::load(&path).unwrap(), ws.draft.project);
+    }
+}
+#[test]
 fn layout_transactions_are_atomic_and_preserve_author_source() {
     let original = example();
     let mut d = model::Draft::new(original.clone());

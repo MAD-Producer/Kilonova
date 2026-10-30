@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'plugin_editor::author::tests::cancelling_save_and_close_keeps_the_window_open_after_the_real_save_finishes' (63216) panicked at desktop\app\src\plugin_editor\author\tests.rs:62:9:
+assertion failed: !ws.close_prompt && !ws.close_after_save && !ws.close_ready
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugin_editor::author::tests::cancelling_save_and_close_keeps_the_window_open_after_the_real_save_finishes ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::author::tests::cancelling_save_and_close_keeps_the_window_open_after_the_real_save_finishes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1486 filtered out; finished in 0.77s
+

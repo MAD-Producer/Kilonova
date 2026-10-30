@@ -821,7 +821,12 @@ impl Workspace {
                             self.save(false)?;
                         }
                         1 => self.close_ready = true,
-                        _ => self.close_prompt = false,
+                        _ => {
+                            self.close_prompt = false;
+                            // A save already queued still completes, but its reply
+                            // must not revive the close approval just cancelled.
+                            self.close_after_save = false;
+                        }
                     }
                 }
             }

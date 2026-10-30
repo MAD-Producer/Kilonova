@@ -1,0 +1,5 @@
+# Captured bytes are hash-verified; preserve console CRLF and blank lines.
+*.txt -text -whitespace
+*.log -text -whitespace
+*.patch -text -whitespace
+*.json -text -whitespace

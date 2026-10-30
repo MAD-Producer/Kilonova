@@ -86,6 +86,7 @@ pub struct Diagnostics {
     jobs: SyncSender<Job>,
     enabled: AtomicBool,
     configured: bool,
+    automatic_reports: bool,
     sequence: AtomicU64,
     dropped_records: AtomicU64,
     dropped_jobs: AtomicU64,
@@ -120,6 +121,7 @@ impl Diagnostics {
             jobs,
             enabled: AtomicBool::new(false),
             configured: dsn.is_some(),
+            automatic_reports: path.is_some() || dsn.is_some(),
             sequence: AtomicU64::new(1),
             dropped_records: AtomicU64::new(0),
             dropped_jobs: AtomicU64::new(0),
@@ -184,7 +186,10 @@ impl Diagnostics {
             state.total_stalls += 1;
             push_bounded(&mut state.stalls, event, STALL_LIMIT);
         }
-        let checkpoint = slow
+        // A snapshot without a file or upload destination cannot publish anything.
+        // Keep recording in memory and servicing explicit exports/checkpoints;
+        // avoid the otherwise useless reporter competing with record().
+        let checkpoint = self.automatic_reports && slow
             && state
                 .last_checkpoint
                 .is_none_or(|i| i.elapsed() >= Duration::from_secs(5));
