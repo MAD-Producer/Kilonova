@@ -43,7 +43,9 @@ impl ImageCaptureTarget {
         if std::sync::Arc::ptr_eq(&renderer.allocation_owner, &self.owner) {
             Ok(())
         } else {
-            Err(RenderError::Invalid("image target belongs to another renderer".into()))
+            Err(RenderError::Invalid(
+                "image target belongs to another renderer".into(),
+            ))
         }
     }
     pub fn view(&self) -> &wgpu::TextureView {
@@ -148,6 +150,51 @@ impl Renderer {
             row_bytes: layout.row_bytes,
             row_stride: layout.row_stride,
         })
+    }
+
+    /// Export/validation readback of a native compositor/cache target. Owner,
+    /// canonical working storage and shared-budget admission are checked before
+    /// copying. This synchronous path is never used by preview cache polling.
+    pub fn read_native_render_target(
+        &self,
+        source: &crate::RenderTarget,
+    ) -> Result<CapturedImage, RenderError> {
+        source.check_owner(self)?;
+        self.check_health()?;
+        let precision = crate::image_formats::color_precision(source.texture().format())
+            .ok_or_else(|| {
+                RenderError::Invalid("native readback requires working color storage".into())
+            })?;
+        let contract = ImageContract::new(
+            motion_effects::image_contract::ImageMeaning::Color {
+                space: motion_effects::WorkingSpace::Linear,
+                alpha: motion_effects::AlphaMode::Premultiplied,
+            },
+            precision,
+        );
+        let output = self.image_capture_target(source.width, source.height, contract)?;
+        if output.texture.format() != source.texture().format() {
+            return Err(RenderError::Invalid(
+                "native readback refuses implicit format conversion".into(),
+            ));
+        }
+        let mut encoder = self.allocation_command_encoder_for(
+            crate::gpu_commands::CommandStage::ReadbackCopy,
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("native cache readback copy"),
+            },
+        )?;
+        encoder.copy_texture_to_texture(
+            source.texture().as_image_copy(),
+            output.texture.as_image_copy(),
+            wgpu::Extent3d {
+                width: source.width,
+                height: source.height,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.submit_allocated(encoder.finish(), |_| {})?;
+        self.read_image_target(&output)
     }
 
     /// Read storage bytes without unpremultiplying, gamma conversion or clamping.
