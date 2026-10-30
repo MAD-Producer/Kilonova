@@ -1,6 +1,16 @@
 {
   "version": 1,
   "tools": {
+    "tools/analyze_prerender_paced.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_prerender_paced.py",
+      "reason": "Synthetic evidence parser tests run in ordinary CI; actual native playback measurements remain manual and are never inferred from parser success."
+    },
+    "tools/test_ci_prerender_paced.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Lightweight unittest discovery verifies raw percentile, regression, hit-count and incomplete-evidence rejection without launching native playback."
+    },
     "tools/ai_depth_onnx.py": {
       "mode": "manual",
       "command": "python tools/ai_depth_onnx.py <host-generated-request.json>",
