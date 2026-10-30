@@ -8,6 +8,7 @@ mod curve_playback_tests;
 impl Shell {
     pub(crate) fn present_ui_async(&self, ui: UiFrame)
         -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        self.engine.set_prerender_playing(self.playback.is_some() && !self.audio_only_preview)?;
         if self.audio_only_preview { self.engine.present_frozen_async(ui) }
         else { self.engine.present_async(ui) }
     }
@@ -1668,6 +1669,7 @@ impl Shell {
             self.frame = frame;
             if finished { self.stop(); }
         }
+        self.engine.set_prerender_playing(self.playback.is_some() && !self.audio_only_preview)?;
         self.editing = Some((Instant::now(), if self.audio_only_preview {
             self.engine.seek_audio_preview_async(self.frame)?
         } else { self.engine.seek_async(self.frame)? }));
