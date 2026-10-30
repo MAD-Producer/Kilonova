@@ -23,6 +23,7 @@ fn fixture() -> Engine {
         layer.transform.position.keys = [3, 13]
             .into_iter()
             .map(|frame| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: [frame as f32, 20., 0.],
                 ease: Ease::Linear,

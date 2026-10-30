@@ -17,6 +17,7 @@ fn path() -> VectorPath {
                 geometry.keys = [0, 10]
                     .into_iter()
                     .map(|frame| Keyframe {
+                        auto_bezier: false,
                         frame,
                         value: [p[0] + frame as f32 * (i + 1) as f32, p[1], 2., 3., 4., 5.],
                         ease: Ease::Linear,

@@ -72,6 +72,7 @@ fn quick_ease_unions_adjacent_keys_and_preserves_unselected_handles_and_values()
     p.layers[0].transform.position.keys = [3, 13, 23, 33]
         .into_iter()
         .map(|frame| Keyframe {
+            auto_bezier: false,
             frame,
             value: [frame as f32 * 10., 20., 0.],
             ease: Ease::Linear,

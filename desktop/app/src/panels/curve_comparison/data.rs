@@ -436,15 +436,15 @@ impl Data {
         let (value, velocity) = match &self.samples {
             Samples::Scalar(t) => (
                 t.sample(local)?,
-                graph_sampling::velocity(t, local, fps, |v| v as f64),
+                graph_sampling::velocity(t, local, fps, |v| v as f64)?,
             ),
             Samples::Vec2(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
             Samples::Vec3(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
             Samples::Vec4(t) if self.discrete => {
                 let index = t
@@ -458,7 +458,7 @@ impl Data {
             }
             Samples::Vec4(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
         };
         let value = if speed {

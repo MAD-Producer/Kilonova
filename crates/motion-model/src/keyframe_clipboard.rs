@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 
 mod channels;
 mod interpolation;
+mod automatic;
 mod easing;
 pub mod curve_clipboard;
 mod transform;
@@ -15,6 +16,7 @@ pub mod timing;
 pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;
+pub use automatic::set_automatic;
 use channels::{read, write, ReadChannel, WriteChannel};
 
 pub const MAX_KEYFRAME_CLIPBOARD_BYTES: usize = 16 * 1024 * 1024;
@@ -336,7 +338,7 @@ impl KeyframeClipboard {
                     keys: keys.to_vec(),
                     axes: None,
                 }
-                .validate_local()
+                .validate_clipboard()
             }
             match &track.data {
                 KeyframeData::Scalar(k) => validate_keys(k)?,
@@ -346,6 +348,7 @@ impl KeyframeClipboard {
                 KeyframeData::Geometry(k) => validate_keys(k)?,
                 KeyframeData::ColorCurve(keys) => {
                     for key in keys {
+                        ensure(!key.auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
                         key.value.validate()?;
                         ensure(
                             key.spatial.is_none(),
@@ -513,6 +516,7 @@ pub fn remove(project: &mut Project, clipboard: &KeyframeClipboard) -> Result<()
                     $track
                         .keys
                         .retain(|k| local.binary_search(&k.frame).is_err());
+                    if $track.keys.len() == 1 { $track.keys[0].auto_bezier = false; }
                 }};
             }
             match write(project, &selected.target)? {

@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let t = frame as f32 / 30.;
         let a = t * std::f32::consts::TAU / 4.;
         l.transform.position.keys.push(Keyframe {
+            auto_bezier: false,
             frame,
             value: [480. + 300. * a.sin(), 270. + 155. * (a * 2.).sin(), 0.],
             ease: Ease::Linear,

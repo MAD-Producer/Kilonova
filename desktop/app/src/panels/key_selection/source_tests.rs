@@ -173,6 +173,7 @@ fn raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks() {
             .unwrap();
         if let Some(curve) = &mut param.curve {
             curve.keys.push(Keyframe {
+                auto_bezier: false,
                 frame: 3,
                 value: curve.value.clone(),
                 ease: Ease::Hold,

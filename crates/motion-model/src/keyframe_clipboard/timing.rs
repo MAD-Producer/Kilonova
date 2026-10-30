@@ -136,6 +136,7 @@ fn inspect<T: Numeric>(
     fps: f64,
     units: VelocityUnits,
     profile: &mut TimingProfile,
+    effective: impl Fn(usize) -> Result<Easing>,
 ) -> Result<()> {
     for frame in frames {
         let index = keys
@@ -148,10 +149,7 @@ fn inspect<T: Numeric>(
             let Some(index) = interval else { continue };
             let a = &keys[index];
             let b = &keys[index + 1];
-            let easing = Easing {
-                ease: a.ease,
-                curve: a.curve,
-            };
+            let easing = effective(index)?;
             let handles = match easing.curve {
                 Some(Curve {
                     space: CurveSpace::Progress,
@@ -251,6 +249,7 @@ pub fn profile(
                         f64::from(project.fps),
                         units,
                         &mut profile,
+                        |i| $t.effective_easing(i),
                     )
                 };
             }
@@ -334,7 +333,8 @@ fn intervals<T: Numeric>(
     metric: &Metric,
     fps: f64,
     settings: &TimingSettings,
-) -> Result<Vec<(i32, Easing)>> {
+    effective: impl Fn(usize) -> Result<Easing>,
+) -> Result<Vec<(i32, Easing, bool, bool)>> {
     let mut sides: BTreeMap<usize, (Option<TimingSide>, Option<TimingSide>)> = BTreeMap::new();
     let changed = |side: Option<TimingSide>| {
         side.filter(|side| {
@@ -360,10 +360,7 @@ fn intervals<T: Numeric>(
     for (index, (incoming, outgoing)) in sides {
         let a = &keys[index];
         let b = &keys[index + 1];
-        let mut easing = Easing {
-            ease: a.ease,
-            curve: a.curve,
-        };
+        let mut easing = effective(index)?;
         match settings.interpolation {
             TimingInterpolation::Linear => {
                 easing = Easing {
@@ -450,7 +447,7 @@ fn intervals<T: Numeric>(
             }
         }
         easing.validate()?;
-        plan.push((a.frame, easing));
+        plan.push((a.frame, easing, outgoing.is_some(), incoming.is_some()));
     }
     Ok(plan)
 }
@@ -489,7 +486,7 @@ pub fn configure(
             )?;
             macro_rules! plan {
                 ($t:expr) => {
-                    intervals(&$t.keys, &frames, &metric, f64::from(project.fps), settings)
+                    intervals(&$t.keys, &frames, &metric, f64::from(project.fps), settings, |i| $t.effective_easing(i))
                 };
             }
             match read(project, &selected.target)? {
@@ -513,8 +510,8 @@ pub fn configure(
         let result = (|| -> Result<()> {
             macro_rules! apply {
                 ($t:expr) => {
-                    for (frame, easing) in plan {
-                        $t.set_curve(frame, easing)?;
+                    for (frame, easing, start, end) in plan {
+                        $t.set_curve_sides(frame, easing, start, end)?;
                     }
                 };
             }
@@ -525,7 +522,7 @@ pub fn configure(
                 WriteChannel::Vec4(t) => apply!(t),
                 WriteChannel::Geometry(t) => apply!(t),
                 WriteChannel::ColorCurve(t) => {
-                    for (frame, easing) in plan {
+                    for (frame, easing, _, _) in plan {
                         let index =
                             t.keys
                                 .binary_search_by_key(&frame, |k| k.frame)

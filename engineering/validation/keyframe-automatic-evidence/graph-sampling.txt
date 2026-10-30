@@ -1,0 +1,10 @@
+
+running 5 tests
+test panels::graph_sampling::tests::adaptive_knots_keep_signed_local_keys_offsets_and_hold_boundaries ... ok
+test panels::graph_sampling::tests::adaptive_real_model_values_and_physical_speeds_match_dense_screen_oracles ... ok
+test panels::graph_sampling::tests::automatic_speed_matches_the_value_derivative_and_rejects_unsupported_policy ... ok
+test panels::graph_sampling::tests::physical_speed_and_hold_do_not_use_a_discontinuous_finite_difference ... ok
+test panels::graph_sampling::tests::vector_spatial_path_derivative_matches_the_actual_sampler ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 0.34s
+

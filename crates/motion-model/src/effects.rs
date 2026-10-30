@@ -127,6 +127,12 @@ impl Default for CurveTrack {
     }
 }
 impl CurveTrack {
+    pub fn effective_easing(&self, index: usize) -> Result<Easing> {
+        let a = self.keys.get(index).ok_or_else(|| Error::Invalid("color curve timing start missing".into()))?;
+        let b = self.keys.get(index + 1).ok_or_else(|| Error::Invalid("color curve timing end missing".into()))?;
+        ensure(!a.auto_bezier && !b.auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
+        Ok(Easing { ease: a.ease, curve: a.curve })
+    }
     pub fn sample(&self, frame: f64) -> Result<CurveLut> {
         self.sample_value(frame).map_err(|source| Error::ColorCurveSampling {
             frame, source: Box::new(source),
@@ -138,10 +144,12 @@ impl CurveTrack {
         }
         let upper = self.keys.partition_point(|k| f64::from(k.frame) <= frame);
         if upper == 0 {
+            ensure(!self.keys[0].auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
             return self.keys.first().ok_or_else(|| Error::Invalid(
                 format!("color curve sample frame={frame}: first key is missing")))?.value.lut();
         }
         if upper >= self.keys.len() {
+            ensure(!self.keys[self.keys.len() - 1].auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
             return self.keys.last().ok_or_else(|| Error::Invalid(
                 format!("color curve sample frame={frame}: last key is missing")))?.value.lut();
         }
@@ -151,9 +159,7 @@ impl CurveTrack {
             .ok_or_else(|| Error::Invalid(format!("color curve sample frame={frame}: successor is missing")))?;
         ensure(a.frame < b.frame, "color curve sample interval must increase")?;
         let t = ((frame - f64::from(a.frame)) / (f64::from(b.frame) - f64::from(a.frame))) as f32;
-        let t = a
-            .curve
-            .map_or_else(|| a.ease.map(t), |c| c.sample(f64::from(t)).progress as f32);
+        let t = self.effective_easing(upper - 1)?.sample(f64::from(t)).progress as f32;
         let aa = a.value.lut()?;
         let bb = b.value.lut()?;
         Ok(std::array::from_fn(|i| std::array::from_fn(|c| aa[i][c] + (bb[i][c] - aa[i][c]) * t)))
@@ -166,6 +172,7 @@ impl CurveTrack {
         )?;
         let mut last = None;
         for k in &self.keys {
+            ensure(!k.auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
             ensure(k.spatial.is_none(), "color transfer curves do not support spatial tangents")?;
             ensure(last.is_none_or(|v| v < k.frame), "invalid curve key time")?;
             k.value.validate()?;
@@ -198,6 +205,9 @@ impl EffectParam {
                 .track
                 .keys
                 .partition_point(|k| f64::from(k.frame) <= frame);
+            for key in self.track.keys.get(i.saturating_sub(1)).into_iter().chain(self.track.keys.get(i)) {
+                ensure(!key.auto_bezier, "boolean and enum parameters do not support automatic temporal Bezier")?;
+            }
             return Ok(if self.track.keys.is_empty() {
                 self.track.value
             } else {
@@ -217,6 +227,8 @@ impl EffectParam {
         )?;
         self.track.validate_local()?;
         for k in &self.track.keys {
+            ensure(!self.kind.discrete() || !k.auto_bezier,
+                "boolean and enum parameters do not support automatic temporal Bezier")?;
             if let Some(s) = &k.spatial {
                 ensure(matches!(self.kind, ParamKind::Vec2 | ParamKind::Vec3), "spatial paths require a vector parameter")?;
                 for tangent in s.incoming.iter().chain(&s.outgoing) {
@@ -668,6 +680,7 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
             if let Some(c) = &mut p.curve {
                 if enabled && c.keys.is_empty() {
                     c.keys.push(Keyframe {
+                        auto_bezier: false,
                         frame,
                         value: c.value.clone(),
                         ease: Ease::Linear,
@@ -817,6 +830,7 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                 c.value = value;
             } else {
                 let key = Keyframe {
+                    auto_bezier: false,
                     frame,
                     value,
                     ease: Ease::Linear,

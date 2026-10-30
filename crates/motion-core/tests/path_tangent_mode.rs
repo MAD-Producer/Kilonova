@@ -21,6 +21,7 @@ fn fixture() -> Engine {
                 geometry.keys = [0, 20]
                     .into_iter()
                     .map(|frame| Keyframe {
+                        auto_bezier: false,
                         frame,
                         value: [p[0] + frame as f32, p[1], 1., 2., 3., 4.],
                         ease: Ease::InOut,

@@ -1,5 +1,5 @@
 //! Physical velocity is the derivative of the model's value sampler, in units/s.
-use motion_core::{Easing, Track, Tween};
+use motion_core::{Track, Tween};
 
 /// Ordered composition-frame seeds. Shape seeds prevent an elastic period
 /// from aliasing the flatness probes; they do not set the drawing resolution.
@@ -10,11 +10,12 @@ pub(super) fn knots<T: Tween>(
     let authored=std::iter::once(start).chain(track.keys.windows(2).flat_map(move |pair| {
         let a=f64::from(pair[0].frame)+layer_offset;
         let b=f64::from(pair[1].frame)+layer_offset;
-        let hold=pair[0].ease==motion_core::Ease::Hold;
+        let hold=pair[0].ease==motion_core::Ease::Hold && pair[0].curve.is_none();
         let sections=if pair[0].curve.is_some_and(|curve| matches!(curve.shape,motion_core::CurveShape::Elastic {..})) {
             // Model validation bounds elastic frequency to eight periods.
             32
-        } else if hold || (pair[0].curve.is_none() && pair[0].ease==motion_core::Ease::Linear) {
+        } else if hold || (!pair[0].auto_bezier && !pair[1].auto_bezier
+            && pair[0].curve.is_none() && pair[0].ease==motion_core::Ease::Linear) {
             1
         } else {4};
         (0..sections).map(move |i|a+(b-a)*f64::from(i)/f64::from(sections))
@@ -30,12 +31,12 @@ pub(super) fn velocity<T: Tween>(
     frame: f64,
     fps: f64,
     component: impl Fn(T) -> f64,
-) -> f64 {
+) -> motion_core::Result<f64> {
     if track.keys.len() < 2
         || frame < f64::from(track.keys[0].frame)
         || frame > f64::from(track.keys.last().unwrap().frame)
     {
-        return 0.;
+        return Ok(0.);
     }
     let upper = track
         .keys
@@ -46,12 +47,9 @@ pub(super) fn velocity<T: Tween>(
     let b = &track.keys[upper];
     let span = f64::from(b.frame) - f64::from(a.frame);
     if span <= 0. {
-        return 0.;
+        return Err(motion_core::Error::Invalid("graph speed interval has nonpositive duration".into()));
     }
-    let sample = Easing {
-        ease: a.ease,
-        curve: a.curve,
-    }
+    let sample = track.effective_easing(upper - 1)?
     .sample(((frame - f64::from(a.frame)) / span).clamp(0., 1.));
     let av = component(a.value);
     let bv = component(b.value);
@@ -67,7 +65,7 @@ pub(super) fn velocity<T: Tween>(
             + 6. * (1. - p) * p * (c2 - c1)
             + 3. * p.powi(2) * (bv - c2)
     };
-    tangent * sample.velocity * fps / span
+    Ok(tangent * sample.velocity * fps / span)
 }
 
 #[cfg(test)]
@@ -75,12 +73,32 @@ mod tests {
     use super::*;
     use motion_core::{Ease, Keyframe, SpatialTangents};
     #[test]
+    fn automatic_speed_matches_the_value_derivative_and_rejects_unsupported_policy() {
+        let mut track = Track::constant(0f32);
+        for (frame, value) in [(0, 0.), (10, 10.), (40, 70.)] {
+            track.upsert(frame, value, Ease::Linear).unwrap();
+        }
+        track.set_auto_bezier(10, true).unwrap();
+        for frame in [2., 5., 9., 11., 20., 39.] {
+            let h = 0.01;
+            let finite_difference = f64::from(track.sample(frame + h).unwrap()
+                - track.sample(frame - h).unwrap()) / (2. * h) * 30.;
+            assert!((velocity(&track, frame, 30., f64::from).unwrap() - finite_difference).abs() < 0.03);
+        }
+        let mut unsupported = Track::constant([0f32; 6]);
+        unsupported.upsert(0, [0.; 6], Ease::Linear).unwrap();
+        unsupported.upsert(10, [1.; 6], Ease::Linear).unwrap();
+        unsupported.keys[0].auto_bezier = true;
+        let error = velocity(&unsupported, 5., 30., |v| f64::from(v[0])).unwrap_err();
+        assert!(error.to_string().contains("numeric scalar"), "{error}");
+    }
+    #[test]
     fn adaptive_knots_keep_signed_local_keys_offsets_and_hold_boundaries() {
         let mut track=Track::constant(0f32);
         track.keys=vec![
-            Keyframe {frame:-10,value:0.,ease:Ease::Hold,curve:None,spatial:None},
-            Keyframe {frame:10,value:100.,ease:Ease::Linear,curve:None,spatial:None},
-            Keyframe {frame:40,value:200.,ease:Ease::Linear,curve:None,spatial:None},
+            Keyframe { auto_bezier: false,frame:-10,value:0.,ease:Ease::Hold,curve:None,spatial:None},
+            Keyframe { auto_bezier: false,frame:10,value:100.,ease:Ease::Linear,curve:None,spatial:None},
+            Keyframe { auto_bezier: false,frame:40,value:200.,ease:Ease::Linear,curve:None,spatial:None},
         ];
         track.validate_local().unwrap();
         let seeds=knots(&track,0.,100.,17.).collect::<Vec<_>>();
@@ -110,12 +128,12 @@ mod tests {
             .chain(std::iter::once((Ease::Hold,None))) {
             let mut track=Track::constant(-50f32);
             track.keys=vec![
-                Keyframe {frame:0,value:-50.,ease,curve,spatial:None},
-                Keyframe {frame:60,value:150.,ease:Ease::Linear,curve:None,spatial:None},
+                Keyframe { auto_bezier: false,frame:0,value:-50.,ease,curve,spatial:None},
+                Keyframe { auto_bezier: false,frame:60,value:150.,ease:Ease::Linear,curve:None,spatial:None},
             ];
             track.validate_local().unwrap();
             for speed in [false,true] {
-                let value=|frame|if speed {velocity(&track,frame,30.,f64::from)} else {f64::from(track.sample(frame).unwrap())};
+                let value=|frame|if speed {velocity(&track,frame,30.,f64::from).unwrap()} else {f64::from(track.sample(frame).unwrap())};
                 for [start,end] in [[0.,60.],[22.,23.],[0.,0.5],[59.5,60.]] {
                     let scale=[800./(end-start),40.];
                     let points=super::super::graph_adaptive::sample(knots(&track,start,end,0.),scale,0.35,
@@ -141,6 +159,7 @@ mod tests {
         let mut track = Track::constant(0.);
         track.keys = vec![
             Keyframe {
+                auto_bezier: false,
                 frame: 0,
                 value: 0.,
                 ease: Ease::Linear,
@@ -148,6 +167,7 @@ mod tests {
                 spatial: None,
             },
             Keyframe {
+                auto_bezier: false,
                 frame: 30,
                 value: 600.,
                 ease: Ease::Linear,
@@ -155,18 +175,19 @@ mod tests {
                 spatial: None,
             },
         ];
-        assert_eq!(velocity(&track, 15., 30., |v| v as f64), 600.);
+        assert_eq!(velocity(&track, 15., 30., |v| v as f64).unwrap(), 600.);
         track.keys[0].ease = Ease::InOut;
-        assert_eq!(velocity(&track, 15., 30., |v| v as f64), 900.);
+        assert_eq!(velocity(&track, 15., 30., |v| v as f64).unwrap(), 900.);
         track.keys[0].ease = Ease::Hold;
-        assert_eq!(velocity(&track, 29.999, 30., |v| v as f64), 0.);
-        assert_eq!(velocity(&track, 31., 30., |v| v as f64), 0.);
+        assert_eq!(velocity(&track, 29.999, 30., |v| v as f64).unwrap(), 0.);
+        assert_eq!(velocity(&track, 31., 30., |v| v as f64).unwrap(), 0.);
     }
     #[test]
     fn vector_spatial_path_derivative_matches_the_actual_sampler() {
         let mut track = Track::constant([0., 0., 0.]);
         track.keys = vec![
             Keyframe {
+                auto_bezier: false,
                 frame: 0,
                 value: [0., 0., 0.],
                 ease: Ease::InOut,
@@ -177,6 +198,7 @@ mod tests {
                 }),
             },
             Keyframe {
+                auto_bezier: false,
                 frame: 30,
                 value: [600., 300., 0.],
                 ease: Ease::Linear,
@@ -188,6 +210,6 @@ mod tests {
             },
         ];
         let derivative = (track.sample(15.02).unwrap()[1] - track.sample(14.98).unwrap()[1]) as f64 / 0.04 * 30.;
-        assert!((velocity(&track, 15., 30., |v| v[1] as f64) - derivative).abs() < 0.2);
+        assert!((velocity(&track, 15., 30., |v| v[1] as f64).unwrap() - derivative).abs() < 0.2);
     }
 }

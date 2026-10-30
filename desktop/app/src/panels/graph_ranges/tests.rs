@@ -12,6 +12,7 @@ fn fixture() -> (Engine, Value, Panels) {
     layer.transform.opacity.keys = [(0, 0.2), (20, 0.5), (40, 0.8)]
         .into_iter()
         .map(|(frame, value)| Keyframe {
+            auto_bezier: false,
             frame,
             value,
             ease: motion_core::Ease::Linear,

@@ -9,6 +9,7 @@ fn fixture() -> (Engine, Value, Vec<KeyframeSelection>) {
     let mut layer = Layer::solid(7, "Timing", [64.; 2], [0.; 3], [1.; 4]);
     for frame in [0, 30, 60] {
         layer.transform.position.keys.push(Keyframe {
+            auto_bezier: false,
             frame,
             value: [frame as f32 / 30. * 100., 0., 0.],
             ease: Ease::Linear,
@@ -16,6 +17,7 @@ fn fixture() -> (Engine, Value, Vec<KeyframeSelection>) {
             spatial: None,
         });
         layer.transform.opacity.keys.push(Keyframe {
+            auto_bezier: false,
             frame,
             value: frame as f32 / 60.,
             ease: Ease::Linear,

@@ -25,6 +25,7 @@ fn document(root: &Path, count: u32) -> motion_core::Project {
     }
     project.layers[0].transform.position.keys = (0..count)
         .map(|frame| motion_core::Keyframe {
+            auto_bezier: false,
             frame: i32::try_from(frame).unwrap(),
             value: [frame as f32 / 10.; 3],
             ease: motion_core::Ease::Linear,

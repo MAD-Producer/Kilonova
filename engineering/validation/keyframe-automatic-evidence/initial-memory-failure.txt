@@ -1,0 +1,2846 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+error: only metadata stub found for `rlib` dependency `core` please provide path to the corresponding .rmeta file with full metadata
+
+error: cannot resolve a prelude import
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\automatic_bezier.rs:1:5
+  |
+1 | use motion_model::{Curve, CurveShape, CurveSpace, Ease, Easing, SpatialTangents, Track};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+For more information about this error, try `rustc --explain E0786`.
+error: could not compile `motion-model` (test "automatic_bezier") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\shape_parameter_errors.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error: could not compile `motion-model` (test "shape_parameter_errors") due to 1 previous error
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\depth_saved.rs:1:5
+  |
+1 | use motion_model::depth::*;
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\effect_parameter_errors.rs:1:5
+  |
+1 | use motion_model::{effects, EffectAction, EffectInstance, Layer, Project};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\depth_video_track.rs:1:5
+  |
+1 | use motion_model::depth::*;
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\depth.rs:1:5
+  |
+1 | use motion_model::depth::*;
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\animation_sampling_errors.rs:1:5
+  |
+1 | use motion_model::{Ease, Keyframe, Track, Tween};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\composition_boundaries.rs:1:5
+  |
+1 | use motion_model::{composition::MAX_COMPOSITIONS, *};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error: only metadata stub found for `rlib` dependency `test` please provide path to the corresponding .rmeta file with full metadata
+  --> crates\motion-model\tests\dimension_conversion_errors.rs:79:1
+   |
+78 |   #[test]
+   |   ------- in this attribute macro expansion
+79 | / fn unsupported_reconstruction_does_not_create_unsampleable_axes() {
+80 | |     let mut track = Track::constant(PartialVector([1., 2., 999.]));
+81 | |     let before = format!("{track:?}");
+82 | |     assert!(matches!(track.separate(), Err(Error::Invalid(_))));
+83 | |     assert_eq!(format!("{track:?}"), before);
+84 | | }
+   | |_^
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\depth_surface.rs:2:5
+  |
+2 | use motion_model::{depth::*, Camera, CameraPose};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\vector_path_inputs.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\key_collisions.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\observability.rs:1:5
+  |
+1 | use motion_model::vector::{path_ops, SampledPath, SampledTrimPaths, TrimMode};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0463]: can't find crate for `std`
+  |
+  = note: the `x86_64-pc-windows-msvc` target may not support the standard library
+  = note: `std` is required by `depth_of_field` because it does not declare `#![no_std]`
+
+error[E0463]: can't find crate for `std`
+  |
+  = note: the `x86_64-pc-windows-msvc` target may not support the standard library
+  = note: `std` is required by `depth_calibration` because it does not declare `#![no_std]`
+
+error[E0463]: can't find crate for `std`
+ --> crates\motion-model\tests\depth_of_field.rs:1:5
+  |
+1 | use motion_model::{AuthoredCameraSampler, Camera, CameraSampler, DepthOfField, Track};
+  |     ^^^^^^^^^^^^ can't find crate
+  |
+  = note: the `x86_64-pc-windows-msvc` target may not support the standard library
+
+error[E0463]: can't find crate for `std`
+ --> crates\motion-model\tests\depth_calibration.rs:1:5
+  |
+1 | use motion_model::depth::*;
+  |     ^^^^^^^^^^^^ can't find crate
+  |
+  = note: the `x86_64-pc-windows-msvc` target may not support the standard library
+
+error[E0463]: can't find crate for `glam`
+   --> crates\motion-model\tests\depth_calibration.rs:328:9
+    |
+328 |     use glam::{Mat4, Vec3};
+    |         ^^^^ can't find crate
+
+error: could not compile `motion-model` (test "animation_sampling_errors") due to 1 previous error
+error: could not compile `motion-model` (test "composition_boundaries") due to 1 previous error
+error: could not compile `motion-model` (test "depth_saved") due to 1 previous error
+error[E0432]: unresolved imports `glam::Mat4`, `glam::Vec3`, `motion_model::ProjectionKind::Orthographic`, `motion_model::ProjectionKind::Orthographic`, `motion_model::ProjectionKind::Orthographic`, `motion_model::ProjectionKind::Perspective`
+   --> crates\motion-model\tests\depth_calibration.rs:328:16
+    |
+328 |     use glam::{Mat4, Vec3};
+    |                ^^^^  ^^^^
+...
+353 |     use motion_model::ProjectionKind::{Orthographic, Perspective};
+    |                                        ^^^^^^^^^^^^  ^^^^^^^^^^^
+...
+394 |     use motion_model::ProjectionKind::Orthographic;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+448 |     use motion_model::ProjectionKind::Orthographic;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `motion-model` (test "key_collisions") due to 1 previous error
+error: could not compile `motion-model` (test "depth") due to 1 previous error
+error: could not compile `motion-model` (test "depth_surface") due to 1 previous error
+error: could not compile `motion-model` (test "vector_path_inputs") due to 1 previous error
+error: could not compile `motion-model` (test "observability") due to 1 previous error
+error: could not compile `motion-model` (test "depth_video_track") due to 1 previous error
+error: could not compile `motion-model` (test "effect_parameter_errors") due to 1 previous error
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\depth_prepared.rs:1:5
+  |
+1 | use motion_model::depth::{DepthGeometry, PreparedDepthInput};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `motion_model`
+ --> crates\motion-model\tests\path_auto_tangents.rs:1:5
+  |
+1 | use motion_model::vector::auto_tangents;
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap file '\\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error: could not compile `motion-model` (test "depth_prepared") due to 1 previous error
+error: could not compile `motion-model` (test "path_auto_tangents") due to 1 previous error
+error: cannot find attribute `test` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:10:3
+   |
+10 | #[test]
+   |   ^^^^
+   |
+help: consider importing this attribute macro
+   |
+ 1 + use core::prelude::rust_2024::test;
+   |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:446:3
+    |
+446 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error[E0786]: found invalid metadata files for crate `generic_array` which `motion_model` depends on
+ --> crates\motion-model\tests\audio_plan_time_bounds.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `generic_array` which `motion_model` depends on
+ --> crates\motion-model\tests\color_curve_failures.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `generic_array` which `motion_model` depends on
+ --> crates\motion-model\tests\composition_candidate_oracle.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libgeneric_array-3c65006b7c1e7e36.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `aho_corasick` which `motion_model` depends on
+ --> crates\motion-model\tests\dense_color_curves.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libaho_corasick-eaea58fff3cb1a92.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libaho_corasick-eaea58fff3cb1a92.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `zip` which `motion_model` depends on
+ --> crates\motion-model\tests\timeline_errors.rs:1:5
+  |
+1 | use motion_model::{
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-82f7a8114fbfaa23.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-82f7a8114fbfaa23.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0786]: found invalid metadata files for crate `zip` which `motion_model` depends on
+ --> crates\motion-model\tests\node_resources.rs:1:5
+  |
+1 | use motion_model::{node_resources::source_resources, NodeResource};
+  |     ^^^^^^^^^^^^
+  |
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+  = note: failed to mmap rmeta metadata: 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-82f7a8114fbfaa23.rmeta'
+  = note: failed to mmap file 'E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-82f7a8114fbfaa23.rlib': 页面文件太小，无法完成操作。 (os error 1455)
+
+error[E0460]: found possibly newer version of crate `indexmap` which `motion_model` depends on
+ --> crates\motion-model\tests\composition_queries.rs:1:5
+  |
+1 | use motion_model::{Camera, Composition, CompositionClip, Content, Error, Layer, Project};
+  |     ^^^^^^^^^^^^
+  |
+  = note: perhaps that crate needs to be recompiled?
+  = note: the following crate versions were found:
+          crate `indexmap`: E:/Dev/aem/.tools/review-564/target\debug\deps\libindexmap-a7fa48c4b0281832.rmeta
+          crate `indexmap`: E:/Dev/aem/.tools/review-564/target\debug\deps\libindexmap-a7fa48c4b0281832.rlib
+          crate `motion_model`: \\?\E:\Dev\aem\.tools\review-564\target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib
+
+error: could not compile `motion-model` (test "audio_plan_time_bounds") due to 1 previous error
+error: could not compile `motion-model` (test "color_curve_failures") due to 1 previous error
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:450:9
+    |
+450 |         assert!(DepthProjection::new(camera(Orthographic, false), units).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:38:5
+   |
+38 |     assert_eq!(restored, camera);
+   |     ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+For more information about this error, try `rustc --explain E0460`.
+error: could not compile `motion-model` (test "composition_candidate_oracle") due to 1 previous error
+error: could not compile `motion-model` (test "dense_color_curves") due to 1 previous error
+error: only metadata stub found for `rlib` dependency `test` please provide path to the corresponding .rmeta file with full metadata
+   --> crates\motion-model\tests\dimension_edit_errors.rs:124:1
+    |
+123 |   #[test]
+    |   ------- in this attribute macro expansion
+124 | / fn invalid_derived_components_do_not_partially_upsert_a_valid_separated_track() {
+125 | |     let mut track = Track::constant(DerivedVector([1., 2., 3.]));
+126 | |     track.separate().unwrap();
+127 | |     let before = format!("{track:?}");
+...   |
+132 | |     assert_eq!(format!("{track:?}"), before);
+133 | | }
+    | |_^
+
+error: could not compile `motion-model` (test "timeline_errors") due to 1 previous error
+error: could not compile `motion-model` (test "node_resources") due to 1 previous error
+error: could not compile `motion-model` (test "composition_queries") due to 1 previous error
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:454:5
+    |
+454 |     assert!(DepthProjection::new(bad, 1.).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:43:9
+   |
+43 |         assert_eq!(sample.depth_of_field.unwrap().focus_distance, focus);
+   |         ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:48:9
+   |
+48 |         assert!(bad.validate(60).is_err());
+   |         ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:457:5
+    |
+457 |     assert!(DepthProjection::new(bad, 1.).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+note: no errors encountered even though delayed bugs were created
+
+note: those delayed bugs will now be shown as internal compiler errors
+
+error: internal compiler error: no resolution for an import
+ --> crates\motion-model\tests\working_precision.rs:2:20
+  |
+2 | use motion_model::{CURRENT_PROJECT_VERSION, Project};
+  |                    ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_ast_lowering\src\lib.rs:877:24 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:2:20
+  |
+2 | use motion_model::{CURRENT_PROJECT_VERSION, Project};
+  |                    ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `motion-model` (test "dimension_edit_errors") due to 1 previous error
+error: internal compiler error: no resolution for an import
+ --> crates\motion-model\tests\working_precision.rs:2:45
+  |
+2 | use motion_model::{CURRENT_PROJECT_VERSION, Project};
+  |                                             ^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_ast_lowering\src\lib.rs:877:24 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:2:45
+  |
+2 | use motion_model::{CURRENT_PROJECT_VERSION, Project};
+  |                                             ^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^
+
+error: internal compiler error[E0618]: expected function, found `{type error}`
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^----------------
+  |                   |
+  |                   call expression requires function
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\callee.rs:747:34 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+ --> crates\motion-model\tests\working_precision.rs:8:33
+  |
+8 |     assert_eq!(initial.version, CURRENT_PROJECT_VERSION);
+  |                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:8:33
+  |
+8 |     assert_eq!(initial.version, CURRENT_PROJECT_VERSION);
+  |                                 ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: path with `Res::Err` but no error emitted
+  --> crates\motion-model\tests\working_precision.rs:27:45
+   |
+27 |         assert_eq!(serde_json::from_value::<Project>(encoded).unwrap(), project);
+   |                                             ^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_analysis\src\hir_ty_lowering\mod.rs:2380:22 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:27:45
+   |
+27 |         assert_eq!(serde_json::from_value::<Project>(encoded).unwrap(), project);
+   |                                             ^^^^^^^
+
+error: internal compiler error: path with `Res::Err` but no error emitted
+  --> crates\motion-model\tests\working_precision.rs:32:34
+   |
+32 |         serde_json::from_value::<Project>(missing)
+   |                                  ^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_analysis\src\hir_ty_lowering\mod.rs:2380:22 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:32:34
+   |
+32 |         serde_json::from_value::<Project>(missing)
+   |                                  ^^^^^^^
+
+error: internal compiler error: path with `Res::Err` but no error emitted
+  --> crates\motion-model\tests\working_precision.rs:44:42
+   |
+44 |         assert!(serde_json::from_value::<Project>(encoded).is_err());
+   |                                          ^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_analysis\src\hir_ty_lowering\mod.rs:2380:22 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:44:42
+   |
+44 |         assert!(serde_json::from_value::<Project>(encoded).is_err());
+   |                                          ^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+  --> crates\motion-model\tests\working_precision.rs:47:19
+   |
+47 |     old.version = CURRENT_PROJECT_VERSION - 1;
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:47:19
+   |
+47 |     old.version = CURRENT_PROJECT_VERSION - 1;
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\working_precision.rs:6:19
+  |
+6 |     let initial = Project::new(64, 64, 30, 60).unwrap();
+  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:15:27
+   |
+15 |         let mut project = initial.clone();
+   |                           ^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:15:27
+   |
+15 |         let mut project = initial.clone();
+   |                           ^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:17:9
+   |
+17 |         project.validate().unwrap();
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:17:9
+   |
+17 |         project.validate().unwrap();
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:17:9
+   |
+17 |         project.validate().unwrap();
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:17:9
+   |
+17 |         project.validate().unwrap();
+   |         ^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:19:13
+   |
+19 | /             project
+20 | |                 .composition_frame_view(&project.composition_id)
+21 | |                 .unwrap()
+   | |_________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:19:13
+   |
+19 | /             project
+20 | |                 .composition_frame_view(&project.composition_id)
+21 | |                 .unwrap()
+   | |_________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:19:13
+   |
+19 | /             project
+20 | |                 .composition_frame_view(&project.composition_id)
+   | |________________________________________________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:19:13
+   |
+19 | /             project
+20 | |                 .composition_frame_view(&project.composition_id)
+   | |________________________________________________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:27:20
+   |
+27 |         assert_eq!(serde_json::from_value::<Project>(encoded).unwrap(), project);
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:27:20
+   |
+27 |         assert_eq!(serde_json::from_value::<Project>(encoded).unwrap(), project);
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+34 | |             .to_string()
+35 | |             .contains("working_precision")
+   | |__________________________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+34 | |             .to_string()
+35 | |             .contains("working_precision")
+   | |__________________________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+34 | |             .to_string()
+   | |________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+34 | |             .to_string()
+   | |________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+   | |_________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:32:9
+   |
+32 | /         serde_json::from_value::<Project>(missing)
+33 | |             .unwrap_err()
+   | |_________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:44:17
+   |
+44 |         assert!(serde_json::from_value::<Project>(encoded).is_err());
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:44:17
+   |
+44 |         assert!(serde_json::from_value::<Project>(encoded).is_err());
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+51 | |             .to_string()
+52 | |             .contains("unsupported project format")
+   | |___________________________________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+51 | |             .to_string()
+52 | |             .contains("unsupported project format")
+   | |___________________________________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+51 | |             .to_string()
+   | |________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+51 | |             .to_string()
+   | |________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+   | |_________________________^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 | /         old.validate()
+50 | |             .unwrap_err()
+   | |_________________________^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 |         old.validate()
+   |         ^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\working_precision.rs:49:9
+   |
+49 |         old.validate()
+   |         ^^^^^^^^^^^^^^
+
+note: we would appreciate a bug report: https://github.com/rust-lang/rust/issues/new?labels=C-bug%2C+I-ICE%2C+T-compiler&template=ice.md
+
+note: rustc 1.97.1 (8bab26f4f 2026-07-14) running on x86_64-pc-windows-msvc
+
+note: compiler flags: -C embed-bitcode=no -C debuginfo=2 -C incremental=[REDACTED]
+
+note: some of the compiler flags provided by cargo are hidden
+
+query stack during panic:
+end of query stack
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:52:5
+   |
+52 |     assert!(bad.validate(60).is_err());
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:460:9
+    |
+460 |         assert!(p.project_camera_z([0.5, 0.5], z).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: could not compile `motion-model` (test "working_precision")
+
+Caused by:
+  process didn't exit successfully: `C:\Users\nova\.rustup\toolchains\1.97.1-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name working_precision --edition=2021 crates\motion-model\tests\working_precision.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=57a714c9b2620d41 -C extra-filename=-94158ad0a293da57 --out-dir E:/Dev/aem/.tools/review-564/target\debug\deps -C incremental=E:/Dev/aem/.tools/review-564/target\debug\incremental -L dependency=E:/Dev/aem/.tools/review-564/target\debug\deps --extern glam=E:/Dev/aem/.tools/review-564/target\debug\deps\libglam-b5d1396d269e94b0.rlib --extern log=E:/Dev/aem/.tools/review-564/target\debug\deps\liblog-875bf28102c76585.rlib --extern motion_effects=E:/Dev/aem/.tools/review-564/target\debug\deps\libmotion_effects-cf5dfeb791ed02d4.rlib --extern motion_model=E:/Dev/aem/.tools/review-564/target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib --extern serde=E:/Dev/aem/.tools/review-564/target\debug\deps\libserde-4c13421c2fd67d92.rlib --extern serde_json=E:/Dev/aem/.tools/review-564/target\debug\deps\libserde_json-1e5ad50048f8a397.rlib --extern thiserror=E:/Dev/aem/.tools/review-564/target\debug\deps\libthiserror-fdbeb521a92d1b6c.rlib --extern zip=E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rlib` (exit code: 101)
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:55:5
+   |
+55 |     assert!(bad.validate_local().is_err());
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:462:5
+    |
+462 |     assert!(p.project_camera_z([f64::NAN, 0.5], 1.).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:57:5
+   |
+57 |     assert!(AuthoredCameraSampler
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:464:5
+    |
+464 |     assert!(p.project_camera_z([0.5, 0.5], 2.).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:466:51
+    |
+466 |     let source = DepthResource::new(descriptor(), vec![1.; 4], None, None).unwrap();
+    |                                                   ^^^
+
+error[E0463]: can't find crate for `serde_json`
+  --> crates\motion-model\tests\depth_of_field.rs:36:19
+   |
+36 |     let encoded = serde_json::to_vec(&camera).unwrap();
+   |                   ^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `glam`
+  --> crates\motion-model\tests\depth_of_field.rs:41:57
+   |
+41 |             .sample(&restored, frame, 30, [1920, 1080], glam::Mat4::IDENTITY)
+   |                                                         ^^^^ can't find crate
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+  --> crates\motion-model\tests\depth_of_field.rs:13:29
+   |
+13 |     camera.depth_of_field = Some(aperture());
+   |                             ^^^^ not found in this scope
+   |
+help: consider importing this tuple variant
+   |
+ 1 + use core::option::Option::Some;
+   |
+
+error: no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
+
+error: `#[panic_handler]` function required, but not found
+
+error: unwinding panics are not supported without std
+  |
+  = help: using nightly cargo, use -Zbuild-std with panic="abort" to avoid unwinding
+  = note: since the core library is usually precompiled with panic="unwind", rebuilding your crate with panic="abort" may not be enough to fix the problem
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:474:9
+    |
+474 |         assert!(ProjectedDepth::from_calibrated(
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: requires `None` lang_item
+  --> crates\motion-model\tests\depth_of_field.rs:39:5
+   |
+39 | /     for (frame, focus) in [(0., 100.), (10., 200.)] {
+40 | |         let sample = AuthoredCameraSampler
+41 | |             .sample(&restored, frame, 30, [1920, 1080], glam::Mat4::IDENTITY)
+42 | |             .unwrap();
+43 | |         assert_eq!(sample.depth_of_field.unwrap().focus_distance, focus);
+44 | |     }
+   | |_____^
+
+Some errors have detailed explanations: E0425, E0463.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `motion-model` (test "dimension_conversion_errors") due to 1 previous error
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:392:3
+    |
+392 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: could not compile `motion-model` (test "depth_of_field") due to 18 previous errors
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:405:9
+    |
+405 |         vec![1., 1.25, 1.5, 2.],
+    |         ^^^
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:406:14
+    |
+406 |         Some(vec![1, 0, 1, 1]),
+    |              ^^^
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:419:5
+    |
+419 |     assert_eq!(output.size(), [4, 4]);
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: internal compiler error: no resolution for an import
+ --> crates\motion-model\tests\sample_time.rs:1:20
+  |
+1 | use motion_model::{Ease, Track};
+  |                    ^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_ast_lowering\src\lib.rs:877:24 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:1:20
+  |
+1 | use motion_model::{Ease, Track};
+  |                    ^^^^
+
+error: internal compiler error: no resolution for an import
+ --> crates\motion-model\tests\sample_time.rs:1:26
+  |
+1 | use motion_model::{Ease, Track};
+  |                          ^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_ast_lowering\src\lib.rs:877:24 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:1:26
+  |
+1 | use motion_model::{Ease, Track};
+  |                          ^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+ --> crates\motion-model\tests\sample_time.rs:5:22
+  |
+5 |     let mut scalar = Track::constant(9.);
+  |                      ^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:5:22
+  |
+5 |     let mut scalar = Track::constant(9.);
+  |                      ^^^^^^^^^^^^^^^
+
+error: internal compiler error[E0618]: expected function, found `{type error}`
+ --> crates\motion-model\tests\sample_time.rs:5:22
+  |
+5 |     let mut scalar = Track::constant(9.);
+  |                      ^^^^^^^^^^^^^^^----
+  |                      |
+  |                      call expression requires function
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\callee.rs:747:34 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:5:22
+  |
+5 |     let mut scalar = Track::constant(9.);
+  |                      ^^^^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+ --> crates\motion-model\tests\sample_time.rs:7:26
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |                          ^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:7:26
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |                          ^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+ --> crates\motion-model\tests\sample_time.rs:9:27
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |                           ^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:9:27
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |                           ^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+  --> crates\motion-model\tests\sample_time.rs:18:22
+   |
+18 |     let mut vector = Track::constant([1., 2., 3.]);
+   |                      ^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:18:22
+   |
+18 |     let mut vector = Track::constant([1., 2., 3.]);
+   |                      ^^^^^^^^^^^^^^^
+
+error: internal compiler error[E0618]: expected function, found `{type error}`
+  --> crates\motion-model\tests\sample_time.rs:18:22
+   |
+18 |     let mut vector = Track::constant([1., 2., 3.]);
+   |                      ^^^^^^^^^^^^^^^--------------
+   |                      |
+   |                      call expression requires function
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\callee.rs:747:34 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:18:22
+   |
+18 |     let mut vector = Track::constant([1., 2., 3.]);
+   |                      ^^^^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+  --> crates\motion-model\tests\sample_time.rs:19:39
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |                                       ^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:19:39
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |                                       ^^^^^^^^^^^^
+
+error: internal compiler error: `Res::Err` but no error emitted
+  --> crates\motion-model\tests\sample_time.rs:20:40
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |                                        ^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_hir_typeck\src\expr.rs:588:32 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:20:40
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |                                        ^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:6:16
+  |
+6 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:6:16
+  |
+6 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:6:16
+  |
+6 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:6:16
+  |
+6 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:7:5
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:7:5
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:7:5
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:7:5
+  |
+7 |     scalar.upsert(0, 1., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:8:16
+  |
+8 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:8:16
+  |
+8 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:8:16
+  |
+8 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:8:16
+  |
+8 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:9:5
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:9:5
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+ --> crates\motion-model\tests\sample_time.rs:9:5
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+ --> crates\motion-model\tests\sample_time.rs:9:5
+  |
+9 |     scalar.upsert(10, 3., Ease::Linear).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:10:16
+   |
+10 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:10:16
+   |
+10 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:10:16
+   |
+10 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:10:16
+   |
+10 |     assert_eq!(scalar.sample(f64::NAN).unwrap(), 9.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:11:16
+   |
+11 |     assert_eq!(scalar.sample(2.5).unwrap(), 1.5);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:11:16
+   |
+11 |     assert_eq!(scalar.sample(2.5).unwrap(), 1.5);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:11:16
+   |
+11 |     assert_eq!(scalar.sample(2.5).unwrap(), 1.5);
+   |                ^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:11:16
+   |
+11 |     assert_eq!(scalar.sample(2.5).unwrap(), 1.5);
+   |                ^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:12:16
+   |
+12 |     assert_eq!(scalar.sample(f64::NEG_INFINITY).unwrap(), 1.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:12:16
+   |
+12 |     assert_eq!(scalar.sample(f64::NEG_INFINITY).unwrap(), 1.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:12:16
+   |
+12 |     assert_eq!(scalar.sample(f64::NEG_INFINITY).unwrap(), 1.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:12:16
+   |
+12 |     assert_eq!(scalar.sample(f64::NEG_INFINITY).unwrap(), 1.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:13:16
+   |
+13 |     assert_eq!(scalar.sample(f64::INFINITY).unwrap(), 3.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:13:16
+   |
+13 |     assert_eq!(scalar.sample(f64::INFINITY).unwrap(), 3.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:13:16
+   |
+13 |     assert_eq!(scalar.sample(f64::INFINITY).unwrap(), 3.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:13:16
+   |
+13 |     assert_eq!(scalar.sample(f64::INFINITY).unwrap(), 3.);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:19:5
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:19:5
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:19:5
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:19:5
+   |
+19 |     vector.upsert(0, [10., 20., 30.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:20:5
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:20:5
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:20:5
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:20:5
+   |
+20 |     vector.upsert(10, [20., 30., 40.], Ease::Linear).unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:21:16
+   |
+21 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:21:16
+   |
+21 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:21:16
+   |
+21 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:21:16
+   |
+21 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:22:16
+   |
+22 |     assert_eq!(vector.sample(2.5).unwrap(), [12.5, 22.5, 32.5]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:22:16
+   |
+22 |     assert_eq!(vector.sample(2.5).unwrap(), [12.5, 22.5, 32.5]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:22:16
+   |
+22 |     assert_eq!(vector.sample(2.5).unwrap(), [12.5, 22.5, 32.5]);
+   |                ^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:22:16
+   |
+22 |     assert_eq!(vector.sample(2.5).unwrap(), [12.5, 22.5, 32.5]);
+   |                ^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:23:5
+   |
+23 |     vector.separate().unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:23:5
+   |
+23 |     vector.separate().unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:23:5
+   |
+23 |     vector.separate().unwrap();
+   |     ^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:23:5
+   |
+23 |     vector.separate().unwrap();
+   |     ^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:24:16
+   |
+24 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:24:16
+   |
+24 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:24:16
+   |
+24 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:24:16
+   |
+24 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [1., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:25:5
+   |
+25 |     vector.axes.as_mut().unwrap().x.value = 8.;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:25:5
+   |
+25 |     vector.axes.as_mut().unwrap().x.value = 8.;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:25:5
+   |
+25 |     vector.axes.as_mut().unwrap().x.value = 8.;
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:25:5
+   |
+25 |     vector.axes.as_mut().unwrap().x.value = 8.;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:26:16
+   |
+26 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [8., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:26:16
+   |
+26 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [8., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: internal compiler error: no type-dependent def for method call
+  --> crates\motion-model\tests\sample_time.rs:26:16
+   |
+26 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [8., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: delayed at /rustc-dev/8bab26f4f68e0e26f0bb7960be334d5b520ea452/compiler\rustc_privacy\src\lib.rs:1247:26 - disabled backtrace
+  --> crates\motion-model\tests\sample_time.rs:26:16
+   |
+26 |     assert_eq!(vector.sample(f64::NAN).unwrap(), [8., 2., 3.]);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+
+note: we would appreciate a bug report: https://github.com/rust-lang/rust/issues/new?labels=C-bug%2C+I-ICE%2C+T-compiler&template=ice.md
+
+note: rustc 1.97.1 (8bab26f4f 2026-07-14) running on x86_64-pc-windows-msvc
+
+note: compiler flags: -C embed-bitcode=no -C debuginfo=2 -C incremental=[REDACTED]
+
+note: some of the compiler flags provided by cargo are hidden
+
+query stack during panic:
+end of query stack
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:420:5
+    |
+420 |     assert_eq!(output.source(), source.descriptor());
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:421:5
+    |
+421 |     assert!(output
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: could not compile `motion-model` (test "sample_time")
+
+Caused by:
+  process didn't exit successfully: `C:\Users\nova\.rustup\toolchains\1.97.1-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name sample_time --edition=2021 crates\motion-model\tests\sample_time.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=65709fe558a921c4 -C extra-filename=-b6a4def50bc6416d --out-dir E:/Dev/aem/.tools/review-564/target\debug\deps -C incremental=E:/Dev/aem/.tools/review-564/target\debug\incremental -L dependency=E:/Dev/aem/.tools/review-564/target\debug\deps --extern glam=E:/Dev/aem/.tools/review-564/target\debug\deps\libglam-b5d1396d269e94b0.rlib --extern log=E:/Dev/aem/.tools/review-564/target\debug\deps\liblog-875bf28102c76585.rlib --extern motion_effects=E:/Dev/aem/.tools/review-564/target\debug\deps\libmotion_effects-cf5dfeb791ed02d4.rlib --extern motion_model=E:/Dev/aem/.tools/review-564/target\debug\deps\libmotion_model-2f6f76f8ae62fe60.rlib --extern serde=E:/Dev/aem/.tools/review-564/target\debug\deps\libserde-4c13421c2fd67d92.rlib --extern serde_json=E:/Dev/aem/.tools/review-564/target\debug\deps\libserde_json-1e5ad50048f8a397.rlib --extern thiserror=E:/Dev/aem/.tools/review-564/target\debug\deps\libthiserror-fdbeb521a92d1b6c.rlib --extern zip=E:/Dev/aem/.tools/review-564/target\debug\deps\libzip-5830ecb95db9a002.rlib` (exit code: 101)
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:426:5
+    |
+426 |     assert!(!output.projection().matches_camera(other));
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:437:17
+    |
+437 |                 assert_eq!(actual[1], 1.);
+    |                 ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:438:17
+    |
+438 |                 assert!((actual[0] as f64 - (z - 0.1) / 9.9).abs() < 2e-6);
+    |                 ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:440:17
+    |
+440 |                 assert_eq!(actual, [1., 0.]);
+    |                 ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:351:3
+    |
+351 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:373:13
+    |
+373 |             assert!(
+    |             ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:378:9
+    |
+378 |         assert_eq!(
+    |         ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:383:13
+    |
+383 |             assert_eq!(
+    |             ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:388:9
+    |
+388 |         assert_eq!(projection.project_camera_z([-0.1, 0.5], 1.).unwrap(), None);
+    |         ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: crate `naga` required to be available in rlib format, but was not found in this form
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:288:3
+    |
+288 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:309:40
+    |
+309 |     let source = DepthResource::new(d, vec![1., 1.5, 2., 3.], None, None).unwrap();
+    |                                        ^^^
+
+error: crate `indexmap` required to be available in rlib format, but was not found in this form
+
+error: crate `flate2` required to be available in rlib format, but was not found in this form
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:311:5
+    |
+311 |     assert_eq!(view.camera_z_meters(0).unwrap(), Some(2e200));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:312:5
+    |
+312 |     assert_eq!(view.camera_z_meters(2).unwrap(), Some(1e200));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:313:5
+    |
+313 |     assert!((view.camera_z_meters(1).unwrap().unwrap() / 1e200 - 4. / 3.).abs() < 1e-14);
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: could not compile `motion-model` (test "path_tangent_sampling") due to 1 previous error
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:314:5
+    |
+314 |     assert!(view.camera_z_meters(3).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: could not compile `motion-model` (test "composition_frame_mapping") due to 2 previous errors
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:318:5
+    |
+318 |     assert!(RelativeDepthCalibration::new(
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:243:3
+    |
+243 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:256:9
+    |
+256 |         assert!(try_new(descriptor(), a).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:261:9
+    |
+261 |         assert!(try_new(descriptor(), a).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:265:5
+    |
+265 |     assert!(try_new(descriptor(), a).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:268:5
+    |
+268 |     assert!(try_new(descriptor(), a).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:271:5
+    |
+271 |     assert!(try_new(d, anchors()).is_err());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:284:9
+    |
+284 |         assert!(try_new(d, anchors()).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:208:3
+    |
+208 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:210:51
+    |
+210 |     let source = DepthResource::new(descriptor(), vec![0.5, 1., 2., 2.5], None, None).unwrap();
+    |                                                   ^^^
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:214:9
+    |
+214 |         assert!(view
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:225:5
+    |
+225 |     assert_eq!(view.camera_z_meters(0).unwrap(), Some(2.5));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:226:5
+    |
+226 |     assert_eq!(view.camera_z_meters(3).unwrap(), Some(0.5));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:227:48
+    |
+227 |     let bad = DepthResource::new(descriptor(), vec![-1., 0., 3., 4.], None, None).unwrap();
+    |                                                ^^^
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:230:9
+    |
+230 |         assert!(view.camera_z_meters(n).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:238:9
+    |
+238 |         assert!(view.camera_z_meters(n).is_err());
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:240:5
+    |
+240 |     assert_eq!(bad.validity(), None);
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:158:3
+    |
+158 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:171:51
+    |
+171 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+    |                                                   ^^^
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:173:9
+    |
+173 |         assert_eq!(
+    |         ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:182:5
+    |
+182 |     assert!(RelativeDepthCalibration::new(
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:199:5
+    |
+199 |     assert!(RelativeDepthCalibration::new(
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find attribute `test` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:113:3
+    |
+113 | #[test]
+    |   ^^^^
+    |
+help: consider importing this attribute macro
+    |
+  1 + use core::prelude::rust_2024::test;
+    |
+
+error: cannot find macro `unreachable` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:135:18
+    |
+135 |             _ => unreachable!(),
+    |                  ^^^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::unreachable;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:140:44
+    |
+140 |         let source = DepthResource::new(d, vec![f32::NAN; 4], Some(vec![0; 4]), None).unwrap();
+    |                                            ^^^
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:140:68
+    |
+140 |         let source = DepthResource::new(d, vec![f32::NAN; 4], Some(vec![0; 4]), None).unwrap();
+    |                                                                    ^^^
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:141:9
+    |
+141 |         assert!(c
+    |         ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find macro `vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:154:40
+    |
+154 |     let source = DepthResource::new(d, vec![1.; 4], None, None).unwrap();
+    |                                        ^^^
+
+error: cannot find macro `assert` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:155:5
+    |
+155 |     assert!(c.bind(&source).is_ok());
+    |     ^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert;
+    |
+
+error: cannot find attribute `test` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:84:3
+   |
+84 | #[test]
+   |   ^^^^
+   |
+help: consider importing this attribute macro
+   |
+ 1 + use core::prelude::rust_2024::test;
+   |
+
+error: cannot find macro `vec` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:91:9
+   |
+91 |         vec![1., f32::NAN, 1.5, f32::INFINITY],
+   |         ^^^
+
+error: cannot find macro `vec` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:92:14
+   |
+92 |         Some(vec![1, 0, 1, 0]),
+   |              ^^^
+
+error: cannot find macro `vec` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:93:14
+   |
+93 |         Some(vec![0.9, 0., 0.2, 0.]),
+   |              ^^^
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:104:5
+    |
+104 |     assert_eq!(view.camera_z_meters(0).unwrap(), Some(2.));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:105:5
+    |
+105 |     assert_eq!(view.camera_z_meters(2).unwrap(), Some(1.));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:107:9
+    |
+107 |         assert_eq!(view.camera_z_meters(n).unwrap(), None);
+    |         ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:109:5
+    |
+109 |     assert_eq!(view.resource().validity(), Some(&[1, 0, 1, 0][..]));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find macro `assert_eq` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:110:5
+    |
+110 |     assert_eq!(view.resource().confidence(), Some(&[0.9, 0., 0.2, 0.][..]));
+    |     ^^^^^^^^^
+    |
+help: consider importing this macro
+    |
+  1 + use core::assert_eq;
+    |
+
+error: cannot find attribute `test` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:53:3
+   |
+53 | #[test]
+   |   ^^^^
+   |
+help: consider importing this attribute macro
+   |
+ 1 + use core::prelude::rust_2024::test;
+   |
+
+error: cannot find macro `vec` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:55:51
+   |
+55 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+   |                                                   ^^^
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:65:9
+   |
+65 |         assert_eq!(l.camera_z_meters(n).unwrap(), Some(expected));
+   |         ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:69:9
+   |
+69 |         assert!((i.camera_z_meters(n).unwrap().unwrap() - expected).abs() < 1e-14);
+   |         ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:71:5
+   |
+71 |     assert_eq!(source.values(), before);
+   |     ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:72:5
+   |
+72 |     assert!(source
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:77:5
+   |
+77 |     assert_eq!(linear.anchors(), &anchors());
+   |     ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:78:5
+   |
+78 |     assert_eq!(linear.curve(), CalibrationCurve::CameraZ);
+   |     ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert_eq` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:79:5
+   |
+79 |     assert_eq!(linear.extrapolation(), CalibrationExtrapolation::Reject);
+   |     ^^^^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert_eq;
+   |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:80:5
+   |
+80 |     assert!(std::ptr::eq(l.resource(), &source));
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error: cannot find macro `assert` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:81:5
+   |
+81 |     assert!(std::ptr::eq(l.calibration(), &linear));
+   |     ^^^^^^
+   |
+help: consider importing this macro
+   |
+ 1 + use core::assert;
+   |
+
+error[E0425]: cannot find type `DepthDescriptor` in this scope
+ --> crates\motion-model\tests\depth_calibration.rs:3:20
+  |
+3 | fn descriptor() -> DepthDescriptor {
+  |                    ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthDescriptor` in this scope
+ --> crates\motion-model\tests\depth_calibration.rs:4:5
+  |
+4 |     DepthDescriptor {
+  |     ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthSource` in this scope
+ --> crates\motion-model\tests\depth_calibration.rs:6:17
+  |
+6 |         source: DepthSource {
+  |                 ^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthTime` in this scope
+ --> crates\motion-model\tests\depth_calibration.rs:9:18
+  |
+9 |             pts: DepthTime {
+  |                  ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthGeometry` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:14:19
+   |
+14 |         geometry: DepthGeometry {
+   |                   ^^^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthModel` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:20:16
+   |
+20 |         model: DepthModel {
+   |                ^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `None` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:31:22
+   |
+31 |         valid_range: None,
+   |                      ^^^^ not found in this scope
+   |
+help: consider importing this unit variant
+   |
+ 1 + use core::option::Option::None;
+   |
+
+error[E0425]: cannot find type `DepthAnchor` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:34:18
+   |
+34 | fn anchors() -> [DepthAnchor; 2] {
+   |                  ^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:36:9
+   |
+36 |         DepthAnchor {
+   |         ^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:40:9
+   |
+40 |         DepthAnchor {
+   |         ^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `CalibrationCurve` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:47:12
+   |
+47 |     curve: CalibrationCurve,
+   |            ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `CalibrationExtrapolation` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:48:13
+   |
+48 |     policy: CalibrationExtrapolation,
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find type `RelativeDepthCalibration` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:49:6
+   |
+49 | ) -> RelativeDepthCalibration {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `None` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:55:76
+   |
+55 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+   |                                                                            ^^^^ not found in this scope
+   |
+help: consider importing this unit variant
+   |
+ 1 + use core::option::Option::None;
+   |
+
+error[E0425]: cannot find value `None` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:55:82
+   |
+55 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+   |                                                                                  ^^^^ not found in this scope
+   |
+help: consider importing this unit variant
+   |
+ 1 + use core::option::Option::None;
+   |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:92:9
+   |
+92 |         Some(vec![1, 0, 1, 0]),
+   |         ^^^^ not found in this scope
+   |
+help: consider importing this tuple variant
+   |
+ 1 + use core::option::Option::Some;
+   |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:93:9
+   |
+93 |         Some(vec![0.9, 0., 0.2, 0.]),
+   |         ^^^^ not found in this scope
+   |
+help: consider importing this tuple variant
+   |
+ 1 + use core::option::Option::Some;
+   |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:134:35
+    |
+134 |             14 => d.valid_range = Some([0., 4.]),
+    |                                   ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:140:63
+    |
+140 |         let source = DepthResource::new(d, vec![f32::NAN; 4], Some(vec![0; 4]), None).unwrap();
+    |                                                               ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:140:81
+    |
+140 |         let source = DepthResource::new(d, vec![f32::NAN; 4], Some(vec![0; 4]), None).unwrap();
+    |                                                                                 ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0422]: cannot find struct, variant or union type `DepthTime` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:150:20
+    |
+150 |     d.source.pts = DepthTime {
+    |                    ^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:154:53
+    |
+154 |     let source = DepthResource::new(d, vec![1.; 4], None, None).unwrap();
+    |                                                     ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:154:59
+    |
+154 |     let source = DepthResource::new(d, vec![1.; 4], None, None).unwrap();
+    |                                                           ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:171:76
+    |
+171 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+    |                                                                            ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:171:82
+    |
+171 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+    |                                                                                  ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:190:9
+    |
+190 |         DepthAnchor {
+    |         ^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:194:9
+    |
+194 |         DepthAnchor {
+    |         ^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:210:75
+    |
+210 |     let source = DepthResource::new(descriptor(), vec![0.5, 1., 2., 2.5], None, None).unwrap();
+    |                                                                           ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:210:81
+    |
+210 |     let source = DepthResource::new(descriptor(), vec![0.5, 1., 2., 2.5], None, None).unwrap();
+    |                                                                                 ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:227:71
+    |
+227 |     let bad = DepthResource::new(descriptor(), vec![-1., 0., 3., 4.], None, None).unwrap();
+    |                                                                       ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:227:77
+    |
+227 |     let bad = DepthResource::new(descriptor(), vec![-1., 0., 3., 4.], None, None).unwrap();
+    |                                                                             ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:270:21
+    |
+270 |     d.valid_range = Some([1., 1.5]);
+    |                     ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:293:9
+    |
+293 |         DepthAnchor {
+    |         ^^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `DepthAnchor` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:297:9
+    |
+297 |         DepthAnchor {
+    |         ^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:309:63
+    |
+309 |     let source = DepthResource::new(d, vec![1., 1.5, 2., 3.], None, None).unwrap();
+    |                                                               ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:309:69
+    |
+309 |     let source = DepthResource::new(d, vec![1., 1.5, 2., 3.], None, None).unwrap();
+    |                                                                     ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0422]: cannot find struct, variant or union type `DepthGeometry` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:397:18
+    |
+397 |     d.geometry = DepthGeometry {
+    |                  ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:406:9
+    |
+406 |         Some(vec![1, 0, 1, 1]),
+    |         ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:407:9
+    |
+407 |         None,
+    |         ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:431:27
+    |
+431 |                 (1, 1) => Some(2.),
+    |                           ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:432:27
+    |
+432 |                 (2, 1) => Some(1.5),
+    |                           ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:433:27
+    |
+433 |                 (2, 2) => Some(1.),
+    |                           ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:434:22
+    |
+434 |                 _ => None,
+    |                      ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:436:20
+    |
+436 |             if let Some(z) = z {
+    |                    ^^^^ not found in this scope
+    |
+help: consider importing this tuple variant
+    |
+  1 + use core::option::Option::Some;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:466:64
+    |
+466 |     let source = DepthResource::new(descriptor(), vec![1.; 4], None, None).unwrap();
+    |                                                                ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `None` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:466:70
+    |
+466 |     let source = DepthResource::new(descriptor(), vec![1.; 4], None, None).unwrap();
+    |                                                                      ^^^^ not found in this scope
+    |
+help: consider importing this unit variant
+    |
+  1 + use core::option::Option::None;
+    |
+
+error[E0425]: cannot find value `MAX_DEPTH_DIMENSION` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:471:10
+    |
+471 |         [MAX_DEPTH_DIMENSION + 1, 1],
+    |          ^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error: requires `None` lang_item
+   --> crates\motion-model\tests\depth_calibration.rs:449:5
+    |
+449 | /     for units in [0., -1., f64::NAN, f64::INFINITY] {
+450 | |         assert!(DepthProjection::new(camera(Orthographic, false), units).is_err());
+451 | |     }
+    | |_____^
+
+error[E0433]: cannot find type `DepthMeasure` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:26:18
+   |
+26 |         measure: DepthMeasure::Relative {
+   |                  ^^^^^^^^^^^^ use of undeclared type `DepthMeasure`
+
+error[E0433]: cannot find type `NearDirection` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:27:19
+   |
+27 |             near: NearDirection::Increasing,
+   |                   ^^^^^^^^^^^^^ use of undeclared type `NearDirection`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:50:5
+   |
+50 |     RelativeDepthCalibration::new(descriptor(), anchors(), curve, policy).unwrap()
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:55:18
+   |
+55 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+   |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:57:29
+   |
+57 |     let linear = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+   |                             ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:57:56
+   |
+57 |     let linear = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+   |                                                        ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:59:9
+   |
+59 |         CalibrationCurve::InverseCameraZ,
+   |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:60:9
+   |
+60 |         CalibrationExtrapolation::Reject,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:89:18
+   |
+89 |     let source = DepthResource::new(
+   |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:96:13
+   |
+96 |     let c = RelativeDepthCalibration::new(
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+  --> crates\motion-model\tests\depth_calibration.rs:99:9
+   |
+99 |         CalibrationCurve::CameraZ,
+   |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:100:9
+    |
+100 |         CalibrationExtrapolation::Reject,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:115:24
+    |
+115 |     let c = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                        ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:115:51
+    |
+115 |     let c = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `Vec` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:116:24
+    |
+116 |     let mut variants = Vec::new();
+    |                        ^^^ use of undeclared type `Vec`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:140:22
+    |
+140 |         let source = DepthResource::new(d, vec![f32::NAN; 4], Some(vec![0; 4]), None).unwrap();
+    |                      ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:154:18
+    |
+154 |     let source = DepthResource::new(d, vec![1.; 4], None, None).unwrap();
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:161:9
+    |
+161 |         CalibrationCurve::InverseCameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:162:9
+    |
+162 |         CalibrationExtrapolation::Reject,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:164:20
+    |
+164 |     let reversed = RelativeDepthCalibration::new(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:167:9
+    |
+167 |         CalibrationCurve::InverseCameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:168:9
+    |
+168 |         CalibrationExtrapolation::Reject,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:171:18
+    |
+171 |     let source = DepthResource::new(descriptor(), vec![1., 1.25, 1.5, 2.], None, None).unwrap();
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `DepthMeasure` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:179:17
+    |
+179 |     d.measure = DepthMeasure::Relative {
+    |                 ^^^^^^^^^^^^ use of undeclared type `DepthMeasure`
+
+error[E0433]: cannot find type `NearDirection` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:180:15
+    |
+180 |         near: NearDirection::Decreasing,
+    |               ^^^^^^^^^^^^^ use of undeclared type `NearDirection`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:210:18
+    |
+210 |     let source = DepthResource::new(descriptor(), vec![0.5, 1., 2., 2.5], None, None).unwrap();
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:211:29
+    |
+211 |     let reject = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                             ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:211:56
+    |
+211 |     let reject = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                                                        ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:221:9
+    |
+221 |         CalibrationCurve::CameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:222:9
+    |
+222 |         CalibrationExtrapolation::AllowPositive,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:227:15
+    |
+227 |     let bad = DepthResource::new(descriptor(), vec![-1., 0., 3., 4.], None, None).unwrap();
+    |               ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:233:9
+    |
+233 |         CalibrationCurve::InverseCameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:234:9
+    |
+234 |         CalibrationExtrapolation::AllowPositive,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:246:9
+    |
+246 |         RelativeDepthCalibration::new(
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:249:13
+    |
+249 |             CalibrationCurve::InverseCameraZ,
+    |             ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:250:13
+    |
+250 |             CalibrationExtrapolation::Reject,
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthMeasure` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:273:9
+    |
+273 |         DepthMeasure::Metric {
+    |         ^^^^^^^^^^^^ use of undeclared type `DepthMeasure`
+
+error[E0433]: cannot find type `DepthAxis` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:275:19
+    |
+275 |             axis: DepthAxis::CameraZ,
+    |                   ^^^^^^^^^ use of undeclared type `DepthAxis`
+
+error[E0433]: cannot find type `DepthMeasure` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:277:9
+    |
+277 |         DepthMeasure::InverseMetric {
+    |         ^^^^^^^^^^^^ use of undeclared type `DepthMeasure`
+
+error[E0433]: cannot find type `DepthAxis` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:279:19
+    |
+279 |             axis: DepthAxis::RayDistance,
+    |                   ^^^^^^^^^ use of undeclared type `DepthAxis`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:302:13
+    |
+302 |     let c = RelativeDepthCalibration::new(
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:305:9
+    |
+305 |         CalibrationCurve::InverseCameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:306:9
+    |
+306 |         CalibrationExtrapolation::Reject,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:309:18
+    |
+309 |     let source = DepthResource::new(d, vec![1., 1.5, 2., 3.], None, None).unwrap();
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `DepthProjection` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:359:26
+    |
+359 |         let projection = DepthProjection::new(camera(kind, infinite), 20.).unwrap();
+    |                          ^^^^^^^^^^^^^^^ use of undeclared type `DepthProjection`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:403:18
+    |
+403 |     let source = DepthResource::new(
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+error[E0433]: cannot find type `RelativeDepthCalibration` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:410:13
+    |
+410 |     let c = RelativeDepthCalibration::new(
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `RelativeDepthCalibration`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:413:9
+    |
+413 |         CalibrationCurve::CameraZ,
+    |         ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:414:9
+    |
+414 |         CalibrationExtrapolation::Reject,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthProjection` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:417:13
+    |
+417 |     let p = DepthProjection::new(camera(Orthographic, false), 1.).unwrap();
+    |             ^^^^^^^^^^^^^^^ use of undeclared type `DepthProjection`
+
+error[E0433]: cannot find type `ProjectedDepth` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:418:18
+    |
+418 |     let output = ProjectedDepth::from_calibrated(&c.bind(&source).unwrap(), p, [4, 4]).unwrap();
+    |                  ^^^^^^^^^^^^^^ use of undeclared type `ProjectedDepth`
+
+error[E0433]: cannot find type `DepthProjection` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:458:13
+    |
+458 |     let p = DepthProjection::new(camera(Orthographic, false), 1.).unwrap();
+    |             ^^^^^^^^^^^^^^^ use of undeclared type `DepthProjection`
+
+error[E0433]: cannot find type `DepthProjection` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:463:13
+    |
+463 |     let p = DepthProjection::new(camera(Orthographic, false), f64::MAX).unwrap();
+    |             ^^^^^^^^^^^^^^^ use of undeclared type `DepthProjection`
+
+error[E0433]: cannot find type `CalibrationCurve` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:465:24
+    |
+465 |     let c = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                        ^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationCurve`
+
+error[E0433]: cannot find type `CalibrationExtrapolation` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:465:51
+    |
+465 |     let c = calibrated(CalibrationCurve::CameraZ, CalibrationExtrapolation::Reject);
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^ use of undeclared type `CalibrationExtrapolation`
+
+error[E0433]: cannot find type `DepthResource` in this scope
+   --> crates\motion-model\tests\depth_calibration.rs:466:18
+    |
+466 |     let source = DepthResource::new(descriptor(), vec![1.; 4], None, None).unwrap();
+    |                  ^^^^^^^^^^^^^ use of undeclared type `DepthResource`
+
+Some errors have detailed explanations: E0422, E0425, E0432, E0433, E0463, E0531.
+For more information about an error, try `rustc --explain E0422`.
+error: could not compile `motion-model` (test "depth_calibration") due to 192 previous errors

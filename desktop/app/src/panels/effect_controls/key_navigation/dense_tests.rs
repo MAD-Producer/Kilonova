@@ -66,6 +66,7 @@ fn fixture(
         [64.; 2],
     );
     let key = |frame, height| Keyframe {
+        auto_bezier: false,
         frame,
         value: source(height, channel_tables),
         ease: Ease::Linear,

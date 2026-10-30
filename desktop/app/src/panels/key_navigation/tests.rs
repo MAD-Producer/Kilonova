@@ -50,6 +50,7 @@ mod property_selection;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: motion_core::Ease::Linear,

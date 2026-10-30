@@ -81,7 +81,7 @@ pub(super) fn track<T: Tween + DeserializeOwned>(source: &Value, offset: i64) ->
             .ok()?),
         );
         entry.insert("value".into(), key["value"].clone());
-        for field in ["ease", "curve", "spatial"] {
+        for field in ["ease", "curve", "spatial", "auto_bezier"] {
             if let Some(value) = key.get(field) {
                 entry.insert(field.into(), value.clone());
             }

@@ -300,6 +300,7 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
         layer.timeline.as_mut().unwrap().out_frame = 36000;
         layer.transform.opacity.keys = (0..33000)
             .map(|frame| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: if frame % 2 == 0 { 0.2 } else { 0.8 },
                 ease: motion_core::Ease::InOut,
@@ -309,6 +310,7 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
             .collect();
         layer.effects[0].params.get_mut("speed").unwrap().track.keys = (0..33000)
             .map(|frame| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: [if frame % 2 == 0 { 0.2 } else { 0.8 }, 0., 0., 0.],
                 ease: motion_core::Ease::InOut,

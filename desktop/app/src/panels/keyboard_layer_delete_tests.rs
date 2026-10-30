@@ -19,6 +19,7 @@ fn fixture() -> Engine {
     for id in [7, 8, 9] {
         let mut layer = Layer::solid(id, "Delete fixture", [100.; 2], [0.; 3], [1.; 4]);
         layer.transform.position.keys = vec![Keyframe {
+            auto_bezier: false,
             frame: 30,
             value: [20., 10., 0.],
             ease: Ease::Linear,

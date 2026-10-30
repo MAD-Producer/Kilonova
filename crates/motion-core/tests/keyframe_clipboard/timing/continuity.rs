@@ -76,6 +76,7 @@ fn equal_vector_rates_prove_c1_only_when_spatial_directions_also_match() {
         ]
         .into_iter()
         .map(|(frame, value)| Keyframe {
+            auto_bezier: false,
             frame,
             value,
             ease: Ease::Linear,

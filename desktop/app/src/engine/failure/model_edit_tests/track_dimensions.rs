@@ -44,6 +44,7 @@ fn actual_dimension_conversion_failures_reach_native_reply_and_default_error_sin
             let error = if case == 5 {
                 let mut track = Track::constant(PartialVector([1., 2., 3.]));
                 track.keys.push(Keyframe {
+                    auto_bezier: false,
                     frame: 7,
                     value: PartialVector([-1., 2., 3.]),
                     ease: Ease::Linear,
@@ -69,6 +70,7 @@ fn actual_dimension_conversion_failures_reach_native_reply_and_default_error_sin
                 if case == 1 {
                     track.keys = [20, -10]
                         .map(|frame| Keyframe {
+                            auto_bezier: false,
                             frame,
                             value: [4., 5., 6.],
                             ease: Ease::InOut,

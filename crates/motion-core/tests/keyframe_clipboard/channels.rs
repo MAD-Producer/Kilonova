@@ -15,6 +15,7 @@ use motion_core::{
 
 fn seed<T: Tween>(track: &mut Track<T>) {
     track.keys = vec![Keyframe {
+        auto_bezier: false,
         frame: 3,
         value: track.value,
         ease: Ease::InOut,
@@ -336,6 +337,7 @@ fn effects_fixture(effect: &str) -> (Engine, KeyframeTarget) {
     let param_data = p.layers[0].effects[0].params.get_mut(&param).unwrap();
     if let Some(c) = &mut param_data.curve {
         c.keys = vec![Keyframe {
+            auto_bezier: false,
             frame: 3,
             value: c.value.clone(),
             ease: Ease::Hold,

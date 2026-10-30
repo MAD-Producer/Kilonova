@@ -77,6 +77,7 @@ fn current_project_and_visual_settings_are_required_even_at_constructor_defaults
 fn animation_and_effect_modes_must_not_be_invented_by_deserialization() {
     required(
         Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: 1.0_f32,
             ease: Ease::Linear,

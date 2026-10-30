@@ -8,6 +8,7 @@ fn automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks() {
         let mut p = path(closed);
         p.tangents = TangentMode::Automatic;
         p.nodes[2].geometry.keys=[(0,[-90.,70.,0.,0.,0.,0.]),(10,[-40.,120.,0.,0.,0.,0.])].into_iter().map(|(frame,value)|motion_core::Keyframe {
+            auto_bezier: false,
             frame,value,ease:Ease::Linear,curve:None,spatial:None
         }).collect();
         let before = p.clone();
@@ -342,6 +343,7 @@ fn independent_clock_union_obeys_key_budget_without_partial_mutation() {
         node.geometry.keys = (0..count)
             .filter(|frame| frame % 2 == i as i32)
             .map(|frame| motion_core::Keyframe {
+                auto_bezier: false,
                 frame,
                 value: node.geometry.value,
                 ease: Ease::Linear,

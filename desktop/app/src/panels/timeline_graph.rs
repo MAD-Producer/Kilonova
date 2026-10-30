@@ -18,7 +18,7 @@ impl Samples {
         let [start,end]=interval;
         let x=Range::fitted(start,end,0.05,1.).ok_or(Failure::InvalidGeometry)?;
         let value=|frame:f64,component:usize|->motion_core::Result<f64> {
-            Ok(f64::from((if speed {self.velocity(frame-layer_offset,component,fps)}
+            Ok(f64::from((if speed {self.velocity(frame-layer_offset,component,fps)?}
                 else {self.value(frame-layer_offset,component)?})*display_scale))
         };
         let mut low=f64::INFINITY;let mut high=f64::NEG_INFINITY;
@@ -53,16 +53,16 @@ impl Samples {
         }?;
         Ok(points.into_iter().map(|(frame,value)|(frame,value as f32)).collect())
     }
-    fn velocity(&self, frame: f64, component: usize, fps: f64) -> f32 {
-        match self {
-            Self::Anchor(track) => super::graph_sampling::velocity(track,frame,fps,|v|v[component] as f64) as f32,
+    fn velocity(&self, frame: f64, component: usize, fps: f64) -> motion_core::Result<f32> {
+        Ok(match self {
+            Self::Anchor(track) => super::graph_sampling::velocity(track,frame,fps,|v|v[component] as f64)? as f32,
             Self::Scalar(track) => {
-                super::graph_sampling::velocity(track, frame, fps, |v| v as f64) as f32
+                super::graph_sampling::velocity(track, frame, fps, |v| v as f64)? as f32
             }
             Self::Vector(track) => {
-                super::graph_sampling::velocity(track, frame, fps, |v| v[component] as f64) as f32
+                super::graph_sampling::velocity(track, frame, fps, |v| v[component] as f64)? as f32
             }
-        }
+        })
     }
 
     fn value(&self, frame: f64, component: usize) -> motion_core::Result<f32> {
@@ -342,7 +342,7 @@ pub(super) fn render(
         target:Some(target.clone()),component:Some(components[0]),speed:speed_graph,unit:unit.into()};
     let sample = |frame: f64, component: usize| -> motion_core::Result<f32> {
         Ok(if speed_graph {
-            samples.velocity(frame - layer_offset as f64, component, fps)
+            samples.velocity(frame - layer_offset as f64, component, fps)?
         } else {
             samples.value(frame - layer_offset as f64, component)?
         } * scale)

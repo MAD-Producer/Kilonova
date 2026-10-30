@@ -5,6 +5,7 @@ use motion_render::Scene;
 use motion_render::{effect_plan::PlanBuilder, Renderer};
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: Ease::Linear,

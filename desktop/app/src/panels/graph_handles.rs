@@ -111,6 +111,24 @@ pub(super) fn observed_easing(
     Easing { ease, curve }
 }
 
+/// Use the same neighbour-derived timing as rendering. The JSON snapshot keeps
+/// authored metadata; it must not be mistaken for the effective automatic curve.
+fn interval_easing(source: &Value, object: u64, property: Property, axis: Option<Axis>, index: usize) -> Option<Easing> {
+    let key = &source["keys"][index];
+    if key["auto_bezier"] != true && source["keys"][index + 1]["auto_bezier"] != true {
+        return Some(observed_easing(key, object, property, key["frame"].as_f64().unwrap_or(0.)));
+    }
+    let easing = if property.is_scalar() || axis.is_some() {
+        super::animation_data::track::<f32>(source, 0)?.effective_easing(index)
+    } else if property == Property::Anchor {
+        super::animation_data::track::<[f32; 2]>(source, 0)?.effective_easing(index)
+    } else {
+        super::animation_data::track::<[f32; 3]>(source, 0)?.effective_easing(index)
+    };
+    observe!("graph_handles.automatic_timing", easing,
+        "object={object} property={property:?} axis={axis:?} interval={index}").ok()
+}
+
 pub(super) fn draw(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -137,7 +155,7 @@ pub(super) fn draw(
             key["value"][component].as_f64().unwrap_or(0.) * plot.scale as f64
         }
     };
-    for pair in keys.windows(2) {
+    for (interval, pair) in keys.windows(2).enumerate() {
         let (Some(start), Some(end)) = (pair[0]["frame"].as_f64(), pair[1]["frame"].as_f64())
         else {
             continue;
@@ -151,7 +169,7 @@ pub(super) fn draw(
         {
             continue;
         }
-        let easing = observed_easing(&pair[0], object, property, start);
+        let Some(easing) = interval_easing(source, object, property, axis, interval) else { continue; };
         if easing.ease == Ease::Hold
             || easing.curve.is_some_and(|c| {
                 !matches!(
@@ -356,13 +374,8 @@ pub(super) fn draw(
                                 let dt = ob["frame"].as_f64().unwrap_or(0.)
                                     - oa["frame"].as_f64().unwrap_or(0.);
                                 let dv = key_value(ob) - key_value(oa);
-                                let old = observed_easing(
-                                    oa,
-                                    drag.object,
-                                    drag.property,
-                                    oa["frame"].as_f64().unwrap_or(0.),
-                                );
-                                if dt > 0. && dv.abs() > 1e-9 && linkable(&old) {
+                                if let Some(old) = interval_easing(source, drag.object, drag.property, drag.axis, other)
+                                    .filter(|old| dt > 0. && dv.abs() > 1e-9 && linkable(old)) {
                                     let mut linked = cubic(old);
                                     let slope = if drag.index == 0 {
                                         p[1] / p[0].max(0.001)

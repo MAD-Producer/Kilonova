@@ -9,6 +9,7 @@ fn fixture() -> Engine {
     layer.transform.position.keys = [20, 70]
         .into_iter()
         .map(|frame| Keyframe {
+            auto_bezier: false,
             frame,
             value: [frame as f32; 3],
             ease: Ease::Linear,
@@ -19,6 +20,7 @@ fn fixture() -> Engine {
     layer.transform.opacity.keys = [20, 90]
         .into_iter()
         .map(|frame| Keyframe {
+            auto_bezier: false,
             frame,
             value: 0.5,
             ease: Ease::Hold,

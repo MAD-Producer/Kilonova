@@ -29,6 +29,7 @@ fn fixture() -> Engine {
     }
     p.layers[0].transform.position.keys = vec![
         Keyframe {
+            auto_bezier: false,
             frame: 3,
             value: [10., 20., 0.],
             ease: Ease::InOut,
@@ -47,6 +48,7 @@ fn fixture() -> Engine {
             }),
         },
         Keyframe {
+            auto_bezier: false,
             frame: 13,
             value: [100., 40., 0.],
             ease: Ease::Out,
@@ -58,6 +60,7 @@ fn fixture() -> Engine {
         },
     ];
     p.layers[0].transform.opacity.keys = vec![Keyframe {
+        auto_bezier: false,
         frame: 8,
         value: 0.3,
         ease: Ease::Hold,
@@ -322,6 +325,7 @@ fn mismatched_properties_types_and_malformed_clipboard_fail_without_history() {
     );
     let mut bad = frozen.clone();
     bad.tracks[0].data = KeyframeData::Vec2(vec![Keyframe {
+        auto_bezier: false,
         frame: 10,
         value: [1.; 2],
         ease: Ease::Linear,
@@ -500,6 +504,7 @@ fn thousands_of_frozen_keys_cut_as_one_edit_and_keep_the_final_static_value() {
     let mut layer = Layer::solid(7, "Dense", [32.; 2], [0.; 3], [1.; 4]);
     layer.transform.opacity.keys = (0..4000)
         .map(|frame| Keyframe {
+            auto_bezier: false,
             frame,
             value: frame as f32 / 4000.,
             ease: Ease::Linear,
@@ -564,3 +569,6 @@ fn clipboard_errors_retain_the_original_cause_with_bounded_channel_context() {
 
 #[path = "keyframe_clipboard/curve_clipboard.rs"]
 mod curve_clipboard;
+
+#[path = "keyframe_clipboard/automatic.rs"]
+mod automatic;

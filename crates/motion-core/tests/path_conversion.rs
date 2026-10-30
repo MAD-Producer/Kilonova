@@ -21,6 +21,7 @@ fn fixture(grouped: bool, closed: bool) -> Engine {
                     keys: [-6, 11, 80]
                         .into_iter()
                         .map(|frame| Keyframe {
+                            auto_bezier: false,
                             frame,
                             value: [id as f32 * 2., frame as f32 / 4., -3., 2., 4., -1.],
                             ease: Ease::InOut,

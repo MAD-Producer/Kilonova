@@ -48,6 +48,7 @@ fn editor_transform_values_use_sampled_local_keyframe_time() {
     });
     project.layers[0].transform.position.keys = vec![
         motion_core::Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: [20., 64., 0.],
             ease: motion_core::Ease::Linear,
@@ -55,6 +56,7 @@ fn editor_transform_values_use_sampled_local_keyframe_time() {
             spatial: None,
         },
         motion_core::Keyframe {
+            auto_bezier: false,
             frame: 40,
             value: [100., 64., 0.],
             ease: motion_core::Ease::Linear,

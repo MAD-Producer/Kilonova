@@ -145,6 +145,7 @@ fn retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks(
             [(0, [0., 0., 0., 0.]), (60, [25., 10., 0., 0.])]
                 .into_iter()
                 .map(|(frame, value)| motion_core::Keyframe {
+                    auto_bezier: false,
                     frame,
                     value,
                     ease: motion_core::Ease::Linear,
