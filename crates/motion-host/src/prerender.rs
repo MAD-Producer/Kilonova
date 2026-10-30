@@ -14,6 +14,7 @@ use std::{
 };
 
 pub const MAX_WINDOW: usize = 8;
+pub mod static_intervals;
 
 /// Content includes all immutable project/source/plugin/model dependencies;
 /// output includes format/color/quality/observer interpretation. UI chrome is
@@ -123,6 +124,7 @@ pub struct Counts {
 #[derive(Clone, Copy, Debug)]
 pub struct Status {
     pub enabled: bool,
+    pub window: usize,
     pub hold: Hold,
     pub pending: usize,
     pub in_flight: Option<FrameKey>,
@@ -148,6 +150,7 @@ impl Ticket {
 
 pub struct Scheduler {
     policy: Policy,
+    window_limit: usize,
     demand: Option<Demand>,
     last_motion: Duration,
     fast_seek: bool,
@@ -163,6 +166,7 @@ impl Scheduler {
         validate_policy(policy)?;
         Ok(Self {
             policy,
+            window_limit: MAX_WINDOW,
             demand: None,
             last_motion: Duration::ZERO,
             fast_seek: false,
@@ -188,6 +192,22 @@ impl Scheduler {
             } else {
                 Hold::Disabled
             };
+        }
+        Ok(())
+    }
+    /// An advisory work limit, independent of policy, content identity and cache
+    /// quota. Retain already admitted/completed frames; never alias their keys.
+    /// Foreground holds, cancellation and explicit policy invalidation still win.
+    pub fn set_window_limit(&mut self, limit: usize) -> Result<(), Error> {
+        if limit > MAX_WINDOW {
+            return Err(Error::InvalidPolicy);
+        }
+        if self.window_limit != limit {
+            self.window_limit = limit;
+            self.pending.clear();
+            if let Some(demand) = self.demand {
+                self.refresh(demand);
+            }
         }
         Ok(())
     }
@@ -262,7 +282,8 @@ impl Scheduler {
     }
     // Only called with owner-held, already validated demand.
     fn refresh(&mut self, demand: Demand) {
-        self.hold = if !self.policy.enabled || self.policy.window == 0 {
+        let window = self.policy.window.min(self.window_limit);
+        self.hold = if !self.policy.enabled || window == 0 {
             Hold::Disabled
         } else if demand.foreground_pending {
             Hold::Foreground
@@ -290,7 +311,7 @@ impl Scheduler {
             self.hold = Hold::Empty;
             return;
         }
-        for step in 1..=self.policy.window {
+        for step in 1..=window {
             let frame = demand.frame
                 + if demand.direction == Direction::Forward {
                     step as f64
@@ -397,6 +418,7 @@ impl Scheduler {
     pub fn status(&self) -> Status {
         Status {
             enabled: self.policy.enabled,
+            window: self.policy.window.min(self.window_limit),
             hold: self.hold,
             pending: self.pending.len(),
             in_flight: self.flight.as_ref().map(|t| t.key),

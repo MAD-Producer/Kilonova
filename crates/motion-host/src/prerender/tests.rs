@@ -34,6 +34,62 @@ fn ready() -> Scheduler {
 }
 
 #[test]
+fn advisory_static_window_keeps_exact_frames_and_can_expand_without_invalidation() {
+    let mut scheduler = ready();
+    scheduler.set_window_limit(1).unwrap();
+    assert_eq!(scheduler.status().window, 1);
+    assert_eq!(scheduler.status().pending, 1);
+    let first = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(first.key().frame(), 11.25);
+    assert_eq!(scheduler.finish(&first), Some(first.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    scheduler.set_window_limit(3).unwrap();
+    assert_eq!(scheduler.status().pending, 2);
+    let second = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(second.key().frame(), 12.25);
+    assert_eq!(scheduler.finish(&second), Some(second.key()));
+    let third = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(third.key().frame(), 13.25);
+    assert_eq!(scheduler.finish(&third), Some(third.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    assert_eq!(scheduler.status().counts.started, 3);
+    assert_eq!(scheduler.status().counts.completed, 3);
+    assert_eq!(scheduler.status().counts.canceled, 0);
+}
+
+#[test]
+fn reducing_an_advisory_window_retains_admitted_ownership_and_foreground_holds_win() {
+    let mut scheduler = ready();
+    let first = scheduler.take_next(true).unwrap().unwrap();
+    assert_eq!(scheduler.finish(&first), Some(first.key()));
+    let second = scheduler.take_next(true).unwrap().unwrap();
+    scheduler.set_window_limit(1).unwrap();
+    assert!(!second.canceled());
+    assert_eq!(scheduler.status().in_flight, Some(second.key()));
+    assert_eq!(scheduler.finish(&second), Some(second.key()));
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    let before = scheduler.status();
+    assert_eq!(
+        scheduler.set_window_limit(MAX_WINDOW + 1),
+        Err(Error::InvalidPolicy)
+    );
+    assert_eq!(scheduler.status().window, before.window);
+    assert_eq!(scheduler.status().counts.completed, before.counts.completed);
+    scheduler.set_window_limit(3).unwrap();
+    let third = scheduler.take_next(true).unwrap().unwrap();
+    scheduler
+        .update(Demand {
+            foreground_pending: true,
+            ..demand()
+        })
+        .unwrap();
+    assert!(third.canceled());
+    assert!(scheduler.take_next(true).unwrap().is_none());
+    assert_eq!(scheduler.finish(&third), None);
+    assert_eq!(scheduler.status().hold, Hold::Foreground);
+}
+
+#[test]
 fn destination_peek_does_not_consume_or_bypass_admission_and_holds() {
     let mut scheduler = ready();
     let key = scheduler.next_key().unwrap();
