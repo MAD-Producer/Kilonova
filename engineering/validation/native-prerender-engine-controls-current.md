@@ -1,6 +1,6 @@
 # Engine prerender native cancellation and observation controls (#82)
 
-Accepted component source: `f0d7387e780b3b18ea79b8c74eee07e44fe7009d`. Android is excluded. The
+Accepted component source: `9e1eea7fef55fa9d2907739f91dc56b98cb2f64f`. Android is excluded. The
 experimental profile remains idle-only High, authored camera, single-time output.
 General prerender capability stays false. This checkpoint does not complete #82.
 
@@ -9,7 +9,11 @@ State still replies. A second gate then blocks the actual serial Engine handler;
 the independent observation API still returns the same native render ticket and
 video phase without enqueuing State. Foreground requests queue while that handler
 is blocked. Dispatch cancellation already reaches the published native control.
-Releasing the decoder and serial gates leads to cancellation acknowledgment, zero
+The decoder is released while the serial gate remains blocked. The independent
+watch must report completion waiting with zero retained CPU bytes, and the serial
+in-flight operation must still be test_wait. A successfully published frame would
+retain its CPU permit, so a later disable handler cannot mask missing dispatch
+cancellation. Only then is the serial gate released. This leads to zero
 installed completions, no fault promotion, disabled policy, native owner stopped
 and zero retained CPU bytes. The tiny owned video/index and controlled decoder
 are deliberately not real FFmpeg decode or GPU performance evidence.
@@ -39,8 +43,8 @@ rebased Engine source. No existing assertions were weakened. The prior starvatio
 failure and successful deadline fix are retained in the separate Engine owner
 archive and completion document.
 
-Archive: `data/native-prerender-engine-controls-v1.zip`.
-SHA-256: `9560790c8076a5946633370536e8bd108b0fa4c02b4821f9f669221e22e673c0`. All 25 members were read back byte for byte.
+Archive: `data/native-prerender-engine-controls-v2.zip`.
+SHA-256: `3d246396267353f6a5c4daefac8b947882119e3b06632130342cc54a0ee04f32`. All 25 members were read back byte for byte.
 
 Remaining: explicit playback demand, externally changed same-path sources,
 broader preview profiles, pressure/invalidation/reopen controls, paired foreground
