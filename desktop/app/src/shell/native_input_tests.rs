@@ -228,7 +228,11 @@ impl ApplicationHandler for Host {
                 id,
                 WindowEvent::Ime(Ime::Preedit("暂存".into(), None)),
             );
+            shell.panels.effect_pick.ticket=Some(panels::effect_pick::Ticket::new(
+                &before,7,1,"center",panels::effect_pick::Kind::Position));
             shell.window_event(event_loop, id, WindowEvent::Focused(false));
+            assert!(shell.panels.effect_pick.ticket.is_some(), "focus transfer must retain an armed single-click pick");
+            shell.panels.effect_pick.ticket=None;
             assert!(input(&shell, id).focus_lost);
             assert_eq!(input(&shell, id).held, None);
             assert_eq!(input(&shell, id).pressed, None);

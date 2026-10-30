@@ -148,6 +148,7 @@ impl Shell {
         context.pointer_dragging = self.input.held == Some(MouseButton::Left);
         context.panel = self.panels.focused.map(|p| p.dock().0);
         context.action = match &action {
+            Action::EffectPick { .. } => "effect_pick",
             Action::Edit(command) => motion_core::CommandRegistry::id(command),
             Action::EditBatch(_) => "command_batch",
             Action::OrderLayers { .. } => "reorder_layers",
@@ -394,6 +395,10 @@ impl Shell {
                 self.start_project_import(source, self.project_import_folder(), None)?;
             }
             Action::ImportPath(path) => {
+                if workflow::model::supported(&path) {
+                    self.import_file(path)?;
+                    return Ok(());
+                }
                 let source = crate::layer_clipboard::KeyframeSource::of(&self.state);
                 self.start_project_import(source, self.project_import_folder(), Some(path))?;
             }
@@ -939,6 +944,16 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.edit_async_at_revision(
                     serde_json::to_string(&command).map_err(|e| e.to_string())?, revision)?));
             }
+            Action::BeginEffectPick(ticket) => {
+                self.stop();
+                self.actions.extend(panels::cancel_interaction(&mut self.panels));
+                self.panels.effect_pick.ticket = Some(ticket);
+            }
+            Action::EffectPick { ticket, point } => {
+                self.stop();
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::EffectPick { ticket, point, reply })?));
+            }
             Action::EditorAction { source, commands } => {
                 self.stop();
                 self.editing = Some((Instant::now(), self.engine.request(|reply|
@@ -957,6 +972,12 @@ impl Shell {
                 self.stop();
                 let operation=workflow::library_media::Request::Place { target, at_frame };
                 self.editing=Some((Instant::now(),self.engine.request(|reply|engine::Command::ProjectAsset{source,operation,reply})?));
+            }
+            Action::ProjectPlaceModel { source, asset, at_frame } => {
+                self.stop();
+                let operation = workflow::library_media::Request::PlaceModel { asset, at_frame };
+                self.editing = Some((Instant::now(), self.engine.request(|reply|
+                    engine::Command::ProjectAsset { source, operation, reply })?));
             }
             Action::ExpressionCheck { ticket, target, text } => {
                 let receive = self.engine.request(|reply| engine::Command::ExpressionCheck { target, source: text, reply });

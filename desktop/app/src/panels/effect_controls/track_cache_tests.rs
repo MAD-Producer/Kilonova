@@ -218,10 +218,10 @@ fn same_snapshot_resamples_the_displayed_scalar_at_the_current_local_frame() {
     // Check the real numeric row's readout, rather than sampling the cache in
     // the assertion. Frame-only changes must not retain a previous sample.
     for (frame, shown) in [
-        (6., "10.000"),
-        (12., "20.000"),
-        (18., "30.000"),
-        (10.5, "17.500"),
+        (6., "10"),
+        (12., "20"),
+        (18., "30"),
+        (10.5, "17.5"),
     ] {
         state["frame"] = frame.into();
         draw(&mut controls, &mut atlas, &state, &hover);

@@ -706,15 +706,16 @@ pub(super) fn launch(
     _atlas: &mut TextAtlas,
     row: Rect,
     occupied_end: f32,
-    input: &Input,
+    input: &(impl motion_ui::input::InputSource + ?Sized),
     enabled: bool,
 ) -> Option<[f32; 2]> {
+    let input = input.input_view();
     let styles = list.styles();
     let pad = styles.metric("padding.panel", 8.);
     let slot = styles.metric("graph.control.height", 24.);
     let rect = Rect::new(row.max[0] - pad - slot, row.min[1], slot, row.height());
     if rect.min[0] >= occupied_end + styles.metric("graph.control.gap", 2.)
-        && ui::button_icon(list, rect, motion_ui::icons::Icon::More, input, enabled).clicked
+        && ui::button_icon(list, rect, motion_ui::icons::Icon::More, &input, enabled).clicked
     {
         return Some([rect.min[0], rect.max[1]]);
     }

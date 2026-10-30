@@ -9,6 +9,14 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Request {
+    Model {
+        file: PathBuf,
+        folder: Option<u64>,
+    },
+    PlaceModel {
+        asset: u64,
+        at_frame: u32,
+    },
     PreparedImage {
         prepared: super::library_image::Prepared,
         folder: Option<u64>,
@@ -29,6 +37,8 @@ pub enum Request {
 impl Request {
     pub fn name(&self) -> &'static str {
         match self {
+            Self::Model { .. } => "project_register_model",
+            Self::PlaceModel { .. } => "project_place_model",
             Self::PreparedImage { .. } => "project_register_prepared_image",
             Self::Image { .. } => "project_register_image",
             Self::Media { .. } => "project_register_media",
@@ -37,6 +47,13 @@ impl Request {
     }
     pub fn run(self, session: &mut Session) -> motion_host::Result<Value> {
         let context = match &self {
+            Self::Model { file, folder } => format!(
+                "{} source={:?} folder={folder:?} phase=prepare", self.name(),
+                file.to_string_lossy().chars().take(1024).collect::<String>()
+            ),
+            Self::PlaceModel { asset, at_frame } => format!(
+                "{} asset={asset} frame={at_frame} phase=apply", self.name()
+            ),
             Self::PreparedImage { prepared, folder } => format!(
                 "{} request={} folder={folder:?} phase=publish",
                 self.name(),
@@ -64,6 +81,8 @@ impl Request {
         };
         log::info!("{context}");
         let result = match self {
+            Self::Model { file, folder } => super::model::register(session, &file, folder),
+            Self::PlaceModel { asset, at_frame } => super::model::place(session, asset, at_frame),
             Self::PreparedImage { prepared, folder } => prepared.publish(session, folder),
             Self::Image { file, folder } => super::register_image(session, &file, folder),
             Self::Media { request, folder } => finish_media(session, &request, folder),

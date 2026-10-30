@@ -22,6 +22,8 @@ mod group_tests;
 #[cfg(test)]
 mod input_default_tests;
 mod inspector;
+#[cfg(test)]
+mod inspector_layout_tests;
 mod rename;
 mod interaction;
 mod library;

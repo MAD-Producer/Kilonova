@@ -84,3 +84,43 @@ fn asset_drag_click_escape_focus_stale_and_invalid_release_never_create_a_layer(
         assert!(out.is_empty(), "{kind}: {out:?}");
     }
 }
+
+#[test]
+fn model_drag_uses_existing_time_mapping_and_creates_only_one_placement_action() {
+    let state = state();
+    let mut c = Controls::default();
+    c.prepare(Some(Panel::Project), &state, &Input::default());
+    c.begin_model(19, [30., 40.], &state);
+    c.pointer(Some(Panel::Timeline), [600., 210.], true, 3.);
+    c.prepare(Some(Panel::Timeline), &state, &Input::default());
+    c.target(Rect::new(400., 100., 400., 300.), 120., 5., 300);
+    let (c, out) = finish_drag(c, &state);
+    assert!(matches!(out.as_slice(), [Action::ProjectPlaceModel { source, asset: 19, at_frame: 160 }]
+        if *source == KeyframeSource::of(&state)), "{out:?}");
+    assert!(!c.pending());
+    assert!(finish_drag(c, &state).1.is_empty());
+}
+
+#[test]
+fn model_drag_cancellation_and_stale_document_never_create_a_layer() {
+    let state = state();
+    for kind in ["escape", "focus", "stale", "outside", "passive"] {
+        let mut c = Controls::default();
+        c.prepare(None, &state, &Input::default());
+        c.begin_model(19, [30., 40.], &state);
+        c.pointer(None, [50., 60.], kind != "passive", 3.);
+        let mut input = Input::default();
+        let mut current = state.clone();
+        match kind {
+            "escape" => input.keys.push((Key::Escape, Default::default())),
+            "focus" => input.focus_lost = true,
+            "stale" => current["revision"] = 4.into(),
+            _ => {}
+        }
+        c.prepare(None, &current, &input);
+        if !matches!(kind, "outside" | "passive") {
+            c.target(Rect::new(20., 20., 300., 200.), 0., 5., 300);
+        }
+        assert!(finish_drag(c, &current).1.is_empty(), "{kind}");
+    }
+}

@@ -52,6 +52,7 @@ fn mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_sing
         start: None,
         begun: false,
         last_value: 50.,
+        linked: false,
         range: [0., 100.],
     });
     let state = serde_json::json!({"frame":0});

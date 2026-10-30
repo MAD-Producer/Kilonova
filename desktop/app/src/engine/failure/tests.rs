@@ -414,7 +414,7 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
     let output=std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact","engine::failure::tests::asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic"])
         .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
-    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success(),"child status={}\nstdout:\n{}\nstderr:\n{}",output.status,String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
     let text=fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
     assert!(text.contains("error #21 freeze_movie ") && text.contains("controlled freeze IO failure"));
     assert!(text.contains("panic command=Some((22, \"freeze_movie\","));
