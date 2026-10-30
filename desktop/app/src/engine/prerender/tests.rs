@@ -2,6 +2,7 @@
 use crate::engine::*;
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
 mod playback;
+mod pressure_lifecycle;
 mod performance;
 
 fn frame() -> UiFrame {
