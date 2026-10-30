@@ -98,7 +98,14 @@ impl Controls {
     pub(crate) fn save_done(&mut self, floating: bool, source: &Identity) {
         if self.identity.as_ref() == Some(source) { self.slots[usize::from(floating)].busy = false; }
     }
-    pub(crate) fn close_floating(&mut self) { self.slots[1] = Slot::default(); if self.window.is_some() { self.cancel(); } }
+    pub(crate) fn close_floating(&mut self) {
+        self.slots[1] = Slot::default();
+        if self.menu.as_ref().is_some_and(|menu| menu.window.is_some())
+            || self.drag.as_ref().is_some_and(|drag| drag.window.is_some())
+            || self.armed.is_some_and(|window| window.is_some()) {
+            self.cancel();
+        }
+    }
 
     pub(super) fn menu(&mut self, list: &mut PaintList, atlas: &mut TextAtlas, bounds: Rect,
         state: &Value, input: &Input, locale: Locale, out: &mut Vec<Action>) {
@@ -289,5 +296,28 @@ mod tests {
         assert!(controls.viewport(&mut paint, viewport, mapping, [200., 100.], &release));
         assert_eq!(controls.frame(false, motion_render::ViewChannel::Color).region, Some([0.25, 0.25, 0.75, 0.75]));
         assert!(!controls.prepare(None, &source, &Input::default()));
+    }
+    #[test]
+    fn closing_float_clears_its_owner_even_after_main_was_drawn() {
+        let source = state();
+        let mut controls = Controls::default();
+        controls.open(true, [20., 30.], &source);
+        assert!(!controls.prepare(None, &source, &Input::default()));
+        assert!(controls.menu.is_some());
+        controls.close_floating();
+        assert!(controls.menu.is_none());
+        controls.armed = Some(Some(Panel::Composition));
+        assert!(!controls.prepare(None, &source, &Input::default()));
+        controls.close_floating();
+        assert!(controls.armed.is_none());
+        let mapping = crate::viewer_navigation::Navigation::default()
+            .mapping(Rect::new(0., 0., 200., 100.), [200., 100.]).unwrap();
+        controls.drag = Some(Drag { window: Some(Panel::Composition), mapping, canvas: [200., 100.],
+            start: [0., 0.], current: [20., 20.] });
+        controls.close_floating();
+        assert!(controls.drag.is_none());
+        controls.open(false, [20., 30.], &source);
+        controls.close_floating();
+        assert!(controls.menu.as_ref().is_some_and(|menu| menu.window.is_none()));
     }
 }
