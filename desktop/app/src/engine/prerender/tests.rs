@@ -1,9 +1,10 @@
 //! Actual Engine-owned production, native presentation and changed-source control.
 use crate::engine::*;
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
+mod performance;
 mod playback;
 mod pressure_lifecycle;
-mod performance;
+mod static_window;
 
 fn frame() -> UiFrame {
     UiFrame {

@@ -92,6 +92,12 @@ impl Coordinator {
     pub fn cache_info(&self) -> Option<motion_render::CompositionFrameCacheInfo> {
         self.cache.as_ref().map(CompositionFrameCache::info)
     }
+    /// Reduce newly scheduled work without throwing away already warm frames.
+    pub fn set_window_limit(&mut self, limit: usize) -> Result<()> {
+        self.scheduler
+            .set_window_limit(limit)
+            .map_err(|e| e.to_string())
+    }
     pub fn set_policy(&mut self, policy: schedule::Policy) -> Result<()> {
         // Validate without disturbing existing ownership on an invalid policy.
         Scheduler::new(policy).map_err(|e| e.to_string())?;

@@ -6,7 +6,7 @@ use motion_desktop_media::movie::prerender::{
     PrerenderPlan,
 };
 use motion_host::{
-    prerender::{Direction, Policy},
+    prerender::{static_intervals::StaticIntervals, Direction, Policy},
     session::Session,
 };
 use std::{
@@ -55,6 +55,7 @@ pub(super) struct Runtime {
     previous_frame: Option<f64>,
     direction: Direction,
     policy: Policy,
+    static_intervals: Option<StaticIntervals>,
 }
 impl Runtime {
     pub fn new(signals: Arc<Signals>) -> Self {
@@ -71,6 +72,7 @@ impl Runtime {
             previous_frame: None,
             direction: Direction::Forward,
             policy: Policy::default(),
+            static_intervals: None,
         }
     }
     pub fn polling(&self) -> bool {
@@ -109,6 +111,7 @@ impl Runtime {
         self.enabled = policy.enabled && policy.window != 0;
         self.policy = policy;
         self.signature = None;
+        self.static_intervals = None;
         self.fault = None;
         self.hold = if self.enabled {
             "no_surface"
@@ -123,6 +126,7 @@ impl Runtime {
             if let Some(owner) = &mut self.owner {
                 owner.invalidate()?;
             }
+            self.static_intervals = StaticIntervals::from_project(s.engine.project());
             self.signature = Some(signature);
         }
         Ok(())
@@ -217,6 +221,16 @@ impl Runtime {
         let Some(owner) = &mut self.owner else {
             return Ok(());
         };
+        let window = if demand.playing {
+            self.static_intervals
+                .as_ref()
+                .map_or(self.policy.window, |intervals| {
+                    intervals.window(demand.frame, demand.direction, self.policy.window)
+                })
+        } else {
+            self.policy.window
+        };
+        owner.set_window_limit(window)?;
         // Cancel/invalidate before draining a completion; an obsolete result
         // must never be installed just because acknowledgment arrived first.
         if !eligible {
@@ -319,6 +333,16 @@ impl Runtime {
             let Some(owner) = &mut self.owner else {
                 return Ok(None);
             };
+            let window = if demand.playing {
+                self.static_intervals
+                    .as_ref()
+                    .map_or(self.policy.window, |intervals| {
+                        intervals.window(demand.frame, demand.direction, self.policy.window)
+                    })
+            } else {
+                self.policy.window
+            };
+            owner.set_window_limit(window)?;
             let renderer = &s
                 .graphics
                 .as_ref()
@@ -352,6 +376,8 @@ impl Runtime {
             "profile":"high_authored_single_time","playing":self.signals.playing().ok(),"fault":self.fault,
             "cache":self.owner.as_ref().and_then(Coordinator::cache_info),
             "pending":scheduler.map(|s|s.pending),
+            "effectiveWindow":scheduler.map(|s|s.window),
+            "staticInterval":self.static_intervals.as_ref().and_then(|intervals|self.previous_frame.and_then(|frame|intervals.at(frame))),
             "started":scheduler.map_or(0,|s|s.counts.started),"completed":scheduler.map_or(0,|s|s.counts.completed),
             "canceled":scheduler.map_or(0,|s|s.counts.canceled),"stale":scheduler.map_or(0,|s|s.counts.stale),
             "cpuQuotaBytes":CPU_BYTES,"gpuQuotaBytes":GPU_BYTES,
