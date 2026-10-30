@@ -181,6 +181,7 @@ registry! {
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::KeyframeAutomatic { .. } => "keyframe_automatic" [("selections","Vec<KeyframeSelection>",true),("enabled","bool",true)];
+    Command::KeyframeHandle { .. } => "keyframe_handle" [("target","KeyframeTarget",true),("frame","u32",true),("incoming","bool",true),("control","[f64;2]",true)];
     Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];
     Command::KeyframeTiming { .. } => "keyframe_timing" [("selections","Vec<KeyframeSelection>",true),("settings","TimingSettings",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];

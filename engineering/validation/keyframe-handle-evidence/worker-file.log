@@ -1,0 +1,18 @@
+1793365651.972 INFO [engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793365651.975 INFO [engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/handle/worker\project
+1793365651.975 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793365651.977 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/handle/worker\project
+1793365657.549 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793365657.550 INFO [engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/handle/worker\project 5574ms
+1793365657.551 INFO [motion-engine] motion_studio::engine: start #1 state
+1793365657.554 INFO [motion-engine] motion_studio::engine: start #2 editor_action
+1793365657.554 ERROR [motion-engine] motion_studio::engine: error #2 editor_action 0ms: keyframe edit operation=curve_handle object=7 channel=Property { object: 7, property: Opacity, axis: None } frames=[99] count=1: selected keyframe does not exist
+1793365657.554 INFO [motion-engine] motion_studio::engine: start #3 state
+1793365657.556 INFO [motion-engine] motion_studio::engine: start #4 editor_action
+1793365657.558 INFO [motion-engine] motion_studio::engine: start #5 history
+1793365657.560 INFO [motion-engine] motion_studio::engine: start #6 shutdown
+1793365657.560 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793365657.560 INFO [motion-engine] motion_studio::engine::shutdown: start #7 shutdown_cleanup session=1
+1793365657.560 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793365657.561 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793365657.561 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

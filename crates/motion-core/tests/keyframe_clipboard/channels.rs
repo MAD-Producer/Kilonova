@@ -7,6 +7,8 @@ mod easing;
 mod transform;
 #[path = "timing.rs"]
 mod timing;
+#[path = "handle.rs"]
+mod handle;
 use motion_core::{
     masks::{LayerMask, MaskProperty},
     vector::{groups::*, *},

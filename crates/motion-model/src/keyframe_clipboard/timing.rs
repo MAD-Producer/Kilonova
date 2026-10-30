@@ -267,7 +267,7 @@ pub fn profile(
     Ok(profile)
 }
 
-fn cubic(easing: Easing, explicit_conversion: bool) -> Result<([f64; 2], [f64; 2])> {
+pub(super) fn cubic(easing: Easing, explicit_conversion: bool) -> Result<([f64; 2], [f64; 2])> {
     match easing.curve {
         Some(Curve {
             space: CurveSpace::Progress,

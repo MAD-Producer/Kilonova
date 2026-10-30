@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 mod channels;
 mod interpolation;
 mod automatic;
+mod handle;
 mod easing;
 pub mod curve_clipboard;
 mod transform;
@@ -17,6 +18,7 @@ pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;
 pub use automatic::set_automatic;
+pub use handle::set_handle;
 use channels::{read, write, ReadChannel, WriteChannel};
 
 pub const MAX_KEYFRAME_CLIPBOARD_BYTES: usize = 16 * 1024 * 1024;

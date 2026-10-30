@@ -1,6 +1,30 @@
 //! The linked graph edits the same serialized easing as the core sampler.
 use super::*;
 use motion_core::{Axis, Curve, CurveShape, CurveSpace, Ease, Easing};
+
+pub(super) fn handle_command(
+    target: motion_core::KeyframeTarget,
+    frame: u32,
+    incoming: bool,
+    easing: Easing,
+) -> motion_core::Result<Command> {
+    let Some(Curve {
+        space: CurveSpace::Progress,
+        shape: CurveShape::Cubic {
+            control1, control2, ..
+        },
+    }) = easing.curve else {
+        return Err(motion_core::Error::Invalid(
+            "graph handle requires a progress-space cubic".into(),
+        ));
+    };
+    Ok(Command::KeyframeHandle {
+        target,
+        frame,
+        incoming,
+        control: if incoming { control2 } else { control1 },
+    })
+}
 #[derive(Clone)]
 pub(crate) struct Drag {
     object: u64,
@@ -401,25 +425,48 @@ pub(super) fn draw(
                                         }
                                     }
                                     if linked.validate().is_ok() {
-                                        out.push(Action::Edit(Command::Curve {
-                                            object: drag.object,
-                                            property: drag.property,
-                                            axis: drag.axis,
-                                            frame: oa["frame"].as_u64().unwrap_or(0) as u32,
-                                            easing: linked,
-                                        }));
+                                        if let Ok(command) = observe!(
+                                            "graph_handles.linked_command",
+                                            handle_command(
+                                                motion_core::KeyframeTarget::Property {
+                                                    object: drag.object,
+                                                    property: drag.property,
+                                                    axis: drag.axis,
+                                                },
+                                                oa["frame"].as_u64().unwrap_or(0) as u32,
+                                                drag.index == 0,
+                                                linked,
+                                            ),
+                                            "object={} property={:?} phase=linked_handle",
+                                            drag.object,
+                                            drag.property
+                                        ) {
+                                            out.push(Action::Edit(command));
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    out.push(Action::Edit(Command::Curve {
-                        object: drag.object,
-                        property: drag.property,
-                        axis: drag.axis,
-                        frame: drag.frame,
-                        easing: drag.easing,
-                    }));
+                    if let Ok(command) = observe!(
+                        "graph_handles.command",
+                        handle_command(
+                            motion_core::KeyframeTarget::Property {
+                                object: drag.object,
+                                property: drag.property,
+                                axis: drag.axis,
+                            },
+                            drag.frame,
+                            drag.index != 0,
+                            drag.easing,
+                        ),
+                        "object={} property={:?} frame={} phase=handle",
+                        drag.object,
+                        drag.property,
+                        drag.frame
+                    ) {
+                        out.push(Action::Edit(command));
+                    }
                     panels.timeline.graph_drag = Some(drag.clone());
                 }
 
@@ -435,6 +482,73 @@ pub(super) fn draw(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handle_commands_send_only_the_selected_control_for_properties_and_effects() {
+        let easing = Easing {
+            ease: Ease::Linear,
+            curve: Some(Curve {
+                space: CurveSpace::Progress,
+                shape: CurveShape::Cubic {
+                    control1: [0.21, 0.13],
+                    control2: [0.79, 0.87],
+                    start: 0.,
+                    end: 1.,
+                },
+            }),
+        };
+        for target in [
+            motion_core::KeyframeTarget::Property {
+                object: 7,
+                property: Property::Position,
+                axis: Some(Axis::X),
+            },
+            motion_core::KeyframeTarget::Effect {
+                object: 7,
+                effect: 19,
+                param: "center".into(),
+            },
+        ] {
+            for incoming in [false, true] {
+                let Command::KeyframeHandle {
+                    target: actual,
+                    frame,
+                    incoming: side,
+                    control,
+                } = handle_command(target.clone(), 17, incoming, easing).unwrap()
+                else {
+                    panic!()
+                };
+                assert_eq!(actual, target);
+                assert_eq!(frame, 17);
+                assert_eq!(side, incoming);
+                assert_eq!(control, if incoming { [0.79, 0.87] } else { [0.21, 0.13] });
+            }
+        }
+    }
+
+    #[test]
+    fn handle_command_rejects_a_missing_or_velocity_space_curve() {
+        let target = motion_core::KeyframeTarget::Property {
+            object: 7,
+            property: Property::Opacity,
+            axis: None,
+        };
+        assert!(handle_command(target.clone(), 0, false, Easing::default()).is_err());
+        let easing = Easing {
+            ease: Ease::Linear,
+            curve: Some(Curve {
+                space: CurveSpace::Velocity,
+                shape: CurveShape::Cubic {
+                    control1: [0.25, 0.],
+                    control2: [0.75, 1.],
+                    start: 0.,
+                    end: 1.,
+                },
+            }),
+        };
+        assert!(handle_command(target, 0, true, easing).is_err());
+    }
 
     #[test]
     fn linked_handles_do_not_rewrite_hold_or_non_cubic_segments() {

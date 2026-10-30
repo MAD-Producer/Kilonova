@@ -249,6 +249,10 @@ pub enum Command {
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     KeyframeInterpolation { selections: Vec<crate::KeyframeSelection>, ease: Ease },
     KeyframeAutomatic { selections: Vec<crate::KeyframeSelection>, enabled: bool },
+    /// `frame` addresses the interval's first key in composition time. Incoming
+    /// selects the second key's incoming handle; otherwise edit the first key's
+    /// outgoing handle. Only that control point and its owner's type change.
+    KeyframeHandle { target: crate::KeyframeTarget, frame: u32, incoming: bool, control: [f64; 2] },
     PasteEasing { clipboard: Box<crate::CurveClipboard>, selections: Vec<crate::KeyframeSelection> },
     KeyframeTiming { selections: Vec<crate::KeyframeSelection>, settings: crate::keyframe_clipboard::timing::TimingSettings },
     EaseKeyframes { selections: Vec<crate::KeyframeSelection>, incoming: bool, outgoing: bool },

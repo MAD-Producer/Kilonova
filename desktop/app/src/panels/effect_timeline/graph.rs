@@ -917,12 +917,26 @@ pub(super) fn update_handle(
             )
             .is_ok()
             {
-                out.push(Action::Edit(drag.target.command(EffectAction::Curve {
-                    effect: drag.target.effect,
-                    param: drag.target.param.clone(),
-                    frame: drag.frame,
-                    easing: drag.easing,
-                })));
+                if let Ok(command) = observe!(
+                    "effect.handle_command",
+                    super::super::graph_handles::handle_command(
+                        motion_core::KeyframeTarget::Effect {
+                            object: drag.target.object,
+                            effect: drag.target.effect,
+                            param: drag.target.param.clone(),
+                        },
+                        drag.frame,
+                        drag.index != 0,
+                        drag.easing,
+                    ),
+                    "object={} effect={} param={} frame={} phase=handle",
+                    drag.target.object,
+                    drag.target.effect,
+                    drag.target.param,
+                    drag.frame
+                ) {
+                    out.push(Action::Edit(command));
+                }
             }
         }
     }

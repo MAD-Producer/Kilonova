@@ -1,0 +1,6 @@
+
+running 1 test
+test engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1469 filtered out; finished in 5.64s
+

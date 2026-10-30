@@ -1,0 +1,35 @@
+
+running 14 tests
+test panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key ... ok
+test panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo ... ok
+test panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform ... ok
+test panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history ... ok
+test panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler ... ok
+test panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages ... ok
+test panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout ... ok
+test panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent ... ok
+test panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts ... ok
+test panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache ... locale=En size=900x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=En size=900x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=En size=900x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=En size=900x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=En size=1600x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=En size=1600x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=En size=1600x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=En size=1600x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=Zh size=900x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=Zh size=900x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=Zh size=900x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=Zh size=900x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=Zh size=1600x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=Zh size=1600x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=Zh size=1600x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=Zh size=1600x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+ok
+test panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 1456 filtered out; finished in 15.06s
+
