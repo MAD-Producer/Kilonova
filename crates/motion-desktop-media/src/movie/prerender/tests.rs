@@ -42,6 +42,71 @@ fn image_project(root: &Path, color: [u8; 4]) -> Project {
     p.layers.push(layer);
     p
 }
+
+#[test]
+fn owner_capture_defers_missing_source_io_until_published_background_freeze() {
+    let root = tempfile::tempdir().unwrap();
+    let project = image_project(root.path(), [255, 0, 0, 255]);
+    let session = Session::new(project, root.path().into(), crate::platform()).unwrap();
+    fs::remove_file(root.path().join("assets/image.png")).unwrap();
+    let control = ExportControl::default();
+    let plan = PrerenderPlan::capture(&session, 7, 9, 82, 1 << 20, &control).unwrap();
+    let observed = std::thread::spawn(move || {
+        let mut phases = Vec::new();
+        let cause = plan
+            .prepare(&control, |phase| phases.push(phase))
+            .err()
+            .unwrap();
+        (phases, cause)
+    })
+    .join()
+    .unwrap();
+    assert_eq!(observed.0, [Phase::Freeze]);
+    assert!(observed.1.contains("assets/image.png"), "{}", observed.1);
+    // Missing bytes never become a successful black frame or a content key.
+    image_project(root.path(), [255, 0, 0, 255]);
+    let input = PrerenderPlan::capture(&session, 7, 9, 83, 1 << 20, &ExportControl::default())
+        .unwrap()
+        .prepare(&ExportControl::default(), |_| {})
+        .unwrap();
+    assert_eq!(input.context().document_generation, 7);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn independent_native_device_uses_the_exact_foreground_adapter_handle() {
+    let root = tempfile::tempdir().unwrap();
+    let project = image_project(root.path(), [255, 0, 0, 255]);
+    let session = Session::new(project, root.path().into(), crate::platform()).unwrap();
+    let foreground = pollster::block_on(Renderer::headless_with_working_precision(
+        ChannelPrecision::Unorm8,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    let adapter = foreground.adapter.clone();
+    let device = foreground.device.clone();
+    let queue = foreground.queue.clone();
+    let mut plan =
+        PrerenderPlan::capture(&session, 7, 9, 82, 1 << 20, &ExportControl::default()).unwrap();
+    // A headless Session has no Graphics; supply its actual foreground adapter
+    // here. Window-backed capture takes this same handle from Graphics.
+    plan.adapter = Some(adapter.clone());
+    drop(session);
+    let image = std::thread::spawn(move || {
+        let prepared = plan.prepare(&ExportControl::default(), |_| {}).unwrap();
+        let mut runtime = NativePrerender::open(prepared, &ExportControl::default()).unwrap();
+        assert_eq!(runtime.renderer.adapter, adapter);
+        assert_ne!(runtime.renderer.device, device);
+        assert_ne!(runtime.renderer.queue, queue);
+        runtime
+            .render(0., &ExportControl::default(), |_| {})
+            .unwrap()
+    })
+    .join()
+    .unwrap();
+    let at = |x: usize| image.image().pixels[(12 * 32 + x) * 4];
+    assert!(at(6) > 240 && at(26) < 10);
+}
 #[test]
 fn keys_hash_actual_owned_sources_and_ignore_live_paths_revision_and_export_scope() {
     fn transferable<T: Send>() {}

@@ -13,6 +13,7 @@ use std::{
 };
 
 mod key;
+mod sources;
 pub mod worker;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,9 +53,10 @@ fn enter(
 }
 
 /// Transfer this immutable source plan to the background worker. It contains
-/// retained source handles, not a Session or a GPU renderer.
+/// metadata only, not open source handles, a Session or a GPU renderer.
 pub struct PrerenderPlan {
-    sources: MovieFreezePlan,
+    sources: sources::CapturedSources,
+    adapter: Option<wgpu::Adapter>,
     document_generation: u64,
     device_generation: u64,
     max_frame_bytes: u64,
@@ -72,62 +74,14 @@ impl PrerenderPlan {
         log::info!("start #{request} prerender_capture document={document_generation} device={device_generation}");
         let began = Instant::now();
         let result = (|| {
-            let mut sources = MovieFreezePlan::new_with_audio(
-                session.engine.snapshot(),
-                &session.root,
-                session.effects.registry.clone(),
-                session.effects.memory_policy(),
-                session.engine.revision(),
-                control,
-                false,
-            )?;
-            sources.allocation_budget = session.allocation_budget().clone();
-            // Editable node resources are project-owned inputs too. Runtime
-            // packages alone do not describe their complete source closure.
-            for resource in sources
-                .project
-                .node_resources()
-                .map_err(|e| e.to_string())?
-            {
-                control.check()?;
-                let relative = PathBuf::from(&resource.path);
-                if sources
-                    .sources
-                    .iter()
-                    .any(|(path, _, _, _)| path == &relative)
-                {
-                    continue;
-                }
-                let source = sources
-                    .root
-                    .join(&relative)
-                    .canonicalize()
-                    .map_err(|e| format!("freeze node resource: {e}"))?;
-                if !source.starts_with(&sources.root) {
-                    return Err("node resource resolves outside project".into());
-                }
-                let file =
-                    fs::File::open(&source).map_err(|e| format!("open node resource: {e}"))?;
-                let metadata = file.metadata().map_err(|e| e.to_string())?;
-                if !metadata.is_file() || metadata.len() != resource.bytes {
-                    return Err("node resource size differs from document".into());
-                }
-                sources.total_bytes = sources
-                    .total_bytes
-                    .checked_add(metadata.len())
-                    .ok_or("prerender source byte overflow")?;
-                sources.source_paths.insert(source.clone());
-                sources.sources.push((relative, source, file, metadata));
-            }
-            if sources.total_bytes > motion_core::storage::MAX_PACKAGE {
-                return Err("prerender frozen source budget exceeded".into());
-            }
-            sources.platform = session.platform().clone();
-            sources.depth = motion_host::depth_snapshot::DepthSnapshot::capture(session)
-                .map_err(|e| e.to_string())?;
-            sources.observation_request = request;
+            control.check()?;
+            let sources = sources::CapturedSources::capture(session, request)?;
             Ok(Self {
                 sources,
+                adapter: session
+                    .graphics
+                    .as_ref()
+                    .map(|g| g.renderer.adapter.clone()),
                 document_generation,
                 device_generation,
                 max_frame_bytes,
@@ -151,7 +105,7 @@ impl PrerenderPlan {
         let mut phase = Phase::Freeze;
         let result = (|| {
             enter(&mut phase, Phase::Freeze, control, &mut progress)?;
-            let frozen = self.sources.freeze(control)?;
+            let frozen = self.sources.open(control)?.freeze(control)?;
             enter(&mut phase, Phase::ContentKey, control, &mut progress)?;
             PreparedPrerender::new(
                 frozen,
@@ -160,6 +114,10 @@ impl PrerenderPlan {
                 self.max_frame_bytes,
                 control,
             )
+            .map(|mut prepared| {
+                prepared.adapter = self.adapter;
+                prepared
+            })
         })();
         observe_result(request, phase.name(), began, &result);
         result
@@ -170,6 +128,7 @@ impl PrerenderPlan {
 /// tokens remain the owner's responsibility; they are not content fingerprints.
 pub struct PreparedPrerender {
     frozen: FrozenMovie,
+    adapter: Option<wgpu::Adapter>,
     context: CompositionFrameContext,
     max_frame_bytes: u64,
 }
@@ -192,6 +151,7 @@ impl PreparedPrerender {
         let context = key::context(&frozen, document, device, control)?;
         Ok(Self {
             frozen,
+            adapter: None,
             context,
             max_frame_bytes,
         })
@@ -267,10 +227,17 @@ impl NativePrerender {
                     "frozen calibrated depth with exposure sampling is not supported".into(),
                 );
             }
-            let mut renderer = pollster::block_on(Renderer::headless_with_working_precision(
-                p.working_precision,
-                input.frozen.allocation_budget.clone(),
-            ))
+            let mut renderer = match &input.adapter {
+                Some(adapter) => pollster::block_on(Renderer::on_adapter_with_working_precision(
+                    adapter.clone(),
+                    p.working_precision,
+                    input.frozen.allocation_budget.clone(),
+                )),
+                None => pollster::block_on(Renderer::headless_with_working_precision(
+                    p.working_precision,
+                    input.frozen.allocation_budget.clone(),
+                )),
+            }
             .map_err(|e| format!("prerender GPU initialization: {e}"))?;
             control.check()?;
             renderer.set_effect_registry(input.frozen.registry.clone());
