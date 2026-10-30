@@ -1,8 +1,10 @@
 # Paired native playback protocol (#82)
 
-This protocol is fixed before measuring the draft. It contains no accepted native
-results. The manual Rust study and the pressure/lifecycle control remain unexecuted
-until the independent maintained-workspace validation owner terminates.
+This protocol was fixed before the first measurement; its hit and percentile
+criteria are unchanged. Actual local results, two unsuccessful attempts and the
+successful presentation-aligned correction are recorded separately in
+`native-prerender-paced-current.md`. Pressure/lifecycle acceptance and transport
+boundaries are recorded in `native-prerender-public-controls-current.md`.
 
 The ignored study uses an owned animated OBJ triangle, a 640x360 native window and
 High authored-camera single-time rendering. Four fresh Engine episodes run in
