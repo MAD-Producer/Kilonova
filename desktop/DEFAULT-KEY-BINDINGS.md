@@ -14,8 +14,9 @@
 | Application | S | true | false | false | Save | false |
 | Application | Z | true | false | false | Undo | false |
 | Application | Z | true | true | false | Redo | false |
-| Application | Y | true | false | false | Solid | false |
+| Application | Y | true | false | false | Redo | false |
 | Application | Y | true | false | true | Adjustment | false |
+| Application | Y | true | true | false | Solid | false |
 | Application | Y | true | true | true | Null | false |
 | Application | D | true | false | false | Duplicate | false |
 | Application | D | true | true | false | Split | false |
@@ -62,6 +63,7 @@
 | Animation | S | true | false | false | Save | false |
 | Animation | Z | true | false | false | Undo | false |
 | Animation | Z | true | true | false | Redo | false |
+| Animation | Y | true | false | false | Redo | false |
 | Animation | D | true | false | false | Duplicate | false |
 | Animation | K | false | false | false | NextKey | true |
 | Animation | K | true | false | true | KeyframeTiming | false |
@@ -122,6 +124,7 @@
 | Nodes | S | true | true | false | SaveAs | false |
 | Nodes | Z | true | false | false | Undo | false |
 | Nodes | Z | true | true | false | Redo | false |
+| Nodes | Y | true | false | false | Redo | false |
 | Nodes | D | true | false | false | Duplicate | false |
 | Nodes | X | false | false | false | Delete | false |
 | Nodes | X | true | false | false | CutNodes | false |

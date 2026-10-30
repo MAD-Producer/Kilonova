@@ -28,6 +28,7 @@ macro_rules! observe {
 
 mod align;
 mod frame_cache;
+mod input_routes;
 #[cfg(test)]
 mod frame_cache_tests;
 pub(crate) mod animation_controls;
@@ -629,6 +630,8 @@ pub fn chrome(
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
     panels.header_size = Some(size);
+    let mut raw_routes = input_routes::Routes::new(input);
+    let mut body_routes = input_routes::Routes::new(body_input);
     for f in frames(layout, size) {
         let title = panels.locale.panel(f.panel.dock());
         let (dock, tabs, active) = match layout.find(f.panel.dock()) {
@@ -735,9 +738,9 @@ pub fn chrome(
                     || (timeline_popup && f.panel == Panel::Timeline)
                     || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
                 {
-                    input
+                    &mut raw_routes
                 } else {
-                    body_input
+                    &mut body_routes
                 },
                 &mut out,
             );
@@ -1281,7 +1284,7 @@ pub fn floating_chrome(
         body,
         panels,
         state,
-        body_input,
+        &mut input_routes::Routes::new(body_input),
         &mut out,
     );
     content.clip_to(body);
@@ -2218,22 +2221,14 @@ fn render_panel(
     area: Rect,
     panels: &mut Panels,
     state: &Value,
-    input: &Input,
+    routes: &mut input_routes::Routes<'_>,
     out: &mut Vec<Action>,
 ) {
     #[cfg(all(test, target_os = "windows"))]
     let panel_timer = graph_native_performance_tests::PanelTimer::start(panel, list);
-    let mut local = input.clone();
     let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
         || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
-    if !owns_popup {
-        local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
-    }
-    if panels.focused != Some(panel) {
-        local.keys.clear();
-        local.text.clear();
-    }
-    let input = &local;
+    let input = routes.for_panel(panels.focused == Some(panel), area, owns_popup);
     match panel {
         Panel::Project => project(list, atlas, area, panels, state, input, out),
         Panel::Composition => composition(list, atlas, area, panels, state, input, out),
