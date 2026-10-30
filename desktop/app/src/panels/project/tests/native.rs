@@ -9,6 +9,7 @@ use winit::{
 };
 mod drag;
 mod thumbnails;
+mod models;
 
 fn frame(
     shell: &mut Shell,

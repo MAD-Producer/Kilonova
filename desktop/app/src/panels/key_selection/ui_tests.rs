@@ -641,7 +641,7 @@ fn actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times()
         .unwrap();
     project.layers[0].content = Content::Vector { vector };
     let path = VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[0., 0.], [40., 0.], [0., 40.]]
             .into_iter()

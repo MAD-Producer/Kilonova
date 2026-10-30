@@ -9,7 +9,7 @@ use motion_core::{
 
 fn path() -> VectorPath {
     VectorPath {
-        id: 42,
+        tangents: Default::default(), id: 42,
         closed: true,
         nodes: [11, 21, 31, 41]
             .into_iter()

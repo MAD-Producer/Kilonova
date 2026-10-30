@@ -8,7 +8,7 @@ fn pen_placement_alt_handles_commit_cancel_and_save_roundtrip() {
             for origin in [[0., 0.], [90., 60.]] {
                 let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
                 let base = VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: false,
                     nodes: vec![
                         PathNode {

@@ -3,7 +3,7 @@ use super::*;
 fn fixture(mask: bool) -> motion_core::Engine {
     let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
     let path = VectorPath {
-        id: 3,
+        tangents: Default::default(), id: 3,
         closed: true,
         nodes: [
             (11, [0., 0., -20., 0., 20., 0.]),

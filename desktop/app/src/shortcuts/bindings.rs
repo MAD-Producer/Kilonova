@@ -158,12 +158,13 @@ impl TryFrom<RawBindings> for Bindings {
         let mut value = Self {
             overrides: raw.overrides,
         };
-        // Version-1 settings and presets predate the new layer defaults. Preserve
+        // Saved settings can predate new layer/redo defaults. Preserve
         // explicit user mappings on load; leave a conflicting new command unbound.
         // Interactive bind/reset still use strict conflict checks, without this migration.
         for entry in catalogue().iter().filter(|entry| matches!(entry.command,
             Command::SelectLayerAbove | Command::SelectLayerBelow | Command::OrderLayersUp
-                | Command::OrderLayersDown | Command::OrderLayersTop | Command::OrderLayersBottom)) {
+                | Command::OrderLayersDown | Command::OrderLayersTop | Command::OrderLayersBottom
+                | Command::Redo | Command::Solid)) {
             if value.overrides.iter().any(|item| item.scope == entry.scope && item.command == entry.command) {
                 continue;
             }
@@ -446,7 +447,8 @@ fn validate_chord(chord: KeyChord, command: Command) -> Result<(), String> {
         || chord.key == Z
             && m.control
             && (!m.shift && command != Command::Undo || m.shift && command != Command::Redo)
-        || chord.key == Y && m.control && command != Command::Redo;
+        || chord.key == Y && m.control && command != Command::Redo
+            && !(command == Command::Solid && !m.shift && !m.alt);
     if reserved {
         Err(format!(
             "reserved system or text shortcut: {}",

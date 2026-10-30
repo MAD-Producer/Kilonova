@@ -286,7 +286,7 @@ fn timeline_mask_header_actions_and_add_menu_preserve_targets_locking_and_undo()
     let mut mask = LayerMask::new(
         11,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [100., 0.], [0., 100.]]
                 .into_iter()
@@ -599,7 +599,7 @@ fn masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows() {
     project.layers[0].masks.push(LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [100., 0.], [0., 100.]]
                 .into_iter()
@@ -1135,7 +1135,7 @@ fn mask_dropdown_commits_only_the_selected_mode_and_cancel_lock_do_not_edit() {
             project.layers[0].masks.push(LayerMask::new(
                 1,
                 VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: true,
                     nodes: [[0., 0.], [100., 0.], [0., 100.]]
                         .into_iter()

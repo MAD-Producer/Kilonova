@@ -8,6 +8,9 @@ pub(crate) fn require_portable_depth(scene: &Scene) -> Result<()> {
     if scene.has_calibrated_depth() {
         return Err("portable plane output cannot carry native calibrated depth geometry; bake explicitly".into());
     }
+    if scene.has_native_depth_of_field() {
+        return Err(format!("portable plane output cannot carry native depth of field; composition={} frame={} phase=aperture_pack; render natively or bake explicitly", scene.composition_id, scene.frame).into());
+    }
     Ok(())
 }
 

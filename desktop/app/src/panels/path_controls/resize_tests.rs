@@ -273,7 +273,7 @@ fn nested_geometry_uses_its_transform_owner_and_animated_local_time() {
 fn grouped_path_grips_keep_owner_identity_before_repeaters_and_trim() {
     use motion_core::vector::groups::Repeater;
     let path = VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: false,
         nodes: vec![
             PathNode {

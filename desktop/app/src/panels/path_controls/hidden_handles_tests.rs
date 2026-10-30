@@ -7,7 +7,7 @@ fn hidden_authored_handles_do_not_capture_clicks_and_pen_and_mask_can_commit_new
     for mask in [false, true] {
         for locale in [Locale::En, Locale::Zh] {
             let base = VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: [[-200., -100.], [-100., -50.], [-80., 40.]]
                     .into_iter()

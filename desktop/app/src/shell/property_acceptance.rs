@@ -126,7 +126,7 @@ impl Shell {
         layer.masks.push(LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: [[20., 20.], [280., 20.], [160., 220.]]
                     .into_iter()

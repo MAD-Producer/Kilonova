@@ -9,7 +9,7 @@ use motion_model::compositing::{MatteMode, TrackMatte};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
-fn calibrated_matte_source_requires_explicit_path_and_preserves_completed_front() {
+fn effected_calibrated_matte_source_for_ordinary_receiver_preserves_completed_front() {
     let root = tempfile::tempdir().unwrap();
     let mut p = project(root.path());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -25,6 +25,13 @@ fn calibrated_matte_source_requires_explicit_path_and_preserves_completed_front(
         hide_source: false,
     });
     p.layers.push(top);
+    // Plain native calibrated inputs now have a dedicated pixel oracle. An
+    // effected calibrated source still needs its own material/depth contract.
+    let package = motion_effects::builtin::package().unwrap();
+    let definition = package.manifest.effects.iter().find(|e| e.id == "fill").unwrap();
+    p.layers[0].effects.push(motion_core::EffectInstance::new(1, &package.manifest.id,
+        &package.manifest.version, &package.hash, definition, [64., 40.]));
+    p.rebuild_plugin_dependencies();
     p.validate().unwrap();
     let mut scene = sampled(&p);
     attach(&mut scene);
@@ -49,7 +56,7 @@ fn mask() -> LayerMask {
     LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [24., 0.], [24., 20.], [0., 20.]]
                 .into_iter()

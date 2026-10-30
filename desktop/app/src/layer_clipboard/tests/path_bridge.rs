@@ -18,7 +18,7 @@ fn document(root: &Path, nodes: u64, keys: u32) -> motion_core::Project {
                         vec![]
                     } else {
                         vec![VectorPath {
-                            id: 3,
+                            tangents: Default::default(), id: 3,
                             closed: true,
                             nodes: (0..nodes)
                                 .map(|i| PathNode {
@@ -113,6 +113,7 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
         for operation in [
             PathOperation::FirstVertex { target: selection()[0].target.clone(), path: 3, node: 999 },
             PathOperation::CopyAs { target: selection()[0].target.clone(), path: 999 },
+            PathOperation::Tangents { target: selection()[0].target.clone(), path: 999, mode: motion_core::vector::TangentMode::Automatic },
         ] {
             let error = engine.call(|reply| Request::PathOperation { source: PathSource::of(&before), operation, reply }).unwrap_err();
             assert!(error.contains("object=7") && error.contains("path="), "{error}");
@@ -122,6 +123,28 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
             operation: PathOperation::CopyAs { target: selection()[0].target.clone(), path: 3 }, reply }).unwrap();
         assert_eq!(restored["path_operation_status"], "applied");
         assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        drop(engine);
+        // Admitted author values can still overshoot at sampling time. Exercise
+        // that real failure through Seek, rather than injecting a mocked Err.
+        let sampling_root = root.join("sampling-project");
+        let mut project = document(&sampling_root,4,0);
+        let motion_core::Content::Vector{vector}=&mut project.layers[0].content else {panic!()};
+        let VectorSource::Paths{paths}=&mut vector.source else {panic!()};
+        paths[0].tangents=motion_core::vector::TangentMode::Automatic;
+        paths[0].nodes[0].geometry.keys=[(0,-32768.),(10,32768.)].into_iter().map(|(frame,x)|motion_core::Keyframe {
+            frame,value:[x,0.,0.,0.,0.,0.],ease:motion_core::Ease::Linear,
+            curve:Some(motion_core::Curve{space:motion_core::CurveSpace::Progress,shape:motion_core::CurveShape::Cubic {
+                control1:[0.25,8.],control2:[0.75,8.],start:0.,end:1.
+            }}),spatial:None
+        }).collect();
+        motion_core::storage::save(&sampling_root,&project).unwrap();
+        let engine=super::engine(&sampling_root);
+        let before=engine.state().unwrap();
+        let error=engine.seek(5.).unwrap_err();
+        assert!(error.contains("path=3 frame=5")&&error.contains("invalid geometry node=0"),"{error}");
+        let recovered=engine.seek(0.).unwrap();
+        assert_eq!(recovered["project"],before["project"]);
+        assert_eq!(recovered["revision"],before["revision"]);
         drop(engine);
         crate::logging::flush();
         return;
@@ -140,7 +163,7 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(log.contains("logging initialized level=INFO"));
     assert!(log.lines().any(|l| l.contains(" INFO ") && l.contains("start #") && l.ends_with("path_operation")));
-    for reason in ["node=Some(999)", "operation=copy_as object=7 path=999"] {
+    for reason in ["node=Some(999)", "operation=copy_as object=7 path=999", "operation=set_tangents object=7 path=999", "path=3 frame=5"] {
         assert!(log.lines().any(|l| l.contains(" ERROR ") && l.contains(reason)), "{reason}\n{log}");
         assert!(stderr.contains(reason));
         assert!(!stdout.contains(reason));

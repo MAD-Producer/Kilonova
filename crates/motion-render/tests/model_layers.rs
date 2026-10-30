@@ -15,6 +15,8 @@ mod source_catalog;
 mod imported_cameras;
 #[path = "model_layers/source_editing.rs"]
 mod source_editing;
+#[path = "model_layers/depth_of_field.rs"]
+mod depth_of_field;
 
 struct Material;
 impl AssetResolver for Material {

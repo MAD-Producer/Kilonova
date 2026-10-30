@@ -53,6 +53,8 @@ pub struct FrozenMovie {
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod camera_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod depth_of_field_tests;
 #[cfg(test)]
 mod imported_camera_tests;
 #[cfg(all(test, feature = "ai-depth"))]
@@ -67,6 +69,8 @@ mod work_area_tests;
 mod precision_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod keyframe_timing_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod path_tangent_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod publication_tests;
 

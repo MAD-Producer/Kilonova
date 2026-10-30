@@ -167,7 +167,7 @@ fn effect_padding_masks_and_effect_stage_image_inputs_match_the_original_rendere
     receiver.masks.push(LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[4., 3.], [27., 3.], [27., 28.], [4., 28.]]
                 .into_iter()

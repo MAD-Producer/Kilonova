@@ -125,6 +125,7 @@ struct EffectContextMenu {
     opened: bool,
 }
 struct Field {
+    owner: Option<motion_ui::dock::Panel>,
     object: u64,
     effect: u64,
     param: String,
@@ -262,6 +263,41 @@ fn dimensions(kind: &str) -> usize {
     }
 }
 impl Controls {
+    pub(super) fn numeric_active_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
+        self.field.as_ref().is_some_and(|f| f.owner == owner && f.number.editor.text.active())
+    }
+    pub(super) fn numeric_outside(&mut self, state: &Value, input: &Input,
+        owner: Option<motion_ui::dock::Panel>, out: &mut Vec<Action>) -> bool {
+        let Some(field) = self.field.as_ref().filter(|f| f.owner == owner
+            && f.number.editor.text.active()
+            && input.pressed.is_some_and(|(b,p)| b == MouseButton::Left && !f.rect.contains(p))) else { return false; };
+        let (object,effect,param,component) = (field.object,field.effect,field.param.clone(),field.component);
+        let layer = state["project"]["layers"].as_array().into_iter().flatten()
+            .find(|l| l["id"].as_u64() == Some(object));
+        let parameter = layer.filter(|l| l["locked"] != true && state["observing"] != true)
+            .and_then(|l| l["effects"].as_array()).into_iter().flatten()
+            .find(|e| e["id"].as_u64() == Some(effect)).and_then(|e| e["params"].get(&param));
+        let (Some(layer),Some(parameter)) = (layer,parameter) else {
+            if self.cancel() { out.push(Action::History(4)); }
+            return false;
+        };
+        let Ok(parameter) = observe!("effects.numeric_close_parameter", serde_json::from_value::<EffectParam>(parameter.clone()),
+            "object={object} effect={effect} parameter={param} component={component}") else { return true; };
+        let local = state["frame"].as_f64().unwrap_or(0.) - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.);
+        let Ok(mut value) = observe!("effects.numeric_close_sample", parameter.sample(local),
+            "object={object} effect={effect} parameter={param} component={component} frame={local}") else { return true; };
+        let Some(field) = self.field.as_mut() else { return false; };
+        field.number.editor.text.input(input);
+        let events = field.number.editor.commit(value[component] as f64,
+            motion_ui::widgets::NumberOptions { min:parameter.min as f64, max:parameter.max as f64, ..Default::default() });
+        let finished = super::numeric::apply(events,out,|v| {
+            value[component]=v;
+            Command::Effect { object, action:EffectAction::Set { effect,param:param.clone(),
+                frame:state["frame"].as_f64().unwrap_or(0.).floor() as u32,value } }
+        });
+        if finished || !field.number.editor.interacting() { self.field=None; }
+        self.field.is_some()
+    }
     fn report_invalid_effect_id(&mut self, object: u64, index: usize) {
         let previous = self.invalid_effect_ids;
         self.invalid_effect_ids = previous.saturating_add(1).min(60);
@@ -955,7 +991,7 @@ impl Controls {
                 || !layer["effects"].as_array().into_iter().flatten()
                     .any(|effect| effect["id"].as_u64() == Some(f.effect)
                         && effect["params"].get(&f.param).is_some())
-                || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
+                || !f.number.editor.text.active() && input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
         }) {
             if self.cancel() {
                 out.push(Action::History(4));
@@ -1540,7 +1576,11 @@ impl Controls {
                     .max(minimum_x);
                 columns.label.max[0] = (value_x - gap).max(columns.label.min[0]);
                 let count = dimensions(kind);
-                let number_width = (styles.metric("effect.number.cell_width", 44.) - gap).max(0.);
+                // Position pairs share their compact cluster with a picker;
+                // other vectors retain the full numeric cell. Inter-cell
+                // spacing is applied separately by number_gap below.
+                let number_width = (styles.metric("effect.number.cell_width", 44.)
+                    - if super::effect_pick::is_position(parameter) { gap } else { 0. }).max(0.);
                 let number_gap = styles.metric("effect.number.gap", 4.);
                 let cap = styles.metric("effect.value.max_width", 108.)
                     .max(if kind == "color" { 1 } else { count } as f32
@@ -2254,6 +2294,7 @@ impl Controls {
                 out.push(Action::History(4));
             }
             self.field = Some(Field {
+                owner: self.context_window,
                 object,
                 effect,
                 param: param.into(),
@@ -2288,7 +2329,7 @@ impl Controls {
             if let Some(note) = field.number.readout() {
                 self.drag_readout = Some((input.mouse, note));
             }
-            if super::numeric::apply(events, out, |v| {
+            let finished = super::numeric::apply(events, out, |v| {
                 value[component] = v;
                 Command::Effect {
                     object,
@@ -2299,7 +2340,8 @@ impl Controls {
                         value: *value,
                     },
                 }
-            }) {
+            });
+            if finished || !field.number.editor.interacting() {
                 self.field = None;
             }
         } else {

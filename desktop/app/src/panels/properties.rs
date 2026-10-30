@@ -878,6 +878,11 @@ pub(super) fn process_field(
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
+    if state["observing"] == true || state["project"]["layers"].as_array().into_iter().flatten()
+        .any(|layer| layer["id"].as_u64() == Some(field.object) && layer["locked"] == true) {
+        if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
+        return;
+    }
     if input.focus_lost || input.key_presses().any(|(key, _, repeat)| key == Key::Escape && !repeat) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) {
             out.push(Action::History(4));
@@ -983,7 +988,8 @@ pub(super) fn process_field(
     }
     if field.scrubbing.is_none() {
         let event = field.editor.input_value(&mut field.text, &mut field.replace, input);
-        if outside || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
+        if outside && !input.composing && !input.ime_consumed
+            || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
             if field.replace {
                 return;
             }
@@ -997,7 +1003,11 @@ pub(super) fn process_field(
                     }
                     return;
                 }
-                _ => panels.message = Some(panels.locale.t(T::EnterFinite).into()),
+                _ => {
+                    let message = panels.locale.t(T::EnterFinite).to_string();
+                    field.editor.error = Some(message.clone());
+                    panels.message = Some(message);
+                },
             }
         }
     }

@@ -8,7 +8,7 @@ fn engine() -> motion_core::Engine {
         offset_frame: 12,
     });
     let original = super::super::new_vector(VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[0., 0.], [100., 0.], [0., 100.]]
             .into_iter()

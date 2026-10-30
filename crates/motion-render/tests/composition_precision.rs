@@ -331,7 +331,7 @@ fn full_mask() -> LayerMask {
     LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [34., 0.], [34., 34.], [0., 34.]]
                 .into_iter()

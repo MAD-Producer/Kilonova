@@ -9,6 +9,9 @@ use std::sync::Arc;
 
 #[cfg(test)]
 mod error_tests;
+#[cfg(test)]
+mod depth_material_tests;
+mod depth_material;
 mod scratch_graph;
 mod scratch_lifetimes;
 mod scratch;
@@ -280,6 +283,9 @@ impl EffectFramePlan {
     pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
         if scene.has_calibrated_depth() {
             return Err(RenderError::Invalid("portable packed plans do not carry calibrated geometry; use native calibrated depth rendering or bake explicitly".into()));
+        }
+        if scene.has_native_depth_of_field() {
+            return Err(RenderError::Invalid(format!("portable packed plans cannot carry native depth of field; composition={} frame={} phase=aperture_pack; render natively or bake explicitly", scene.composition_id, scene.frame)));
         }
         if self.passes.iter().any(|pass| pass.instance_data != 0) {
             return Err("packed plan v12 cannot transport instance_shader_data textures; use a native consumer with instance_shader_data_v1".into());

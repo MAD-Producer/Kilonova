@@ -10,7 +10,7 @@ fn authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points() {
         )
         .unwrap();
         let path = VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: (1..=3)
                 .map(|id| PathNode {
@@ -30,6 +30,7 @@ fn authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points() {
                 inverted: false,
                 opacity: Track::constant(100.),
                 feather: Track::constant([0.; 2]),
+                feather_linked: false,
                 expansion: Track::constant(0.),
             });
         } else {

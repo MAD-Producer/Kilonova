@@ -216,7 +216,7 @@ mod tests {
         layer.masks.push(motion_core::masks::LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: vec![],
             },

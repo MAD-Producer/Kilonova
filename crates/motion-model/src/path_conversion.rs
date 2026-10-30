@@ -51,6 +51,14 @@ fn basis(group: &VectorGroup, item: u64, parent: Mat3) -> Result<Option<Mat3>> {
 
 fn transform(path: &mut VectorPath, matrix: Mat3) -> Result<()> {
     ensure(matrix.is_finite(), "path conversion basis is not finite")?;
+    if path.tangents == crate::vector::TangentMode::Automatic {
+        let x = glam::DVec2::new(f64::from(matrix.x_axis.x), f64::from(matrix.x_axis.y));
+        let y = glam::DVec2::new(f64::from(matrix.y_axis.x), f64::from(matrix.y_axis.y));
+        let scale = x.length_squared().max(y.length_squared());
+        ensure((x.length_squared() - y.length_squared()).abs() <= scale * 1e-5
+            && x.dot(y).abs() <= scale * 1e-5,
+            "automatic path tangents cannot be copied losslessly through a nonuniform or skewed basis")?;
+    }
     for node in &mut path.nodes {
         ensure(node.geometry.axes.is_none() && node.geometry.keys.iter().all(|k| k.spatial.is_none()),
             "path conversion requires authored geometry tracks without spatial or separated dimensions")?;

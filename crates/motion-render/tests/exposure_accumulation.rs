@@ -391,7 +391,7 @@ fn cold_nested_mask_and_effect_rendering_preserve_transparent_pixels_through_exp
     layer.masks.push(LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[4., 4.], [20., 4.], [20., 20.], [4., 20.]]
                 .into_iter()

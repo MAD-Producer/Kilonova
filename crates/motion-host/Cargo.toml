@@ -26,6 +26,7 @@ motion-effects = { path = "../motion-effects" }
 motion-core = { path = "../motion-core" }
 motion-render = { path = "../motion-render", default-features = false }
 motion-media = { path = "../motion-media" }
+motion-scene = { path = "../motion-scene" }
 motion-model = { path = "../motion-model", optional = true }
 tempfile = { version = "3", optional = true }
 sha2 = { version = "0.10", optional = true }
@@ -40,7 +41,6 @@ raw-window-handle = "0.6"
 
 [dev-dependencies]
 tempfile = "3"
-motion-scene = { path = "../motion-scene" }
 sha2 = "0.10"
 
 [target.'cfg(windows)'.dev-dependencies]

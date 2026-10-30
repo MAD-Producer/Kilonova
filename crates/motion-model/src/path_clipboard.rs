@@ -265,7 +265,7 @@ fn fragments(entry: &PathEntry) -> Result<Vec<VectorPath>> {
             nodes.push(node.clone());
         } else if !nodes.is_empty() {
             runs.push(VectorPath {
-                id: path.id,
+                tangents: path.tangents, id: path.id,
                 closed: false,
                 nodes: std::mem::take(&mut nodes),
             });
@@ -273,7 +273,7 @@ fn fragments(entry: &PathEntry) -> Result<Vec<VectorPath>> {
     }
     if !nodes.is_empty() {
         runs.push(VectorPath {
-            id: path.id,
+            tangents: path.tangents, id: path.id,
             closed: false,
             nodes,
         });

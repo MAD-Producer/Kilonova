@@ -1,0 +1,134 @@
+{
+  "issue": 215,
+  "source_base": "36c60f15a8f7c09a831bdd89e7cdc0d15d5d1b12",
+  "passed": 59,
+  "executions": [
+    {
+      "log": "final-panels-numeric.log",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "log": "final-panels-properties.log",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "final-panels-key_navigation.log",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "final-panels-effect_controls-tests.log",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "final-panels-text_menu.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "ui-tests.log",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "native-final.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "clipboard-final.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "native": {
+    "independent_hwnds": 2,
+    "locales": [
+      "en",
+      "zh"
+    ],
+    "providers": [
+      "effect",
+      "transform"
+    ],
+    "owners": [
+      "main",
+      "floating"
+    ],
+    "screenshots": 24,
+    "physical_pixels": [
+      900,
+      720
+    ],
+    "dpi": 1,
+    "input": "normalized production Input; not physical OS injection"
+  },
+  "source_sha256": {
+    "desktop/app/src/panels/effect_controls.rs": "0efc9ff196d9f9593aec98ce02770181f24b3d985e9e85207acbff203887ed0f",
+    "desktop/app/src/panels/mod.rs": "2290a4dab8ea65c8c0f935b3a4e285d275546d5310d7cb88fb91a5168897dfe2",
+    "desktop/app/src/panels/numeric.rs": "d0a05df01229f9ceccb6de81b954fe0a93e2dc3e44a8ba897592bf9ed0898c93",
+    "desktop/app/src/panels/numeric/contract_tests.rs": "cf49c961d9cb0edee3d135d6a5e3597d5813cdf4a148a03515b964a847b8dfcc",
+    "desktop/app/src/panels/properties.rs": "dfcebc80f5a8b0ee97fede799e79b7846d2d0dbea5e5eff8738b0aca8ca8e766",
+    "desktop/ui/src/widgets.rs": "4b2206cf773ab9d2f68082505047c836ae270cfb888bcdc00fe5b985ef5aa461"
+  },
+  "binary_sha256": {
+    "verified-runtime/acceptance.exe": "6291a9e15edd0988ffd53a28b7a029bfcb9f9406732a4167623758be2c575ed0",
+    "product-runtime/motion-studio.exe": "3f1191b37e2083c40c5cf39751a4a4751678880ddade7a87546e1a168655af9c"
+  },
+  "screens_sha256": {
+    "native-final/Effect-floating-En-committed.png": "3debefb1896561d76f176af97e74dffeb50a88fe2dd31d1c90e2d550b83c660a",
+    "native-final/Effect-floating-En-idle.png": "c9a3cb354f5ffbf09cfaf74cd4baa98106f7391184b8cf73213e6846269ae083",
+    "native-final/Effect-floating-En-invalid.png": "140825c27b70a83f357bb8a6672b011e42a8dd9bd5338c47333febb88b3af8d5",
+    "native-final/Effect-floating-Zh-committed.png": "b4ea3c54dfc58ffa4feee9834e7d25a2c0a7f8216e40cf0c69570c89867d8000",
+    "native-final/Effect-floating-Zh-idle.png": "1c42a27d1f7bbcfb9f4f95c4b9aa0c870b2db75177fdf966cb02bda184b0e25e",
+    "native-final/Effect-floating-Zh-invalid.png": "90c00c0e98858ee0a8457baa810ec2170be86a3d94575908154ef86cb2770a23",
+    "native-final/Effect-main-En-committed.png": "0dccc9ce90da1577c79c1a023093fe46b4615e1c211ea9688c2132a1c30d5f2f",
+    "native-final/Effect-main-En-idle.png": "e9c900deb2c34924b2f03e6fdf9cd762c2e9bc9adde4304bf7d7cdcc8ff4ef60",
+    "native-final/Effect-main-En-invalid.png": "b9da4dea27a7842678b0470ca7fcebf48faedbe2ef6c0739bb41c8f1f73b2813",
+    "native-final/Effect-main-Zh-committed.png": "b1d7e82e856f8cfe0d5357fb0cb209696861c7c377de4ea5ca402bd2419e786c",
+    "native-final/Effect-main-Zh-idle.png": "66d63a01e817b9d9991d467ce5ef4708c3114d29642ecf249c264857b4ecfc21",
+    "native-final/Effect-main-Zh-invalid.png": "b5f4d248441c75581690965a0c90c3f33af2b4bf1196a227a6ee755794adc6fa",
+    "native-final/Transform-floating-En-committed.png": "6c599a63ecef329d8fb3391f9271677136e95eee5917588f5437d261126f0d87",
+    "native-final/Transform-floating-En-idle.png": "a72ca291d8eeaea0f235169fd88eb9b38a2d05d429887a97440dc06baece098d",
+    "native-final/Transform-floating-En-invalid.png": "713b7d64ad9c8946d68abc9508af7f9ecc9c3f24d669dba8366394274023917e",
+    "native-final/Transform-floating-Zh-committed.png": "d08074bf79a138aa6887e8bbbbc870dcbe069d7cad8518e944d32dfb66f12858",
+    "native-final/Transform-floating-Zh-idle.png": "df7c64b38e259d87966cab8f42b969efce703a167d23b81c8af239333e5cfa69",
+    "native-final/Transform-floating-Zh-invalid.png": "edf53a3c6e99b5550a371f934ad21a6ec17306514ee1063a533bbe3f63e22482",
+    "native-final/Transform-main-En-committed.png": "8c430798512bfe299347f941e3ecc383e45e000bebe82f45fb325cc9407e9268",
+    "native-final/Transform-main-En-idle.png": "df6f667a7fc2e6dac923fa34a66dd06b099ecf50beff4ecc70c08e9e9bc582a7",
+    "native-final/Transform-main-En-invalid.png": "e56d1cd27e2915c09e08046e8f63cc618e04e121ad881e4463414184ad47f6db",
+    "native-final/Transform-main-Zh-committed.png": "fbe543a55e8e571e0d7727734f22e675d00cabb1dbfbf25636ffdf28318e49a7",
+    "native-final/Transform-main-Zh-idle.png": "a5df9a75acbaf25226cc853bafdefc0dae649baddbb5318e6d511a4c0bae6151",
+    "native-final/Transform-main-Zh-invalid.png": "70818f66aade8f61123a8ec9af188658b144395b49db728ae58fb2c0758a2a7c"
+  },
+  "bundle": {
+    "path": "engineering/validation/data/numeric-input-contract.zip",
+    "bytes": 5906779,
+    "sha256": "d84e2a7808d064d0b5af1a547749a69ba5d2eb9dfab8949a47e19bdf994e1b31"
+  },
+  "commands": [
+    "cargo test -p motion-desktop --bin motion-studio --no-default-features --features ffmpeg --locked --offline --no-run",
+    "acceptance.exe panels::numeric:: --test-threads=1 --nocapture",
+    "acceptance.exe --exact panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages --ignored --test-threads=1 --nocapture",
+    "cargo test -p motion-ui --test framework --test input_ownership --test failure_boundaries --locked --offline",
+    "cargo build -p motion-desktop --bin motion-studio --no-default-features --features ffmpeg --locked --offline",
+    "motion-studio.exe --help"
+  ],
+  "limits": [
+    "Linux/macOS CI pending",
+    "sampling Err boundary retained but not independently induced",
+    "process-lifetime observation sites do not reset on success",
+    "initial compilation failure retained only in conversation; initial 3 regressions and incorrect fault fixture failures archived"
+  ]
+}

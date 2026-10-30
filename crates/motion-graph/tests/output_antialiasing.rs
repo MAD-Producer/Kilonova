@@ -82,7 +82,7 @@ fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
                 layer.masks.push(LayerMask::new(
                     1,
                     VectorPath {
-                        id: 1,
+                        tangents: Default::default(), id: 1,
                         closed: true,
                         nodes: [[0., 0.], [size[0], 0.], size, [0., size[1]]]
                             .into_iter()
@@ -421,7 +421,7 @@ fn coverage_is_shared_by_plain_masked_matted_and_blended_planes() {
             layer.masks.push(LayerMask::new(
                 1,
                 VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: true,
                     nodes: [[0., 0.], [72., 0.], [72., 104.], [0., 104.]]
                         .into_iter()

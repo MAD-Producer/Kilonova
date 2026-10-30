@@ -62,6 +62,7 @@ pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
 pub use camera::{
     to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,
     ImportedCamera, CameraSample, CameraSampler, AuthoredCameraSampler,
+    DepthOfField, SampledDepthOfField,
 };
 pub use composition::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use curve::{Curve, CurveSample, CurveShape, CurveSpace, Easing};
@@ -89,6 +90,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("path sampling path={path} frame={frame}: {source}")]
+    PathSampling { path: u64, frame: f64, #[source] source: Box<Error> },
     #[error("project library operation={operation} folder={folder:?}: {source}")]
     ProjectLibrary {
         operation: &'static str,

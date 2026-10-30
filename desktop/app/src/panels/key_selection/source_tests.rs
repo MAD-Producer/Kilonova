@@ -117,7 +117,7 @@ fn raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels() {
 fn raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks() {
     let mut project = fixture().snapshot();
     let path = VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[0., 0.], [40., 0.], [0., 40.]]
             .into_iter()

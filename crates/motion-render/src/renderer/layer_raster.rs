@@ -51,7 +51,9 @@ pub struct LayerRaster {
     frame: f64,
     reservation: super::exposure::Reservation,
 }
+
 impl LayerRaster {
+    pub(super) fn material_image(&self) -> Result<crate::AdmittedTextureView> { self.image.texture.admitted_view() }
     pub fn layer(&self) -> &crate::DrawLayer {
         &self.plane
     }
@@ -97,6 +99,29 @@ impl PhaseLayer<'_> {
 }
 
 impl Renderer {
+    /// Retain an independent effects-stage source, then project its own matte
+    /// chain into a private screen image. Never reuse this encode's target.
+    pub(super) fn project_depth_matte_source(&mut self, scene: &Scene, source: u64,
+        width: u32, height: u32, projected: &HashMap<u64, RenderTarget>, retained_bytes: u64,
+        materials: &HashMap<u64, DepthMaterial>) -> Result<(RenderTarget, RenderStats)> {
+        if scene.depth_surface(source).is_some() || materials.contains_key(&source) {
+            return self.project_native_matte_source(scene, source, width, height, projected, retained_bytes, materials);
+        }
+        let mut context = scene.clone();
+        let inputs = super::projected_mattes::bindings(self, &mut context, scene, projected)?;
+        let mut renderer = super::projected_mattes::Inputs::install(self, inputs);
+        let (mut raster, mut stats) = renderer.materialize_layer(&context, source, width, height, false)?
+            .ok_or_else(|| RenderError::Invalid(format!("depth matte source={source} phase=materialize: source is absent")))?;
+        // Source visibility and transfer describe its contribution to the
+        // composition, not the independent image read by a matte consumer.
+        raster.plane.composite_visible = true;
+        raster.plane.blend = Default::default();
+        raster.additive = false;
+        let target = renderer.render_target_in(width, height, crate::TextureCategory::MatteBlendScratch)?;
+        context.background = [0.; 4];
+        stats.add(renderer.draw_layer_rasters(&context, &[&raster], &target.view, width, height)?);
+        Ok((target, stats))
+    }
     fn allocate_layer_raster_image(
         &self,
         scene: &Scene,

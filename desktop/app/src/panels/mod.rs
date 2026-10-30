@@ -28,6 +28,7 @@ macro_rules! observe {
 
 mod align;
 mod frame_cache;
+mod input_routes;
 #[cfg(test)]
 mod frame_cache_tests;
 pub(crate) mod animation_controls;
@@ -433,6 +434,11 @@ pub fn chrome(
     panels.drag_readout = None;
     let text_menu_owned = text_menu::prepare(panels, state, input, atlas);
     let path_context_owned = panels.path_controls.prepare_context_menu(None, state, panels.selected, input);
+    let property_owned = panels.focused.is_some_and(|p| layout.find(p.dock()).is_some());
+    let numeric_input = if text_menu_owned || path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,None,property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let text_menu_neutral = Input::default();
     let editing_input = if text_menu_owned || path_context_owned { &text_menu_neutral } else { input };
     let toolbar_was_editing = panels.toolbar_style.editing();
@@ -624,6 +630,8 @@ pub fn chrome(
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
     panels.header_size = Some(size);
+    let mut raw_routes = input_routes::Routes::new(input);
+    let mut body_routes = input_routes::Routes::new(body_input);
     for f in frames(layout, size) {
         let title = panels.locale.panel(f.panel.dock());
         let (dock, tabs, active) = match layout.find(f.panel.dock()) {
@@ -730,9 +738,9 @@ pub fn chrome(
                     || (timeline_popup && f.panel == Panel::Timeline)
                     || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
                 {
-                    input
+                    &mut raw_routes
                 } else {
-                    body_input
+                    &mut body_routes
                 },
                 &mut out,
             );
@@ -1178,6 +1186,11 @@ pub fn floating_chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let property_owned = panels.focused == Some(panel);
+    let numeric_input = if path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,Some(panel),property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let timeline_dropdown = panels.timeline_columns.editing() || panels.timeline.comparison.popup_open();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel))
         || panels.timeline.comparison.popup_open() && matches!(panel,Panel::Timeline|Panel::Curves);
@@ -1271,7 +1284,7 @@ pub fn floating_chrome(
         body,
         panels,
         state,
-        body_input,
+        &mut input_routes::Routes::new(body_input),
         &mut out,
     );
     content.clip_to(body);
@@ -2208,22 +2221,14 @@ fn render_panel(
     area: Rect,
     panels: &mut Panels,
     state: &Value,
-    input: &Input,
+    routes: &mut input_routes::Routes<'_>,
     out: &mut Vec<Action>,
 ) {
     #[cfg(all(test, target_os = "windows"))]
     let panel_timer = graph_native_performance_tests::PanelTimer::start(panel, list);
-    let mut local = input.clone();
     let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
         || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
-    if !owns_popup {
-        local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
-    }
-    if panels.focused != Some(panel) {
-        local.keys.clear();
-        local.text.clear();
-    }
-    let input = &local;
+    let input = routes.for_panel(panels.focused == Some(panel), area, owns_popup);
     match panel {
         Panel::Project => project(list, atlas, area, panels, state, input, out),
         Panel::Composition => composition(list, atlas, area, panels, state, input, out),

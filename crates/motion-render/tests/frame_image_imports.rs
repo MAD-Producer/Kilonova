@@ -247,7 +247,7 @@ fn curve_and_mask_imports_drive_pixels_and_retain_native_backings_in_four_precis
             p.layers[0].size,
         );
         let path = VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[4., 4.], [26., 4.], [26., 20.], [4., 20.]]
                 .into_iter()

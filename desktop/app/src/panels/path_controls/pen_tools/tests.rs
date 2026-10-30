@@ -1,9 +1,45 @@
 use super::*;
 use motion_core::{Ease, Engine, Project};
 
+#[test]
+fn automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks() {
+    use motion_core::vector::TangentMode;
+    for closed in [false, true] {
+        let mut p = path(closed);
+        p.tangents = TangentMode::Automatic;
+        p.nodes[2].geometry.keys=[(0,[-90.,70.,0.,0.,0.,0.]),(10,[-40.,120.,0.,0.,0.,0.])].into_iter().map(|(frame,value)|motion_core::Keyframe {
+            frame,value,ease:Ease::Linear,curve:None,spatial:None
+        }).collect();
+        let before = p.clone();
+        let index = if closed { 2 } else { 0 };
+        let next = (index + 1) % p.nodes.len();
+        edit_path(&mut p, before.nodes[index].id, Edit::Add {next:before.nodes[next].id,t:0.4},5).unwrap();
+        let new_node = &p.nodes[index+1];
+        assert_eq!(new_node.geometry.keys.iter().map(|k|k.frame).collect::<Vec<_>>(),[0,5,10]);
+        for frame in [0,5,10] {
+            let old = before.sample(f64::from(frame)).unwrap();
+            let raw = before.nodes.iter().map(|n|n.geometry.sample(f64::from(frame)).unwrap()).collect::<Vec<_>>();
+            let expected = cubic(old.nodes[index],old.nodes[next],0.4);
+            assert!(distance(expected,cubic(raw[index],raw[next],0.4)) > 0.1, "negative control must distinguish manual geometry");
+            assert_close(new_node.geometry.sample(f64::from(frame)).unwrap()[..2].try_into().unwrap(),expected);
+        }
+        for old in &before.nodes {
+            assert_eq!(p.nodes.iter().find(|n|n.id==old.id).unwrap(),old);
+        }
+        let id = new_node.id;
+        let inserted = p.clone();
+        for edit in [Edit::Smooth,Edit::Corner] {
+            assert!(edit_path(&mut p,11,edit,5).unwrap_err().to_string().contains("manual tangents"));
+            assert_eq!(p,inserted);
+        }
+        edit_path(&mut p,id,Edit::Delete,5).unwrap();
+        assert_eq!(p,before);
+    }
+}
+
 fn path(closed: bool) -> VectorPath {
     VectorPath {
-        id: 3,
+        tangents: Default::default(), id: 3,
         closed,
         nodes: [
             (11, [-90., -60., -15., -5., 60., -70.]),

@@ -1,5 +1,36 @@
 use super::*;
 
+#[test]
+fn tangent_menu_dispatches_explicit_mode_with_frozen_source_in_both_languages() {
+    use motion_core::vector::TangentMode;
+    for locale in [Locale::Zh,Locale::En] {
+        for automatic in [false,true] {
+            for locked in [false,true] {
+                let (mut c,state,p,mut paths)=fixture(true,locked);
+                paths[0]["tangents"]=serde_json::json!(if automatic {"automatic"} else {"manual"});
+                open(&mut c,&state,&p,&paths);
+                assert!(paint(&mut c,&state,Input::default(),locale,300.).is_empty());
+                let (label,r,enabled)=c.context_rows[2].clone();
+                assert_eq!(enabled,!locked);
+                assert_eq!(label, match (automatic,locale) {
+                    (true,Locale::Zh)=>"恢复手动切线",(false,Locale::Zh)=>"使用自动切线",
+                    (true,_)=>"Restore Manual Tangents",(false,_)=>"Use Automatic Tangents"
+                });
+                let at=[r.min[0]+1.,r.min[1]+1.];
+                let out=paint(&mut c,&state,Input{mouse:at,pressed:Some((MouseButton::Left,at)),..Default::default()},locale,300.);
+                if locked { assert!(out.is_empty()); }
+                else {
+                    assert!(matches!(out.as_slice(),[Action::PathOperation{operation:PathOperation::Tangents{
+                        target:PathTarget::Vector{object:7,item:None},path:3,mode},..}]
+                        if *mode==if automatic {TangentMode::Manual} else {TangentMode::Automatic}));
+                    assert!(c.context_menu.is_none());
+                    assert!(paint(&mut c,&state,Input::default(),locale,300.).is_empty());
+                }
+            }
+        }
+    }
+}
+
 fn fixture(closed: bool, locked: bool) -> (Controls, Value, Projection, Vec<Value>) {
     let projection = Projection::new(
         DMat4::IDENTITY.to_cols_array(),

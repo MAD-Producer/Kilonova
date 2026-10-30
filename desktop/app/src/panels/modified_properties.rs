@@ -476,7 +476,7 @@ mod tests {
         let mut value = LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: vec![PathNode {
                     id: 1,

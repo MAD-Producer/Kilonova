@@ -46,6 +46,7 @@ impl Command {
             OpenProject { .. } => "open_project",
             ImportProject { .. } => "import_project",
             ImportImage { .. } => "import_image",
+            ImportModel { .. } => "import_model",
             ReplaceImage { .. } => "replace_image",
             CreateText { .. } => "create_text",
             TextLayout { .. } => "text_layout",

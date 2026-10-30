@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 
 fn path(id: u64, first: u64, closed: bool) -> VectorPath {
     VectorPath {
-        id,
+        tangents: Default::default(), id,
         closed,
         nodes: (0..6)
             .map(|i| PathNode {

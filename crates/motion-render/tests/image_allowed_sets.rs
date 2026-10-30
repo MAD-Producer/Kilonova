@@ -66,6 +66,133 @@ fn allocations(work: impl FnOnce()) -> usize {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels() {
+    use motion_render::image_resources::MAX_PREFETCH_IMAGES;
+    use std::time::{Duration, Instant};
+    assert!(MAX_PREFETCH_IMAGES > 0);
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("assets")).unwrap();
+    let mut project = Project::new(16, 16, 30, 30).unwrap();
+    let ids: Vec<_> = (1..=MAX_PREFETCH_IMAGES as u64 + 1).collect();
+    for &id in &ids {
+        let path = format!("assets/prefetch-{id}.png");
+        image::save_buffer(
+            root.path().join(&path),
+            &[id as u8, 90, 170, 255].repeat(16 * 16),
+            16,
+            16,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+        project.assets.push(Asset {
+            id,
+            path,
+            width: 16,
+            height: 16,
+        });
+        if id <= MAX_PREFETCH_IMAGES as u64 {
+            let mut layer = Layer::solid(id, "prefetch fixture", [16.; 2], [8., 8., 0.], [1.; 4]);
+            layer.content = Content::Image { asset: id };
+            project.layers.push(layer);
+        }
+    }
+    project.validate().unwrap();
+    let mut scene = Scene::new(&project).unwrap();
+    scene
+        .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.configure_assets(&project, root.path()).unwrap();
+    let initial_images = renderer.image_count();
+    assert!(renderer
+        .prepare_scene_assets(&scene, Resolution::Full, false)
+        .unwrap());
+    assert_eq!(renderer.image_count(), initial_images + MAX_PREFETCH_IMAGES);
+    let mut empty = project.clone();
+    empty.layers.clear();
+    let mut empty_scene = Scene::new(&empty).unwrap();
+    empty_scene
+        .sample(&empty, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    assert!(renderer
+        .prepare_scene_assets(&empty_scene, Resolution::Preview(32), false)
+        .unwrap());
+    renderer.set_image_prefetch(ids.clone());
+    let before = (
+        renderer.image_count(),
+        renderer.image_decodes,
+        renderer.image_prefetches,
+        renderer.image_upload_bytes,
+    );
+    renderer
+        .prefetch_scene_assets(Resolution::Preview(32))
+        .unwrap();
+    let reference = allocations(|| {
+        for _ in 0..64 {
+            black_box(ids.clone());
+        }
+    });
+    assert_eq!(
+        reference, 64,
+        "the probe must observe one Vec clone per call"
+    );
+    let count = allocations(|| {
+        for _ in 0..64 {
+            black_box(&mut renderer)
+                .prefetch_scene_assets(Resolution::Preview(32))
+                .unwrap();
+        }
+    });
+    assert_eq!(
+        (
+            renderer.image_count(),
+            renderer.image_decodes,
+            renderer.image_prefetches,
+            renderer.image_upload_bytes
+        ),
+        before
+    );
+    assert!(
+        renderer.image_dimensions(ids[ids.len() - 1]).is_none(),
+        "the take limit includes resident candidates"
+    );
+    // Active entries are filtered before applying the existing limit. This
+    // leaves room for the uncached final image after skipping cached entries.
+    let mut active = project.clone();
+    active.layers.retain(|layer| layer.id == 1);
+    let mut active_scene = Scene::new(&active).unwrap();
+    active_scene
+        .sample(&active, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    assert!(renderer
+        .prepare_scene_assets(&active_scene, Resolution::Preview(32), false)
+        .unwrap());
+    let target = renderer.capture_target(16, 16).unwrap();
+    let pixels = renderer.capture(&active_scene, &target).unwrap().0;
+    renderer
+        .prefetch_scene_assets(Resolution::Preview(32))
+        .unwrap();
+    assert_eq!(renderer.image_prefetches, before.2 + 1);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while renderer.image_dimensions(ids[ids.len() - 1]).is_none() {
+        assert!(renderer
+            .prepare_scene_assets(&active_scene, Resolution::Preview(32), true)
+            .unwrap());
+        assert!(Instant::now() < deadline, "prefetch completion timed out");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(renderer.image_prefetches, before.2 + 1);
+    assert_eq!(renderer.capture(&active_scene, &target).unwrap().0, pixels);
+    renderer.check_health().unwrap();
+    println!("resident prefetch / 64 calls: allocations={count} clone_reference={reference}; filter/limit, real decode and pixels verified");
+    assert_eq!(
+        count, 0,
+        "resident prefetch should not allocate a candidate Vec per call"
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn ready_image_preparation_does_not_clone_an_unchanged_allowed_set() {
     assert!(
         allocations(|| {
