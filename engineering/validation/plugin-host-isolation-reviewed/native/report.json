@@ -1,0 +1,33 @@
+{
+  "child_close_does_not_exit": true,
+  "diagnostic_contention": [
+    {
+      "after": 1,
+      "before": 1,
+      "phase": "after-edit"
+    },
+    {
+      "after": 1,
+      "before": 1,
+      "phase": "after-owner-save"
+    },
+    {
+      "after": 2,
+      "before": 1,
+      "phase": "after-child-close"
+    },
+    {
+      "after": 3,
+      "before": 2,
+      "phase": "after-read-error"
+    }
+  ],
+  "different_window_ids": true,
+  "full_snapshot_negative_controls": true,
+  "main_state_unchanged": true,
+  "missing_source_isolated": true,
+  "owner_close_cancel_retained_draft": true,
+  "production_shell_routing": true,
+  "same_process": true,
+  "save_before_owner_close": true
+}

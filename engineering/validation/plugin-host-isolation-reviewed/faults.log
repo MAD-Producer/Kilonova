@@ -1,0 +1,6 @@
+
+running 1 test
+test plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1489 filtered out; finished in 0.07s
+

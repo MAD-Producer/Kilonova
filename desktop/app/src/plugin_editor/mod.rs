@@ -5,6 +5,8 @@ mod preparation;
 mod session;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod host_state_tests;
 mod window;
 
 use layout::{Metrics, ViewState};

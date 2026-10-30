@@ -33,6 +33,14 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
         pump(&mut events, &mut host, |h| h.created);
         let main = host.shell.window.as_ref().unwrap().id();
         let before = host.shell.engine.state().unwrap();
+        super::super::super::host_state_tests::reject_mutations(&before);
+        std::fs::write(
+            root.join("state-before.json"),
+            serde_json::to_vec_pretty(&before).unwrap(),
+        )
+        .unwrap();
+        let mut previous = before.clone();
+        let mut observations = vec![];
         let input = host.shell.input.clone();
         host.shell
             .plugin_author
@@ -92,7 +100,13 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
         });
         assert_eq!(host.shell.input.mouse, input.mouse);
         assert_eq!(host.shell.input.text, input.text);
-        assert_eq!(host.shell.engine.state().unwrap(), before);
+        preserved(
+            &root,
+            "after-edit",
+            &mut previous,
+            host.shell.engine.state().unwrap(),
+            &mut observations,
+        );
         assert!(host.shell.playback.is_none());
         host.shell.request_close();
         assert!(!host.shell.closing);
@@ -141,7 +155,13 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
         assert!(
             matches!(saved.logic,motion_graph::plugin_project::PluginLogic::Wgsl{document} if document.source.contains("// hosted edit"))
         );
-        assert_eq!(host.shell.engine.state().unwrap(), before);
+        preserved(
+            &root,
+            "after-owner-save",
+            &mut previous,
+            host.shell.engine.state().unwrap(),
+            &mut observations,
+        );
         // Child close must not request global event-loop exit or main close.
         host.shell
             .plugin_author
@@ -171,7 +191,13 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
         });
         assert_eq!(host.resumed_close, 1);
         assert!(!host.shell.closing);
-        assert_eq!(host.shell.engine.state().unwrap(), before);
+        preserved(
+            &root,
+            "after-child-close",
+            &mut previous,
+            host.shell.engine.state().unwrap(),
+            &mut observations,
+        );
         // A real missing source stays local to the tool, and closes cleanly.
         host.shell
             .plugin_author
@@ -200,9 +226,15 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
         pump(&mut events, &mut host, |h| {
             h.shell.plugin_author.active.is_none() && !h.shell.plugin_author.busy
         });
-        assert_eq!(host.shell.engine.state().unwrap(), before);
+        preserved(
+            &root,
+            "after-read-error",
+            &mut previous,
+            host.shell.engine.state().unwrap(),
+            &mut observations,
+        );
         assert!(!host.shell.closing);
-        std::fs::write(root.join("report.json"),serde_json::to_vec_pretty(&serde_json::json!({"same_process":true,"different_window_ids":true,"production_shell_routing":true,"main_state_unchanged":true,"owner_close_cancel_retained_draft":true,"save_before_owner_close":true,"child_close_does_not_exit":true,"missing_source_isolated":true})).unwrap()).unwrap();
+        std::fs::write(root.join("report.json"),serde_json::to_vec_pretty(&serde_json::json!({"same_process":true,"different_window_ids":true,"production_shell_routing":true,"main_state_unchanged":true,"diagnostic_contention":observations,"full_snapshot_negative_controls":true,"owner_close_cancel_retained_draft":true,"save_before_owner_close":true,"child_close_does_not_exit":true,"missing_source_isolated":true})).unwrap()).unwrap();
         crate::logging::flush();
         return;
     }
@@ -231,6 +263,30 @@ fn hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close() {
     assert!(logs.contains("phase=read") && logs.contains("plugin.host start"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("motion_studio::"));
 }
+fn preserved(
+    root: &std::path::Path,
+    phase: &str,
+    previous: &mut serde_json::Value,
+    current: serde_json::Value,
+    observations: &mut Vec<serde_json::Value>,
+) {
+    // Keep the raw snapshot before checking it; a failure remains reviewable.
+    std::fs::write(
+        root.join(format!("state-{phase}.json")),
+        serde_json::to_vec_pretty(&current).unwrap(),
+    )
+    .unwrap();
+    let counts = super::super::super::host_state_tests::compare(previous, &current).unwrap_or_else(
+        |cause| {
+            panic!(
+                "host isolation phase={phase}: {cause}; previous={previous:?} current={current:?}"
+            )
+        },
+    );
+    observations.push(serde_json::json!({"phase":phase,"before":counts[0],"after":counts[1]}));
+    *previous = current;
+}
+
 struct Harness {
     shell: crate::Shell,
     created: bool,
