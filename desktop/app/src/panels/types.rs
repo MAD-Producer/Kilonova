@@ -38,6 +38,7 @@ pub enum Action {
     ProjectViewChanged(super::project::ViewPreferences),
     ProjectOpen { source: crate::layer_clipboard::KeyframeSource, composition: String },
     ProjectPlace { source: crate::layer_clipboard::KeyframeSource, target: motion_core::media_assets::AssetRef, at_frame: u32 },
+    ProjectPlaceModel { source: crate::layer_clipboard::KeyframeSource, asset: u64, at_frame: u32 },
     MediaAsset { source: crate::media_assets::Source, intent: crate::media_assets::Intent },
     ImportEffectPackage,
     ImportEffectPath(std::path::PathBuf),

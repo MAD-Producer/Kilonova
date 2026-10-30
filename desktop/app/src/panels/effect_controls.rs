@@ -1540,7 +1540,11 @@ impl Controls {
                     .max(minimum_x);
                 columns.label.max[0] = (value_x - gap).max(columns.label.min[0]);
                 let count = dimensions(kind);
-                let number_width = (styles.metric("effect.number.cell_width", 44.) - gap).max(0.);
+                // Position pairs share their compact cluster with a picker;
+                // other vectors retain the full numeric cell. Inter-cell
+                // spacing is applied separately by number_gap below.
+                let number_width = (styles.metric("effect.number.cell_width", 44.)
+                    - if super::effect_pick::is_position(parameter) { gap } else { 0. }).max(0.);
                 let number_gap = styles.metric("effect.number.gap", 4.);
                 let cap = styles.metric("effect.value.max_width", 108.)
                     .max(if kind == "color" { 1 } else { count } as f32

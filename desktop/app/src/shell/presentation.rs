@@ -959,6 +959,9 @@ impl Shell {
                     self.redraw();
                     return;
                 }
+                if f.panel == dock::Panel::Composition && workflow::model::supported(&path) {
+                    self.actions.push_back(panels::Action::ImportPath(path.clone()));
+                }
                 if f.panel == dock::Panel::Nodes && super::node_image_drop::node_image_path(&path) {
                     let position = f.pointer_position.dropped(&f.window, f.scale);
                     let key = f.key;

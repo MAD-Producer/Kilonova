@@ -66,6 +66,23 @@ fn texture(
         })
 }
 impl MaskGpu {
+    /// Share immutable pipelines only. Geometry masks belong to the enclosing
+    /// encode, so later queue writes cannot change an unsubmitted frame.
+    pub(crate) fn fresh_frame(&self) -> Self {
+        Self {
+            precision: self.precision, format: self.format,
+            raster: self.raster.clone(), filters: self.filters.clone(),
+            uniform_layout: self.uniform_layout.clone(), input_layout: self.input_layout.clone(),
+            sampler: self.sampler.clone(), uniforms: vec![], inputs_cached: false,
+            scratch: vec![], scratch_size: (0, 0), fingerprints: HashMap::new(),
+            meshes: HashMap::new(), active_layers_scratch: HashSet::new(),
+            active_meshes_scratch: HashSet::new(), uploads: 0,
+            #[cfg(test)]
+            input_binding_observations: Vec::new(),
+            allocation_uploads: self.allocation_uploads.clone(),
+            allocation_budget: self.allocation_budget.clone(),
+        }
+    }
     pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
         for (i,t) in self.scratch.iter().enumerate() {
             ledger.retained(&t.texture, crate::TextureCategory::MaskScratch, format!("masks/scratch/{i}"));

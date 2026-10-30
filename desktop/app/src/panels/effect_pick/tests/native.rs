@@ -713,4 +713,34 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
     );
     assert_eq!(cancelled["editorAction"]["reason"], "context_changed");
     assert_eq!(cancelled["project"], before["project"]);
+
+    // Exercise the non-position vector cell as well as the coordinate picker.
+    let catalogue = &panels.effect_controls.catalogue;
+    let package = catalogue["packages"].as_array().unwrap().iter().find(|package| {
+        package["manifest"]["effects"].as_array().unwrap().iter()
+            .any(|effect| effect["id"] == "drop_shadow")
+    }).unwrap();
+    engine.plugin(serde_json::json!({"op":"add","object":7,
+        "plugin":package["manifest"]["id"],"version":package["manifest"]["version"],
+        "hash":package["hash"],"effect":"drop_shadow"}).to_string()).unwrap();
+    let state = engine.state().unwrap();
+    let shadow = state["project"]["layers"][0]["effects"][1]["id"].as_u64().unwrap();
+    for width in [220., 360.] {
+        let size = [width, 560.];
+        receive(&mut events, engine.resize_async(0, width as u32, 560).unwrap());
+        let mut paint = PaintList::default();
+        assert!(super::super::super::floating_chrome(
+            &mut paint, &mut atlas, Panel::EffectControls, size, &mut panels,
+            &state, &Input::default()).is_empty());
+        let offset = panels.effect_controls.test_rects[&(7, shadow, "offset".into(), 0)];
+        assert!(offset.width() >= atlas.measure("12.000"));
+        let ui = UiFrame {
+            paint, atlas: Some(AtlasUpload { pixels: atlas.pixel_data().to_vec(),
+                width: atlas.config().width, height: atlas.config().height }),
+            logical_size: size, composition: None, composition_image: None,
+            window: 0, node_preview: None,
+        };
+        crate::native_test_support::capture_ui(&mut events, &engine, ui,
+            root.join(format!("effect-vector-{width:.0}.png"))).unwrap();
+    }
 }

@@ -1,0 +1,211 @@
+{
+  "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+  "base": "171fc7a7ea6a78891c68133c27a1ecdc3b2d941a",
+  "checks": [
+    {
+      "name": "path-controls",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::path_controls",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 315038,
+      "test_results": [
+        "test result: ok. 93 passed; 0 failed; 3 ignored; 0 measured; 1244 filtered out; finished in 52.07s"
+      ]
+    },
+    {
+      "name": "native-viewer",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "panels::path_controls::mask_boundaries::viewer::tests::native",
+        "--",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 155789,
+      "test_results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1338 filtered out; finished in 153.53s"
+      ]
+    },
+    {
+      "name": "native-link",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-desktop",
+        "--bin",
+        "motion-studio",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "--",
+        "--exact",
+        "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 44764,
+      "test_results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1339 filtered out; finished in 41.83s"
+      ]
+    },
+    {
+      "name": "boundary-gpu",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-render",
+        "--test",
+        "mask_boundary_geometry",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 106091,
+      "test_results": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.74s"
+      ]
+    },
+    {
+      "name": "render-masks",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-render",
+        "--test",
+        "layer_masks",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 34520,
+      "test_results": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.20s"
+      ]
+    },
+    {
+      "name": "mask-plan",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-render",
+        "--lib",
+        "--locked",
+        "--offline",
+        "mask_plan",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 47411,
+      "test_results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 274 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "name": "core-masks",
+      "source": "9b7fec95c7c96333d9e013e073b79a4c408d99a0",
+      "arguments": [
+        "test",
+        "-p",
+        "motion-core",
+        "--test",
+        "layer_masks",
+        "--locked",
+        "--offline",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "elapsed_ms": 130520,
+      "test_results": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+      ]
+    }
+  ],
+  "viewer_cases": 12,
+  "owner_cases": 24,
+  "viewer_pngs": 72,
+  "link_pngs": 24,
+  "style_consumers": "passed",
+  "diff_check": "passed",
+  "limits": [
+    "Windows native owners and explicit WindowEvents, not physical OS mouse injection",
+    "Drawing pixel ratios do not change OS DPI",
+    "No standalone release executable produced",
+    "Source-space feather sampling support excludes the sampler footprint and is not a hard alpha contour"
+  ],
+  "earlier_runs": {
+    "path-controls.log": "87 passed, 5 actual input/visibility regressions; superseded",
+    "path-controls-priority.log": "91 passed, 2 remaining visibility/flush checks; superseded",
+    "path-controls-distinct-grips.log": "93 passed, 1 ignored at 8cf5b278; superseded by final run",
+    "native-viewer.log": "overlay-only capture insufficient for rendered content; superseded",
+    "native-rendered-and-owners.log": "2 passed at b9087d33; superseded by final run"
+  },
+  "bundle": {
+    "path": "data/mask-boundary-viewer-evidence.zip",
+    "entries": 142,
+    "bytes": 10644967,
+    "sha256": "6d5b67c69f226f606769b05b0ddca9042019a1424d1494812f4a1ca83e708cc9"
+  },
+  "screenshots": [
+    {
+      "path": "mask-boundary-viewer/zh-main-1x-feather-hover.png",
+      "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\final-9b7fec95\\viewer\\zh-main-1x-feather-hover.png",
+      "sha256": "865184c38c74569e4f4dbd3a166d0db158661228f99d1a75c07553687fcdc5bf",
+      "modified": false
+    },
+    {
+      "path": "mask-boundary-viewer/zh-main-1x-feather-after.png",
+      "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\final-9b7fec95\\viewer\\zh-main-1x-feather-after.png",
+      "sha256": "c0a23d144233fe98a777bcd778ca217be9643fc3f6232acf2566e29feb4881b0",
+      "modified": false
+    },
+    {
+      "path": "mask-boundary-viewer/zh-float-1x-expansion-hover.png",
+      "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\final-9b7fec95\\viewer\\zh-float-1x-expansion-hover.png",
+      "sha256": "e6f7a159f7e512a7fcb59d1cde5e6aadacdd71be39c9cdeef743452aa00fd538",
+      "modified": false
+    },
+    {
+      "path": "mask-boundary-viewer/zh-main-1.5x-feather-hover.png",
+      "original": "E:\\Dev\\aem\\artifacts\\pr-ci-followups\\mask-boundary-handles\\final-9b7fec95\\viewer\\zh-main-1.5x-feather-hover.png",
+      "sha256": "51bd35f8567f19c8a8226972b6c43a883f42da98309ab01ce8c5b24931e32db3",
+      "modified": false
+    }
+  ]
+}

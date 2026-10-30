@@ -62,6 +62,7 @@ pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
 pub use camera::{
     to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,
     ImportedCamera, CameraSample, CameraSampler, AuthoredCameraSampler,
+    DepthOfField, SampledDepthOfField,
 };
 pub use composition::{Composition, CompositionAction, CompositionClip, CompositionSettings, MAIN_COMPOSITION};
 pub use curve::{Curve, CurveSample, CurveShape, CurveSpace, Easing};

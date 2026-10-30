@@ -1,0 +1,133 @@
+{
+  "base": "2ffeeda7098c25356ed6a8fbd856680f39f2a6d4",
+  "originalHead": "9df243fe14b465a319758c2036960bfa3e4c66a7",
+  "originalCiRun": 40833617304,
+  "sourceSha256": {
+    "desktop/app/src/node_editor/tests.rs": "932493452cfe3bb8ec012efedf4d3560d4743043680f87ca1301ffd8f8cdcef2",
+    "desktop/app/src/panels/effect_controls.rs": "4a98a012391d6e29f43eb6b73bf2a483001a60f5c431932f6f1b9b95a99dd478",
+    "desktop/app/src/panels/effect_pick/tests/native.rs": "a6387e0fafd0e0f1578fbd60a647438ebe72d6a5f312f3a298dd3f7ea9ac5663",
+    "desktop/app/src/panels/path_controls/mask_inspector.rs": "83c8a8cfc661c8ce5604ca0d9b78233756e2b546ade71b74ce374382c3ee8a86",
+    "desktop/app/src/shell/layer_clipboard/tests/native/text.rs": "0674dc31abc737276914c32d58b001f5575e2980503d1a3595a6faeddfb4b46d",
+    "desktop/app/src/shell/layer_clipboard/tests/native/text/legacy_fields.rs": "452b4c85d14eeb00d5da303209a386a5f38368b47e47e301637cfd0fe4968704"
+  },
+  "testExecutableSha256": "51fd2c1a49b8e0d4e9b06a4a21e2d6f5041f09d4793228cde990cffe4a5f9ead",
+  "productSha256": "6cca1fea564e1ebb8498bad910a244c6a8c4121964dda3c883c1a415e8ca6cd4",
+  "checks": [
+    {
+      "log": "integrated-node_editor-tests.log",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 2.35
+    },
+    {
+      "log": "integrated-panels-effect_controls-tests.log",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 10.52
+    },
+    {
+      "log": "integrated-panels-key_navigation.log",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 56.29
+    },
+    {
+      "log": "integrated-panels-path_controls-mask_inspector.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.01
+    },
+    {
+      "log": "integrated-feather_link.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1,
+      "seconds": 0.09
+    },
+    {
+      "log": "clipboard-integrated.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 37.75
+    },
+    {
+      "log": "visual-integrated.stdout.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 14.52
+    },
+    {
+      "log": "feather-integrated.stdout.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 25.7
+    }
+  ],
+  "distinctPassed": 42,
+  "manualGpuExecuted": 2,
+  "automaticSuiteManualIgnoreWasExecutedSeparately": true,
+  "coordinateRegionPixelComparison": [
+    {
+      "width": 220,
+      "region": [
+        0,
+        0,
+        220,
+        340
+      ],
+      "differentPixels": 0
+    },
+    {
+      "width": 360,
+      "region": [
+        0,
+        0,
+        360,
+        340
+      ],
+      "differentPixels": 0
+    }
+  ],
+  "defaultLog": {
+    "infoStartInFile": true,
+    "originalErrorsInFileAndStderr": true,
+    "stdoutIsolated": true
+  },
+  "screens": [
+    {
+      "path": "screens/panel-ci-repair/effect-vector-220.png",
+      "sha256": "a2e1aef5a30961d17b65108fa965afde680eb20418de0556dc2ccf0052546002"
+    },
+    {
+      "path": "screens/panel-ci-repair/effect-vector-360.png",
+      "sha256": "75417e874da34e0543594e234d5f8274afcc62b2505a6958b1de781628b8e2dd"
+    },
+    {
+      "path": "screens/panel-ci-repair/mask-feather-zh-floating-route-1x-linked.png",
+      "sha256": "52260e320627bbdffe55d5183ee7a2b27fc92507c433063406fa4fa9054dcb7f"
+    },
+    {
+      "path": "screens/panel-ci-repair/mask-feather-zh-main-1x-unlinked.png",
+      "sha256": "3032a4efc69e7d9ef430867997ca3803ab9f45b20edf14a81eb9ee8bbb4da271"
+    }
+  ],
+  "evidence": {
+    "path": "data/panel-ci-repair.zip",
+    "bytes": 2374437,
+    "sha256": "a013d1bb6c52d518e6dadf0763f9e4089aabb4220a8c0aa091bef33e29958b9f"
+  },
+  "ci": "pending final head; no Linux/macOS local execution",
+  "limits": [
+    "Normalized input on native Windows/wgpu surfaces; not physical OS input",
+    "Floating-route feather case draws floating chrome on an attached native surface, not an independent floating HWND",
+    "Existing Epic overlay Vulkan loader errors retained",
+    "No full DESIGN or whole #215 closure claim"
+  ]
+}

@@ -2,6 +2,7 @@
 //! contiguous model runs share mesh depth; authored compositing boundaries
 //! retain the isolated receiver path and do not share depth with flat planes.
 mod shared;
+pub(super) mod matte_sources;
 mod cameras;
 use super::*;
 use crate::scene_gpu::{GpuScene, SceneFrame, SceneGpuLimits, SceneRenderStats, SceneRequest};
@@ -68,24 +69,28 @@ pub(super) struct Models {
     gpu: HashMap<u64, GpuScene>,
     targets: HashMap<u64, RenderTarget>,
     shared: [Option<crate::scene_gpu::ScenePass>; 2],
+    matte_pass: Option<crate::scene_gpu::ScenePass>,
 }
 impl Models {
     pub fn clear_gpu(&mut self) {
         self.gpu.clear();
         self.targets.clear();
         self.shared = [None, None];
+        self.matte_pass = None;
     }
     pub fn clear_targets(&mut self) {
         self.targets.clear();
         self.shared = [None, None];
+        self.matte_pass = None;
     }
     pub fn retain_targets(&mut self, live: &std::collections::HashSet<u64>) {
         self.targets.retain(|id, _| live.contains(id));
-        if self.targets.is_empty() { self.shared = [None, None]; }
+        if self.targets.is_empty() { self.shared = [None, None]; self.matte_pass = None; }
     }
     pub fn texture_bytes(&self) -> u64 {
         self.gpu.values().map(GpuScene::texture_bytes).sum::<u64>()
             + self.shared.iter().flatten().map(crate::scene_gpu::ScenePass::attachment_bytes).sum::<u64>()
+            + self.matte_pass.as_ref().map_or(0, crate::scene_gpu::ScenePass::attachment_bytes)
     }
     pub fn source_texture_bytes(&self) -> u64 {
         self.gpu.values().map(GpuScene::source_texture_bytes).sum()
@@ -99,6 +104,7 @@ impl Models {
         });
         self.targets.clear();
         self.shared = [None, None];
+        self.matte_pass = None;
         self.sources = sources;
     }
     pub fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
@@ -106,6 +112,7 @@ impl Models {
             ledger.merge(gpu.texture_resource_ledger());
         }
         for pass in self.shared.iter().flatten() { ledger.merge(pass.texture_resource_ledger()); }
+        if let Some(pass) = &self.matte_pass { ledger.merge(pass.texture_resource_ledger()); }
     }
 }
 

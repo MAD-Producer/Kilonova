@@ -465,6 +465,8 @@ pub(super) fn render(
             {
                 if let Some(target) = entry.key.media() {
                     panels.project_drag.begin(target, input.mouse, state);
+                } else if let RowKey::Item(ProjectItem::Model { id }) = &entry.key {
+                    panels.project_drag.begin_model(*id, input.mouse, state);
                 }
                 let now = std::time::Instant::now();
                 if browser.last_click.as_ref().is_some_and(|(key, last)| {

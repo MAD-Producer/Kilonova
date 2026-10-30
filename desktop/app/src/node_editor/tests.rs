@@ -1053,10 +1053,15 @@ fn real_inspector_text_input_and_save_shortcut_capture_committed_value() {
         .layout(Rect::new(0., 0., 1440., 900.))
         .inspector
         .unwrap();
-    // Header 37 + title/id 56 + delete row 38, then first constant field.
+    // Embedded header, title/delete row and ID row precede the first field.
+    let styles = PaintList::default().styles();
     let point = [
-        inspector.min[0] + 100.,
-        inspector.min[1] + 37. + 56. + 38. + 13.,
+        inspector.min[0] + styles.metric("padding.panel", 8.)
+            + styles.metric("label.column", 72.) + styles.metric("padding", 5.) * 2.,
+        inspector.min[1] + styles.metric("panel.header.height", 24.)
+            + styles.metric("padding.panel", 8.)
+            + styles.metric("node.dropdown.row.height", 28.) * 2.5
+            + styles.metric("padding", 5.),
     ];
     frame(&mut editor, &mut atlas, press(point, MouseButton::Left));
     assert!(editor.field.is_some());

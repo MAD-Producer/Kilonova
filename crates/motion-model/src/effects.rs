@@ -641,13 +641,20 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                 p.kind != ParamKind::Curve,
                 "use set_curve_object for curve parameters",
             )?;
-            p.track.set_at(frame, value)?;
-            if p.kind.discrete() {
-                for k in &mut p.track.keys {
+            // Validate the candidate key like every other editing arm, before it
+            // is committed: `sample` clamps for display, but a stored value that
+            // `EffectParam::validate` rejects would make the whole document
+            // unsaveable. A rejected write leaves the track untouched.
+            let mut candidate = p.clone();
+            candidate.track.set_at(frame, value)?;
+            if candidate.kind.discrete() {
+                for k in &mut candidate.track.keys {
                     k.ease = Ease::Hold;
                     k.curve = None;
                 }
             }
+            candidate.validate(frames)?;
+            *p = candidate;
         }
         EffectAction::Animate {
             effect,
