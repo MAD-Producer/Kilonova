@@ -5,6 +5,14 @@ unmodified wgsl-analyzer (wgsl-analyzer contributors, MIT OR Apache-2.0).
 The server is not embedded in this repository, effect packages or release pipeline.
 Source, tested revision and license links are recorded in ATTRIBUTION.md.
 
+## notify 8.2.0 (native filesystem notifications)
+
+Authors: Felix Saparelli, Daniel Faust, Aron Heinecke and notify-rs contributors
+Source: https://github.com/notify-rs/notify
+License: CC0-1.0, https://creativecommons.org/publicdomain/zero/1.0/legalcode
+The upstream package is used without modification. See ATTRIBUTION.md for the
+exact source revision and archive checksum. No upstream product assets are used.
+
 版权所有 (c) 2026 Motion Studio contributors
 Copyright (c) 2026 Motion Studio contributors
 

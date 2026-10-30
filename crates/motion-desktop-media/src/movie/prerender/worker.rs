@@ -137,6 +137,7 @@ pub struct Snapshot {
     pub retained_cpu_bytes: u64,
     pub cpu_limit_bytes: u64,
     pub last_failure: Option<String>,
+    pub source: Option<source_watch::Snapshot>,
 }
 /// Read-only and Send + Sync: a watchdog need not enqueue a command on either
 /// the Engine owner or the potentially blocked native rendering thread.
@@ -164,6 +165,11 @@ impl Observation {
             retained_cpu_bytes: self.cpu.live.load(Ordering::Acquire),
             cpu_limit_bytes: self.cpu.limit,
             last_failure: state.last_failure.clone(),
+            source: state
+                .source
+                .as_ref()
+                .map(source_watch::Observation::snapshot)
+                .transpose()?,
         })
     }
 }
@@ -180,6 +186,7 @@ struct State {
     waiting: bool,
     stopped: bool,
     last_failure: Option<String>,
+    source: Option<source_watch::Observation>,
 }
 enum Work {
     Prepare(PrerenderPlan),
@@ -447,6 +454,14 @@ impl Worker {
             cpu: self.cpu.clone(),
         }
     }
+    pub(super) fn source_observation(&self) -> Result<Option<source_watch::Observation>> {
+        Ok(self
+            .state
+            .lock()
+            .map_err(|_| "prerender observation state poisoned")?
+            .source
+            .clone())
+    }
     /// Does not wait for GPU/decoder work. A running thread keeps its sole owner
     /// and source closure until it acknowledges cancellation and drops them.
     pub fn shutdown(&mut self) {
@@ -532,7 +547,13 @@ fn run(
                     retiring(state, phase_hook, id);
                     renderer = None;
                     input = None;
-                    let prepared = plan.prepare(&control, &mut progress)?;
+                    let prepared = plan.prepare_observed(&control, &mut progress, |source| {
+                        state
+                            .lock()
+                            .map_err(|_| "prerender observation state poisoned")?
+                            .source = Some(source);
+                        Ok(())
+                    })?;
                     let project = &prepared.frozen.project;
                     let profile = Profile {
                         context: prepared.context(),
