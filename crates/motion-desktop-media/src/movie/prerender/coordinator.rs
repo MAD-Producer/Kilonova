@@ -53,6 +53,7 @@ pub struct Coordinator {
     // Cache validity survives cooperative render cancellation, but lookup stays
     // closed until a new preparation acknowledges the complete frozen context.
     cache_profile: Option<Profile>,
+    source: Option<source_watch::Observation>,
     cache: Option<CompositionFrameCache>,
     cpu_bytes: u64,
     gpu_bytes: u64,
@@ -69,6 +70,7 @@ impl Coordinator {
             active: None,
             profile: None,
             cache_profile: None,
+            source: None,
             cache: None,
             cpu_bytes,
             gpu_bytes,
@@ -78,7 +80,11 @@ impl Coordinator {
         })
     }
     pub fn profile(&self) -> Option<Profile> {
-        self.profile
+        self.profile.filter(|_| {
+            self.source
+                .as_ref()
+                .is_some_and(source_watch::Observation::valid)
+        })
     }
     pub fn busy(&self) -> bool {
         self.active.is_some()
@@ -140,6 +146,7 @@ impl Coordinator {
             self.retiring = false;
         }
         self.suspend()?;
+        self.source = None;
         if self.worker.is_none() {
             self.worker = Some(Worker::start(self.cpu_bytes)?);
         }
@@ -160,11 +167,32 @@ impl Coordinator {
     /// Cancel cooperatively; keep the actual destination and job slot until ack.
     pub fn invalidate(&mut self) -> Result<()> {
         self.suspend()?;
+        self.source = None;
         self.cache_profile = None;
         if let Some(cache) = &mut self.cache {
             cache.clear();
         }
         Ok(())
+    }
+    fn reconcile_source(&mut self) -> Result<bool> {
+        let Some(source) = &self.source else {
+            return Ok(false);
+        };
+        if source.valid() {
+            return Ok(true);
+        }
+        let snapshot = source.snapshot()?;
+        if snapshot.fault {
+            return Err(format!(
+                "prerender source watcher failed: {}",
+                snapshot
+                    .cause
+                    .as_deref()
+                    .unwrap_or("unknown native watcher fault")
+            ));
+        }
+        self.invalidate()?;
+        Ok(false)
     }
     fn suspend(&mut self) -> Result<()> {
         self.epoch = self
@@ -186,6 +214,9 @@ impl Coordinator {
         self.update_job(demand, true)
     }
     fn update_job(&mut self, demand: Demand, playback: bool) -> Result<()> {
+        if !self.reconcile_source()? {
+            return Ok(());
+        }
         let Some(profile) = self.profile else {
             return Ok(());
         };
@@ -241,12 +272,17 @@ impl Coordinator {
     }
     /// Drain one matching completion. Run update/invalidation before this call.
     pub fn poll(&mut self, renderer: &Renderer) -> Result<bool> {
+        // A source fault closes lookup/admission, but cannot prevent the real
+        // native operation from acknowledging. Drain before returning the
+        // fault so its original failure and retained resources are accounted for.
+        let source_failure = self.reconcile_source().err();
         let Some(worker) = &mut self.worker else {
-            return Ok(false);
+            return source_failure.map_or(Ok(false), Err);
         };
         let Some(complete) = worker.poll()? else {
-            return Ok(false);
+            return source_failure.map_or(Ok(false), Err);
         };
+        let source = worker.source_observation()?;
         if self.active.as_ref().map(Active::id) != Some(complete.id) {
             return Err("prerender coordinator completion ticket mismatch".into());
         }
@@ -254,9 +290,49 @@ impl Coordinator {
             .active
             .take()
             .ok_or("missing prerender coordinator flight")?;
+        let observed_failure = match source.as_ref().map(|s| s.snapshot()).transpose() {
+            Ok(Some(snapshot)) if snapshot.fault => Some(format!(
+                "prerender source watcher failed: {}",
+                snapshot
+                    .cause
+                    .as_deref()
+                    .unwrap_or("unknown native watcher fault")
+            )),
+            Err(cause) => Some(cause),
+            _ => None,
+        };
+        if let Some(cause) = source_failure.or(observed_failure) {
+            self.scheduler.invalidate();
+            if let Active::Render { ticket, .. } = &active {
+                self.scheduler.finish(ticket);
+            }
+            self.profile = None;
+            self.cache_profile = None;
+            if let Some(cache) = &mut self.cache {
+                cache.clear();
+            }
+            // Retain the fault for the existing explicit recovery boundary,
+            // including when preparation failed before publishing a profile.
+            if source.is_some() {
+                self.source = source;
+            }
+            if let Outcome::Failed(primary) = &complete.outcome {
+                log::error!(
+                    "prerender ticket={} phase=source_watch secondary_cause={cause}",
+                    complete.id
+                );
+                return Err(primary.clone());
+            }
+            return Err(cause);
+        }
         match active {
             Active::Prepare { epoch, .. } => match complete.outcome {
-                Outcome::Prepared(profile) if epoch == self.epoch => {
+                Outcome::Prepared(profile)
+                    if epoch == self.epoch
+                        && source
+                            .as_ref()
+                            .is_some_and(source_watch::Observation::valid) =>
+                {
                     // Reopening the same immutable source must not discard
                     // completed native frames. No old entry becomes readable
                     // before this full content/output/generation acknowledgment.
@@ -271,6 +347,7 @@ impl Coordinator {
                         );
                     }
                     self.cache_profile = Some(profile);
+                    self.source = source;
                     self.profile = Some(profile);
                     Ok(false)
                 }
@@ -287,7 +364,14 @@ impl Coordinator {
                 let reusable_native =
                     complete.retained_native || matches!(&complete.outcome, Outcome::Frame(_));
                 let installed = match complete.outcome {
-                    Outcome::Frame(frame) if epoch == self.epoch && !ticket.canceled() => {
+                    Outcome::Frame(frame)
+                        if epoch == self.epoch
+                            && !ticket.canceled()
+                            && self
+                                .source
+                                .as_ref()
+                                .is_some_and(source_watch::Observation::valid) =>
+                    {
                         let key = frame.key();
                         let context = key.context();
                         log::info!(
@@ -341,6 +425,9 @@ impl Coordinator {
         self.schedule_job(renderer, Control::Yield(control))
     }
     fn schedule_job(&mut self, renderer: &Renderer, control: Control) -> Result<bool> {
+        if !self.reconcile_source()? {
+            return Ok(false);
+        }
         if self.active.is_some() {
             return Ok(false);
         }
@@ -419,6 +506,9 @@ impl Coordinator {
         renderer: &Renderer,
         frame: f64,
     ) -> Result<Option<Arc<motion_render::CachedCompositionFrame>>> {
+        if !self.reconcile_source()? {
+            return Ok(None);
+        }
         let (Some(profile), Some(cache)) = (self.profile, &mut self.cache) else {
             return Ok(None);
         };

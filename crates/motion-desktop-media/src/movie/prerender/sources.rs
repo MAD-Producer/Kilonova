@@ -13,6 +13,43 @@ pub(super) struct CapturedSources {
     pub(super) observation_request: u64,
 }
 impl CapturedSources {
+    pub(super) fn watch(&self) -> Result<source_watch::SourceWatch> {
+        let mut paths: std::collections::BTreeSet<PathBuf> = self
+            .project
+            .assets
+            .iter()
+            .map(|a| PathBuf::from(&a.path))
+            .chain(self.project.fonts.iter().map(|a| PathBuf::from(&a.path)))
+            .chain(
+                self.project
+                    .video_assets
+                    .iter()
+                    .map(|a| PathBuf::from(&a.path)),
+            )
+            .chain(
+                self.project
+                    .model_assets
+                    .iter()
+                    .map(|a| PathBuf::from(&a.path)),
+            )
+            .collect();
+        for video in &self.project.video_assets {
+            paths.insert(
+                motion_media::video_cache_path(&self.root, video)?
+                    .strip_prefix(&self.root)
+                    .map_err(|e| e.to_string())?
+                    .to_path_buf(),
+            );
+        }
+        for resource in self.project.node_resources().map_err(|e| e.to_string())? {
+            paths.insert(PathBuf::from(resource.path));
+        }
+        source_watch::SourceWatch::arm(
+            self.observation_request,
+            &self.root,
+            &paths.into_iter().collect::<Vec<_>>(),
+        )
+    }
     pub(super) fn capture(session: &Session, request: u64) -> Result<Self> {
         Ok(Self {
             project: session.engine.snapshot(),
