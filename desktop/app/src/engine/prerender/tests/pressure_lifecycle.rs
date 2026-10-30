@@ -188,9 +188,10 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     );
 
     study(&mut events, &engine, release_pressure);
-    engine.seek(0.).unwrap();
+    // Supply forward demand; backward lookahead at frame zero is empty by design.
+    engine.seek(3.).unwrap();
     let recovered = warm(&engine);
-    engine.seek(1.).unwrap();
+    engine.seek(4.).unwrap();
     present(&mut events, &engine);
     let recovered_front = read_front(&mut events, &engine);
     pixels(&recovered_front, [255, 0, 0, 255]);
@@ -204,8 +205,9 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     present(&mut events, &engine);
     let green_cold = read_front(&mut events, &engine);
     pixels(&green_cold, [0, 255, 0, 255]);
-    let green_warm = warm(&engine);
     engine.seek(1.).unwrap();
+    let green_warm = warm(&engine);
+    engine.seek(2.).unwrap();
     present(&mut events, &engine);
     let green_front = read_front(&mut events, &engine);
     pixels(&green_front, [0, 255, 0, 255]);
