@@ -137,12 +137,16 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     receive(&mut events, &engine.attach_async(window, 64, 64).unwrap());
     study(&mut events, &engine, high);
     present(&mut events, &engine);
-    let policy = motion_host::prerender::Policy {
-        enabled: true,
-        window: 2,
-        ..Default::default()
+    let control = crate::mcp::ToolRouter {
+        engine: &engine,
+        access: crate::mcp::Access::Edit,
     };
-    engine.configure_prerender(policy).unwrap();
+    control
+        .call(
+            "configure_prerender",
+            serde_json::json!({"enabled":true,"window":2}),
+        )
+        .unwrap();
     let red_warm = warm(&engine, 2);
     engine.seek(1.).unwrap();
     present(&mut events, &engine);
@@ -237,7 +241,9 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
         engine.state().unwrap()["project"],
         serde_json::to_value(&red).unwrap()
     );
-    engine.configure_prerender(Default::default()).unwrap();
+    control
+        .call("configure_prerender", serde_json::json!({"enabled":false}))
+        .unwrap();
     std::fs::write(root.join("report.json"), serde_json::to_vec_pretty(&serde_json::json!({
         "redWarm":red_warm,"redFront":red_front,"pressure":held,"pressureAfter":held_again,
         "pressureFront":pressure_front,"recovered":recovered,"recoveredFront":recovered_front,
