@@ -65,6 +65,98 @@ fn disabled_coordinator_owns_no_worker_or_native_cache() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn yielded_coordinator_keeps_warm_pixels_and_resumes_without_preparing_again() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Mutex,
+    };
+    let root = tempfile::tempdir().unwrap();
+    let session = session(root.path());
+    let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+        session.engine.project().working_precision,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+    let (entered, waiting) = mpsc::sync_channel(1);
+    let (release, blocked) = mpsc::sync_channel(1);
+    let blocked = Mutex::new(blocked);
+    let preparations = Arc::new(AtomicUsize::new(0));
+    let initialized = Arc::new(AtomicUsize::new(0));
+    let freezes = preparations.clone();
+    let initializations = initialized.clone();
+    let draws = AtomicUsize::new(0);
+    owner.worker = Some(
+        Worker::start_with_phase_hook(3072, move |_, phase| {
+            if phase == "freeze" {
+                freezes.fetch_add(1, Ordering::AcqRel);
+            }
+            if phase == "initialize" {
+                initializations.fetch_add(1, Ordering::AcqRel);
+            }
+            if phase == "draw" && draws.fetch_add(1, Ordering::AcqRel) == 1 {
+                entered.send(()).unwrap();
+                blocked
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap();
+            }
+        })
+        .unwrap(),
+    );
+    prepare(&mut owner, &session, &renderer);
+    owner.advance_playback(demand()).unwrap();
+    assert!(owner
+        .schedule_with_yield(&renderer, YieldControl::default())
+        .unwrap());
+    assert!(drain(&mut owner, &renderer));
+    let warm = owner.get(&renderer, 1.).unwrap().unwrap();
+    let token = YieldControl::default();
+    assert!(owner.schedule_with_yield(&renderer, token.clone()).unwrap());
+    waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+    assert!(token.preempt());
+    assert_eq!(owner.cache_info().unwrap().pending_bytes, 3072);
+    release.send(()).unwrap();
+    assert!(!drain(&mut owner, &renderer));
+    assert!(owner.profile().is_some());
+    assert_eq!(owner.status().counts.completed, 1);
+    assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+    let kept = owner.get(&renderer, 1.).unwrap().unwrap();
+    assert!(Arc::ptr_eq(&warm, &kept));
+    owner
+        .advance_playback(Demand {
+            frame: 1.,
+            now: Duration::from_millis(34),
+            ..demand()
+        })
+        .unwrap();
+    assert!(owner
+        .schedule_with_yield(&renderer, YieldControl::default())
+        .unwrap());
+    assert!(drain(&mut owner, &renderer));
+    let resumed = owner.get(&renderer, 2.).unwrap().unwrap();
+    assert_eq!(resumed.key().frame(), 2.);
+    assert_eq!(
+        pixels(&renderer, resumed.source()),
+        [255, 0, 0, 255].repeat(32 * 24)
+    );
+    assert_eq!(owner.status().counts.completed, 2);
+    assert_eq!(preparations.load(Ordering::Acquire), 1);
+    assert_eq!(initialized.load(Ordering::Acquire), 1);
+    assert_eq!(
+        owner
+            .observation()
+            .unwrap()
+            .snapshot()
+            .unwrap()
+            .retained_cpu_bytes,
+        0
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn playback_admission_keeps_due_and_nearer_frames_without_counting_lookup_hits() {
     let root = tempfile::tempdir().unwrap();
     let session = session(root.path());

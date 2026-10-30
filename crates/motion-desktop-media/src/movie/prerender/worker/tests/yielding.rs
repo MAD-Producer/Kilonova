@@ -130,3 +130,79 @@ fn running_native_draw_yields_but_keeps_its_cpu_slot_until_acknowledgment() {
     assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 0);
     stop(&mut worker);
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn yielded_draw_reuses_the_same_native_owner_but_strong_cancellation_closes_it() {
+    for invalidate_at in [None, Some("before_ack"), Some("after_ack")] {
+        let root = tempfile::tempdir().unwrap();
+        let session = session(root.path());
+        let (entered, waiting) = mpsc::sync_channel(1);
+        let (release, blocked) = mpsc::sync_channel(1);
+        let blocked = Mutex::new(blocked);
+        let first_draw = AtomicBool::new(true);
+        let initialized = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let initializations = initialized.clone();
+        let mut worker = Worker::start_with_phase_hook(3072, move |_, phase| {
+            if phase == "initialize" {
+                initializations.fetch_add(1, Ordering::AcqRel);
+            }
+            if phase == "draw" && first_draw.swap(false, Ordering::AcqRel) {
+                entered.send(()).unwrap();
+                blocked
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap();
+            }
+        })
+        .unwrap();
+        worker.prepare(plan(&session)).unwrap().unwrap();
+        assert!(matches!(poll(&mut worker).outcome, Outcome::Prepared(_)));
+        let token = YieldControl::default();
+        worker
+            .render_with_yield(1., token.clone())
+            .unwrap()
+            .unwrap();
+        waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert!(token.preempt());
+        if invalidate_at == Some("before_ack") {
+            assert!(token.control().cancel());
+        }
+        assert!(worker.poll().unwrap().is_none());
+        assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 3072);
+        release.send(()).unwrap();
+        published(&token);
+        if invalidate_at == Some("after_ack") {
+            assert!(token.control().cancel());
+        }
+        let completion = poll(&mut worker);
+        assert!(matches!(completion.outcome, Outcome::Cancelled));
+        assert_eq!(completion.retained_native, invalidate_at.is_none());
+        assert_eq!(worker.profile.is_some(), invalidate_at.is_none());
+        assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 0);
+        assert_eq!(initialized.load(Ordering::Acquire), 1);
+        if invalidate_at.is_none() {
+            // No prepare, source freeze or native initialization between the
+            // canceled frame and this successful exact-frame render.
+            worker
+                .render_with_yield(2., YieldControl::default())
+                .unwrap()
+                .unwrap();
+            let Outcome::Frame(frame) = poll(&mut worker).outcome else {
+                panic!("yielded native owner did not resume rendering");
+            };
+            assert_eq!(frame.key().frame(), 2.);
+            assert_eq!(frame.image().pixels, [255, 0, 0, 255].repeat(32 * 24));
+            assert_eq!(initialized.load(Ordering::Acquire), 1);
+            drop(frame);
+            assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 0);
+        } else {
+            assert!(worker
+                .render(2.)
+                .unwrap_err()
+                .contains("no acknowledged preparation"));
+        }
+        stop(&mut worker);
+    }
+}
