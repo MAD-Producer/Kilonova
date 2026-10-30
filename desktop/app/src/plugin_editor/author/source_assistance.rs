@@ -1,6 +1,23 @@
 use super::*;
 use serde_json::Value;
 impl Source {
+    fn locate_language(&mut self, line: usize, column: usize, operation: &'static str) -> bool {
+        let Some(byte) = lsp::byte(&self.editor.text, line, column) else {
+            // A server position is not trusted editor input. Keep the draft and
+            // selection intact, and expose the refusal without logging source.
+            log::error!("plugin.language navigation operation={operation} line={line} utf16_column={column} source_bytes={} cause=invalid UTF-16 position", self.editor.text.len());
+            self.language_error = Some(format!(
+                "语言服务返回了无效位置，请重新检查源码 / Invalid language-service position: line={line}, UTF-16 column={column}"
+            ));
+            self.language_reply = None;
+            self.completion_open = false;
+            return false;
+        };
+        self.editor.select_bytes(byte, byte);
+        self.focus = true;
+        self.language_error = None;
+        true
+    }
     #[cfg(test)]
     pub fn test_language_snapshot(&self) -> Option<lsp::Snapshot> {
         self.language.as_ref().map(|c| c.snapshot().unwrap())
@@ -385,6 +402,7 @@ impl Source {
                     .iter()
                     .filter(|_| s.revision == draft.revision)
                     .collect();
+                let mut navigation = None;
                 for d in diagnostics
                     .into_iter()
                     .take((details.height() / row) as usize)
@@ -403,12 +421,12 @@ impl Source {
                         Align::Left,
                     );
                     if press(input, r) {
-                        if let Some(byte) = lsp::byte(&self.editor.text, d.line, d.column) {
-                            self.editor.select_bytes(byte, byte);
-                            self.focus = true;
-                        }
+                        navigation = Some((d.line, d.column));
                     }
                     y += row;
+                }
+                if let Some((line, column)) = navigation {
+                    self.locate_language(line, column, "diagnostic");
                 }
                 if y == details.min[1] {
                     guide::wrapped(list,atlas,details,&tr(zh,"Ctrl+Space 补全 · F12 定义 · 符号说明取决于服务器支持。最终结果以检查预览为准。","Ctrl+Space: complete · F12: definition · Symbol info depends on server support. Check preview performs final validation."),sheet.color("muted"));
@@ -485,12 +503,7 @@ impl Source {
                 self.definition_applied = reply.id;
                 if let Some((line, column)) = definition_position(reply) {
                     if line >= reply.request.prefix {
-                        if let Some(byte) =
-                            lsp::byte(&self.editor.text, line - reply.request.prefix, column)
-                        {
-                            self.editor.select_bytes(byte, byte);
-                            self.focus = true;
-                        }
+                        self.locate_language(line - reply.request.prefix, column, "definition");
                     }
                 }
             }
@@ -641,6 +654,106 @@ pub(super) fn completion_edit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(windows)]
+    #[ignore = "explicit native language navigation failure capture; Windows GPU required"]
+    fn invalid_language_diagnostic_click_retains_draft_and_renders_feedback() {
+        use crate::engine::{AtlasUpload, Engine, UiFrame};
+        use winit::{dpi::LogicalSize, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows, window::Window};
+        let temp = tempfile::tempdir().unwrap();
+        let root = std::env::var_os("MOTION_PLUGIN_NAVIGATION_CAPTURE_DIR")
+            .map(PathBuf::from).unwrap_or_else(|| temp.path().to_owned());
+        std::fs::create_dir_all(&root).unwrap();
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let mut events = EventLoop::<()>::builder().with_any_thread(true).build().unwrap();
+        #[allow(deprecated)]
+        let window = std::sync::Arc::new(events.create_window(Window::default_attributes()
+            .with_visible(false).with_inner_size(LogicalSize::new(980., 660.))).unwrap());
+        let engine = Engine::start(root.join("sample"), motion_desktop_media::platform(), crate::total_memory()).unwrap();
+        let attached = engine.attach_async(window, 980, 660).unwrap();
+        crate::native_test_support::receive(&mut events, &attached, Duration::from_secs(60)).unwrap().unwrap();
+        let styles = motion_ui::style::default_stylesheet_arc();
+        let mut atlas = TextAtlas::from_family(styles.font_family(), styles.base_font_size(), true).unwrap();
+        let area = Rect::new(0., 0., 980., 660.).shrink(styles.metric("padding.panel", 8.));
+        for zh in [true, false] {
+            let mut project = super::super::super::tests::example();
+            let text = "// 😀 Unicode diagnostic\nfn plugin_fx(p: vec2<f32>) -> vec4<f32> { return vec4<f32>(1.0); }";
+            if let PluginLogic::Wgsl { document } = &mut project.logic { document.source = text.into(); }
+            let mut draft = model::Draft::new(project.clone());
+            let mut source = Source::new(&project);
+            source.language_attempted = true;
+            source.language_snapshot = Some(lsp::Snapshot {
+                status: lsp::Status::Ready, flight: None, reply: None,
+                diagnostics: vec![lsp::Diagnostic { line: 0, column: 4, message: "Controlled invalid server column".into(), error: true }],
+                revision: draft.revision, changed: 1,
+            });
+            let before_caret = source.editor.caret_byte_index();
+            let row = styles.metric("row.height", 22.);
+            let point = [area.min[0] + 1., area.max[1] - styles.metric("plugin.author.code.details_height", 132.) + row * 0.5];
+            let click = Input { mouse: point, pressed: Some((MouseButton::Left, point)), ..neutral() };
+            let mut paint = PaintList { stylesheet: Some(styles.clone()), ..Default::default() };
+            source.draw(&mut draft, &mut paint, &mut atlas, area, &click, zh).unwrap();
+            assert!(source.language_error.is_some(), "invalid diagnostic click was silently ignored");
+            assert_eq!(source.editor.caret_byte_index(), before_caret);
+            assert_eq!(draft.project, project);
+            let mut paint = PaintList { stylesheet: Some(styles.clone()), ..Default::default() };
+            source.draw(&mut draft, &mut paint, &mut atlas, area, &neutral(), zh).unwrap();
+            let cfg = atlas.config();
+            crate::native_test_support::capture_ui(&mut events, &engine, UiFrame {
+                paint, atlas: Some(AtlasUpload { pixels: atlas.pixel_data().to_vec(), width: cfg.width, height: cfg.height }),
+                logical_size: [980., 660.], composition: None, composition_image: None,
+                inspection: Default::default(), window: 0, node_preview: None,
+            }, root.join(if zh { "zh-invalid-navigation.png" } else { "en-invalid-navigation.png" })).unwrap();
+            assert_eq!(draft.project, project);
+        }
+    }
+    #[test]
+    fn language_navigation_preserves_utf16_selection_and_reports_invalid_positions() {
+        const CHILD: &str = "MOTION_PLUGIN_NAVIGATION_CHILD";
+        const TEST: &str = "plugin_editor::author::source::assistance::tests::language_navigation_preserves_utf16_selection_and_reports_invalid_positions";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let text = "// private_source_😀中\nfn main() {}";
+            let mut source = Source::default();
+            source.editor.begin_multiline(text, 1024);
+            let start = text.find('😀').unwrap();
+            let column = text[..start].encode_utf16().count();
+            assert!(source.locate_language(0, column + 2, "diagnostic"));
+            let caret = source.editor.caret_byte_index();
+            assert_eq!(caret, start + '😀'.len_utf8());
+            for (line, column, operation) in [
+                (0, column + 1, "diagnostic"),
+                (0, 500, "definition"),
+                (500, 0, "diagnostic"),
+            ] {
+                assert!(!source.locate_language(line, column, operation));
+                assert!(source.language_error.as_deref().unwrap().contains("Invalid language-service position"));
+                assert_eq!(source.editor.caret_byte_index(), caret);
+                assert_eq!(source.editor.text, text);
+            }
+            assert!(source.locate_language(1, 3, "definition"));
+            assert!(source.language_error.is_none());
+            assert_eq!(source.editor.caret_byte_index(), text.find("main").unwrap());
+            crate::logging::flush();
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", TEST, "--nocapture"])
+            .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        let file = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for sink in [&file[..], &stderr[..]] {
+            assert_eq!(sink.matches("plugin.language navigation operation=").count(), 3);
+            assert!(sink.contains("operation=definition line=0 utf16_column=500"));
+            assert!(sink.contains("cause=invalid UTF-16 position"));
+            assert!(!sink.contains("private_source_"));
+        }
+        assert!(!stdout.contains("plugin.language navigation"));
+    }
     #[test]
     fn completion_maps_utf16_and_rejects_stale_or_external_edits() {
         let text = "// 😀\nlet value = par;";
