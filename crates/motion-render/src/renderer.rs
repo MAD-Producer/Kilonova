@@ -2695,7 +2695,12 @@ impl Renderer {
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING | additional,
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | additional
+                | if category == crate::TextureCategory::PreviewTargets {
+                    // Preview candidates may receive an exact native cache copy.
+                    wgpu::TextureUsages::COPY_DST
+                } else { wgpu::TextureUsages::empty() },
             view_formats: &[],
         }, &self.allocation_budget, category)?;
         let view = texture.admitted_view()?;

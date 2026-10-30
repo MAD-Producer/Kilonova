@@ -6,7 +6,7 @@ use motion_effects::{
 };
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
-fn surface(events: &winit::event_loop::EventLoop<()>, session: &Session) -> SurfaceTarget {
+pub(super) fn surface(events: &winit::event_loop::EventLoop<()>, session: &Session) -> SurfaceTarget {
     #[allow(deprecated)]
     let window = Arc::new(
         events
@@ -69,7 +69,7 @@ fn render(session: &mut Session) {
         session.last_error
     );
 }
-fn pixels(session: &Session) -> Vec<u8> {
+pub(super) fn pixels(session: &Session) -> Vec<u8> {
     let g = session.graphics.as_ref().unwrap();
     assert!(g.scratch.valid());
     let target = g

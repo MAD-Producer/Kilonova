@@ -63,6 +63,7 @@ impl CompositionFrameKey {
     pub fn frame(self) -> f64 {
         f64::from_bits(self.frame_bits)
     }
+    pub fn context(self) -> CompositionFrameContext { self.context }
 }
 
 /// Native pixels copied into separate storage before publication. A caller may
@@ -73,6 +74,26 @@ pub struct CachedCompositionFrame {
     target: RenderTarget,
 }
 impl CachedCompositionFrame {
+    /// Exact same-owner native transfer into a foreground candidate. The
+    /// allocation encoder retains both resources until actual GPU retirement.
+    pub fn copy_to(&self, renderer: &Renderer, destination: &RenderTarget,
+        encoder: &mut crate::AllocationEncoder) -> Result<()>
+    {
+        self.target.check_owner(renderer)?;
+        destination.check_owner(renderer)?;
+        encoder.check_owner(&renderer.allocation_owner)?;
+        renderer.check_health()?;
+        if (destination.width, destination.height, destination.texture().format())
+            != (self.key.width, self.key.height, self.key.format) {
+            return Err(RenderError::Invalid("cached composition differs from native destination".into()));
+        }
+        if !destination.texture().usage().contains(wgpu::TextureUsages::COPY_DST) {
+            return Err(RenderError::Invalid("cached composition destination lacks copy usage".into()));
+        }
+        encoder.copy_texture_to_texture(self.target.texture().as_image_copy(), destination.texture().as_image_copy(),
+            wgpu::Extent3d { width: self.key.width, height: self.key.height, depth_or_array_layers: 1 });
+        Ok(())
+    }
     /// Read-only source for existing native color-output and presentation APIs.
     /// Its storage intentionally has no render-attachment usage.
     pub fn source(&self) -> &RenderTarget {
