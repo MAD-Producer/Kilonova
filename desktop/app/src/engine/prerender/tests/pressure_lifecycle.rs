@@ -40,13 +40,15 @@ fn study(
             .unwrap(),
     );
 }
-fn warm(engine: &Engine) -> Value {
+fn warm(engine: &Engine, minimum_completed: u64) -> Value {
     let began = Instant::now();
     loop {
         let state = engine.state().unwrap();
         let status = &state["desktop"]["prerender"];
         assert!(status["fault"].is_null(), "{state}");
-        if status["cache"]["resident_frames"].as_u64() == Some(2) {
+        if status["cache"]["resident_frames"].as_u64() == Some(2)
+            && status["completed"].as_u64().unwrap() >= minimum_completed
+        {
             return state;
         }
         assert!(began.elapsed() < Duration::from_secs(30), "{state}");
@@ -141,7 +143,7 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
         ..Default::default()
     };
     engine.configure_prerender(policy).unwrap();
-    let red_warm = warm(&engine);
+    let red_warm = warm(&engine, 2);
     engine.seek(1.).unwrap();
     present(&mut events, &engine);
     let red_front = read_front(&mut events, &engine);
@@ -195,7 +197,13 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     study(&mut events, &engine, release_pressure);
     // Supply forward demand; backward lookahead at frame zero is empty by design.
     engine.seek(3.).unwrap();
-    let recovered = warm(&engine);
+    let recovered = warm(
+        &engine,
+        held_again["desktop"]["prerender"]["completed"]
+            .as_u64()
+            .unwrap()
+            + 2,
+    );
     engine.seek(4.).unwrap();
     present(&mut events, &engine);
     let recovered_front = read_front(&mut events, &engine);
@@ -210,8 +218,11 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     present(&mut events, &engine);
     let green_cold = read_front(&mut events, &engine);
     pixels(&green_cold, [0, 255, 0, 255]);
+    let before_green = engine.state().unwrap()["desktop"]["prerender"]["completed"]
+        .as_u64()
+        .unwrap();
     engine.seek(1.).unwrap();
-    let green_warm = warm(&engine);
+    let green_warm = warm(&engine, before_green + 2);
     engine.seek(2.).unwrap();
     present(&mut events, &engine);
     let green_front = read_front(&mut events, &engine);
