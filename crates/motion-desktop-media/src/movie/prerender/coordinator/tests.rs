@@ -1,4 +1,5 @@
 use super::*;
+mod source_freshness;
 
 fn policy() -> schedule::Policy {
     schedule::Policy {

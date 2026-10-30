@@ -12,8 +12,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-mod key;
 pub mod coordinator;
+mod key;
+pub mod source_watch;
 mod sources;
 pub mod worker;
 
@@ -94,7 +95,25 @@ impl PrerenderPlan {
     pub fn prepare(
         self,
         control: &ExportControl,
+        progress: impl FnMut(Phase),
+    ) -> Result<PreparedPrerender> {
+        // Standalone prepared snapshots own frozen bytes independently of the
+        // live project. Cache owners opt into live-source invalidation below.
+        self.prepare_inner(control, progress, None)
+    }
+    fn prepare_observed(
+        self,
+        control: &ExportControl,
+        progress: impl FnMut(Phase),
+        mut observed: impl FnMut(source_watch::Observation) -> Result<()>,
+    ) -> Result<PreparedPrerender> {
+        self.prepare_inner(control, progress, Some(&mut observed))
+    }
+    fn prepare_inner(
+        self,
+        control: &ExportControl,
         mut progress: impl FnMut(Phase),
+        mut observed: Option<&mut dyn FnMut(source_watch::Observation) -> Result<()>>,
     ) -> Result<PreparedPrerender> {
         let request = self.sources.observation_request;
         log::info!(
@@ -106,6 +125,17 @@ impl PrerenderPlan {
         let mut phase = Phase::Freeze;
         let result = (|| {
             enter(&mut phase, Phase::Freeze, control, &mut progress)?;
+            let watch = if let Some(observed) = &mut observed {
+                let watch = self.sources.watch()?;
+                observed(watch.observation())?;
+                Some(watch)
+            } else {
+                None
+            };
+            let _lease = watch
+                .as_ref()
+                .map(|watch| source_lease(&watch.observation(), control))
+                .transpose()?;
             let frozen = self.sources.open(control)?.freeze(control)?;
             enter(&mut phase, Phase::ContentKey, control, &mut progress)?;
             PreparedPrerender::new(
@@ -117,6 +147,7 @@ impl PrerenderPlan {
             )
             .map(|mut prepared| {
                 prepared.adapter = self.adapter;
+                prepared.watch = watch;
                 prepared
             })
         })();
@@ -132,6 +163,7 @@ pub struct PreparedPrerender {
     adapter: Option<wgpu::Adapter>,
     context: CompositionFrameContext,
     max_frame_bytes: u64,
+    watch: Option<source_watch::SourceWatch>,
 }
 impl PreparedPrerender {
     fn new(
@@ -155,6 +187,7 @@ impl PreparedPrerender {
             adapter: None,
             context,
             max_frame_bytes,
+            watch: None,
         })
     }
     pub fn context(&self) -> CompositionFrameContext {
@@ -174,6 +207,19 @@ impl PreparedPrerender {
             ),
         )
         .map_err(|e| e.to_string())
+    }
+}
+
+fn source_lease(
+    observation: &source_watch::Observation,
+    control: &ExportControl,
+) -> Result<source_watch::Lease> {
+    match observation.attach(control.clone())? {
+        Some(lease) => Ok(lease),
+        None => {
+            control.cancel();
+            Err("movie export cancelled".into())
+        }
     }
 }
 
@@ -215,6 +261,11 @@ impl NativePrerender {
         let began = Instant::now();
         let result = (|| {
             control.check()?;
+            let _source_lease = input
+                .watch
+                .as_ref()
+                .map(|watch| source_lease(&watch.observation(), control))
+                .transpose()?;
             let p = &input.frozen.project;
             input
                 .frozen
@@ -307,6 +358,12 @@ impl NativePrerender {
         phase: &mut Phase,
         progress: &mut impl FnMut(Phase),
     ) -> Result<CompletedFrame> {
+        let _source_lease = self
+            .input
+            .watch
+            .as_ref()
+            .map(|watch| source_lease(&watch.observation(), control))
+            .transpose()?;
         let key = self.input.frame_key(frame)?;
         let frozen = &self.input.frozen;
         let p = &frozen.project;
