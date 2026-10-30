@@ -308,6 +308,47 @@ fn project_library_video_and_linked_audio_register_together_and_remain_usable_fo
 }
 
 #[test]
+fn project_library_delayed_video_placement_keeps_audio_clock_and_first_picture() {
+    for with_audio in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("project");
+        std::fs::create_dir_all(root.join("assets")).unwrap();
+        std::fs::write(root.join("assets/source.mp4"), b"123").unwrap();
+        let mut project = Project::new(256, 144, 60, 240).unwrap();
+        let video = motion_core::VideoAsset {
+            id: 1, path: "assets/source.mp4".into(), bytes: 3, mime: "video/avc".into(), track: 0,
+            width: 256, height: 144, rotation: 0, display_width: 256, display_height: 144,
+            video_start_us: 250_000, video_end_us: 3_000_000, duration_us: 3_250_000,
+            frame_count: 66, variable_frame_rate: false, nominal_frame_rate: 24.,
+            color_standard: 1, color_range: 2, audio_asset: with_audio.then_some(2),
+        };
+        project.video_assets.push(video);
+        if with_audio {
+            project.audio_assets.push(motion_core::AudioAsset {
+                id: 2, path: "assets/source.mp4".into(), mime: "audio/mp4".into(), bytes: 3,
+                track: 1, sample_rate: 48_000, channels: 2, sample_frames: 156_000,
+                duration_us: 3_250_000,
+            });
+        }
+        motion_core::storage::save(&root, &project).unwrap();
+        let e = engine(&root);
+        let before = e.state().unwrap();
+        let placed = apply(&e, &before, Request::Place {
+            target: AssetRef { kind: AssetKind::Video, id: 1 }, at_frame: 20,
+        }).unwrap();
+        let placed: Project = serde_json::from_value(placed["project"].clone()).unwrap();
+        let layer = &placed.layers[0];
+        let motion_core::Content::Video { video } = &layer.content else { panic!("expected video") };
+        assert_eq!(video.hold_first_frame, with_audio);
+        assert_eq!(video.source_offset_us, if with_audio { 0 } else { 250_000 });
+        assert_eq!(video.picture_time_us(0., placed.fps, &placed.video_assets[0]), 250_000);
+        assert_eq!(layer.clip(placed.frames).out_frame, if with_audio { 215 } else { 200 });
+        if with_audio { assert_eq!(placed.layer_audio(layer).unwrap().source_offset_us, 0); }
+        assert_eq!(e.history(0).unwrap()["project"], before["project"]);
+    }
+}
+
+#[test]
 fn project_library_stale_prepared_media_is_cancelled_and_released_without_publishing_or_blocking_new_imports(
 ) {
     let temp = tempfile::tempdir().unwrap();

@@ -47,7 +47,7 @@ fn hint(choice: &Choice, panels: &Panels, root: usize, index: usize) -> String {
                 Action::AddNull => S::Null,
                 Action::AddAdjustment => S::Adjustment,
                 Action::Edit(Command::Duplicate { .. }) => S::Duplicate,
-                Action::Edit(Command::Delete { .. }) => S::Delete,
+                Action::Edit(Command::Delete { .. } | Command::RemoveLayers { .. }) => S::Delete,
                 Action::OrderLayers { order, .. } => {
                     return panels
                         .shortcut_bindings

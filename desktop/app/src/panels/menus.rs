@@ -232,8 +232,9 @@ pub(super) fn render(
                 ),
                 (
                     locale.t(T::Delete).into(),
-                    Action::Edit(Command::Delete {
-                        object: selected.unwrap_or(0),
+                    Action::Edit(Command::RemoveLayers {
+                        objects: selected.into_iter().collect(),
+                        frame,
                     }),
                     editable,
                 ),

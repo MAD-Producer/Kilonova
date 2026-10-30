@@ -36,6 +36,49 @@ fn fixture() -> Project {
     p.validate().unwrap();
     p
 }
+
+#[test]
+fn held_first_video_frame_preserves_source_clock_and_legacy_blank_head() {
+    let mut p = fixture();
+    p.video_assets[0].video_start_us = 250_000;
+    let Content::Video { video } = &mut p.layers[0].content else { unreachable!() };
+    video.hold_first_frame = true;
+    let mut scene = Scene::new(&p).unwrap();
+    for (frame, expected) in [(0., 250_000), (15., 250_000), (30., 500_000)] {
+        scene.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
+        let layer = scene.layers.iter().find(|layer| layer.id == 1).unwrap();
+        assert_eq!(layer.video.as_ref().unwrap().source_time_us, expected);
+        let legacy = scene.layers.iter().find(|layer| layer.id == 2);
+        assert_eq!(legacy.is_some(), frame >= 15.);
+    }
+    let serialized = serde_json::to_value(&p).unwrap();
+    assert_eq!(serialized["layers"][0]["content"]["video"]["hold_first_frame"], true);
+    let restored: Project = serde_json::from_value(serialized).unwrap();
+    assert_eq!(restored, p);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn held_first_frame_renders_pixels_before_the_picture_start() {
+    let mut p = fixture();
+    p.layers.truncate(1);
+    p.video_assets[0].video_start_us = 250_000;
+    let Content::Video { video } = &mut p.layers[0].content else { unreachable!() };
+    video.hold_first_frame = true;
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let target = renderer.capture_target(64, 32).unwrap();
+    let mut scene = Scene::new(&p).unwrap();
+    for (frame, pts, color) in [(0., 250_000, [255, 0, 0, 255]),
+        (15., 250_000, [255, 0, 0, 255]), (30., 500_000, [0, 255, 0, 255])]
+    {
+        scene.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
+        assert_eq!(scene.layers.iter().find(|layer| layer.id == 1).unwrap()
+            .video.as_ref().unwrap().source_time_us, pts);
+        renderer.upload_video_frame(1, 1, pts, 16, 16, &color.repeat(256)).unwrap();
+        let (pixels, _) = renderer.capture(&scene, &target).unwrap();
+        assert_eq!(&pixels[(16 * 64 + 16) * 4..(16 * 64 + 16) * 4 + 4], &color);
+    }
+}
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn different_source_times_use_distinct_video_textures_and_reuse_allocations() {

@@ -818,8 +818,32 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             crate::hierarchy::reparent_with_mode(project, object, parent, frame, mode, cameras)?;
         }
         Command::Delete { object } => {
-            if project.layer_mut(object)?.locked {
+            // Detach exactly like `Remove` does, otherwise the dangling parent
+            // and matte references below reject the whole batch in `validate`.
+            ensure(!project.layers.iter().any(|l|l.track_matte.is_some_and(|m|m.source==object)),"layer is referenced as a track matte; clear dependent references before deletion")?;
+            let frames = project.frames;
+            let layer = project.layer_mut(object)?;
+            if layer.locked {
                 return Err(Error::Locked(object));
+            }
+            // `Delete` carries no frame (`{"op":"delete","object":N}`), so children
+            // keep the world transform sampled at the deleted layer's own in-point,
+            // clamped into the composition. `reparent` bakes a constant bind, so the
+            // children match only at that frame and drift with the parent's animation
+            // elsewhere; `Remove` has the same limit at its caller-supplied frame.
+            let frame = layer.interval(frames).in_frame.floor()
+                .clamp(0., f64::from(frames.saturating_sub(1))) as u32;
+            let children: Vec<_> = project
+                .layers
+                .iter()
+                .filter(|l| l.parent.as_ref().and_then(|p| p.object) == Some(object))
+                .map(|l| l.id)
+                .collect();
+            for child in children {
+                crate::hierarchy::reparent(project, child, None, frame, cameras)?;
+            }
+            if project.camera.parent.as_ref().and_then(|p| p.object) == Some(object) {
+                crate::hierarchy::reparent(project, 0, None, frame, cameras)?;
             }
             project.layers.retain(|l| l.id != object);
             crate::effects::clear_layer_image_inputs(&mut project.layers, object);

@@ -187,3 +187,12 @@ The OBJ/MTL/glTF comparison geometry and PNG pixels used by the added tests and
 local probe are authored by Motion Studio contributors and encoded locally;
 they are covered by this repository's MIT license. No extra dependency or
 third-party model/texture is introduced for OBJ.
+
+The delayed-video import fixture
+`crates/motion-media/tests/fixtures/video/video-delayed-with-audio-tail.mp4`
+is authored by Motion Studio contributors under the repository MIT license.
+It combines only the video and audio streams of the existing independently
+generated `video-delayed.mp4` and `sound-24fps.mp4` fixtures. The author, local
+FFmpeg revision, reproduction command, stream intervals, SHA-256 and scope are
+recorded in that directory's `TIMING.md`. No third-party media or runtime is
+added or changed; the fixture is test input only and is not product artwork.

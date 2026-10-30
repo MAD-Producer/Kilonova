@@ -599,7 +599,7 @@ impl VideoFrames {
             .iter()
             .find(|a| a.id == video.asset)
             .ok_or("video asset missing")?;
-        let source = video.source_time_us(layer.local_frame(frame), project.fps);
+        let source = video.picture_time_us(layer.local_frame(frame), project.fps, asset);
         if !layer.active(frame, project.frames)
             || source < asset.video_start_us as i64
             || source >= asset.video_end_us as i64
@@ -704,7 +704,7 @@ impl VideoFrames {
         if !layer.active(*time, project.frames)
             || stream.asset.id != video.asset
             || stream
-                .key(video.source_time_us(layer.local_frame(*time), project.fps) as u64)?
+                .key(video.picture_time_us(layer.local_frame(*time), project.fps, &stream.asset) as u64)?
                 .0
                 != desired.time
         {
