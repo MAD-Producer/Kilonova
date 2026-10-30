@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 #[path = "libav/native_retirement.rs"]
 mod native_retirement;
 
+#[path = "libav/delayed_import.rs"]
+mod delayed_import;
+
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../motion-media/tests/fixtures/video")
