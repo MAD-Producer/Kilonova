@@ -126,6 +126,26 @@ fn blocked_prerender_is_observable_and_canceled_before_a_foreground_handler_runs
     // Dispatch already canceled the native control, before Seek can execute.
     *gate.released.lock().unwrap() = true;
     gate.ready.notify_all();
+    // Keep the serial handler blocked until the decoder has acknowledged.
+    // A later disable handler must not mask a missing dispatch cancellation.
+    let cancel_began = Instant::now();
+    let canceled = loop {
+        let observed = engine.prerender_observation().unwrap().unwrap();
+        if observed.completion_waiting {
+            break observed;
+        }
+        assert!(
+            cancel_began.elapsed() < Duration::from_secs(2),
+            "dispatch cancellation did not acknowledge before the serial handler resumed"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    assert_eq!(engine.in_flight().unwrap().0, "test_wait");
+    assert_eq!(
+        canceled.retained_cpu_bytes, 0,
+        "a successful frame would retain its completion permit"
+    );
+    assert!(canceled.last_failure.is_none());
     release.send(()).unwrap();
     serial
         .recv_timeout(Duration::from_secs(5))
