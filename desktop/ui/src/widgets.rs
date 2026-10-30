@@ -328,6 +328,21 @@ impl NumberEditor {
     pub fn display_value(&self, current: f64) -> f64 {
         self.drag.as_ref().map_or(current, |d| d.value)
     }
+    /// Complete a typed draft using the same validation for Enter and outside clicks.
+    pub fn commit(&mut self, current: f64, options: NumberOptions) -> Vec<NumberEvent> {
+        if !self.text.active() { return vec![]; }
+        if self.text.text.trim().is_empty() { self.text.cancel(); return vec![]; }
+        let parsed = if self.text.dirty { self.text.text.trim().parse::<f64>().ok() } else { Some(current) };
+        let Some(value) = parsed.filter(|v| current.is_finite() && v.is_finite() && *v >= options.min && *v <= options.max) else {
+            self.text.error = Some("Enter a finite value within the allowed range".into());
+            return vec![];
+        };
+        self.text.cancel();
+        let mut events = vec![NumberEvent::Begin { value: current }];
+        if value != current { events.push(NumberEvent::Change { value }); }
+        events.push(NumberEvent::Commit { value });
+        events
+    }
     pub fn cancel(&mut self) -> Vec<NumberEvent> {
         let events = self
             .drag
@@ -439,25 +454,8 @@ impl NumberEditor {
                 self.drag = None;
             }
         }
-        if let Some(TextEvent::Commit(text)) = self.text.input(input) {
-            let parsed = if self.text.dirty {
-                text.trim().parse::<f64>().ok()
-            } else {
-                Some(current)
-            };
-            match parsed.filter(|v| v.is_finite() && *v >= options.min && *v <= options.max) {
-                Some(value) => {
-                    self.text.cancel();
-                    events.push(NumberEvent::Begin { value: current });
-                    if value != current {
-                        events.push(NumberEvent::Change { value });
-                    }
-                    events.push(NumberEvent::Commit { value });
-                }
-                None => {
-                    self.text.error = Some("Enter a finite value within the allowed range".into())
-                }
-            }
+        if let Some(TextEvent::Commit(_)) = self.text.input(input) {
+            events.extend(self.commit(current, options));
         }
         events
     }

@@ -433,6 +433,11 @@ pub fn chrome(
     panels.drag_readout = None;
     let text_menu_owned = text_menu::prepare(panels, state, input, atlas);
     let path_context_owned = panels.path_controls.prepare_context_menu(None, state, panels.selected, input);
+    let property_owned = panels.focused.is_some_and(|p| layout.find(p.dock()).is_some());
+    let numeric_input = if text_menu_owned || path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,None,property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let text_menu_neutral = Input::default();
     let editing_input = if text_menu_owned || path_context_owned { &text_menu_neutral } else { input };
     let toolbar_was_editing = panels.toolbar_style.editing();
@@ -1178,6 +1183,11 @@ pub fn floating_chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let property_owned = panels.focused == Some(panel);
+    let numeric_input = if path_context_owned { None } else {
+        numeric::prepare_pointer(panels,state,input,Some(panel),property_owned,&mut out)
+    };
+    let input = numeric_input.as_ref().unwrap_or(input);
     let timeline_dropdown = panels.timeline_columns.editing() || panels.timeline.comparison.popup_open();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel))
         || panels.timeline.comparison.popup_open() && matches!(panel,Panel::Timeline|Panel::Curves);

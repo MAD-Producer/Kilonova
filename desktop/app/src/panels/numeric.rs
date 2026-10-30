@@ -1,5 +1,7 @@
 //! One numeric gesture contract for property providers and effect parameters.
 use super::Action;
+#[cfg(test)]
+mod contract_tests;
 use motion_core::Command;
 use motion_ui::{
     paint::{self, PaintList},
@@ -12,11 +14,35 @@ use motion_ui::{
 pub struct Field {
     pub editor: NumberEditor,
 }
+/// Resolve drafts before the receiving panel changes focus or selection.
+pub(super) fn prepare_pointer(panels: &mut super::Panels, state: &serde_json::Value,
+    input: &Input, owner: Option<motion_ui::dock::Panel>, property_owned: bool,
+    out: &mut Vec<Action>) -> Option<Input> {
+    input.pressed?;
+    let active = property_owned && panels.properties.field.is_some()
+        || panels.effect_controls.numeric_active_in(owner)
+        || panels.properties.effects.numeric_active_in(owner);
+    if !active { return None; }
+    if input.composing || input.ime_consumed {
+        return Some(Input { pressed:None,released:None,..input.clone() });
+    }
+    let property_outside = property_owned && panels.properties.field.as_ref().is_some_and(|f|
+        f.scrubbing.is_none() && input.pressed.is_some_and(|(b,p)|
+            b == motion_ui::MouseButton::Left && !f.rect.contains(p)));
+    let mut blocked = false;
+    if property_outside {
+        super::properties::process_field(panels,state,input,out);
+        blocked = panels.properties.field.is_some();
+    }
+    blocked |= panels.effect_controls.numeric_outside(state,input,owner,out);
+    blocked |= panels.properties.effects.numeric_outside(state,input,owner,out);
+    blocked.then(Input::default)
+}
 impl Field {
     pub fn readout(&self) -> Option<String> {
         self.editor
             .drag_values()
-            .map(|(start, value)| format!("{value:.3}  ({:+.3})", value - start))
+            .map(|(start, value)| format!("{value:.2}  ({:+.2})", value - start))
     }
     pub fn cancel(&mut self) -> bool {
         !self.editor.cancel().is_empty()
