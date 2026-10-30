@@ -16,7 +16,9 @@ fn node_scope_application_reachability_matrix() {
                 (Key::N, ctrl, "composition"),
                 (Key::I, ctrl, "import"),
                 (Key::K, ctrl, "settings"),
-                (Key::Y, ctrl, "solid"),
+                (Key::Y, Modifiers { shift: true, ..ctrl }, "solid"),
+                // Redo belongs to the empty node document, not project creation.
+                (Key::Y, ctrl, "blocked"),
                 (Key::End, Modifiers::default(), "seek"),
                 (Key::PageUp, Modifiers::default(), "seek"),
                 (Key::PageDown, Modifiers::default(), "seek"),

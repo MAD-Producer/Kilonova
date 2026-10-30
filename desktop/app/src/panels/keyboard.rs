@@ -829,7 +829,7 @@ mod tests {
             keys: vec![
                 (Key::N, ctrl),
                 (Key::N, motion_ui::input::Modifiers { alt: true, ..ctrl }),
-                (Key::Y, ctrl),
+                (Key::Y, motion_ui::input::Modifiers { shift: true, ..ctrl }),
                 (
                     Key::Y,
                     motion_ui::input::Modifiers {
@@ -1030,3 +1030,7 @@ mod search_chord_tests;
 #[cfg(test)]
 #[path = "keyboard_export_feedback_tests.rs"]
 mod export_feedback_tests;
+
+#[cfg(test)]
+#[path = "keyboard_redo_tests.rs"]
+mod redo_tests;

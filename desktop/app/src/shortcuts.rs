@@ -193,6 +193,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (_, Key::S, true, false, false) => Save,
         (_, Key::Z, true, false, false) => Undo,
         (_, Key::Z, true, true, false) => Redo,
+        (_, Key::Y, true, false, false) => Redo,
         (_, Key::D, true, false, false) => Duplicate,
         (_, Key::Delete | Key::Backspace, false, false, false) => Delete,
         (Application, Key::N, true, false, true) => NewProject,
@@ -212,7 +213,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
             NextFrame
         }
         (Application, Key::D, true, true, false) => Split,
-        (Application, Key::Y, true, false, false) => Solid,
+        (Application, Key::Y, true, true, false) => Solid,
         (Application, Key::T, true, true, true) => Text,
         (Application, Key::Y, true, true, true) => Null,
         (Application, Key::Y, true, false, true) => Adjustment,
@@ -273,7 +274,7 @@ mod tests {
         };
         assert_eq!(
             resolve(Scope::Application, Key::Y, ctrl, false),
-            Some(Command::Solid)
+            Some(Command::Redo)
         );
         assert_eq!(
             resolve(
@@ -294,7 +295,7 @@ mod tests {
                 },
                 false
             ),
-            None
+            Some(Command::Solid)
         );
         assert_eq!(
             resolve(Scope::Nodes, Key::D, Modifiers { alt: true, ..ctrl }, false),
@@ -323,3 +324,6 @@ mod tests {
 #[cfg(test)]
 #[path = "shortcuts_documentation_tests.rs"]
 mod documentation_tests;
+#[cfg(test)]
+#[path = "shortcuts/redo_contract_tests.rs"]
+mod redo_contract_tests;
