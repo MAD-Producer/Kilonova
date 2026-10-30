@@ -1,0 +1,5 @@
+*.log -text -whitespace
+*.png -text
+*.mp4 -text
+*.json -text -whitespace
+.gitattributes -text

@@ -1,0 +1,412 @@
+{
+  "baseline": "46809334",
+  "scope": "#260 已实现自动时间贝塞尔的真实导出与主线插件编辑器组合；Roving 尚未实现",
+  "tests": {
+    "integration_menu": 19,
+    "integration_timeline": 55,
+    "integration_plugin_base": 6,
+    "integration_native_menu": 1,
+    "actual_movie": 1,
+    "total_distinct_passed": 82,
+    "remaining_ignored_in_executed_desktop_suites": 1
+  },
+  "executables": [
+    {
+      "file": "motion_studio-9c5cdc7b4281ddf0.exe",
+      "sha256": "bfa463741ea5f0f02953f6131c937359bc0229d3fde4abb83ab8d983a7753642",
+      "bytes": 126295552
+    },
+    {
+      "file": "motion_desktop_media-aedcfed3b8fd3b8a.exe",
+      "sha256": "0485fb902e77d10da719388081276f3c07aa15890393cc5e3e1000709880c4a1",
+      "bytes": 60235776
+    }
+  ],
+  "files": [
+    {
+      "file": ".gitattributes",
+      "sha256": "82dfd2936e4379724bf00272123fa9373594d800c439a9bf98d8cdece88c1ee2",
+      "bytes": 94
+    },
+    {
+      "file": "export-build-first.log",
+      "sha256": "43891869b8fc412fcf9e1382cc0b96e5c339f84afc50cb67c1feaaaa8a0ba1f2",
+      "bytes": 2048
+    },
+    {
+      "file": "integration-build.log",
+      "sha256": "46e3d51946480d3b5f61bd3cda96317ebe94b864684907b983050090b6b57050",
+      "bytes": 14138
+    },
+    {
+      "file": "integration-error/motion-studio.log",
+      "sha256": "0f10656f18c98a3c30c2e8e572966ce69aa43c320ddc3ebb6b8790af906eacab",
+      "bytes": 925
+    },
+    {
+      "file": "integration-error/stderr.log",
+      "sha256": "7173851d58ac769d21c735a32d9c6c106d8588265a738a2b74072307e335c9bc",
+      "bytes": 214
+    },
+    {
+      "file": "integration-error/stdout.log",
+      "sha256": "6ff595fd90eae1211481bb35b6d0206006c452e56ddea8821af676fb1a645c50",
+      "bytes": 260
+    },
+    {
+      "file": "integration-menu.log",
+      "sha256": "b62518ae425105fb16feedaca3e5800898bfb4b4735257daf78215d96fd905cb",
+      "bytes": 2822
+    },
+    {
+      "file": "integration-native/en-automatic.png",
+      "sha256": "21c6bcb0f7ec91b50f640beb3cb3ec80e70d9521de3ab4d106f9d863de901b08",
+      "bytes": 122068
+    },
+    {
+      "file": "integration-native/en-linear.png",
+      "sha256": "9955348ac25aa50ed962d97b29976025e3c38898baae36591d8285c8ef1f540b",
+      "bytes": 121718
+    },
+    {
+      "file": "integration-native/en-manual.png",
+      "sha256": "491858f6dcf8ba43235674494b9952ad90157be46d539e8002483863c014e7a8",
+      "bytes": 121866
+    },
+    {
+      "file": "integration-native/en-mixed.png",
+      "sha256": "409eee0286507ef804c85ee207a4f99af215c76ec6d49fd375ce1c5b105d2165",
+      "bytes": 123097
+    },
+    {
+      "file": "integration-native/logs/motion-studio.log",
+      "sha256": "561c0edeaf7586939eaad7314456866132e3256dce66c3471fe8f896f11be81e",
+      "bytes": 6563
+    },
+    {
+      "file": "integration-native/report.json",
+      "sha256": "d9707058e8686e0979eb1d232843db42e44d5ded839e01048cfee96040218611",
+      "bytes": 991
+    },
+    {
+      "file": "integration-native/stderr.log",
+      "sha256": "b17358234112b90a77a0e321936ae21a96bd4050c4a70bdd97b1aebc967e4548",
+      "bytes": 586
+    },
+    {
+      "file": "integration-native/stdout.log",
+      "sha256": "7ca1f0fbc0832cbd6a9c601f4c873d2e180a0e32ae16414b71ac6cfefd87abaa",
+      "bytes": 252
+    },
+    {
+      "file": "integration-native/zh-automatic.png",
+      "sha256": "e740500cb5084da384581a49a5595644a4b6c78ee4186303ec6a4854de7a9e1e",
+      "bytes": 125661
+    },
+    {
+      "file": "integration-native/zh-linear.png",
+      "sha256": "2d89cd80f0ce7ef55b53a409e44fa68cc03b85964eb148814f9d8e7d1ef0219c",
+      "bytes": 124912
+    },
+    {
+      "file": "integration-native/zh-manual.png",
+      "sha256": "a20563700b1bf55de78d88a4f3a4e7d72c18a0a2b540a0fcff45d7c8d8f3658e",
+      "bytes": 125078
+    },
+    {
+      "file": "integration-native/zh-mixed.png",
+      "sha256": "2685d0bfff0ab802b7ae85c0500662f0cb70f0f6fac6ca3308f1fc3c725e04ca",
+      "bytes": 125914
+    },
+    {
+      "file": "integration-native.log",
+      "sha256": "8337723f6768106011e67c8966fcad01a6237ae24922c48de434408633850099",
+      "bytes": 258
+    },
+    {
+      "file": "integration-plugin.log",
+      "sha256": "8c36ba311901568c54fa66b9030369268520948165bffd57fb5091577f5b1d60",
+      "bytes": 730
+    },
+    {
+      "file": "integration-timeline.log",
+      "sha256": "40fdfaaf47885423bf6c7326b31b49fe63a972b33fb92d9f8247f48ec065eb74",
+      "bytes": 7424
+    },
+    {
+      "file": "movies/automatic-0.png",
+      "sha256": "2b10d7ff5d94580d636f4a06b501b6d6f1212a0f660d2aae10188c761ae7898a",
+      "bytes": 413
+    },
+    {
+      "file": "movies/automatic-1.png",
+      "sha256": "415c54899c1792d3f95af7f9c674f3f5454eaf0f1553fe131d1e8246721cc3a0",
+      "bytes": 503
+    },
+    {
+      "file": "movies/automatic-2.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/automatic-3.png",
+      "sha256": "6eb397efd57d1fe6d5622ac6985b54e25444fa31f59759e4a0a4e9b9bbcb1deb",
+      "bytes": 503
+    },
+    {
+      "file": "movies/automatic-4.png",
+      "sha256": "db02d7529067f208d1869fc00d3799800289bb1c34c32340ad42b88717daf2c7",
+      "bytes": 576
+    },
+    {
+      "file": "movies/automatic-5.png",
+      "sha256": "d290a814a164ca556dd24bb5a6abf8c3b1cb68eb376e08905d8fe821b6259ab8",
+      "bytes": 572
+    },
+    {
+      "file": "movies/automatic-project.json",
+      "sha256": "b0bca652d75ffaf41aed96a3ada62e957a374ec45a4c0149abc78cdd99b156d9",
+      "bytes": 2959
+    },
+    {
+      "file": "movies/automatic.mp4",
+      "sha256": "590a13e51b333036a7ec759aade28ac43672d5fe0762f4eb5d8f0f3d514826be",
+      "bytes": 2187
+    },
+    {
+      "file": "movies/decoded-comparison.png",
+      "sha256": "62945c5825f624da86a76f98f496fd823a9a7fb5571084db96009834681a30cc",
+      "bytes": 22788
+    },
+    {
+      "file": "movies/edited-neighbor-0.png",
+      "sha256": "6be3bf334bc8c292acdd950c5d71ce39800d237954c9c6c3b381dcd1b720741c",
+      "bytes": 462
+    },
+    {
+      "file": "movies/edited-neighbor-1.png",
+      "sha256": "8f1e66ff68024a5a0e423066fb42b7a27d2a798c4372019b3f7317d0e4393810",
+      "bytes": 543
+    },
+    {
+      "file": "movies/edited-neighbor-2.png",
+      "sha256": "e01ecb5889d84236aa012617619d925b4d95fa9741ad511aea3b13afe75fcacf",
+      "bytes": 426
+    },
+    {
+      "file": "movies/edited-neighbor-3.png",
+      "sha256": "944ef69a4dc26d0516bb0adcd13746710d20c6a859a941a55568e388a16e36c4",
+      "bytes": 484
+    },
+    {
+      "file": "movies/edited-neighbor-4.png",
+      "sha256": "f0d1645ed1f13bb6049fb19069b37ef5fa1bacc44a6d8bdb176ed6e141959416",
+      "bytes": 542
+    },
+    {
+      "file": "movies/edited-neighbor-5.png",
+      "sha256": "f83a27c57d50520893cab6aa59394a9a62a3da7dad99ef2fc879df29f8588461",
+      "bytes": 511
+    },
+    {
+      "file": "movies/edited-neighbor.mp4",
+      "sha256": "6516be0a0bfda8c48d20ffff8884379d7048e5e935ce5b527433614e92f2d095",
+      "bytes": 2218
+    },
+    {
+      "file": "movies/frozen-manual-project.json",
+      "sha256": "677e12b0458520a568c67ac26024c2513bcd3e1d7d63b442f91f5817cc79d01a",
+      "bytes": 3862
+    },
+    {
+      "file": "movies/hold-0.png",
+      "sha256": "2b10d7ff5d94580d636f4a06b501b6d6f1212a0f660d2aae10188c761ae7898a",
+      "bytes": 413
+    },
+    {
+      "file": "movies/hold-1.png",
+      "sha256": "415c54899c1792d3f95af7f9c674f3f5454eaf0f1553fe131d1e8246721cc3a0",
+      "bytes": 503
+    },
+    {
+      "file": "movies/hold-2.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/hold-3.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/hold-4.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/hold-5.png",
+      "sha256": "ef60ac683a7f6c0f8cc4fdd0209fe91016324b1bb61cc56a84df4529f0cf8750",
+      "bytes": 466
+    },
+    {
+      "file": "movies/hold.mp4",
+      "sha256": "7daa599b9f84413233bf590b7e3b8b018a421acd82b2d3de03797b9ec92e656b",
+      "bytes": 2197
+    },
+    {
+      "file": "movies/linear-0.png",
+      "sha256": "2b10d7ff5d94580d636f4a06b501b6d6f1212a0f660d2aae10188c761ae7898a",
+      "bytes": 413
+    },
+    {
+      "file": "movies/linear-1.png",
+      "sha256": "36300d612618cd9dd0e46c55531dbea423e22258c1ea59932e1ef16e2919aa49",
+      "bytes": 482
+    },
+    {
+      "file": "movies/linear-2.png",
+      "sha256": "bd74a2b11e64c8d8b4942165cca3a205f827afe7ce21bc7faf10a543ec0296c3",
+      "bytes": 477
+    },
+    {
+      "file": "movies/linear-3.png",
+      "sha256": "e57f7dd1fba7f73b05e4a4d5fc5da3621c9dd78dc16deef0382040cf45d5b313",
+      "bytes": 523
+    },
+    {
+      "file": "movies/linear-4.png",
+      "sha256": "1db87c02d90133437d81a4982eb0286578e8d619313d8ca2cb4fd617c18a8b45",
+      "bytes": 578
+    },
+    {
+      "file": "movies/linear-5.png",
+      "sha256": "62a038382302d5135c2609efb79e4eaa5ec5c86eb847c54cf4b4964662b2d569",
+      "bytes": 555
+    },
+    {
+      "file": "movies/linear.mp4",
+      "sha256": "bd78acd380741ee9990b70c8b86a901a6592eee558c1ccad331355a34a91a805",
+      "bytes": 2204
+    },
+    {
+      "file": "movies/manual-0.png",
+      "sha256": "2b10d7ff5d94580d636f4a06b501b6d6f1212a0f660d2aae10188c761ae7898a",
+      "bytes": 413
+    },
+    {
+      "file": "movies/manual-1.png",
+      "sha256": "415c54899c1792d3f95af7f9c674f3f5454eaf0f1553fe131d1e8246721cc3a0",
+      "bytes": 503
+    },
+    {
+      "file": "movies/manual-2.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/manual-3.png",
+      "sha256": "6eb397efd57d1fe6d5622ac6985b54e25444fa31f59759e4a0a4e9b9bbcb1deb",
+      "bytes": 503
+    },
+    {
+      "file": "movies/manual-4.png",
+      "sha256": "db02d7529067f208d1869fc00d3799800289bb1c34c32340ad42b88717daf2c7",
+      "bytes": 576
+    },
+    {
+      "file": "movies/manual-5.png",
+      "sha256": "d290a814a164ca556dd24bb5a6abf8c3b1cb68eb376e08905d8fe821b6259ab8",
+      "bytes": 572
+    },
+    {
+      "file": "movies/manual.mp4",
+      "sha256": "590a13e51b333036a7ec759aade28ac43672d5fe0762f4eb5d8f0f3d514826be",
+      "bytes": 2187
+    },
+    {
+      "file": "movies/removed-0.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed-1.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed-2.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed-3.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed-4.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed-5.png",
+      "sha256": "46276d521af6754c08367047c3cf22fa30d5cf6c1ed6516f81bee7dec1e66a61",
+      "bytes": 222
+    },
+    {
+      "file": "movies/removed.mp4",
+      "sha256": "f1370df48bb360e297b1b72caf80ae7848a167a114e626aeffbcdb3ca09a4088",
+      "bytes": 1768
+    },
+    {
+      "file": "movies/reopened-0.png",
+      "sha256": "2b10d7ff5d94580d636f4a06b501b6d6f1212a0f660d2aae10188c761ae7898a",
+      "bytes": 413
+    },
+    {
+      "file": "movies/reopened-1.png",
+      "sha256": "415c54899c1792d3f95af7f9c674f3f5454eaf0f1553fe131d1e8246721cc3a0",
+      "bytes": 503
+    },
+    {
+      "file": "movies/reopened-2.png",
+      "sha256": "6200553c72fa3198886b5b4ffcbce888783850aeb29ffcb87e9dff9436681bab",
+      "bytes": 467
+    },
+    {
+      "file": "movies/reopened-3.png",
+      "sha256": "6eb397efd57d1fe6d5622ac6985b54e25444fa31f59759e4a0a4e9b9bbcb1deb",
+      "bytes": 503
+    },
+    {
+      "file": "movies/reopened-4.png",
+      "sha256": "db02d7529067f208d1869fc00d3799800289bb1c34c32340ad42b88717daf2c7",
+      "bytes": 576
+    },
+    {
+      "file": "movies/reopened-5.png",
+      "sha256": "d290a814a164ca556dd24bb5a6abf8c3b1cb68eb376e08905d8fe821b6259ab8",
+      "bytes": 572
+    },
+    {
+      "file": "movies/reopened.mp4",
+      "sha256": "590a13e51b333036a7ec759aade28ac43672d5fe0762f4eb5d8f0f3d514826be",
+      "bytes": 2187
+    },
+    {
+      "file": "movies/result.json",
+      "sha256": "eb74b582b75749509bd7f0a5ee86a7f3a4cef8c871d33edd41bf17449ced82cd",
+      "bytes": 762
+    },
+    {
+      "file": "movies/stderr.log",
+      "sha256": "aeb9b73c593a5c66ec839f48baa468b9091439687aa253137a48a7229b5a2eee",
+      "bytes": 3542
+    },
+    {
+      "file": "movies/stdout.log",
+      "sha256": "b460778a291dc754e686c27a8c4d275cd7c9f7f466ae08f3df79be4e042e475d",
+      "bytes": 237
+    }
+  ]
+}

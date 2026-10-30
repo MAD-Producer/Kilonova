@@ -1,0 +1,28 @@
+[libopenh264 @ 000002bb0787f700] [OpenH264] this = 0x000002bb07ab9a00, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb0787f700] [OpenH264] this = 0x000002bb07ab9a00, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb07a2d280] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb0787ef80] Qavg: 65536.000
+[libopenh264 @ 000002bb06ff2c00] [OpenH264] this = 0x000002bb0b60a2b0, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb06ff2c00] [OpenH264] this = 0x000002bb0b60a2b0, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb07a30300] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb06ff20c0] Qavg: 65536.000
+[libopenh264 @ 000002bb0b1549c0] [OpenH264] this = 0x000002bb07f3c520, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb0b1549c0] [OpenH264] this = 0x000002bb07f3c520, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb07a30300] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb0b155880] Qavg: 65536.000
+[libopenh264 @ 000002bb0af884c0] [OpenH264] this = 0x000002bb07acccc0, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb0af884c0] [OpenH264] this = 0x000002bb07acccc0, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb06ff32c0] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb0af88c00] Qavg: 65536.000
+[libopenh264 @ 000002bb51f59f00] [OpenH264] this = 0x000002bb0ba07b90, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb51f59f00] [OpenH264] this = 0x000002bb0ba07b90, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb06ff3540] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb51f5a2c0] Qavg: 65536.000
+[libopenh264 @ 000002bb0b467440] [OpenH264] this = 0x000002bb0b600270, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb0b467440] [OpenH264] this = 0x000002bb0b600270, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb06ff3000] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb0b467800] Qavg: 65536.000
+[libopenh264 @ 000002bb0817df00] [OpenH264] this = 0x000002bb52061b80, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002bb0817df00] [OpenH264] this = 0x000002bb52061b80, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002bb07a2e800] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002bb0817d040] Qavg: 65536.000
