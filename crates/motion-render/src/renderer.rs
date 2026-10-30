@@ -382,7 +382,7 @@ impl Renderer {
         allocation_budget: crate::AllocationBudget,
         precision_changes: bool,
     ) -> Result<Self> {
-        let precision = crate::image_formats::color_precision(format)
+        crate::image_formats::color_precision(format)
             .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -392,6 +392,17 @@ impl Renderer {
                 ..Default::default()
             })
             .await?;
+        Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes).await
+    }
+    async fn new_on_adapter_with_options(
+        adapter: wgpu::Adapter,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
+        precision_changes: bool,
+    ) -> Result<Self> {
+        let precision = crate::image_formats::color_precision(format)
+            .ok_or_else(|| RenderError::Invalid(format!("unsupported working color target {format:?}")))?;
         let adapter_info = adapter.get_info();
         let precision_features = crate::image_formats::working_features(precision);
         let missing = precision_features - adapter.features();
@@ -631,6 +642,18 @@ impl Renderer {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
         Self::new_profiled_with_precision_changes(&instance, None, format, false, budget).await
+    }
+    /// Independent native desktop device on the exact supplied adapter handle.
+    /// No foreground device, queue, texture or renderer crosses the owner thread.
+    /// This path targets native wgpu backends; repeated device creation from one
+    /// adapter is not a WebGPU browser contract.
+    pub async fn on_adapter_with_working_precision(
+        adapter: wgpu::Adapter,
+        precision: motion_effects::image_contract::ChannelPrecision,
+        budget: crate::AllocationBudget,
+    ) -> Result<Self> {
+        let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
+        Self::new_on_adapter_with_options(adapter, format, false, budget, true).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     /// Successfully encoded snapshot draws in the latest local composition
