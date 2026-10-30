@@ -2643,6 +2643,10 @@ impl Renderer {
     }
     pub(crate) fn render_target_with_format(&self, width: u32, height: u32, format: wgpu::TextureFormat,
         category: crate::TextureCategory) -> Result<RenderTarget> {
+        self.render_target_with_usages(width, height, format, category, wgpu::TextureUsages::empty())
+    }
+    fn render_target_with_usages(&self, width: u32, height: u32, format: wgpu::TextureFormat,
+        category: crate::TextureCategory, additional: wgpu::TextureUsages) -> Result<RenderTarget> {
         self.check_health()?;
         if width == 0
             || height == 0
@@ -2665,7 +2669,7 @@ impl Renderer {
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING,
+                | wgpu::TextureUsages::TEXTURE_BINDING | additional,
             view_formats: &[],
         }, &self.allocation_budget, category)?;
         let view = texture.admitted_view()?;
@@ -2676,6 +2680,36 @@ impl Renderer {
             height,
             owner: self.allocation_owner.clone(),
         })
+    }
+    /// Keep an independent, native-format copy for viewer comparison. Admission
+    /// precedes the copy, so a refused replacement leaves the caller's old image
+    /// intact. Both allocations remain owned through the submitted GPU transfer.
+    pub fn snapshot_target(&self, source: &RenderTarget) -> Result<RenderTarget> {
+        source.check_owner(self)?;
+        if source.width != source.texture.width() || source.height != source.texture.height() {
+            return Err(RenderError::Invalid(format!(
+                "viewer snapshot source dimensions {}x{} do not match texture {}x{}",
+                source.width, source.height, source.texture.width(), source.texture.height()
+            )));
+        }
+        let snapshot = self.render_target_with_usages(source.width, source.height,
+            source.texture.format(), crate::TextureCategory::CaptureTargets, wgpu::TextureUsages::COPY_DST)?;
+        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Motion Studio viewer snapshot"),
+        })?;
+        encoder.copy_texture_to_texture(
+            wgpu::TexelCopyTextureInfo { texture: &source.texture, mip_level: 0,
+                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyTextureInfo { texture: &snapshot.texture, mip_level: 0,
+                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::Extent3d { width: source.width, height: source.height, depth_or_array_layers: 1 });
+        self.submit_allocated(encoder.finish(), |ledger| {
+            source.collect_texture_resources(ledger, "viewer/snapshot-source", crate::TextureState::Retained);
+            ledger.add(&snapshot.texture, crate::TextureCategory::CaptureTargets,
+                "viewer/snapshot".into(), crate::TextureState::Retained);
+        })?;
+        self.check_health()?;
+        Ok(snapshot)
     }
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
         self.check_health()?;

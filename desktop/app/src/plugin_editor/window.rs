@@ -362,6 +362,7 @@ impl App {
                 logical_size: [width, height],
                 composition: None,
                 composition_image: None,
+                inspection: Default::default(),
                 window: 0,
                 node_preview: viewport,
             });
@@ -549,6 +550,7 @@ impl App {
             logical_size: [width, height],
             composition: None,
             composition_image: None,
+            inspection: Default::default(),
             window: 0,
             node_preview: viewport,
         })

@@ -451,6 +451,7 @@ impl Shell {
             node_preview: if self.home.is_none() {
                 self.node_viewport(panels::node_view_bound(self.workspace.display_root(),size,self.panels.node_editor.layer_target.is_some()), self.scale)
             } else { None },
+            inspection: self.panels.viewer_inspection.frame(false, self.panels.viewer_guides.channel(false)),
             composition_image: self.viewer_image(view, self.scale),
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
@@ -710,6 +711,7 @@ impl Shell {
             .map(|(id, _)| *id)
         {
             if let Some(f) = self.floating.remove(&id) {
+                if f.panel == dock::Panel::Composition { self.panels.viewer_inspection.close_floating(); }
                 if self.dialog.as_ref().is_some_and(|d|d.timing_owner()==Some(f.key)) {
                     self.dialog=None;
                 }
@@ -844,6 +846,7 @@ impl Shell {
                 atlas,
                 logical_size: size,
                 composition,
+                inspection: self.panels.viewer_inspection.frame(true, self.panels.viewer_guides.channel(true)),
                 composition_image: viewer.and_then(|v| self.viewer_image(v, scale)),
                 window: key,
                 node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),

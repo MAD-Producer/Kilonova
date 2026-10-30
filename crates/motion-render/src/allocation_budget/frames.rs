@@ -21,6 +21,7 @@ pub const MAX_RECENT_ALLOCATION_FRAMES: usize = 64;
 pub enum FrameOperation {
     Present,
     CaptureUi,
+    ViewerSnapshot,
     NodeCapture,
     Render,
     Export,

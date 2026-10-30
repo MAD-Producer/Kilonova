@@ -294,6 +294,7 @@ struct Shell {
     workspace_manager: Option<workspace::Manager>,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
     plugin_author: plugin_editor::Hosted,
+    viewer_pending: Vec<shell::viewer_inspection::Pending>,
     next_window: u64,
     panels: panels::Panels,
     node_tasks: node_tasks::NodeTasks,
@@ -437,6 +438,7 @@ impl Shell {
             workspace_manager: None,
             floating: Default::default(),
             plugin_author: Default::default(),
+            viewer_pending: Vec::new(),
             next_window: 1,
             panels: Default::default(),
             layer_clipboard: Default::default(),
@@ -838,6 +840,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         self.poll_effect_import();
         self.poll_layer_clipboard();
         self.poll_animation_presets();
+        self.poll_viewer_inspection();
         if let Err(error) = self.poll_file_location() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -1111,6 +1114,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         let busy = self.attaching.is_some()
+            || !self.viewer_pending.is_empty()
             || self.layer_clipboard.busy()
             || self.animation_presets.busy()
             || self.diagnostics_export.is_some()

@@ -460,6 +460,7 @@ impl Shell {
                 height: atlas.height,
             }),
             logical_size: size,
+            inspection: Default::default(),
             composition_image: viewer.and_then(|v| self.viewer_image(v, scale)),
             composition: viewer.map(|r| {
                 [
@@ -665,6 +666,7 @@ impl Shell {
                 height: atlas.height,
             }),
             logical_size: size,
+            inspection: Default::default(),
             composition_image: None,
             composition: None,
             window: key,
@@ -1286,6 +1288,7 @@ impl Shell {
                         height: config.height,
                     }),
                     logical_size: size,
+                    inspection: Default::default(),
                     composition_image: None,
                     composition: None,
                     window: 0,

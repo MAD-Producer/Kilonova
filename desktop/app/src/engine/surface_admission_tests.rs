@@ -29,6 +29,7 @@ fn frame(size: u32) -> UiFrame {
         }),
         logical_size: [size as f32; 2],
         composition: Some([0., 0., size as f32, size as f32]),
+        inspection: Default::default(),
         composition_image: None,
         window: 0,
         node_preview: None,

@@ -65,7 +65,7 @@ fn frame(paint: PaintList, atlas: &TextAtlas, panels: &Panels, composition: bool
         .unwrap();
     let rect = |r: Rect| [r.min[0], r.min[1], r.width(), r.height()];
     let config = atlas.config();
-    UiFrame {
+    UiFrame { inspection: Default::default(),
         paint,
         atlas: Some(AtlasUpload {
             pixels: atlas.pixel_data().to_vec(),
@@ -384,7 +384,7 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
         assert!(select.width() <= paint.styles().metric("effect.enum.max_width", 112.));
         assert!(select.height() >= 26.);
         let config = atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { inspection: Default::default(),
             paint,
             atlas: Some(AtlasUpload {
                 pixels: atlas.pixel_data().to_vec(),
@@ -422,7 +422,7 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
                 Panel::EffectControls, size, &mut panels, &engine.state().unwrap(),
                 &Input {mouse:point,..Default::default()}).is_empty());
             let config = atlas.config();
-            let ui = UiFrame { paint, atlas:Some(AtlasUpload {pixels:atlas.pixel_data().to_vec(),width:config.width,height:config.height}),
+            let ui = UiFrame { inspection: Default::default(), paint, atlas:Some(AtlasUpload {pixels:atlas.pixel_data().to_vec(),width:config.width,height:config.height}),
                 logical_size:size,composition:None,composition_image:None,window:0,node_preview:None };
             crate::native_test_support::capture_ui(&mut events,&engine,ui,
                 root.join(format!("effect-{mode}-{width:.0}.png"))).unwrap();
@@ -734,7 +734,7 @@ fn native_effect_picks_preserve_source_coordinates_precision_history_and_failure
             &state, &Input::default()).is_empty());
         let offset = panels.effect_controls.test_rects[&(7, shadow, "offset".into(), 0)];
         assert!(offset.width() >= atlas.measure("12.000"));
-        let ui = UiFrame {
+        let ui = UiFrame { inspection: Default::default(),
             paint, atlas: Some(AtlasUpload { pixels: atlas.pixel_data().to_vec(),
                 width: atlas.config().width, height: atlas.config().height }),
             logical_size: size, composition: None, composition_image: None,

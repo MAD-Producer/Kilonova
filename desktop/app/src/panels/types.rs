@@ -7,6 +7,9 @@ use serde_json::Value;
 #[derive(Debug)]
 pub enum Action {
     OpenPluginEditor,
+    OpenViewerInspection { floating: bool, point: [f32; 2] },
+    CaptureViewerSnapshot { floating: bool },
+    SaveViewerSnapshot { floating: bool },
     BeginEffectPick(super::effect_pick::Ticket),
     EffectPick { ticket: super::effect_pick::Ticket, point: [f64; 2] },
     SaveAnimationPreset { object: u64, effects: Option<Vec<u64>> },
@@ -268,6 +271,7 @@ pub struct Panels {
     pub transform_controls: crate::panels::transform_controls::Controls,
     pub(crate) composition: CompositionState,
     pub(crate) viewer_guides: super::viewer_guides::Controls,
+    pub(crate) viewer_inspection: super::viewer_inspection::Controls,
 }
 
 #[derive(Default)]

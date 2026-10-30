@@ -42,6 +42,7 @@ pub(crate) mod effect_pick;
 mod toolbar_style;
 mod composition;
 mod viewer_guides;
+pub(crate) mod viewer_inspection;
 mod curves;
 pub(crate) mod effect_controls;
 mod effect_removal;
@@ -280,6 +281,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.parent_controls.cancel();
     panels.timeline_columns.cancel();
     panels.viewer_guides.cancel();
+    panels.viewer_inspection.cancel();
     panels.timeline.graph_ranges.cancel();
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
@@ -385,6 +387,11 @@ pub fn chrome(
     let pick_owned = panels.effect_pick.prepare(state, input);
     let pick_neutral = Input::default();
     let input = if pick_owned { &pick_neutral } else { input };
+    if pick_owned { panels.viewer_inspection.cancel(); }
+    let inspection_input = input;
+    let inspection_owned = panels.viewer_inspection.prepare(None, state, input);
+    let inspection_neutral = Input::default();
+    let input = if inspection_owned { &inspection_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(None, input)
         | panels.effect_controls.prepare_context_window(None, input)
@@ -1081,6 +1088,7 @@ pub fn chrome(
     let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
+    panels.viewer_inspection.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, inspection_input, panels.locale, &mut out);
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     if pick_owned {
         let clips: Vec<_> = frames(layout, size).into_iter().map(|f| (f.panel, f.content)).collect();
@@ -1118,6 +1126,11 @@ pub fn floating_chrome(
     let pick_owned = panels.effect_pick.prepare(state, input);
     let pick_neutral = Input::default();
     let input = if pick_owned { &pick_neutral } else { input };
+    if pick_owned { panels.viewer_inspection.cancel(); }
+    let inspection_input = input;
+    let inspection_owned = panels.viewer_inspection.prepare(Some(panel), state, input);
+    let inspection_neutral = Input::default();
+    let input = if inspection_owned { &inspection_neutral } else { input };
     let effect_context_input = input;
     let effect_context_owned = panels.browser.prepare_context_window(Some(panel), input)
         | panels.effect_controls.prepare_context_window(Some(panel), input)
@@ -1447,6 +1460,7 @@ pub fn floating_chrome(
     let handles_busy = panels.path_controls.editing() || panels.transform_controls.gesture_active() || panels.tools.editing();
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
+    panels.viewer_inspection.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, inspection_input, panels.locale, &mut out);
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     apply_marker_selection(panels, state);
     scope_edits(out, state)

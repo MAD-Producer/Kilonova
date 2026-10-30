@@ -557,6 +557,83 @@ fn overlay_menu_keeps_native_window_ownership_and_consumes_its_closing_frame() {
 }
 
 #[test]
+fn channel_dropdown_selects_explicitly_and_keeps_window_state_independent() {
+    let mut atlas = TextAtlas::from_system(18.).unwrap();
+    let state = state(vec![]);
+    for locale in [Locale::Zh, Locale::En] {
+        for window in [None, Some(Panel::Composition)] {
+            let mut controls = Controls::default();
+            let bounds = Rect::new(0., 0., 900., 600.);
+            let styles = PaintList::default().styles();
+            let row = styles.metric("row.height", 22.);
+            let padding = styles.metric("padding.panel", 8.);
+            let width = styles.metric("viewer.overlay.menu.width", 232.);
+            let channel_width = styles.metric("viewer.overlay.button.width", 64.);
+            let channel_x = 100. + width - padding - channel_width + 5.;
+            let anchor_y = 400. - padding - row;
+            controls.prepare(window, &state, &Input::default());
+            controls.open([100., 400.], &state);
+            let mut actions = vec![];
+            let mut draw_menu = |controls: &mut Controls, input: &Input| {
+                controls.prepare(window, &state, input);
+                controls.menu(&mut PaintList::default(), &mut atlas, bounds, &state,
+                    input, locale, false, "", &mut actions);
+            };
+            draw_menu(&mut controls, &Input::default());
+            draw_menu(&mut controls, &press([channel_x, anchor_y + row * 0.5]));
+            assert!(controls.channel_dropdown.open);
+            // The five-item dropdown opens above its anchor; its last row is Alpha.
+            draw_menu(&mut controls, &press([channel_x, anchor_y - row * 0.5]));
+            assert_eq!(controls.channel(window.is_some()), motion_render::ViewChannel::Alpha);
+            assert_eq!(controls.channel(window.is_none()), motion_render::ViewChannel::Color);
+            assert!(!controls.channel_dropdown.open);
+            assert!(actions.is_empty());
+            assert_eq!(state["revision"], 7);
+        }
+    }
+}
+
+#[test]
+fn channel_dropdown_focus_loss_cancels_and_keyboard_selection_stays_local() {
+    let mut atlas = TextAtlas::from_system(18.).unwrap();
+    let state = state(vec![]);
+    let styles = PaintList::default().styles();
+    let row = styles.metric("row.height", 22.);
+    let padding = styles.metric("padding.panel", 8.);
+    let width = styles.metric("viewer.overlay.menu.width", 232.);
+    let channel_width = styles.metric("viewer.overlay.button.width", 64.);
+    let point = [100. + width - padding - channel_width + 5., 400. - padding - row * 0.5];
+    for locale in [Locale::Zh, Locale::En] {
+        for window in [None, Some(Panel::Composition)] {
+            let mut controls = Controls::default();
+            controls.prepare(window, &state, &Input::default());
+            controls.open([100., 400.], &state);
+            let mut actions = vec![];
+            let mut draw_menu = |controls: &mut Controls, input: &Input| {
+                controls.prepare(window, &state, input);
+                controls.menu(&mut PaintList::default(), &mut atlas, Rect::new(0., 0., 900., 600.),
+                    &state, input, locale, false, "", &mut actions);
+            };
+            draw_menu(&mut controls, &Input::default());
+            draw_menu(&mut controls, &press(point));
+            assert!(controls.channel_dropdown.open);
+            draw_menu(&mut controls, &Input { focus_lost: true, ..Default::default() });
+            assert!(controls.menu.is_none() && !controls.channel_dropdown.open);
+            assert_eq!(controls.channel(window.is_some()), motion_render::ViewChannel::Color);
+            controls.open([100., 400.], &state);
+            draw_menu(&mut controls, &Input::default());
+            draw_menu(&mut controls, &press(point));
+            draw_menu(&mut controls, &Input { keys: vec![(Key::Down, Default::default())], ..Default::default() });
+            draw_menu(&mut controls, &Input { keys: vec![(Key::Enter, Default::default())], ..Default::default() });
+            assert_eq!(controls.channel(window.is_some()), motion_render::ViewChannel::Red);
+            assert_eq!(controls.channel(window.is_none()), motion_render::ViewChannel::Color);
+            assert!(!controls.channel_dropdown.open && actions.is_empty());
+            assert_eq!(state["revision"], 7);
+        }
+    }
+}
+
+#[test]
 fn handle_shortcut_respects_locale_window_repeat_ime_and_text_ownership() {
     use crate::shortcuts::{Command as Shortcut, Scope};
     let state = state(vec![]);

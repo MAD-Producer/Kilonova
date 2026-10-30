@@ -5,6 +5,20 @@ mod admission_tests;
 #[cfg(test)]
 mod source_tests;
 
+/// Inspect a composition channel before presentation encoding as opaque grayscale.
+/// RGB is sampled in working linear light; Alpha is the original coverage value.
+/// This is presentation state; it does not change the source or exported color.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ViewChannel {
+    #[default]
+    Color = 0,
+    Red = 1,
+    Green = 2,
+    Blue = 3,
+    Alpha = 4,
+}
+
 /// GPU-only final presentation keeps the compositor in a predictable sRGB target
 /// even when an Android swapchain exposes a linear UNORM pixel format.
 pub struct Presenter {
@@ -18,6 +32,12 @@ pub struct Presenter {
     sampler: wgpu::Sampler,
     buffer: memory::Buffer,
     view_buffer: memory::Buffer,
+    view_channel: ViewChannel,
+    inspection_region: Option<[f32; 4]>,
+    comparison_split: Option<f32>,
+    comparison_group: Option<wgpu::BindGroup>,
+    comparison_ledger: Option<crate::TextureResourceLedger>,
+    comparison_allocation: Option<crate::allocation_budget::AllocationLease>,
     // Retire GPU bindings before releasing their source reservation.
     source_allocation: Option<crate::allocation_budget::AllocationLease>,
 }
@@ -144,6 +164,12 @@ impl Presenter {
             buffer,
             view_buffer,
             view_group,
+            view_channel: ViewChannel::Color,
+            inspection_region: None,
+            comparison_split: None,
+            comparison_group: None,
+            comparison_ledger: None,
+            comparison_allocation: None,
         }
     }
     /// Rebind a preview buffer without rebuilding the presentation pipeline.
@@ -155,6 +181,40 @@ impl Presenter {
         }
         // Raw rebinding still relinquishes admission ownership on a cache hit.
         self.source_allocation = None;
+    }
+    /// Select a raw stored channel for `encode_view`. The ordinary `encode` /
+    /// `draw` paths keep their color output, including their original alpha.
+    /// Single-channel intensity is a display value, so alpha is not gamma-encoded.
+    pub fn set_view_channel(&mut self, queue: &wgpu::Queue, channel: ViewChannel) -> Result<(), crate::RenderError> {
+        if self.view_channel != channel {
+            self.view_buffer.write(queue, 4, bytemuck::bytes_of(&(channel as u32)))?;
+            self.view_channel = channel;
+        }
+        Ok(())
+    }
+    pub fn view_channel(&self) -> ViewChannel { self.view_channel }
+    /// Bind a retained snapshot once; repeated presentation only updates geometry.
+    pub fn set_comparison_source(&mut self, device: &wgpu::Device, source: &crate::RenderTarget) {
+        self.comparison_group = Some(Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, &source.view));
+        let mut ledger = crate::TextureResourceLedger::default();
+        source.collect_texture_resources(&mut ledger, "viewer/comparison", crate::TextureState::Retained);
+        self.comparison_ledger = Some(ledger);
+        self.comparison_allocation = Some(source.view.lease.clone());
+    }
+    pub fn clear_comparison_source(&mut self) {
+        self.comparison_group = None;
+        self.comparison_ledger = None;
+        self.comparison_allocation = None;
+        self.comparison_split = None;
+    }
+    pub fn collect_inspection_resources(&self, ledger: &mut crate::TextureResourceLedger) {
+        if self.comparison_split.is_some() {
+            if let Some(comparison) = &self.comparison_ledger { ledger.merge(comparison.clone()); }
+        }
+    }
+    pub fn set_inspection_geometry(&mut self, region: Option<[f32; 4]>, split: Option<f32>) {
+        self.inspection_region = region;
+        self.comparison_split = split;
     }
     fn source_group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, buffer: &wgpu::Buffer, source: &wgpu::TextureView) -> wgpu::BindGroup {
@@ -172,15 +232,111 @@ impl Presenter {
     pub fn encode_view(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4]) -> Result<(), crate::RenderError> {
+        if self.inspection_region.is_some() || self.comparison_split.is_some() {
+            let comparison = match self.comparison_split {
+                Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
+                    crate::RenderError::Invalid("viewer comparison snapshot is unavailable".into()))?, split)),
+                None => None,
+            };
+            let (live, captured) = Self::inspection_scissors(viewport, image, self.inspection_region, self.comparison_split)?;
+            let [x, y, w, h] = viewport;
+            let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+            let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
+            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("viewer inspection"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None, view: output, resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: background[0] as f64, g: background[1] as f64,
+                        b: background[2] as f64, a: background[3] as f64,
+                    }), store: wgpu::StoreOp::Store },
+                })],
+                depth_stencil_attachment: None, timestamp_writes: timestamps,
+                occlusion_query_set: None, multiview_mask: None,
+            });
+            pass.set_viewport(x, y, w, h, 0., 1.);
+            pass.set_pipeline(&self.pipeline);
+            if let Some([x, y, w, h]) = live {
+                pass.set_scissor_rect(x, y, w, h);
+                pass.set_bind_group(0, &self.view_group, &[]);
+                pass.draw(0..3, 0..1);
+            }
+            if let (Some([x, y, w, h]), Some((group, _))) = (captured, comparison) {
+                pass.set_scissor_rect(x, y, w, h);
+                pass.set_bind_group(0, group, &[]);
+                pass.draw(0..3, 0..1);
+            }
+            return Ok(());
+        }
         if let Some([ix, iy, iw, ih]) = image {
             let [x, y, w, h] = viewport;
             let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
             self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
             self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
+        } else if self.view_channel != ViewChannel::Color {
+            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&[0.0f32, 0., 1., 1.]))?;
+            self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
         } else {
             self.encode(encoder, output, timestamps, Some(viewport), background);
         }
         Ok(())
+    }
+    /// Present a live image, optionally comparing a captured image to its right.
+    /// `region` and `split` use normalized composition coordinates; the entire
+    /// output is cleared on every call, including outside the selected region.
+    pub fn encode_inspection_view(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, viewport: [f32; 4], image: Option<[f32; 4]>,
+        background: [f32; 4], region: Option<[f32; 4]>,
+        comparison: Option<(&Presenter, f32)>) -> Result<(), crate::RenderError> {
+        let (live, captured) = Self::inspection_scissors(viewport, image, region, comparison.map(|(_, split)| split))?;
+        if let Some((other, _)) = comparison {
+            if other.format != self.format || other.view_channel != self.view_channel {
+                return Err(crate::RenderError::Invalid("invalid viewer comparison split, format or channel".into()));
+            }
+        }
+        let [x, y, w, h] = viewport;
+        let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+        let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
+        self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+        if let Some((other, _)) = comparison { other.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?; }
+        self.encode_group_region(encoder, output, Some(viewport), background, &self.view_group, live, false);
+        if let Some((other, _)) = comparison {
+            other.encode_group_region(encoder, output, Some(viewport), background, &other.view_group, captured, true);
+        }
+        Ok(())
+    }
+
+    fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
+        split: Option<f32>) -> Result<(Option<[u32; 4]>, Option<[u32; 4]>), crate::RenderError> {
+        let [x, y, w, h] = viewport;
+        let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+        let [rx, ry, rw, rh] = region.unwrap_or([0., 0., 1., 1.]);
+        if !viewport.iter().chain([ix, iy, iw, ih, rx, ry, rw, rh].iter()).all(|v| v.is_finite())
+            || x < 0. || y < 0. || w <= 0. || h <= 0. || iw <= 0. || ih <= 0.
+            || rx < 0. || ry < 0. || rw <= 0. || rh <= 0. || rx + rw > 1. || ry + rh > 1.
+            || x + w > u32::MAX as f32 || y + h > u32::MAX as f32 {
+            return Err(crate::RenderError::Invalid("invalid viewer inspection viewport, image or region".into()));
+        }
+        if let Some(split) = split {
+            if !split.is_finite() || !(0. ..=1.).contains(&split) {
+                return Err(crate::RenderError::Invalid("invalid viewer comparison split, format or channel".into()));
+            }
+        }
+        let left = x.max(ix + rx*iw);
+        let top = y.max(iy + ry*ih);
+        let right = (x+w).min(ix+(rx+rw)*iw);
+        let bottom = (y+h).min(iy+(ry+rh)*ih);
+        let scissor = |l: f32, r: f32| -> Option<[u32; 4]> {
+            // Include exactly the pixel centers in each half-open interval.
+            let l = (l-0.5).ceil().max(0.) as u32;
+            let t = (top-0.5).ceil().max(0.) as u32;
+            let r = (r-0.5).ceil().max(0.) as u32;
+            let b = (bottom-0.5).ceil().max(0.) as u32;
+            (r > l && b > t).then(|| [l, t, r-l, b-t])
+        };
+        let cut = split.map_or(right, |split| (ix+split*iw).clamp(left, right.max(left)));
+        Ok((scissor(left, cut), split.and_then(|_| scissor(cut, right))))
     }
     pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) -> Result<(), crate::RenderError> {
         let mut encoder = renderer
@@ -204,6 +360,16 @@ impl Presenter {
     fn encode_group(&self, encoder: &mut wgpu::CommandEncoder, output: &wgpu::TextureView,
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>, viewport: Option<[f32; 4]>,
         background: [f32; 4], group: &wgpu::BindGroup) {
+        self.encode_group_impl(encoder, output, timestamps, viewport, background, group, None, false, false)
+    }
+    fn encode_group_region(&self, encoder: &mut wgpu::CommandEncoder, output: &wgpu::TextureView,
+        viewport: Option<[f32; 4]>, background: [f32; 4], group: &wgpu::BindGroup,
+        scissor: Option<[u32; 4]>, load: bool) {
+        self.encode_group_impl(encoder, output, None, viewport, background, group, scissor, load, true)
+    }
+    fn encode_group_impl(&self, encoder: &mut wgpu::CommandEncoder, output: &wgpu::TextureView,
+        timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>, viewport: Option<[f32; 4]>,
+        background: [f32; 4], group: &wgpu::BindGroup, scissor: Option<[u32; 4]>, load: bool, clipped: bool) {
         let mut clear = [0.0; 4];
         clear[3] = background[3];
         for i in 0..3 {
@@ -223,12 +389,12 @@ impl Presenter {
                     view: output,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                        load: if load { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(wgpu::Color {
                             r: clear[0] as f64,
                             g: clear[1] as f64,
                             b: clear[2] as f64,
                             a: clear[3] as f64,
-                        }),
+                        }) },
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -239,9 +405,12 @@ impl Presenter {
             if let Some([x, y, w, h]) = viewport {
                 pass.set_viewport(x, y, w, h, 0.0, 1.0);
             }
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, group, &[]);
-            pass.draw(0..3, 0..1);
+            if !clipped || scissor.is_some() {
+                if let Some([x, y, w, h]) = scissor { pass.set_scissor_rect(x, y, w, h); }
+                pass.set_pipeline(&self.pipeline);
+                pass.set_bind_group(0, group, &[]);
+                pass.draw(0..3, 0..1);
+            }
         }
     }
 }

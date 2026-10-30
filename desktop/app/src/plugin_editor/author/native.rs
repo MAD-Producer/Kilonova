@@ -75,6 +75,7 @@ fn author_drag_source_history_save_and_native_rendering() {
                     logical_size: [1440., 900.],
                     composition: None,
                     composition_image: None,
+                    inspection: Default::default(),
                     window: 0,
                     node_preview: slot.map(|r| crate::node_preview::Viewport {
                         rect: [r.min[0], r.min[1], r.width(), r.height()],

@@ -68,6 +68,7 @@ fn present(shell: &Shell, events: &mut EventLoop<()>, size: [f32; 2]) {
             }),
             logical_size: size,
             composition: Some([0., 0., 64., 64.]),
+            inspection: Default::default(),
             composition_image: None,
             node_preview: None,
             window: 0,

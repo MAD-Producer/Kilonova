@@ -144,6 +144,7 @@ impl Shell {
                     height: config.height,
                 }),
                 logical_size: size,
+                inspection: Default::default(),
                 composition_image: None,
                 composition: None,
                 window: 0,

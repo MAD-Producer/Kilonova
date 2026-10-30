@@ -17,10 +17,20 @@ fn encode(v:vec3<f32>)->vec3<f32> {
     return select(1.055*pow(max(v,vec3(0.0)),vec3(1.0/2.4))-0.055,
         12.92*v,v<=vec3(0.0031308));
 }
+fn decode(v:vec3<f32>)->vec3<f32> {
+    return select(pow((v+0.055)/1.055,vec3(2.4)),v/12.92,v<=vec3(0.04045));
+}
 @fragment fn fragment_main(input:Out)->@location(0) vec4<f32> {
     let uv=presentation.uv.xy+input.uv*presentation.uv.zw;
     let c=textureSample(source,source_sampler,uv);
     if any(uv<vec2(0.0)) || any(uv>vec2(1.0)) { discard; }
+    if presentation.mode.y>0u {
+        let intensity=vec3(clamp(c[presentation.mode.y-1u],0.0,1.0));
+        // sRGB surfaces encode shader RGB on write. Decode an already selected
+        // display intensity so all four surface formats show the same raw value.
+        if presentation.mode.x==1u { return vec4(decode(intensity),1.0); }
+        return vec4(intensity,1.0);
+    }
     if presentation.mode.x==1u { return c; }
     return vec4(encode(c.rgb),c.a);
 }

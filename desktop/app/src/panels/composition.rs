@@ -15,6 +15,7 @@ pub(super) fn render(
 ) {
     let sheet = list.styles();
     let v = styled_viewer(area, &sheet);
+    let inspection_input = panels.viewer_inspection.selection_input(input).clone();
     let surround = list.styles().color("field");
     // Paint the viewer surround, leaving its contents to the shared GPU renderer.
     for r in [
@@ -92,7 +93,8 @@ pub(super) fn render(
         if let Some((_, before)) = panels.composition.pan.take() {
             panels.composition.navigation = before;
         }
-    } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() && !panels.viewer_guides.dragging() {
+    } else if !panels.path_controls.editing() && !panels.transform_controls.gesture_active() && !panels.viewer_guides.dragging()
+        && !panels.viewer_inspection.selecting() {
         if input
             .pressed
             .is_some_and(|(b, p)| (b == MouseButton::Middle || b == MouseButton::Left && super::tools::active(panels) == super::tools::Active::Hand) && v.contains(p))
@@ -226,8 +228,20 @@ pub(super) fn render(
     let overlay_width = sheet.metric("viewer.overlay.button.width", 64.);
     let overlay_rect = Rect::new(fit_rect.max[0] + gap, fit_rect.min[1], overlay_width, button_height);
     let overlay_fits = overlay_rect.max[0] <= controls.max[0] - padding;
+    let overlay_label = match (panels.locale == Locale::Zh, panels.viewer_guides.current_channel()) {
+        (true, motion_render::ViewChannel::Color) => "辅助显示",
+        (false, motion_render::ViewChannel::Color) => "Overlays",
+        (true, motion_render::ViewChannel::Red) => "辅助 R",
+        (true, motion_render::ViewChannel::Green) => "辅助 G",
+        (true, motion_render::ViewChannel::Blue) => "辅助 B",
+        (true, motion_render::ViewChannel::Alpha) => "辅助 A",
+        (false, motion_render::ViewChannel::Red) => "View R",
+        (false, motion_render::ViewChannel::Green) => "View G",
+        (false, motion_render::ViewChannel::Blue) => "View B",
+        (false, motion_render::ViewChannel::Alpha) => "View A",
+    };
     if overlay_fits && motion_ui::ui::button(list, atlas, overlay_rect,
-        if panels.locale == Locale::Zh { "辅助显示" } else { "Overlays" }, input, true).clicked {
+        overlay_label, input, true).clicked {
         panels.viewer_guides.open(overlay_rect.min, state);
     }
     let left_end = if overlay_fits { overlay_rect.max[0] } else { fit_rect.max[0] };
@@ -330,17 +344,21 @@ pub(super) fn render(
     let Some(mapping) = panels.composition.navigation.mapping(v, canvas) else {
         return;
     };
+    let mut inspection = list.child();
+    let inspection_owned = panels.viewer_inspection.viewport(&mut inspection, canvas_clip, mapping, canvas, &inspection_input);
+    let guide_neutral = Input::default();
+    let guide_input = if inspection_owned { &guide_neutral } else { input };
     let mut handles = list.child();
     let handles_visible = panels.viewer_guides.visibility.handles;
     let handle_hit = handles_visible && input.pressed.is_some_and(|(button,point)| button == MouseButton::Left && canvas_clip.contains(point)
         && panels.transform_controls.handle_hit(state,panels.selected,mapping.image,point,&sheet));
     let guide_tool = super::tools::active(panels) == super::tools::Active::Select
         || input.pressed.is_some_and(|(button,point)| button == MouseButton::Left && panels.viewer_guides.ruler_hit(v,point,&sheet));
-    let guide_owned = panels.viewer_guides.viewport(&mut handles, atlas, v, mapping, canvas, state, input,
+    let guide_owned = panels.viewer_guides.viewport(&mut handles, atlas, v, mapping, canvas, state, guide_input,
         panels.locale, !panels.path_controls.editing() && !panels.transform_controls.gesture_active()
             && !panels.tools.editing() && panels.composition.pan.is_none() && !handle_hit && guide_tool, out);
     if let Some(notice) = panels.viewer_guides.take_notice(panels.locale) { panels.message = Some(notice); }
-    if guide_owned { handles.clip_to(v); list.append(handles); return; }
+    if guide_owned || inspection_owned { handles.clip_to(v); list.append(handles); list.append(inspection); return; }
     let mut editing = handles.child();
     let tool_owned = super::tools::viewport(panels, &mut editing, v, mapping, state, input, out);
     let consumed = tool_owned || panels.path_controls.draw_with_handles(
@@ -374,6 +392,7 @@ pub(super) fn render(
     handles.append(editing);
     handles.clip_to(v);
     list.append(handles);
+    list.append(inspection);
     if let Some(cursor) = panels
         .transform_controls
         .cursor
