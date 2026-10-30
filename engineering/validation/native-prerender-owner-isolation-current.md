@@ -1,6 +1,6 @@
 # Native prerender owner isolation (#82)
 
-Status: implementation and two actual controls authored; execution pending.
+Status: actual owner-isolation controls accepted at `d1c65167cdd75051e211b3928b18e1cbc3b4535d`.
 This is not Engine/Session cache-consumer or full-workspace acceptance.
 
 Session-side capture now clones project, registry, policy, depth metadata,
@@ -29,3 +29,17 @@ are changed.
 Engine interruption/scheduling, Session consumption, output-profile matching,
 invalidation, default logger evidence and foreground P95 remain open. The
 capability stays disabled. Android is excluded.
+
+## Executed controls
+
+The combined producer/worker filter passed 14 tests with zero failures and one
+manual exclusion. The excluded all-four-precision control ran explicitly and
+passed with zero exclusions. Full motion-desktop-media regression passed
+86 tests with zero failures and two manual exclusions; those focused counts
+overlap. The other manual exclusion is the existing keyframe timing proof,
+which was not rerun here. Desktop ffmpeg/host ai-depth checking and provenance
+passed. Source remained unchanged. This is not full renderer/workspace or
+cross-platform acceptance of the constructor extraction.
+
+Evidence: `data/native-prerender-owner-isolation-v1.zip`; SHA-256 `6aa96f0e08be17006ed700a5d2aaef7c5ea3b09dce55c1816a4059f8e72dcb11`;
+206165 bytes; 16 entries, all read back and hash-checked.
