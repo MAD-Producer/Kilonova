@@ -196,14 +196,18 @@ fn paced_model_playback_records_paired_foreground_costs_and_real_cache_hits() {
             }
             let start = Instant::now();
             receive(&mut events, &engine.seek_async(f64::from(number)).unwrap());
+            let seek_elapsed = start.elapsed();
             let polls = show(&mut events, &engine);
             let elapsed = start.elapsed();
             let state = engine.state().unwrap();
             evidence.current.push(
                 serde_json::json!({"frame":number,"foreground_us":elapsed.as_micros(),
+                "seek_us":seek_elapsed.as_micros(),
+                "present_us":elapsed.saturating_sub(seek_elapsed).as_micros(),
                 "presentPolls":polls,"completion_late_us":deadline.elapsed().as_micros(),
                 "missedNextDeadline":Instant::now() > deadline + Duration::from_secs_f64(1./30.),
-                "cachedPresented":state["desktop"]["prerender"]["cachedPresented"]}),
+                "cachedPresented":state["desktop"]["prerender"]["cachedPresented"],
+                "prerender":state["desktop"]["prerender"]}),
             );
             assert_eq!(state["lastPresentedFrame"], f64::from(number));
             assert!(state["desktop"]["prerender"]["fault"].is_null(), "{state}");
