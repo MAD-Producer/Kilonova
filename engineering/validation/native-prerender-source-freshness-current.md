@@ -1,8 +1,9 @@
 # Native prerender source freshness (#82)
 
 Status: the media/worker source-freshness component passed its actual native
-controls and unchanged existing regression. Engine-native presentation, full
-regression, strict input/playback P95 and current-head CI remain pending. Do not
+controls and unchanged existing regression. The Engine-native source delivery
+and presentation control also passed. Full regression, strict input/playback
+P95 and current-head CI remain pending. Do not
 use this component alone to close #82. Source parent `8fd81cf8`, based on main
 `ab779cee`; the archive records every source hash. Android is retired.
 
@@ -60,9 +61,8 @@ filesystem notification delivery is not qualified by this local-first profile;
 no polling/hash scan is added to the foreground. This component does not change
 the foreground renderer's independent source-reload policy, promise recovery
 from a partially written/corrupt source, add retries/restarts or qualify P95.
-An Engine-native replacement/presentation control, current full regression,
-unchanged input/playback P95 criteria and current-head cross-platform CI remain
-required. Earlier failed P95/crash receipts remain failures with unconfirmed
+Current full regression, unchanged input/playback P95 criteria and current-head
+cross-platform CI remain required. Earlier failed P95/crash receipts remain failures with unconfirmed
 native-crash causes.
 
 ## Executed proof and failure dispositions
@@ -113,3 +113,33 @@ Archive: `data/native-prerender-source-freshness-v1.zip`.
 SHA-256: `d661eda86ee2f513264101c05ec58f052e53999160497eb49e6ba14d66bc8cb5`.
 All 80 members were read back byte for byte. No executable, PDB, dump,
 user project, source payload or external product asset is included.
+
+## Engine-native delivery and presentation proof
+
+On source parent `04c0f5ea`, the actual Engine test passed 1/0/0; desktop check,
+provenance and inventory also passed. A native High preview first showed red
+image pixels, then consumed an actual cached red frame. With Engine blocked in
+TestWait, the test wrote the same source path without a document edit. The
+published observation became invalid while in_flight remained test_wait and
+queue_depth stayed zero: source delivery did not need the blocked command queue.
+
+Seek and Present were queued before releasing TestWait, so the next presentation
+could not be satisfied by a newly warmed generation racing ahead of that queue.
+The old cache was refused: cachedPresented stayed 1. Subsequent actual background
+warmup and native presentation showed green pixels and increased cachedPresented
+to 2, while the authored revision stayed 0. This is the application consumer's
+source gate and retained-front pixel proof, beyond the media-only controls.
+The status metadata now names native_visual_source_watch.
+
+The first foreground fallback after invalidation keeps its existing independent
+image reload behavior; the test does not promise to reload that cache or change
+that product policy. It verifies that stale optional cached pixels are refused
+and newly frozen source pixels reach subsequent cached presentation. The
+native loader still reports the existing missing Epic overlay JSON paths; this
+passed control neither suppresses those errors nor assigns crash causality.
+No UI layout, style, panel or interaction contract was modified.
+
+Engine archive: `data/native-prerender-engine-source-v1.zip`.
+SHA-256: `e8fbfdb51537907446187201686b29449003ad711754efe199c97d90f19e3ba1`.
+All 14 members were read back byte for byte. The archive contains only
+owned fixture logs, raw pixel/state evidence, source hashes and controller.

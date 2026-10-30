@@ -394,7 +394,7 @@ impl Runtime {
             "started":scheduler.map_or(0,|s|s.counts.started),"completed":scheduler.map_or(0,|s|s.counts.completed),
             "canceled":scheduler.map_or(0,|s|s.counts.canceled),"stale":scheduler.map_or(0,|s|s.counts.stale),
             "cpuQuotaBytes":CPU_BYTES,"gpuQuotaBytes":GPU_BYTES,
-            "sourceChanges":"managed_revision_or_explicit_refresh","diskCache":false})
+            "sourceChanges":"native_visual_source_watch","diskCache":false})
     }
 }
 impl Drop for Runtime {
