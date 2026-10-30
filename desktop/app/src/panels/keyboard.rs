@@ -476,6 +476,11 @@ fn handle_context_shortcuts(
             if command == Command::Delete && super::graph_box::delete(panels, state, out) {
                 continue;
             }
+            if matches!(command, Command::ToggleEffectGroup | Command::ToggleMaskGroup)
+                && (input.focus_lost || layout_shortcuts_blocked(panels))
+            {
+                continue;
+            }
             if super::timeline_shortcuts::handle(command, modifiers, panels, state, &mut frame, out)
                 || key_owned && command == Command::Delete
             {
