@@ -424,6 +424,7 @@ fn run(
             return;
         }
         log::info!("start #{id} prerender_worker operation={operation} frame={frame:?}");
+        log::logger().flush();
         phase_hook(id, "start");
         let mut observation_failed = false;
         let mut progress = |phase: Phase| {
