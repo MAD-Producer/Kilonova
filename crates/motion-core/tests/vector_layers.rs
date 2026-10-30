@@ -150,7 +150,7 @@ fn malformed_path_and_overshooting_sample_are_rejected() {
     let mut v = VectorContent::shape(ShapeKind::Rectangle);
     v.source = VectorSource::Paths {
         paths: vec![VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: vec![PathNode {
                 id: 1,

@@ -70,6 +70,8 @@ mod precision_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
 mod keyframe_timing_tests;
 #[cfg(all(test, feature = "ffmpeg"))]
+mod path_tangent_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
 mod publication_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]

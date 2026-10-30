@@ -36,12 +36,12 @@ impl Mode {
     pub fn hint(self, locale: Locale) -> Option<&'static str> {
         match (self, locale) {
             (Self::Draw, _) => None,
-            (Self::Add, Locale::Zh) => Some("点击路径段添加顶点 · 保持曲线形状 · Esc 取消"),
+            (Self::Add, Locale::Zh) => Some("点击路径段添加顶点 · 手动模式保形，自动模式重算 · Esc 取消"),
             (Self::Delete, Locale::Zh) => Some("点击顶点删除 · Ctrl+Z 撤销 · Esc 取消"),
             (Self::Smooth, Locale::Zh) => Some("点击顶点对齐手柄 · 保留锚点和手柄长度 · Esc 取消"),
             (Self::Corner, Locale::Zh) => Some("点击顶点收起手柄 · 保留锚点 · Esc 取消"),
             (Self::Add, _) => {
-                Some("Click a segment to add a vertex · Preserve the curve · Esc cancels")
+                Some("Click a segment to add · Manual keeps shape; Automatic recalculates · Esc cancels")
             }
             (Self::Delete, _) => Some("Click a vertex to delete · Ctrl+Z undoes · Esc cancels"),
             (Self::Smooth, _) => Some(
@@ -234,6 +234,22 @@ impl super::Controls {
             }
             return true;
         };
+        if matches!(edit, Edit::Smooth | Edit::Corner)
+            && paths.iter().any(|path| {
+                path["id"].as_u64() == Some(point.path)
+                    && path["item"].as_u64() == point.item
+                    && path["mask"].as_u64() == point.mask
+                    && automatic(path)
+            })
+        {
+            self.pen_tools.rejected.success();
+            self.notice = Some(if locale == Locale::Zh {
+                "自动切线由相邻顶点计算；请先在右键菜单恢复手动切线".into()
+            } else {
+                "Automatic tangents follow neighbouring vertices; restore Manual Tangents in the context menu first".into()
+            });
+            return true;
+        }
         match command(layer, point, edit, frame.floor() as u32) {
             Ok(command) => {
                 self.pen_tools.rejected.success();
@@ -386,6 +402,45 @@ fn split_tracks(
     Ok([left, middle, right])
 }
 
+/// Automatic handles depend on the whole path. Preserve every existing authored
+/// track, place the new anchor on the sampled segment at authored poses, and let
+/// the constraint recalculate. This is intentionally not lossless subdivision.
+fn automatic_middle(path: &VectorPath, index: usize, next: usize, t: f32, frame: i32)
+    -> motion_core::Result<Track<[f32; 6]>>
+{
+    let mut frames = std::collections::BTreeSet::from([frame]);
+    let animated = path.nodes.iter().any(|n| !n.geometry.keys.is_empty() || n.geometry.axes.is_some());
+    for node in &path.nodes {
+        if node.geometry.axes.is_some() {
+            return Err(invalid("automatic subdivision requires coupled geometry tracks"));
+        }
+        for key in &node.geometry.keys {
+            frames.insert(key.frame);
+            if frames.len() > motion_core::MAX_FRAMES as usize {
+                return Err(invalid("pen subdivision exceeds the new vertex keyframe budget"));
+            }
+        }
+    }
+    let sample = |at: i32| -> motion_core::Result<[f32; 6]> {
+        let sampled = path.sample(f64::from(at))?;
+        let p = cubic(sampled.nodes[index], sampled.nodes[next], t);
+        Ok([p[0], p[1], 0., 0., 0., 0.])
+    };
+    let mut middle = Track::constant(sample(frame)?);
+    if animated {
+        for at in frames {
+            middle.keys.push(motion_core::Keyframe {
+                frame: at,
+                value: sample(at)?,
+                ease: motion_core::Ease::Linear,
+                curve: None,
+                spatial: None,
+            });
+        }
+    }
+    Ok(middle)
+}
+
 fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion_core::Result<()> {
     let index = path
         .nodes
@@ -412,13 +467,15 @@ fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion
                 .checked_add(1)
                 .filter(|id| *id != 0)
                 .ok_or_else(|| invalid("pen node ID overflow"))?;
-            let [left, middle, right] = split_tracks(
+            let [left, middle, right] = if path.tangents == motion_core::vector::TangentMode::Automatic {
+                [path.nodes[index].geometry.clone(), automatic_middle(path, index, j, t, frame)?, path.nodes[j].geometry.clone()]
+            } else { split_tracks(
                 &path.nodes[index].geometry,
                 &path.nodes[j].geometry,
                 t,
                 path,
                 frame,
-            )?;
+            )? };
             path.nodes[index].geometry = left;
             path.nodes[j].geometry = right;
             path.nodes.insert(
@@ -434,6 +491,9 @@ fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion
             path.closed &= path.nodes.len() >= 3;
         }
         Edit::Corner | Edit::Smooth => {
+            if path.tangents == motion_core::vector::TangentMode::Automatic {
+                return Err(invalid("restore manual tangents before editing handles"));
+            }
             let mut g = path.nodes[index].geometry.sample(f64::from(frame))?;
             if matches!(edit, Edit::Corner) {
                 g[2..].fill(0.);

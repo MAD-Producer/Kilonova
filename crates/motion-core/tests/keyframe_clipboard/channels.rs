@@ -29,7 +29,7 @@ fn node(id: u64, x: f32, y: f32) -> PathNode {
 }
 fn path() -> VectorPath {
     VectorPath {
-        id: 10,
+        tangents: Default::default(), id: 10,
         closed: true,
         nodes: vec![node(11, 0., 0.), node(12, 40., 0.), node(13, 20., 40.)],
     }

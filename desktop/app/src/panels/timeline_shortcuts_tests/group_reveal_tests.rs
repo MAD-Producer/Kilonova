@@ -8,7 +8,7 @@ fn fixture() -> (Engine, Value) {
     let mut project = engine.project().clone();
     let layer = &mut project.layers[0];
     let path = motion_core::vector::VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[10., 10.], [90., 10.], [90., 90.], [10., 90.]]
             .into_iter()

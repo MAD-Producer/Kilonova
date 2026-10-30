@@ -363,7 +363,10 @@ fn icons_pen_button(
     .clicked
 }
 fn geometry(node: &Value) -> Option<[f32; 6]> {
-    let a = node["geometry"].as_array()?;
+    geometry_value(&node["geometry"])
+}
+fn geometry_value(value: &Value) -> Option<[f32; 6]> {
+    let a = value.as_array()?;
     if a.len() != 6 {
         return None;
     }
@@ -372,6 +375,10 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
         *x = v.as_f64()? as f32;
     }
     Some(g)
+}
+fn automatic(path: &Value) -> bool { path["tangents"] == "automatic" }
+fn edit_geometry(node: &Value) -> Option<[f32; 6]> {
+    geometry_value(node.get("authored_geometry").unwrap_or(&node["geometry"]))
 }
 impl Controls {
     pub(super) fn text_menu(&mut self, request: &mut super::text_menu::Request<'_>) {
@@ -633,7 +640,7 @@ impl Controls {
             projection,
             offset,
             path: VectorPath {
-                id,
+                tangents: Default::default(), id,
                 closed: false,
                 nodes: vec![],
             },
@@ -753,9 +760,10 @@ impl Controls {
         // Boundary measurement grips yield to every visible authored control,
         // including the faded handles of an unselected node.
         let authored: Vec<_> = sampled.iter().flat_map(|path|
-            path["nodes"].as_array().into_iter().flatten()).filter_map(geometry)
-            .flat_map(|g| [0,2,4].into_iter().filter_map(move |axis| {
-                if axis != 0 && g[axis].abs()+g[axis+1].abs()<0.01 {return None;}
+            path["nodes"].as_array().into_iter().flatten().map(move |n|(automatic(path),n)))
+            .filter_map(|(auto,n)| geometry(n).map(|g|(auto,g)))
+            .flat_map(|(auto,g)| [0,2,4].into_iter().filter_map(move |axis| {
+                if axis != 0 && (auto || g[axis].abs()+g[axis+1].abs()<0.01) {return None;}
                 let point=if axis==0 {[g[0],g[1]]} else {[g[0]+g[axis],g[1]+g[axis+1]]};
                 Some([point[0]-offset[0],point[1]-offset[1]])
             })).filter_map(|point|projection.as_ref()?.screen(point)).collect();
@@ -840,7 +848,7 @@ impl Controls {
                         let pid = path["id"].as_u64().unwrap_or(1);
                         let nid = n["id"].as_u64().unwrap_or(1);
                         for axis in [0, 2, 4] {
-                            if axis != 0 && (g[axis].abs()+g[axis+1].abs()<0.01 || path["bounds_size"].is_array()
+                            if axis != 0 && (automatic(path) || g[axis].abs()+g[axis+1].abs()<0.01 || path["bounds_size"].is_array()
                                 || !(self.point_selection.points.contains(&point_selection::Point::new(path,nid))
                                     || self.selected.is_none() && self.point_selection.points.is_empty()
                                     || self.selected == Some((pid,nid)) && self.selected_item==path["item"].as_u64()
@@ -854,7 +862,7 @@ impl Controls {
                             };
                             if let Some(screen) = p.screen(local) {
                                 let point = input.pressed.map_or(input.mouse, |(_, point)| point);
-                                hits.push((distance(point, screen), pid, nid, axis, g,
+                                hits.push((distance(point, screen), pid, nid, axis, if automatic(path) {edit_geometry(n).unwrap_or(g)} else {g},
                                     path, n["animated"].as_bool().unwrap_or(false)));
                             }
                         }
@@ -1151,6 +1159,7 @@ impl Controls {
                     offset,
                     selected,
                     self.tool == Tool::Mask,
+                    !automatic(path),
                     colors.ACCENT,
                     hovered
                         .filter(|(key,_,_)| key.path == id && key.item==path["item"].as_u64()
@@ -1171,6 +1180,7 @@ impl Controls {
                 false,
                 d.offset,
                 None,
+                true,
                 true,
                 draft_color,
                 None,
@@ -1698,6 +1708,7 @@ fn paint_path(
     offset: [f32; 2],
     selected: Option<usize>,
     show_all_handles: bool,
+    manual_handles: bool,
     color: Color,
     hovered: Option<(usize, Option<usize>)>,
 ) {
@@ -1713,7 +1724,7 @@ fn paint_path(
         } else {
             paint::box_rect(list, node, color, Color([0.; 4]), 0., 0.);
         }
-        if show_all_handles || selected == Some(i) || selected.is_none() {
+        if manual_handles && (show_all_handles || selected == Some(i) || selected.is_none()) {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
                     continue;
@@ -1866,7 +1877,7 @@ mod numeric_tests {
                     [1.; 4],
                 );
                 let path = VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: true,
                     nodes: [[0., 0.], [100., 0.], [0., 100.]]
                         .into_iter()
@@ -2036,7 +2047,7 @@ mod review327_regressions {
             let hover = hovered_target(&p, &[(1, &nodes)], [0.;2], [x,50.], Some(1)).unwrap();
             let mut list = PaintList::default();
             let color = list.styles().colors().ACCENT;
-            paint_path(&mut list, &p, &nodes, false, [0.;2], Some(0), false, color, Some((hover.node, hover.handle)));
+            paint_path(&mut list, &p, &nodes, false, [0.;2], Some(0), false, true, color, Some((hover.node, hover.handle)));
             let highlighted: Vec<_> = list.shapes.iter().filter_map(|s| match s {
                 Shape::Procedural { area, kind: Pattern::Diamond, .. } if (area.width()-8.).abs()<0.01 => Some(*area),
                 _ => None,
@@ -2050,7 +2061,7 @@ mod review327_regressions {
     fn review327_locked_path_does_not_advertise_hover() {
         let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
         let mut layer = Layer::solid(7, "Locked path", [100.;2], [0.;3], [1.;4]);
-        layer.content = Content::Vector { vector: new_vector(VectorPath { id: 1, closed: false, nodes: vec![
+        layer.content = Content::Vector { vector: new_vector(VectorPath { tangents: Default::default(), id: 1, closed: false, nodes: vec![
             PathNode { id: 1, geometry: Track::constant([0.;6]) },
             PathNode { id: 2, geometry: Track::constant([60.,0.,0.,0.,0.,0.]) },
         ] }) };

@@ -417,7 +417,7 @@ mod tests {
         let mask = LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: false,
                 nodes: vec![node],
             },

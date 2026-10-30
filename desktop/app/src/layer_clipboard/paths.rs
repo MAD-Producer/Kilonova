@@ -6,6 +6,11 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub(crate) enum PathOperation {
+    Tangents {
+        target: motion_core::PathTarget,
+        path: u64,
+        mode: motion_core::vector::TangentMode,
+    },
     FirstVertex {
         target: motion_core::PathTarget,
         path: u64,
@@ -27,6 +32,14 @@ pub(crate) fn edit_path(
         return Ok(state);
     }
     let command = match operation {
+        PathOperation::Tangents { target, path, mode } => match target {
+            motion_core::PathTarget::Vector { object, item } => motion_core::Command::Vector {
+                object, action: motion_core::vector::VectorAction::SetPathTangents { item, path, mode },
+            },
+            motion_core::PathTarget::Mask { object, mask } => motion_core::Command::Mask {
+                object, action: motion_core::masks::MaskAction::SetPathTangents { mask, path, mode },
+            },
+        },
         PathOperation::FirstVertex { target, path, node } => match target {
             motion_core::PathTarget::Vector { object, item } => motion_core::Command::Vector {
                 object,

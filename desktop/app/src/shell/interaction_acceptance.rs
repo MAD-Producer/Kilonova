@@ -18,7 +18,7 @@ impl Shell {
                 [before["project"]["width"].as_f64().ok_or("fixture width missing")? as f32 * 0.5,
                  before["project"]["height"].as_f64().ok_or("fixture height missing")? as f32 * 0.5, 0.], [1.; 4]);
             layer.content = motion_core::Content::Vector { vector: panels::path_controls::new_vector(VectorPath {
-                id: 1, closed: false,
+                tangents: Default::default(), id: 1, closed: false,
                 nodes: [[0., 0., -120., -30., 120., 30.], [250., 100., 0., 0., 0., 0.]]
                     .into_iter().enumerate().map(|(index, geometry)| PathNode {
                         id: index as u64 + 1, geometry: Track::constant(geometry),

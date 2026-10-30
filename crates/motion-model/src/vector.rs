@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, HashSet};
 
 pub const MAX_PATHS: usize = 64;
 pub const MAX_NODES: usize = 2048;
+pub const MAX_SAMPLED_PATH_COORDINATE: f32 = 131072.;
 pub mod path_ops;
+pub mod auto_tangents;
 pub mod groups;
 mod authored;
 
@@ -230,7 +232,31 @@ pub struct PathNode {
 pub struct VectorPath {
     pub id: u64,
     pub closed: bool,
+    /// Optional authored constraint; omitted means the explicit manual handles.
+    #[serde(default, skip_serializing_if = "TangentMode::is_manual")]
+    pub tangents: TangentMode,
     pub nodes: Vec<PathNode>,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TangentMode {
+    #[default]
+    Manual,
+    Automatic,
+}
+impl TangentMode {
+    fn is_manual(&self) -> bool { *self == Self::Manual }
+}
+impl VectorPath {
+    pub fn sample(&self, frame: f64) -> Result<SampledPath> {
+        (|| {
+            let mut nodes = self.nodes.iter().map(|n| n.geometry.sample(frame)).collect::<Result<Vec<_>>>()?;
+            if self.tangents == TangentMode::Automatic {
+                auto_tangents::apply(&mut nodes, self.closed)?;
+            }
+            Ok(SampledPath { closed: self.closed, nodes })
+        })().map_err(|source| crate::Error::PathSampling { path: self.id, frame, source: Box::new(source) })
+    }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -321,6 +347,7 @@ pub struct SampledVector {
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum VectorAction {
     SetFirstVertex { item: Option<u64>, path: u64, node: u64 },
+    SetPathTangents { item: Option<u64>, path: u64, mode: TangentMode },
     ConvertToGroup,
     SetGroupParameter { item: u64, parameter: String, frame: u32,
         value: groups::ParameterValue, #[serde(default)] animated: Option<bool> },
@@ -570,10 +597,7 @@ impl VectorContent {
             VectorSource::Group { .. } => unreachable!(),
             VectorSource::Paths { paths } => paths
                 .iter()
-                .map(|p| Ok(SampledPath {
-                    closed: p.closed,
-                    nodes: p.nodes.iter().map(|n| n.geometry.sample(frame)).collect::<Result<_>>()?,
-                }))
+                .map(|p| p.sample(frame))
                 .collect::<Result<_>>()?,
             VectorSource::Shape { shape, parameters } => {
                 let mut values = BTreeMap::new();
@@ -631,7 +655,7 @@ impl VectorContent {
                 .iter()
                 .flat_map(|p| &p.nodes)
                 .flatten()
-                .all(|v| v.is_finite() && v.abs() <= 131072.),
+                .all(|v| v.is_finite() && v.abs() <= MAX_SAMPLED_PATH_COORDINATE),
             "sampled path exceeds coordinate range",
         )?;
         ensure(
@@ -675,6 +699,9 @@ impl VectorContent {
         match action {
             VectorAction::SetFirstVertex { item, path, node } => {
                 authored::first_vertex(self, item, path, node)?;
+            }
+            VectorAction::SetPathTangents { item, path, mode } => {
+                authored::set_tangents(self, item, path, mode)?;
             }
             VectorAction::ConvertToGroup => {
                 ensure(!matches!(self.source, VectorSource::Group { .. }), "already a vector group")?;
@@ -788,7 +815,7 @@ impl VectorContent {
                     .into_iter()
                     .enumerate()
                     .map(|(i, p)| VectorPath {
-                        id: i as u64 + 1,
+                        tangents: Default::default(), id: i as u64 + 1,
                         closed: p.closed,
                         nodes: p
                             .nodes

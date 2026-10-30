@@ -56,7 +56,7 @@ fn mask() -> LayerMask {
     LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [24., 0.], [24., 20.], [0., 20.]]
                 .into_iter()

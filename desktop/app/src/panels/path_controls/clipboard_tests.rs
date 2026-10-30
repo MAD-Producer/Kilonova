@@ -20,7 +20,7 @@ fn mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_sing
     let mut project = motion_core::Project::new(200, 100, 30, 90).unwrap();
     let mut layer = Layer::solid(7, "Mask", [100., 100.], [0.; 3], [1.; 4]);
     let path = VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[0., 0.], [100., 0.], [0., 100.]]
             .into_iter()

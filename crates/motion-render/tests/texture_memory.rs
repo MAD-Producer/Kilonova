@@ -138,7 +138,7 @@ fn masks_and_shared_effect_input_snapshots_have_distinct_ownership() {
     target.masks.push(LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[5., 5.], [15., 5.], [15., 15.], [5., 15.]]
                 .into_iter()

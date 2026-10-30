@@ -1353,7 +1353,7 @@ mod interaction_tests {
             layer.masks.push(LayerMask::new(
                 1,
                 VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: true,
                     nodes: [[10., 10.], [90., 10.], [50., 90.]]
                         .into_iter()

@@ -14,6 +14,7 @@ pub(super) struct Menu {
     tool: Tool,
     point: Option<point_selection::Point>,
     closed: bool,
+    automatic: bool,
     clipboard: super::super::path_clipboard::Selection,
     anchor: [f32; 2],
     opened: bool,
@@ -21,6 +22,7 @@ pub(super) struct Menu {
 }
 #[derive(Clone, Copy)]
 enum Choice {
+    Tangents,
     First,
     Convert,
     Clipboard(Intent),
@@ -123,6 +125,9 @@ impl Controls {
             return false;
         };
         self.context_menu = Some(Menu {
+            automatic: hit.is_some_and(|(point,_)| paths.iter().any(|p|
+                p["id"] == point.path && p["item"].as_u64() == point.item
+                && p["mask"].as_u64() == point.mask && p["tangents"] == "automatic")),
             source: PathSource::of(state),
             owner: self.context_owner,
             object,
@@ -188,6 +193,12 @@ impl Controls {
                     word("复制为蒙版路径", "Copy as Mask Path")
                 },
                 Choice::Convert,
+                writable && menu.point.is_some(),
+            ),
+            (
+                if menu.automatic { word("恢复手动切线", "Restore Manual Tangents") }
+                else { word("使用自动切线", "Use Automatic Tangents") },
+                Choice::Tangents,
                 writable && menu.point.is_some(),
             ),
             (
@@ -312,7 +323,7 @@ impl Controls {
             let action = match choice {
                 Choice::Cancel => Action::CancelLayerClipboard,
                 Choice::Clipboard(intent) => menu.clipboard.action(intent),
-                Choice::First | Choice::Convert => {
+                Choice::First | Choice::Convert | Choice::Tangents => {
                     let Some(point) = menu.point else {
                         return;
                     };
@@ -327,6 +338,11 @@ impl Controls {
                             item: point.item,
                         });
                     let operation = match choice {
+                        Choice::Tangents => PathOperation::Tangents {
+                            target, path: point.path,
+                            mode: if menu.automatic { motion_core::vector::TangentMode::Manual }
+                                else { motion_core::vector::TangentMode::Automatic },
+                        },
                         Choice::First => PathOperation::FirstVertex {
                             target,
                             path: point.path,

@@ -1,6 +1,6 @@
 use motion_core::{masks::*, vector::{PathNode,VectorPath}, Command, Engine, Layer, Project, Track};
 use motion_render::Scene;
-fn mask()->LayerMask {LayerMask::new(1,VectorPath{id:1,closed:true,nodes:[[200.,300.],[800.,300.],[800.,1500.],[200.,1500.]].into_iter().enumerate().map(|(i,p)|PathNode{id:i as u64+1,geometry:Track::constant([p[0],p[1],0.,0.,0.,0.])}).collect()})}
+fn mask()->LayerMask {LayerMask::new(1,VectorPath{tangents: Default::default(), id:1,closed:true,nodes:[[200.,300.],[800.,300.],[800.,1500.],[200.,1500.]].into_iter().enumerate().map(|(i,p)|PathNode{id:i as u64+1,geometry:Track::constant([p[0],p[1],0.,0.,0.,0.])}).collect()})}
 fn engine()->Engine {let mut p=Project::new(1080,1920,30,90).unwrap();p.layers.push(Layer::solid(1,"layer",[1080.,1920.],[540.,960.,0.],[1.;4]));Engine::new(p).unwrap()}
 #[test]
 fn mask_animation_tracks_use_layer_time_and_atomic_history() {

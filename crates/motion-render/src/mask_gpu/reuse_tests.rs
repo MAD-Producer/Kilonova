@@ -45,7 +45,7 @@ fn project() -> Project {
     let mut mask = LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[8., 8.], [56., 8.], [56., 56.], [8., 56.]]
                 .into_iter()

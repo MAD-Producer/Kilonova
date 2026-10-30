@@ -102,7 +102,7 @@ fn real_property_names_and_values_share_selection_and_theme_highlight_in_all_hos
                 .push(motion_core::masks::LayerMask::new(
                     1,
                     motion_core::vector::VectorPath {
-                        id: 1,
+                        tangents: Default::default(), id: 1,
                         closed: true,
                         nodes: [[0., 0.], [80., 0.], [40., 80.]]
                             .into_iter()

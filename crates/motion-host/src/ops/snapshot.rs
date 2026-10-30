@@ -285,11 +285,18 @@ impl Session {
             Some((|| -> motion_core::Result<_> {
             let local=stored.local_frame(f);
             let masks:Vec<_>=stored.masks.iter().map(|m| -> motion_core::Result<_> {
-                let nodes:Vec<_>=m.path.nodes.iter().map(|n| -> motion_core::Result<_> {Ok(json!({"id":n.id,"geometry":n.geometry.sample(local)?}))}).collect::<motion_core::Result<_>>()?;
+                let sampled=m.path.sample(local)?;
+                let nodes:Vec<_>=m.path.nodes.iter().zip(sampled.nodes).map(|(n,g)| -> motion_core::Result<_> {
+                    let mut node=json!({"id":n.id,"geometry":g});
+                    if m.path.tangents == motion_core::vector::TangentMode::Automatic {
+                        node["authored_geometry"]=json!(n.geometry.sample(local)?);
+                    }
+                    Ok(node)
+                }).collect::<motion_core::Result<_>>()?;
                 Ok(json!({"id":m.id,"opacity":m.opacity.sample(local)?.clamp(0.,100.),
                     "feather":m.feather.sample(local)?.map(|v|v.clamp(0.,motion_core::masks::MAX_MASK_DISTANCE)),
                     "expansion":m.expansion.sample(local)?,
-                    "path":{"id":m.path.id,"closed":m.path.closed,"nodes":nodes}}))
+                    "path":{"id":m.path.id,"closed":m.path.closed,"tangents":m.path.tangents,"nodes":nodes}}))
             }).collect::<motion_core::Result<_>>()?;
             Ok(json!({"id":layer.id,"mvp":(layer.view_projection*layer.model).to_cols_array(),"masks":masks}))
             })())

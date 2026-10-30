@@ -291,7 +291,7 @@ impl Controls {
         let id = layer.masks.iter().map(|m| m.id).max().unwrap_or(0) + 1;
         let [w, h] = layer.size;
         let path = VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [
                 [w * 0.1, h * 0.1],

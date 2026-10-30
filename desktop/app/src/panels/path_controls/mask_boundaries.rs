@@ -38,7 +38,7 @@ mod tests {
         let mut mask = LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: [[40., 40.], [280., 40.], [280., 140.], [40., 140.]]
                     .into_iter()

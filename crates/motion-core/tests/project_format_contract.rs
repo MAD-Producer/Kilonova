@@ -57,7 +57,7 @@ fn current_project_and_visual_settings_are_required_even_at_constructor_defaults
         LayerMask::new(
             1,
             VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: false,
                 nodes: vec![],
             },

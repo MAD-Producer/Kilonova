@@ -35,7 +35,7 @@ fn invalid_policy_is_atomic_and_mask_planning_uses_the_configured_budget() {
     layer.masks.push(LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [64., 0.], [64., 64.], [0., 64.]]
                 .into_iter()

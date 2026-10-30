@@ -51,6 +51,25 @@ pub(super) fn first_vertex(
     path.set_first_vertex(node)
 }
 
+pub(super) fn set_tangents(
+    vector: &mut VectorContent, item: Option<u64>, path: u64, mode: super::TangentMode,
+) -> Result<()> {
+    let vector = if let Some(item) = item {
+        ensure(item != 0, "path tangents require a nonzero geometry item")?;
+        let VectorSource::Group { group } = &mut vector.source else {
+            return Err(Error::Invalid("path tangents geometry item requires a vector group".into()));
+        };
+        group_geometry(group, item).ok_or_else(|| Error::Invalid(format!("path tangents geometry item missing: item={item}")))?
+    } else { vector };
+    let VectorSource::Paths { paths } = &mut vector.source else {
+        return Err(Error::Invalid("path tangents require an authored path; convert parametric geometry first".into()));
+    };
+    let target = paths.iter_mut().find(|p| p.id == path)
+        .ok_or_else(|| Error::Invalid(format!("path tangents path missing: path={path}")))?;
+    target.tangents = mode;
+    Ok(())
+}
+
 impl VectorPath {
     /// Change only the seam, across all authored animation keys at once.
     pub fn set_first_vertex(&mut self, node: u64) -> Result<()> {

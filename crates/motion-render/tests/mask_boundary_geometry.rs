@@ -142,7 +142,7 @@ fn actual_gpu_cross_sections_match_expansion_and_inversion_for_convex_and_concav
                 let mut mask = LayerMask::new(
                     1,
                     VectorPath {
-                        id: 1,
+                        tangents: Default::default(), id: 1,
                         closed: true,
                         nodes: points
                             .iter()
