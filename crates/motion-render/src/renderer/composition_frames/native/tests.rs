@@ -262,5 +262,50 @@ fn all_four_native_completion_uploads_preserve_encoded_storage_hdr_negative_and_
             image.pixels,
             "{precision:?}"
         );
+        let mut preview = crate::SdrPreviewFrameTargets::new(&renderer, 4, 4).unwrap();
+        preview.prepare(&renderer, 4, 4).unwrap();
+        let mut encoder = renderer.allocation_command_encoder(&Default::default()).unwrap();
+        stored.copy_to(&renderer, preview.prepared().unwrap(), &mut encoder).unwrap();
+        preview.encode_output(&renderer, &mut encoder).unwrap();
+        renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
+        assert_eq!(read(&renderer, preview.prepared().unwrap()), image.pixels, "native preview copy {precision:?}");
+        preview.commit_submitted().unwrap();
     }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn cached_preview_copy_checks_owners_dimensions_format_and_usage_before_encoding() {
+    let renderer = renderer(ChannelPrecision::Unorm8);
+    let foreign = self::renderer(ChannelPrecision::Unorm8);
+    let image = image(ChannelPrecision::Unorm8);
+    let key = frame(&image, 1.);
+    assert_eq!(key.context(), context());
+    let mut cache = CompositionFrameCache::new(context(), 4096, 2).unwrap();
+    let candidate = cache.prepare_native(&renderer, key).unwrap().unwrap();
+    assert!(cache.install_native(&renderer, candidate, &image).unwrap());
+    let stored = cache.get(&renderer, key).unwrap().unwrap();
+    let mut preview = crate::PreviewFrameTargets::new(&renderer, 4, 4).unwrap();
+    preview.prepare(&renderer, 4, 4).unwrap();
+    let destination = preview.prepared().unwrap();
+    let mut encoder = renderer.allocation_command_encoder(&Default::default()).unwrap();
+    assert!(stored.copy_to(&foreign, destination, &mut encoder).is_err());
+    let mut foreign_encoder = foreign.allocation_command_encoder(&Default::default()).unwrap();
+    assert!(stored.copy_to(&renderer, destination, &mut foreign_encoder).is_err());
+    let foreign_target = foreign.render_target(4, 4).unwrap();
+    assert!(stored.copy_to(&renderer, &foreign_target, &mut encoder).is_err());
+    let no_copy_usage = renderer.render_target(4, 4).unwrap();
+    assert!(stored.copy_to(&renderer, &no_copy_usage, &mut encoder).is_err());
+    for (size, format) in [(2, renderer.target_format), (4, wgpu::TextureFormat::Rgba8Unorm)] {
+        let bad = renderer.render_target_with_format(size, 4, format, crate::TextureCategory::PreviewTargets).unwrap();
+        assert!(stored.copy_to(&renderer, &bad, &mut encoder).is_err());
+    }
+    assert!(!preview.valid());
+    stored.copy_to(&renderer, destination, &mut encoder).unwrap();
+    renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
+    assert_eq!(read(&renderer, destination), image.pixels);
+    preview.commit_submitted();
+    assert!(preview.valid());
+    assert_eq!(read(&renderer, &preview), image.pixels);
+    renderer.check_health().unwrap();
 }
