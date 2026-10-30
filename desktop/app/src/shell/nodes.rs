@@ -147,6 +147,9 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn flush_bound_source(&mut self) -> Result<(), String> {
+        self.flush_bound_source_with_timeout(Duration::from_secs(60))
+    }
+    fn flush_bound_source_with_timeout(&mut self, timeout: Duration) -> Result<(), String> {
         if self.panels.node_editor.layer_target.is_some()
             && !self.panels.node_editor.bound_creating(&self.state)
         {
@@ -158,14 +161,34 @@ impl Shell {
             else {
                 unreachable!()
             };
-            // Bounded like every other round trip on this thread: a bare
-            // `recv` waited forever whenever the serial worker still had
-            // queued work, freezing project open/close, pack, undo/redo and
-            // window close with no timeout and no record. `self.state` is
-            // replaced only after the reply is in hand, so a timeout leaves
-            // the previous snapshot intact.
-            self.state = await_node_source(self.engine.node_source(snapshot.clone())?)?;
-            self.panels.node_editor.accept_project_saved(&snapshot);
+            let (receive, save, reused) = if let Some(index) = self.node_sources.iter().position(|(pending, _, _)|
+                pending.epoch == snapshot.epoch && pending.revision == snapshot.revision)
+            {
+                let (_, receive, save) = self.node_sources.remove(index);
+                (receive, save, true)
+            } else {
+                (self.engine.node_source(snapshot.clone())?, false, false)
+            };
+            match await_node_source(&receive, timeout, Some(&snapshot)) {
+                NodeSourceWait::Completed(result) => {
+                    let acknowledged = result?;
+                    self.panels.node_editor.accept_project_saved(&snapshot);
+                    if save {
+                        self.node_save_project = Some(snapshot.clone());
+                    }
+                    // A reused reply can predate other queued edits. Refresh
+                    // after acknowledging it, as the asynchronous path does.
+                    self.state = if reused { self.engine.state()? } else { acknowledged };
+                }
+                NodeSourceWait::Pending(error) => {
+                    // The worker is still allowed to commit this request. Keep
+                    // its receiver in the normal completion queue so a late
+                    // result is reconciled, and a repeated flush cannot enqueue
+                    // another copy while it remains in flight.
+                    self.node_sources.push((snapshot, receive, save));
+                    return Err(error);
+                }
+            }
         }
         Ok(())
     }
@@ -614,20 +637,132 @@ impl Shell {
 /// A timeout is a fault, not a cancellation — the serial worker still owns the
 /// request and its reply can arrive later, so the caller must not treat this
 /// as a completed save.
+enum NodeSourceWait {
+    Completed(Result<Value, String>),
+    Pending(String),
+}
+
 fn await_node_source(
-    receive: std::sync::mpsc::Receiver<Result<Value, String>>,
-) -> Result<Value, String> {
-    const WAIT: Duration = Duration::from_secs(60);
+    receive: &std::sync::mpsc::Receiver<Result<Value, String>>,
+    wait: Duration,
+    snapshot: Option<&node_editor::EditorSnapshot>,
+) -> NodeSourceWait {
     let began = Instant::now();
-    match receive.recv_timeout(WAIT) {
-        Ok(result) => result,
+    match receive.recv_timeout(wait) {
+        Ok(result) => NodeSourceWait::Completed(result),
         Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-            Err("node source worker disconnected".into())
+            NodeSourceWait::Completed(Err("node source worker disconnected".into()))
         }
         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
             let elapsed = began.elapsed().as_millis();
-            log::error!("node source refresh timed out: operation=node_source waited={elapsed}ms pending=true state=unchanged reason=node source worker reply has not arrived");
-            Err(format!("node_source timed out after {elapsed}ms; its result is still pending; check project state before retrying"))
+            let epoch = snapshot.map(|s| s.epoch);
+            let revision = snapshot.map(|s| s.revision);
+            let target = snapshot.and_then(|s| s.layer_target.as_ref());
+            let object = target.map(|t| t.object);
+            let effect = target.map(|t| t.effect);
+            log::error!("node source refresh timed out: operation=node_source epoch={epoch:?} revision={revision:?} object={object:?} effect={effect:?} waited={elapsed}ms pending=true state=unchanged reason=node source worker reply has not arrived");
+            NodeSourceWait::Pending(format!("node_source timed out after {elapsed}ms; its result is still pending; check project state before retrying"))
         }
+    }
+}
+
+#[cfg(test)]
+mod source_wait_tests {
+    use super::*;
+
+    #[test]
+    fn timeout_retains_receiver_for_late_success_and_failure() {
+        for result in [Ok(serde_json::json!({"revision": 7})), Err("late failure".into())] {
+            let (send, receive) = std::sync::mpsc::channel();
+            assert!(matches!(await_node_source(&receive, Duration::from_millis(1), None), NodeSourceWait::Pending(_)));
+            send.send(result.clone()).unwrap();
+            assert_eq!(receive.try_recv().unwrap(), result);
+        }
+    }
+
+    #[test]
+    fn shell_reuses_timed_out_source_and_preserves_save_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(root.path().join("project"), None, Some(Locale::En)).unwrap();
+        let target = crate::node_layer::Target {
+            root: root.path().join("project"), composition: "comp-main".into(),
+            object: 99, effect: 3, key: "test".into(), label: "test".into(), creating: false,
+        };
+        shell.state["project"]["layers"] = serde_json::json!([{ "id": 99, "effects": [{"id": 3}] }]);
+        shell.panels.node_editor.layer_target = Some(target);
+        let snapshot = shell.panels.node_editor.snapshot();
+        let (send, receive) = std::sync::mpsc::channel();
+        shell.node_sources.push((snapshot.clone(), receive, true));
+        assert!(shell.flush_bound_source_with_timeout(Duration::from_millis(1)).is_err());
+        assert_eq!(shell.node_sources.len(), 1);
+        assert!(shell.node_sources[0].2);
+        let current = shell.engine.state().unwrap();
+        let mut old = current.clone();
+        old["revision"] = 999.into();
+        send.send(Ok(old)).unwrap();
+        shell.flush_bound_source_with_timeout(Duration::from_secs(1)).unwrap();
+        assert!(shell.node_sources.is_empty());
+        assert_eq!(shell.node_save_project.as_ref().unwrap().revision, snapshot.revision);
+        assert_eq!(shell.state["revision"], current["revision"]);
+    }
+
+    #[test]
+    fn blocked_real_worker_delivers_its_late_node_source_failure() {
+        let root = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(root.path().join("project"), None, Some(Locale::En)).unwrap();
+        let target_root = std::path::PathBuf::from(shell.state["root"].as_str().unwrap());
+        let composition = shell.state["composition"].as_str().unwrap().to_owned();
+        shell.panels.node_editor.layer_target = Some(crate::node_layer::Target {
+            root: target_root, composition,
+            object: 99, effect: 3, key: "missing".into(), label: "test".into(), creating: false,
+        });
+        shell.state["project"]["layers"] = serde_json::json!([{ "id": 99, "effects": [{"id": 3}] }]);
+        let (entered, waiting) = std::sync::mpsc::channel();
+        let (release, gate) = std::sync::mpsc::channel();
+        let blocked = shell.engine.request(|reply| crate::engine::Command::TestWait {
+            entered, release: gate, reply,
+        }).unwrap();
+        waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+        let result = shell.flush_bound_source_with_timeout(Duration::from_millis(1));
+        // Release the actual serial worker before asserting, even on failure.
+        release.send(()).unwrap();
+        assert!(result.unwrap_err().contains("timed out"));
+        blocked.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(shell.node_sources.len(), 1);
+        let error = shell.node_sources.pop().unwrap().1.recv_timeout(Duration::from_secs(5))
+            .unwrap().unwrap_err();
+        assert!(error.contains("target layer was removed"), "{error}");
+    }
+
+    #[test]
+    fn disconnected_source_is_a_completed_error() {
+        let (send, receive) = std::sync::mpsc::channel();
+        drop(send);
+        assert!(matches!(await_node_source(&receive, Duration::from_secs(1), None),
+            NodeSourceWait::Completed(Err(error)) if error.contains("disconnected")));
+    }
+
+    #[test]
+    fn timeout_reaches_default_log_and_stderr_without_stdout() {
+        const CHILD: &str = "MOTION_NODE_SOURCE_TIMEOUT_LOG_CHILD";
+        const NAME: &str = "shell::nodes::source_wait_tests::timeout_reaches_default_log_and_stderr_without_stdout";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let _logger = crate::logging::init(std::path::PathBuf::from(root).join("logs")).unwrap();
+            let (_send, receive) = std::sync::mpsc::channel();
+            assert!(matches!(await_node_source(&receive, Duration::from_millis(1), None), NodeSourceWait::Pending(_)));
+            crate::logging::flush();
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture"])
+            .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(output.status.success(), "stdout={} stderr={}",
+            String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        let marker = "node source refresh timed out: operation=node_source";
+        let file = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        assert!(file.contains(marker));
+        assert!(String::from_utf8_lossy(&output.stderr).contains(marker));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains(marker));
     }
 }
