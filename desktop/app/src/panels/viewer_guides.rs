@@ -34,6 +34,8 @@ impl Default for Visibility {
 #[derive(Default)]
 pub(crate) struct Controls {
     pub visibility: Visibility,
+    channels: [motion_render::ViewChannel; 2],
+    channel_dropdown: motion_ui::widgets::Dropdown,
     window: Option<Panel>,
     drag: Option<Drag>,
     menu: Option<Menu>,
@@ -293,6 +295,7 @@ impl Controls {
     pub(super) fn cancel(&mut self) {
         self.drag = None;
         self.menu = None;
+        self.channel_dropdown.open = false;
         self.invalid_attempts = 0;
     }
     /// Foreign passive paints retain the owner. Foreign real input cancels and
@@ -381,12 +384,20 @@ impl Controls {
     }
     pub(super) fn open(&mut self, point: [f32; 2], state: &Value) {
         self.drag = None;
+        self.channel_dropdown.open = false;
         self.menu = Some(Menu {
             window: self.window,
             source: KeyframeSource::of(state),
             point,
             opened: true,
         });
+    }
+    pub(crate) fn channel(&self, floating: bool) -> motion_render::ViewChannel {
+        self.channels[usize::from(floating)]
+    }
+
+    pub(super) fn current_channel(&self) -> motion_render::ViewChannel {
+        self.channel(self.window.is_some())
     }
 
     /// Returns pointer ownership even for a rejected attempt; it cannot fall
@@ -641,8 +652,10 @@ impl Controls {
             || events.pressed.is_some_and(|(_, p)| !card.contains(p))
             || input.focus_lost
         {
+            self.channel_dropdown.open = false;
             return;
         }
+        let sibling_events = if self.channel_dropdown.open { &neutral } else { events };
         paint::rect(list, card, styles.color("panel"));
         paint::stroke(
             list,
@@ -672,6 +685,13 @@ impl Controls {
             &mut self.visibility.locked,
         ];
         for (index, (label, value)) in labels.into_iter().zip(values).enumerate() {
+            let annotated;
+            let label = if index == 4 && !shortcut_hint.is_empty() {
+                annotated = format!("{label}  {shortcut_hint}");
+                annotated.as_str()
+            } else {
+                label
+            };
             let rect = Rect::new(
                 x + padding,
                 y + padding + row * index as f32,
@@ -687,7 +707,7 @@ impl Controls {
                 if index == 4 && handles_busy {
                     &neutral
                 } else {
-                    events
+                    sibling_events
                 },
             );
         }
@@ -723,7 +743,7 @@ impl Controls {
             } else {
                 label.to_owned()
             };
-            if motion_ui::ui::button(list, atlas, rect, &caption, events, enabled).clicked {
+            if motion_ui::ui::button(list, atlas, rect, &caption, sibling_events, enabled).clicked {
                 let mut after = snapshot.as_deref().cloned().unwrap_or_default();
                 if index == 2 {
                     after.clear();
@@ -754,31 +774,35 @@ impl Controls {
                 }
             }
         }
-        let hint = if snapshot.is_none() {
-            if zh {
-                "参考线数据不可用".into()
-            } else {
-                "Guides unavailable".into()
-            }
-        } else {
-            format!(
-                "{}{}",
-                if zh { "手柄：" } else { "Handles: " },
-                shortcut_hint
-            )
-        };
-        label(
-            list,
-            atlas,
-            Rect::new(
+        let channel_width = styles.metric("viewer.overlay.button.width", 64.);
+        let channel_gap = styles.metric("viewer.controls.gap", 4.);
+        let inspection_rect = Rect::new(
                 x + padding,
                 y + padding + row * 9.,
-                width - padding * 2.,
+                (width - padding * 2. - channel_width - channel_gap).max(0.),
                 row,
-            ),
-            &hint,
-            false,
-        );
+            );
+        let inspection_label = match (snapshot.is_none(), zh) {
+            (true, true) => "参考线不可用 · 检查…",
+            (true, false) => "Guides unavailable…",
+            (false, true) => "通道 · 快照与区域…",
+            (false, false) => "Channel · Inspect…",
+        };
+        if motion_ui::ui::button(list, atlas, inspection_rect, inspection_label, sibling_events, true).clicked {
+            out.push(Action::OpenViewerInspection { floating: self.window.is_some(), point: [x, y + height] });
+            return;
+        }
+        let labels = if zh { ["彩色", "红", "绿", "蓝", "Alpha"] }
+            else { ["Color", "Red", "Green", "Blue", "Alpha"] };
+        let items: Vec<_> = labels.iter().map(|label| motion_ui::widgets::DropdownItem { label, enabled: true }).collect();
+        let channel_index = usize::from(self.window.is_some());
+        let channels = [motion_render::ViewChannel::Color, motion_render::ViewChannel::Red,
+            motion_render::ViewChannel::Green, motion_render::ViewChannel::Blue, motion_render::ViewChannel::Alpha];
+        let selected = channels.iter().position(|channel| *channel == self.channels[channel_index]).unwrap_or(0);
+        let channel_rect = Rect::new(x + width - padding - channel_width, y + padding + row * 9., channel_width, row);
+        if let Some(index) = self.channel_dropdown.draw(list, atlas, channel_rect, card, &items, selected, events, true, false) {
+            if let Some(channel) = channels.get(index) { self.channels[channel_index] = *channel; }
+        }
         self.menu = Some(menu);
     }
 

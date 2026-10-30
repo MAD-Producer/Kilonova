@@ -371,9 +371,11 @@ impl Session {
                 return Ok(false);
             };
             let acquire_us = micros(acquiring.elapsed());
-            let candidate = g
-                .scratch
-                .prepared_output()
+            let candidate = (if g.presenter.view_channel() == motion_render::ViewChannel::Color {
+                g.scratch.prepared_output()
+            } else {
+                g.scratch.prepared()
+            })
                 .ok_or("completed exposure preview target missing")?
                 .view
                 .clone();
@@ -402,7 +404,8 @@ impl Session {
             let submitting = Instant::now();
             let presentation_command = encoder.command_identity();
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
-                g.scratch.collect_texture_resources(ledger)
+                g.scratch.collect_texture_resources(ledger);
+                g.presenter.collect_inspection_resources(ledger);
             })?;
             let submit_us = micros(submitting.elapsed());
             if let Err(error) = g.renderer.check_health() {

@@ -4,6 +4,297 @@ use motion_render::{Presenter, Renderer};
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_region_includes_pixels_whose_centers_are_inside_fractional_edges() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("fractional region source"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &source, mip_level: 0,
+        origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &[255, 0, 0, 255].repeat(64*64),
+        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+        wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("fractional region output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let presenter = Presenter::new(&r, &source.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    presenter.encode_inspection_view(&r.queue, &mut encoder, &output.create_view(&Default::default()),
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.], Some([16.25/64., 16.25/64., 15.5/64., 15.5/64.]), None).unwrap();
+    r.submit_tracked(encoder.finish(), |_| {});
+    let pixels = presentation_bytes(&r, &output);
+    let pixel = |x: usize, y: usize| -> [u8; 4] { pixels[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap() };
+    assert_eq!(pixel(16, 16), [255, 0, 0, 255], "first pixel center lies inside region");
+    assert_eq!(pixel(31, 31), [255, 0, 0, 255], "last pixel center lies inside region");
+    assert_eq!(pixel(15, 16), [0, 0, 0, 255]);
+    assert_eq!(pixel(32, 31), [0, 0, 0, 255]);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_comparison_and_region_clear_previous_pixels() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = |pixel: [u8; 4]| {
+        let texture = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("viewer comparison fixture"),
+            size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0,
+            origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &pixel.repeat(64*64),
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+            wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+        texture
+    };
+    let live = source([255, 0, 0, 255]);
+    let captured = source([0, 0, 255, 255]);
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("viewer comparison output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let target = output.create_view(&Default::default());
+    let a = Presenter::new(&r, &live.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let b = Presenter::new(&r, &captured.create_view(&Default::default()), wgpu::TextureFormat::Rgba8Unorm);
+    let render = |region, comparison| {
+        let mut encoder = r.device.create_command_encoder(&Default::default());
+        a.encode_inspection_view(&r.queue, &mut encoder, &target, [0., 0., 64., 64.], None,
+            [0., 0., 0., 1.], region, comparison).unwrap();
+        r.submit_tracked(encoder.finish(), |_| {});
+        presentation_bytes(&r, &output)
+    };
+    let pixel = |data: &[u8], x: usize, y: usize| -> [u8; 4] {
+        data[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap()
+    };
+    let first = render(Some([0.25, 0.25, 0.5, 0.5]), Some((&b, 0.5)));
+    assert_eq!(pixel(&first, 8, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&first, 24, 32), [255, 0, 0, 255]);
+    assert_eq!(pixel(&first, 40, 32), [0, 0, 255, 255]);
+    let second = render(Some([0., 0., 0.25, 0.25]), None);
+    assert_eq!(pixel(&second, 8, 8), [255, 0, 0, 255]);
+    assert_eq!(pixel(&second, 24, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&second, 40, 32), [0, 0, 0, 255]);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    assert!(a.encode_inspection_view(&r.queue, &mut encoder, &target, [0., 0., 64., 64.], None,
+        [0., 0., 0., 1.], Some([0.9, 0., 0.2, 1.]), None).is_err());
+    assert_eq!(presentation_bytes(&r, &output), second);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels() {
+    use motion_render::{ResourceBudgetScope, ResourceRejection};
+    let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    let mut source = r.render_target(64, 64).unwrap();
+    let mut project = Project::new(64, 64, 30, 1).unwrap();
+    project.background = [1., 0., 0., 1.];
+    let mut scene = Scene::new(&project).unwrap();
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let snapshot = r.snapshot_target(&source).unwrap();
+    assert_eq!(snapshot.texture_bytes(), source.texture_bytes());
+    project.background = [0., 0., 1., 1.];
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("viewer snapshot pixel fixture"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let view = output.create_view(&Default::default());
+    let inspect = |image: &motion_render::AdmittedTextureView| {
+        Presenter::new(&r, image, wgpu::TextureFormat::Rgba8Unorm).draw(&r, &view).unwrap();
+        presentation_bytes(&r, &output)
+    };
+    let red = [255, 0, 0, 255].repeat(64 * 64);
+    assert_eq!(inspect(&source.view), [0, 0, 255, 255].repeat(64 * 64));
+    assert_eq!(inspect(&snapshot.view), red);
+    let budget = r.allocation_budget();
+    let before = budget.info().unwrap();
+    source.width += 1;
+    let invalid = r.snapshot_target(&source).err().expect("mismatched source dimensions must be rejected");
+    assert!(matches!(invalid, motion_render::RenderError::Invalid(_)));
+    assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
+    source.width -= 1;
+    budget.set_limit(before.admitted_bytes).unwrap();
+    let error = r.snapshot_target(&source).err().expect("replacement must refuse before copying");
+    assert_eq!(error.resource_rejection(), Some(&ResourceRejection::Budget {
+        scope: ResourceBudgetScope::RenderAllocations,
+        required_bytes: before.admitted_bytes + source.texture_bytes(),
+        budget_bytes: before.admitted_bytes,
+    }));
+    assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
+    assert_eq!(inspect(&snapshot.view), red);
+    budget.set_limit(before.budget_bytes).unwrap();
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot() {
+    let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.render_target(64, 64).unwrap();
+    let mut project = Project::new(64, 64, 30, 1).unwrap();
+    project.background = [1., 0., 0., 1.];
+    let mut scene = Scene::new(&project).unwrap();
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let snapshot = r.snapshot_target(&source).unwrap();
+    project.background = [0., 0., 1., 1.];
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    r.draw(&scene, &source.view, 64, 64).unwrap();
+    let output = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("retained viewer inspection output"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let mut presenter = Presenter::new_admitted(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm).unwrap();
+    let snapshot_bytes = snapshot.texture_bytes();
+    presenter.set_comparison_source(&r.device, &snapshot);
+    drop(snapshot);
+    let render = |presenter: &Presenter| {
+        let mut encoder = r.allocation_command_encoder(&Default::default()).unwrap();
+        presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+            [0., 0., 64., 64.], None, [0., 0., 0., 1.]).unwrap();
+        r.submit_allocated(encoder.finish(), |ledger| presenter.collect_inspection_resources(ledger)).unwrap();
+        presentation_bytes(&r, &output)
+    };
+    let pixel = |data: &[u8], x: usize, y: usize| -> [u8; 4] {
+        data[(y*64+x)*4..(y*64+x+1)*4].try_into().unwrap()
+    };
+    presenter.set_inspection_geometry(Some([0.25, 0.25, 0.5, 0.5]), Some(0.5));
+    let mut ledger = motion_render::TextureResourceLedger::default();
+    presenter.collect_inspection_resources(&mut ledger);
+    assert_eq!(ledger.resources().count(), 1);
+    assert_eq!(ledger.total_known_bytes(), snapshot_bytes);
+    let first = render(&presenter);
+    assert_eq!(pixel(&first, 8, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&first, 24, 32), [0, 0, 255, 255]);
+    assert_eq!(pixel(&first, 40, 32), [255, 0, 0, 255]);
+    presenter.set_view_channel(&r.queue, motion_render::ViewChannel::Alpha).unwrap();
+    let alpha = render(&presenter);
+    assert_eq!(pixel(&alpha, 24, 32), [255, 255, 255, 255]);
+    assert_eq!(pixel(&alpha, 40, 32), [255, 255, 255, 255]);
+    presenter.set_view_channel(&r.queue, motion_render::ViewChannel::Color).unwrap();
+    presenter.set_inspection_geometry(None, Some(0.));
+    let all_captured = render(&presenter);
+    assert_eq!(pixel(&all_captured, 8, 32), [255, 0, 0, 255]);
+    assert_eq!(pixel(&all_captured, 56, 32), [255, 0, 0, 255]);
+    presenter.set_inspection_geometry(None, Some(1.));
+    let all_live = render(&presenter);
+    assert_eq!(pixel(&all_live, 8, 32), [0, 0, 255, 255]);
+    assert_eq!(pixel(&all_live, 56, 32), [0, 0, 255, 255]);
+    presenter.set_inspection_geometry(Some([0., 0., 0.25, 0.25]), None);
+    let second = render(&presenter);
+    assert_eq!(pixel(&second, 8, 8), [0, 0, 255, 255]);
+    assert_eq!(pixel(&second, 24, 32), [0, 0, 0, 255]);
+    assert_eq!(pixel(&second, 40, 32), [0, 0, 0, 255]);
+    presenter.set_inspection_geometry(Some([0.9, 0., 0.2, 1.]), None);
+    let mut encoder = r.device.create_command_encoder(&Default::default());
+    assert!(presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());
+    assert_eq!(presentation_bytes(&r, &output), second);
+    presenter.clear_comparison_source();
+    let mut ledger = motion_render::TextureResourceLedger::default();
+    presenter.collect_inspection_resources(&mut ledger);
+    assert_eq!(ledger.resources().count(), 0);
+    presenter.set_inspection_geometry(None, Some(0.5));
+    assert!(presenter.encode_view(&r.queue, &mut encoder, &output.create_view(&Default::default()), None,
+        [0., 0., 64., 64.], None, [0., 0., 0., 1.]).is_err());
+    presenter.set_inspection_geometry(None, None);
+    let restored = render(&presenter);
+    assert_eq!(pixel(&restored, 8, 8), [0, 0, 255, 255]);
+    assert_eq!(pixel(&restored, 40, 32), [0, 0, 255, 255]);
+    r.check_health().unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged() {
+    use motion_render::ViewChannel;
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("raw channel fixture"),
+        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let original = [64, 128, 192, 32].repeat(64 * 64);
+    r.queue.write_texture(wgpu::TexelCopyTextureInfo { texture: &source, mip_level: 0,
+        origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All }, &original,
+        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(256), rows_per_image: Some(64) },
+        wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 });
+    let source_view = source.create_view(&Default::default());
+    for format in [wgpu::TextureFormat::Rgba8Unorm, wgpu::TextureFormat::Rgba8UnormSrgb,
+        wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Bgra8UnormSrgb] {
+        let output = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("raw channel surface"),
+            size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = output.create_view(&Default::default());
+        let mut presenter = Presenter::new(&r, &source_view, format);
+        let mut color = None;
+        for channel in [ViewChannel::Color, ViewChannel::Red, ViewChannel::Green,
+            ViewChannel::Blue, ViewChannel::Alpha, ViewChannel::Color] {
+            presenter.set_view_channel(&r.queue, channel).unwrap();
+            for image in [None, Some([0., 0., 64., 64.])] {
+                let mut encoder = r.device.create_command_encoder(&Default::default());
+                presenter.encode_view(&r.queue, &mut encoder, &view, None, [0., 0., 64., 64.], image, [0.; 4]).unwrap();
+                r.submit_tracked(encoder.finish(), |_| {});
+                let pixels = presentation_bytes(&r, &output);
+                if channel == ViewChannel::Color {
+                    if let Some(expected) = &color { assert_eq!(&pixels, expected, "color did not recover {format:?}"); }
+                    else { color = Some(pixels); }
+                } else {
+                    let intensity = match channel { ViewChannel::Red => 64, ViewChannel::Green => 128,
+                        ViewChannel::Blue => 192, ViewChannel::Alpha => 32, ViewChannel::Color => unreachable!() };
+                    for pixel in pixels.chunks_exact(4) {
+                        assert_eq!(pixel[3], 255, "raw {channel:?} {format:?} inspection must be opaque");
+                        assert!(pixel[..3].iter().all(|v| v.abs_diff(intensity) <= 1), "raw {channel:?} {format:?}: {pixel:?}");
+                    }
+                    // View inspection must never affect ordinary color encoding.
+                    let mut encoder = r.device.create_command_encoder(&Default::default());
+                    presenter.encode(&mut encoder, &view, None, None, [0.; 4]);
+                    r.submit_tracked(encoder.finish(), |_| {});
+                    assert_eq!(presentation_bytes(&r, &output), *color.as_ref().unwrap());
+                }
+            }
+        }
+        r.check_health().unwrap();
+    }
+    assert_eq!(presentation_bytes(&r, &source), original, "inspection mutated source pixels");
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
     let r = pollster::block_on(Renderer::headless()).unwrap();
     let texture = r.device.create_texture(&wgpu::TextureDescriptor {

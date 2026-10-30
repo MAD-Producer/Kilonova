@@ -133,6 +133,78 @@ fn expect_pixels(bytes: &[u8]) {
 }
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_working_front_snapshot_preserves_bytes_across_four_precisions() {
+    fn bytes(renderer: &Renderer, target: &motion_render::RenderTarget) -> Vec<u8> {
+        let texture = target.view.texture();
+        let row = target.width * texture.format().block_copy_size(None).unwrap();
+        let stride = row.div_ceil(256) * 256;
+        let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("working snapshot test readback"), size: u64::from(stride * target.height),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false,
+        });
+        let mut encoder = renderer.device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo { texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
+                offset: 0, bytes_per_row: Some(stride), rows_per_image: Some(target.height) } },
+            wgpu::Extent3d { width: target.width, height: target.height, depth_or_array_layers: 1 });
+        renderer.submit_tracked(encoder.finish(), |_| {});
+        let (send, receive) = std::sync::mpsc::channel();
+        buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| { let _ = send.send(result); });
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        receive.recv().unwrap().unwrap();
+        let mapped = buffer.slice(..).get_mapped_range().unwrap();
+        let mut result = Vec::with_capacity((row * target.height) as usize);
+        for y in 0..target.height { let begin = (y * stride) as usize; result.extend_from_slice(&mapped[begin..begin + row as usize]); }
+        drop(mapped);
+        buffer.unmap();
+        result
+    }
+    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Unorm16, ChannelPrecision::Float16, ChannelPrecision::Float32] {
+        let mut renderer = renderer(precision);
+        let scene = scene(&mut renderer);
+        let mut targets = SdrPreviewFrameTargets::new(&renderer, SIZE, SIZE).unwrap();
+        assert!(targets.working_front().is_none());
+        render(&mut renderer, &mut targets, &scene, SIZE, SIZE);
+        expect_pixels(&read_output(&renderer, &targets));
+        let working = targets.working_front().unwrap();
+        let format = motion_render::image_formats::native_format(motion_render::image_formats::color_storage(precision));
+        assert_eq!(working.view.texture().format(), format);
+        let snapshot = renderer.snapshot_target(working).unwrap();
+        assert_eq!(snapshot.view.texture().format(), format);
+        let expected = bytes(&renderer, working);
+        assert_eq!(bytes(&renderer, &snapshot), expected, "working snapshot precision={precision:?}");
+        if precision != ChannelPrecision::Unorm8 {
+            assert_ne!(targets.view.texture().format(), format);
+        }
+        targets.invalidate();
+        assert!(targets.working_front().is_none());
+        assert_eq!(bytes(&renderer, &snapshot), expected);
+        renderer.check_health().unwrap();
+    }
+}
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn snapshot_display_matches_live_sdr_with_highlights_and_transparency() {
+    for precision in [ChannelPrecision::Unorm8, ChannelPrecision::Unorm16, ChannelPrecision::Float16, ChannelPrecision::Float32] {
+        let mut renderer = renderer(precision);
+        let (mut project, registry) = fixture("return vec4(0.5,0.25,0.125,0.25);");
+        project.background = [0.; 4];
+        renderer.set_effect_registry(registry);
+        let mut scene = Scene::new(&project).unwrap();
+        scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+        let mut targets = SdrPreviewFrameTargets::new(&renderer, SIZE, SIZE).unwrap();
+        render(&mut renderer, &mut targets, &scene, SIZE, SIZE);
+        let snapshot = motion_render::ViewerSnapshot::capture(&renderer, targets.working_front().unwrap()).unwrap();
+        assert_eq!(snapshot.native().view.texture().format(), targets.working_front().unwrap().view.texture().format());
+        let live = read_output(&renderer, &targets);
+        assert_eq!(read_output(&renderer, snapshot.display()), live, "snapshot display precision={precision:?}");
+        assert!(live.chunks_exact(4).any(|pixel| pixel[0] != 0 && pixel[3] != 0));
+        renderer.check_health().unwrap();
+    }
+}
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_sdr_fronts_budget_native_and_output_storage_and_reuse_both_slots() {
     for (precision, pixel_bytes) in [
         (ChannelPrecision::Unorm8, 4),

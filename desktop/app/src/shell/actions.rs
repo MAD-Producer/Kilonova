@@ -212,6 +212,12 @@ impl Shell {
             .into());
         }
         match action {
+            Action::OpenViewerInspection { floating, point } => {
+                self.panels.viewer_inspection.open(floating, point, &self.state);
+                self.dirty = true;
+            }
+            Action::CaptureViewerSnapshot { floating } => self.capture_viewer_inspection(floating)?,
+            Action::SaveViewerSnapshot { floating } => self.save_viewer_inspection(floating)?,
             Action::MediaAsset { source, intent } => self.asset_action(source, intent, event_loop)?,
             Action::AnalyzeAudio(object) => self.analyze_audio(object)?,
             Action::CancelAudioAnalysis => self.cancel_audio_analysis(),

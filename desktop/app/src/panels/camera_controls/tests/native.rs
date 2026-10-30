@@ -133,6 +133,7 @@ fn native_reset_and_bounds_use_main_and_floating_routes_in_both_languages_at_fou
                                 }),
                                 logical_size: size,
                                 composition: None,
+                                inspection: Default::default(),
                                 composition_image: None,
                                 window: u64::from(floating),
                                 node_preview: None,

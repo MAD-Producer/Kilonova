@@ -431,6 +431,7 @@ fn capture(
             }),
             logical_size: case.size,
             composition: None,
+            inspection: Default::default(),
             composition_image: None,
             window: case.window,
             node_preview: None,

@@ -79,3 +79,23 @@ fn armed_pick_survives_window_transfer_but_cancels_on_escape_right_click_and_sta
         assert!(pick.ticket.is_none(), "{key}");
     }
 }
+
+#[test]
+fn effect_pick_owns_the_viewer_when_inspection_menu_was_open() {
+    let state = serde_json::json!({"root":"pick", "document_generation":1, "surfaceEpoch":1,
+        "revision":2, "frame":3., "composition":"main", "project":{"width":640,"height":480,
+        "layers":[{"id":7,"effects":[{"id":8,"params":{"color":{}}}]}]}});
+    let mut panels = Panels::default();
+    panels.focused = Some(Panel::Composition);
+    panels.viewer_inspection.open(false, [200., 300.], &state);
+    panels.effect_pick.ticket = Some(Ticket::new(&state, 7, 8, "color", Kind::Color));
+    let layout = dock::Node::dock(Panel::Composition.dock());
+    let mut atlas = TextAtlas::from_system(18.).unwrap();
+    let actions = super::super::chrome(&mut PaintList::default(), &mut atlas, [900., 600.],
+        &layout, &mut panels, &state, &Input {
+            mouse: [450., 300.], pressed: Some((MouseButton::Left, [450., 300.])), ..Default::default()
+        });
+    assert!(matches!(actions.as_slice(), [Action::EffectPick { .. }]));
+    assert!(panels.effect_pick.ticket.is_none());
+    assert_eq!(panels.viewer_inspection.frame(false, motion_render::ViewChannel::Color).region, None);
+}

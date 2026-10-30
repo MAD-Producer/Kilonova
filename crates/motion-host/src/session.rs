@@ -757,7 +757,11 @@ impl Session {
                 }
             };
             let acquire_us = acquiring.elapsed().as_micros() as u64;
-            let display = g.scratch.prepared_output()
+            let display = if g.presenter.view_channel() == motion_render::ViewChannel::Color {
+                g.scratch.prepared_output()
+            } else {
+                g.scratch.prepared()
+            }
                 .ok_or("converted preview target missing")?;
             g.presenter.set_admitted_source(&g.renderer.device, &display.view);
             let view = output.texture.create_view(&Default::default());
@@ -778,7 +782,10 @@ impl Session {
             }
             let submitting = Instant::now();
             let presentation_command = encoder.command_identity();
-            g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
+            g.renderer.submit_allocated(encoder.finish(), |ledger| {
+                g.scratch.collect_texture_resources(ledger);
+                g.presenter.collect_inspection_resources(ledger);
+            })?;
             for upload in video_uploads {
                 upload.mark_submitted();
             }
@@ -1042,7 +1049,10 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
         });
     }
     overlay(&g.renderer, &mut encoder, &view);
-    g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
+    g.renderer.submit_allocated(encoder.finish(), |ledger| {
+        g.scratch.collect_texture_resources(ledger);
+        g.presenter.collect_inspection_resources(ledger);
+    })?;
     g.renderer.check_health().map_err(crate::Error::from)?;
     g.renderer.queue.present(output);
     Ok(true)

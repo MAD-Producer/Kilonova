@@ -151,6 +151,7 @@ fn ui() -> UiFrame {
         paint,
         atlas: None,
         logical_size: [64., 64.],
+        inspection: Default::default(),
         composition_image: Some([-16., -8., 96., 192.]),
         composition: Some([8., 8., 48., 48.]),
         window: 0,
@@ -486,7 +487,7 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
                 // scenes with an authored constant white source.
                 let path=root.join(format!("native-exposure-{floating}.png"));
                 engine.capture_ui(UiFrame {paint:Default::default(),atlas:Some(AtlasUpload {pixels:vec![255;4],width:1,height:1}),
-                    logical_size:[64.,64.],composition:Some([0.,0.,32.,32.]),composition_image:None,window:key,node_preview:None},path.clone()).unwrap();
+                    logical_size:[64.,64.],composition:Some([0.,0.,32.,32.]),inspection: Default::default(), composition_image:None,window:key,node_preview:None},path.clone()).unwrap();
                 let screenshot=image::open(&path).unwrap().to_rgba8();
                 let actual=image::imageops::crop_imm(&screenshot,0,0,32,32).to_image().into_raw();
                 let mut reference=project.clone();reference.layers[0].content=Content::Solid {color:[1.;4]};

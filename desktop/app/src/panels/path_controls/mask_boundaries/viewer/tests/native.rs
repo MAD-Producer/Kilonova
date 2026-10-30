@@ -103,7 +103,7 @@ fn capture(
     let rect = view(shell, size, window, &paint);
     let scale = shell.scale;
     let config = shell.atlas.config();
-    let ui = UiFrame {
+    let ui = UiFrame { inspection: Default::default(),
         paint,
         atlas: Some(AtlasUpload {
             pixels: shell.atlas.pixel_data().to_vec(),
@@ -126,7 +126,7 @@ fn capture(
     // overlay-only changes cannot prove mask rendering.
     let front = shell
         .engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { inspection: Default::default(),
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,

@@ -179,7 +179,7 @@ fn native_group_shortcuts_capture_both_owners_and_locales_without_document_edits
                     crate::native_test_support::capture_ui(
                         &mut events,
                         &engine,
-                        UiFrame {
+                        UiFrame { inspection: Default::default(),
                             paint,
                             atlas: Some(AtlasUpload {
                                 pixels: atlas.pixel_data().to_vec(),
