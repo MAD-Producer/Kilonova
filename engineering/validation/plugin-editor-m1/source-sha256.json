@@ -1,0 +1,20 @@
+{
+  "hash_basis": "SHA-256 of staged Git blob bytes (independent of checkout line endings)",
+  "sources": {
+    "crates/motion-effects/src/lib.rs": "00072844bef1a332de0866fc8cb121c98130676fbb74fff06bb65793ff426f4b",
+    "crates/motion-effects/src/native_layout.rs": "7a1f023369d5bf38900f3fea62b763ff1df80c6eae2068c7094401b4af617cf7",
+    "crates/motion-effects/tests/native_layout.rs": "56ca771edb86b043f205c46f43366e0fe7316bb0d97e288c5717bf56c3337a5d",
+    "crates/motion-graph/examples/parameter-tint.msplugin": "4da574f93f13cf788063fc32e9a586d1e64efc7d9cba8d713e8abd50b04fdf3d",
+    "crates/motion-graph/src/compiler.rs": "51dc9d1839d5895556196335c9949a4d692965c48044dac6a7fa44aa93b719df",
+    "crates/motion-graph/src/export.rs": "8c30a7943557217e6b7fae290cdc42f62a9e1ff51dab3078534388a985f62761",
+    "crates/motion-graph/src/lib.rs": "9623e021233a1af9482b810e5d42fcd5c9e7fb90d6feda8ee283362abc80c3d4",
+    "crates/motion-graph/src/plugin_project.rs": "04875939ecac4507008f6b256a3c006e05e1d8708d94bbf25e1abb1f3a8c61d1",
+    "crates/motion-graph/src/plugin_project/compile.rs": "b91ca39430ae340a9ed1421fc64c3f6d5501a9fff024b25f3b7521138006c860",
+    "crates/motion-graph/src/plugin_project/error.rs": "c1cf2ac26ad97f6a8e600444bcdfab3be9057a5dd2318085dedb631f58a251ce",
+    "crates/motion-graph/src/plugin_project/storage.rs": "bc633a1445f077d78a6f2a06b9f5892f3012e2eb0b774dadab22a204b5abb0e1",
+    "crates/motion-graph/tests/plugin_project.rs": "9e15a5b293530b9e3e7bd52788dc0a723d35007cfdd08b2fd535d6be368eb6b1",
+    "desktop/app/src/main.rs": "892c1152d01881cc77a413a0e473805b3a1dfd5951424feec5e490e3d915e6f3",
+    "desktop/app/src/plugin_check.rs": "8eaeea645159fd13ee16735edb88e0626d4d11eff4be707656c805bd60b3a371",
+    "desktop/app/src/plugin_check/tests.rs": "4fa547aa295687b79b4f6153c8a8aaa551596388947fc63ba33d4970a76e942d"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "package": {
+    "id": "studio.motion.examples.parameter_tint",
+    "version": "0.1.0",
+    "author": "Motion Studio contributors",
+    "license": "MIT"
+  },
+  "logic": {
+    "kind": "wgsl",
+    "document": {
+      "id": "parameter_tint",
+      "name": "参数着色示例",
+      "english_name": "Parameter Tint Example",
+      "source": "fn plugin_fx(p: vec2<f32>) -> vec4<f32> {\n  let source = sample_source(p);\n  if (!param_enabled()) { return source; }\n  return vec4<f32>(mix(source.rgb, param_tint().rgb, param_amount()), source.a);\n}\n",
+      "entry": "plugin_fx",
+      "parameters": [
+        {
+          "id": "enabled", "name": "启用", "kind": "bool",
+          "default": [1, 0, 0, 0], "min": 0, "max": 1, "step": 1,
+          "units": "", "animatable": false
+        },
+        {
+          "id": "tint", "name": "颜色", "kind": "color",
+          "default": [0.25, 0.5, 0.75, 1], "min": 0, "max": 1, "step": 0.01,
+          "units": "", "animatable": true
+        },
+        {
+          "id": "amount", "name": "强度", "kind": "float",
+          "default": [0.5, 0, 0, 0], "min": 0, "max": 1, "step": 0.01,
+          "units": "", "animatable": true
+        }
+      ],
+      "working_space": "srgb",
+      "alpha_mode": "straight"
+    }
+  },
+  "interface": {
+    "format_version": 1,
+    "root": {
+      "id": "root",
+      "width": {"kind": "auto"},
+      "height": {"kind": "auto"},
+      "content": {
+        "kind": "group", "title": "着色", "collapsible": true,
+        "children": [
+          {
+            "id": "enable-field", "width": {"kind": "auto"}, "height": {"kind": "auto"},
+            "content": {"kind": "parameter", "parameter": "enabled", "control": "checkbox"}
+          },
+          {
+            "id": "tint-field", "width": {"kind": "auto"}, "height": {"kind": "auto"},
+            "content": {"kind": "parameter", "parameter": "tint", "control": "color"}
+          },
+          {
+            "id": "amount-field", "width": {"kind": "auto"}, "height": {"kind": "auto"},
+            "content": {"kind": "parameter", "parameter": "amount", "control": "number"}
+          }
+        ]
+      }
+    }
+  }
+}

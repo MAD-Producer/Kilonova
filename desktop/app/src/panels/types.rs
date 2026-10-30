@@ -6,6 +6,7 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    OpenPluginEditor,
     OpenViewerInspection { floating: bool, point: [f32; 2] },
     CaptureViewerSnapshot { floating: bool },
     SaveViewerSnapshot { floating: bool },

@@ -1,0 +1,14 @@
+
+running 1 test
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x287ba8caab0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x287ba8caab0, name: ?)
+ERROR motion_studio::plugin_editor::author::source::assistance: plugin.language navigation operation=diagnostic line=0 utf16_column=4 source_bytes=93 cause=invalid UTF-16 position
+ERROR motion_studio::plugin_editor::author::source::assistance: plugin.language navigation operation=diagnostic line=0 utf16_column=4 source_bytes=93 cause=invalid UTF-16 position
+test plugin_editor::author::source::assistance::tests::invalid_language_diagnostic_click_retains_draft_and_renders_feedback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1484 filtered out; finished in 8.19s
+

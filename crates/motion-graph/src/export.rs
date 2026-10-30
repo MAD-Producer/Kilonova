@@ -184,8 +184,12 @@ pub(crate) fn save_source(document: &GraphDocument, path: &Path) -> Result<()> {
         ));
     }
     let text = document.to_json()?;
+    save_document_bytes(path, text.as_bytes())
+}
+/// Shared same-directory staging for graph and plugin authoring documents.
+pub(crate) fn save_document_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
     let path = destination(path)?;
-    StagedFile::new(&path, text.as_bytes())?.publish(&path)
+    StagedFile::new(&path, bytes)?.publish(&path)
 }
 fn destination(path: &Path) -> Result<PathBuf> {
     let parent = path

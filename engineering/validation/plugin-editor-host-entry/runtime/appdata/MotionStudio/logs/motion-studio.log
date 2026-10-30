@@ -1,0 +1,6 @@
+1793281677.648 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793281677.724 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793281677.725 INFO [main] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\plugin-editor-host-entry\runtime\project
+1793281677.725 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793281677.727 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\plugin-editor-host-entry\runtime\project
+1793281683.882 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1

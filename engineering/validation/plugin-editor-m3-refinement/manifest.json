@@ -1,0 +1,225 @@
+{
+  "baseline": "ebc6dfebd2464c413204ec1f1670feebbb0d55d0",
+  "platform": "Windows x86_64; Vulkan; display scale 100%",
+  "source_files": {
+    "ATTRIBUTION.md": "f392f9a784dbf59c5e4d7b5d4c7207347c52bff0df764ac07705fc910de17e5c",
+    "DESIGN.md": "50e144f3a9b82fbbe482d49889e016030e67d11d0239daf960eb280b877dd05a",
+    "NOTICE": "0a198299a367a45b674fb13ad39a5e1e98e57409c411e37d63f5ae6c5503dd98",
+    "PROVENANCE.md": "f2607bf1c9c99e3c77b17307f5d88f7c5d7908b67e4bc5203ab721852708371d",
+    "crates/motion-effects/src/shader.rs": "10710baaa6c42a84fd223b00272412e6374c3e5ca39ff8908fb810b487588907",
+    "crates/motion-graph/src/plugin_project/compile.rs": "d28a214c71f32720198b51333269c79b9c5839be1e7dd12e8df33e7f816e64e2",
+    "desktop/app/src/plugin_editor/author/catalog.rs": "e91e818f9699dc024f478975c74e829fa426ae78c3aac6f443244e2a7e275c08",
+    "desktop/app/src/plugin_editor/author/designer.rs": "d5b8c09a943e1833d076fc3a12694352c9112be38a51ba5104e9c050f79e9b5b",
+    "desktop/app/src/plugin_editor/author/guide.rs": "ce9bc942935a59e114d9e70b7b24c24cf8fbb9ca591e6ba4091c0247827834f7",
+    "desktop/app/src/plugin_editor/author/lsp.rs": "a8596cde64f1f82aab8eebcb709cbfaca3fd8d3c3886e79a2dd2458432598c4c",
+    "desktop/app/src/plugin_editor/author/lsp_failures.rs": "c1c37099b39944a86df048c00c03ad62b2baee8a0b19cdbae0f99b8a91572db5",
+    "desktop/app/src/plugin_editor/author/lsp_fixture.rs.txt": "7ba5d7fde4c4ce8ab16c546870339c1d2202a53a09ecef85acfbf041715e7b2f",
+    "desktop/app/src/plugin_editor/author/lsp_process_job.rs": "6c0555caaf79d4531eae3f29e449227f8be43bfbdcdb571e513eb0bffd8b3cb4",
+    "desktop/app/src/plugin_editor/author/mod.rs": "b3c218780b28de86c87b2883b9e26b2680d85d9bd3799621a62a64c1ed5ab94a",
+    "desktop/app/src/plugin_editor/author/native.rs": "cf14f0459f53fe427bc93a9e5abba5377c84c37a7d36c6f66068de6f8793a1a2",
+    "desktop/app/src/plugin_editor/author/source.rs": "12b4fb13fe0ee53d14464f89766aaa30c59cd27ab743e95da90d6616a052209f",
+    "desktop/app/src/plugin_editor/author/source_assistance.rs": "8b283b991b5ccbee859eac16fda5ae813a4821989d3b5afe0728507e4197076d",
+    "desktop/ui/styles/dark.json": "864cb44f92ba6a2a4be3cb6c08a2ae73a6dbc03e17543c9ae2f4dfbfa5630057",
+    "engineering/host-api/plugin-editor-authoring.md": "b65130eb26b6575e8236e18c24c39fe7fa580ac184641b70a22fb2e73970e11f",
+    "engineering/host-api/plugin-editor-tutorial.md": "cfcbfeac395baaeb35e81958d711099eb3eb2f6173a44c876d5e8757af466880",
+    "engineering/host-api/plugin-editor.md": "e51379df08df8a6a7a9772c827c349f78b8f26d477c2e7751f516c6968a348a6",
+    "engineering/validation/plugin-editor-m3-refinement.md": "7a26b61cf623ff4e941bd7844b6f01bcb10e2e450e6336392ef4ee14f640c1a0"
+  },
+  "product_binary": {
+    "path": "C:\\Users\\nova\\AppData\\Local\\Temp\\motion-plugin-editor-m3-refinement\\motion-studio.exe",
+    "sha256": "57d98d4bbcc9bea63d18a32e872bce246cc526ae54069c34b66c2272a5d3eb63"
+  },
+  "wgsl_analyzer_asset_sha256": "f9b9c0621149fcf989907787daeab9212035a42af45d4511b6ec50834a7e6b05",
+  "evidence": {
+    ".gitattributes": {
+      "bytes": 150,
+      "sha256": "1acd2103269b94a95987595c52a9336aa026a0c9af269a81823728726ca9a80b"
+    },
+    "author-failures-final/stderr.txt": {
+      "bytes": 1043,
+      "sha256": "18dc60652b1cb9025a8b991edb466cba6d47337703673529ab401a4cf6f43a1d"
+    },
+    "author-failures-final/stdout.txt": {
+      "bytes": 225,
+      "sha256": "359947912b8d9730f4120a606c448c81fad55a8b5262054799ce651335241b95"
+    },
+    "author-format-check.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build.log": {
+      "bytes": 13891,
+      "sha256": "6afafc5580d9a701e37b142202e6135dd2989d9b5b58f6a6feef3d9b8915b943"
+    },
+    "format-check.log": {
+      "bytes": 12189,
+      "sha256": "30fcd8602e9d0f346be334fbc98b46d3af747b737115da02578a86e145effe09"
+    },
+    "language-failures-repeat.log": {
+      "bytes": 244,
+      "sha256": "e0ad85b225188a8643eb8610894d4b2a17b48d51ecae21a120f725370598958d"
+    },
+    "language-failures-verified/abrupt-stderr.txt": {
+      "bytes": 562,
+      "sha256": "f2f257689af7f763be90f68d8f178d207c21cd6d46a00a24c37f353fa88c56f1"
+    },
+    "language-failures-verified/abrupt-stdout.txt": {
+      "bytes": 16,
+      "sha256": "daf071121a9ffe32bbce44190e37a068c96d08bff63fd7b660dd95b77d786dca"
+    },
+    "language-failures-verified/logs/motion-studio.log": {
+      "bytes": 2654,
+      "sha256": "f3414834f1851dc0c0fa35e4d361e8f35af05715106978a7cec83bde826cab5f"
+    },
+    "language-failures-verified/logs/motion-studio.log.1": {
+      "bytes": 2264,
+      "sha256": "2cbf4810c29cbbfe54f0f5c805ca1342c230b12188c19d4819ddef014537d551"
+    },
+    "language-failures-verified/stderr.txt": {
+      "bytes": 562,
+      "sha256": "f2f257689af7f763be90f68d8f178d207c21cd6d46a00a24c37f353fa88c56f1"
+    },
+    "language-failures-verified/stdout.txt": {
+      "bytes": 238,
+      "sha256": "d0d370bfa4d064804fa33629f43955e34645008fa887467c52157b328f963533"
+    },
+    "language-tests-env.log": {
+      "bytes": 442,
+      "sha256": "2a6244dd2221704b66d0bd4ac99de56cc84fe7f267c886f5c233d40331ce7fee"
+    },
+    "language-tests.log": {
+      "bytes": 1550,
+      "sha256": "71b4306f8297fb0fa17f256cea0af72cd77fbd04bd64e0f75d127ed605e989d6"
+    },
+    "native-final/component-hover.png": {
+      "bytes": 115075,
+      "sha256": "3d7ed40ae8b401cf36bdbcfd95e89417306895e9a38e45d463cd02d4a4a35b20"
+    },
+    "native-final/component-library.png": {
+      "bytes": 105056,
+      "sha256": "ca8df836be79e3b6896e1826b2e902062a69656b8a4639c1555c87734c5e1e5a"
+    },
+    "native-final/guide-quickstart.png": {
+      "bytes": 165406,
+      "sha256": "a7d537a4a7a4bc42fcfa612b99a38c47c77cce736757ca3d4e0da4e14581d8f5"
+    },
+    "native-final/report.json": {
+      "bytes": 334,
+      "sha256": "5aa00c928ac945689e9692af1f54c7d1e1aeb0c591c6819aaad7eceade893617"
+    },
+    "native-final/shader-after-error.png": {
+      "bytes": 132506,
+      "sha256": "b606666dd5ba4ba6e8e6c186644c253b6c7d3d41a7e2f4fd0fe8da1d9aec5142"
+    },
+    "native-final/shader-before-error.png": {
+      "bytes": 132506,
+      "sha256": "b606666dd5ba4ba6e8e6c186644c253b6c7d3d41a7e2f4fd0fe8da1d9aec5142"
+    },
+    "native-final/wgsl-completion.png": {
+      "bytes": 106583,
+      "sha256": "d5905e751945d122e2fb39dcad25b60c7e012bc574e1627ed98fc5aa01972397"
+    },
+    "native-final/wgsl-diagnostic.png": {
+      "bytes": 87513,
+      "sha256": "63c8895b859a2b7ad5fce3bd0d0fe01172670dc983452fff2c48133db53dda12"
+    },
+    "plugin-tests-final.log": {
+      "bytes": 1825,
+      "sha256": "e413108d713e2db2a35081130544e831dfd83cb8084805f493fe3391a7983825"
+    },
+    "plugin-tests-first-style-failure.log": {
+      "bytes": 6046,
+      "sha256": "4da95bec448e712c49221db3d641410cf12e081f65709ffacbbe3be3ebf11787"
+    },
+    "plugin-tests-stale-marker-failure.log": {
+      "bytes": 4191,
+      "sha256": "2977b3680e52a6d51031a67e3b3705458b933f9f9659621bf01c977e57060097"
+    },
+    "real-lsp-first.log": {
+      "bytes": 709,
+      "sha256": "74185ad368df77352c5277f0572d9f60bdef61244df1e84c26de164c4d414d89"
+    },
+    "runtime-native/missing/appdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 4056,
+      "sha256": "ac2087eb054cc8ea44cdb27e33fc372429168090e58b3623368fc35ff32e8d47"
+    },
+    "runtime-native/missing/stderr.txt": {
+      "bytes": 1508,
+      "sha256": "90288118aea339100163da2ffb77e053bedea1436090121bdebd5078d3fa103a"
+    },
+    "runtime-native/missing/stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime-native/normal/appdata/MotionStudio/logs/motion-studio.log": {
+      "bytes": 4826,
+      "sha256": "f123ef5bd06862dc3a9c8866eebd425ab35ff8ccf7c66ab92a164c3d806a4936"
+    },
+    "runtime-native/normal/component-hover.png": {
+      "bytes": 61260,
+      "sha256": "79555ca83cfd67f4efbe4662f873f23cc167707f7d1a168471f1f8673d911814"
+    },
+    "runtime-native/normal/guide-narrow.png": {
+      "bytes": 68625,
+      "sha256": "e9ef05427de4a1563a3a1a3af03421191d25f59fe8eebd1c8949c22980f6e8b7"
+    },
+    "runtime-native/normal/guide.png": {
+      "bytes": 83838,
+      "sha256": "72a0a40cef39b38ae24cafffa75f8bdd900adc09a43bfaf5138cf7e93a960fa2"
+    },
+    "runtime-native/normal/logic-parameters-narrow.png": {
+      "bytes": 42337,
+      "sha256": "d0fd3d367a5a53812abe7dba3cd8f2245501dfb23bfaa60e85311c479cc01b60"
+    },
+    "runtime-native/normal/logic-wgsl-narrow.png": {
+      "bytes": 39217,
+      "sha256": "f053b532686bf4719bcc47a1e23b58fb6d85a66f1d378fabdd120f813d7b0412"
+    },
+    "runtime-native/normal/preview.png": {
+      "bytes": 104459,
+      "sha256": "656c54980fee217841655fec0916eb5deb837f25094e8c72837b5828f09faa9a"
+    },
+    "runtime-native/normal/stderr.txt": {
+      "bytes": 586,
+      "sha256": "62b7a227b61d981fbe5da548cb27c363396b1256dcbc1ef1a158428fb4ce4c11"
+    },
+    "runtime-native/normal/stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime-native/report.json": {
+      "bytes": 244,
+      "sha256": "45aabe0830ac873b732503236b743a8b2637346ed6135e91a18236050518bf70"
+    },
+    "runtime-smoke-native.log": {
+      "bytes": 145,
+      "sha256": "463966dcd28a933011641ed948b6240fdcb5ab4ab1eac9ad0bd1492a5dc284af"
+    },
+    "runtime-smoke.py": {
+      "bytes": 6763,
+      "sha256": "11b6929598c6c599a6d6ef2d2fd7c02f82fe2a9b711f9e4cb0f922f5a9eb918e"
+    },
+    "style-check.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "test-build.log": {
+      "bytes": 13080,
+      "sha256": "9dc6049017e05daf254c06a5e8a428ef27230265f690887638e8273d853fbc3f"
+    }
+  },
+  "results": {
+    "plugin_tests": {
+      "passed": 16,
+      "failed": 0,
+      "elapsed_seconds": 28.6
+    },
+    "controlled_failures_repeat": true,
+    "abrupt_windows_owner_exit": true,
+    "product_build": true,
+    "style_consumers": true,
+    "author_rustfmt": true,
+    "global_shader_rustfmt": "pre-existing differences retained"
+  },
+  "source_hash_scope": "Working-tree bytes after source formatting; compile.rs received rustfmt-only changes after build, with no token or behavior change."
+}

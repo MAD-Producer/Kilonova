@@ -1,0 +1,7 @@
+
+running 2 tests
+test plugin_editor::author::source::assistance::tests::completion_maps_utf16_and_rejects_stale_or_external_edits ... ok
+test plugin_editor::author::source::assistance::tests::language_navigation_preserves_utf16_selection_and_reports_invalid_positions ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1479 filtered out; finished in 0.14s
+

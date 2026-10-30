@@ -1,0 +1,8 @@
+ERROR motion_studio::plugin_editor::author::worker: plugin.author error request=2 phase=read elapsed_ms=0 location=None cause=plugin project phase=Read path=E:/Dev/aem/artifacts/plugin-editor-m3-refinement/author-failures-final\missing.msplugin: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio::plugin_editor::author::worker: plugin.author error request=1 phase=write elapsed_ms=0 location=None cause=plugin project phase=Write: graph I/O: 当文件已存在时，无法创建该文件。 (os error 183)
+
+thread 'plugin-author-source' (77128) panicked at desktop\app\src\plugin_editor\author\worker.rs:221:27:
+controlled plugin author handler panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::plugin_editor::author::worker: plugin.author aborted request=3 phase=controlled_panic elapsed_ms=9 cause=panic; original cause recorded by process hook
+ERROR motion_studio::plugin_editor::author::worker: plugin.author worker panic cause=controlled plugin author handler panic

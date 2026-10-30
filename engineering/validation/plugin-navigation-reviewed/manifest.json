@@ -1,0 +1,28 @@
+{
+  "production_commit": "7dffebd00bd79b205a19edcfe0c09266aa270434",
+  "integrated_main": "ab779cee3c7f61f46ae8dad7b4b5e331b7298ceb",
+  "default_tests": {
+    "passed": 13,
+    "ignored_explicit": 7
+  },
+  "explicit_native": "passed; controlled language snapshot and real GPU capture",
+  "explicit_real_language": "passed; pinned existing wgsl-analyzer",
+  "unresolved": [
+    "host diagnostic droppedRecords whole-state assertion",
+    "remaining M4 authoring scope and full cross-platform DPI/IME acceptance"
+  ],
+  "sha256": {
+    ".gitattributes": "7d7611f31ff54f609b7d2f293b359d35e6faf7e593f01f683bb4f56a1c28dce7",
+    "en-invalid-navigation.png": "ff9c9a1b27916b154f9881d65f53986f1bee7789cbfcddf9a777d5a4f6ec2357",
+    "pr566-final-integration-build.log": "92205eeda65afef9287117e7ca6d50ff078e5736767d82a5931d91846ce0ab34",
+    "pr566-final-integration-tests.log": "1f8fcc1d209fd0cc98f5f7d234c84c8203b1c06bab4a22b9756c362ad0a1ed62",
+    "pr566-final-native-navigation.log": "9afcea3ef6d10776f1c43f8b1912d9f8ded6a10d7d90e2c6b4525766600d3516",
+    "pr566-final-real-language.log": "62fcfdd726c99efe692478f57efd15fb7f3c72875ca2ab5914a5fe682aeefebf",
+    "pr566-navigation-build-first-failed.log": "b1eeff9678f3686c8cb05f0f46055d4e882dc9d360fefbb048591dcede557c48",
+    "pr566-navigation-native-build.log": "70399c21a5fb8a2575fa47e387ebb38c934bcb230d374475a4f79cd5d7585241",
+    "pr566-navigation-native.log": "fd5bf0c79eb312fb87cea6578739d8c20bafe6a548581e955c96dc7452f00b13",
+    "pr566-navigation-tests.log": "8a82f0b209af3f807c53c0cae042809da5542be212aca3eb3257fcddd68ef95a",
+    "pr566-plugin-default-current.log": "8a3fa7d492a5b22eb3665b78a120f8a98f9c09084d7d763ca059f1b1862924db",
+    "zh-invalid-navigation.png": "d282e47a1bb3df037aba1abd94739108d77299a25a8bc1bde1f65a28f331d873"
+  }
+}

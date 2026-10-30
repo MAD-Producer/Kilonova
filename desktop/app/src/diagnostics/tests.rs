@@ -1,5 +1,34 @@
 use super::*;
 
+#[test]
+fn automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records() {
+    let root = tempfile::tempdir().unwrap();
+    let d = Diagnostics::new(None, None);
+    for request in 0..128 {
+        d.record(request, "worker", "edit", Duration::from_millis(70),
+            None, None, Default::default());
+    }
+    assert!(d.state.lock().unwrap().last_checkpoint.is_none());
+    assert_eq!(d.status()["droppedRecords"], 0);
+    let path = root.path().join("explicit.json");
+    d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    let report: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert_eq!(report["totalStalls"], 128);
+    assert_eq!(report["recent"].as_array().unwrap().len(), 128);
+    assert_eq!(report["stalls"].as_array().unwrap().len(), 128);
+    assert_eq!(report["recent"][0]["request"], 0);
+    assert_eq!(report["recent"][127]["request"], 127);
+    assert_eq!(report["reporting"]["droppedRecords"], 0);
+    // An explicit checkpoint remains supported even without a local destination.
+    d.checkpoint().unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+
+    let local = Diagnostics::new(Some(root.path().join("automatic.json")), None);
+    slow(&local);
+    assert!(local.state.lock().unwrap().last_checkpoint.is_some());
+    local.checkpoint().unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert!(root.path().join("automatic.json").is_file());
+}
+
 fn slow(d:&Diagnostics) {
     d.record(1,"worker","edit",Duration::from_millis(70),Some(Duration::from_millis(50)),Some(Duration::from_millis(20)),Default::default());
 }

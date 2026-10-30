@@ -1,0 +1,25 @@
+1793274284.054 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793274284.056 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793274284.057 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-36928-1793274284055520600
+1793274284.057 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793274284.061 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-36928-1793274284055520600
+1793274295.240 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793274295.241 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-36928-1793274284055520600 11184ms
+1793274295.488 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793274295.704 INFO [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author start request=0 phase=read in_flight=true source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin
+1793274296.310 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793274296.310 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1c55cc46f50, name: ?)
+1793274296.310 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793274296.311 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1c55cc46f50, name: ?)
+1793274297.822 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793274298.395 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793274298.397 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true
+1793274298.426 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793274298.551 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3\runtime\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793274298.600 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793274298.645 ERROR [main] motion_studio::plugin_editor::author: plugin.author error phase=interaction revision=0 cause=cannot move a component into itself or a descendant
+1793274298.648 INFO [motion-engine] motion_studio::engine: start #3 plugin_preview_install
+1793274298.666 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[1440.0, 840.0]
+1793274298.691 INFO [motion-engine] motion_studio::engine: start #5 plugin_preview_values

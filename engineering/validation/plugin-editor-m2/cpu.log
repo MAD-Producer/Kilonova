@@ -1,0 +1,11 @@
+
+running 6 tests
+test plugin_editor::tests::gestures_are_atomic_cancel_restores_and_preview_never_changes_source ... ok
+test plugin_editor::tests::split_rows_tabs_and_weighted_extents_keep_children_inside_measured_bounds ... ok
+test plugin_editor::tests::narrow_layout_preserves_minimums_and_hides_folded_descendants ... ok
+test plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level ... ok
+test plugin_editor::tests::native_pointer_cancel_clipping_and_shared_bindings_use_one_value ... ok
+test plugin_editor::tests::color_and_enum_popups_own_input_and_commit_one_undo_step ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1392 filtered out; finished in 0.25s
+

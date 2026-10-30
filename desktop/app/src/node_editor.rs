@@ -292,6 +292,7 @@ struct DiagnosticDrawer {
 }
 
 pub struct NodeEditor {
+    authoring_mode: bool,
     observations: observability::Observations,
     pub layer_target: Option<crate::node_layer::Target>,
     document: GraphDocument,
@@ -409,6 +410,7 @@ impl NodeEditor {
         Self {
             observations: Default::default(),
             layer_target: None,
+            authoring_mode: false,
             document,
             clipboard: None,
             parents: vec![],
@@ -477,6 +479,7 @@ impl NodeEditor {
     pub fn document(&self) -> &GraphDocument {
         &self.document
     }
+    pub(crate) fn set_authoring_mode(&mut self,options:CompileOptions){self.authoring_mode=true;self.options=options;}
     /// The actual canvas from the last draw, including first-use guidance layout.
     pub(crate) fn canvas_bounds(&self) -> Rect {
         self.last_canvas
@@ -576,12 +579,14 @@ impl NodeEditor {
         true
     }
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
+        let authoring_mode=self.authoring_mode;
         let options = self.options.clone();
         let preferences = self.view_preferences;
         let shortcuts = self.shortcut_bindings.clone();
         let recent = self.recent_nodes.clone();
         let clipboard = self.clipboard.take();
         *self = Self::new(document);
+        self.authoring_mode=authoring_mode;
         self.clipboard = clipboard;
         self.recent_nodes = recent;
         self.view_preferences = preferences;

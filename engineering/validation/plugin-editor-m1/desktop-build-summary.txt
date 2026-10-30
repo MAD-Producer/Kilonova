@@ -1,0 +1,4 @@
+   = note: `Request` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `motion-desktop` (bin "motion-studio") generated 29 warnings (run `cargo fix --bin "motion-studio" -p motion-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized] target(s) in 1m 30s

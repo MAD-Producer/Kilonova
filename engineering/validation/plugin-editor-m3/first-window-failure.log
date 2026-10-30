@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "E:\Dev\aem\artifacts\plugin-editor-m3\runtime-smoke.py", line 82, in <module>
+    assert a!=b and max(a[:3])-min(a[:3])>30, 'GPU preview missing'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: GPU preview missing

@@ -1,0 +1,6 @@
+
+running 1 test
+test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1486 filtered out; finished in 18.51s
+

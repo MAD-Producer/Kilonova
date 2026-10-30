@@ -1,0 +1,13 @@
+1793282639.362 INFO [plugin_editor::author::lsp::failures::language_failures_publish_before_blocking_and_use_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793282639.653 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\missing-server.exe
+1793282639.656 ERROR [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language phase=session cause=spawn language server E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\missing-server.exe: 系统找不到指定的文件。 (os error 2)
+1793282639.659 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\block.exe
+1793282639.777 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=1 revision=11 operation=textDocument/completion
+1793282639.811 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\malformed.exe
+1793282639.919 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=1 revision=11 operation=textDocument/completion
+1793282640.028 ERROR [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language phase=session cause=missing or excessive LSP content length
+1793282640.030 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\reject.exe
+1793282640.137 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=1 revision=11 operation=textDocument/completion
+1793282640.138 ERROR [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language error request=1 revision=11 operation=textDocument/completion elapsed_ms=0 code=-32001 cause=controlled request rejection
+1793282640.165 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\block.exe
+1793282640.216 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=1 revision=11 operation=textDocument/completion

@@ -119,10 +119,10 @@ impl NodeEditor {
                     self.selected.clear();
                     self.primary = None;
                 }
-                Command::Undo => {
+                Command::Undo if !self.authoring_mode => {
                     self.undo();
                 }
-                Command::Redo => {
+                Command::Redo if !self.authoring_mode => {
                     self.redo();
                 }
                 Command::Duplicate => {

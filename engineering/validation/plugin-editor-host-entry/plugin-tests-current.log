@@ -1,0 +1,23 @@
+
+running 18 tests
+test plugin_editor::author::lsp::failures::language_failures_publish_before_blocking_and_use_default_error_channels ... ok
+test plugin_editor::author::lsp::tests::protocol_bounds_and_utf16_positions ... ok
+test plugin_editor::author::lsp::tests::real_language_server_completion_hover_definition_and_diagnostics ... ok
+test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... ok
+test plugin_editor::author::source::assistance::tests::completion_maps_utf16_and_rejects_stale_or_external_edits ... ok
+test plugin_editor::author::tests::authored_diagnostics_exclude_host_prelude_and_keep_utf8_presentation ... ok
+test plugin_editor::author::tests::layout_transactions_are_atomic_and_preserve_author_source ... ok
+test plugin_editor::author::tests::source_and_layout_share_history_and_old_save_cannot_clear_new_edits ... ok
+test plugin_editor::author::tests::worker_failure_channels_publish_before_blocking_and_preserve_drafts ... ok
+test plugin_editor::tests::color_and_enum_popups_own_input_and_commit_one_undo_step ... ok
+test plugin_editor::tests::gestures_are_atomic_cancel_restores_and_preview_never_changes_source ... ok
+test plugin_editor::tests::narrow_layout_preserves_minimums_and_hides_folded_descendants ... ok
+test plugin_editor::tests::native_pointer_cancel_clipping_and_shared_bindings_use_one_value ... ok
+test plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level ... ok
+test plugin_editor::tests::split_rows_tabs_and_weighted_extents_keep_children_inside_measured_bounds ... ok
+test plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation ... ok
+test plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level ... ok
+test plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 1391 filtered out; finished in 34.73s
+

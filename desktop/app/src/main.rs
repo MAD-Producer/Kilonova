@@ -28,6 +28,8 @@ mod animation_presets;
 mod project_lifecycle;
 mod preview_playback;
 mod project_preview;
+mod plugin_check;
+mod plugin_editor;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
@@ -78,7 +80,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --video-smoke <video>  verify video decoding without a window\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --plugin-check <source.msplugin>  validate plugin source and compile logic without a window\n  --plugin-editor <source.msplugin>  edit plugin logic, interface and live preview\n  --plugin-preview <source.msplugin>  open the native parameter and shader preview\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --video-smoke <video>  verify video decoding without a window\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -91,6 +93,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(None)
         }
     };
+    if let Some(source) = argument("--plugin-check")? {
+        if args.iter().any(|a| matches!(a.as_str(), "--commands" | "--mcp" | "--mcp-ui" | "--video-smoke" | "--plugin-preview" | "--plugin-editor")) {
+            return Err("--plugin-check cannot run with another command or MCP mode".into());
+        }
+        println!("{}", serde_json::to_string(&plugin_check::run(&source)?)?);
+        return Ok(());
+    }
+    if let Some(source)=argument("--plugin-editor")? {
+        if args.iter().any(|a|matches!(a.as_str(),"--commands"|"--mcp"|"--mcp-ui"|"--video-smoke"|"--plugin-check"|"--plugin-preview")){return Err("--plugin-editor cannot run with another command, preview or MCP mode".into());}
+        let locale=argument("--locale")?.map(|p|Locale::parse(&p.to_string_lossy()).ok_or("locale must be zh or en")).transpose()?.unwrap_or(Locale::Zh);
+        return plugin_editor::run_author(&source,locale==Locale::Zh);
+    }
+    if let Some(source)=argument("--plugin-preview")? {
+        if args.iter().any(|a|matches!(a.as_str(),"--commands"|"--mcp"|"--mcp-ui"|"--video-smoke")) {return Err("--plugin-preview cannot run with another command or MCP mode".into());}
+        let locale=argument("--locale")?.map(|p|Locale::parse(&p.to_string_lossy()).ok_or("locale must be zh or en")).transpose()?.unwrap_or(Locale::Zh);
+        let zh=locale==Locale::Zh;
+        return plugin_editor::run(&source,zh);
+    }
     if let Some(source) = argument("--video-smoke")? {
         log::info!("video.runtime start source={}", source.display());
         let began = Instant::now();
@@ -273,6 +293,7 @@ struct Shell {
     home: Option<home::Home>,
     workspace_manager: Option<workspace::Manager>,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
+    plugin_author: plugin_editor::Hosted,
     viewer_pending: Vec<shell::viewer_inspection::Pending>,
     next_window: u64,
     panels: panels::Panels,
@@ -416,6 +437,7 @@ impl Shell {
             home: None,
             workspace_manager: None,
             floating: Default::default(),
+            plugin_author: Default::default(),
             viewer_pending: Vec::new(),
             next_window: 1,
             panels: Default::default(),
@@ -573,6 +595,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if self.plugin_author.contains(id) {
+            self.plugin_author.event(event_loop, id, event);
+            return;
+        }
         if self.route_project_drag_event(id, &event) { return; }
         if self.route_effect_drag_event(id, &event) { return; }
         if self.floating.contains_key(&id) {
@@ -687,6 +713,13 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.plugin_author.poll(event_loop) { self.request_close(); }
+        if let Some(message) = self.plugin_author.message.take() {
+            self.panels.message = Some(self.workspace.locale.error(&message));
+            self.dirty = true;
+            self.redraw();
+        }
+
         if self.panels.auxiliary.audio.poll(self.audio.as_ref()) { self.dirty = true; }
         if let Some(receive) = &self.diagnostics_export {
             let result = match receive.try_recv() {
@@ -1107,6 +1140,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
         let presentation_pending = self.presentation_pending();
         if busy
+            || self.plugin_author.pending()
             || node_playing
             || ui_animating
             || presentation_pending

@@ -1,0 +1,16 @@
+{
+  "drag_changes_shader": true,
+  "invalid_values_preserve_pixels": true,
+  "narrow_logical": [
+    500,
+    450
+  ],
+  "pipeline_recompiled_for_parameter_edits": false,
+  "scale": 2,
+  "source_unchanged": true,
+  "undo_restores_pixels": true,
+  "wide": [
+    1000,
+    680
+  ]
+}

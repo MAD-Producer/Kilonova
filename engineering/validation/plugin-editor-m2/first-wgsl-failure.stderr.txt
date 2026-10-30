@@ -1,0 +1,10 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2a86be8ba50, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2a86be8ba50, name: ?)
+
+thread 'plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation' (60224) panicked at desktop\app\src\plugin_editor\window_acceptance.rs:20:87:
+called `Result::unwrap()` on an `Err` value: plugin project phase=Compile: phase=wgsl_parse: name `target` is a reserved keyword
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

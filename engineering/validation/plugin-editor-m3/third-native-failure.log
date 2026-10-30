@@ -1,0 +1,30 @@
+
+running 5 tests
+test plugin_editor::author::tests::source_and_layout_share_history_and_old_save_cannot_clear_new_edits ... ok
+test plugin_editor::author::tests::layout_transactions_are_atomic_and_preserve_author_source ... ok
+test plugin_editor::author::tests::authored_diagnostics_exclude_host_prelude_and_keep_utf8_presentation ... ok
+test plugin_editor::author::tests::worker_failure_channels_publish_before_blocking_and_preserve_drafts ... ok
+
+test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::author::native::author_drag_source_history_save_and_native_rendering
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 1398 filtered out; finished in 28.72s
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (59888) panicked at desktop\app\src\plugin_editor\author\native.rs:408:5:
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ba3ce10b60, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ba3ce10b60, name: ?)
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (53584) panicked at desktop\app\src\plugin_editor\author\native.rs:213:9:
+assertion failed: matches!(&model::find(&ws.draft.project.interface.root,&parameter).unwrap().content,motion_effects::native_layout::LayoutContent::Parameter{parameter,..}
+    if parameter=="amount")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
