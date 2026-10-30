@@ -591,6 +591,7 @@ fn payload_geometry_mask_and_time_limits_fail_before_publishing_a_partial_edit()
         .map(|id| PathNode {
             id,
             geometry: Track {
+                spatial_animation: None,
                 value: [100.12345; 6],
                 axes: None,
                 keys: (0..128)

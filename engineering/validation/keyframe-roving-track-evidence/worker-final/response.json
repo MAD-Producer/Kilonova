@@ -1,0 +1,380 @@
+{
+  "enabled": {
+    "assets": [],
+    "background": [
+      0.05000000074505806,
+      0.05999999865889549,
+      0.09000000357627869,
+      1.0
+    ],
+    "camera": {
+      "azimuth": {
+        "keys": [],
+        "value": 0.0
+      },
+      "created": false,
+      "elevation": {
+        "keys": [],
+        "value": 0.0
+      },
+      "film_width_mm": 36.0,
+      "fov": {
+        "keys": [],
+        "value": 45.0
+      },
+      "mode": "position",
+      "position": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          -434.5584411621094
+        ]
+      },
+      "radius": {
+        "keys": [],
+        "value": 434.5584411621094
+      },
+      "roll": {
+        "keys": [],
+        "value": 0.0
+      },
+      "target": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          0.0
+        ]
+      }
+    },
+    "composition_id": "comp-main",
+    "fps": 30,
+    "frames": 120,
+    "height": 360,
+    "layers": [
+      {
+        "audio_source_channel": "stereo",
+        "blend": {
+          "mode": "normal",
+          "space": "linear"
+        },
+        "content": {
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "kind": "solid"
+        },
+        "effects": [],
+        "effects_enabled": true,
+        "id": 7,
+        "locked": false,
+        "name": "Private spatial layer",
+        "rotation_order": "local_xyz",
+        "sampling": {
+          "continuous_rasterization": false,
+          "frame_blend": "hold",
+          "motion_blur": null
+        },
+        "shy": false,
+        "size": [
+          32.0,
+          32.0
+        ],
+        "solo": false,
+        "three_d": false,
+        "transform": {
+          "anchor": [
+            0.5,
+            0.5
+          ],
+          "opacity": {
+            "keys": [],
+            "value": 1.0
+          },
+          "position": {
+            "spatial_animation": {
+              "keys": [
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 0.0,
+                  "id": 1,
+                  "reference": 0.0,
+                  "spatial": null,
+                  "value": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": null,
+                  "id": 2,
+                  "reference": 4.0,
+                  "spatial": null,
+                  "value": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": false,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 10.0,
+                  "id": 3,
+                  "reference": 10.0,
+                  "spatial": null,
+                  "value": [
+                    7.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "next_id": 4
+            },
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "rotation": {
+            "keys": [],
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "scale": {
+            "keys": [],
+            "value": [
+              100.0,
+              100.0,
+              100.0
+            ]
+          }
+        },
+        "visible": true
+      }
+    ],
+    "library": {
+      "folders": [],
+      "placements": []
+    },
+    "model_assets": [],
+    "name": "空间练习 01",
+    "plugin_dependencies": [],
+    "version": 31,
+    "width": 640,
+    "work_area": {
+      "in_frame": 0,
+      "out_frame": 120
+    },
+    "working_precision": "unorm8"
+  },
+  "moved": {
+    "assets": [],
+    "background": [
+      0.05000000074505806,
+      0.05999999865889549,
+      0.09000000357627869,
+      1.0
+    ],
+    "camera": {
+      "azimuth": {
+        "keys": [],
+        "value": 0.0
+      },
+      "created": false,
+      "elevation": {
+        "keys": [],
+        "value": 0.0
+      },
+      "film_width_mm": 36.0,
+      "fov": {
+        "keys": [],
+        "value": 45.0
+      },
+      "mode": "position",
+      "position": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          -434.5584411621094
+        ]
+      },
+      "radius": {
+        "keys": [],
+        "value": 434.5584411621094
+      },
+      "roll": {
+        "keys": [],
+        "value": 0.0
+      },
+      "target": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          0.0
+        ]
+      }
+    },
+    "composition_id": "comp-main",
+    "fps": 30,
+    "frames": 120,
+    "height": 360,
+    "layers": [
+      {
+        "audio_source_channel": "stereo",
+        "blend": {
+          "mode": "normal",
+          "space": "linear"
+        },
+        "content": {
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "kind": "solid"
+        },
+        "effects": [],
+        "effects_enabled": true,
+        "id": 7,
+        "locked": false,
+        "name": "Private spatial layer",
+        "rotation_order": "local_xyz",
+        "sampling": {
+          "continuous_rasterization": false,
+          "frame_blend": "hold",
+          "motion_blur": null
+        },
+        "shy": false,
+        "size": [
+          32.0,
+          32.0
+        ],
+        "solo": false,
+        "three_d": false,
+        "transform": {
+          "anchor": [
+            0.5,
+            0.5
+          ],
+          "opacity": {
+            "keys": [],
+            "value": 1.0
+          },
+          "position": {
+            "spatial_animation": {
+              "keys": [
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 0.0,
+                  "id": 1,
+                  "reference": 0.0,
+                  "spatial": null,
+                  "value": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 1.25,
+                  "id": 2,
+                  "reference": 4.0,
+                  "spatial": null,
+                  "value": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": false,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 10.0,
+                  "id": 3,
+                  "reference": 10.0,
+                  "spatial": null,
+                  "value": [
+                    7.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "next_id": 4
+            },
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "rotation": {
+            "keys": [],
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "scale": {
+            "keys": [],
+            "value": [
+              100.0,
+              100.0,
+              100.0
+            ]
+          }
+        },
+        "visible": true
+      }
+    ],
+    "library": {
+      "folders": [],
+      "placements": []
+    },
+    "model_assets": [],
+    "name": "空间练习 01",
+    "plugin_dependencies": [],
+    "version": 31,
+    "width": 640,
+    "work_area": {
+      "in_frame": 0,
+      "out_frame": 120
+    },
+    "working_precision": "unorm8"
+  },
+  "rejection": "keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=time key=999 time=1.25: selected spatial key identity is missing",
+  "unchanged": true
+}

@@ -83,7 +83,7 @@ fn geometry<T: Tween + Serialize>(
     let mut samples = Vec::new();
     if track.is_animated() {
         let times: Vec<_> = track.key_frames().collect();
-        if let (Some(first), Some(last)) = (times.iter().min(), times.iter().max()) {
+        if let (Some(first), Some(last)) = (times.iter().min_by(|a,b|a.total_cmp(b)), times.iter().max_by(|a,b|a.total_cmp(b))) {
             let a = (f64::from(*first) + f64::from(offset)).max(0.);
             let b = (f64::from(*last) + f64::from(offset)).min(f64::from(frames - 1));
             if b >= a {
@@ -96,6 +96,7 @@ fn geometry<T: Tween + Serialize>(
             }
         }
     }
+    let editable=editable && track.spatial_animation.is_none();
     Ok(json!({"version":1,"matrix":matrix.to_cols_array(),"value":point(sampled)?,
         "keys":nodes,"samples":samples,"editable":editable,"spatial_editable":editable&&track.axes.is_none(),
         "keys_truncated":visible.len()>512,"projection":"current_parent_and_camera","temporal_easing":"independent"}))

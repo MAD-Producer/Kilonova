@@ -45,7 +45,7 @@ impl PresetProperty {
         match self {
             Self::Anchor(t) => {
                 let mut t = t.clone();
-                anchor_scale(&mut t, [1. / layer.size[0], 1. / layer.size[1]]);
+                anchor_scale(&mut t, [1. / layer.size[0], 1. / layer.size[1]])?;
                 layer.transform.anchor = t;
             }
             Self::Position(t) => layer.transform.position = t.clone(),
@@ -82,6 +82,7 @@ fn key_times<T>(keys: &mut [Keyframe<T>], map: &mut impl FnMut(i32) -> Result<i3
     )
 }
 fn track_times<T>(track: &mut Track<T>, map: &mut impl FnMut(i32) -> Result<i32>) -> Result<()> {
+    ensure(track.spatial_animation.is_none(),"animation presets require continuous spatial-time remapping before use with Roving")?;
     key_times(&mut track.keys, map)?;
     if let Some(axes) = &mut track.axes {
         for axis in [&mut axes.x, &mut axes.y, &mut axes.z] {
@@ -90,7 +91,8 @@ fn track_times<T>(track: &mut Track<T>, map: &mut impl FnMut(i32) -> Result<i32>
     }
     Ok(())
 }
-fn anchor_scale(track: &mut Track<[f32; 2]>, scale: [f32; 2]) {
+fn anchor_scale(track: &mut Track<[f32; 2]>, scale: [f32; 2]) -> Result<()> {
+    ensure(track.spatial_animation.is_none(),"animation presets require spatial geometry scaling before use with Roving")?;
     let scale_value = |v: &mut [f32; 2]| {
         for i in 0..2 {
             v[i] *= scale[i];
@@ -108,6 +110,7 @@ fn anchor_scale(track: &mut Track<[f32; 2]>, scale: [f32; 2]) {
             }
         }
     }
+    Ok(())
 }
 impl AnimationPreset {
     pub fn node_resources(&self) -> Result<Vec<crate::NodeResource>> {
@@ -154,7 +157,7 @@ impl AnimationPreset {
             result.properties.push(match property {
                 Property::Anchor => {
                     let mut t = layer.transform.anchor.clone();
-                    anchor_scale(&mut t, layer.size);
+                    anchor_scale(&mut t, layer.size)?;
                     PresetProperty::Anchor(t)
                 }
                 Property::Position => PresetProperty::Position(layer.transform.position.clone()),

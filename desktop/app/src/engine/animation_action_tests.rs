@@ -3,6 +3,9 @@ use motion_core::{Ease, Keyframe, KeyframeSelection, KeyframeTarget, Layer, Proj
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
+#[path = "animation_action_tests/spatial.rs"]
+mod spatial;
+
 #[test]
 fn single_handle_fault_is_atomic_and_reaches_default_error_channels() {
     const NAME: &str = "engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels";

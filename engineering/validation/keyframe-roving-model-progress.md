@@ -83,3 +83,7 @@ cargo rustc -p motion-desktop --jobs 1 --bin motion-studio --profile test --feat
 4. 再开放菜单和显示实际有效位置，完成主窗/原生浮窗、中文/英文、实际 OS 输入、
    完整工程保存重开、冻结实际导出及跨平台 CI。现在没有改变用户看到的 UI；
    DESIGN §0.7 的十二项仍按前阶段逐项 retained 记录保留，§12 视觉验收未新增完成项。
+
+后续已完成 [Track 与核心命令接入](keyframe-roving-track-progress.md)，包括逐区间
+保留原始参数化／弧长策略、完整工程／工程包、实际 Scene 和稳定 ID 命令。
+本页仍保留组件阶段的源码、计数和证据，不将新阶段验收追记为旧阶段已经通过。

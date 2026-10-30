@@ -14,6 +14,7 @@ mod easing;
 pub mod curve_clipboard;
 mod transform;
 pub mod timing;
+pub mod spatial;
 pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;
@@ -336,6 +337,7 @@ impl KeyframeClipboard {
             )?;
             fn validate_keys<T: Tween>(keys: &[Keyframe<T>]) -> Result<()> {
                 Track {
+                    spatial_animation: None,
                     value: keys[0].value,
                     keys: keys.to_vec(),
                     axes: None,
@@ -435,6 +437,7 @@ impl KeyframeClipboard {
                 }
                 macro_rules! track {
                     ($dest:expr, $data:expr) => {{
+                        ensure($dest.spatial_animation.is_none(),"pasting frame keys into spatial storage requires stable-ID transfer")?;
                         ensure(
                             $dest.axes.is_none(),
                             "choose a separated clipboard axis explicitly",

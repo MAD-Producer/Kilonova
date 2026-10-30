@@ -1,0 +1,167 @@
+{
+  "version": 31,
+  "library": {
+    "folders": [],
+    "placements": []
+  },
+  "working_precision": "unorm8",
+  "composition_id": "comp-main",
+  "name": "空间练习 01",
+  "width": 640,
+  "height": 360,
+  "fps": 30,
+  "frames": 120,
+  "work_area": {
+    "in_frame": 0,
+    "out_frame": 120
+  },
+  "background": [
+    0.05,
+    0.06,
+    0.09,
+    1.0
+  ],
+  "assets": [],
+  "model_assets": [],
+  "camera": {
+    "created": false,
+    "mode": "position",
+    "position": {
+      "value": [
+        320.0,
+        180.0,
+        -434.55844
+      ],
+      "keys": []
+    },
+    "target": {
+      "value": [
+        320.0,
+        180.0,
+        0.0
+      ],
+      "keys": []
+    },
+    "roll": {
+      "value": 0.0,
+      "keys": []
+    },
+    "fov": {
+      "value": 45.0,
+      "keys": []
+    },
+    "film_width_mm": 36.0,
+    "radius": {
+      "value": 434.55844,
+      "keys": []
+    },
+    "azimuth": {
+      "value": 0.0,
+      "keys": []
+    },
+    "elevation": {
+      "value": 0.0,
+      "keys": []
+    }
+  },
+  "layers": [
+    {
+      "id": 7,
+      "name": "Private spatial layer",
+      "content": {
+        "kind": "solid",
+        "color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "size": [
+        32.0,
+        32.0
+      ],
+      "transform": {
+        "position": {
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "keys": [
+            {
+              "frame": 0,
+              "value": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "ease": "linear"
+            },
+            {
+              "frame": 4,
+              "value": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "ease": "linear"
+            },
+            {
+              "frame": 10,
+              "value": [
+                7.0,
+                0.0,
+                0.0
+              ],
+              "ease": "linear"
+            }
+          ]
+        },
+        "rotation": {
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "keys": []
+        },
+        "scale": {
+          "value": [
+            100.0,
+            100.0,
+            100.0
+          ],
+          "keys": []
+        },
+        "opacity": {
+          "value": 1.0,
+          "keys": []
+        },
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "visible": true,
+      "locked": false,
+      "solo": false,
+      "effects_enabled": true,
+      "shy": false,
+      "three_d": false,
+      "sampling": {
+        "frame_blend": "hold",
+        "motion_blur": null,
+        "continuous_rasterization": false
+      },
+      "rotation_order": "local_xyz",
+      "effects": [],
+      "blend": {
+        "mode": "normal",
+        "space": "linear"
+      },
+      "audio_source_channel": "stereo"
+    }
+  ],
+  "plugin_dependencies": []
+}

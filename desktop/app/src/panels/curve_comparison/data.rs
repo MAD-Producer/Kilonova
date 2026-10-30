@@ -79,6 +79,7 @@ fn decode<T: Tween + serde::de::DeserializeOwned>(value: &Value) -> Result<Track
     let decoded: Coupled<T> = serde_json::from_value(value.clone())
         .map_err(|e| Unavailable::Fault(crate::fallback_observation::error_cause(e)))?;
     let track = Track {
+        spatial_animation: None,
         value: decoded.value,
         keys: decoded.keys,
         axes: None,

@@ -303,20 +303,23 @@ impl PreparedSpatialTiming {
     }
     /// Bounded binary search and arc lookup; healthy queries allocate nothing.
     pub fn sample(&self, frame: f64) -> Result<SpatialPathSample> {
+        let (interval, progress) = self.locate(frame)?;
+        self.path
+            .sample_interval_distance(interval, self.path.interval_length(interval)? * progress)
+    }
+
+    pub(super) fn locate(&self, frame: f64) -> Result<(usize, f64)> {
         ensure(frame.is_finite(), "spatial sample time must be finite")?;
         if frame < self.times[0] {
-            return self.path.sample_interval_distance(0, 0.);
+            return Ok((0, 0.));
         }
         let upper = self.times.partition_point(|time| *time <= frame);
         let last = self.times.len() - 1;
         if upper >= self.times.len() {
-            return self
-                .path
-                .sample_interval_distance(last - 1, self.path.interval_length(last - 1)?);
+            return Ok((last - 1, 1.));
         }
         let interval = upper - 1;
         let progress = (frame - self.times[interval]) / (self.times[upper] - self.times[interval]);
-        self.path
-            .sample_interval_distance(interval, self.path.interval_length(interval)? * progress)
+        Ok((interval, progress))
     }
 }

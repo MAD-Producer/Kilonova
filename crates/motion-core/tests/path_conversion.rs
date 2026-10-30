@@ -16,6 +16,7 @@ fn fixture(grouped: bool, closed: bool) -> Engine {
             .map(|id| PathNode {
                 id,
                 geometry: Track {
+                    spatial_animation: None,
                     value: [id as f32, 3., -2., 1., 3., -4.],
                     axes: None,
                     keys: [-6, 11, 80]

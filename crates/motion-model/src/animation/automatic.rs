@@ -84,6 +84,7 @@ impl<T: Tween> Track<T> {
     /// Read-only capability check using exactly the same key and neighbour
     /// constraints as edits. Validate the track once for a multi-key selection.
     pub fn validate_auto_bezier_edit(&self, frames: &[i32], enabled: bool) -> Result<()> {
+        self.require_frame_keys()?;
         ensure(self.axes.is_none(), "choose a separated keyframe axis explicitly")?;
         self.validate_local()?;
         ensure(!frames.is_empty(), "no automatic Bezier keys selected")?;
@@ -104,6 +105,7 @@ impl<T: Tween> Track<T> {
     /// Effective interval timing. Reading it allocates nothing and never changes
     /// authored metadata, including the opposite endpoint's manual handle.
     pub fn effective_easing(&self, index: usize) -> Result<Easing> {
+        self.require_frame_keys()?;
         let a = self.keys.get(index).ok_or_else(||
             crate::Error::Invalid("timing interval start missing".into()))?;
         let b = self.keys.get(index+1).ok_or_else(||
@@ -138,6 +140,7 @@ impl<T: Tween> Track<T> {
     /// One key owns both its incident automatic endpoints. Turning it off freezes
     /// their current effective curves, never resamples values or replaces a track.
     pub fn set_auto_bezier(&mut self, frame:i32, enabled:bool) -> Result<()> {
+        self.require_frame_keys()?;
         ensure(self.axes.is_none(),"choose a separated keyframe axis explicitly")?;
         self.validate_local()?;
         let index = self.keys.binary_search_by_key(&frame,|k|k.frame)

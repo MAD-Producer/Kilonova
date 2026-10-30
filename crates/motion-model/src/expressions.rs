@@ -63,14 +63,14 @@ impl RawTrack {
                 .ok_or_else(|| Error::Invalid(format!("raw track sample: frame={frame} dimensions={n} outside parameter")))?.to_vec(),
         })
     }
-    pub fn frames(&self) -> Vec<i32> {
+    pub fn frames(&self) -> Vec<f64> {
         let mut frames: Vec<_> = match self {
             Self::Scalar(t) => t.key_frames().collect(),
             Self::Vector(t) => t.key_frames().collect(),
             Self::Component(t, _) => t.key_frames().collect(),
             Self::Param(t, _) => t.key_frames().collect(),
         };
-        frames.sort_unstable();
+        frames.sort_unstable_by(f64::total_cmp);
         frames.dedup();
         frames
     }

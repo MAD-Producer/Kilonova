@@ -1,0 +1,235 @@
+{
+  "baseline": "2a92fb6a43050211de794a5e2d64e0887112c3c0",
+  "issue": 260,
+  "scope": "Track 与核心命令阶段，未完成桌面产品接入",
+  "source_snapshot": "source-snapshot.json",
+  "source_files": 32,
+  "verified": {
+    "model_core": "regression-verified.log",
+    "desktop_build": "desktop-build-final.log",
+    "desktop_suites": [
+      "desktop-worker-final.log",
+      "desktop-menu.log",
+      "desktop-timeline.log",
+      "desktop-plugin.log"
+    ],
+    "distinct_passed": 274,
+    "ignored_native_screenshot_tests": 2,
+    "counts": "test-counts.json",
+    "style_consumers": "style-consumers.log",
+    "rustfmt_selected_eight_modules": "rustfmt.log",
+    "source_sha256_matches": true
+  },
+  "prior_attempts": [
+    {
+      "output": "model-initial.log",
+      "status": "passed",
+      "scope": "早期模型范围，不累计"
+    },
+    {
+      "output": "track-first.log",
+      "status": "passed",
+      "scope": "补全载入错误前，不累计"
+    },
+    {
+      "output": "core-first.log",
+      "status": "passed",
+      "scope": "早期核心范围，不累计"
+    },
+    {
+      "output": "regression-final.log",
+      "status": "passed",
+      "scope": "最终解码器前，不累计"
+    },
+    {
+      "output": "regression-with-load-causes.log",
+      "status": "failed",
+      "reason": "可选输出目录复用导致工程包导入按设计拒绝覆盖；最终运行改用新目录"
+    },
+    {
+      "output": "desktop-build.log",
+      "status": "cancelled",
+      "exit_code": "0xffffffff",
+      "reason": "源码在构建期间变更，终止旧构建后按冻结源码重新编译"
+    },
+    {
+      "output": "desktop-worker.log",
+      "status": "failed",
+      "reason": "六项均在系统 Temp 创建阶段 PermissionDenied，未进入 worker；最终运行使用构建的工作区 TEMP/TMP"
+    }
+  ],
+  "runtime": {
+    "default_log_level": "子进程移除 MOTION_LOG",
+    "error_file": "worker-final/logs/motion-studio.log",
+    "error_stderr": "worker-final/stderr.log",
+    "stdout_isolation": "worker-final/stdout.log",
+    "state_and_response": "worker-final/response.json",
+    "project_mutation_negative_control": "crates/motion-core/tests/spatial_keyframes.rs",
+    "scene_sample_count": 101,
+    "gpu_pixels": false,
+    "mp4": false
+  },
+  "desktop_harness": {
+    "package": "motion-desktop",
+    "bin": "motion-studio",
+    "profile": "test",
+    "features": "ffmpeg,gpu-tests",
+    "command": "cargo rustc -p motion-desktop --jobs 1 --bin motion-studio --profile test --features ffmpeg,gpu-tests --locked --offline --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- -C debuginfo=0 -C link-arg=/DEBUG:NONE",
+    "sha256": "307ea63656fe251b4f91174c51ead5ffaa78f63c1b9647dc5486631ebcc31fe6",
+    "is_user_app": false
+  },
+  "remaining": [
+    "稳定 ID 的桌面选区、拖动、曲线、菜单与快捷键",
+    "非线性时间和自动贝塞尔组合",
+    "稳定 ID 剪贴板及预设重映射",
+    "跨历史快照的派生几何堆内存计量",
+    "主窗浮窗、双语言、DPI、真实 OS 输入、GPU 与编码输出、跨平台 CI"
+  ],
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "bytes": 86,
+      "sha256": "e4913612707215ba471ede1221611254b1b0a9256733c787effe43b606272b12"
+    },
+    {
+      "path": "core-first.log",
+      "bytes": 2087,
+      "sha256": "1a954cffcdd16abb6d2537999919d4b7609298c6664153ff1555ade0014a5c60"
+    },
+    {
+      "path": "desktop-build-final.log",
+      "bytes": 13867,
+      "sha256": "106a6904613fefd199ad616b3431b527293973c87414461158b3ae0b3cdd9893"
+    },
+    {
+      "path": "desktop-build.log",
+      "bytes": 18445,
+      "sha256": "c20c59fbc69dd3d49c8de8e7f1096969fe474be9879c44666dadf063204df451"
+    },
+    {
+      "path": "desktop-menu.log",
+      "bytes": 2822,
+      "sha256": "cdc9f131851078f93e0e537ee2488f334d86d2787fcb335d40d1fbba22488295"
+    },
+    {
+      "path": "desktop-plugin.log",
+      "bytes": 730,
+      "sha256": "38f53daa0170963c7e74b9c0ec03c621d8f73a09b69b8e25366df41a264216fb"
+    },
+    {
+      "path": "desktop-timeline.log",
+      "bytes": 7425,
+      "sha256": "c58ede1529e917e3e2ee004e825190a3b1c2799ef1d386896ff71c66568eab28"
+    },
+    {
+      "path": "desktop-worker-final.log",
+      "bytes": 891,
+      "sha256": "e04cadfb8a2ede87631b3cd02c3b94e18cde1578f31a51c62338147e6813e8af"
+    },
+    {
+      "path": "desktop-worker.log",
+      "bytes": 4373,
+      "sha256": "acdbcd92c015fa338cc03367f0b60a3d8a69f009a704c349605c8cbdbfbfcb94"
+    },
+    {
+      "path": "model-initial.log",
+      "bytes": 3746,
+      "sha256": "55c4eb65625efafbac16b51b414ef6e9e2a31e4f569ffe71ce2e0e5f3bf10708"
+    },
+    {
+      "path": "native-test-list.log",
+      "bytes": 169303,
+      "sha256": "0c47b741a4a40187b6b4b5ae39f73f3c3ae60a7dfcb051f64b6859fe2e66794d"
+    },
+    {
+      "path": "project-final/project.json",
+      "bytes": 4057,
+      "sha256": "ef5efcbd03c8ba05cd17e2c4e603dfeda1a29b8fcf362b44a07d12272094d3c2"
+    },
+    {
+      "path": "project-final/reopened/project.json",
+      "bytes": 4057,
+      "sha256": "ef5efcbd03c8ba05cd17e2c4e603dfeda1a29b8fcf362b44a07d12272094d3c2"
+    },
+    {
+      "path": "project-final/scene-samples.json",
+      "bytes": 54598,
+      "sha256": "1600cbcd14803c81a090e2869d966f43e3c2d1cc1b2cd6938ebc879e77d05488"
+    },
+    {
+      "path": "project-final/spatial.msproj",
+      "bytes": 1026,
+      "sha256": "4a93d804e1b8bd7258259d4f96f957faff23866c1d99298d91e9cd8f13911526"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2923,
+      "sha256": "587cc064034ac21d79136399c117ad241bacebd3a3332e2246e507cf640ae1ee"
+    },
+    {
+      "path": "regression-final.log",
+      "bytes": 23295,
+      "sha256": "3b5df9811de7fc688ca69c6738e06a0d9d8dda9e110fdad16490962fad495dfb"
+    },
+    {
+      "path": "regression-verified.log",
+      "bytes": 23397,
+      "sha256": "1b3c69c62ce592a50e65f41fd8744a2c1da52cf0852936fce805c5af82300262"
+    },
+    {
+      "path": "regression-with-load-causes.log",
+      "bytes": 17014,
+      "sha256": "20a2078f9944e4fcc7ce5429913c77e3decff049b13f2b2cfc545e2ce92339c4"
+    },
+    {
+      "path": "rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source-snapshot.json",
+      "bytes": 5264,
+      "sha256": "1c93d91fee1706cfd6193572aaf2ffe48b433842b6efa94704aeeb414fd0da68"
+    },
+    {
+      "path": "style-consumers.log",
+      "bytes": 25,
+      "sha256": "0b5c04c9a7d87e2766fb971a31148e1c82f3efe1cc9ecf89f38cd6d46fab25e5"
+    },
+    {
+      "path": "test-counts.json",
+      "bytes": 2773,
+      "sha256": "87d0b49f473053f6208fdf8dc14cea5ae8e3d1c9159406308003d48f59806b2e"
+    },
+    {
+      "path": "track-first.log",
+      "bytes": 978,
+      "sha256": "6bb4ac6e9f826aa9506d08e024ade8de97a479e7e7afba60db44e40c252e14cc"
+    },
+    {
+      "path": "worker-final/logs/motion-studio.log",
+      "bytes": 2652,
+      "sha256": "67bd63de5fb6ea2d1aed2c6b8b9b806333d6f297223a13edc17e61d9c115c9e5"
+    },
+    {
+      "path": "worker-final/project/project.json",
+      "bytes": 2939,
+      "sha256": "99976c5c3b49a6d2d03ab6725642fe76b8cd3511e602f68b0d850fc66ce102b1"
+    },
+    {
+      "path": "worker-final/response.json",
+      "bytes": 8292,
+      "sha256": "2fb26eb05e2e0711ecaf6ba0bb6814a259d21718f5d1fd7143a1dcf9d856d184"
+    },
+    {
+      "path": "worker-final/stderr.log",
+      "bytes": 242,
+      "sha256": "de2525d8a8de1f292a61f0d32be6482b95d0092bf2fafb70c5f350da54018d63"
+    },
+    {
+      "path": "worker-final/stdout.log",
+      "bytes": 255,
+      "sha256": "7c0168b9dc560887edf50c5a91230a39d867d2106cda0426039a12a70c3cd219"
+    }
+  ]
+}

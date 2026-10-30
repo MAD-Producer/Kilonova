@@ -100,6 +100,7 @@ pub(super) fn track<T: Tween + DeserializeOwned>(source: &Value, offset: i64) ->
     keys.sort_by_key(|k| k.frame);
     keys.dedup_by_key(|k| k.frame);
     Some(Track {
+        spatial_animation: None,
         value,
         keys,
         axes: None,

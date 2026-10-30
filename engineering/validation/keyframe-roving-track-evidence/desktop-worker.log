@@ -1,0 +1,40 @@
+
+running 6 tests
+
+thread 'engine::animation_action_tests::animation_actions_keep_default_error_sinks_and_cancel_superseded_document_work_without_editing' (79660) panicked at desktop\app\src\engine\animation_action_tests.rs:281:41:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpCQDOIZ", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::animation_action_tests::animation_actions_keep_default_error_sinks_and_cancel_superseded_document_work_without_editing ... FAILED
+
+thread 'engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels' (72632) panicked at desktop\app\src\engine\animation_action_tests.rs:152:36:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp5mXFjD", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels ... FAILED
+
+thread 'engine::animation_action_tests::key_selection_edits_keep_original_failures_on_default_channels_and_recover_atomically' (81784) panicked at desktop\app\src\engine\animation_action_tests.rs:433:41:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp3ECFQf", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test engine::animation_action_tests::key_selection_edits_keep_original_failures_on_default_channels_and_recover_atomically ... FAILED
+
+thread 'engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history' (78808) panicked at desktop\app\src\engine\animation_action_tests.rs:531:39:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp8ujzI4", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history ... FAILED
+
+thread 'engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels' (78048) panicked at desktop\app\src\engine\animation_action_tests.rs:74:36:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp3Btuv9", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels ... FAILED
+
+thread 'engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state' (78460) panicked at desktop\app\src\engine\animation_action_tests\spatial.rs:82:36:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpVsmu78", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state ... FAILED
+
+failures:
+
+failures:
+    engine::animation_action_tests::animation_actions_keep_default_error_sinks_and_cancel_superseded_document_work_without_editing
+    engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels
+    engine::animation_action_tests::key_selection_edits_keep_original_failures_on_default_channels_and_recover_atomically
+    engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history
+    engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels
+    engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state
+
+test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 1501 filtered out; finished in 0.01s
+

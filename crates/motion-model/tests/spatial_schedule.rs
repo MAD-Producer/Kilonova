@@ -336,7 +336,13 @@ fn unsupported_imports_do_not_reinterpret_other_temporal_policies_or_nonspatial_
     let mut track = source(&[[0.; 3], [1.; 3]], &[0, 10]);
     for ease in [Ease::Hold, Ease::In, Ease::Out, Ease::InOut] {
         track.set_ease(0, ease).unwrap();
-        assert!(SpatialAnimation::from_track(&track).is_err());
+        let animation=SpatialAnimation::from_track(&track).unwrap();
+        // Import now preserves manual timing. Compare the actual samples,
+        // including Hold's exact terminal boundary, rather than rejecting it.
+        for tick in 0..=1000 {
+            let frame=f64::from(tick)/100.;
+            assert_eq!(animation.sample_value(frame).unwrap(),track.sample(frame).unwrap());
+        }
     }
     track.set_ease(0, Ease::Linear).unwrap();
     track.set_auto_bezier(0, true).unwrap();

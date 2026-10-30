@@ -177,6 +177,7 @@ impl KeyEdit {
 
 fn vector_valid(t: &Track<[f32; 2]>, min: f32, max: f32) -> Result<()> {
     t.validate_local()?;
+    ensure(t.spatial_animation.is_none(),"vector group parameters do not yet support spatial-key identities")?;
     ensure(
         t.axes.is_none(),
         "group tracks do not support separated dimensions",

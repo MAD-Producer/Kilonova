@@ -209,6 +209,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
         Command::KeyframeAutomatic { selections, enabled } => motion_model::keyframe_clipboard::set_automatic(project, &selections, enabled)?,
+        Command::SpatialKeyframes {target,edit} => motion_model::keyframe_clipboard::spatial::edit(project,&target,&edit)?,
         Command::KeyframeHandle { target, frame, incoming, control } => motion_model::keyframe_clipboard::set_handle(project, &target, frame, incoming, control)?,
         Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,
         Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
@@ -1007,6 +1008,8 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                 || old.transform.anchor.is_animated()
                 || old.transform.rotation.is_animated()
                 || old.transform.scale.is_animated();
+            ensure(old.transform.position.spatial_animation.is_none() && old.transform.anchor.spatial_animation.is_none(),
+                "anchor compensation cannot bake continuous spatial timing to integer keys")?;
             let mut position = Track::constant(compensate(0.0)?);
             if animated {
                 let first = old.clip(project.frames).edit_frame(0)?;
@@ -1019,7 +1022,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                     .chain(old.transform.rotation.key_frames())
                     .chain(old.transform.scale.key_frames());
                 let (first, last) =
-                    key_frames.fold((first, last), |(a, b), f| (a.min(f), b.max(f)));
+                    key_frames.fold((first, last), |(a, b), f| (a.min(f as i32), b.max(f as i32)));
                 ensure(
                     i64::from(last) - i64::from(first) < i64::from(crate::MAX_FRAMES),
                     "anchor compensation exceeds key budget",

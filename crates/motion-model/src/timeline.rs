@@ -20,6 +20,21 @@ pub struct TimelineTrack<T> {
     pub separated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub axes: Option<Box<TimelineAxes>>,
+    /// Continuous-time keys have stable identities; they are not rounded into
+    /// the ordinary frame-key protocol. Absent for all existing tracks.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub spatial_keys: Vec<TimelineSpatialKey<T>>,
+}
+#[derive(Debug, Serialize)]
+pub struct TimelineSpatialKey<T> {
+    pub id:u64,
+    pub frame:f64,
+    pub local_frame:f64,
+    pub roving:bool,
+    pub arc:bool,
+    pub easing:crate::Easing,
+    pub value:T,
+    pub spatial:Option<crate::SpatialTangents<T>>,
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineAxes {
@@ -31,6 +46,11 @@ impl<T: Tween> Track<T> {
     pub fn timeline(&self, offset: i32) -> Result<TimelineTrack<T>> {
         Ok(TimelineTrack {
             value: self.static_value()?,
+            spatial_keys:self.spatial_animation.iter().flat_map(|animation|animation.keys().iter().zip(animation.prepared().keys()))
+                .map(|(key,(_,time))|TimelineSpatialKey {
+                    id:key.id,frame:time+f64::from(offset),local_frame:time,roving:key.fixed.is_none(),
+                    arc:key.arc,easing:key.easing,value:key.value,spatial:key.spatial.clone(),
+                }).collect(),
             separated: self.axes.is_some(),
             axes: self
                 .axes

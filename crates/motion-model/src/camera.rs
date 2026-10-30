@@ -242,6 +242,8 @@ impl Camera {
         if self.mode == mode {
             return Ok(());
         }
+        ensure(self.position.spatial_animation.is_none() && self.target.spatial_animation.is_none(),
+            "camera mode conversion cannot bake continuous spatial timing to integer keys")?;
         // Trimmed-out keys remain recoverable. Include their local time in the
         // integer bake, and reject oversized bakes before doing work.
         for frame in self
@@ -252,6 +254,7 @@ impl Camera {
             .chain(self.azimuth.key_frames())
             .chain(self.elevation.key_frames())
         {
+            let frame=frame as i32; // Spatial storage was rejected above; ordinary keys are integer times.
             start = start.min(frame);
             end = end.max(
                 frame

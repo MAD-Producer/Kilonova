@@ -92,3 +92,26 @@ fn prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_re
         "counter must detect an actual allocation"
     );
 }
+
+#[test]
+fn authoritative_and_reopened_track_sampling_does_not_allocate_on_the_present_path() {
+    let mut track = Track::constant([0.; 3]);
+    for (frame, x) in [(0, 0.), (4, 1.), (10, 7.), (20, 20.)] {
+        track.upsert(frame, [x, 0., 0.], Ease::Linear).unwrap();
+    }
+    track.enable_roving(&[4]).unwrap();
+    let reopened: Track<[f32; 3]> =
+        serde_json::from_slice(&serde_json::to_vec(&track).unwrap()).unwrap();
+    for source in [&track, &reopened] {
+        let measurement = Measurement::start();
+        for tick in 0..10_000 {
+            std::hint::black_box(source.sample(f64::from(tick) / 499.95).unwrap());
+        }
+        drop(measurement);
+        assert_eq!(
+            ALLOCATIONS.with(Cell::get),
+            0,
+            "authoritative Track sampling allocated"
+        );
+    }
+}

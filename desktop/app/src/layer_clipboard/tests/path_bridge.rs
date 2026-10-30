@@ -24,6 +24,7 @@ fn document(root: &Path, nodes: u64, keys: u32) -> motion_core::Project {
                                 .map(|i| PathNode {
                                     id: i + 10,
                                     geometry: Track {
+                                        spatial_animation: None,
                                         axes: None,
                                         value: [i as f32, 0., -1., 2., 3., -4.],
                                         keys: (0..keys)

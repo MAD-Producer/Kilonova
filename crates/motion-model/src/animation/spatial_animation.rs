@@ -11,13 +11,17 @@ pub struct SpatialAnimationKey<T> {
     pub fixed: Option<f64>,
     pub value: T,
     pub spatial: Option<SpatialTangents<T>>,
+    /// Outgoing interpolation stays authored outside Roving's incident spans.
+    pub easing: Easing,
+    /// Persist arc parameterization after freezing a formerly free interval.
+    pub arc: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct SpatialAnimation<T> {
     keys: Vec<SpatialAnimationKey<T>>,
     next_id: u64,
-    prepared: PreparedSpatialTiming,
+    prepared: std::sync::Arc<PreparedSpatialTiming>,
 }
 
 #[derive(Deserialize)]
@@ -54,9 +58,8 @@ impl<'de, T: Tween + Deserialize<'de>> Deserialize<'de> for SpatialAnimation<T> 
 }
 
 impl<T: Tween> SpatialAnimation<T> {
-    /// Imports explicit geometry and linear temporal policy. This constructor
-    /// does not claim to convert automatic, Hold, elastic or authored easing;
-    /// those policies require their own continuous distance-time representation.
+    /// Imports geometry and manual timing without changing unaffected intervals.
+    /// Automatic endpoints need a separate context-dependent conversion.
     pub fn from_track(source: &Track<T>) -> Result<Self> {
         ensure(
             (2..=16_385).contains(&source.keys.len()),
@@ -68,11 +71,8 @@ impl<T: Tween> SpatialAnimation<T> {
             "spatial animation requires coupled keyed geometry",
         )?;
         ensure(
-            source
-                .keys
-                .iter()
-                .all(|key| !key.auto_bezier && key.curve.is_none() && key.ease == Ease::Linear),
-            "spatial animation import requires explicit linear temporal policy",
+            source.keys.iter().all(|key| !key.auto_bezier),
+            "freeze automatic endpoints before importing spatial timing",
         )?;
         let keys = source
             .keys
@@ -84,6 +84,11 @@ impl<T: Tween> SpatialAnimation<T> {
                 fixed: Some(f64::from(key.frame)),
                 value: key.value,
                 spatial: key.spatial.clone(),
+                easing: Easing {
+                    ease: key.ease,
+                    curve: key.curve,
+                },
+                arc: false,
             })
             .collect();
         Self::prepare(keys, source.keys.len() as u64 + 1)
@@ -100,6 +105,28 @@ impl<T: Tween> SpatialAnimation<T> {
                 .collect(),
             next_id,
         )?;
+        for key in &keys {
+            key.easing.validate()?;
+            ensure(
+                !key.arc || key.easing == Easing::default(),
+                "arc-parameterized intervals require explicit linear distance timing",
+            )?;
+        }
+        let mut first = 0;
+        while first + 1 < keys.len() {
+            let last = (first + 1..keys.len())
+                .find(|i| keys[*i].fixed.is_some())
+                .ok_or_else(|| crate::Error::Invalid("spatial fixed endpoint missing".into()))?;
+            if last > first + 1 {
+                ensure(
+                    keys[first..last]
+                        .iter()
+                        .all(|key| key.arc && key.easing == Easing::default()),
+                    "Roving spans require explicit linear distance timing",
+                )?;
+            }
+            first = last;
+        }
         ensure(
             keys[0].spatial.as_ref().and_then(|s| s.incoming).is_none(),
             "first spatial key has no incoming geometry",
@@ -132,7 +159,7 @@ impl<T: Tween> SpatialAnimation<T> {
         Ok(Self {
             keys,
             next_id,
-            prepared,
+            prepared: std::sync::Arc::new(prepared),
         })
     }
 
@@ -143,7 +170,57 @@ impl<T: Tween> SpatialAnimation<T> {
         &self.prepared
     }
     pub fn sample(&self, frame: f64) -> Result<SpatialPathSample> {
-        self.prepared.sample(frame)
+        ensure(frame.is_finite(), "spatial sample time must be finite")?;
+        let endpoints = [
+            (0, self.keys[0].fixed),
+            (self.keys.len() - 1, self.keys.last().and_then(|k| k.fixed)),
+        ];
+        for (index, time) in endpoints {
+            if time.is_some_and(|time| {
+                if index == 0 {
+                    frame <= time
+                } else {
+                    frame >= time
+                }
+            }) {
+                return Ok(SpatialPathSample {
+                    interval: if index == 0 { 0 } else { index - 1 },
+                    parameter: if index == 0 { 0. } else { 1. },
+                    position: self.keys[index]
+                        .value
+                        .spatial_components()
+                        .ok_or_else(|| {
+                            crate::Error::Invalid("spatial endpoint components missing".into())
+                        })?
+                        .map(f64::from),
+                });
+            }
+        }
+        let (interval, t) = self.prepared.locate(frame)?;
+        let a = &self.keys[interval];
+        let b = &self.keys[interval + 1];
+        if a.arc {
+            return self.prepared.sample(frame);
+        }
+        let progress = a.easing.sample(f64::from(t as f32)).progress as f32;
+        let outgoing = a.spatial.as_ref().and_then(|s| s.outgoing);
+        let incoming = b.spatial.as_ref().and_then(|s| s.incoming);
+        let value = super::spatial_mix(a.value, b.value, outgoing, incoming, progress);
+        Ok(SpatialPathSample {
+            interval,
+            parameter: f64::from(progress),
+            position: value
+                .spatial_components()
+                .ok_or_else(|| crate::Error::Invalid("spatial sample components missing".into()))?
+                .map(f64::from),
+        })
+    }
+
+    pub fn sample_value(&self, frame: f64) -> Result<T> {
+        let sample = self.sample(frame)?;
+        T::from_spatial_components(sample.position.map(|v| v as f32)).ok_or_else(|| {
+            crate::Error::Invalid("spatial sample reconstruction unsupported".into())
+        })
     }
 
     pub fn set_roving(&mut self, ids: &[u64], enabled: bool) -> Result<()> {
@@ -163,12 +240,19 @@ impl<T: Tween> SpatialAnimation<T> {
         for (key, time) in keys.iter_mut().zip(times.keys()) {
             key.fixed = time.fixed;
         }
-        let prepared = times.resolve(self.prepared.path().clone())?;
-        *self = Self {
-            keys,
-            next_id: self.next_id,
-            prepared,
-        };
+        let mut first = 0;
+        while first + 1 < keys.len() {
+            let last = (first + 1..keys.len())
+                .find(|i| keys[*i].fixed.is_some())
+                .ok_or_else(|| crate::Error::Invalid("spatial fixed endpoint missing".into()))?;
+            if last > first + 1 {
+                for key in &mut keys[first..last] {
+                    key.arc = true;
+                }
+            }
+            first = last;
+        }
+        *self = Self::prepare(keys, self.next_id)?;
         Ok(())
     }
 
@@ -189,12 +273,7 @@ impl<T: Tween> SpatialAnimation<T> {
         for (key, time) in keys.iter_mut().zip(times.keys()) {
             key.fixed = time.fixed;
         }
-        let prepared = times.resolve(self.prepared.path().clone())?;
-        *self = Self {
-            keys,
-            next_id: self.next_id,
-            prepared,
-        };
+        *self = Self::prepare(keys, self.next_id)?;
         Ok(())
     }
 
@@ -211,33 +290,93 @@ impl<T: Tween> SpatialAnimation<T> {
             .ok_or_else(|| {
                 crate::Error::Invalid(format!("spatial animation key={after} is missing"))
             })?;
+        self.insert_fixed(index + 1, time, value)
+    }
+
+    fn insert_fixed(&mut self, index: usize, time: f64, value: T) -> Result<u64> {
         let next_id = self
             .next_id
             .checked_add(1)
             .ok_or_else(|| crate::Error::Invalid("spatial key identity space exhausted".into()))?;
-        let reference = self
-            .keys
-            .get(index + 1)
-            .map_or(self.keys[index].reference + 1., |next| {
-                self.keys[index].reference + (next.reference - self.keys[index].reference) * 0.5
-            });
+        let reference = if index == 0 {
+            self.keys[0].reference - 1.
+        } else if index == self.keys.len() {
+            self.keys[index - 1].reference + 1.
+        } else {
+            let a = &self.keys[index - 1];
+            let b = &self.keys[index];
+            let start = self.prepared.effective_time(a.id)?;
+            let end = self.prepared.effective_time(b.id)?;
+            let progress = if start < time && time < end {
+                (time - start) / (end - start)
+            } else {
+                0.5
+            };
+            a.reference + (b.reference - a.reference) * progress
+        };
+        let arc = index > 0 && self.keys[index - 1].arc;
         let mut keys = self.keys.clone();
         keys.try_reserve(1)
             .map_err(|e| crate::Error::Invalid(format!("spatial key allocation: {e}")))?;
         keys.insert(
-            index + 1,
+            index,
             SpatialAnimationKey {
                 id: self.next_id,
                 reference,
                 fixed: Some(time),
                 value,
                 spatial: None,
+                easing: Easing::default(),
+                arc,
             },
         );
         let next = Self::prepare(keys, next_id)?;
         let id = self.next_id;
         *self = next;
         Ok(id)
+    }
+
+    /// Playhead edits preserve the identity of an exactly addressed key. At a
+    /// coincident boundary callers must choose an identity explicitly.
+    pub fn set_at_time(&mut self, time: f64, value: T) -> Result<()> {
+        ensure(time.is_finite(), "spatial edit time must be finite")?;
+        let id = {
+            let mut matches = self.prepared.keys().filter(|(_, at)| *at == time);
+            let id = matches.next().map(|(id, _)| id);
+            ensure(
+                matches.next().is_none(),
+                "coincident spatial keys require an explicit identity",
+            )?;
+            id
+        };
+        if let Some(id) = id {
+            return self.set_value(id, value);
+        }
+        let index = self
+            .prepared
+            .keys()
+            .take_while(|(_, at)| *at < time)
+            .count();
+        self.insert_fixed(index, time, value)?;
+        Ok(())
+    }
+
+    pub fn validate_bound(&self, bound: f32) -> Result<()> {
+        for key in &self.keys {
+            ensure(
+                key.value.bounded(bound),
+                "transform value exceeds its numeric range",
+            )?;
+            if let Some(spatial) = &key.spatial {
+                for delta in spatial.incoming.iter().chain(&spatial.outgoing) {
+                    ensure(
+                        key.value.add(*delta).bounded(bound),
+                        "spatial control exceeds its numeric range",
+                    )?;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn delete_key(&mut self, id: u64) -> Result<()> {
@@ -293,6 +432,43 @@ impl<T: Tween> SpatialAnimation<T> {
                 source: Box::new(source),
             })?;
         *self = next;
+        Ok(())
+    }
+}
+
+impl<T: Tween> Track<T> {
+    pub(super) fn validate_spatial_storage(&self) -> Result<()> {
+        ensure(
+            self.spatial_animation.is_none() || (self.keys.is_empty() && self.axes.is_none()),
+            "spatial animation cannot coexist with ordinary keys or axes",
+        )
+    }
+    pub(super) fn require_frame_keys(&self) -> Result<()> {
+        ensure(
+            self.spatial_animation.is_none(),
+            "spatial key edits require stable key identities",
+        )
+    }
+
+    /// First conversion addresses existing integer keys exactly. All following
+    /// edits use persistent IDs; effective times are never rounded back to keys.
+    pub fn enable_roving(&mut self, frames: &[i32]) -> Result<()> {
+        self.require_frame_keys()?;
+        let mut animation = SpatialAnimation::from_track(self)?;
+        let ids = frames
+            .iter()
+            .map(|frame| {
+                self.keys
+                    .binary_search_by_key(frame, |key| key.frame)
+                    .map(|index| animation.keys[index].id)
+                    .map_err(|_| {
+                        crate::Error::Invalid(format!("Roving source key frame={frame} missing"))
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        animation.set_roving(&ids, true)?;
+        self.spatial_animation = Some(Box::new(animation));
+        self.keys.clear();
         Ok(())
     }
 }
