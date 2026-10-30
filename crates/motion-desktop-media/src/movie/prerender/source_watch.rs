@@ -28,6 +28,8 @@ pub struct Snapshot {
     pub active_ticket: Option<u64>,
     /// First change or watcher fault only; bounded for the closure's lifetime.
     pub cause: Option<String>,
+    /// First terminal watcher fault, separately bounded from a normal change.
+    pub fault_cause: Option<String>,
 }
 struct State {
     retired: bool,
@@ -35,6 +37,7 @@ struct State {
     next_ticket: u64,
     active: Option<(u64, ExportControl)>,
     cause: Option<String>,
+    fault_cause: Option<String>,
 }
 struct Shared {
     request: u64,
@@ -55,6 +58,7 @@ impl Observation {
                 next_ticket: 0,
                 active: None,
                 cause: None,
+                fault_cause: None,
             }),
         }))
     }
@@ -75,6 +79,7 @@ impl Observation {
             fault: state.fault,
             active_ticket: state.active.as_ref().map(|a| a.0),
             cause: state.cause.clone(),
+            fault_cause: state.fault_cause.clone(),
         })
     }
     /// Attach before native work. Invalid/retired closures are ordinary stale
@@ -115,13 +120,21 @@ impl Observation {
         Ok(())
     }
     fn invalidate(&self, cause: String, fault: bool) {
-        let (first, control, actual_fault) = {
+        let (cause, control, actual_fault) = {
             // Poison is itself terminal: recover only to cancel, never to reuse.
             let (mut state, poisoned) = match self.0.state.lock() {
                 Ok(state) => (state, false),
                 Err(error) => (error.into_inner(), true),
             };
-            if state.retired || !self.0.valid.swap(false, Ordering::AcqRel) {
+            if state.retired {
+                return;
+            }
+            let first = self.0.valid.swap(false, Ordering::AcqRel);
+            let actual_fault = fault || poisoned;
+            // A normal change closes lookup, but is not the explicit recovery
+            // boundary for a later backend fault. Keep one cause of each kind;
+            // repeated events and callbacks from retired closures stay quiet.
+            if !first && (!actual_fault || state.fault) {
                 return;
             }
             let cause = if poisoned {
@@ -129,13 +142,15 @@ impl Observation {
             } else {
                 cause
             };
-            state.cause = Some(cause.chars().take(MAX_CAUSE_CHARS).collect());
-            state.fault = fault || poisoned;
-            (
-                state.cause.clone(),
-                state.active.as_ref().map(|a| a.1.clone()),
-                state.fault,
-            )
+            let cause: String = cause.chars().take(MAX_CAUSE_CHARS).collect();
+            if first {
+                state.cause = Some(cause.clone());
+            }
+            if actual_fault {
+                state.fault = true;
+                state.fault_cause = Some(cause.clone());
+            }
+            (cause, state.active.as_ref().map(|a| a.1.clone()), actual_fault)
         };
         // Never call cancellation or logging with the observation mutex held.
         if let Some(control) = control {
@@ -143,15 +158,13 @@ impl Observation {
         }
         if actual_fault {
             log::error!(
-                "prerender source watch request={} phase=event cause={}",
-                self.0.request,
-                first.as_deref().unwrap_or("unknown watcher fault")
+                "prerender source watch request={} phase=event cause={cause}",
+                self.0.request
             );
         } else {
             log::info!(
-                "prerender source changed request={} cause={}",
-                self.0.request,
-                first.as_deref().unwrap_or("source changed")
+                "prerender source changed request={} cause={cause}",
+                self.0.request
             );
         }
     }
@@ -449,6 +462,11 @@ mod tests;
 #[cfg(test)]
 pub(super) fn fail_test_observation(observation: &Observation, cause: &str) {
     observation.invalidate(cause.into(), true);
+}
+
+#[cfg(test)]
+pub(super) fn change_test_observation(observation: &Observation, cause: &str) {
+    observation.invalidate(cause.into(), false);
 }
 
 // The Windows MoveFileEx operation used by NamedTempFile::persist cannot

@@ -284,3 +284,78 @@ fn watcher_fault_drains_real_ack_and_preserves_simultaneous_worker_failure() {
         );
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn a_change_followed_by_watcher_failure_stays_faulted_after_real_ack() {
+    let root = tempfile::tempdir().unwrap();
+    let session = image_session(root.path());
+    let renderer = renderer(&session);
+    let (entered, waiting) = mpsc::sync_channel(1);
+    let (release, blocked) = mpsc::sync_channel(1);
+    let blocked = Mutex::new(blocked);
+    let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+    owner.worker = Some(
+        Worker::start_with_phase_hook(3072, move |_, phase| {
+            if phase == "draw" {
+                entered.send(()).unwrap();
+                blocked
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap();
+            }
+        })
+        .unwrap(),
+    );
+    prepare(&mut owner, &session, &renderer);
+    owner.advance_playback(demand()).unwrap();
+    let control = ExportControl::default();
+    assert!(owner.schedule(&renderer, control.clone()).unwrap());
+    waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+    let watch = owner.source.clone().unwrap();
+    source_watch::change_test_observation(&watch, "controlled source replacement");
+    source_watch::fail_test_observation(&watch, "controlled subsequent watcher failure");
+    // Release before asserting so a negative control never strands the real
+    // worker in its fixture. Acknowledgment is still drained by production poll.
+    release.send(()).unwrap();
+    assert!(control.check().is_err());
+    let first = owner.poll(&renderer);
+    assert!(
+        first
+            .as_ref()
+            .is_err_and(|cause| cause.contains("controlled subsequent watcher failure")),
+        "a normal change must not mask the later watcher fault: {first:?}"
+    );
+    let began = Instant::now();
+    while owner.busy() {
+        let _ = owner.poll(&renderer);
+        assert!(
+            began.elapsed() < Duration::from_secs(10),
+            "real cancellation acknowledgment must drain"
+        );
+        thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(owner.status().pending, 0);
+    assert_eq!(
+        owner
+            .observation()
+            .unwrap()
+            .snapshot()
+            .unwrap()
+            .retained_cpu_bytes,
+        0
+    );
+    let error = owner
+        .get(&renderer, 1.)
+        .err()
+        .expect("the fault must remain closed");
+    assert!(
+        error.contains("controlled subsequent watcher failure"),
+        "{error}"
+    );
+    assert_eq!(
+        watch.snapshot().unwrap().cause.as_deref(),
+        Some("controlled source replacement")
+    );
+}

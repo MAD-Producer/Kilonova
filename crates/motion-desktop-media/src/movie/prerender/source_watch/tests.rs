@@ -54,6 +54,106 @@ fn lease_retains_one_real_job_until_ack_and_refuses_stale_reuse() {
 }
 
 #[test]
+fn a_normal_change_cannot_hide_a_later_watcher_fault_before_retirement() {
+    let observation = Observation::new(18);
+    let control = ExportControl::default();
+    let lease = observation.attach(control.clone()).unwrap().unwrap();
+    observation.invalidate("normal source replacement".into(), false);
+    assert!(control.check().is_err());
+    assert!(!observation.snapshot().unwrap().fault);
+    observation.invalidate("native watcher lost its event stream".into(), true);
+    let snapshot = observation.snapshot().unwrap();
+    assert!(
+        snapshot.fault,
+        "a prior normal change must not hide a real fault"
+    );
+    assert_eq!(snapshot.cause.as_deref(), Some("normal source replacement"));
+    assert!(
+        observation
+            .attach(ExportControl::default())
+            .unwrap()
+            .is_none()
+    );
+    drop(lease);
+    observation.retire();
+    observation.invalidate("retired callback".into(), true);
+    assert!(observation.snapshot().unwrap().retired);
+}
+
+#[test]
+fn fault_after_change_is_logged_once_at_info_without_holding_observation_lock() {
+    const NAME: &str = "movie::prerender::source_watch::tests::fault_after_change_is_logged_once_at_info_without_holding_observation_lock";
+    const CHILD: &str = "MOTION_SOURCE_FAULT_ORDER_LOG_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+            .env(CHILD, "1")
+            .env_remove("MOTION_LOG")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    struct Capture {
+        observation: Observation,
+        records: Mutex<Vec<(log::Level, String)>>,
+    }
+    impl log::Log for Capture {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.level() <= log::Level::Info
+        }
+        fn log(&self, record: &log::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                assert!(
+                    self.observation.0.state.try_lock().is_ok(),
+                    "logger called with observation lock held"
+                );
+                let mut records = self.records.lock().unwrap();
+                assert!(
+                    records.len() < 4,
+                    "repeated source events must be suppressed"
+                );
+                records.push((record.level(), record.args().to_string()));
+            }
+        }
+        fn flush(&self) {}
+    }
+    let observation = Observation::new(8204);
+    let logger = Box::leak(Box::new(Capture {
+        observation: observation.clone(),
+        records: Mutex::new(Vec::new()),
+    }));
+    log::set_logger(logger).unwrap();
+    log::set_max_level(log::LevelFilter::Info);
+    observation.invalidate("normal replacement".into(), false);
+    let fault = format!("native stream failure {}", "证".repeat(2000));
+    observation.invalidate(fault.clone(), true);
+    for _ in 0..128 {
+        observation.invalidate("repeated normal event".into(), false);
+        observation.invalidate("repeated fault".into(), true);
+    }
+    observation.retire();
+    observation.invalidate("late retired fault".into(), true);
+    let records = logger.records.lock().unwrap();
+    assert_eq!(records.len(), 2, "one change and one terminal fault only");
+    assert_eq!(records[0].0, log::Level::Info);
+    assert!(records[0].1.contains("normal replacement"));
+    assert_eq!(records[1].0, log::Level::Error);
+    assert!(
+        records[1]
+            .1
+            .ends_with(&fault.chars().take(MAX_CAUSE_CHARS).collect::<String>())
+    );
+    assert!(!records[1].1.contains("repeated fault"));
+    assert!(observation.snapshot().unwrap().fault);
+}
+
+#[test]
 fn attachment_racing_a_change_cannot_escape_cancellation() {
     for request in 0..32 {
         let observation = Observation::new(request);
