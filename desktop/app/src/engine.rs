@@ -1784,7 +1784,7 @@ fn handle(
             }
             respond(reply, result);
         },
-        Command::CaptureUi { ui, path, reply } => {
+        Command::CaptureUi { mut ui, path, reply } => {
             let capture_started = Instant::now();
             let capture_window = ui.window;
             let mut capture_phase = "capture.session";
@@ -1803,7 +1803,7 @@ fn handle(
             let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
                 .map_err(|e| format!("phase=capture.painter: {e}"))?;
             capture_phase = "capture.atlas";
-            let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
+            let upload = ui.atlas.take().ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
             chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)

@@ -774,29 +774,24 @@ impl Controls {
                 }
             }
         }
-        let hint = if snapshot.is_none() {
-            if zh {
-                "参考线数据不可用".into()
-            } else {
-                "Guides unavailable".into()
-            }
-        } else {
-            if zh { "通道".into() } else { "Channel".into() }
-        };
         let channel_width = styles.metric("viewer.overlay.button.width", 64.);
         let channel_gap = styles.metric("viewer.controls.gap", 4.);
-        label(
-            list,
-            atlas,
-            Rect::new(
+        let inspection_rect = Rect::new(
                 x + padding,
                 y + padding + row * 9.,
                 (width - padding * 2. - channel_width - channel_gap).max(0.),
                 row,
-            ),
-            &hint,
-            false,
-        );
+            );
+        let inspection_label = match (snapshot.is_none(), zh) {
+            (true, true) => "参考线不可用 · 检查…",
+            (true, false) => "Guides unavailable…",
+            (false, true) => "通道 · 快照与区域…",
+            (false, false) => "Channel · Inspect…",
+        };
+        if motion_ui::ui::button(list, atlas, inspection_rect, inspection_label, sibling_events, true).clicked {
+            out.push(Action::OpenViewerInspection { floating: self.window.is_some(), point: [x, y + height] });
+            return;
+        }
         let labels = if zh { ["彩色", "红", "绿", "蓝", "Alpha"] }
             else { ["Color", "Red", "Green", "Blue", "Alpha"] };
         let items: Vec<_> = labels.iter().map(|label| motion_ui::widgets::DropdownItem { label, enabled: true }).collect();

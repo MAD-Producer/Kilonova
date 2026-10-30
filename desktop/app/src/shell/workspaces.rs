@@ -34,6 +34,7 @@ impl Shell {
         self.workspace.cancel();
         self.workspace.select_preset(preset);
         for (_, floating) in std::mem::take(&mut self.floating) {
+            if floating.panel == dock::Panel::Composition { self.panels.viewer_inspection.close_floating(); }
             self.engine.close_window(floating.key)?;
         }
         self.panels.workspace_preset = preset;

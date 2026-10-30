@@ -6,6 +6,9 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    OpenViewerInspection { floating: bool, point: [f32; 2] },
+    CaptureViewerSnapshot { floating: bool },
+    SaveViewerSnapshot { floating: bool },
     SaveAnimationPreset { object: u64, effects: Option<Vec<u64>> },
     ApplyAnimationPreset { path: std::path::PathBuf, objects: Vec<u64> },
     OpenAnimationPreset,
@@ -263,6 +266,7 @@ pub struct Panels {
     pub transform_controls: crate::panels::transform_controls::Controls,
     pub(crate) composition: CompositionState,
     pub(crate) viewer_guides: super::viewer_guides::Controls,
+    pub(crate) viewer_inspection: super::viewer_inspection::Controls,
 }
 
 #[derive(Default)]
