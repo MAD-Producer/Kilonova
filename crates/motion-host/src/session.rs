@@ -813,7 +813,7 @@ impl Session {
                     rh,
                     &mut encoder,
                     timestamps,
-                )
+                ).map(|_| ())
             } else {
                 g.renderer.encode_preview(
                     &self.scene,
@@ -822,7 +822,7 @@ impl Session {
                     rh,
                     &mut encoder,
                     timestamps,
-                )
+                ).map(|_| ())
             };
             let encoded = encoded.and_then(|_| g.scratch.encode_output(&g.renderer, &mut encoder));
             if let Err(error) = encoded {
