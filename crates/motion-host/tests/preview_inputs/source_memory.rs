@@ -34,6 +34,7 @@ fn original_video_worker_cache_enters_session_totals_without_rgba_conversion_or_
         video: VideoClip {
             asset: 2,
             source_offset_us: 0,
+            hold_first_frame: false,
             volume: 1.,
             muted: false,
         },

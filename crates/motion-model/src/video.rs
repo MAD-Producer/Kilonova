@@ -92,6 +92,10 @@ impl VideoAsset {
 pub struct VideoClip {
     pub asset: u64,
     pub source_offset_us: u64,
+    /// Show the first picture before its presentation time while retaining the
+    /// original audio clock. Older clips default to their existing blank head.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub hold_first_frame: bool,
     pub volume: f32,
     pub muted: bool,
 }
@@ -100,12 +104,32 @@ impl VideoClip {
         Self {
             asset,
             source_offset_us: 0,
+            hold_first_frame: false,
             volume: 1.0,
             muted: false,
         }
     }
+    /// Initialize a newly placed source without changing legacy clips.
+    pub fn for_source(asset: &VideoAsset, has_audio: bool) -> Self {
+        let mut clip = Self::new(asset.id);
+        if has_audio && asset.video_start_us > 0 {
+            clip.hold_first_frame = true;
+        } else {
+            clip.source_offset_us = asset.video_start_us;
+        }
+        clip
+    }
     pub fn source_time_us(&self, local_frame: f64, fps: u32) -> i64 {
         self.source_offset_us as i64 + (local_frame * 1_000_000.0 / f64::from(fps)).round() as i64
+    }
+    /// Decoder time for the picture; audio continues to use source_time_us.
+    pub fn picture_time_us(&self, local_frame: f64, fps: u32, asset: &VideoAsset) -> i64 {
+        let time = self.source_time_us(local_frame, fps);
+        if self.hold_first_frame && time >= 0 && time < asset.video_start_us as i64 {
+            asset.video_start_us as i64
+        } else {
+            time
+        }
     }
     pub fn validate(&self) -> Result<()> {
         ensure(
@@ -116,6 +140,8 @@ impl VideoClip {
         )
     }
 }
+
+fn is_false(value: &bool) -> bool { !*value }
 
 #[derive(Clone, Debug)]
 pub struct VideoSample {

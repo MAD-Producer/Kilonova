@@ -307,7 +307,7 @@ impl PreviewInputReader {
                 .find(|asset| asset.id == video.asset)
                 .ok_or("preview video asset missing")?;
             let size = [asset.display_width, asset.display_height];
-            let time = clock.source_time_us.unwrap();
+            let time = video.picture_time_us(clock.local_frame, snapshot.fps, asset);
             outside |= time < asset.video_start_us as i64 || time >= asset.video_end_us as i64;
             let source = if outside {
                 DesiredSource::Transparent

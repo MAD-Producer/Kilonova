@@ -184,18 +184,15 @@ pub fn place(session: &mut Session, target: AssetRef, at_frame: u32) -> motion_h
             Content::Image { asset: asset.id },
             u64::from(project.frames),
         ),
-        MediaAsset::Video(asset) => (
-            [asset.display_width as f32, asset.display_height as f32],
-            center,
-            Content::Video {
-                video: motion_core::VideoClip::new(asset.id),
-            },
-            asset
-                .duration_us
+        MediaAsset::Video(asset) => {
+            let video = motion_core::VideoClip::for_source(asset, asset.audio_asset.is_some());
+            let frames = asset.duration_us.saturating_sub(video.source_offset_us)
                 .checked_mul(u64::from(project.fps))
                 .ok_or("video duration exceeds frame range")?
-                .div_ceil(1_000_000),
-        ),
+                .div_ceil(1_000_000);
+            ([asset.display_width as f32, asset.display_height as f32],
+                center, Content::Video { video }, frames)
+        },
         MediaAsset::Audio(asset) => (
             [0.; 2],
             [0.; 3],
