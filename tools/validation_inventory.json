@@ -419,6 +419,16 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
+    },
+    "tools/analyze_prerender_input.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_prerender_input.py",
+      "reason": "Synthetic parser controls reject incomplete native-input evidence and paired P95 regressions; they do not substitute for manual native measurements."
+    },
+    "tools/test_ci_prerender_input.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Lightweight unittest discovery checks native-input evidence completeness, outcome consistency and every paired P95 criterion without opening native windows."
     }
   },
   "android_tests": {
