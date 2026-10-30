@@ -16,6 +16,15 @@ def fixture():
 
 
 class PairedPlaybackEvidenceTests(unittest.TestCase):
+    def test_early_hits_cannot_hide_a_stalled_final_window(self):
+        report = fixture()
+        run = report['runs'][2]
+        for frame in run['frames']:
+            frame['cachedPresented'] = min(frame['frame'], 36)
+        run['cachedPresented'] = 36
+        with self.assertRaisesRegex(ValueError, 'stopped producing hits'):
+            assess(report)
+
     def test_pairs_and_pooled_costs_require_no_regression(self):
         report = fixture()
         self.assertTrue(assess(report)['noRegression'])

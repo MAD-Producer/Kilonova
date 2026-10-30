@@ -239,6 +239,10 @@ fn paced_model_playback_records_paired_foreground_costs_and_real_cache_hits() {
         evidence.flush();
         if enabled {
             assert!(hits >= 30, "sustained playback must cache at least half of the 60 presented frames; got {hits}");
+            assert!(
+                hits > evidence.runs.last().unwrap()["frames"][49]["cachedPresented"].as_u64().unwrap(),
+                "early cache hits must not hide a stalled final ten-frame window"
+            );
         } else {
             assert_eq!(hits, 0);
         }

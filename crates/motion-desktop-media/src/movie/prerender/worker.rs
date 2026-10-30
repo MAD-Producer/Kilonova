@@ -402,7 +402,11 @@ impl Worker {
         }
         // Cancellation after worker publication still cannot expose a usable frame.
         if let Err(cause) = control.check() {
-            if !control.yielded_only() {
+            if control.yielded_only() && matches!(&complete.outcome, Outcome::Frame(_)) {
+                // Yield can race the completion flag after native work ended.
+                // Discard its pixels, but retain the still-valid native owner.
+                complete.retained_native = true;
+            } else if !control.yielded_only() {
                 complete.retained_native = false;
             }
             if !matches!(complete.outcome, Outcome::Failed(_)) {
@@ -619,6 +623,7 @@ fn run(
         // No native work remains. Publish on this job's own single-use token
         // before the reply so foreground yield cannot mistake another owner's
         // completed job for this one. Strong cancellation remains unconditional.
+        phase_hook(id, "publish");
         if let Some(yielding) = yielding {
             yielding.completed.store(true, Ordering::Release);
         }

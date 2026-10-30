@@ -206,3 +206,56 @@ fn yielded_draw_reuses_the_same_native_owner_but_strong_cancellation_closes_it()
         stop(&mut worker);
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn yield_between_native_completion_and_publication_keeps_only_the_native_owner() {
+    for invalidate in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let session = session(root.path());
+        let (entered, waiting) = mpsc::sync_channel(1);
+        let (release, blocked) = mpsc::sync_channel(1);
+        let blocked = Mutex::new(blocked);
+        let mut worker = Worker::start_with_phase_hook(3072, move |id, phase| {
+            if id == 2 && phase == "publish" {
+                entered.send(()).unwrap();
+                blocked
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap();
+            }
+        })
+        .unwrap();
+        worker.prepare(plan(&session)).unwrap().unwrap();
+        assert!(matches!(poll(&mut worker).outcome, Outcome::Prepared(_)));
+        let token = YieldControl::default();
+        worker
+            .render_with_yield(1., token.clone())
+            .unwrap()
+            .unwrap();
+        waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert!(!token.completed());
+        assert!(worker.snapshot().unwrap().completion_waiting);
+        assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 3072);
+        assert!(token.preempt());
+        if invalidate {
+            assert!(token.control().cancel());
+        }
+        release.send(()).unwrap();
+        let completion = poll(&mut worker);
+        assert!(matches!(completion.outcome, Outcome::Cancelled));
+        assert_eq!(completion.retained_native, !invalidate);
+        assert_eq!(worker.profile.is_some(), !invalidate);
+        assert_eq!(worker.snapshot().unwrap().retained_cpu_bytes, 0);
+        if !invalidate {
+            worker.render(2.).unwrap().unwrap();
+            let Outcome::Frame(frame) = poll(&mut worker).outcome else {
+                panic!("publication-race yield lost the valid native owner");
+            };
+            assert_eq!(frame.key().frame(), 2.);
+            assert_eq!(frame.image().pixels, [255, 0, 0, 255].repeat(32 * 24));
+        }
+        stop(&mut worker);
+    }
+}

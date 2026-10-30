@@ -46,6 +46,9 @@ def assess(data):
                 f'episode {episode}: final count disagrees with samples')
         require(previous >= 30 if enabled else previous == 0,
                 f'episode {episode}: insufficient actual hits or disabled cache produced hits')
+        if enabled:
+            require(previous > frames[49]['cachedPresented'],
+                    f'episode {episode}: sustained playback stopped producing hits in the final ten frames')
         measured = p95([f['foreground_us'] for f in frames])
         require(run.get('p95_us') == measured, f'episode {episode}: reported P95 disagrees with raw costs')
         summaries.append(dict(episode=episode, enabled=enabled, p95Us=measured, hits=previous,

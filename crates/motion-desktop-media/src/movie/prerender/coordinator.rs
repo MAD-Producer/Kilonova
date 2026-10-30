@@ -207,9 +207,22 @@ impl Coordinator {
         }
         .map_err(|e| e.to_string())?;
         self.demand = Some(demand);
-        if matches!(&self.active, Some(Active::Render { ticket, .. }) if ticket.canceled()) {
-            if let Some(worker) = &self.worker {
-                worker.cancel();
+        if let Some(Active::Render {
+            ticket, yielding, ..
+        }) = &self.active
+        {
+            if ticket.canceled() {
+                if let Some(token) = yielding
+                    .as_ref()
+                    .filter(|_| !demand.editing && !demand.pressure)
+                {
+                    // Foreground queueing and a superseded frame do not change
+                    // immutable content. Yield the job without retiring its
+                    // reusable native owner. Pressure/editing still retire it.
+                    token.preempt();
+                } else if let Some(worker) = &self.worker {
+                    worker.cancel();
+                }
             }
         }
         Ok(())
@@ -271,6 +284,8 @@ impl Coordinator {
                 target,
                 ..
             } => {
+                let reusable_native =
+                    complete.retained_native || matches!(&complete.outcome, Outcome::Frame(_));
                 let installed = match complete.outcome {
                     Outcome::Frame(frame) if epoch == self.epoch && !ticket.canceled() => {
                         let key = frame.key();
@@ -305,7 +320,7 @@ impl Coordinator {
                     // can keep the same immutable native generation, avoiding
                     // source freeze/device initialization on every frame.
                     // Strong cancellation or a changed epoch still closes it.
-                    if !complete.retained_native || epoch != self.epoch {
+                    if !reusable_native || epoch != self.epoch || installed.is_err() {
                         self.profile = None;
                     }
                 }

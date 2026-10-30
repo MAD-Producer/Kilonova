@@ -157,6 +157,108 @@ fn yielded_coordinator_keeps_warm_pixels_and_resumes_without_preparing_again() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn scheduler_foreground_cancellation_reuses_native_work_but_pressure_retires_it() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Mutex,
+    };
+    for case in [
+        "running_foreground",
+        "completed_foreground",
+        "running_pressure",
+    ] {
+        let root = tempfile::tempdir().unwrap();
+        let session = session(root.path());
+        let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+            session.engine.project().working_precision,
+            session.allocation_budget().clone(),
+        ))
+        .unwrap();
+        let (entered, waiting) = mpsc::sync_channel(1);
+        let (release, blocked) = mpsc::sync_channel(1);
+        let blocked = Mutex::new(blocked);
+        let preparations = Arc::new(AtomicUsize::new(0));
+        let initialized = Arc::new(AtomicUsize::new(0));
+        let freezes = preparations.clone();
+        let initializations = initialized.clone();
+        let first_draw = std::sync::atomic::AtomicBool::new(true);
+        let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+        owner.worker = Some(
+            Worker::start_with_phase_hook(3072, move |_, phase| {
+                if phase == "freeze" {
+                    freezes.fetch_add(1, Ordering::AcqRel);
+                }
+                if phase == "initialize" {
+                    initializations.fetch_add(1, Ordering::AcqRel);
+                }
+                if case != "completed_foreground"
+                    && phase == "draw"
+                    && first_draw.swap(false, Ordering::AcqRel)
+                {
+                    entered.send(()).unwrap();
+                    blocked
+                        .lock()
+                        .unwrap()
+                        .recv_timeout(Duration::from_secs(30))
+                        .unwrap();
+                }
+            })
+            .unwrap(),
+        );
+        prepare(&mut owner, &session, &renderer);
+        owner.advance_playback(demand()).unwrap();
+        let token = YieldControl::default();
+        assert!(owner.schedule_with_yield(&renderer, token.clone()).unwrap());
+        if case == "completed_foreground" {
+            let began = Instant::now();
+            while !token.completed() {
+                assert!(began.elapsed() < Duration::from_secs(30));
+                std::thread::yield_now();
+            }
+        } else {
+            waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+        }
+        let pressure = case == "running_pressure";
+        // Exercise the scheduler/Coordinator cancellation path, rather than
+        // calling token.preempt directly and bypassing the production defect.
+        owner
+            .advance_playback(Demand {
+                foreground_pending: !pressure,
+                pressure,
+                ..demand()
+            })
+            .unwrap();
+        assert_eq!(owner.status().counts.canceled, 1);
+        assert_eq!(owner.cache_info().unwrap().pending_bytes, 3072);
+        if case != "completed_foreground" {
+            release.send(()).unwrap();
+        }
+        assert!(!drain(&mut owner, &renderer));
+        assert_eq!(owner.profile().is_some(), !pressure, "{case}");
+        assert_eq!(owner.cache_info().unwrap().installed, 0);
+        assert_eq!(owner.status().counts.completed, 0);
+        assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+        if pressure {
+            prepare(&mut owner, &session, &renderer);
+        }
+        owner.advance_playback(demand()).unwrap();
+        assert!(owner
+            .schedule_with_yield(&renderer, YieldControl::default())
+            .unwrap());
+        assert!(drain(&mut owner, &renderer));
+        let frame = owner.get(&renderer, 1.).unwrap().unwrap();
+        assert_eq!(
+            pixels(&renderer, frame.source()),
+            [255, 0, 0, 255].repeat(32 * 24)
+        );
+        let expected = if pressure { 2 } else { 1 };
+        assert_eq!(preparations.load(Ordering::Acquire), expected, "{case}");
+        assert_eq!(initialized.load(Ordering::Acquire), expected, "{case}");
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn playback_admission_keeps_due_and_nearer_frames_without_counting_lookup_hits() {
     let root = tempfile::tempdir().unwrap();
     let session = session(root.path());
