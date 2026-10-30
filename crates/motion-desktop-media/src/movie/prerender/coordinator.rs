@@ -225,6 +225,11 @@ impl Coordinator {
             } => {
                 let installed = match complete.outcome {
                     Outcome::Frame(frame) if epoch == self.epoch && !ticket.canceled() => {
+                        let key = frame.key();
+                        let context = key.context();
+                        log::info!("start #{} prerender_install frame={} document={} device={}",
+                            complete.id, key.frame(), context.document_generation, context.device_generation);
+                        log::logger().flush();
                         if frame.key() != target.key() {
                             Err("prerender completion differs from admitted frame".into())
                         } else {
