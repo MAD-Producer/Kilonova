@@ -4,7 +4,12 @@
 use super::*;
 use motion_host::prerender::{self as schedule, Scheduler, Ticket};
 use motion_render::{CompositionFrameCache, NativeCompositionCandidate};
-use worker::{Outcome, Profile, Worker};
+use worker::{Outcome, Profile, Worker, YieldControl};
+
+enum Control {
+    Cancel(ExportControl),
+    Yield(YieldControl),
+}
 
 #[derive(Clone, Copy)]
 pub struct Demand {
@@ -26,6 +31,7 @@ enum Active {
         epoch: u64,
         ticket: Ticket,
         target: NativeCompositionCandidate,
+        yielding: Option<YieldControl>,
     },
 }
 impl Active {
@@ -103,6 +109,16 @@ impl Coordinator {
     /// Publish the caller's cancel control before this operation can enqueue.
     /// Busy/disabled/quota holds are normal, not failures or replacement threads.
     pub fn prepare(&mut self, plan: PrerenderPlan, control: ExportControl) -> Result<bool> {
+        self.prepare_job(plan, Control::Cancel(control))
+    }
+    pub fn prepare_with_yield(
+        &mut self,
+        plan: PrerenderPlan,
+        control: YieldControl,
+    ) -> Result<bool> {
+        self.prepare_job(plan, Control::Yield(control))
+    }
+    fn prepare_job(&mut self, plan: PrerenderPlan, control: Control) -> Result<bool> {
         if !self.policy.enabled || self.policy.window == 0 || self.active.is_some() {
             return Ok(false);
         }
@@ -119,12 +135,12 @@ impl Coordinator {
         if self.worker.is_none() {
             self.worker = Some(Worker::start(self.cpu_bytes)?);
         }
-        let Some(id) = self
-            .worker
-            .as_mut()
-            .ok_or("missing prerender owner")?
-            .prepare_with_control(plan, control)?
-        else {
+        let worker = self.worker.as_mut().ok_or("missing prerender owner")?;
+        let sent = match control {
+            Control::Cancel(control) => worker.prepare_with_control(plan, control),
+            Control::Yield(control) => worker.prepare_with_yield(plan, control),
+        };
+        let Some(id) = sent? else {
             return Ok(false);
         };
         self.active = Some(Active::Prepare {
@@ -155,28 +171,50 @@ impl Coordinator {
         Ok(())
     }
     pub fn update(&mut self, demand: Demand) -> Result<()> {
+        self.update_job(demand, false)
+    }
+    pub fn advance_playback(&mut self, demand: Demand) -> Result<()> {
+        self.update_job(demand, true)
+    }
+    fn update_job(&mut self, demand: Demand, playback: bool) -> Result<()> {
         let Some(profile) = self.profile else {
             return Ok(());
         };
-        self.scheduler
-            .update(schedule::Demand {
-                context: context(profile),
-                frame: demand.frame,
-                total_frames: profile.frames,
-                direction: demand.direction,
-                playing: demand.playing,
-                editing: demand.editing,
-                foreground_pending: demand.foreground_pending,
-                pressure: demand.pressure,
-                now: demand.now,
-            })
-            .map_err(|e| e.to_string())?;
+        let demand = schedule::Demand {
+            context: context(profile),
+            frame: demand.frame,
+            total_frames: profile.frames,
+            direction: demand.direction,
+            playing: demand.playing,
+            editing: demand.editing,
+            foreground_pending: demand.foreground_pending,
+            pressure: demand.pressure,
+            now: demand.now,
+        };
+        if playback {
+            self.scheduler.advance_playback(demand)
+        } else {
+            self.scheduler.update(demand)
+        }
+        .map_err(|e| e.to_string())?;
         if matches!(&self.active, Some(Active::Render { ticket, .. }) if ticket.canceled()) {
             if let Some(worker) = &self.worker {
                 worker.cancel();
             }
         }
         Ok(())
+    }
+    /// The caller must reconcile live context and holds first. Drain only a
+    /// completed yielded frame that is due now; a canceled future job must not
+    /// close a still-valid cache before the foreground reads its current frame.
+    pub fn poll_due(&mut self, renderer: &Renderer, frame: f64) -> Result<bool> {
+        if matches!(&self.active, Some(Active::Render { target, yielding: Some(token), .. })
+            if target.key().frame() == frame && token.completed())
+        {
+            self.poll(renderer)
+        } else {
+            Ok(false)
+        }
     }
     /// Drain one matching completion. Run update/invalidation before this call.
     pub fn poll(&mut self, renderer: &Renderer) -> Result<bool> {
@@ -227,8 +265,13 @@ impl Coordinator {
                     Outcome::Frame(frame) if epoch == self.epoch && !ticket.canceled() => {
                         let key = frame.key();
                         let context = key.context();
-                        log::info!("start #{} prerender_install frame={} document={} device={}",
-                            complete.id, key.frame(), context.document_generation, context.device_generation);
+                        log::info!(
+                            "start #{} prerender_install frame={} document={} device={}",
+                            complete.id,
+                            key.frame(),
+                            context.document_generation,
+                            context.device_generation
+                        );
                         log::logger().flush();
                         if frame.key() != target.key() {
                             Err("prerender completion differs from admitted frame".into())
@@ -258,6 +301,16 @@ impl Coordinator {
     }
     /// Reserve the real foreground GPU destination before consuming a ticket.
     pub fn schedule(&mut self, renderer: &Renderer, control: ExportControl) -> Result<bool> {
+        self.schedule_job(renderer, Control::Cancel(control))
+    }
+    pub fn schedule_with_yield(
+        &mut self,
+        renderer: &Renderer,
+        control: YieldControl,
+    ) -> Result<bool> {
+        self.schedule_job(renderer, Control::Yield(control))
+    }
+    fn schedule_job(&mut self, renderer: &Renderer, control: Control) -> Result<bool> {
         if self.active.is_some() {
             return Ok(false);
         }
@@ -282,7 +335,14 @@ impl Coordinator {
             .take_next(true)
             .map_err(|e| e.to_string())?
             .ok_or("admitted prerender destination lost scheduler ticket")?;
-        let sent = worker.render_with_control(next.frame(), control);
+        let yielding = match &control {
+            Control::Yield(token) => Some(token.clone()),
+            Control::Cancel(_) => None,
+        };
+        let sent = match control {
+            Control::Cancel(control) => worker.render_with_control(next.frame(), control),
+            Control::Yield(control) => worker.render_with_yield(next.frame(), control),
+        };
         match sent {
             Ok(Some(id)) => {
                 self.active = Some(Active::Render {
@@ -290,6 +350,7 @@ impl Coordinator {
                     epoch: self.epoch,
                     ticket,
                     target,
+                    yielding,
                 });
                 Ok(true)
             }

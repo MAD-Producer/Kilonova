@@ -192,6 +192,15 @@ impl Scheduler {
         Ok(())
     }
     pub fn update(&mut self, demand: Demand) -> Result<(), Error> {
+        self.update_inner(demand, false)
+    }
+    /// Continuous playback may retain an admitted frame inside the new window,
+    /// including the frame now due. Explicit seeks retain the conservative API
+    /// above. Context changes, reverse motion, holds and fast motion still cancel.
+    pub fn advance_playback(&mut self, demand: Demand) -> Result<(), Error> {
+        self.update_inner(demand, true)
+    }
+    fn update_inner(&mut self, demand: Demand, playback: bool) -> Result<(), Error> {
         if !demand.frame.is_finite() || demand.frame < 0. || demand.total_frames == 0 {
             self.invalidate();
             return Err(Error::InvalidDemand);
@@ -215,9 +224,34 @@ impl Scheduler {
                             > self.policy.max_seek_frames_per_second)
             });
             self.last_motion = demand.now;
-            self.cancel_flight();
+            let continuous = playback
+                && !self.fast_seek
+                && self.demand.is_some_and(|old| {
+                    old.playing
+                        && demand.playing
+                        && old.context == demand.context
+                        && old.total_frames == demand.total_frames
+                        && old.direction == demand.direction
+                        && match demand.direction {
+                            Direction::Forward => demand.frame >= old.frame,
+                            Direction::Backward => demand.frame <= old.frame,
+                        }
+                });
+            if !continuous
+                || self
+                    .flight
+                    .as_ref()
+                    .is_some_and(|t| !in_window(t.key, demand, self.policy.window))
+            {
+                self.cancel_flight();
+            }
             self.pending.clear();
-            self.completed.clear();
+            if continuous {
+                self.completed
+                    .retain(|key| in_window(*key, demand, self.policy.window));
+            } else {
+                self.completed.clear();
+            }
         }
         if demand.now.saturating_sub(self.last_motion) >= self.policy.idle_delay {
             self.fast_seek = false;
@@ -376,6 +410,16 @@ impl Scheduler {
             }
         }
     }
+}
+fn in_window(key: FrameKey, demand: Demand, window: usize) -> bool {
+    let distance = match demand.direction {
+        Direction::Forward => key.frame() - demand.frame,
+        Direction::Backward => demand.frame - key.frame(),
+    };
+    key.context() == demand.context
+        && distance >= 0.
+        && distance <= window as f64
+        && distance.fract() == 0.
 }
 impl Drop for Scheduler {
     fn drop(&mut self) {

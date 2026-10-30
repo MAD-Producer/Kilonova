@@ -1,11 +1,9 @@
 //! Experimental foreground owner. Disabled creates no worker or polling loop.
 //! Current profile is full-resolution High, authored camera, single-time output.
-use motion_desktop_media::movie::{
-    prerender::{
-        coordinator::{Coordinator, Demand},
-        PrerenderPlan,
-    },
-    ExportControl,
+use motion_desktop_media::movie::prerender::{
+    coordinator::{Coordinator, Demand},
+    worker::YieldControl,
+    PrerenderPlan,
 };
 use motion_host::{
     prerender::{Direction, Policy},
@@ -127,6 +125,28 @@ impl Runtime {
                 .map_err(|e| e.to_string())?
             && !s.engine.gesture_active())
     }
+    fn demand(&mut self, s: &Session, foreground_pending: bool) -> Result<Demand, String> {
+        if self.previous_frame.is_some_and(|frame| s.frame < frame) {
+            self.direction = Direction::Backward;
+        } else if self.previous_frame.is_some_and(|frame| s.frame > frame) {
+            self.direction = Direction::Forward;
+        }
+        self.previous_frame = Some(s.frame);
+        Ok(Demand {
+            frame: s.frame,
+            direction: self.direction,
+            playing: self.signals.playing()?,
+            editing: s.engine.gesture_active(),
+            foreground_pending,
+            pressure: Self::pressure(s),
+            now: self.began.elapsed(),
+        })
+    }
+    fn pressure(s: &Session) -> bool {
+        s.preview_memory.blocked()
+            || s.preview_memory.quality(true).level != 0
+            || !s.preview_memory.allows_image_prefetch()
+    }
     fn fail(&mut self, phase: &str, error: String) {
         if self.fault.is_none() {
             log::error!(
@@ -182,24 +202,8 @@ impl Runtime {
             return Ok(());
         };
         let eligible = Self::eligible(s)?;
-        let pressure = s.preview_memory.blocked()
-            || s.preview_memory.quality(true).level != 0
-            || !s.preview_memory.allows_image_prefetch();
-        if self.previous_frame.is_some_and(|frame| s.frame < frame) {
-            self.direction = Direction::Backward;
-        } else if self.previous_frame.is_some_and(|frame| s.frame > frame) {
-            self.direction = Direction::Forward;
-        }
-        self.previous_frame = Some(s.frame);
-        let demand = Demand {
-            frame: s.frame,
-            direction: self.direction,
-            playing: false,
-            editing: s.engine.gesture_active(),
-            foreground_pending,
-            pressure,
-            now: self.began.elapsed(),
-        };
+        let demand = self.demand(s, foreground_pending)?;
+        let pressure = demand.pressure;
         let Some(owner) = &mut self.owner else {
             return Ok(());
         };
@@ -208,7 +212,11 @@ impl Runtime {
         if !eligible {
             owner.invalidate()?;
         } else {
-            owner.update(demand)?;
+            if demand.playing {
+                owner.advance_playback(demand)?;
+            } else {
+                owner.update(demand)?;
+            }
         }
         owner.poll(&g.renderer)?;
         if !owner.busy() {
@@ -228,7 +236,11 @@ impl Runtime {
             self.hold = "unsupported_profile";
             return Ok(());
         }
-        owner.update(demand)?;
+        if demand.playing {
+            owner.advance_playback(demand)?;
+        } else {
+            owner.update(demand)?;
+        }
         if foreground_pending || pressure {
             self.hold = if pressure { "pressure" } else { "foreground" };
             return Ok(());
@@ -237,11 +249,11 @@ impl Runtime {
             self.hold = "busy";
             return Ok(());
         }
-        if self.signals.quiet_for()? < self.idle_delay {
+        if !demand.playing && self.signals.quiet_for()? < self.idle_delay {
             self.hold = "idle_delay";
             return Ok(());
         }
-        let control = ExportControl::default();
+        let control = YieldControl::default();
         let plan = if owner.profile().is_none() {
             log::info!("start #{request} prerender_runtime phase=capture");
             crate::logging::flush();
@@ -251,18 +263,18 @@ impl Runtime {
                 s.surface_epoch,
                 request,
                 CPU_BYTES,
-                &control,
+                &control.control(),
             )?)
         } else {
             None
         };
-        let Some(ticket) = self.signals.publish(generation, control.clone())? else {
+        let Some(ticket) = self.signals.publish_yield(generation, control.clone())? else {
             self.hold = "foreground";
             return Ok(());
         };
         let sent = match plan {
-            Some(plan) => owner.prepare(plan, control),
-            None => owner.schedule(&g.renderer, control),
+            Some(plan) => owner.prepare_with_yield(plan, control),
+            None => owner.schedule_with_yield(&g.renderer, control),
         };
         match sent {
             Ok(true) => {
@@ -290,22 +302,28 @@ impl Runtime {
         }
         let result = (|| {
             self.reconcile(s)?;
-            if !Self::eligible(s)?
-                || s.preview_memory.blocked()
-                || s.preview_memory.quality(true).level != 0
-            {
+            if !Self::eligible(s)? || Self::pressure(s) {
                 return Ok(None);
             }
+            let demand = self.demand(s, false)?;
             let Some(owner) = &mut self.owner else {
                 return Ok(None);
             };
-            owner.get(
-                &s.graphics
-                    .as_ref()
-                    .ok_or("prerender surface missing")?
-                    .renderer,
-                frame,
-            )
+            let renderer = &s
+                .graphics
+                .as_ref()
+                .ok_or("prerender surface missing")?
+                .renderer;
+            if demand.playing {
+                owner.advance_playback(demand)?;
+                owner.poll_due(renderer, frame)?;
+                if !owner.busy() {
+                    if let Some(ticket) = self.lease.take() {
+                        self.signals.finish(ticket)?;
+                    }
+                }
+            }
+            owner.get(renderer, frame)
         })();
         match result {
             Ok(cached) => cached,
@@ -318,7 +336,7 @@ impl Runtime {
     pub fn status(&self) -> serde_json::Value {
         let scheduler = self.owner.as_ref().map(Coordinator::status);
         serde_json::json!({"enabled":self.enabled,"experimental":true,"hold":self.hold,
-            "profile":"high_authored_single_time_idle","fault":self.fault,
+            "profile":"high_authored_single_time","playing":self.signals.playing().ok(),"fault":self.fault,
             "cache":self.owner.as_ref().and_then(Coordinator::cache_info),
             "pending":scheduler.map(|s|s.pending),
             "started":scheduler.map_or(0,|s|s.counts.started),"completed":scheduler.map_or(0,|s|s.counts.completed),
