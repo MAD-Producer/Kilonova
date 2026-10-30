@@ -52,10 +52,9 @@ fn probe_stub() -> ProbeVideo {
 }
 /// Same 24 fps source, but the first visible frame is at 0.250 s (leading
 /// edit), the picture ends at 3.000 s, and the container duration is 3.250 s
-/// because the audio track outlasts the picture (AAC padding). No audio track is
-/// reported, so preparation does not raise `duration_us` itself.
+/// because the audio track outlasts the picture (AAC padding).
 fn probe_delayed_start() -> ProbeVideo {
-    Arc::new(|source, _, _, check| {
+    Arc::new(|source, _, audio, check| {
         check()?;
         let timestamps = (0..66)
             .map(|n| 250_000 + (n * 1_000_000 + 12) / 24)
@@ -83,11 +82,86 @@ fn probe_delayed_start() -> ProbeVideo {
                 audio_asset: None,
             },
             timestamps,
-            audio_track: None,
+            audio_track: if audio == Some(u32::MAX) { None } else { Some(1) },
             first_rgba: vec![255; 256 * 144 * 4],
             tracks: serde_json::json!([]),
         })
     })
+}
+
+#[test]
+fn delayed_picture_keeps_audio_and_shows_first_frame_without_shifting_the_clock() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let jobs = VideoJobs::new(root.path().into()).unwrap();
+    let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
+    start_probe(&jobs, "visible-with-audio", true, probe_delayed_start());
+    let ready = wait(&jobs, "visible-with-audio");
+    assert_eq!(ready.state, "ready", "{:?}", ready.error);
+    let done = jobs.commit("visible-with-audio", &mut engine).unwrap();
+    assert_eq!(done.state, "succeeded", "{:?}", done.error);
+    let project = engine.project().clone();
+    let layer = &project.layers[0];
+    let Content::Video { video } = &layer.content else { panic!("expected video") };
+    let asset = &project.video_assets[0];
+    assert!(asset.audio_asset.is_some());
+    assert!(video.hold_first_frame);
+    assert_eq!(video.source_offset_us, 0);
+    assert_eq!(video.picture_time_us(0., project.fps, asset), 250_000);
+    assert_eq!(video.picture_time_us(15., project.fps, asset), 250_000);
+    assert_eq!(video.picture_time_us(30., project.fps, asset), 500_000);
+    assert_eq!(video.picture_time_us(-1., project.fps, asset), -16_667);
+    assert_eq!(layer.clip(project.frames).out_frame, 195);
+    assert_eq!(project.layer_audio(layer).unwrap().source_offset_us, 0);
+
+    // Compare actual decoded PCM through the video layer against the same
+    // source as an ordinary audio clip; this catches both truncation and drift.
+    let mut audio_only = project.clone();
+    let audio = motion_core::AudioClip::new(asset.audio_asset.unwrap());
+    audio_only.layers[0].content = Content::Audio { audio };
+    audio_only.layers[0].size = [0.; 2];
+    audio_only.layers[0].transform = motion_core::Transform::new([0.; 3]);
+    let audio_frames = (audio_only.audio_assets[0].duration_us * u64::from(audio_only.fps)).div_ceil(1_000_000);
+    audio_only.layers[0].timeline.as_mut().unwrap().out_frame = audio_frames.min(195) as i32;
+    let mut actual = AudioMixer::new(project, root.path()).unwrap();
+    let mut reference = AudioMixer::new(audio_only, root.path()).unwrap();
+    let mut nonzero = false;
+    for start in [0, 12_000, 48_000, 96_000] {
+        let mut a = vec![0.; 4096];
+        let mut b = vec![0.; 4096];
+        actual.mix(start, &mut a).unwrap();
+        reference.mix(start, &mut b).unwrap();
+        assert_eq!(a, b, "audio drift at sample {start}");
+        nonzero |= a.iter().any(|sample| *sample != 0.);
+    }
+    assert!(nonzero, "audio fixture produced only silence");
+}
+
+#[test]
+fn audio_tail_after_picture_is_preserved_with_delayed_first_frame() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let decode: motion_media::DecodeAudio = Arc::new(|source, pcm, _, _, check| {
+        check(Some(0.0))?;
+        std::fs::write(pcm, 0.5f32.to_le_bytes().repeat(156_000)).map_err(motion_media::Error::from)?;
+        Ok(motion_core::AudioAsset {
+            id: 1, path: "assets/source.mp4".into(), mime: "audio/mp4".into(),
+            bytes: std::fs::metadata(source).map_err(motion_media::Error::from)?.len(),
+            track: 1, sample_rate: 48_000, channels: 1, sample_frames: 156_000,
+            duration_us: 3_250_000,
+        })
+    });
+    let jobs = VideoJobs::with_audio_decoder(root.path().into(), decode).unwrap();
+    let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
+    start_probe(&jobs, "audio-tail", true, probe_delayed_start());
+    let ready = wait(&jobs, "audio-tail");
+    assert_eq!(ready.state, "ready", "{:?}", ready.error);
+    let done = jobs.commit("audio-tail", &mut engine).unwrap();
+    assert_eq!(done.state, "succeeded", "{:?}", done.error);
+    let mut mixer = AudioMixer::new(engine.project().clone(), root.path()).unwrap();
+    let mut output = vec![0.; 1024];
+    mixer.mix(148_800, &mut output).unwrap(); // 3.1 s, after the 3.0 s picture end.
+    assert!(output.iter().all(|sample| *sample > 0.2), "audio tail was lost");
 }
 fn options(id: &str) -> VideoImportOptions {
     VideoImportOptions {
@@ -363,7 +437,7 @@ fn imported_clip_offsets_the_head_but_keeps_the_duration_derived_length() {
         let visible_frames = (2_750_000u64 * u64::from(p.fps)).div_ceil(1_000_000);
         assert_eq!(visible_frames, 165);
         let last_visible =
-            video.source_time_us(layer.local_frame(f64::from(visible_frames - 1)), p.fps);
+            video.source_time_us(layer.local_frame((visible_frames - 1) as f64), p.fps);
         assert!(
             (250_000..3_000_000).contains(&last_visible),
             "last visible sample {last_visible}"

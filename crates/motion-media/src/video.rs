@@ -451,11 +451,14 @@ impl VideoJobs {
                 .checked_add(1)
                 .ok_or("object ID exhausted")? };
             // The probe records the visible interval on the source presentation
-            // timeline, and every decoder entry point rejects samples outside
-            // [video_start_us, video_end_us). Layer-local time zero must therefore
-            // map to the first visible frame, otherwise a source whose first
-            // visible PTS is not zero shows a blank head.
-            let offset_us = p.probe.asset.video_start_us;
+            // timeline, and decoder entry points reject samples outside
+            // [video_start_us, video_end_us). Avoid a blank head while retaining
+            // the original audio clock when a soundtrack is present.
+            // When audio is present, keep its original clock and show the first
+            // picture during the leading interval. Offsetting both streams would
+            // discard real audio; offsetting only video would desynchronise it.
+            let mut video = VideoClip::for_source(&p.probe.asset, p.audio.is_some());
+            let offset_us = video.source_offset_us;
             // The length stays duration-derived. Preparation raises duration_us to the
             // audio track length, so it outlasts the picture by AAC encoder padding,
             // and composition clamps audio voices to the layer interval: sizing the
@@ -495,8 +498,7 @@ impl VideoJobs {
                 [project.width as f32 / 2.0, project.height as f32 / 2.0, 0.0],
                 [1.0; 4],
             );
-            let mut video = VideoClip::new(aid);
-            video.source_offset_us = offset_us;
+            video.asset = aid;
             layer.content = Content::Video { video };
             layer.rotation_order = motion_model::RotationOrder::FixedXyz;
             layer.timeline = Some(LayerTimeline {
