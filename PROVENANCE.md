@@ -1,5 +1,10 @@
 # Motion Studio 来源说明 / Provenance
 
+插件作者工作区的可选 WGSL 辅助通过公开 LSP 标准连接独立安装的
+wgsl-analyzer。客户端及其故障夹具独立编写，不复制上游编辑器控件、图标或截图。
+固定验收版本、官方资产 hash、许可及修改范围记录在 ATTRIBUTION.md；
+正式发布包尚未捆绑或自动安装语言服务器。
+
 **状态 / Status:** 仓库政策与发布证据 / Repository policy and release evidence
 **生效日期 / Effective date:** 2026-10-14
 

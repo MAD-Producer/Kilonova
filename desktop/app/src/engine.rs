@@ -217,6 +217,8 @@ pub enum Command {
         path: PathBuf,
         reply: Sender<Result<Value, String>>,
     },
+    PluginInstall { stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin, reply:Sender<Result<bool,String>> },
+    PluginValues { stamp:(u64,u64), values:Vec<[f32;4]>, reply:Sender<Result<bool,String>> },
     EditChecked {
         text: String,
         revision: u64,
@@ -487,7 +489,7 @@ impl Command {
             KeyframeClipboardRead { reply, .. } => ErrorReply::KeyframeClipboard(reply.clone()),
             PathClipboardRead { reply, .. } => ErrorReply::PathClipboard(reply.clone()),
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
-            NodeInstall { reply, .. } | Present { reply, .. } | PresentFrozen { reply, .. } | Render { reply, .. } => {
+            NodeInstall { reply, .. } | PluginInstall {reply,..} | PluginValues {reply,..} | Present { reply, .. } | PresentFrozen { reply, .. } | Render { reply, .. } => {
                 ErrorReply::Bool(reply.clone())
             }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
@@ -627,6 +629,12 @@ impl Engine {
         self.check_running()?;
         *self.pending_node_expect.lock().map_err(|_| "node expectation lock poisoned")? = Some(stamp);
         Ok(())
+    }
+    pub fn plugin_install(&self, stamp:(u64,u64), prepared:crate::node_preview::PreparedPlugin)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String> {
+        self.request(|reply|Command::PluginInstall{stamp,prepared,reply})
+    }
+    pub fn plugin_values(&self,stamp:(u64,u64),values:Vec<[f32;4]>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String> {
+        self.request(|reply|Command::PluginValues{stamp,values,reply})
     }
     /// Stop accepting work and drain accepted commands. This also works while
     /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
@@ -1569,6 +1577,7 @@ struct NodePreviewState {
     active: Option<crate::node_preview::NodePreview>,
     canonical: Option<crate::node_preview::PipelineCache>,
     installs: u64,
+    plugin_parameters:Option<Vec<motion_effects::ParamDefinition>>,
 }
 
 fn handle(
@@ -1666,6 +1675,29 @@ fn handle(
             }
         })()),
         Command::NodeSource{snapshot,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::node_layer::persist(s,&snapshot))),
+        Command::PluginInstall{stamp,prepared,reply}=>respond(reply,(|| {
+            if stamp!=node_preview.desired {return Ok(false);}
+            let preview=motion_host::session::with_session(id,|session| {
+                let graphics=session.graphics.as_ref().ok_or("plugin preview GPU not attached")?;
+                let context=crate::node_preview::GpuContext{allocations:graphics.renderer.allocation_context(),format:graphics.config.format};
+                crate::node_preview::NodePreview::build_plugin(&context,stamp,&prepared)
+                    .map_err(|error|motion_host::Error::with_context(format!("plugin preview install stamp={stamp:?}"),error))
+            })?;
+            node_preview.plugin_parameters=Some(prepared.definitions().to_vec());
+            node_preview.active=Some(preview);node_preview.canonical=None;node_preview.installs+=1;
+            Ok(true)
+        })()),
+        Command::PluginValues{stamp,values,reply}=>respond(reply,(|| {
+            if stamp!=node_preview.desired {return Ok(false);}
+            let definitions=node_preview.plugin_parameters.as_ref().ok_or("no installed plugin parameter contract")?;
+            if definitions.len()!=values.len()||definitions.iter().zip(&values).any(|(p,v)|!p.kind.valid_value(v,p.min,p.max)) {
+                return Err("plugin preview values violate installed parameter contract".into());
+            }
+            let preview=node_preview.active.as_mut().ok_or("no installed plugin preview")?;
+            if preview.stamp!=stamp {return Ok(false);}
+            preview.set_plugin_values(&values).map_err(|e|e.to_string())?;
+            Ok(true)
+        })()),
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
@@ -1694,6 +1726,7 @@ fn handle(
             })?;
             if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
             node_preview.active = Some(preview);
+            node_preview.plugin_parameters=None;
             node_preview.canonical = canonical_preview;
             node_preview.installs += 1;
             Ok(true)
@@ -1858,12 +1891,14 @@ fn handle(
             capture_phase = "capture.paint";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
+            let plugin_content=node_preview.plugin_parameters.is_some();
+            if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}}
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,target.view(),&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
             capture_phase = "capture.node";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.node");
 
-            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
+            if !plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,target.view(),viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}}
             capture_phase = "capture.submit";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.submit");
@@ -2008,7 +2043,9 @@ fn handle(
                     let surface_format=g.config.format;
                     let mut paint_error=None;
                     let mut node_error=None;
+                    let plugin_content=node_preview.plugin_parameters.is_some();
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
+                        if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){if let Err(error)=preview.encode(encoder,target,viewport,surface_format){node_error=Some(error);return;}}}
                         #[cfg(test)]
                         diagnostics.native_test_phase("present.overlay.paint");
                         if let Err(error)=painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio) {
@@ -2017,7 +2054,7 @@ fn handle(
                         }
                         #[cfg(test)]
                         diagnostics.native_test_phase("present.overlay.node");
-                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){node_error=preview.encode(encoder,target,viewport,surface_format).err();}
+                        if !plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){node_error=preview.encode(encoder,target,viewport,surface_format).err();}}
                         #[cfg(test)]
                         diagnostics.native_test_phase("present.host_after_overlay");
                     };
@@ -2070,8 +2107,10 @@ fn handle(
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.allocation_command_encoder(&Default::default())?;
                     clear_target(&mut encoder,&view);
+                    let plugin_content=node_preview.plugin_parameters.is_some();
+                    if plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
                     painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
-                    if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}
+                    if !plugin_content {if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}}
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.submit");
                     g.renderer.submit_allocated(encoder.finish(),|_|{})?;

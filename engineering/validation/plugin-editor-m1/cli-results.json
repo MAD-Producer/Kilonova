@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "engine_not_started": true,
+      "authored_source_absent_from_logs": true,
+      "case": "success",
+      "exit_code": 0,
+      "stdout_data_only": true
+    },
+    {
+      "engine_not_started": true,
+      "authored_source_absent_from_logs": true,
+      "case": "missing",
+      "exit_code": 1,
+      "stdout_data_only": true
+    },
+    {
+      "engine_not_started": true,
+      "authored_source_absent_from_logs": true,
+      "case": "invalid",
+      "exit_code": 1,
+      "stdout_data_only": true
+    }
+  ],
+  "ok": true,
+  "binary_sha256": "605BDD3EAC01388BBE64F3B00FD7C491C4B5161D00D2FC6699B85C29365E8E34",
+  "verification": "Rechecked all saved channel bytes with null-safe assertions and stop-on-error; initial empty-stderr harness fault preserved."
+}

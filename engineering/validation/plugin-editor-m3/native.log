@@ -1,0 +1,42 @@
+1793275494.847 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::logging: logging initialized level=INFO
+1793275495.243 WARN [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793275495.244 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\sample
+1793275495.245 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793275495.253 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\sample
+1793275511.056 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793275511.056 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\sample 15812ms
+1793275511.560 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793275511.561 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x15a38031b20, name: ?)
+1793275511.561 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793275511.561 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x15a38031b20, name: ?)
+1793275513.644 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793275514.416 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793275514.550 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=<disabled>
+1793275514.754 WARN [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793275514.898 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true revision=Some(0) object=studio.motion.examples.parameter_workbench source=
+1793275514.933 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793275514.935 INFO [motion-engine] motion_studio::engine: start #2 plugin_preview_install
+1793275515.066 INFO [motion-engine] motion_studio::engine: start #3 capture_ui
+1793275515.980 INFO [motion-engine] motion_studio::engine: start #4 capture_ui
+1793275516.809 INFO [motion-engine] motion_studio::engine: start #5 capture_ui
+1793275517.621 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 phase=write in_flight=true revision=Some(9) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\authored.msplugin
+1793275517.649 INFO [motion-engine] motion_studio::engine: start #6 capture_ui
+1793275518.991 INFO [motion-engine] motion_studio::engine: start #7 capture_ui
+1793275519.818 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #2 checkpoint path=<disabled>
+1793275519.873 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=3 phase=write in_flight=true revision=Some(10) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\authored.msplugin
+1793275519.914 INFO [motion-engine] motion_studio::engine: start #8 node_capture
+1793275520.603 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=4 phase=compile in_flight=true revision=Some(11) object=studio.motion.examples.parameter_workbench source=
+1793275520.626 ERROR [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author error request=4 phase=compile elapsed_ms=23 location=Some((2, 14)) cause=plugin project phase=Compile: phase=wgsl_parse: expected expression, found ";"
+1793275520.651 INFO [motion-engine] motion_studio::engine: start #9 capture_ui
+1793275521.429 INFO [motion-engine] motion_studio::engine: start #10 node_capture
+1793275521.791 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=5 phase=write in_flight=true revision=Some(11) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/plugin-editor-m3/native-delivery\authored.msplugin
+1793275521.833 INFO [motion-engine] motion_studio::engine: start #11 capture_ui
+1793275522.710 INFO [motion-engine] motion_studio::engine: start #12 capture_ui
+1793275524.137 INFO [motion-engine] motion_studio::engine: start #13 shutdown
+1793275524.137 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793275524.137 INFO [motion-engine] motion_studio::engine::shutdown: start #14 shutdown_cleanup session=1
+1793275524.207 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793275524.210 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793275524.210 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

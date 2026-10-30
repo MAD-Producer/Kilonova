@@ -1,0 +1,32 @@
+1793275493.622 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793275493.624 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793275493.625 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-64496-1793275493623481500
+1793275493.625 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793275493.631 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-64496-1793275493623481500
+1793275506.658 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793275506.659 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-64496-1793275493623481500 13034ms
+1793275506.818 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793275506.980 INFO [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author start request=0 phase=read in_flight=true source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin
+1793275508.394 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793275508.395 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x238a60b3aa0, name: ?)
+1793275508.395 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793275508.395 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x238a60b3aa0, name: ?)
+1793275510.500 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793275511.187 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793275511.189 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true revision=Some(0) object=studio.motion.examples.parameter_workbench source=
+1793275511.226 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793275511.337 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3\runtime-delivery\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793275511.343 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793275511.380 INFO [motion-engine] motion_studio::engine: start #3 plugin_preview_install
+1793275511.387 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[1440.0, 840.0]
+1793275511.445 INFO [motion-engine] motion_studio::engine: start #5 plugin_preview_values
+1793275514.764 INFO [motion-engine] motion_studio::engine: start #16 resize
+1793275517.147 INFO [motion-engine] motion_studio::engine: start #25 shutdown
+1793275517.147 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793275517.147 INFO [motion-engine] motion_studio::engine::shutdown: start #26 shutdown_cleanup session=1
+1793275517.210 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793275517.210 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #2 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3\runtime-delivery\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793275517.215 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793275517.215 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

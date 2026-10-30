@@ -1,0 +1,23 @@
+
+running 14 tests
+
+thread 'diagnostics::native_test_evidence::native_evidence_reads_busy_poisoned_and_recovered_state_without_waiting' (66992) panicked at desktop\app\src\diagnostics\native_test_evidence.rs:67:9:
+controlled evidence lock poison
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test diagnostics::native_test_evidence::native_evidence_reads_busy_poisoned_and_recovered_state_without_waiting ... ok
+test diagnostics::tests::actual_engine_queue_records_waiting_separately_and_reply_context_preserves_the_action ... ok
+test diagnostics::tests::automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records ... ok
+test diagnostics::tests::consent_gates_real_sdk_envelopes_and_attachments_and_upload_is_rate_limited ... ok
+test diagnostics::tests::contended_recording_never_waits_for_the_report_lock ... ok
+test diagnostics::tests::export_replaces_the_file_atomically_and_reports_write_failure_without_stopping_recorder ... ok
+test diagnostics::tests::fast_activity_does_not_count_as_a_stall_or_claim_a_measured_gpu_duration ... ok
+test diagnostics::tests::in_flight_and_queue_depth_track_a_blocked_worker ... ok
+test diagnostics::tests::oversized_report_replies_with_failure_and_reporter_remains_usable ... ok
+test diagnostics::tests::poisoned_diagnostic_state_preserves_context_and_snapshot_with_visible_recovery ... ok
+test diagnostics::tests::recorder_is_bounded_and_keeps_queue_and_execution_distinct_without_payload_data ... ok
+test diagnostics::tests::reporter_logs_before_snapshot_and_preserves_unobserved_write_failures ... ok
+test diagnostics::tests::reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error ... ok
+test diagnostics::tests::timing_report_contention_cannot_erase_context_or_gpu_identity ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 1473 filtered out; finished in 12.74s
+

@@ -1,0 +1,135 @@
+{
+  "base": "92bd8c09b670dd8c434f1800c259389c7010fe0c",
+  "testExecutableSha256": "bb59be5bfe8de603417ac9eb7e8f2e17adbc891ec3429b2be360100a43d24e9e",
+  "results": {
+    "negativeControlsFailedAsExpected": 2,
+    "pluginRegularPassed": 14,
+    "pluginRegularIgnored": 7,
+    "diagnosticsPassed": 14,
+    "nativeAuthorPassed": 1,
+    "hostFailureChannelsPassed": 1,
+    "nativeHostFailed": 1
+  },
+  "files": [
+    {
+      "path": "build-negative.log",
+      "bytes": 14128,
+      "sha256": "e4fef8f02902f524ca0106261fcafbc64ed48c19d082f1af18ea485f3c0e0724"
+    },
+    {
+      "path": "build-fixed.log",
+      "bytes": 13294,
+      "sha256": "79ddbd34bec227ddc5232bd2fc1f5713d92ca40e2733e09094a4d9d1cca0029a"
+    },
+    {
+      "path": "close-negative.log",
+      "bytes": 735,
+      "sha256": "863c13fc4babc7e7e155906a4b4b337f613f0872b2a7f7418baf72f992a55b0e"
+    },
+    {
+      "path": "diagnostics-negative.log",
+      "bytes": 701,
+      "sha256": "f9684ef8c88333fbba33e8b1d547512194ff1335b5ff8222e7c3707f0e9485b7"
+    },
+    {
+      "path": "plugin-fixed.log",
+      "bytes": 2933,
+      "sha256": "01145910811a35946b33663ea8828d6c47400a52dae201e4dcdfdd2827da7bdf"
+    },
+    {
+      "path": "diagnostics-fixed.log",
+      "bytes": 1917,
+      "sha256": "6cb0cceac7f98e8f73d4e9c12dd1094493ee1076ba24b325868b9a4a0d2828b4"
+    },
+    {
+      "path": "native-author.log",
+      "bytes": 218,
+      "sha256": "da9cc36ab50db59b35e15c6a61b89b6652581e34fcafd37852962553fd223ef3"
+    },
+    {
+      "path": "native-host.log",
+      "bytes": 69182,
+      "sha256": "ec061901b1c6696ad6a4a88275d8bd61e9bbc77961cff796aade439941a5bda9"
+    },
+    {
+      "path": "host-failures.log",
+      "bytes": 241,
+      "sha256": "2de69d420e45c5e82c3ffaca8277be3e2684aa459c17e9b4d7b32640e8108e50"
+    },
+    {
+      "path": "negative-tests.patch",
+      "bytes": 8060,
+      "sha256": "422c2e4d3bc73342c7f51eb3506be20a2707817c7a58c7e7aa06f486df1e4d18"
+    },
+    {
+      "path": "negative-metadata.json",
+      "bytes": 285,
+      "sha256": "95ad0cbbb9367ddf9388e73f75ee3636fc83e752ec632ae236481946d057a6f1"
+    },
+    {
+      "path": "native-author/save-close-pending.png",
+      "bytes": 99983,
+      "sha256": "3aea070a1c1efdd5419fb314592356e2b775b34ab4e8e3a197030cbff1e3c172"
+    },
+    {
+      "path": "native-author/save-close-cancelled.png",
+      "bytes": 93341,
+      "sha256": "06a49323973c7d69754f536337962dd31b16e4e7bd49d2e9fb373ad98f918cb9"
+    },
+    {
+      "path": "native-author/child.stdout.txt",
+      "bytes": 212,
+      "sha256": "77f88d2a30949accfaf7e3817c43d1dd21989719070c00610ce8dafb6568a1ef"
+    },
+    {
+      "path": "native-author/child.stderr.txt",
+      "bytes": 804,
+      "sha256": "a1f79a88f1621c4c70ba59866f652ec42f71135c1c900a87b453901daa89436f"
+    },
+    {
+      "path": "native-author/logs/motion-studio.log",
+      "bytes": 6709,
+      "sha256": "17c5767c063a06d338ee7dc54aea31746721232ebf8d9f631ea948d2228cb633"
+    },
+    {
+      "path": "native-author/report.json",
+      "bytes": 334,
+      "sha256": "5aa00c928ac945689e9692af1f54c7d1e1aeb0c591c6819aaad7eceade893617"
+    },
+    {
+      "path": "native-host/stdout.txt",
+      "bytes": 374,
+      "sha256": "f6c875387bc74d7c7cb2c93580b3c6e0c225399276c2c9b527afe7dcdbf3002b"
+    },
+    {
+      "path": "native-host/stderr.txt",
+      "bytes": 68508,
+      "sha256": "91d696f5d69253b76c7e83497015319797a512bb523a5a10391281b673219edb"
+    },
+    {
+      "path": "native-host/state-diff.json",
+      "bytes": 100,
+      "sha256": "157cc51291ac55aa3ff38a288348d4246ca83a5057c9d089cfb60889d689deab"
+    },
+    {
+      "path": "native-host/logs/motion-studio.log",
+      "bytes": 75310,
+      "sha256": "e7782fd6a1b490ab52e28a898647308cddbbf0578d3401302edb0e18fcdfc204"
+    },
+    {
+      "path": "host-failures/stdout.txt",
+      "bytes": 235,
+      "sha256": "6329859ff2f0d05914558c05eaf4e022c4ba0a9d44164d28f170c0ae4b969589"
+    },
+    {
+      "path": "host-failures/stderr.txt",
+      "bytes": 791,
+      "sha256": "fd8ec812939f5eba9b2eabdf424f1e3921e699947b71bd2fee6a5d8c5caf8fc9"
+    },
+    {
+      "path": "host-failures/logs/motion-studio.log",
+      "bytes": 2257,
+      "sha256": "73ea7729f09cec40b5ad25ae04f117b4dfbb647aef9b565a835101186cf78b55"
+    }
+  ]
+}

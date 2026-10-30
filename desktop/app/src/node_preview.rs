@@ -13,7 +13,28 @@ use std::time::Instant;
 
 #[path = "node_preview/prepared.rs"]
 mod prepared;
-pub use prepared::{PreparedGraph, InstallGraph};
+pub use prepared::{PreparedGraph, PreparedPlugin, InstallGraph};
+
+/// Shared GPU admission; authoring WGSL and graphs retain their own resources.
+trait PreviewProgram {
+    fn manifest(&self) -> &motion_effects::PluginManifest;
+    fn wgsl(&self) -> &str;
+    fn resource(&self, path: &str) -> Option<&[u8]>;
+}
+impl PreviewProgram for motion_graph::CompiledGraph {
+    fn manifest(&self) -> &motion_effects::PluginManifest { &self.manifest }
+    fn wgsl(&self) -> &str { &self.shader.wgsl }
+    fn resource(&self, path: &str) -> Option<&[u8]> { self.resource(path) }
+}
+impl PreviewProgram for motion_graph::plugin_project::CompiledLogic {
+    fn manifest(&self) -> &motion_effects::PluginManifest { self.manifest() }
+    fn wgsl(&self) -> &str {
+        match self { Self::Graph(g)=>&g.shader.wgsl,Self::Wgsl{shader,..}=>&shader.wgsl }
+    }
+    fn resource(&self, path: &str) -> Option<&[u8]> {
+        match self { Self::Graph(g)=>g.resource(path),Self::Wgsl{..}=>None }
+    }
+}
 
 pub const LOGICAL_SIZE: u32 = 64;
 pub const RASTER_SIZE: u32 = 512;
@@ -445,7 +466,7 @@ impl NodePreview {
         compiled: &motion_graph::CompiledGraph,
         previous: Option<&PipelineCache>,
     ) -> Result<Self, RenderError> {
-        Self::build_pixels(context, snapshot, compiled, &prepared::decode_resources(compiled)?, previous)
+        Self::build_pixels(context, snapshot.preview_stamp(), compiled, &snapshot.document.public_parameters.iter().map(|p|p.default).collect::<Vec<_>>(), &prepared::decode_resources(compiled)?, previous)
     }
     pub fn build_prepared(
         context: &GpuContext,
@@ -453,21 +474,31 @@ impl NodePreview {
         prepared: &PreparedGraph,
         previous: Option<&PipelineCache>,
     ) -> Result<Self, RenderError> {
-        Self::build_pixels(context, snapshot, &prepared.compiled, &prepared.pixels, previous)
+        Self::build_pixels(context, snapshot.preview_stamp(), &prepared.compiled, &snapshot.document.public_parameters.iter().map(|p|p.default).collect::<Vec<_>>(), &prepared.pixels, previous)
+    }
+    pub fn build_plugin(context:&GpuContext, stamp:(u64,u64), prepared:&PreparedPlugin) -> Result<Self,RenderError> {
+        let values:Vec<_>=prepared.compiled.manifest().effects[0].params.iter().map(|p|p.default).collect();
+        Self::build_pixels(context,stamp,&prepared.compiled,&values,&prepared.pixels,None)
+    }
+    pub fn set_plugin_values(&mut self,values:&[[f32;4]]) -> Result<(),RenderError> {
+        if values.len()>32 || values.iter().flatten().any(|v|!v.is_finite()) {return Err("invalid plugin preview uniforms".into());}
+        self.uniform.params[..values.len()].copy_from_slice(values);
+        self.cached_seconds=None;
+        Ok(())
     }
     fn build_pixels(
-        context: &GpuContext, snapshot: &EditorSnapshot,
-        compiled: &motion_graph::CompiledGraph, resource_pixels: &[image::RgbaImage],
+        context: &GpuContext, stamp: (u64,u64),
+        compiled: &impl PreviewProgram, parameters: &[[f32;4]], resource_pixels: &[image::RgbaImage],
         previous: Option<&PipelineCache>,
     ) -> Result<Self, RenderError> {
-        if compiled.shader.wgsl.len() > 2 << 20 {
+        if compiled.wgsl().len() > 2 << 20 {
             return Err(RenderError::Invalid(
                 "node preview WGSL exceeds 2 MiB".into(),
             ));
         }
-        compiled.manifest.validate()?;
+        compiled.manifest().validate()?;
         let definition = compiled
-            .manifest
+            .manifest()
             .effects
             .first()
             .ok_or("node preview has no effect")?;
@@ -482,7 +513,7 @@ impl NodePreview {
         }
         let previous =
             previous.filter(|previous| context.allocations.same_owner(&previous.allocations));
-        let reused = previous.filter(|previous| previous.pipeline.wgsl == compiled.shader.wgsl);
+        let reused = previous.filter(|previous| previous.pipeline.wgsl == compiled.wgsl());
         let allocations = &context.allocations;
         let device = allocations.device();
         let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
@@ -505,8 +536,8 @@ impl NodePreview {
                 });
             let input = input_layout(device, 3);
             let resources = input_layout(device, 4);
-            let linear = snapshot.document.working_space == WorkingSpace::Linear;
-            let premult = snapshot.document.alpha_mode == AlphaMode::Premultiplied;
+            let linear = definition.working_space == WorkingSpace::Linear;
+            let premult = definition.alpha_mode == AlphaMode::Premultiplied;
             let source = texture(
                 allocations,
                 LOGICAL_SIZE,
@@ -604,12 +635,12 @@ impl NodePreview {
                 ],
                 params: [[0.; 4]; 32],
             };
-            for (index, p) in snapshot.document.public_parameters.iter().enumerate() {
-                uniform.params[index] = p.default;
+            for (index, p) in parameters.iter().enumerate() {
+                uniform.params[index] = *p;
             }
-            if let Some(data) = &compiled.manifest.effects[0].shader_data {
+            if let Some(data) = &definition.shader_data {
                 data.write_uniforms(
-                    snapshot.document.public_parameters.len(),
+                    parameters.len(),
                     &mut uniform.params,
                 )?;
             }
@@ -654,7 +685,7 @@ impl NodePreview {
             } else {
                 let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                     label: Some("N1 compiled graph"),
-                    source: wgpu::ShaderSource::Wgsl(compiled.shader.wgsl.clone().into()),
+                    source: wgpu::ShaderSource::Wgsl(compiled.wgsl().to_owned().into()),
                 });
                 let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("SDK node pipeline"),
@@ -671,11 +702,11 @@ impl NodePreview {
                 );
                 std::sync::Arc::new(PreviewPipeline {
                     pipeline,
-                    wgsl: compiled.shader.wgsl.clone(),
+                    wgsl: compiled.wgsl().to_owned(),
                 })
             };
             Ok(Self {
-                stamp: snapshot.preview_stamp(),
+                stamp,
                 pipeline,
                 pipeline_builds: u64::from(reused.is_none())
                     + u64::from(

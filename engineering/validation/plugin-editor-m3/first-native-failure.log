@@ -1,0 +1,29 @@
+
+running 3 tests
+test plugin_editor::author::tests::layout_transactions_are_atomic_and_preserve_author_source ... ok
+test plugin_editor::author::tests::authored_diagnostics_exclude_host_prelude_and_keep_utf8_presentation ... ok
+
+test plugin_editor::author::native::author_drag_source_history_save_and_native_rendering ... FAILED
+
+failures:
+
+failures:
+    plugin_editor::author::native::author_drag_source_history_save_and_native_rendering
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 1398 filtered out; finished in 26.56s
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (62752) panicked at desktop\app\src\plugin_editor\author\native.rs:286:5:
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26ec1021750, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26ec1021750, name: ?)
+
+thread 'plugin_editor::author::native::author_drag_source_history_save_and_native_rendering' (62028) panicked at desktop\app\src\plugin_editor\author\native.rs:155:9:
+assertion failed: matches!(model::find(&ws.draft.project.interface.root,
+    &group).unwrap().content,
+    motion_effects::native_layout::LayoutContent::Group { .. })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

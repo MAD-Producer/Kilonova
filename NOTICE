@@ -1,5 +1,10 @@
 # Motion Studio 法律声明 / Legal notice
 
+The optional plugin-author language client interoperates with separately installed,
+unmodified wgsl-analyzer (wgsl-analyzer contributors, MIT OR Apache-2.0).
+The server is not embedded in this repository, effect packages or release pipeline.
+Source, tested revision and license links are recorded in ATTRIBUTION.md.
+
 版权所有 (c) 2026 Motion Studio contributors
 Copyright (c) 2026 Motion Studio contributors
 

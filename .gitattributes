@@ -10,6 +10,7 @@
 *.properties text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+*.msplugin text eol=lf
 *.png binary
 *.msfx binary
 

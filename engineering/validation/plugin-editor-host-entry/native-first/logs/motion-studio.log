@@ -1,0 +1,79 @@
+1793281264.098 INFO [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio::logging: logging initialized level=INFO
+1793281264.196 WARN [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793281264.196 INFO [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/plugin-editor-host-entry/native-first\host-project
+1793281264.197 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793281264.200 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/plugin-editor-host-entry/native-first\host-project
+1793281270.635 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793281270.635 INFO [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/plugin-editor-host-entry/native-first\host-project 6439ms
+1793281270.636 INFO [motion-engine] motion_studio::engine: start #1 state
+1793281270.696 WARN [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793281270.760 INFO [motion-engine] motion_studio::engine: start #2 plugin
+1793281270.838 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=<disabled>
+1793281270.879 INFO [motion-engine] motion_studio::engine: start #3 state
+1793281270.881 INFO [plugin-author-window] motion_studio::plugin_editor::window::host: plugin.host start request=1 phase=open in_flight=true
+1793281270.882 WARN [plugin-author-window] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793281270.882 INFO [plugin-author-window] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-77468-1793281270881547900
+1793281270.882 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793281270.884 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-77468-1793281270881547900
+1793281270.924 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=2
+1793281270.924 INFO [plugin-author-window] motion_studio::engine: worker ready: session=2 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-77468-1793281270881547900 42ms
+1793281270.977 WARN [plugin-author-window] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793281271.030 INFO [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author start request=0 phase=read in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-host-entry/native-first\plugin.msplugin
+1793281271.261 ERROR [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793281271.261 ERROR [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1fc7831e130, name: ?)
+1793281271.261 ERROR [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793281271.261 ERROR [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1fc7831e130, name: ?)
+1793281271.821 INFO [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793281272.077 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793281272.078 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true revision=Some(0) object=studio.motion.examples.parameter_workbench source=
+1793281272.091 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793281272.151 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=<disabled>
+1793281272.152 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793281272.189 INFO [motion-engine] motion_studio::engine: start #3 plugin_preview_install
+1793281272.227 INFO [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[1440.0, 840.0]
+1793281272.227 INFO [motion-engine] motion_studio::engine: start #4 plugin_preview_values
+1793281272.238 INFO [motion-engine] motion_studio::engine: start #6 capture_ui
+1793281272.996 INFO [motion-engine] motion_studio::engine: start #4 state
+1793281273.042 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793281273.199 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 phase=compile in_flight=true revision=Some(1) object=studio.motion.examples.parameter_workbench source=
+1793281273.212 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 revision=1 phase=resource_decode in_flight=true
+1793281273.435 INFO [motion-engine] motion_studio::engine: start #16 plugin_preview_install
+1793281273.650 WARN [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_ui::observability: UI degradation owner=4 site=input.released_overwrite key="pending" count=1 overflow=false previous=(Left, [808.0, 464.0]) next=(Left,[-88.0, 44.0])
+1793281333.669 ERROR [plugin_editor::window::host::tests::hosted_author_routes_real_windows_and_preserves_drafts_on_owner_close] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_editor\window_host_tests.rs:266:9:
+host fixture timeout; message=None
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: BaseThreadInitThunk
+  18: RtlUserThreadStart
+
+1793281333.693 INFO [motion-engine] motion_studio::engine: start #5 shutdown
+1793281333.693 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793281333.693 INFO [motion-engine] motion_studio::engine::shutdown: start #6 shutdown_cleanup session=1
+1793281333.693 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793281333.694 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793281333.694 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped
+1793281333.694 ERROR [plugin-author-window] motion_studio::plugin_editor::window::host: plugin.host phase=dispatch cause=missing flight
+1793281333.695 INFO [motion-engine] motion_studio::engine: start #17 shutdown
+1793281333.695 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=2
+1793281333.695 INFO [motion-engine] motion_studio::engine::shutdown: start #18 shutdown_cleanup session=2
+1793281333.739 INFO [motion-engine] motion_studio::engine: worker resources released: session=2
+1793281333.739 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #2 checkpoint path=<disabled>
+1793281333.742 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793281333.742 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

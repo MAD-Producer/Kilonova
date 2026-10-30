@@ -1,0 +1,10 @@
+{
+  "child_close_does_not_exit": true,
+  "different_window_ids": true,
+  "main_state_unchanged": true,
+  "missing_source_isolated": true,
+  "owner_close_cancel_retained_draft": true,
+  "production_shell_routing": true,
+  "same_process": true,
+  "save_before_owner_close": true
+}

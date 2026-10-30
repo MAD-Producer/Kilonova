@@ -1,5 +1,18 @@
 # 第三方归属说明 / Third-party attribution
 
+## 插件作者工作区：可选本机 WGSL 语言服务
+
+- 作者：wgsl-analyzer contributors。
+- 来源：[官方仓库](https://github.com/wgsl-analyzer/wgsl-analyzer)，验收固定版本
+  `2026-09-30`，revision `659b96821595a83cbc06abf844461eb736caaab5`。
+- Windows x86_64 官方发行资产 `wgsl-analyzer-x86_64-pc-windows-msvc.zip`，
+  SHA-256 `f9b9c0621149fcf989907787daeab9212035a42af45d4511b6ec50834a7e6b05`。
+- 许可：MIT OR Apache-2.0；使用未经修改的官方可执行文件，原始许可随本地验收目录保存。
+- 范围：独立安装的可选子进程，通过公开 LSP 标准连接。上游源码、图标和二进制
+  不写入本仓库，不嵌入效果包，也未加入正式发布流水线。客户端、虚拟文档映射、
+  界面和故障夹具由本项目独立实现；没有复制 VS Code 扩展或其他编辑器界面资源。
+- 标准来源：[Microsoft LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/)。
+
 本文件列出当前计划进入仓库或发布包的第三方材料。每个组件保留原始许可证和版权声明。根目录 [LICENSE](LICENSE) 只适用于按该许可证贡献的 Motion Studio 代码。
 
 This file lists third-party material currently intended for the repository or a release. Each component keeps its original license and copyright notice. The root [LICENSE](LICENSE) applies only to Motion Studio code contributed under that license.

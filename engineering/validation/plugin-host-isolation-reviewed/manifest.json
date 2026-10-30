@@ -1,0 +1,111 @@
+{
+  "base": "2b5d76292ce5ae47cada2d4d06433d2fefb4874a",
+  "binary": {
+    "path": "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/motion_studio-9c5cdc7b4281ddf0.exe",
+    "sha256": "ad1a2dfda43dfeecb3c894665659e3e9ca104f74aea608f2cc6c60ae499aabc7"
+  },
+  "testContract": "Only droppedRecords may increase; all remaining complete state must match",
+  "testsPassed": 32,
+  "files": [
+    {
+      "path": "build.log",
+      "bytes": 13294,
+      "sha256": "f3a45144ce4442af1525da4a0cc15d4a126911bfbbd6fd3ea8ac49655d1491e4"
+    },
+    {
+      "path": "unit.log",
+      "bytes": 3242,
+      "sha256": "b03896d06cc32a2c6592712f42fe3d37fbc479e0ee64bfe8b4f0ca3b97fcbd83"
+    },
+    {
+      "path": "diagnostics.log",
+      "bytes": 1487,
+      "sha256": "e3130598ad26dde7c19c748bf6d82780513348d74a1e2450cfa243ef5536d7bf"
+    },
+    {
+      "path": "native.log",
+      "bytes": 240,
+      "sha256": "c9f4fce242175e070fb0107610003e0eec5a369cf8b87e879c54ce7db9a5fb43"
+    },
+    {
+      "path": "faults.log",
+      "bytes": 241,
+      "sha256": "e9f2eb5c963904daf387602403d219885268f7f41c0f6bdf9d5c7f0c74b22ca2"
+    },
+    {
+      "path": "native/report.json",
+      "bytes": 685,
+      "sha256": "eed5809badf63021221aaa76709bfd8a8271a2af5522d154035f436b80af129a"
+    },
+    {
+      "path": "native/state-before.json",
+      "bytes": 37458,
+      "sha256": "086d6d1eab6d639c288bcd040a606b2661982f632f3a7beac7d7ee5b5e0a8cd8"
+    },
+    {
+      "path": "native/state-after-edit.json",
+      "bytes": 37458,
+      "sha256": "086d6d1eab6d639c288bcd040a606b2661982f632f3a7beac7d7ee5b5e0a8cd8"
+    },
+    {
+      "path": "native/state-after-owner-save.json",
+      "bytes": 37458,
+      "sha256": "086d6d1eab6d639c288bcd040a606b2661982f632f3a7beac7d7ee5b5e0a8cd8"
+    },
+    {
+      "path": "native/state-after-child-close.json",
+      "bytes": 37458,
+      "sha256": "83ef81c64fa085f6578db2d15fac0e228631562c23943fe9d9a5ec35b795afec"
+    },
+    {
+      "path": "native/state-after-read-error.json",
+      "bytes": 37458,
+      "sha256": "2cbf0128faefe578f7e4f8c0e1243fcd3992b7419e459cf8dc1c0e492599a190"
+    },
+    {
+      "path": "native/stdout.txt",
+      "bytes": 234,
+      "sha256": "5e9948431701d9baa3ffb6e5027286fbd939aeb27d707a849911d27eb8c37635"
+    },
+    {
+      "path": "native/stderr.txt",
+      "bytes": 2266,
+      "sha256": "ffeaf3ca88edb1b4d8f39774fec816db7273e1b5c1f097f755afc3c35bd62c5d"
+    },
+    {
+      "path": "native/logs/motion-studio.log",
+      "bytes": 17174,
+      "sha256": "c2058f2b9cb56a22f7ad173ae106cb4a764a5a489e931b71b0f941ccb90fd3cd"
+    },
+    {
+      "path": "native/hosted-editor.png",
+      "bytes": 76466,
+      "sha256": "828bfe46e1526018903b512c3d3c9dae9c47d13096ea1317592376d9b011848b"
+    },
+    {
+      "path": "native/owner-close-prompt.png",
+      "bytes": 125813,
+      "sha256": "2320aa16852e078f453d4e91a899f79a87a3cac989ae713e623a9751f8efafb6"
+    },
+    {
+      "path": "native/hosted-read-error.png",
+      "bytes": 50526,
+      "sha256": "e7737e71344b704ee0f073b3898875aa836c7380a621faba48a35d3f5c846ac8"
+    },
+    {
+      "path": "faults/stdout.txt",
+      "bytes": 235,
+      "sha256": "1f35a62820b49b9c2e1796d362f2d3868253e07bb59ed0fa9de44ca6ad586356"
+    },
+    {
+      "path": "faults/stderr.txt",
+      "bytes": 791,
+      "sha256": "8eeda6b1e803d09634129ae35dcbff557a02405051bb17f11adb2f87005725f8"
+    },
+    {
+      "path": "faults/logs/motion-studio.log",
+      "bytes": 2257,
+      "sha256": "7e077ce09e3b37121afa22ae2ea4cb3529e08035f6fbfcf8ebb637f61ee758b1"
+    }
+  ]
+}

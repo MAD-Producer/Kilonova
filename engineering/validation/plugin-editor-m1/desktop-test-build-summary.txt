@@ -1,0 +1,3 @@
+warning: `motion-desktop` (bin "motion-studio" test) generated 26 warnings (run `cargo fix --bin "motion-studio" -p motion-desktop --tests` to apply 8 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 4m 13s
+  Executable unittests src\main.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\motion_studio-3fa6347a5a63980d.exe)

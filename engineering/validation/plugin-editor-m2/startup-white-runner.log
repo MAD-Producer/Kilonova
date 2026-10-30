@@ -1,0 +1,87 @@
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+capture-ready normal 57540 6228590
+client-pixel (856, 664) (255, 255, 255)
+Traceback (most recent call last):
+  File "E:\Dev\aem\artifacts\plugin-editor-m2\runtime-smoke.py", line 56, in <module>
+    else: raise RuntimeError(f'{mode}: native preview did not produce an observable result within 60 seconds')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: normal: native preview did not produce an observable result within 60 seconds

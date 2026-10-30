@@ -1,0 +1,36 @@
+1793279936.205 INFO [main] motion_studio::logging: logging initialized level=INFO
+1793279936.206 WARN [main] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793279936.206 INFO [main] motion_studio::engine: worker startup phase=lock root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-78596-1793279936205681800
+1793279936.206 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793279936.208 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-78596-1793279936205681800
+1793279941.597 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793279941.597 INFO [main] motion_studio::engine: worker ready: session=1 root=C:\Users\nova\AppData\Local\Temp\motion-plugin-preview-78596-1793279936205681800 5391ms
+1793279941.640 WARN [main] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793279941.677 INFO [plugin-preview-prepare] motion_studio::plugin_editor::window: plugin.author start request=0 phase=read in_flight=true source=E:\Dev\aem\.worktrees\plugin-editor\crates\motion-graph\examples\parameter-workbench.msplugin
+1793279941.945 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793279941.945 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1de2300b350, name: ?)
+1793279941.945 ERROR [main] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793279941.945 ERROR [main] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1de2300b350, name: ?)
+1793279942.313 INFO [main] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793279942.483 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793279942.484 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true revision=Some(0) object=studio.motion.examples.parameter_workbench source=
+1793279942.492 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793279942.521 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793279942.526 INFO [motion-engine] motion_studio::engine: start #2 resize
+1793279942.536 INFO [motion-engine] motion_studio::engine: start #3 plugin_preview_install
+1793279942.540 INFO [main] motion_studio::plugin_editor::window: plugin.preview start request=1 phase=first_frame in_flight=true logical_size=[1440.0, 840.0]
+1793279942.552 INFO [motion-engine] motion_studio::engine: start #5 plugin_preview_values
+1793279947.834 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=0 operation=initialize executable=C:\Users\nova\AppData\Local\Temp\motion-plugin-editor-m3-refinement\wgsl-analyzer.exe
+1793279947.890 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=1 revision=0 operation=textDocument/diagnostic
+1793279950.702 INFO [motion-engine] motion_studio::engine: start #25 resize
+1793279952.803 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=2 revision=0 operation=textDocument/diagnostic
+1793279953.784 INFO [motion-wgsl-lsp] motion_studio::plugin_editor::author::lsp: plugin.language start request=3 revision=0 operation=textDocument/hover
+1793279961.398 INFO [motion-engine] motion_studio::engine: start #42 shutdown
+1793279961.398 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793279961.398 INFO [motion-engine] motion_studio::engine::shutdown: start #43 shutdown_cleanup session=1
+1793279961.421 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793279961.421 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #2 checkpoint path=E:\Dev\aem\artifacts\plugin-editor-m3-refinement\runtime-native\normal\appdata\MotionStudio\diagnostics/last-stalls.json
+1793279961.424 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793279961.424 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

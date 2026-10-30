@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value' (59756) panicked at desktop\app\src\node_editor\tests.rs:1062:5:
+assertion failed: editor.field.is_some()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value ... FAILED
+
+failures:
+
+failures:
+    node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1397 filtered out; finished in 0.44s
+

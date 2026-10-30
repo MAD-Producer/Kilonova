@@ -1,0 +1,3 @@
+ERROR motion_studio::plugin_editor::author::lsp: plugin.language phase=session cause=spawn language server E:/Dev/aem/artifacts/plugin-editor-host-entry/language-failures-reviewed\missing-server.exe: 系统找不到指定的文件。 (os error 2)
+ERROR motion_studio::plugin_editor::author::lsp: plugin.language phase=session cause=missing or excessive LSP content length
+ERROR motion_studio::plugin_editor::author::lsp: plugin.language error request=1 revision=11 operation=textDocument/completion elapsed_ms=0 code=-32001 cause=controlled request rejection

@@ -248,7 +248,8 @@ impl NodeEditor {
     }
     fn toolbar_items(&self)->impl Iterator<Item=(usize,f32,&'static str,&'static str)> {
         let bound=self.layer_target.is_some();
-        TOOLBAR.into_iter().filter(move |(id,_,_,_)|!bound||!matches!(id,4|5|6|7))
+        let authoring=self.authoring_mode;
+        TOOLBAR.into_iter().filter(move |(id,_,_,_)|(!bound||!matches!(id,4|5|6|7))&&(!authoring||!matches!(id,2|3|4|5|6|7|9|10|11)))
     }
     pub fn layout(&self, area: Rect) -> Layout {
         let mut x = 6.;

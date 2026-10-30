@@ -1,0 +1,13 @@
+{
+  "coalesced_text_save": true,
+  "cross_group_move": true,
+  "error_row": 2,
+  "global_undo_redo": true,
+  "invalid_source_saved": true,
+  "native_drag_insert": true,
+  "node_layout_history": true,
+  "parameter_library_drag": true,
+  "previous_gpu_retained": true,
+  "saved_reopened_exactly": true,
+  "split_drag_and_cancel": true
+}

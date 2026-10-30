@@ -1,0 +1,43 @@
+1793270378.779 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::logging: logging initialized level=INFO
+1793270378.783 INFO [unnamed] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=read_compile in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=0
+1793270378.783 INFO [unnamed] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=read in_flight=true
+1793270378.795 INFO [unnamed] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=compile in_flight=true
+1793270378.810 INFO [unnamed] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=resource_decode in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=27
+1793270378.820 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=read_compile in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=38
+1793270378.821 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=read in_flight=true
+1793270378.821 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=compile in_flight=true
+1793270378.832 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=resource_decode in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=49
+1793270378.832 ERROR [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview error request=1 phase=2 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=50 cause=plugin resources: GPU validation: Format error decoding Png: Invalid PNG signature.
+1793270378.832 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=read_compile in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=50
+1793270378.832 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=read in_flight=true
+1793270378.833 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin phase=compile in_flight=true
+1793270378.844 INFO [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview start request=1 phase=resource_decode in_flight=true source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=61
+1793270378.844 ERROR [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_editor\tests.rs:254:17:
+controlled plugin resource decoder panic
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: <unknown>
+  22: <unknown>
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+
+1793270378.855 ERROR [plugin_editor::tests::preparation_publishes_before_decode_and_reports_faults_at_default_level] motion_studio::plugin_editor::preparation: plugin.preview aborted request=1 phase=2 source=E:/Dev/aem/artifacts/plugin-editor-m2/preparation-default\source.msplugin elapsed_ms=73 cause=panic; original cause recorded by process panic hook

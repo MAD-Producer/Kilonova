@@ -1,0 +1,23 @@
+capture-ready normal 64080 2626006
+client-pixel (856, 664) (85, 59, 93)
+capture-ready missing 60544 5312986
+Traceback (most recent call last):
+  File "C:\Users\nova\AppData\Local\Programs\Python\Python311\Lib\site-packages\PIL\ImageFile.py", line 663, in _save
+    fh = fp.fileno()
+         ^^^^^^^^^
+AttributeError: '_idat' object has no attribute 'fileno'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\Dev\aem\artifacts\plugin-editor-m2\runtime-smoke.py", line 52, in <module>
+    image.save(output/'native-client-attempt.png')
+  File "C:\Users\nova\AppData\Local\Programs\Python\Python311\Lib\site-packages\PIL\Image.py", line 2711, in save
+    save_handler(self, fp, filename)
+  File "C:\Users\nova\AppData\Local\Programs\Python\Python311\Lib\site-packages\PIL\PngImagePlugin.py", line 1522, in _save
+    ImageFile._save(
+  File "C:\Users\nova\AppData\Local\Programs\Python\Python311\Lib\site-packages\PIL\ImageFile.py", line 667, in _save
+    _encode_tile(im, fp, tile, bufsize, None, exc)
+  File "C:\Users\nova\AppData\Local\Programs\Python\Python311\Lib\site-packages\PIL\ImageFile.py", line 685, in _encode_tile
+    encoder.setimage(im.im, extents)
+ValueError: cannot write empty image

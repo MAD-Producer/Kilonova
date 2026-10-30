@@ -1,0 +1,3 @@
+ERROR motion_studio::plugin_check: plugin.check error request=1 source=E:\Dev\aem\artifacts\plugin-editor-m1\cli\invalid.msplugin operation_phase=compile elapsed_ms=16 cause=plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found "fragment"
+ERROR motion_studio: desktop failed: 17ms reason=plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found "fragment"
+Error: plugin project phase=Compile: phase=wgsl_parse: expected the `diagnostic` attribute identifier, found "fragment"

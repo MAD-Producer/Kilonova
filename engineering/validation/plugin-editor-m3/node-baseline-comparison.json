@@ -1,0 +1,16 @@
+[
+  {
+    "variant": "m2",
+    "path": "C:\\Users\\nova\\AppData\\Local\\Temp\\motion-plugin-editor-m2-tests\\motion-studio-tests.exe",
+    "bytes": 113668608,
+    "sha256": "22e390b7a8b4d215dec549752cc638b70fb755d6caf5e7cd0ad48f53923d71c9",
+    "mtime": 1793270330.481347
+  },
+  {
+    "variant": "m3",
+    "path": "C:\\Users\\nova\\AppData\\Local\\Temp\\motion-plugin-editor-m3-tests\\motion-studio-tests.exe",
+    "bytes": 114426880,
+    "sha256": "2789a74e47ea89325534d24cc71e6d682c86010a2844b26c76a4ab9076e66d25",
+    "mtime": 1793274999.3689585
+  }
+]

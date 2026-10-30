@@ -1,0 +1,46 @@
+1793362235.725 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::logging: logging initialized level=INFO
+1793362235.776 WARN [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793362235.776 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\sample
+1793362235.777 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793362235.780 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\sample
+1793362245.113 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793362245.114 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\sample 9337ms
+1793362245.461 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793362245.461 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ae81becf50, name: ?)
+1793362245.461 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793362245.461 ERROR [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ae81becf50, name: ?)
+1793362245.653 INFO [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793362246.081 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793362246.265 WARN [plugin_editor::author::native::author_drag_source_history_save_and_native_rendering] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793362246.342 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 phase=compile in_flight=true revision=Some(0) object=studio.motion.examples.parameter_workbench source=
+1793362246.357 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=1 revision=0 phase=resource_decode in_flight=true
+1793362246.359 INFO [motion-engine] motion_studio::engine: start #2 plugin_preview_install
+1793362246.430 INFO [motion-engine] motion_studio::engine: start #3 capture_ui
+1793362246.823 INFO [motion-engine] motion_studio::engine: start #4 capture_ui
+1793362247.350 INFO [motion-engine] motion_studio::engine: start #5 capture_ui
+1793362247.978 INFO [motion-engine] motion_studio::engine: start #6 capture_ui
+1793362248.529 INFO [motion-engine] motion_studio::engine: start #7 capture_ui
+1793362249.108 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=2 phase=write in_flight=true revision=Some(9) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\authored.msplugin
+1793362249.131 INFO [motion-engine] motion_studio::engine: start #8 capture_ui
+1793362249.803 INFO [motion-engine] motion_studio::engine: start #9 capture_ui
+1793362250.325 INFO [motion-engine] motion_studio::engine: start #10 capture_ui
+1793362250.808 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=3 phase=write in_flight=true revision=Some(10) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\authored.msplugin
+1793362250.842 INFO [motion-engine] motion_studio::engine: start #11 node_capture
+1793362251.320 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=4 phase=compile in_flight=true revision=Some(11) object=studio.motion.examples.parameter_workbench source=
+1793362251.332 ERROR [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author error request=4 phase=compile elapsed_ms=11 location=Some((2, 14)) cause=plugin project phase=Compile: phase=wgsl_parse: expected expression, found ";"
+1793362251.360 INFO [motion-engine] motion_studio::engine: start #12 capture_ui
+1793362251.768 INFO [motion-engine] motion_studio::engine: start #13 node_capture
+1793362251.944 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=5 phase=write in_flight=true revision=Some(11) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\authored.msplugin
+1793362251.976 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793362252.428 INFO [plugin-author-source] motion_studio::plugin_editor::author::worker: plugin.author start request=6 phase=write in_flight=true revision=Some(12) object=studio.motion.examples.parameter_workbench source=E:/Dev/aem/artifacts/pr-review-followups/close-cancel/native-author\authored.msplugin
+1793362252.446 INFO [motion-engine] motion_studio::engine: start #15 capture_ui
+1793362252.897 INFO [motion-engine] motion_studio::engine: start #16 capture_ui
+1793362253.372 INFO [motion-engine] motion_studio::engine: start #17 capture_ui
+1793362254.174 INFO [motion-engine] motion_studio::engine: start #18 shutdown
+1793362254.174 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793362254.174 INFO [motion-engine] motion_studio::engine::shutdown: start #19 shutdown_cleanup session=1
+1793362254.224 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793362254.228 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793362254.228 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

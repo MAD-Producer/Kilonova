@@ -1,0 +1,5 @@
+capture-ready normal 54868 2495016
+client-pixel (856, 664) (85, 59, 93)
+capture-ready missing 55724 3215830
+client-pixel (856, 664) (35, 35, 35)
+[{"mode": "normal", "exit_code": 0, "stdout_empty": true, "native_client": "E:\\Dev\\aem\\artifacts\\plugin-editor-m2\\runtime\\normal\\native-client.png", "size": [856, 664]}, {"mode": "missing", "exit_code": 1, "stdout_empty": true, "native_client": "E:\\Dev\\aem\\artifacts\\plugin-editor-m2\\runtime\\missing\\native-client.png", "size": [856, 664]}]

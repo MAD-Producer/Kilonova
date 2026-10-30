@@ -1,0 +1,50 @@
+1793270096.288 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio::logging: logging initialized level=INFO
+1793270096.461 WARN [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793270096.461 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/plugin-editor-m2/native-final\sample-session
+1793270096.468 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793270096.508 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/plugin-editor-m2/native-final\sample-session
+1793270108.717 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793270108.717 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/plugin-editor-m2/native-final\sample-session 12256ms
+1793270109.124 ERROR [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793270109.124 ERROR [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x176e8d95050, name: ?)
+1793270109.124 ERROR [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793270109.125 ERROR [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x176e8d95050, name: ?)
+1793270111.080 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793270111.748 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793270111.882 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=<disabled>
+1793270111.917 INFO [motion-engine] motion_studio::engine: start #2 plugin_preview_install
+1793270112.097 WARN [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793270112.252 INFO [motion-engine] motion_studio::engine: start #3 capture_ui
+1793270112.850 INFO [motion-engine] motion_studio::engine: start #4 node_capture
+1793270113.077 INFO [motion-engine] motion_studio::engine: start #5 state
+1793270113.082 INFO [motion-engine] motion_studio::engine: start #6 plugin_preview_values
+1793270113.084 INFO [motion-engine] motion_studio::engine: start #7 node_capture
+1793270113.327 INFO [motion-engine] motion_studio::engine: start #8 state
+1793270113.330 INFO [motion-engine] motion_studio::engine: start #9 plugin_preview_values
+1793270113.332 INFO [motion-engine] motion_studio::engine: start #10 node_capture
+1793270113.611 INFO [motion-engine] motion_studio::engine: start #11 plugin_preview_values
+1793270113.611 ERROR [motion-engine] motion_studio::engine: error #11 plugin_preview_values 0ms: plugin preview values violate installed parameter contract
+1793270113.612 INFO [motion-engine] motion_studio::engine: start #12 node_capture
+1793270113.882 INFO [motion-engine] motion_studio::engine: start #13 plugin_preview_values
+1793270113.889 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793270114.665 INFO [motion-engine] motion_studio::engine: start #15 capture_ui
+1793270115.369 INFO [motion-engine] motion_studio::engine: start #16 capture_ui
+1793270115.731 INFO [motion-engine] motion_studio::engine: start #17 capture_ui
+1793270116.112 INFO [motion-engine] motion_studio::engine: start #18 capture_ui
+1793270116.595 INFO [motion-engine] motion_studio::engine: start #19 resize
+1793270116.640 INFO [motion-engine] motion_studio::engine: start #20 capture_ui
+1793270117.169 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #2 checkpoint path=<disabled>
+1793270117.177 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/native-final\graph.msplugin phase=read in_flight=true
+1793270117.190 INFO [plugin_editor::window::acceptance::native_layout_controls_render_and_update_shader_without_recompilation] motion_studio::plugin_check: plugin.check start request=1 source=E:/Dev/aem/artifacts/plugin-editor-m2/native-final\graph.msplugin phase=compile in_flight=true
+1793270117.211 INFO [motion-engine] motion_studio::engine: start #21 plugin_preview_install
+1793270117.248 INFO [motion-engine] motion_studio::engine: start #22 node_capture
+1793270117.393 INFO [motion-engine] motion_studio::engine: start #23 plugin_preview_values
+1793270117.394 INFO [motion-engine] motion_studio::engine: start #24 node_capture
+1793270117.460 INFO [motion-engine] motion_studio::engine: start #25 shutdown
+1793270117.460 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793270117.460 INFO [motion-engine] motion_studio::engine::shutdown: start #26 shutdown_cleanup session=1
+1793270117.505 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793270117.507 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793270117.507 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

@@ -37,7 +37,7 @@ mod audio;
 mod work_area;
 pub(crate) mod auxiliary;
 pub(crate) mod camera_controls;
-mod color_well;
+pub(crate) mod color_well;
 pub(crate) mod effect_pick;
 mod toolbar_style;
 mod composition;

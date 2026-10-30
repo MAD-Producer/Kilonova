@@ -1,0 +1,20 @@
+   Compiling naga-types v30.0.1
+   Compiling bytemuck v1.25.2
+   Compiling getrandom v0.4.3
+   Compiling arrayvec v0.7.8
+   Compiling image v0.25.10
+   Compiling naga v30.0.1
+   Compiling windows-sys v0.61.2
+   Compiling tempfile v3.27.0
+   Compiling motion-effects v0.1.0 (E:\Dev\aem\.worktrees\plugin-editor\crates\motion-effects)
+    Finished `test` profile [unoptimized] target(s) in 49.93s
+     Running tests\native_layout.rs (E:/Dev/aem/target/host-error-contract-verified\debug\deps\native_layout-4186b47ee2b3419c.exe)
+
+running 4 tests
+test controls_follow_actual_parameter_types_and_multiple_views_share_one_binding ... ok
+test draft_roundtrip_retains_dangling_bindings_but_preview_identifies_the_component ... ok
+test layout_limits_reject_duplicate_ids_singletons_depth_counts_and_nonfinite_sizes ... ok
+test nested_tabs_splits_and_size_constraints_roundtrip_without_theme_or_value_state ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

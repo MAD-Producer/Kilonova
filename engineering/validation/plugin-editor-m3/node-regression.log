@@ -1,0 +1,195 @@
+
+running 175 tests
+test node_editor::clipboard::image_tests::image_clipboard_refusal_preserves_allocator_history_and_all_resources ... ok
+test node_editor::clipboard::image_tests::image_clipboard_cut_and_delete_release_unreferenced_content_and_undo_restores_it ... ok
+test node_editor::clipboard::image_tests::image_clipboard_transfers_owned_content_deduplicates_and_undoes_atomically ... ok
+test node_editor::clipboard::image_tests::image_clipboard_in_nested_scope_propagates_pool_and_format_and_preserves_outer_references ... ok
+test node_editor::clipboard::tests::invalid_pastes_preserve_document_selection_allocator_history_and_clipboard ... ok
+test node_editor::clipboard::tests::clipboard_failures_reach_default_file_stderr_and_never_stdout ... ok
+test node_editor::clipboard::tests::nested_depth_and_missing_copy_targets_preserve_the_previous_clipboard ... ok
+test node_editor::clipboard::tests::nested_groups_remap_interfaces_and_public_parameters_without_aliases ... ok
+test node_editor::clipboard::tests::output_can_move_to_an_empty_graph_but_never_creates_a_second_output ... ok
+test node_editor::clipboard::tests::cut_caches_before_delete_and_clipboard_survives_undo_and_opening_other_graph ... ok
+test node_editor::clipboard::tests::pasted_subgraph_save_reopen_compile_and_export_are_real ... ok
+test node_editor::clipboard::tests::copy_paste_keeps_internal_wires_detaches_external_and_undoes_once ... ok
+test node_editor::image_import::tests::image_drop_freezes_zoomed_canvas_coordinates_and_commits_one_owned_edit ... ok
+test node_editor::image_import::tests::image_drop_rejects_stale_invalid_and_over_budget_results_without_partial_state ... ok
+test node_editor::compact_example_tests::compact_examples_keep_nested_edits_parameters_source_and_history_editable ... ok
+test node_editor::naming_tests::aliases_roundtrip_with_one_undo_without_changing_identity_shader_or_preview ... ok
+test node_editor::naming_tests::generated_group_and_parameter_labels_are_human_readable_and_unique ... ok
+test node_editor::clipboard::tests::text_search_rename_and_unfocused_inputs_do_not_cut_or_paste_nodes ... ok
+test node_editor::naming_tests::invalid_names_and_missing_ports_leave_document_and_history_untouched ... ok
+test node_editor::naming_tests::group_and_port_names_keep_boundary_keys_types_connections_and_shader ... ok
+test node_editor::search::tests::all_catalogue_entries_have_unique_keys_help_and_real_signatures ... ok
+test node_editor::search::tests::bilingual_aliases_pinyin_and_rank_are_stable ... ok
+test node_editor::search::tests::query_crosses_categories_and_requires_every_token ... ok
+test node_editor::search::tests::recents_bound_deduplicate_reorder_and_sanitize_saved_keys ... ok
+test node_editor::search_input::tests::long_unicode_paste_is_bounded_without_selecting_the_retained_text ... ok
+test node_editor::search_input::tests::query_uses_native_selection_caret_delete_and_ime_rules ... ok
+test node_editor::tests::action_snapshots_commit_valid_fields_and_are_owned ... ok
+test node_editor::naming_tests::context_menu_opens_native_rename_and_commit_is_one_transaction ... ok
+test node_editor::tests::catalog_uses_only_n1_ports ... ok
+test node_editor::tests::connections_reject_types_and_cycles_without_losing_old_input ... ok
+test node_editor::tests::deleting_parameter_node_preserves_parameter_slots ... ok
+test node_editor::tests::demo_validates_and_compiles ... ok
+test node_editor::naming_tests::rename_popup_cancellation_ime_and_limits_preserve_uncommitted_state ... ok
+test node_editor::tests::duplication_rejects_budget_and_unique_output_without_partial_edits ... ok
+test node_editor::tests::f_frames_selection_and_arrange_preserves_external_nodes_and_edges ... ok
+test node_editor::tests::home_fits_distant_nodes_and_ctrl_wheel_retains_the_anchor_at_fit_scale ... ok
+test node_editor::tests::add_menu_latches_pointer_coordinates_and_consumes_enter_and_outside_click ... ok
+test node_editor::tests::incomplete_unused_nodes_keep_live_validation_and_history_reversible ... ok
+test node_editor::tests::duplicate_subgraph_copies_only_internal_edges_and_undo_restores_it_once ... ok
+test node_editor::tests::node_body_selects_without_dragging_and_header_moves_the_selected_group ... ok
+test node_editor::tests::library_search_add_delete_and_focus_transfer_use_real_input ... ok
+test node_editor::tests::numeric_editing_is_finite_typed_and_atomic ... ok
+test node_editor::tests::node_navigation_is_layout_only_and_text_keeps_ime_commits ... ok
+
+thread 'node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value' (48840) panicked at desktop\app\src\node_editor\tests.rs:1062:5:
+assertion failed: editor.field.is_some()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value ... FAILED
+test node_editor::tests::marquee_selection_supports_group_drag_modifiers_and_cancel ... ok
+test node_editor::tests::save_reopen_and_real_msfx_export_round_trip ... ok
+test node_editor::tests::semantic_coordinate_mismatch_preserves_existing_wire_and_document ... ok
+test node_editor::tests::stale_worker_results_and_save_completion_order_are_safe ... ok
+test node_editor::tests::type_change_removes_incompatible_wires_and_undo_restores ... ok
+test node_editor::tests::responsive_layout_and_paint_remain_within_panel ... ok
+test node_editor::tests::wheel_navigation_uses_ctrl_zoom_and_normal_scrolling_without_graph_edits ... ok
+test node_editor::tests::real_pointer_events_drag_undo_zoom_pan_and_connect_both_directions ... ok
+test node_editor::texture_chain::tests::texture_mapping_keeps_authored_constants_and_only_creates_missing_coordinates ... ok
+test node_editor::texture_chain::tests::texture_mapping_rejects_ambiguous_pixel_invalid_and_exhausted_targets_without_partial_edits ... ok
+test node_editor::tests::wheel_scrolls_node_library_and_inspector_in_the_same_direction ... ok
+test node_editor::texture_chain::tests::texture_mapping_uses_typed_group_image_output_without_replacing_canonical_color ... ok
+test node_editor::view::canvas::node_index::tests::fresh_pass_sees_removed_replaced_and_reordered_nodes ... ok
+test node_editor::view::canvas::node_index::tests::lookup_preserves_first_identity_for_duplicate_reordered_and_missing_ids ... ok
+nodes=128 queries=128 linear_comparisons=8256 linear_us=163 index_build_and_lookup_us=291
+nodes=512 queries=512 linear_comparisons=131328 linear_us=3084 index_build_and_lookup_us=848
+nodes=2048 queries=2048 linear_comparisons=2098176 linear_us=38366 index_build_and_lookup_us=3125
+test node_editor::view::canvas::node_index::tests::real_node_lookup_scaling_matches_linear_identity ... ok
+test node_editor::view::canvas::node_index::tests::small_visible_sets_and_normal_misses_do_not_build_a_table ... ok
+test node_editor::texture_chain::tests::texture_mapping_preserves_image_output_and_existing_uv_in_one_undoable_edit ... ok
+test node_editor::view::control_tests::blend_catalog_defaults_compile_immediately_and_keep_wire_precedence ... ok
+test node_editor::view::compact_example_tests::compact_example_root_cards_do_not_overlap ... ok
+test node_editor::view::control_tests::canceled_numeric_drag_restores_preview_without_losing_existing_redo ... ok
+test node_editor::view::control_tests::choice_popup_attaches_to_field_and_flips_inside_canvas ... ok
+test node_editor::texture_chain::tests::texture_mapping_shortcut_respects_focus_ime_modifiers_and_repeat_in_both_languages ... ok
+test node_editor::view::control_tests::choice_popup_tracks_the_clicked_field_on_multi_choice_nodes ... ok
+test node_editor::view::control_tests::color_picker_live_hsv_alpha_apply_and_cancel_share_one_transaction ... ok
+test node_editor::view::control_tests::choice_popup_pointer_selection_and_cancel_work_at_canvas_zooms ... ok
+test node_editor::view::control_tests::compact_color_popup_scrolls_to_alpha_and_tiny_panel_cancels_preview ... ok
+test node_editor::view::control_tests::dropdown_explicit_type_change_undo_restores_removed_connections ... ok
+test node_editor::view::control_tests::gradient_catalog_creation_needs_only_uv_and_keeps_wired_fallbacks ... ok
+test node_editor::view::control_tests::focus_cancellation_notifies_host_and_blocks_external_inspector_edits ... ok
+test node_editor::view::control_tests::initial_layout_leaves_room_for_taller_controls_and_choices_filter_unsupported_types ... ok
+test node_editor::view::control_tests::inspector_clip_borrows_payloads_and_keeps_legacy_pointer_mask ... ok
+test node_editor::view::control_tests::noise_catalog_defaults_require_only_uv_and_respect_wire_precedence ... ok
+test node_editor::view::control_tests::gradient_mode_dropdown_preserves_defaults_and_wires_and_is_undoable ... ok
+test node_editor::view::control_tests::numeric_live_drag_preserves_positions_multiselection_and_one_history_step ... ok
+test node_editor::view::control_tests::noise_mode_and_octave_choices_preserve_each_other_and_undo_independently ... ok
+test node_editor::view::control_tests::numeric_save_commits_valid_text_and_invalid_text_blocks_the_request ... ok
+test node_editor::view::control_tests::out_and_back_drag_is_not_a_text_click_and_shift_starts_fine_scrubbing ... ok
+test node_editor::view::control_tests::numeric_text_validates_and_owns_delete_arrows_and_ime_confirmation ... ok
+test node_editor::view::control_tests::popup_close_consumes_click_and_boolean_toggle_does_not_select_or_drag ... ok
+test node_editor::view::control_tests::parameter_slider_uses_shared_default_range_and_step_without_moving_nodes ... ok
+test node_editor::view::control_tests::blend_dropdown_keeps_wires_defaults_and_history_in_both_languages ... ok
+test node_editor::view::diagnostic_tests::diagnostic_rings_cover_all_missing_inputs_but_exclude_defaults_and_connections ... ok
+test node_editor::view::diagnostic_tests::drawer_navigation_resolves_nested_scopes_without_losing_edits_or_collapsed_state ... ok
+test node_editor::view::diagnostic_tests::drawer_click_locates_offscreen_node_and_preserves_source_history_and_preview ... ok
+test node_editor::view::diagnostic_tests::narrow_drawer_keeps_controls_inside_and_does_not_steal_drag_or_menu_input ... ok
+test node_editor::view::diagnostic_tests::drawer_wraps_full_unicode_cause_scrolls_and_resets_on_new_failure_and_recovery ... ok
+test node_editor::view::diagnostic_tests::stale_or_absent_diagnostic_targets_do_not_move_selection_or_scopes ... ok
+test node_editor::view::diagnostic_tests::numeric_drag_released_over_drawer_rolls_back_instead_of_changing_a_hidden_value ... ok
+test node_editor::view::failure_tests::file_shortcut_rejection_already_retains_the_invalid_field_and_visible_error ... ok
+test node_editor::view::diagnostic_tests::releasing_a_wire_over_the_drawer_cancels_without_connecting_through_it ... ok
+test node_editor::view::failure_tests::invalid_neighbour_ports_keep_the_cause_when_incompatible_connections_are_removed ... ok
+test node_editor::view::failure_tests::inspector_rejection_is_logged_without_mutating_the_node_or_its_history ... ok
+test node_editor::view::failure_tests::shrinking_canvas_cancels_a_held_nudge_without_committing_an_undo_step ... ok
+test node_editor::view::field_text::tests::clipboard_node_field_failure_preserves_selection_and_grapheme_navigation ... ok
+test node_editor::view::failure_tests::shrinking_canvas_cancels_node_drag_and_reports_restoration ... ok
+test node_editor::view::field_text::tests::clipboard_vector_field_keeps_validation_and_ime_out_of_graph_history ... ok
+test node_editor::view::failure_tests::canceling_node_movement_publishes_restoration_without_changing_semantics_or_history ... ok
+test node_editor::view::field_text::tests::clipboard_node_field_history_stays_local_then_saves_and_undoes_once ... ok
+test node_editor::view::frame_cards_tests::minimap_drag_and_cancel_refresh_the_final_canvas_geometry ... ok
+test node_editor::view::frame_cards_tests::navigation_rebuilds_current_geometry_without_editing_the_document ... ok
+test node_editor::view::frame_cards_tests::parent_navigation_invalidates_geometry_even_when_view_and_revision_match ... ok
+test node_editor::view::frame_cards_tests::uncommitted_node_moves_release_and_cancel_keep_fresh_geometry_and_history ... ok
+test node_editor::view::group_tests::boundaries_cannot_be_deleted_or_regrouped_and_nested_cycles_are_atomic ... ok
+test node_editor::view::frame_cards_tests::port_labels_keep_live_first_identity_for_duplicate_and_reordered_cards ... ok
+test node_editor::view::frame_cards_tests::unchanged_draws_build_card_geometry_once_per_frame ... ok
+test node_editor::view::group_tests::collapsed_cards_keep_visible_wires_but_no_controls_or_connectable_sockets ... ok
+test node_editor::view::group_tests::group_duplication_respects_recursive_budgets_and_output_uniqueness ... ok
+test node_editor::view::group_tests::exposing_new_group_ports_updates_parent_types_and_can_rewire_a_new_input ... ok
+test node_editor::view::group_tests::group_boundaries_preserve_types_units_export_and_atomic_undo_then_ungroup ... ok
+test node_editor::view::group_tests::preview_inside_a_group_uses_root_dependencies_without_mutating_export ... ok
+test node_editor::view::group_tests::nested_scope_edits_save_full_root_shared_parameters_and_reopen_folded_nodes ... ok
+test node_editor::view::input_default_tests::changing_storage_type_replaces_incompatible_defaults_and_undo_restores_wires ... ok
+test node_editor::view::input_default_tests::defaults_share_the_input_row_and_outputs_do_not_overlap_the_editor ... ok
+test node_editor::view::input_default_tests::input_default_fields_stay_inside_cards_with_wide_style_columns ... ok
+test node_editor::view::group_tests::shortcuts_double_click_navigation_and_header_fold_are_independent_of_drag ... ok
+test node_editor::view::input_default_tests::bool_and_color_defaults_use_native_controls_and_color_cancel_restores_document ... ok
+test node_editor::view::input_default_tests::saving_inside_a_group_upgrades_the_root_and_preserves_defaults_across_navigation ... ok
+test node_editor::view::input_default_tests::input_default_scalar_drag_scales_and_commits_one_history_step ... ok
+test node_editor::view::input_default_tests::wired_default_is_read_only_and_disconnect_restores_it_with_undo ... ok
+test node_editor::view::nudge_tests::release_and_new_press_in_one_frame_start_a_new_undo_step ... ok
+test node_editor::view::nudge_tests::remapped_movement_holds_repeat_until_release_and_undoes_in_one_step ... ok
+test node_editor::view::input_default_tests::vector_default_text_validates_ime_owns_keys_and_cancels_without_history ... ok
+test node_editor::view::nudge_tests::save_focus_loss_escape_and_undo_settle_pending_movement ... ok
+test node_editor::view::nudge_tests::unmodified_remapped_file_command_defers_to_node_search_text ... ok
+test node_editor::view::nudge_tests::repeated_arrows_keep_earlier_history_and_undo_in_one_step ... ok
+test node_editor::view::inspector_layout_tests::compact_inspector_connections_navigate_disconnect_and_undo_at_each_width ... ok
+test node_editor::view::onboarding_tests::adding_the_first_node_to_an_empty_root_preserves_the_drop_position_and_undo ... ok
+test node_editor::view::onboarding_tests::diagnostic_drawer_blocks_a_welcome_button_under_its_region ... ok
+test node_editor::view::onboarding_tests::diagnostic_location_uses_the_canvas_below_welcome ... ok
+test node_editor::view::onboarding_tests::dismiss_preserves_node_screen_positions_source_selection_and_preview ... ok
+test node_editor::view::onboarding_tests::empty_root_offers_examples_but_bound_and_nested_graphs_are_untouched ... ok
+test node_editor::view::onboarding_tests::opening_or_restoring_a_document_does_not_reintroduce_the_welcome_strip ... ok
+test node_editor::view::observability_tests::real_popup_and_inspector_degradations_are_bounded_and_keep_their_context ... ok
+test node_editor::view::onboarding_tests::recommended_example_is_small_editable_and_reversible ... ok
+test node_editor::view::observability_tests::malformed_ports_and_rejected_requests_log_once_per_site_without_editing ... ok
+test node_editor::view::onboarding_tests::welcome_fits_both_languages_and_yields_to_popups_and_small_docks ... ok
+test node_editor::view::onboarding_tests::welcome_requests_existing_example_flow_without_changing_source_or_history ... ok
+test node_editor::view::search_tests::library_keyboard_uses_shared_aliases_and_recent_choices ... ok
+test node_editor::view::search_tests::popup_geometry_remains_inside_small_and_offset_bounds ... ok
+test node_editor::view::search_tests::menu_empty_results_cancel_and_failed_additions_do_not_record_recent_nodes ... ok
+test node_editor::view::search_tests::recent_nodes_survive_workspace_save_reopen_and_legacy_json ... ok
+test node_editor::view::search_tests::result_description_remains_visible_when_workspace_rows_are_taller ... ok
+test node_editor::view::search_tests::short_popup_keeps_categories_reachable_and_category_click_clears_the_query ... ok
+test node_editor::view::tests::content_transform_scales_explicit_strokes_and_preserves_one_pixel_lines ... ok
+test node_editor::view::search_tests::menu_search_crosses_the_clicked_category_and_preserves_ime_and_placement ... ok
+test node_editor::view::tests::cut_geometry_uses_visible_curve_and_screen_space_tolerance ... ok
+test node_editor::view::tests::alt_right_stroke_cuts_all_intersections_as_one_edit_and_cancel_keeps_edges ... ok
+test node_editor::view::tests::invalid_wire_feedback_matches_cycle_budget_and_units_without_mutation ... ok
+test node_editor::view::tests::ctrl_shift_preview_selects_ports_and_restores_without_document_or_history_edits ... ok
+test node_editor::view::tests::reconnect_on_wrong_direction_or_node_body_preserves_original_input ... ok
+test node_editor::view::view_preferences_tests::minimap_transform_tracks_nonzero_origins_pan_zoom_and_empty_graphs ... ok
+test node_editor::view::view_preferences_tests::node_view_shortcuts_are_local_exact_and_not_repeated ... ok
+test node_editor::view::tests::reconnecting_same_input_is_noop_and_over_budget_replacement_keeps_old_edges ... ok
+test node_editor::view::view_preferences_tests::minimap_navigation_is_view_only_and_escape_focus_loss_or_lost_release_restore_pan ... ok
+test node_editor::view::view_preferences_tests::view_keys_respect_text_ime_focus_popups_and_active_gestures ... ok
+test node_editor::view::view_preferences_tests::toggles_leave_graph_history_compile_and_permanent_output_unchanged ... ok
+test node_editor::view::wire_target_tests::ambiguous_body_drop_requires_a_choice_and_cancel_preserves_document_and_history ... ok
+test node_editor::view::wire_target_tests::body_rejections_keep_primary_type_unit_cycle_and_budget_causes ... ok
+test node_editor::view::view_preferences_tests::view_and_canvas_menus_share_checked_actions_and_cancel_without_toggling ... ok
+test node_editor::view::wire_target_tests::explicit_wrong_port_does_not_fall_back_to_compatible_body_and_original_wire_survives ... ok
+test node_editor::view::wire_target_tests::reverse_multi_output_and_collapsed_or_empty_drops_give_explicit_results ... ok
+test node_editor::view::wire_target_tests::nearest_dense_socket_is_shared_by_feedback_and_release_at_every_zoom ... ok
+test node_editor::view::wire_target_tests::socket_hit_preserves_hover_area_visible_edges_and_front_card_occlusion ... ok
+test node_editor::view::wire_target_tests::large_group_port_chooser_scrolls_reveals_keyboard_selection_and_mouse_chooses_visible_row ... ok
+test node_editor::view::wires::socket_index_tests::coincident_connections_keep_hit_priority_and_all_cut_inputs ... ok
+test node_editor::view::wires::socket_index_tests::direction_identity_missing_and_duplicate_ports_preserve_first_match ... ok
+test node_editor::view::wire_target_tests::unique_body_drop_connects_in_both_directions_as_one_undo ... ok
+sockets=128 queries=128 linear_comparisons=8256 linear_us=590 index_build_and_lookup_us=169
+test node_editor::view::wire_target_tests::rewire_menu_keeps_both_original_edges_until_commit_and_undo_restores_them ... ok
+sockets=512 queries=512 linear_comparisons=131328 linear_us=8293 index_build_and_lookup_us=591
+test node_editor::view::wires::socket_index_tests::fresh_geometry_keeps_painted_selected_and_cut_curves_identical ... ok
+sockets=2048 queries=2048 linear_comparisons=2098176 linear_us=134085 index_build_and_lookup_us=2598
+test node_editor::view::wires::socket_index_tests::socket_lookup_scaling_matches_the_linear_oracle ... ok
+test node_editor::clipboard::tests::main_and_floating_chrome_route_clipboard_once_and_preserve_ime_ownership ... ok
+
+failures:
+
+failures:
+    node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value
+
+test result: FAILED. 174 passed; 1 failed; 0 ignored; 0 measured; 1228 filtered out; finished in 19.69s
+

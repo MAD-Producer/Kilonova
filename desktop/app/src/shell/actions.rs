@@ -219,6 +219,7 @@ impl Shell {
             Action::CaptureViewerSnapshot { floating } => self.capture_viewer_inspection(floating)?,
             Action::SaveViewerSnapshot { floating } => self.save_viewer_inspection(floating)?,
             Action::MediaAsset { source, intent } => self.asset_action(source, intent, event_loop)?,
+            Action::OpenPluginEditor => self.plugin_author.open(None,self.workspace.locale==Locale::Zh)?,
             Action::AnalyzeAudio(object) => self.analyze_audio(object)?,
             Action::CancelAudioAnalysis => self.cancel_audio_analysis(),
             Action::ProjectChoice(choice) => self.choose_project_change(choice)?,

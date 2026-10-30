@@ -1,0 +1,58 @@
+1793282668.491 INFO [plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level] motion_studio::logging: logging initialized level=INFO
+1793282668.492 INFO [plugin-author-window] motion_studio::plugin_editor::window::host: plugin.host start request=1 phase=controlled_block in_flight=true
+1793282668.499 INFO [plugin-author-window] motion_studio::plugin_editor::window::host: plugin.host start request=2 phase=controlled_panic in_flight=true
+1793282668.500 ERROR [plugin-author-window] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_editor\window_host.rs:137:23:
+controlled author window panic
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: <unknown>
+  22: <unknown>
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+
+1793282668.511 ERROR [plugin-author-window] motion_studio::plugin_editor::window::host: plugin.host error request=2 phase=controlled_panic elapsed_ms=11 cause=author window worker panicked; original cause recorded by process hook
+1793282668.526 ERROR [plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level] motion_studio::logging: panic command=None: panicked at desktop\app\src\plugin_editor\window_host_tests.rs:440:13:
+controlled author in-flight poison
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+
+1793282668.526 ERROR [plugin_editor::window::host::tests::host_worker_publishes_blocked_state_and_reports_panics_at_default_level] motion_studio::plugin_editor::window::host: plugin.host phase=controller request=3 cause=author window in-flight state poisoned; job not dispatched

@@ -1,0 +1,16 @@
+[
+  {
+    "run": "native-counter-failure",
+    "pointer": "/desktop/diagnostics/droppedRecords",
+    "after": "1",
+    "before": "0",
+    "assertion": "retained, failure unresolved"
+  },
+  {
+    "run": "native-reviewed",
+    "pointer": "/desktop/diagnostics/droppedRecords",
+    "after": "3",
+    "before": "2",
+    "assertion": "retained, failure unresolved"
+  }
+]
