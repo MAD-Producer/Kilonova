@@ -238,6 +238,7 @@ pub struct Panels {
     pub(crate) menu: Option<usize>,
     pub(crate) menu_navigation: super::menus::Navigation,
     pub(crate) animation_menu_scope: Option<super::animation_menu::MenuScope>,
+    pub(crate) animation_type_cache: std::cell::RefCell<super::animation_menu::TypeCache>,
     pub(crate) clipboard_available: bool,
     pub(crate) keyframe_clipboard_available: bool,
     pub(crate) path_clipboard_available: bool,

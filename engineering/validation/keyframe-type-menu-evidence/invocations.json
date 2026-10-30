@@ -1,0 +1,25 @@
+{
+  "shortcut_docs_without_ffmpeg_path": {
+    "exit_code": -1073741515,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0,
+    "disposition": "未进入测试；设置既有 FFmpeg PATH 后用真实解析器生成目录，全部快捷键回归通过"
+  },
+  "detail_crop": [
+    236,
+    45,
+    900,
+    710
+  ],
+  "contact_crop": [
+    236,
+    45,
+    780,
+    710
+  ],
+  "native_surface": [
+    1280,
+    960
+  ],
+  "dpi_ratio": 1
+}

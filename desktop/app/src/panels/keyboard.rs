@@ -476,7 +476,7 @@ fn handle_context_shortcuts(
             if command == Command::Delete && super::graph_box::delete(panels, state, out) {
                 continue;
             }
-            if matches!(command, Command::ToggleEffectGroup | Command::ToggleMaskGroup)
+            if matches!(command, Command::ToggleEffectGroup | Command::ToggleMaskGroup | Command::ToggleAutomaticBezier)
                 && (input.focus_lost || layout_shortcuts_blocked(panels))
             {
                 continue;

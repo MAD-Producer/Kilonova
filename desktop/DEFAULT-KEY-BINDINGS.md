@@ -78,6 +78,7 @@
 | Animation | F3 | false | true | false | ToggleGraph | false |
 | Animation | F9 | false | false | false | EaseBoth | false |
 | Animation | F9 | false | true | false | EaseIncoming | false |
+| Animation | F9 | true | false | true | ToggleAutomaticBezier | false |
 | Animation | F9 | true | true | false | EaseOutgoing | false |
 | Animation | M | false | false | false | ToggleMaskGroup | false |
 | Animation | X | true | false | false | CutSelection | false |

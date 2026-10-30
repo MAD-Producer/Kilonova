@@ -112,6 +112,7 @@ pub enum Command {
     EaseIncoming,
     EaseOutgoing,
     KeyframeTiming,
+    ToggleAutomaticBezier,
     ToggleKey(motion_core::Property),
 }
 
@@ -172,6 +173,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::F9, false, true, false) => EaseIncoming,
         (Animation, Key::F9, true, true, false) => EaseOutgoing,
         (Animation, Key::K, true, false, true) => KeyframeTiming,
+        (Animation, Key::F9, true, false, true) => ToggleAutomaticBezier,
         (Animation, Key::P, false, true, true) => ToggleKey(motion_core::Property::Position),
         (Animation, Key::S, false, true, true) => ToggleKey(motion_core::Property::Scale),
         (Animation, Key::R, false, true, true) => ToggleKey(motion_core::Property::Rotation),

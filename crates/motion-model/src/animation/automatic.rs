@@ -81,6 +81,26 @@ fn rate<T: Tween>(keys: &[Keyframe<T>], index: usize) -> Result<f64> {
 }
 
 impl<T: Tween> Track<T> {
+    /// Read-only capability check using exactly the same key and neighbour
+    /// constraints as edits. Validate the track once for a multi-key selection.
+    pub fn validate_auto_bezier_edit(&self, frames: &[i32], enabled: bool) -> Result<()> {
+        ensure(self.axes.is_none(), "choose a separated keyframe axis explicitly")?;
+        self.validate_local()?;
+        ensure(!frames.is_empty(), "no automatic Bezier keys selected")?;
+        for frame in frames {
+            let index = self.keys.binary_search_by_key(frame, |k| k.frame)
+                .map_err(|_| crate::Error::Invalid("automatic Bezier keyframe missing".into()))?;
+            if self.keys[index].auto_bezier == enabled { continue; }
+            if enabled {
+                validate_key(&self.keys, *frame)?;
+            } else {
+                if let Some(previous) = index.checked_sub(1) { self.effective_easing(previous)?; }
+                if index + 1 < self.keys.len() { self.effective_easing(index)?; }
+            }
+        }
+        Ok(())
+    }
+
     /// Effective interval timing. Reading it allocates nothing and never changes
     /// authored metadata, including the opposite endpoint's manual handle.
     pub fn effective_easing(&self, index: usize) -> Result<Easing> {

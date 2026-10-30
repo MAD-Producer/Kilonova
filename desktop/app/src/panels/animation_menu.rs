@@ -2,8 +2,10 @@
 use super::*;
 use crate::shortcuts::{Command as Shortcut, Scope};
 use motion_core::Ease;
+mod type_state;
+pub(crate) use type_state::Cache as TypeCache;
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct MenuScope {
     source: crate::layer_clipboard::KeyframeSource,
     objects: Vec<u64>,
@@ -26,6 +28,8 @@ impl MenuScope {
 pub(super) enum Operation {
     Shortcut(Shortcut),
     Interpolation(Ease),
+    Automatic(bool),
+    TypeStatus,
     TimingSettings,
     CopyEasing,
     PasteEasing,
@@ -114,6 +118,13 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                         }))
         }
         Operation::Interpolation(_) | Operation::TimingSettings => interpolation_selection(panels, state).is_some(),
+        Operation::Automatic(enabled) => interpolation_selection(panels, state).is_some()
+            && panels.timeline.graph_drag.is_none()
+            && !panels.key_gestures.active()
+            && !panels.effect_timeline.editing()
+            && !panels.animation_controls.editing()
+            && type_state::summary(panels, state).available(enabled),
+        Operation::TypeStatus => false,
         Operation::CopyEasing => !panels.clipboard_busy && super::keyframe_clipboard::selection(panels, state)
             .is_some_and(|s| s.selections.len() == 1 && s.selections[0].frames.len() == 1),
         Operation::PasteEasing => !panels.clipboard_busy && interpolation_selection(panels, state).is_some(),
@@ -154,6 +165,15 @@ pub(super) fn apply(
                 }));
             }
         }
+        Operation::Automatic(enabled) => {
+            if let Some(selected) = interpolation_selection(panels, state) {
+                pending.push(Action::Edit(Command::KeyframeAutomatic {
+                    selections: selected.selections,
+                    enabled,
+                }));
+            }
+        }
+        Operation::TypeStatus => {}
         Operation::TimingSettings => {
             if let Some(selected) = interpolation_selection(panels, state) {
                 out.push(Action::KeyframeTimingSettings {
@@ -249,6 +269,8 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
             .map(|s| s.frames.len())
             .sum::<usize>()
     });
+    let types = type_state::summary(panels, state);
+    rows.push((types.title(panels.locale), Operation::TypeStatus));
     for (ease, en, cn) in [
         (Ease::Linear, "Linear", "线性"),
         (Ease::Hold, "Hold", "保持"),
@@ -260,6 +282,10 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
         };
         rows.push((title, Operation::Interpolation(ease)));
     }
+    rows.push(((if zh {
+        if types.mixed_automatic() { "自动贝塞尔 · 部分启用" } else { "自动贝塞尔" }
+    } else if types.mixed_automatic() { "Automatic Bezier · partially enabled" } else { "Automatic Bezier" }).into(), Operation::Automatic(true)));
+    rows.push(((if zh { "冻结自动贝塞尔" } else { "Freeze automatic Bezier" }).into(), Operation::Automatic(false)));
     rows.push((panels.shortcut_bindings.label(
         if zh { "关键帧插值与速度…" } else { "Keyframe interpolation and velocity…" },
         Scope::Animation, Shortcut::KeyframeTiming), Operation::TimingSettings));
@@ -287,6 +313,24 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
     rows.into_iter()
         .map(|(label, op)| (label, op, enabled(panels, state, op)))
         .collect()
+}
+
+pub(super) fn checked(panels: &Panels, state: &Value, operation: Operation) -> bool {
+    matches!(operation, Operation::Interpolation(_) | Operation::Automatic(true))
+        && type_state::summary(panels, state).checked(operation)
+}
+
+pub(super) fn toggle_automatic(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
+    let operation = Operation::Automatic(!type_state::summary(panels, state).checked(Operation::Automatic(true)));
+    if enabled(panels, state, operation) {
+        apply(panels, state, operation, out);
+    } else {
+        panels.message = Some(if panels.locale == Locale::Zh {
+            "请选中支持自动贝塞尔的可编辑数值关键帧；至少需要两个键，手动空间路径、离散参数及速度或弹性曲线不支持。"
+        } else {
+            "Select editable numeric keys that support automatic Bezier. At least two keys are required; manual spatial paths, discrete parameters, velocity and elastic curves are unsupported."
+        }.into());
+    }
 }
 
 fn sequence_plan(panels: &Panels, state: &Value) -> Option<Vec<Command>> {

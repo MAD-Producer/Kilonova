@@ -1,0 +1,4 @@
+*.log -text -whitespace
+*.png -text
+*.json -text -whitespace
+.gitattributes -text

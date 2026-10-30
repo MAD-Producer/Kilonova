@@ -7,6 +7,39 @@ fn scalar() -> Track<f32> {
     }
     track
 }
+
+#[test]
+fn read_only_capability_matches_actual_edits_and_keeps_authored_storage_identical() {
+    for enabled in [false, true] {
+        for mode in ["linear", "automatic", "hold", "single", "velocity", "elastic", "nonfinite"] {
+            let mut track = scalar();
+            match mode {
+                "automatic" => track.set_auto_bezier(10, true).unwrap(),
+                "hold" => track.set_ease(10, Ease::Hold).unwrap(),
+                "single" => track.keys.retain(|key| key.frame == 10),
+                "velocity" => track.set_curve(0, Easing { ease:Ease::Linear, curve:Some(Curve {
+                    space:CurveSpace::Velocity, shape:CurveShape::Cubic {
+                        control1:[0.2,0.1], control2:[0.8,0.9], start:0., end:1.
+                    }
+                }) }).unwrap(),
+                "elastic" => track.set_curve(0, Easing { ease:Ease::Linear, curve:Some(Curve {
+                    space:CurveSpace::Progress, shape:CurveShape::Elastic {oscillations:2.,damping:5.}
+                }) }).unwrap(),
+                "nonfinite" => track.value = f32::INFINITY,
+                _ => {}
+            }
+            let before = serde_json::to_vec(&track).unwrap();
+            for frames in [vec![10], vec![0,10,40], vec![99]] {
+                let available = track.validate_auto_bezier_edit(&frames, enabled).is_ok();
+                let mut edited = track.clone();
+                let accepted = frames.into_iter().try_for_each(|frame| edited.set_auto_bezier(frame, enabled)).is_ok();
+                assert_eq!(available, accepted, "mode={mode} enabled={enabled}");
+                assert_eq!(serde_json::to_vec(&track).unwrap(), before);
+            }
+            assert!(track.validate_auto_bezier_edit(&[], enabled).is_err());
+        }
+    }
+}
 fn endpoint(track:&Track<f32>,interval:usize,incoming:bool)->f64 {
     let a=&track.keys[interval];let b=&track.keys[interval+1];
     track.effective_easing(interval).unwrap().sample(if incoming {1.} else {0.}).velocity

@@ -326,7 +326,7 @@ pub(super) fn handle(
         panels.focused,
         Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)
     ) || super::property_focus::navigation_scope(panels.focused)
-        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing | Shortcut::KeyframeTiming)) {
+        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing | Shortcut::KeyframeTiming | Shortcut::ToggleAutomaticBezier)) {
         return false;
     }
     if panels.timeline.moving.is_some()
@@ -361,6 +361,7 @@ pub(super) fn handle(
                 }.into());
             }
         }
+        Shortcut::ToggleAutomaticBezier => super::animation_menu::toggle_automatic(panels, state, out),
         Shortcut::Reveal(property) => {
             if let Some(object) = object {
                 reveal(panels, state, object, Some(property), modifiers.shift);

@@ -1,0 +1,17 @@
+
+running 12 tests
+test shortcuts::bindings::tests::conflicts_are_contextual_and_rejected_changes_never_steal_or_clear_bindings ... ok
+test shortcuts::bindings::tests::default_catalogue_preserves_every_existing_scope_modifier_and_repeat ... ok
+test shortcuts::bindings::tests::explicit_animation_chord_takes_precedence_over_new_viewer_default_and_its_hint ... ok
+test shortcuts::bindings::tests::old_explicit_mapping_keeps_its_key_when_layer_defaults_are_introduced ... ok
+test shortcuts::bindings::tests::preset_round_trip_and_real_invalid_files_preserve_the_effective_configuration ... ok
+test shortcuts::bindings::tests::reset_conflicts_preferences_and_property_adaptation_preserve_effective_ownership ... ok
+test shortcuts::bindings::tests::system_text_unknown_commands_and_duplicate_overrides_are_rejected ... ok
+test shortcuts::documentation_tests::default_binding_reference_matches_live_resolver ... ok
+test shortcuts::documentation_tests::repeated_chords_keep_the_documented_command_and_unbound_chords_stay_unbound ... ok
+test shortcuts::redo_contract_tests::explicit_saved_y_bindings_keep_their_owner_and_round_trip ... ok
+test shortcuts::redo_contract_tests::redo_and_new_solid_have_distinct_default_chords_in_all_scopes ... ok
+test shortcuts::tests::modifiers_and_repeat_do_not_alias_other_commands ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 1468 filtered out; finished in 0.09s
+

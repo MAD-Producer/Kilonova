@@ -1,0 +1,1 @@
+ERROR motion_studio::panels::observation: persistent panel degradation site=animation.types.frames count=60 object=7 phase=type_capability reason=authored key frames must be strictly ordered signed 32-bit integers

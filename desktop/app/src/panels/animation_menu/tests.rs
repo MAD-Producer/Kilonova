@@ -2,7 +2,7 @@ use super::*;
 use motion_core::{Engine, Keyframe, Layer, LayerTimeline, Project};
 use motion_ui::input::Modifiers;
 
-fn fixture() -> (Engine, Value) {
+pub(super) fn fixture() -> (Engine, Value) {
     let mut p = Project::new(640, 360, 30, 120).unwrap();
     for (id, start) in [(7, 12), (8, 5), (9, 20)] {
         let mut layer = Layer::solid(id, "Animated", [64.; 2], [0.; 3], [1.; 4]);
@@ -28,12 +28,12 @@ fn fixture() -> (Engine, Value) {
     let state = snapshot(&engine);
     (engine, state)
 }
-fn snapshot(engine: &Engine) -> Value {
+pub(super) fn snapshot(engine: &Engine) -> Value {
     serde_json::json!({"root":"project-a","composition":engine.project().composition_id,
         "document_generation":4,"revision":engine.revision(),"frame":22.,"project":engine.project(),
         "timeline_layers":engine.project().timeline_layers(22.).unwrap()})
 }
-fn context(state: &Value, locale: Locale) -> Panels {
+pub(super) fn context(state: &Value, locale: Locale) -> Panels {
     let mut panels = Panels {
         selected: Some(7),
         focused: Some(Panel::Timeline),
@@ -45,7 +45,7 @@ fn context(state: &Value, locale: Locale) -> Panels {
         .select_key_in(state, 7, Property::Position, None, 22);
     panels
 }
-fn commands(actions: Vec<Action>) -> Vec<Command> {
+pub(super) fn commands(actions: Vec<Action>) -> Vec<Command> {
     actions
         .into_iter()
         .flat_map(|action| match action {
