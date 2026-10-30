@@ -1,0 +1,1028 @@
+{
+  "keys": [
+    [
+      1,
+      100.0
+    ],
+    [
+      2,
+      126.25
+    ],
+    [
+      3,
+      200.0
+    ]
+  ],
+  "samples": [
+    {
+      "frame": 100.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 101.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 102.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 103.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 104.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 105.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 106.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 107.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 108.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 109.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 110.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 111.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 112.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 113.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 114.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 115.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 116.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 117.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 118.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 119.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 120.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 121.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 122.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 123.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 124.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 125.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 126.0,
+      "interval": 0,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 127.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 128.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 129.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 130.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 131.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 132.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 133.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 134.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 135.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 136.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 137.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 138.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 139.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 140.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 141.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 142.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 143.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 144.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 145.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 146.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 147.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 148.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 149.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 150.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 151.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 152.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 153.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 154.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 155.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 156.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 157.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 158.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 159.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 160.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 161.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 162.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 163.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 164.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 165.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 166.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 167.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 168.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 169.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 170.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 171.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 172.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 173.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 174.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 175.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 176.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 177.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 178.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 179.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 180.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 181.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 182.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 183.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 184.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 185.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 186.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 187.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 188.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 189.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 190.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 191.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 192.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 193.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 194.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 195.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 196.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 197.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 198.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 199.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    },
+    {
+      "frame": 200.0,
+      "interval": 1,
+      "parameter": 0.0,
+      "position": [
+        7.0,
+        7.0,
+        7.0
+      ]
+    }
+  ]
+}

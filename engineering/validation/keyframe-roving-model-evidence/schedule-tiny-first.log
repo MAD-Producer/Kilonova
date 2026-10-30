@@ -1,0 +1,21 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.24s
+     Running tests\spatial_schedule.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_schedule-28aafead3168f095.exe)
+
+running 1 test
+
+thread 'tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically' (76760) panicked at crates\motion-model\tests\spatial_schedule.rs:426:5:
+assertion `left == right` failed
+  left: 0.0
+ right: 0.5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically ... FAILED
+
+failures:
+
+failures:
+    tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p motion-model --test spatial_schedule`

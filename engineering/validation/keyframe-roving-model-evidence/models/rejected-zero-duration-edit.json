@@ -1,0 +1,5 @@
+{
+  "completeAuthorStateUnchanged": true,
+  "error": "spatial animation phase=prepare_edit key=Some(2): nonstationary spatial span needs positive duration",
+  "primaryCause": "nonstationary spatial span needs positive duration"
+}

@@ -57,6 +57,8 @@ pub use keyframe_clipboard::KeyframeValueOffset;
 pub use keyframe_clipboard::curve_clipboard::CurveClipboard;
 pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween, SpatialPath, SpatialPathBudget, SpatialPathSample};
+pub use animation::{PreparedSpatialTiming, SpatialKeyTime, SpatialKeyTimes};
+pub use animation::{SpatialAnimation, SpatialAnimationKey};
 pub use audio::{AudioAsset, AudioClip};
 pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
 pub use camera::{
@@ -90,6 +92,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("spatial animation phase={phase} key={key:?}: {source}")]
+    SpatialAnimation { phase: &'static str, key: Option<u64>, #[source] source: Box<Error> },
     #[error("path sampling path={path} frame={frame}: {source}")]
     PathSampling { path: u64, frame: f64, #[source] source: Box<Error> },
     #[error("project library operation={operation} folder={folder:?}: {source}")]

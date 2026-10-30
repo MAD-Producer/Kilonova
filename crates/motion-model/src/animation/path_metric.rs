@@ -352,6 +352,7 @@ impl<T: Tween> Track<T> {
 }
 
 impl SpatialPath {
+    pub(super) fn key_count(&self) -> usize { self.authored.len() }
     pub fn total_length(&self) -> f64 {
         *self.cumulative.last().unwrap_or(&0.)
     }

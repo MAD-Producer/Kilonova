@@ -6,6 +6,12 @@ mod automatic;
 #[path = "animation/path_metric.rs"]
 mod path_metric;
 pub use path_metric::{SpatialPath, SpatialPathBudget, SpatialPathSample};
+#[path = "animation/spatial_schedule.rs"]
+mod spatial_schedule;
+pub use spatial_schedule::{PreparedSpatialTiming, SpatialKeyTime, SpatialKeyTimes};
+#[path = "animation/spatial_animation.rs"]
+mod spatial_animation;
+pub use spatial_animation::{SpatialAnimation, SpatialAnimationKey};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
