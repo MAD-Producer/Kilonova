@@ -12,6 +12,8 @@ pub enum Error {
     #[error(transparent)]
     Model(#[from] motion_core::Error),
     #[error(transparent)]
+    Scene(#[from] motion_scene::Error),
+    #[error(transparent)]
     Render(#[from] motion_render::RenderError),
     #[error(transparent)]
     ImageResource(#[from] motion_render::image_resources::Error),

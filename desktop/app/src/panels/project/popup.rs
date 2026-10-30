@@ -487,6 +487,7 @@ pub(super) fn finish(
     };
     #[derive(Clone, Copy)]
     enum Choice {
+        PlaceModel,
         Open,
         Rename,
         Move,
@@ -501,6 +502,9 @@ pub(super) fn finish(
         Some(RowKey::Item(ProjectItem::Composition { .. }))
     );
     let mut choices = Vec::new();
+    if matches!(browser.context, Some(RowKey::Item(ProjectItem::Model { .. }))) {
+        choices.push((word(locale, "放入当前合成", "Place in composition"), Choice::PlaceModel));
+    }
     if folder || composition {
         choices.push((word(locale, "打开", "Open"), Choice::Open));
     }
@@ -607,6 +611,15 @@ pub(super) fn finish(
     if let Some(choice) = chosen {
         panels.project.context_menu = None;
         match choice {
+            Choice::PlaceModel => {
+                if let Some(RowKey::Item(ProjectItem::Model { id })) = &browser.context {
+                    let at_frame = (_state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32)
+                        .min(_state["project"]["frames"].as_u64().unwrap_or(1).saturating_sub(1) as u32);
+                    out.push(Action::ProjectPlaceModel {
+                        source: catalogue.source.clone(), asset: *id, at_frame,
+                    });
+                }
+            }
             Choice::Create => {
                 browser.popup = Some(Popup::name(catalogue, None, browser.view.folder, locale))
             }
