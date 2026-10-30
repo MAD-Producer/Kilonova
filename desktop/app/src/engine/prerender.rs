@@ -76,20 +76,19 @@ impl Runtime {
     pub fn polling(&self) -> bool {
         self.enabled || self.lease.is_some()
     }
-    fn poll_interval(&self) -> Duration {
-        // An idle 50 ms clock cannot replenish a three-frame window during
-        // 30 fps playback. Drain and admit on a bounded playback cadence while
-        // preserving the slower idle clock and foreground queue priority.
-        // A poisoned publication gate is reported by tick, not by this timer.
-        if matches!(self.signals.playing(), Ok(true)) {
-            Duration::from_millis(16)
-        } else {
-            POLL_INTERVAL
+    pub fn foreground_presented(&mut self) {
+        // Wake optional work immediately after a successful playback frame,
+        // when the next frame has the most slack. A free-running timer can
+        // instead start a render just before the next foreground preemption.
+        // This only arms the existing queued polling path: no IO or native work
+        // occurs here, and queued foreground requests still win recv_timeout.
+        if self.enabled && self.fault.is_none() && matches!(self.signals.playing(), Ok(true)) {
+            self.last_poll = None;
         }
     }
     pub fn wait_interval(&self) -> Duration {
         self.last_poll.map_or(Duration::ZERO, |last| {
-            self.poll_interval().saturating_sub(last.elapsed())
+            POLL_INTERVAL.saturating_sub(last.elapsed())
         })
     }
     pub fn session_failure(&mut self, error: String) {
@@ -185,7 +184,7 @@ impl Runtime {
         }
         if self
             .last_poll
-            .is_some_and(|last| last.elapsed() < self.poll_interval())
+            .is_some_and(|last| last.elapsed() < POLL_INTERVAL)
         {
             return;
         }
