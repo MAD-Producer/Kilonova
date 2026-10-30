@@ -859,7 +859,7 @@ mod tests {
             ..Default::default()
         };
         let state = serde_json::json!({
-            "frame": 0,
+            "frame": 41,
             "project": {"frames": 120, "layers": [
                 {"id": 1, "locked": false},
                 {"id": 2, "locked": false}
@@ -895,10 +895,15 @@ mod tests {
             &state,
             &mut out,
         );
-        assert!(matches!(
-            out.as_slice(),
-            [Action::EditBatch(commands)] if commands.len() == 2
-        ));
+        match out.as_slice() {
+            [Action::Edit(Edit::RemoveLayers { objects, frame })] => {
+                let mut selected = objects.clone();
+                selected.sort_unstable();
+                assert_eq!(selected, vec![1, 2]);
+                assert_eq!(*frame, 41);
+            }
+            actions => panic!("expected one atomic removal: {actions:?}"),
+        }
     }
     #[test]
     fn node_properties_file_commands_and_floating_modal_keep_their_owner() {
