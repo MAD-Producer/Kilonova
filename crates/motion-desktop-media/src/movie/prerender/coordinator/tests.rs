@@ -51,51 +51,7 @@ fn drain(owner: &mut Coordinator, renderer: &Renderer) -> bool {
     installed
 }
 fn pixels(renderer: &Renderer, source: &motion_render::RenderTarget) -> Vec<u8> {
-    // Test-only raw readback; production cache lookup never allocates/maps CPU buffers.
-    let stride = 256;
-    let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("coordinator native oracle"),
-        size: stride * 24,
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-    let mut encoder = renderer
-        .allocation_command_encoder(&Default::default())
-        .unwrap();
-    encoder.copy_texture_to_buffer(
-        source.texture().as_image_copy(),
-        wgpu::TexelCopyBufferInfo {
-            buffer: &buffer,
-            layout: wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(stride as u32),
-                rows_per_image: Some(24),
-            },
-        },
-        wgpu::Extent3d {
-            width: 32,
-            height: 24,
-            depth_or_array_layers: 1,
-        },
-    );
-    renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
-    let (send, receive) = std::sync::mpsc::channel();
-    buffer
-        .slice(..)
-        .map_async(wgpu::MapMode::Read, move |r| send.send(r).unwrap());
-    renderer
-        .device
-        .poll(wgpu::PollType::wait_indefinitely())
-        .unwrap();
-    receive.recv().unwrap().unwrap();
-    let raw = buffer.slice(..).get_mapped_range().unwrap();
-    let result = raw
-        .chunks_exact(stride as usize)
-        .flat_map(|row| row[..128].iter().copied())
-        .collect();
-    drop(raw);
-    buffer.unmap();
-    result
+    renderer.read_native_render_target(source).unwrap().pixels
 }
 
 #[test]
@@ -105,6 +61,39 @@ fn disabled_coordinator_owns_no_worker_or_native_cache() {
     assert!(owner.cache_info().is_none());
     assert!(owner.active.is_none());
     assert!(!owner.status().enabled);
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn explicit_disable_retires_the_actual_native_owner_before_reenable_can_replace_it() {
+    let root = tempfile::tempdir().unwrap();
+    let session = session(root.path());
+    let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+        session.engine.project().working_precision,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+    prepare(&mut owner, &session, &renderer);
+    owner.update(demand()).unwrap();
+    assert!(owner.schedule(&renderer, ExportControl::default()).unwrap());
+    assert!(drain(&mut owner, &renderer));
+    let old = owner.observation().unwrap();
+    owner.set_policy(Default::default()).unwrap();
+    assert!(owner.get(&renderer, 1.).unwrap().is_none());
+    assert!(owner.retiring);
+    let began = Instant::now();
+    while !owner.worker.as_ref().unwrap().stopped() {
+        assert!(began.elapsed() < Duration::from_secs(30));
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(old.snapshot().unwrap().stopped);
+    assert_eq!(old.snapshot().unwrap().retained_cpu_bytes, 0);
+    owner.set_policy(policy()).unwrap();
+    prepare(&mut owner, &session, &renderer);
+    assert!(!owner.retiring);
+    assert!(old.snapshot().unwrap().stopped);
+    assert!(!owner.observation().unwrap().snapshot().unwrap().stopped);
 }
 
 #[test]
