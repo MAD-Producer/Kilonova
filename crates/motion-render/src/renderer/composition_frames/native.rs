@@ -31,6 +31,16 @@ impl CompositionFrameCache {
         renderer: &Renderer,
         key: CompositionFrameKey,
     ) -> Result<Option<NativeCompositionCandidate>> {
+        self.prepare_native_preserving(renderer, key, &[])
+    }
+    /// Keep foreground-due and nearer lookahead frames during admission. A
+    /// protected quota refusal is atomic and does not count as a cache lookup.
+    pub fn prepare_native_preserving(
+        &mut self,
+        renderer: &Renderer,
+        key: CompositionFrameKey,
+        protected: &[CompositionFrameKey],
+    ) -> Result<Option<NativeCompositionCandidate>> {
         if key.context != self.context {
             self.info.stale = self.info.stale.saturating_add(1);
             return Ok(None);
@@ -63,7 +73,7 @@ impl CompositionFrameCache {
         let bytes = storage
             .capacity(key.width, key.height)
             .ok_or_else(|| RenderError::Invalid("native cache capacity overflow".into()))?;
-        if self.pending_frames() != 0 || !self.make_room(bytes, 1) {
+        if self.pending_frames() != 0 || !self.make_room_preserving(bytes, 1, protected) {
             self.info.refused = self.info.refused.saturating_add(1);
             return Ok(None);
         }
@@ -190,6 +200,14 @@ impl CompositionFrameCache {
         self.epoch = Arc::new(());
     }
     pub(super) fn make_room(&mut self, bytes: u64, frames: usize) -> bool {
+        self.make_room_preserving(bytes, frames, &[])
+    }
+    fn make_room_preserving(
+        &mut self,
+        bytes: u64,
+        frames: usize,
+        protected: &[CompositionFrameKey],
+    ) -> bool {
         let pending_bytes = self.pending_bytes();
         let pending_frames = self.pending_frames();
         if self.info.max_frames < pending_frames + frames
@@ -198,10 +216,28 @@ impl CompositionFrameCache {
             return false;
         }
         let available = self.info.quota_bytes - pending_bytes - bytes;
+        let retained = self
+            .entries
+            .iter()
+            .filter(|entry| protected.contains(&entry.key));
+        let (count, retained_bytes) = retained.fold((0usize, 0u64), |(count, bytes), entry| {
+            (count + 1, bytes.saturating_add(entry.texture_bytes()))
+        });
+        if count > self.info.max_frames - pending_frames - frames || retained_bytes > available {
+            return false;
+        }
         while self.entries.len() + pending_frames + frames > self.info.max_frames
             || self.bytes() > available
         {
-            self.evict();
+            let Some(index) = self
+                .entries
+                .iter()
+                .position(|entry| !protected.contains(&entry.key))
+            else {
+                return false;
+            };
+            self.entries.remove(index);
+            self.info.evicted = self.info.evicted.saturating_add(1);
         }
         true
     }

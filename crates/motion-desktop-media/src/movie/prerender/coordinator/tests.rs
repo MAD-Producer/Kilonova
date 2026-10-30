@@ -65,6 +65,92 @@ fn disabled_coordinator_owns_no_worker_or_native_cache() {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn playback_admission_keeps_due_and_nearer_frames_without_counting_lookup_hits() {
+    let root = tempfile::tempdir().unwrap();
+    let session = session(root.path());
+    let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+        session.engine.project().working_precision,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    for direction in [schedule::Direction::Forward, schedule::Direction::Backward] {
+        let (origin, sign) = if direction == schedule::Direction::Forward {
+            (0., 1.)
+        } else {
+            (3., -1.)
+        };
+        let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+        prepare(&mut owner, &session, &renderer);
+        owner
+            .advance_playback(Demand {
+                frame: origin,
+                direction,
+                ..demand()
+            })
+            .unwrap();
+        for _ in 0..2 {
+            assert!(owner
+                .schedule_with_yield(&renderer, YieldControl::default())
+                .unwrap());
+            assert!(drain(&mut owner, &renderer));
+        }
+        let first = origin + sign;
+        let second = origin + sign * 2.;
+        owner
+            .advance_playback(Demand {
+                frame: first,
+                direction,
+                now: Duration::from_millis(34),
+                ..demand()
+            })
+            .unwrap();
+        let before = owner.cache_info().unwrap();
+        let starts = owner.status().counts.started;
+        assert!(!owner
+            .schedule_with_yield(&renderer, YieldControl::default())
+            .unwrap());
+        assert_eq!(owner.status().counts.started, starts);
+        assert_eq!(owner.status().hold, schedule::Hold::Budget);
+        assert_eq!(owner.cache_info().unwrap().evicted, before.evicted);
+        assert_eq!(owner.cache_info().unwrap().hits, before.hits);
+        assert_eq!(owner.cache_info().unwrap().misses, before.misses);
+        assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+        let due = owner.get(&renderer, first).unwrap().unwrap();
+        let nearer = owner.get(&renderer, second).unwrap().unwrap();
+        assert_eq!(
+            pixels(&renderer, due.source()),
+            [255, 0, 0, 255].repeat(32 * 24)
+        );
+        owner
+            .advance_playback(Demand {
+                frame: second,
+                direction,
+                now: Duration::from_millis(68),
+                ..demand()
+            })
+            .unwrap();
+        assert!(owner
+            .schedule_with_yield(&renderer, YieldControl::default())
+            .unwrap());
+        assert!(drain(&mut owner, &renderer));
+        let kept = owner.get(&renderer, second).unwrap().unwrap();
+        assert!(Arc::ptr_eq(&nearer, &kept));
+        assert_eq!(owner.cache_info().unwrap().resident_frames, 2);
+        assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+        assert_eq!(
+            owner
+                .observation()
+                .unwrap()
+                .snapshot()
+                .unwrap()
+                .retained_cpu_bytes,
+            0
+        );
+    }
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn explicit_disable_retires_the_actual_native_owner_before_reenable_can_replace_it() {
     let root = tempfile::tempdir().unwrap();
     let session = session(root.path());
