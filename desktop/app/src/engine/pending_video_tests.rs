@@ -527,3 +527,5 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
     assert!(logs.contains("logging initialized level=INFO"));
     assert!(!stderr.contains("video decoder open start"));
 }
+
+mod prerender_logging;

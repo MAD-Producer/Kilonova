@@ -257,3 +257,5 @@ fn actual_worker_panic_is_acknowledged_and_cannot_reuse_the_native_owner() {
     assert!(snapshot.last_failure.unwrap().contains("panicked"));
     stop(&mut worker);
 }
+
+mod logging;
