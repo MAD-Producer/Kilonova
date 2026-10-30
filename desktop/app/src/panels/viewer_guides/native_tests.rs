@@ -356,7 +356,10 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
             let end = mapping.screen([480., 360.]);
             assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(start)).1.is_empty());
             assert!(draw(&engine, &mut panels, &mut atlas, window, size, release(end)).1.is_empty());
-            assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).region, Some([0.25, 0.25, 0.5, 0.5]));
+            let region = panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).region.unwrap();
+            for (actual, expected) in region.into_iter().zip([0.25, 0.25, 0.5, 0.5]) {
+                assert!((actual - expected).abs() < 1e-6, "region={region:?}");
+            }
             let inspected = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-ui-region.png")));
             assert_eq!(*inspected.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32), initial);
         }
