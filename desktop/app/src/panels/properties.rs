@@ -207,27 +207,15 @@ pub(super) fn inspector_layout(
     axis: usize,
     axes: usize,
 ) -> super::timeline::PropertyLayout {
-    let pad = styles.metric("padding.panel", 8.);
-    let indent = styles.metric("tree.indent", 14.);
-    let slot = styles.metric("icon.slot", 20.);
-    let row = styles.metric("row.height", 22.);
-    let field = styles.metric("field.height", 18.).min(row);
-    let left = area.min[0] + pad + super::key_navigation::width(styles) + indent;
-    let caption = left + slot;
-    let value = (caption + styles.metric("label.column", 72.) + pad)
-        .min(area.max[0] - pad - axes.max(1) as f32 * styles.metric("value.min_width", 64.))
-        .max(caption + styles.metric("label.column", 72.) * 0.5 + pad);
-    let width = ((area.max[0] - pad - value).max(0.) / axes.max(1) as f32)
-        .min(styles.metric("value.min_width", 64.));
+    let columns = motion_ui::widgets::InspectorColumns::new(
+        styles, area, y, styles.metric("row.height", 22.),
+        super::key_navigation::inspector_width(styles, area.width()) + styles.metric("tree.indent", 14.),
+        styles.metric("effect.watch.width", 24.), axes,
+    );
     super::timeline::PropertyLayout {
-        watch: Rect::new(left, y, slot, row),
-        caption: Rect::new(caption, y, (value - pad - caption).max(0.), row),
-        number: Rect::new(
-            value + axis as f32 * width,
-            y + (row - field) * 0.5,
-            (width - styles.metric("border", 1.) * 2.).max(0.),
-            field,
-        ),
+        watch: columns.icon_target(styles.metric("icon.slot", 20.)),
+        caption: columns.label,
+        number: columns.number(axis),
     }
 }
 
@@ -308,9 +296,10 @@ pub(super) fn render(
         ..input.clone()
     };
     let input = &filtered;
-    if input.pressed.is_some() {
-        panels.properties.effects.clear_key_channel();
-    }
+    // Effect controls arbitrate selection after their contextual navigation
+    // has processed the click. Clearing here hides the selected row's rail
+    // before its buttons can receive input; other property intents are
+    // settled through property_focus after rendering.
     if area.contains(input.mouse) {
         panels.properties.properties_scroll += input.wheel[1];
     }
@@ -464,10 +453,10 @@ pub(super) fn render(
                 selection == super::animation_controls::TrackSelection::Current(
                     super::animation_controls::SelectedTrack { object, property, axis }),
             );
-            super::key_navigation::property_row(
+            if super::key_navigation::inspector_width(&styles, area.width()) > 0. { super::key_navigation::property_row(
                 list, Rect::new(area.min[0], y, area.width(), row), panels, state, input,
                 object, property, axis, &track.keys, out,
-            );
+            ); }
             super::timeline::property_branch(list, fields.watch);
             let animated = !track.keys.is_empty();
             super::timeline::property_icon(
@@ -889,6 +878,11 @@ pub(super) fn process_field(
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
+    if state["observing"] == true || state["project"]["layers"].as_array().into_iter().flatten()
+        .any(|layer| layer["id"].as_u64() == Some(field.object) && layer["locked"] == true) {
+        if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
+        return;
+    }
     if input.focus_lost || input.key_presses().any(|(key, _, repeat)| key == Key::Escape && !repeat) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) {
             out.push(Action::History(4));
@@ -994,7 +988,8 @@ pub(super) fn process_field(
     }
     if field.scrubbing.is_none() {
         let event = field.editor.input_value(&mut field.text, &mut field.replace, input);
-        if outside || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
+        if outside && !input.composing && !input.ime_consumed
+            || matches!(event, Some(motion_ui::widgets::TextEvent::Commit(_))) {
             if field.replace {
                 return;
             }
@@ -1008,7 +1003,11 @@ pub(super) fn process_field(
                     }
                     return;
                 }
-                _ => panels.message = Some(panels.locale.t(T::EnterFinite).into()),
+                _ => {
+                    let message = panels.locale.t(T::EnterFinite).to_string();
+                    field.editor.error = Some(message.clone());
+                    panels.message = Some(message);
+                },
             }
         }
     }

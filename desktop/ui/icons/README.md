@@ -1,6 +1,8 @@
 # Motion Studio SVG 图标库
 
-包含 Ardot 最新 `modern/sheet/icon` 的 40 个图标和按相同规范补充的 14 个图标（秒表、标签菜单、变换控件、重置、折叠箭头、窗口控制、段落对齐），共 54 个。保留导出路径、圆角和线宽，统一使用 `currentColor` 跟随样式表。
+`eyedropper.svg` 和 `pick_position.svg` 为 Motion Studio contributors 独立绘制的取色和位置点选图标，遵循同一 28×28 规范及 MIT 许可；不来源于第三方产品。
+
+包含 Ardot 最新 `modern/sheet/icon` 的 40 个图标和按相同规范补充的 16 个图标（秒表、标签菜单、变换控件、重置、折叠箭头、窗口控制、段落对齐、取色、位置点选），共 56 个。保留导出路径、圆角和线宽，统一使用 `currentColor` 跟随样式表。
 
 - 使用 `manifest.json` 记录稳定名称、设计节点来源和 28 × 28 原始尺寸
 - 使用 `motion_ui::icons::Icon` 查找图标，不在面板中重新描摹路径

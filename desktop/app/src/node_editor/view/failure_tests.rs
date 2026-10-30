@@ -151,8 +151,14 @@ fn inspector_rejection_is_logged_without_mutating_the_node_or_its_history() {
         let before=editor.snapshot();
         let history=editor.undo.len();
         let mut atlas=TextAtlas::from_system(13.).unwrap();
+        let styles=PaintList::default().styles();
+        // The standalone inspector now has two compact title rows before the control.
+        let toggle_y=styles.metric("padding.panel",8.)
+            + styles.metric("node.dropdown.row.height",28.)*2.
+            + styles.metric("padding",5.)
+            + styles.metric("field.height",18.)*0.5;
         editor.draw_inspector(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,360.,600.),
-            &press([20.,140.],MouseButton::Left),Language::English);
+            &press([20.,toggle_y],MouseButton::Left),Language::English);
         assert_eq!(editor.document,before.document);
         assert_eq!(editor.revision,before.revision);
         assert_eq!(editor.undo.len(),history);

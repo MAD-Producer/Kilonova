@@ -1,0 +1,132 @@
+{
+  "source_main": "3865b0feca1acc65b8a5d0f96a0ca9684ee26beb",
+  "tested_head": "7fc4659668b933c7f7ba75b720db9ea0b8e95f8e",
+  "binary": {
+    "path": "E:\\Dev\\aem\\.tools\\prefetch-candidates\\current-main-02\\prefetch-tests.exe",
+    "sha256": "cf9b68f177136e4436ee5deecf70b143afc86696a45c06e5f8be00cc507fa2ea"
+  },
+  "native_case": {
+    "command": [
+      "E:\\Dev\\aem\\.tools\\prefetch-candidates\\current-main-02\\prefetch-tests.exe",
+      "--exact",
+      "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+      "--include-ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 15.3
+  },
+  "allocations": 0,
+  "clone_reference": 64,
+  "sample_calls": 64,
+  "caller_thread_allocation_requests_only": true,
+  "not_fps_or_whole_frame_allocation": true,
+  "unique_passed": 20,
+  "integration_cases": [
+    "actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels",
+    "asynchronous_missing_file_preserves_native_error_and_worker_recovers",
+    "cancellation_has_identity_and_external_text_cannot_spoof_it",
+    "invalid_registered_path_preserves_native_model_error",
+    "missing_file_inspection_preserves_native_error_and_recovers",
+    "native_sources_distinguish_io_model_and_corrupt_png",
+    "renderer_keeps_image_sources_on_configure_sync_and_async_failures",
+    "prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when_active",
+    "recent_textures_are_lru_bounded_and_yuv_allocations_reclaim_idle_images",
+    "active_images_share_proxies_with_nested_instances_and_full_output_is_explicit",
+    "particle_sprite_is_demanded_without_an_image_layer_and_released_when_disabled",
+    "resource_resolution_failure_keeps_gpu_pixels_history_and_gesture",
+    "active_images_refuse_before_upload_and_a_smaller_proxy_can_be_prepared",
+    "diagnostics_success_cache_and_unrelated_errors_cannot_reuse_a_budget_refusal",
+    "typed_plan_preserves_messages_and_distinguishes_capacity_from_dimensions",
+    "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+    "ready_image_preparation_does_not_clone_an_unchanged_allowed_set"
+  ],
+  "membership_cases": [
+    "image_resources::allowed::tests::bounded_membership_matches_the_original_union_for_random_inputs",
+    "image_resources::allowed::tests::prefetch_cap_precedes_deduplication_and_demand_is_preserved",
+    "image_resources::allowed::tests::unchanged_permission_borrows_the_original_demand"
+  ],
+  "runs": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "image_allowed_sets",
+        "--test",
+        "image_decode_budget_native",
+        "--test",
+        "image_error_identity",
+        "--test",
+        "image_preview_cache",
+        "--test",
+        "image_working_set",
+        "--test",
+        "prepared_resources",
+        "--test",
+        "resource_rejections",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 164.81
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--lib",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "image_resources::allowed::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 49.38
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop-media",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--locked",
+        "--offline",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 94.59
+    }
+  ],
+  "source_unchanged": true,
+  "archive": {
+    "path": "data/prefetch-candidates-current-main-02.zip",
+    "members": 12,
+    "bytes": 613845,
+    "sha256": "088169ab3fbdce475fb293c2ff1a0419ffa8d518b1d9a28779408a242a2e042c"
+  },
+  "scope": "Actual latest full-combination revalidation after depth matte/material changes; same20 cases, not added to earlier counts. Original failed fixture and valid before/after comparison remain separately archived. Final CI five full trees and actual20 Rust/GPU cases remain required."
+}

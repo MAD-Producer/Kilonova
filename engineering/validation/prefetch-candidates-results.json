@@ -1,0 +1,306 @@
+{
+  "issue": 126,
+  "parent_pr": 553,
+  "source_main": "67760b8b7b2cac07e870454c899f707325abda41",
+  "before": {
+    "head": "ce22e9d751a1edd69081cbf83c3a5cba8a09ef52",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\prefetch-candidates\\before-02\\prefetch-tests.exe",
+      "sha256": "447fa715105be6c03c120c2df1131a9184add455c63079e8503f8f2874d1e712"
+    },
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\prefetch-candidates\\before-02\\prefetch-tests.exe",
+        "--exact",
+        "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "seconds": 11.22
+    },
+    "summary": [
+      [
+        "FAILED",
+        "0",
+        "1",
+        "0"
+      ]
+    ],
+    "allocations": 64,
+    "clone_reference": 64,
+    "source_unchanged": true
+  },
+  "after": {
+    "head": "0c1d9527fe6e181e38369d99d92227d70eb1db03",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\prefetch-candidates\\after-01\\prefetch-tests.exe",
+      "sha256": "3da7c6daa935e7716b95ea1858ea4ffc446f11f96edb7f65c5acf64aa89cf15d"
+    },
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\prefetch-candidates\\after-01\\prefetch-tests.exe",
+        "--exact",
+        "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 10.56
+    },
+    "summary": [
+      [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    ],
+    "allocations": 0,
+    "clone_reference": 64,
+    "source_unchanged": true
+  },
+  "new_combination": {
+    "head": "11e8090221b262f486ddb2780da0f33dc2e79774",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\prefetch-candidates\\current-main-01\\prefetch-tests.exe",
+      "sha256": "bb6a3770060339709646752608e2a81854e61352418af496b2214b641f3ecfda"
+    },
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\prefetch-candidates\\current-main-01\\prefetch-tests.exe",
+        "--exact",
+        "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 15.61
+    },
+    "summary": [
+      [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    ],
+    "allocations": 0,
+    "clone_reference": 64,
+    "source_unchanged": true
+  },
+  "source_delta": [
+    "crates/motion-render/src/renderer.rs"
+  ],
+  "same_regression_source": true,
+  "initial_regressions": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "image_allowed_sets",
+        "--test",
+        "image_decode_budget_native",
+        "--test",
+        "image_error_identity",
+        "--test",
+        "image_preview_cache",
+        "--test",
+        "image_working_set",
+        "--test",
+        "prepared_resources",
+        "--test",
+        "resource_rejections",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 138.8
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--lib",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "image_resources::allowed::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 41.94
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop-media",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--locked",
+        "--offline",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 73.45
+    }
+  ],
+  "current_regressions": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "--test",
+        "image_allowed_sets",
+        "--test",
+        "image_decode_budget_native",
+        "--test",
+        "image_error_identity",
+        "--test",
+        "image_preview_cache",
+        "--test",
+        "image_working_set",
+        "--test",
+        "prepared_resources",
+        "--test",
+        "resource_rejections",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 159.22
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-render",
+        "--lib",
+        "--features",
+        "gpu-tests",
+        "--locked",
+        "--offline",
+        "-j1",
+        "image_resources::allowed::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 47.67
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop-media",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--locked",
+        "--offline",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 48.84
+    }
+  ],
+  "integration_cases": [
+    "actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels",
+    "asynchronous_missing_file_preserves_native_error_and_worker_recovers",
+    "cancellation_has_identity_and_external_text_cannot_spoof_it",
+    "invalid_registered_path_preserves_native_model_error",
+    "missing_file_inspection_preserves_native_error_and_recovers",
+    "native_sources_distinguish_io_model_and_corrupt_png",
+    "renderer_keeps_image_sources_on_configure_sync_and_async_failures",
+    "prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when_active",
+    "recent_textures_are_lru_bounded_and_yuv_allocations_reclaim_idle_images",
+    "active_images_share_proxies_with_nested_instances_and_full_output_is_explicit",
+    "particle_sprite_is_demanded_without_an_image_layer_and_released_when_disabled",
+    "resource_resolution_failure_keeps_gpu_pixels_history_and_gesture",
+    "active_images_refuse_before_upload_and_a_smaller_proxy_can_be_prepared",
+    "diagnostics_success_cache_and_unrelated_errors_cannot_reuse_a_budget_refusal",
+    "typed_plan_preserves_messages_and_distinguishes_capacity_from_dimensions",
+    "resident_prefetch_reuses_candidates_and_keeps_filter_limit_and_pixels",
+    "ready_image_preparation_does_not_clone_an_unchanged_allowed_set"
+  ],
+  "membership_cases": [
+    "image_resources::allowed::tests::bounded_membership_matches_the_original_union_for_random_inputs",
+    "image_resources::allowed::tests::prefetch_cap_precedes_deduplication_and_demand_is_preserved",
+    "image_resources::allowed::tests::unchanged_permission_borrows_the_original_demand"
+  ],
+  "unique_passing_tests": 20,
+  "new_test_is_included": true,
+  "limits": {
+    "sampled_calls": 64,
+    "caller_thread_allocation_requests_only": true,
+    "not_measured": [
+      "allocation bytes",
+      "peak RAM/VRAM",
+      "whole-app frame cost/FPS"
+    ],
+    "max_candidates": 2,
+    "unchanged": [
+      "filter active before take",
+      "resident/failed/missing candidates consume existing slots",
+      "duplicate/order semantics",
+      "decode budget/refusal",
+      "cancellation",
+      "pixels",
+      "demand-set allocations"
+    ],
+    "new_cache_or_retained_buffer": false
+  },
+  "failed_fixture": {
+    "phase": "before-01",
+    "reason": "initial test omitted the renderer-owned default texture; failed before the allocation assertion",
+    "correction": "compare image_count with its actual initial value plus the loaded source count; product code unchanged before before-02"
+  },
+  "archive": {
+    "path": "data/prefetch-candidates-evidence.zip",
+    "members": 34,
+    "bytes": 1812258,
+    "sha256": "759026cd0b73ba7fabb06e4a46b612b7ddc7715238387124d3fc198be5df31f0",
+    "contains_exe_dll_pdb_fonts": false
+  },
+  "ci": "Pending final-head CI: five effective successful checks, actual20 scoped cases in Rust/GPU, complete job trees equal to latest main composition after parent retarget."
+}

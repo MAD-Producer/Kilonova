@@ -242,6 +242,63 @@ struct CaptureLayout {
     buffer_bytes: u64,
 }
 
+impl Renderer {
+    /// Explicit user pick from a retained SDR preview. Copies one texel only,
+    /// excluding UI overlays; never called by hover or presentation polling.
+    /// Returns straight sRGB values, matching authored editor color parameters.
+    pub fn sample_preview_pixel(&self, source: &crate::RenderTarget, point: [u32; 2])
+        -> Result<[f32; 4], RenderError> {
+        self.check_health()?;
+        source.check_owner(self)?;
+        let format = source.texture().format();
+        if point[0] >= source.width || point[1] >= source.height
+            || !matches!(format, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb) {
+            return Err(RenderError::Invalid("preview color pick requires an in-bounds SDR pixel".into()));
+        }
+        let observation = self.image_readback.begin();
+        let buffer = crate::allocation_buffer::AllocationBuffer::new(&self.device,
+            self.allocation_budget(), &wgpu::BufferDescriptor {
+                label: Some("Motion Studio single color pick"), size: wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            })?;
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::ReadbackCopy,
+            &wgpu::CommandEncoderDescriptor { label: Some("Motion Studio preview color pick") })?;
+        encoder.copy_texture_to_buffer(wgpu::TexelCopyTextureInfo {
+            texture: source.texture(), mip_level: 0,
+            origin: wgpu::Origin3d { x: point[0], y: point[1], z: 0 }, aspect: wgpu::TextureAspect::All,
+        }, wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
+            offset: 0, bytes_per_row: Some(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT), rows_per_image: Some(1),
+        } }, wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 });
+        self.submit_allocated(encoder.finish(), |ledger| source.collect_texture_resources(ledger,
+            "preview/color-pick", crate::TextureState::PreviewFront))?;
+        observation.submitted(4, 4);
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| { let _ = send.send(result); });
+        let _unmap = UnmapOnDrop(&buffer);
+        self.device.poll(wgpu::PollType::wait_indefinitely())?;
+        self.check_health()?;
+        receive.recv().map_err(|e| RenderError::Readback(format!("color pick callback: {e}")))?
+            .map_err(|e| RenderError::Readback(format!("color pick mapping: {e}")))?;
+        let mapped = buffer.slice(..).get_mapped_range()
+            .map_err(|e| RenderError::Readback(format!("color pick mapped range: {e}")))?;
+        observation.mapped(mapped.len() as u64);
+        let alpha = mapped[3] as f32 / 255.;
+        let decode = |v: u8| {
+            let v = v as f32 / 255.;
+            let linear = if format.is_srgb() {
+                if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+            } else { v };
+            if alpha > 0. {
+                crate::renderer::linear_to_srgb((linear / alpha).clamp(0., 1.))
+            } else { 0. }
+        };
+        let value = [decode(mapped[0]), decode(mapped[1]), decode(mapped[2]), alpha];
+        observation.completed(4);
+        Ok(value)
+    }
+}
+
 fn capture_layout(
     width: u32,
     height: u32,

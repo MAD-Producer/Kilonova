@@ -1,0 +1,84 @@
+{
+  "source_main": "67760b8b7b2cac07e870454c899f707325abda41",
+  "tested_head": "77baa1374761b11bb97dc1a92d38bc195e65299d",
+  "binary": {
+    "path": "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\current-main-01\\motion-studio-tests.exe",
+    "sha256": "2d950e5e1a80556d28e58cac7a02babdb20fa2fbc3bc5d9b2a638aac55c494b1"
+  },
+  "new_three": {
+    "command": [
+      "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\current-main-01\\motion-studio-tests.exe",
+      "panels::transform_controls::threshold_tests::",
+      "--include-ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 11.84
+  },
+  "full_transform": {
+    "command": [
+      "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\current-main-01\\motion-studio-tests.exe",
+      "panels::transform_controls::",
+      "--include-ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 26.28
+  },
+  "unique_passed": 27,
+  "cases": [
+    "panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides",
+    "panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets",
+    "panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal",
+    "panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once",
+    "panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio",
+    "panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture",
+    "panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style",
+    "panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target",
+    "panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target",
+    "panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset",
+    "panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides",
+    "panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo",
+    "panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently",
+    "panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint",
+    "panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview",
+    "panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture",
+    "panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion",
+    "panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it",
+    "panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale",
+    "panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels",
+    "panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks",
+    "panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d",
+    "panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks",
+    "panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input",
+    "panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract",
+    "panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo",
+    "panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history"
+  ],
+  "check": {
+    "command": [
+      "cargo",
+      "check",
+      "-p",
+      "motion-desktop",
+      "--all-targets",
+      "--features",
+      "ffmpeg",
+      "--locked",
+      "--offline",
+      "-j1"
+    ],
+    "exit_code": 0,
+    "seconds": 103.03
+  },
+  "source_unchanged": true,
+  "archive": {
+    "path": "data/transform-drag-threshold-current-main.zip",
+    "members": 10,
+    "bytes": 606136,
+    "sha256": "31672a05bde265d722b22368e0885d1212c570943cbebe6d41766c0160f6a93c"
+  },
+  "scope": "Actual new full-combination revalidation after depth composition boundary changes. Original before/after comparison remains separately archived. Final CI five trees and actual27 cases in each desktop job remain required."
+}

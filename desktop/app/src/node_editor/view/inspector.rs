@@ -20,7 +20,7 @@ impl NodeEditor {
         let neutral = Input::default();
         let input = if self.inline.busy() { &neutral } else { input };
         self.field_input(input);
-        self.inspector(list, atlas, area, input, language);
+        self.inspector_body(list, atlas, area, input, language, false);
         let mut result = FrameResponse::default();
         result.changed = revision != self.revision;
         result.semantic_changed = semantic != self.semantic_revision;
@@ -41,14 +41,39 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
+        self.inspector_body(list, atlas, area, input, language, true);
+    }
+
+    fn inspector_body(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        input: &Input,
+        language: Language,
+        embedded: bool,
+    ) {
         let styles = list.styles();
         let colors = styles.colors();
+        let pad = styles.metric("padding.panel", 8.);
+        let row = styles.metric("node.dropdown.row.height", 28.);
+        let gap = styles.metric("padding", 5.);
+        let header = if embedded {
+            styles.metric("panel.header.height", 24.)
+        } else {
+            0.
+        };
 
         let mut panel = list.child();
         paint::rect(&mut panel, area, colors.PANEL);
         paint::rect(
             &mut panel,
-            Rect::new(area.min[0], area.min[1], 1., area.height()),
+            Rect::new(
+                area.min[0],
+                area.min[1],
+                styles.metric("border", 1.),
+                area.height(),
+            ),
             colors.BORDER,
         );
         let node = self
@@ -56,19 +81,26 @@ impl NodeEditor {
             .as_ref()
             .and_then(|id| self.document.nodes.iter().find(|n| n.id == *id))
             .cloned();
-        label(
-            &mut panel,
-            atlas,
-            Rect::new(area.min[0] + 12., area.min[1] + 5., area.width() - 24., 26.),
-            language.text("节点属性", "NODE PROPERTIES"),
-            colors.TEXT,
-            Align::Left,
-        );
+        if embedded {
+            label(
+                &mut panel,
+                atlas,
+                Rect::new(
+                    area.min[0] + pad,
+                    area.min[1],
+                    (area.width() - pad * 2.).max(0.),
+                    header,
+                ),
+                language.text("节点属性", "NODE PROPERTIES"),
+                colors.TEXT,
+                Align::Left,
+            );
+        }
         let content = Rect::new(
-            area.min[0] + 12.,
-            area.min[1] + 37.,
-            area.width() - 24.,
-            (area.height() - 44.).max(0.),
+            area.min[0] + pad,
+            area.min[1] + header + pad,
+            (area.width() - pad * 2.).max(0.),
+            (area.height() - header - pad * 2.).max(0.),
         );
         if area.contains(input.mouse) && !input.modifiers.alt {
             self.inspector_scroll = (self.inspector_scroll + input.wheel[1]).max(0.);
@@ -82,37 +114,46 @@ impl NodeEditor {
                     format_args!("node={:?} feature={feature:?}", node.id),
                 );
             }
+            let action_width = styles
+                .metric("inspector.action.width", 112.)
+                .min(content.width());
             label(
                 &mut body,
                 atlas,
-                Rect::new(content.min[0], y, content.width(), 27.),
+                Rect::new(
+                    content.min[0],
+                    y,
+                    (content.width() - action_width - gap).max(0.),
+                    row,
+                ),
                 &node_title(&node, &self.document.public_parameters, language),
                 colors.TEXT,
                 Align::Left,
             );
-            y += 26.;
-            label(
+            if ui::button_styled(
                 &mut body,
                 atlas,
-                Rect::new(content.min[0], y, content.width(), 23.),
-                &node.id,
-                colors.TEXT_MUTED,
-                Align::Left,
-            );
-            y += 30.;
-            if ui::button(
-                &mut body,
-                atlas,
-                Rect::new(content.min[0], y, content.width(), 26.),
-                language.text("删除选中节点", "Delete selected node"),
+                Rect::new(content.max[0] - action_width, y, action_width, row),
+                language.text("删除选中节点", "Delete node"),
                 &clipped_input(input, content),
                 true,
+                &styles,
+                "button.icon",
             )
             .clicked
             {
                 self.delete_selected();
             }
-            y += 38.;
+            y += row;
+            label(
+                &mut body,
+                atlas,
+                Rect::new(content.min[0], y, content.width(), row),
+                &format!("ID: {}", node.id),
+                colors.TEXT_MUTED,
+                Align::Left,
+            );
+            y += row + gap;
             match &node.operation {
                 NodeOp::Float { value } => {
                     self.field_row(
@@ -190,7 +231,10 @@ impl NodeEditor {
                     )
                     .clicked
                     {
-                        record_inspector_edit(self.set_operation(&node.id, NodeOp::Bool { value }), self.revision);
+                        record_inspector_edit(
+                            self.set_operation(&node.id, NodeOp::Bool { value }),
+                            self.revision,
+                        );
                     }
                     y += 31.;
                 }
@@ -238,13 +282,16 @@ impl NodeEditor {
                         let next =
                             allowed[(allowed.iter().position(|o| o == operation).unwrap_or(0) + 1)
                                 % allowed.len()];
-                        record_inspector_edit(self.set_operation(
-                            &node.id,
-                            NodeOp::Math {
-                                operation: next,
-                                value_type: *value_type,
-                            },
-                        ), self.revision);
+                        record_inspector_edit(
+                            self.set_operation(
+                                &node.id,
+                                NodeOp::Math {
+                                    operation: next,
+                                    value_type: *value_type,
+                                },
+                            ),
+                            self.revision,
+                        );
                     }
                     let types =
                         if matches!(operation, MathOp::Dot | MathOp::Length | MathOp::Normalize) {
@@ -264,13 +311,16 @@ impl NodeEditor {
                         let ty = types[(types.iter().position(|t| t == value_type).unwrap_or(0)
                             + 1)
                             % types.len()];
-                        record_inspector_edit(self.set_operation(
-                            &node.id,
-                            NodeOp::Math {
-                                operation: *operation,
-                                value_type: ty,
-                            },
-                        ), self.revision);
+                        record_inspector_edit(
+                            self.set_operation(
+                                &node.id,
+                                NodeOp::Math {
+                                    operation: *operation,
+                                    value_type: ty,
+                                },
+                            ),
+                            self.revision,
+                        );
                     }
                 }
                 NodeOp::ColorMath { operation } => {
@@ -295,7 +345,10 @@ impl NodeEditor {
                             operations[(operations.iter().position(|o| o == operation).unwrap()
                                 + 1)
                                 % operations.len()];
-                        record_inspector_edit(self.set_operation(&node.id, NodeOp::ColorMath { operation: next }), self.revision);
+                        record_inspector_edit(
+                            self.set_operation(&node.id, NodeOp::ColorMath { operation: next }),
+                            self.revision,
+                        );
                     }
                 }
                 NodeOp::Splat { value_type } => {
@@ -308,16 +361,19 @@ impl NodeEditor {
                         type_label(*value_type),
                         input,
                     ) {
-                        record_inspector_edit(self.set_operation(
-                            &node.id,
-                            NodeOp::Splat {
-                                value_type: if *value_type == ValueType::Vec2 {
-                                    ValueType::Vec3
-                                } else {
-                                    ValueType::Vec2
+                        record_inspector_edit(
+                            self.set_operation(
+                                &node.id,
+                                NodeOp::Splat {
+                                    value_type: if *value_type == ValueType::Vec2 {
+                                        ValueType::Vec3
+                                    } else {
+                                        ValueType::Vec2
+                                    },
                                 },
-                            },
-                        ), self.revision);
+                            ),
+                            self.revision,
+                        );
                     }
                 }
                 NodeOp::Select { value_type } => {
@@ -341,7 +397,10 @@ impl NodeEditor {
                         let next = types[(types.iter().position(|t| t == value_type).unwrap_or(0)
                             + 1)
                             % types.len()];
-                        record_inspector_edit(self.set_operation(&node.id, NodeOp::Select { value_type: next }), self.revision);
+                        record_inspector_edit(
+                            self.set_operation(&node.id, NodeOp::Select { value_type: next }),
+                            self.revision,
+                        );
                     }
                 }
                 NodeOp::Image { source } => {
@@ -358,16 +417,19 @@ impl NodeEditor {
                         },
                         input,
                     ) {
-                        record_inspector_edit(self.set_operation(
-                            &node.id,
-                            NodeOp::Image {
-                                source: if *source == ImageSource::Input {
-                                    ImageSource::Source
-                                } else {
-                                    ImageSource::Input
+                        record_inspector_edit(
+                            self.set_operation(
+                                &node.id,
+                                NodeOp::Image {
+                                    source: if *source == ImageSource::Input {
+                                        ImageSource::Source
+                                    } else {
+                                        ImageSource::Input
+                                    },
                                 },
-                            },
-                        ), self.revision);
+                            ),
+                            self.revision,
+                        );
                     }
                     label(
                         &mut body,
@@ -393,16 +455,19 @@ impl NodeEditor {
                         },
                         input,
                     ) {
-                        record_inspector_edit(self.set_operation(
-                            &node.id,
-                            NodeOp::SampleImage {
-                                coordinates: if *coordinates == SampleCoordinates::Pixels {
-                                    SampleCoordinates::Uv
-                                } else {
-                                    SampleCoordinates::Pixels
+                        record_inspector_edit(
+                            self.set_operation(
+                                &node.id,
+                                NodeOp::SampleImage {
+                                    coordinates: if *coordinates == SampleCoordinates::Pixels {
+                                        SampleCoordinates::Uv
+                                    } else {
+                                        SampleCoordinates::Pixels
+                                    },
                                 },
-                            },
-                        ), self.revision);
+                            ),
+                            self.revision,
+                        );
                     }
                 }
                 NodeOp::Parameter { parameter } => {
@@ -433,8 +498,13 @@ impl NodeEditor {
                                     [(index + 1) % self.document.public_parameters.len()]
                                 .id
                                 .clone();
-                                record_inspector_edit(self
-                                    .set_operation(&node.id, NodeOp::Parameter { parameter: next }), self.revision);
+                                record_inspector_edit(
+                                    self.set_operation(
+                                        &node.id,
+                                        NodeOp::Parameter { parameter: next },
+                                    ),
+                                    self.revision,
+                                );
                             }
                         }
                         label(
@@ -483,11 +553,14 @@ impl NodeEditor {
                                 )
                                 .clicked
                                 {
-                                    record_inspector_edit(self.set_parameter_default(
-                                        &p.id,
-                                        0,
-                                        if checked { 1. } else { 0. },
-                                    ), self.revision);
+                                    record_inspector_edit(
+                                        self.set_parameter_default(
+                                            &p.id,
+                                            0,
+                                            if checked { 1. } else { 0. },
+                                        ),
+                                        self.revision,
+                                    );
                                 }
                                 y += 30.;
                             } else {
@@ -574,18 +647,31 @@ impl NodeEditor {
                 }
                 _ => {}
             }
-            if let Ok(ports) = self.observed("inspector.ports", &node.id, node_ports(&node, &self.document.public_parameters)) {
-                y += 13.;
+            if let Ok(ports) = self.observed(
+                "inspector.ports",
+                &node.id,
+                motion_graph::node_port_specs(&node, &self.document.public_parameters),
+            ) {
+                paint::rect(
+                    &mut body,
+                    Rect::new(content.min[0], y, content.width(), row),
+                    colors.HEADER,
+                );
                 label(
                     &mut body,
                     atlas,
-                    Rect::new(content.min[0], y, content.width(), 24.),
-                    language.text("输入连接", "INPUT CONNECTIONS"),
-                    colors.TEXT_MUTED,
+                    Rect::new(
+                        content.min[0] + pad,
+                        y,
+                        (content.width() - pad * 2.).max(0.),
+                        row,
+                    ),
+                    language.text("输入连接", "Input connections"),
+                    colors.TEXT,
                     Align::Left,
                 );
-                y += 27.;
-                for (port, ty) in ports.inputs {
+                y += row;
+                for (port, spec) in ports.inputs {
                     let input_ref = PortRef::new(&node.id, &port);
                     let edge = self
                         .document
@@ -593,51 +679,66 @@ impl NodeEditor {
                         .iter()
                         .find(|c| c.to == input_ref)
                         .cloned();
-                    if edge.is_none() {
-                        if let Some(value) = node.input_defaults.get(&port) {
-                            let height = styles.metric("row.height", 22.);
-                            label(
-                                &mut body,
-                                atlas,
-                                Rect::new(content.min[0], y, content.width(), height),
-                                &format!(
-                                    "{port}: {} · {}",
-                                    super::super::input_defaults::value_text(value),
-                                    language.text("默认值", "default")
-                                ),
-                                colors.TEXT_MUTED,
-                                Align::Left,
-                            );
-                            y += height;
-                            continue;
-                        }
-                    }
+                    let columns = motion_ui::widgets::InspectorColumns::new(
+                        &styles,
+                        Rect::new(content.min[0] - pad, y, content.width() + pad * 2., row),
+                        y,
+                        row,
+                        0.,
+                        0.,
+                        1,
+                    );
+                    let title = motion_graph::group_port(&node.operation, &port, false)
+                        .map(|port| language.text(&port.name, &port.english_name))
+                        .unwrap_or_else(|| language.text(spec.name, spec.english_name));
                     label(
                         &mut body,
                         atlas,
-                        Rect::new(content.min[0], y, content.width(), 22.),
-                        &format!("{port} · {}", type_label(ty)),
-                        type_color(ty),
+                        columns.label,
+                        title,
+                        colors.TEXT_MUTED,
                         Align::Left,
                     );
-                    y += 22.;
                     if let Some(edge) = edge {
-                        let rect = Rect::new(content.min[0], y, content.width() - 31., 24.);
-                        if ui::button(
+                        let action = styles.metric("auxiliary.action.width", 28.);
+                        let source = self.document.nodes.iter().find(|n| n.id == edge.from.node);
+                        let caption = source
+                            .map(|source| {
+                                node_title(source, &self.document.public_parameters, language)
+                            })
+                            .unwrap_or_else(|| edge.from.node.clone());
+                        let value = Rect::new(
+                            columns.values.min[0],
+                            y,
+                            (content.max[0] - action - gap - columns.values.min[0])
+                                .max(0.)
+                                .min(columns.values.width()),
+                            row,
+                        );
+                        let response = ui::button_styled(
                             &mut body,
                             atlas,
-                            rect,
-                            &format!("{}.{}", edge.from.node, edge.from.port),
+                            value,
+                            "",
                             &clipped_input(input, content),
                             true,
-                        )
-                        .clicked
-                        {
+                            &styles,
+                            "button.icon",
+                        );
+                        label(
+                            &mut body,
+                            atlas,
+                            value.shrink(gap),
+                            &caption,
+                            colors.ACCENT,
+                            Align::Left,
+                        );
+                        if response.clicked {
                             self.select(Some(&edge.from.node), false);
                         }
                         if ui::button_icon(
                             &mut body,
-                            Rect::new(content.max[0] - 27., y, 27., 24.),
+                            Rect::new(content.max[0] - action, y, action, row),
                             motion_ui::icons::Icon::Close,
                             &clipped_input(input, content),
                             true,
@@ -647,17 +748,21 @@ impl NodeEditor {
                             self.disconnect_input(&input_ref);
                         }
                     } else {
+                        let shown = node
+                            .input_defaults
+                            .get(&port)
+                            .map(super::super::input_defaults::value_text)
+                            .unwrap_or_else(|| language.text("未连接", "Not connected").into());
                         label(
                             &mut body,
                             atlas,
-                            Rect::new(content.min[0], y, content.width(), 24.),
-                            language
-                                .text("拖动匹配类型的端口连接", "Connect a matching output socket"),
-                            Color::rgb(235, 167, 102),
+                            columns.values,
+                            &shown,
+                            colors.TEXT_MUTED,
                             Align::Left,
                         );
                     }
-                    y += 33.;
+                    y += row;
                 }
             }
         } else {
@@ -819,8 +924,11 @@ impl NodeEditor {
                 colors.TEXT_MUTED,
                 4,
             );
-            if let Ok(specs) = self.observed("inspector.help_ports", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
-            {
+            if let Ok(specs) = self.observed(
+                "inspector.help_ports",
+                &node.id,
+                motion_graph::node_port_specs(node, &self.document.public_parameters),
+            ) {
                 for (heading, ports) in [
                     (language.text("输入端口", "INPUT PORTS"), specs.inputs),
                     (language.text("输出端口", "OUTPUT PORTS"), specs.outputs),
@@ -948,30 +1056,44 @@ impl NodeEditor {
         let styles = list.styles();
         let colors = styles.colors();
 
-        let rect = Rect::new(area.min[0] + 68., *y, (area.width() - 68.).max(1.), 27.);
+        let padding = styles.metric("padding.panel", 8.);
+        let gap = styles.metric("padding", 5.);
+        let row = styles.metric("node.dropdown.row.height", 28.);
+        let columns = motion_ui::widgets::InspectorColumns::new(
+            &styles,
+            Rect::new(
+                area.min[0] - padding,
+                area.min[1],
+                area.width() + padding * 2.,
+                area.height(),
+            ),
+            *y,
+            row,
+            0.,
+            0.,
+            1,
+        );
+        let rect = columns.values;
         let active = self.field.as_ref().is_some_and(|f| f.binding == binding);
         label(
             list,
             atlas,
-            Rect::new(area.min[0], *y, 64., 27.),
+            columns.label,
             name,
             colors.TEXT_MUTED,
             Align::Left,
         );
-        paint::rect(list, rect, colors.SUNKEN);
         if active {
-            paint::stroke(
-                list,
-                rect,
-                if self.field.as_ref().is_some_and(|field| {
-                    field.error.is_some() || field.editor.error.is_some()
-                }) {
-                    Color::rgb(230, 128, 103)
-                } else {
-                    colors.ACCENT
-                },
-                1.,
-            );
+            let mut states =
+                motion_ui::style::States::default().with(motion_ui::style::State::Focused);
+            if self
+                .field
+                .as_ref()
+                .is_some_and(|field| field.error.is_some() || field.editor.error.is_some())
+            {
+                states = states.with(motion_ui::style::State::Invalid);
+            }
+            motion_ui::style::box_style(list, rect, styles.resolve("field", states).unwrap());
         }
         let shown = if active {
             &self.field.as_ref().unwrap().text
@@ -979,20 +1101,29 @@ impl NodeEditor {
             &value
         };
         if active && self.field.as_ref().unwrap().replace {
-            paint::rect(list, rect.shrink(4.), colors.ACCENT.with_alpha(0.2));
+            paint::rect(list, rect.shrink(gap), styles.color("selected"));
         }
         label(
             list,
             atlas,
-            rect.shrink(5.),
+            rect.shrink(gap),
             shown,
             colors.TEXT,
             Align::Left,
         );
         if active && !self.field.as_ref().unwrap().replace {
             let cursor = self.field.as_ref().unwrap().cursor;
-            let x = (rect.min[0] + 5. + atlas.measure(&shown[..cursor])).min(rect.max[0] - 5.);
-            paint::rect(list, Rect::new(x, rect.min[1] + 6., 1., 15.), colors.ACCENT);
+            let x = (rect.min[0] + gap + atlas.measure(&shown[..cursor])).min(rect.max[0] - gap);
+            paint::rect(
+                list,
+                Rect::new(
+                    x,
+                    rect.min[1] + gap,
+                    styles.metric("border", 1.),
+                    (rect.height() - gap * 2.).max(0.),
+                ),
+                colors.ACCENT,
+            );
         }
         if area.contains(input.mouse) && hit(input, rect) {
             if !active && self.commit_field().is_ok() {
@@ -1007,6 +1138,6 @@ impl NodeEditor {
                 self.search_focus = false;
             }
         }
-        *y += 31.;
+        *y += row;
     }
 }
