@@ -301,8 +301,13 @@ impl Coordinator {
                 // A noninstalled result must not become a scheduler completion.
                 if !matches!(installed, Ok(true)) {
                     self.scheduler.invalidate();
-                    // Worker retires canceled/failed source and GPU generations.
-                    self.profile = None;
+                    // A cooperative foreground yield publishes no frame. It
+                    // can keep the same immutable native generation, avoiding
+                    // source freeze/device initialization on every frame.
+                    // Strong cancellation or a changed epoch still closes it.
+                    if !complete.retained_native || epoch != self.epoch {
+                        self.profile = None;
+                    }
                 }
                 self.scheduler.finish(&ticket);
                 installed
