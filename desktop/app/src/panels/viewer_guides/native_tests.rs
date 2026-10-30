@@ -94,7 +94,7 @@ fn capture(
             atlas: None,
             logical_size: size,
             composition,
-            inspection: crate::engine::ViewerInspectionFrame { channel: panels.viewer_guides.channel(window != 0), ..Default::default() },
+            inspection: panels.viewer_inspection.frame(window != 0, panels.viewer_guides.channel(window != 0)),
             composition_image,
             window,
             node_preview: None,
@@ -118,7 +118,7 @@ fn capture(
             }),
             logical_size: size,
             composition,
-            inspection: crate::engine::ViewerInspectionFrame { channel: panels.viewer_guides.channel(window != 0), ..Default::default() },
+            inspection: panels.viewer_inspection.frame(window != 0, panels.viewer_guides.channel(window != 0)),
             composition_image,
             window,
             node_preview: None,
@@ -201,6 +201,34 @@ fn release(point: [f32; 2]) -> Input {
         released: Some((MouseButton::Left, point)),
         ..Default::default()
     }
+}
+
+fn open_inspection(engine: &Engine, panels: &mut Panels, atlas: &mut TextAtlas, window: u64, size: [f32; 2]) -> Rect {
+    let viewport = view(panels, window, size);
+    let sheet = PaintList::default().styles();
+    let button = [viewport.min[0] + sheet.metric("viewer.zoom.width", 64.)
+        + sheet.metric("viewer.percent.width", 14.) + sheet.metric("viewer.controls.gap", 4.) * 2.
+        + sheet.metric("viewer.fit.width", 40.) + sheet.metric("viewer.overlay.button.width", 64.) * 0.5,
+        viewport.max[1] + sheet.metric("viewer.canvas.bottom", 6.) + sheet.metric("viewer.controls.height", 28.) * 0.5];
+    assert!(draw(engine, panels, atlas, window, size, press(button)).1.is_empty());
+    let point = panels.viewer_guides.menu.as_ref().unwrap().point;
+    let padding = sheet.metric("padding.panel", 8.);
+    let row = sheet.metric("row.height", 22.);
+    let width = sheet.metric("viewer.overlay.menu.width", 232.).min(size[0]);
+    let x = point[0].clamp(0., (size[0] - width).max(0.));
+    let top = if window == 0 { CHROME_HEIGHT } else { sheet.metric("viewer.floating.top", 30.) };
+    let height = (row * 10. + padding * 2.).min((size[1] - top).max(0.));
+    let y = (point[1] - height).clamp(top.min(size[1]), (size[1] - height).max(top.min(size[1])));
+    let actions = draw(engine, panels, atlas, window, size, press([x + padding + 10., y + padding + row * 9.5])).1;
+    let [Action::OpenViewerInspection { floating, point }] = actions.as_slice() else { panic!("inspection entry: {actions:?}") };
+    assert_eq!(*floating, window != 0);
+    let point = *point;
+    panels.viewer_inspection.open(*floating, point, &engine.state().unwrap());
+    assert!(draw(engine, panels, atlas, window, size, Input::default()).1.is_empty());
+    let height = (row * 6. + padding * 2.).min((size[1] - top).max(0.));
+    let x = point[0].clamp(0., (size[0] - width).max(0.));
+    let y = (point[1] - height).clamp(top.min(size[1]), (size[1] - height).max(top.min(size[1])));
+    Rect::new(x + padding, y + padding, width - padding * 2., row)
 }
 
 #[test]
@@ -297,6 +325,40 @@ fn viewer_channel_native_main_float_locales_pixels_and_export() {
                 else { assert_eq!(pixel[0], pixel[1]); assert_eq!(pixel[1], pixel[2]); assert_eq!(pixel[3], 255); selected.push(pixel[0]); }
             }
             assert!(selected[0] > selected[1] && selected[1] > selected[2] && selected[3] > selected[0], "{selected:?}");
+
+            // Drive the actual chrome entry and the same asynchronous commands used by the shell.
+            let row = sheet.metric("row.height", 22.);
+            let menu = open_inspection(&engine, &mut panels, &mut atlas, window, size);
+            let row_point = |index: f32| [menu.min[0] + menu.width() * 0.5, menu.min[1] + row * (index + 0.5)];
+            let actions = draw(&engine, &mut panels, &mut atlas, window, size, press(row_point(0.))).1;
+            assert!(matches!(actions.as_slice(), [Action::CaptureViewerSnapshot { floating }] if *floating == (window != 0)));
+            let source = crate::panels::viewer_inspection::identity(&engine.state().unwrap()).unwrap();
+            panels.viewer_inspection.set_busy(window != 0, true);
+            let captured = engine.capture_viewer_snapshot_async(window).unwrap();
+            crate::native_test_support::receive(&mut events, &captured, Duration::from_secs(30)).unwrap().unwrap();
+            panels.viewer_inspection.capture_done(window != 0, &source, true);
+
+            let menu = open_inspection(&engine, &mut panels, &mut atlas, window, size);
+            let click = |index: f32| [menu.min[0] + menu.width() * 0.5, menu.min[1] + row * (index + 0.5)];
+            assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(click(2.))).1.is_empty());
+            assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).comparison_split, Some(0.5));
+            let actions = draw(&engine, &mut panels, &mut atlas, window, size, press(click(1.))).1;
+            assert!(matches!(actions.as_slice(), [Action::SaveViewerSnapshot { floating }] if *floating == (window != 0)));
+            let saved = root.join(format!("{locale_name}-{window}-ui-snapshot.png"));
+            let receive = engine.save_viewer_snapshot_async(window, saved.clone(), motion_render::ViewChannel::Color).unwrap();
+            crate::native_test_support::receive(&mut events, &receive, Duration::from_secs(30)).unwrap().unwrap();
+            assert!(image::open(saved).unwrap().to_rgba8().get_pixel(320, 240)[0] > 0);
+
+            let menu = open_inspection(&engine, &mut panels, &mut atlas, window, size);
+            let select = [menu.min[0] + menu.width() * 0.5, menu.min[1] + row * 3.5];
+            assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(select)).1.is_empty());
+            let start = mapping.screen([160., 120.]);
+            let end = mapping.screen([480., 360.]);
+            assert!(draw(&engine, &mut panels, &mut atlas, window, size, press(start)).1.is_empty());
+            assert!(draw(&engine, &mut panels, &mut atlas, window, size, release(end)).1.is_empty());
+            assert_eq!(panels.viewer_inspection.frame(window != 0, motion_render::ViewChannel::Color).region, Some([0.25, 0.25, 0.5, 0.5]));
+            let inspected = capture(&mut events, &engine, &mut panels, &mut atlas, window, size, ratio, &root.join(format!("{locale_name}-{window}-ui-region.png")));
+            assert_eq!(*inspected.get_pixel((sample[0] * ratio) as u32, (sample[1] * ratio) as u32), initial);
         }
     }
     assert_eq!(engine.state().unwrap()["project"], before);
