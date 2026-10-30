@@ -13,7 +13,7 @@ pub use spatial_schedule::{PreparedSpatialTiming, SpatialKeyTime, SpatialKeyTime
 mod spatial_animation;
 #[path = "animation/track_serde.rs"]
 mod track_serde;
-pub use spatial_animation::{SpatialAnimation, SpatialAnimationKey};
+pub use spatial_animation::{SpatialAnimation, SpatialAnimationKey, SpatialCacheUsage};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

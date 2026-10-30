@@ -288,6 +288,24 @@ pub struct PreparedSpatialTiming {
     ids: Vec<u64>,
 }
 impl PreparedSpatialTiming {
+    pub(super) fn retained_bytes(&self) -> usize {
+        // Include the Arc's two counters and alignment allowance. Allocator
+        // metadata/size-class rounding is outside this payload accounting.
+        std::mem::size_of::<Self>()
+            .saturating_add(2 * std::mem::size_of::<usize>())
+            .saturating_add(std::mem::align_of::<Self>() - 1)
+            .saturating_add(self.path.retained_heap_bytes())
+            .saturating_add(
+                self.times
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<f64>()),
+            )
+            .saturating_add(
+                self.ids
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<u64>()),
+            )
+    }
     pub(super) fn path(&self) -> &SpatialPath {
         &self.path
     }

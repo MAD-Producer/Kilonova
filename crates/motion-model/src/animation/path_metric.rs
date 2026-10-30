@@ -88,6 +88,73 @@ pub struct SpatialPath {
     authored: Vec<i32>,
 }
 
+impl SpatialPath {
+    /// Reserved payload capacity; the enclosing schedule accounts for headers.
+    pub(super) fn retained_heap_bytes(&self) -> usize {
+        self.intervals.iter().fold(
+            self.intervals
+                .capacity()
+                .saturating_mul(std::mem::size_of::<Interval>())
+                .saturating_add(
+                    self.cumulative
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<f64>()),
+                )
+                .saturating_add(
+                    self.authored
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<i32>()),
+                ),
+            |bytes, interval| {
+                bytes.saturating_add(
+                    interval
+                        .nodes
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<Node>()),
+                )
+            },
+        )
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+    #[test]
+    fn spatial_cache_accounting_includes_reserved_unused_capacity_and_all_node_tables() {
+        let mut track = Track::constant([0.; 3]);
+        track.upsert(0, [0.; 3], Ease::Linear).unwrap();
+        track.upsert(10, [10., 0., 0.], Ease::Linear).unwrap();
+        let mut path = track
+            .prepare_spatial_path(SpatialPathBudget::default())
+            .unwrap();
+        let first = path.retained_heap_bytes();
+        let mut expected = first;
+        let previous = path.intervals[0].nodes.capacity();
+        path.intervals[0].nodes.reserve(100);
+        expected += (path.intervals[0].nodes.capacity() - previous) * std::mem::size_of::<Node>();
+        let previous = path.cumulative.capacity();
+        path.cumulative.reserve(50);
+        expected += (path.cumulative.capacity() - previous) * std::mem::size_of::<f64>();
+        let previous = path.authored.capacity();
+        path.authored.reserve(30);
+        expected += (path.authored.capacity() - previous) * std::mem::size_of::<i32>();
+        let previous = path.intervals.capacity();
+        path.intervals.reserve(4);
+        expected += (path.intervals.capacity() - previous) * std::mem::size_of::<Interval>();
+        assert_eq!(path.retained_heap_bytes(), expected);
+        assert!(expected > first);
+        let schedule = SpatialKeyTimes::new(&[0., 10.])
+            .unwrap()
+            .resolve(path)
+            .unwrap();
+        assert!(
+            schedule.retained_bytes() > expected,
+            "schedule IDs, effective times and Arc header must count too"
+        );
+    }
+}
+
 fn distance(a: Point, b: Point) -> f64 {
     a.into_iter()
         .zip(b)
@@ -352,7 +419,9 @@ impl<T: Tween> Track<T> {
 }
 
 impl SpatialPath {
-    pub(super) fn key_count(&self) -> usize { self.authored.len() }
+    pub(super) fn key_count(&self) -> usize {
+        self.authored.len()
+    }
     pub fn total_length(&self) -> f64 {
         *self.cumulative.last().unwrap_or(&0.)
     }

@@ -58,7 +58,7 @@ pub use keyframe_clipboard::curve_clipboard::CurveClipboard;
 pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween, SpatialPath, SpatialPathBudget, SpatialPathSample};
 pub use animation::{PreparedSpatialTiming, SpatialKeyTime, SpatialKeyTimes};
-pub use animation::{SpatialAnimation, SpatialAnimationKey};
+pub use animation::{SpatialAnimation, SpatialAnimationKey, SpatialCacheUsage};
 pub use audio::{AudioAsset, AudioClip};
 pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
 pub use camera::{

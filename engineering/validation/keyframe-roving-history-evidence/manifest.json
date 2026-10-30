@@ -1,0 +1,161 @@
+{
+  "baseline": "59373178ffc62703c0261254e4fa12d952cab21d",
+  "issue": 260,
+  "source_snapshot": "source-snapshot-verified.json",
+  "scope": "派生空间缓存的撤销历史预算；不是 #260 完成证明",
+  "verified": {
+    "distinct_passed": 67,
+    "ignored": 1,
+    "core_complete": "core-lib-verified.log",
+    "model_space_units": "spatial-verified.log",
+    "integration": "integration-verified.log",
+    "format_check": "rustfmt-verified.log",
+    "source_sha256_matches": true,
+    "model_unit_sources_unchanged_since_spatial_verified_run": true
+  },
+  "attempts": [
+    {
+      "output": "initial.log",
+      "status": "cli_rejected",
+      "reason": "重复 --lib；未运行测试"
+    },
+    {
+      "output": "first-build.log",
+      "status": "failed",
+      "reason": "新增夹具给摄影机 Transform 锚点添加动画，正确触发现有约束；改用普通图层锚点"
+    },
+    {
+      "output": "spatial-final.log",
+      "status": "failed",
+      "reason": "新增夹具未显式创建合成摄影机；补齐合法初始状态，未更改产品校验或断言"
+    },
+    {
+      "output": "spatial-verified.log",
+      "status": "passed",
+      "core_cases": 7,
+      "model_cases": 2,
+      "note": "core 7 已包含完整 38，不重复累计"
+    },
+    {
+      "output": "core-lib-final.log",
+      "status": "passed",
+      "passed": 38,
+      "ignored": 1,
+      "note": "无改动分配身份修正前的成功输出，不计入最终验证"
+    },
+    {
+      "output": "integration-final.log",
+      "status": "passed",
+      "passed": 26,
+      "note": "无改动分配身份修正前的成功输出，不计入最终验证"
+    },
+    {
+      "output": "core-lib-verified.log",
+      "status": "passed",
+      "passed": 39,
+      "ignored": 1
+    },
+    {
+      "output": "integration-verified.log",
+      "status": "passed",
+      "passed": 26
+    }
+  ],
+  "runtime_boundaries": {
+    "changed_error_protocol": false,
+    "new_workers_or_timeouts": false,
+    "new_present_logs": false,
+    "default_worker_error_reverification": false,
+    "old_worker_evidence": "../keyframe-roving-track-evidence/manifest.json",
+    "history_bytes": "每份快照的精确 JSON + undo/redo 中不同 Arc 缓存的容量与保守控制头",
+    "excludes": [
+      "活跃工程与外部快照",
+      "准备期间瞬时分配",
+      "一般模型堆、allocator 元数据及 size class",
+      "GPU 与图像资源"
+    ],
+    "new_log_degradations": false
+  },
+  "remaining": [
+    "#260 桌面稳定身份选择、拖动、曲线、菜单与快捷键",
+    "非线性或自动时间策略与 Roving 的组合",
+    "GPU、编码输出、主浮窗、语言、DPI 与跨平台验证"
+  ],
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "bytes": 70,
+      "sha256": "d6ea0d92c612124f997b53ffb66af013c6095c1284dd71b03671922efe5f0f46"
+    },
+    {
+      "path": "core-lib-final.log",
+      "bytes": 6416,
+      "sha256": "a3d1a8056159efe8434c2393c0d28cc148e1e0f7e17161ec6be426f56c92974c"
+    },
+    {
+      "path": "core-lib-verified.log",
+      "bytes": 6639,
+      "sha256": "a3f539781836730674e2767af93c27fb8acb57f7231f1ffb28a5807cfa117840"
+    },
+    {
+      "path": "first-build.log",
+      "bytes": 2758,
+      "sha256": "b4074824471d8a1bff2a4a3ed682400a97ab552ceba30dcfad620765b09806e7"
+    },
+    {
+      "path": "initial.log",
+      "bytes": 159,
+      "sha256": "a4337f8d21d675fb3846d12053af2f48d47e626696bb16365b2073a67b11ee4d"
+    },
+    {
+      "path": "integration-final.log",
+      "bytes": 4516,
+      "sha256": "4a6ca29a8865124ffffbee6fc5da4894ce62a41c723cbfd05a1b7de05706314d"
+    },
+    {
+      "path": "integration-verified.log",
+      "bytes": 4423,
+      "sha256": "fde304e6bb1808c3bb49dd9c5125bc66eac39c3f453dd8668a784b4f4a9504aa"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1279,
+      "sha256": "36b35aa1d3edb6d6152a93cfa3dca414b0e252c09d86469be6b97850af2cdd16"
+    },
+    {
+      "path": "rustfmt-verified.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source-snapshot-verified.json",
+      "bytes": 1500,
+      "sha256": "86e71dd8f4a2f0e0f12b1d1c8aa58ed54cb612fc23f662c89b9fc302560989c9"
+    },
+    {
+      "path": "source-snapshot.json",
+      "bytes": 1500,
+      "sha256": "048b424bfe2dd26d5aa3df85518e41a3a9fc64d94d6a3e1f2113125442f29e6e"
+    },
+    {
+      "path": "spatial-final.log",
+      "bytes": 2823,
+      "sha256": "1b7fc9bab1ac304e3032ada6a17d43d995f839ca40873038e6290958990132e0"
+    },
+    {
+      "path": "spatial-verified.log",
+      "bytes": 2590,
+      "sha256": "5130e875bf767bce6c8ec297091b9607c33398dd0f6c570eb61839e8a229c6fd"
+    },
+    {
+      "path": "test-counts.json",
+      "bytes": 7179,
+      "sha256": "da80b9434700135c2d8cd9adcf041b00a31cea62ae32b45c4ae2c784495cf186"
+    }
+  ]
+}

@@ -1114,8 +1114,10 @@ impl Engine {
     }
     /// Runtime-only history pressure; eviction is the existing bounded policy.
     pub fn history_diagnostics(&self) -> serde_json::Value {
+        let usage = crate::history_accounting::history_usage(self.undo.iter().chain(&self.redo).map(|h| &h.size));
         serde_json::json!({"undoEntries":self.undo.len(),"redoEntries":self.redo.len(),
             "budgetBytes":self.history_budget,"evictions":self.history_evictions,
+            "modelBytes":usage.model_bytes,"spatialCacheBytes":usage.spatial_bytes,"retainedBytes":usage.total(),
             "gestureActive":self.gesture.is_some(),
             "gestureElapsedMs":self.gesture.as_ref().map(|g|g.started.elapsed().as_millis().min(u64::MAX as u128) as u64)})
     }
@@ -1163,13 +1165,18 @@ impl Engine {
         if before.project != self.project {
             if commit {
                 self.size = self.size.updated(&self.project, &gesture.changes);
-                self.push_undo(before);
                 self.redo.clear();
+                self.push_undo(before);
             } else {
                 self.project = before.project;
                 self.size = before.size;
                 self.revision = self.revision.wrapping_add(1);
             }
+        } else {
+            // Preview edits may rebuild equal derived data. Restore the same
+            // allocation owners represented by the unchanged size cache.
+            self.project = before.project;
+            self.size = before.size;
         }
         Ok(())
     }
@@ -1274,16 +1281,19 @@ impl Engine {
             if self.gesture.is_none() {
                 let next_size = self.size.updated(&self.project, &changes);
                 let before_size = std::mem::replace(&mut self.size, next_size);
+                self.redo.clear();
                 self.push_undo(History {
                     project: before,
                     size: before_size,
                 });
-                self.redo.clear();
             } else if let Some(gesture) = &mut self.gesture {
                 // Continuous gesture updates create no snapshots or size walks.
                 gesture.changes.merge(changes);
             }
             self.revision = self.revision.wrapping_add(1);
+        } else {
+            // Equal author state is a no-op, including its resource ownership.
+            self.project = before;
         }
         Ok(results)
     }
@@ -1339,13 +1349,7 @@ impl Engine {
     }
     fn trim(&mut self) {
         while self.undo.len() + self.redo.len() > 128
-            || self
-                .undo
-                .iter()
-                .chain(&self.redo)
-                .map(|h| h.size.bytes())
-                .sum::<usize>()
-                > self.history_budget
+            || crate::history_accounting::history_usage(self.undo.iter().chain(&self.redo).map(|h| &h.size)).total() > self.history_budget
         {
             if self.undo.pop_front().or_else(|| self.redo.pop_front()).is_some() {
                 self.history_evictions = self.history_evictions.saturating_add(1);
@@ -1366,3 +1370,6 @@ impl motion_model::EditSink for Engine {
 #[cfg(test)]
 #[path = "history_accounting_tests.rs"]
 mod history_accounting_tests;
+#[cfg(test)]
+#[path = "history_spatial_tests.rs"]
+mod history_spatial_tests;

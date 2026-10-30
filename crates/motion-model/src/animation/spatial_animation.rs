@@ -22,6 +22,69 @@ pub struct SpatialAnimation<T> {
     keys: Vec<SpatialAnimationKey<T>>,
     next_id: u64,
     prepared: std::sync::Arc<PreparedSpatialTiming>,
+    prepared_bytes: usize,
+}
+
+/// An immutable allocation identity for runtime budget accounting, never a
+/// persisted key identity. Keeping this handle keeps its allocation alive.
+#[derive(Clone)]
+pub struct SpatialCacheUsage {
+    prepared: std::sync::Arc<PreparedSpatialTiming>,
+    bytes: usize,
+}
+impl SpatialCacheUsage {
+    pub fn retained_bytes(&self) -> usize {
+        self.bytes
+    }
+}
+impl PartialEq for SpatialCacheUsage {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.prepared, &other.prepared)
+    }
+}
+impl Eq for SpatialCacheUsage {}
+impl std::hash::Hash for SpatialCacheUsage {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&std::sync::Arc::as_ptr(&self.prepared), state)
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+    #[test]
+    fn spatial_cache_usage_owns_shared_allocations_and_releases_edited_versions() {
+        let mut track = Track::constant([0.; 3]);
+        for (frame, x) in [(0, 0.), (4, 1.), (10, 8.)] {
+            track.upsert(frame, [x, 0., 0.], Ease::Linear).unwrap();
+        }
+        track.enable_roving(&[4]).unwrap();
+        let mut animation = track.spatial_animation.take().unwrap();
+        let usage = animation.cache_usage();
+        let weak = std::sync::Arc::downgrade(&animation.prepared);
+        assert!(usage.retained_bytes() > std::mem::size_of::<PreparedSpatialTiming>());
+        let clone = animation.clone();
+        let mut identities = std::collections::HashSet::new();
+        assert!(identities.insert(usage.clone()));
+        assert!(!identities.insert(clone.cache_usage()));
+        animation.set_fixed_time(2, 2.5).unwrap();
+        assert!(identities.insert(animation.cache_usage()));
+        assert_eq!(identities.len(), 2);
+        drop(clone);
+        assert!(
+            weak.upgrade().is_some(),
+            "budget handle must keep identity alive"
+        );
+        drop(identities);
+        drop(usage);
+        assert!(
+            weak.upgrade().is_none(),
+            "retired geometry must be released without a global registry"
+        );
+        let current = std::sync::Arc::downgrade(&animation.prepared);
+        drop(animation);
+        assert!(current.upgrade().is_none());
+    }
 }
 
 #[derive(Deserialize)]
@@ -156,10 +219,12 @@ impl<T: Tween> SpatialAnimation<T> {
         // author times or key identities. They are not persisted or exposed.
         let path = geometry.prepare_spatial_path(SpatialPathBudget::default())?;
         let prepared = times.resolve(path)?;
+        let prepared_bytes = prepared.retained_bytes();
         Ok(Self {
             keys,
             next_id,
             prepared: std::sync::Arc::new(prepared),
+            prepared_bytes,
         })
     }
 
@@ -168,6 +233,13 @@ impl<T: Tween> SpatialAnimation<T> {
     }
     pub fn prepared(&self) -> &PreparedSpatialTiming {
         &self.prepared
+    }
+    /// O(1), including for unchanged snapshots of a long curved path.
+    pub fn cache_usage(&self) -> SpatialCacheUsage {
+        SpatialCacheUsage {
+            prepared: self.prepared.clone(),
+            bytes: self.prepared_bytes,
+        }
     }
     pub fn sample(&self, frame: f64) -> Result<SpatialPathSample> {
         ensure(frame.is_finite(), "spatial sample time must be finite")?;
