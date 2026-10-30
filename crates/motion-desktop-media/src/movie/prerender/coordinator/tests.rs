@@ -173,3 +173,71 @@ fn invalidated_actual_job_keeps_its_slot_until_ack_and_cannot_install_then_recov
     assert!(drain(&mut owner, &renderer));
     assert!(owner.get(&renderer, 1.).unwrap().is_some());
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn canceled_render_preserves_completed_pixels_only_after_matching_source_acknowledgment() {
+    let root = tempfile::tempdir().unwrap();
+    let session = session(root.path());
+    let renderer = pollster::block_on(Renderer::headless_with_working_precision(
+        session.engine.project().working_precision,
+        session.allocation_budget().clone(),
+    ))
+    .unwrap();
+    let mut owner = Coordinator::new(policy(), 3072, 6144).unwrap();
+    prepare(&mut owner, &session, &renderer);
+    owner.update(demand()).unwrap();
+    assert!(owner.schedule(&renderer, ExportControl::default()).unwrap());
+    assert!(drain(&mut owner, &renderer));
+    let cached = owner.get(&renderer, 1.).unwrap().unwrap();
+    let context = cached.key().context();
+
+    // Cancel after actual worker completion, before foreground acknowledgment.
+    // This deterministically exercises the publication/control race as well as
+    // preserving the first frame while the second destination is still owned.
+    let control = ExportControl::default();
+    assert!(owner.schedule(&renderer, control.clone()).unwrap());
+    let began = Instant::now();
+    while !owner
+        .observation()
+        .unwrap()
+        .snapshot()
+        .unwrap()
+        .completion_waiting
+    {
+        assert!(began.elapsed() < Duration::from_secs(30));
+        std::thread::yield_now();
+    }
+    control.cancel();
+    assert!(!drain(&mut owner, &renderer));
+    assert!(owner.profile().is_none());
+    assert!(owner.get(&renderer, 1.).unwrap().is_none());
+    assert_eq!(owner.cache_info().unwrap().resident_frames, 1);
+    assert_eq!(owner.cache_info().unwrap().pending_bytes, 0);
+
+    prepare(&mut owner, &session, &renderer);
+    let reused = owner.get(&renderer, 1.).unwrap().unwrap();
+    assert!(Arc::ptr_eq(&cached, &reused));
+    assert_eq!(owner.cache_info().unwrap().installed, 1);
+    assert_eq!(
+        pixels(&renderer, reused.source()),
+        [255, 0, 0, 255].repeat(32 * 24)
+    );
+
+    // Same generation tokens and dimensions are insufficient. A changed frozen
+    // source must produce a different digest and discard the retained cache.
+    let changed_root = tempfile::tempdir().unwrap();
+    let mut project = Project::new(32, 24, 30, 6).unwrap();
+    project.layers.push(motion_core::Layer::solid(
+        1,
+        "Coordinator pixels",
+        [32., 24.],
+        [16., 12., 0.],
+        [0., 1., 0., 1.],
+    ));
+    let changed = Session::new(project, changed_root.path().into(), crate::platform()).unwrap();
+    prepare(&mut owner, &changed, &renderer);
+    assert_ne!(owner.profile().unwrap().context.content, context.content);
+    assert_eq!(owner.cache_info().unwrap().resident_frames, 0);
+    assert!(owner.get(&renderer, 1.).unwrap().is_none());
+}
