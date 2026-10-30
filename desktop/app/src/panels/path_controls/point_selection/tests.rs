@@ -1,6 +1,52 @@
 use super::*;
 use motion_ui::input::Modifiers;
 
+#[test]
+fn automatic_grips_show_sampled_curve_but_anchor_drag_preserves_manual_handles() {
+    use motion_core::vector::TangentMode;
+    for mask in [false,true] {
+        for locale in [Locale::Zh,Locale::En] {
+            let mut h=Harness::new(mask,true,locale,1.);
+            h.engine.apply(if mask {Command::Mask {object:7,action:motion_core::masks::MaskAction::SetPathTangents{mask:1,path:3,mode:TangentMode::Automatic}}}
+                else {Command::Vector{object:7,action:motion_core::vector::VectorAction::SetPathTangents{item:None,path:3,mode:TangentMode::Automatic}}}).unwrap();
+            let before=h.engine.project().clone();
+            let state=h.state();
+            let paths=if mask { vec![state["mask_layers"][0]["masks"][0]["path"].clone()] }
+                else {source_geometry::paths(&before.layers[0],0.).unwrap()};
+            let g=geometry(&paths[0]["nodes"][0]).unwrap();
+            let raw=edit_geometry(&paths[0]["nodes"][0]).unwrap();
+            assert_ne!(g[2..],raw[2..]);
+            let mut manual=paths.clone();
+            manual[0]["tangents"]=serde_json::json!("manual");
+            let base=layer_projection(&state,7,h.view).unwrap();
+            let projection=source_geometry::projection(&base,&paths[0]).unwrap();
+            let offset=if mask {[50.;2]} else {[0.;2]};
+            let handle=projection.screen([g[0]+g[4]-offset[0],g[1]+g[5]-offset[1]]).unwrap();
+            assert!(h.controls.point_selection.hovered(&manual,&base,offset,handle,None).is_some_and(|(_,_,axis)|axis==Some(4)));
+            assert!(h.controls.point_selection.hovered(&paths,&base,offset,handle,None).is_none());
+            let start=h.position([-90.,-60.]);
+            let end=h.position([-70.,-50.]);
+            h.input(Input{mouse:start,pressed:Some((MouseButton::Left,start)),held:Some(MouseButton::Left),..Default::default()});
+            h.input(Input{mouse:end,held:Some(MouseButton::Left),..Default::default()});
+            h.input(Input{mouse:end,released:Some((MouseButton::Left,end)),..Default::default()});
+            let after=h.engine.project();
+            let authored=|p:&motion_core::Project| -> VectorPath {
+                if mask {p.layers[0].masks[0].path.clone()} else {
+                    let Content::Vector{vector}=&p.layers[0].content else {panic!()};
+                    let VectorSource::Paths{paths}=&vector.source else {panic!()};paths[0].clone()
+                }
+            };
+            let old=authored(&before);let new=authored(after);
+            assert_eq!(new.tangents,TangentMode::Automatic);
+            assert_eq!(&new.nodes[0].geometry.value[2..],&old.nodes[0].geometry.value[2..]);
+            assert!((new.nodes[0].geometry.value[0]+70.).abs()<0.001);
+            assert!((new.nodes[0].geometry.value[1]+50.).abs()<0.001);
+            assert_eq!(&new.nodes[1..],&old.nodes[1..]);
+            h.persist_undo(&before);
+        }
+    }
+}
+
 fn path(closed: bool) -> VectorPath {
     VectorPath {
         tangents: Default::default(), id: 3,
@@ -55,8 +101,9 @@ impl Harness {
     fn state(&self) -> Value {
         let layer = &self.engine.project().layers[0];
         let masks:Vec<_> = layer.masks.iter().map(|m|serde_json::json!({"id":m.id,"path":{
-            "id":m.path.id,"closed":m.path.closed,"nodes":m.path.nodes.iter().map(|n|
-                serde_json::json!({"id":n.id,"geometry":n.geometry.sample(layer.local_frame(f64::from(self.frame))).unwrap(),
+            "id":m.path.id,"closed":m.path.closed,"tangents":m.path.tangents,"nodes":m.path.nodes.iter().enumerate().map(|(i,n)|
+                serde_json::json!({"id":n.id,"geometry":m.path.sample(layer.local_frame(f64::from(self.frame))).unwrap().nodes[i],
+                    "authored_geometry":n.geometry.sample(layer.local_frame(f64::from(self.frame))).unwrap(),
                     "animated":n.geometry.is_animated()})).collect::<Vec<_>>()}})).collect();
         serde_json::json!({"root":"point-selection-fixture","composition":"comp-main","frame":self.frame,
             "revision":self.engine.revision(),"project":self.engine.project(),"mask_layers":[{"id":7,"masks":masks}],

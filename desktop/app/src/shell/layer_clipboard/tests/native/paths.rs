@@ -296,6 +296,21 @@ fn verify_path_context(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32
     capture_panel(events, shell, size, scale, window, root.join(format!("{name}-mask-context.png")), Panel::Composition);
     let expected = if shell.panels.locale == Locale::Zh { "复制为形状路径" } else { "Copy as Shape Path" };
     assert_eq!(shell.panels.path_controls.context_rows[1].0, expected);
+    path_menu_choose(shell,size,window,2);
+    let mask=&shell.state["project"]["layers"][0]["masks"][0]["path"];
+    assert_eq!(mask["tangents"],"automatic");
+    let projected=&shell.state["mask_layers"][0]["masks"][0]["path"];
+    assert_eq!(projected["tangents"],"automatic");
+    assert_eq!(projected["nodes"][0]["authored_geometry"],mask["nodes"][0]["geometry"]["value"]);
+    assert_ne!(projected["nodes"][0]["geometry"],projected["nodes"][0]["authored_geometry"]);
+    assert!(draw_paths(shell,size,window,right()).is_empty());
+    capture_panel(events,shell,size,scale,window,root.join(format!("{name}-mask-tangents-menu.png")),Panel::Composition);
+    path_menu_choose(shell,size,window,2);
+    assert_eq!(shell.state["project"],mask_project);
+    shell.state=shell.engine.history(0).unwrap();
+    shell.state=shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"],mask_project);
+    assert!(draw_paths(shell,size,window,right()).is_empty());
     path_menu_choose(shell, size, window, 1);
     assert_eq!(shell.state["project"]["layers"][0], mask_project["layers"][0]);
     assert_eq!(shell.state["project"]["layers"].as_array().unwrap().len(), 3);
@@ -309,4 +324,26 @@ fn verify_path_context(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32
     assert_eq!(shell.state["project"], mask_project);
     shell.state = shell.engine.history(0).unwrap();
     assert_eq!(shell.state["project"], before);
+    // Exercise the new mode through the same production menu/action/worker route.
+    shell.panels.select_only(Some(7));
+    shell.panels.path_controls.choose(Tool::Pen, &mut actions);
+    assert!(draw_paths(shell,size,window,Input::default()).is_empty());
+    assert!(draw_paths(shell,size,window,right()).is_empty());
+    capture_panel(events,shell,size,scale,window,root.join(format!("{name}-tangents-manual-menu.png")),Panel::Composition);
+    path_menu_choose(shell,size,window,2);
+    let auto_path=&shell.state["project"]["layers"][0]["content"]["vector"]["source"]["paths"][0];
+    assert_eq!(auto_path["tangents"],"automatic");
+    assert_eq!(auto_path["nodes"],before["layers"][0]["content"]["vector"]["source"]["paths"][0]["nodes"]);
+    shell.engine.save().unwrap();
+    assert_eq!(serde_json::to_value(motion_core::storage::load(&root.join("project")).unwrap()).unwrap(),shell.state["project"]);
+    capture_panel(events,shell,size,scale,window,root.join(format!("{name}-tangents-automatic.png")),Panel::Composition);
+    assert!(draw_paths(shell,size,window,right()).is_empty());
+    assert_eq!(shell.panels.path_controls.context_rows[2].0,if shell.panels.locale==Locale::Zh {"恢复手动切线"} else {"Restore Manual Tangents"});
+    capture_panel(events,shell,size,scale,window,root.join(format!("{name}-tangents-automatic-menu.png")),Panel::Composition);
+    path_menu_choose(shell,size,window,2);
+    assert_eq!(shell.state["project"],before);
+    shell.state=shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"]["layers"][0]["content"]["vector"]["source"]["paths"][0]["tangents"],"automatic");
+    shell.state=shell.engine.history(0).unwrap();
+    assert_eq!(shell.state["project"],before);
 }

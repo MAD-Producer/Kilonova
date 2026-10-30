@@ -145,7 +145,7 @@ impl Selection {
                 motion_core::Error::Invalid("selected path cannot unproject pointer".into())
             })?;
             for (point, node) in nodes {
-                let geometry = geometry(node).ok_or_else(|| {
+                let geometry = edit_geometry(node).ok_or_else(|| {
                     motion_core::Error::Invalid("selected node geometry unavailable".into())
                 })?;
                 seeds.push(Seed {
@@ -371,7 +371,7 @@ impl Selection {
                 let key = Point::new(path, node["id"].as_u64().unwrap_or(1));
                 for axis in [0, 2, 4] {
                     if axis != 0
-                        && (path["bounds_size"].is_array()
+                        && (automatic(path) || path["bounds_size"].is_array()
                             || (!self.points.contains(&key)
                                 && primary != Some(key)
                                 && (!self.points.is_empty() || primary.is_some()))
@@ -420,6 +420,7 @@ impl Selection {
                                 .map(|p| (g, p))
                         }) {
                             for axis in [2, 4] {
+                                if automatic(path) { continue; }
                                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
                                     continue;
                                 }

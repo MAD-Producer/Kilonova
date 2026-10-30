@@ -116,3 +116,35 @@ fn sampled_coordinates_use_the_existing_sample_bound_not_the_authored_track_boun
     motion_model::vector::auto_tangents::apply(&mut nodes, false).unwrap();
     assert_eq!(nodes[0][4], 10. / 3.);
 }
+
+#[test]
+fn animated_open_and_closed_paths_keep_correspondence_through_key_boundaries() {
+    for closed in [false, true] {
+        let mut path = path();
+        path.closed = closed;
+        let original = path.clone();
+        let mut previous = path.sample(-0.01).unwrap().nodes;
+        for tick in 0..=1001 {
+            let frame = f64::from(tick) * 0.01;
+            let sampled = path.sample(frame).unwrap();
+            for ((node, g), before) in path.nodes.iter().zip(&sampled.nodes).zip(&previous) {
+                assert_eq!(g[..2], node.geometry.sample(frame).unwrap()[..2]);
+                assert!(g.iter().zip(before).all(|(a,b)|(a-b).abs()<0.25),
+                    "unexpected geometric jump: closed={closed} frame={frame}");
+            }
+            previous = sampled.nodes;
+        }
+        assert_eq!(path, original);
+    }
+    // Cost observation, deliberately without a wall-clock assertion in CI.
+    let mut large = path();
+    large.closed = false;
+    large.nodes = (0..2048).map(|i| PathNode {
+        id:i+1, geometry:Track::constant([i as f32, (i as f32 * 0.1).sin(),0.,0.,0.,0.])
+    }).collect();
+    let start = std::time::Instant::now();
+    for frame in 0..100 {
+        assert_eq!(large.sample(f64::from(frame)).unwrap().nodes.len(),2048);
+    }
+    eprintln!("automatic tangent sampling: nodes=2048 samples=100 elapsed_us={}",start.elapsed().as_micros());
+}

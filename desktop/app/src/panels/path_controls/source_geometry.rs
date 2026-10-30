@@ -16,15 +16,20 @@ fn leaf(
     match &vector.source {
         VectorSource::Paths { paths } => {
             for path in paths {
+                let sampled = path.sample(frame)?;
                 let nodes: Vec<_> = path
                     .nodes
                     .iter()
-                    .map(|n| -> motion_core::Result<_> {
-                        Ok(serde_json::json!({
-                "id":n.id,"geometry":n.geometry.sample(frame)?,"animated":n.geometry.is_animated()}))
+                    .zip(sampled.nodes)
+                    .map(|(n,g)| -> motion_core::Result<_> {
+                        let mut node = serde_json::json!({"id":n.id,"geometry":g,"animated":n.geometry.is_animated()});
+                        if path.tangents == motion_core::vector::TangentMode::Automatic {
+                            node["authored_geometry"] = serde_json::json!(n.geometry.sample(frame)?);
+                        }
+                        Ok(node)
                     })
                     .collect::<motion_core::Result<_>>()?;
-                out.push(serde_json::json!({"id":path.id,"closed":path.closed,"nodes":nodes,"item":item,"basis":matrix}));
+                out.push(serde_json::json!({"id":path.id,"closed":path.closed,"tangents":path.tangents,"nodes":nodes,"item":item,"basis":matrix}));
             }
         }
         VectorSource::Shape { .. } => {
