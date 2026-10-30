@@ -261,11 +261,29 @@ def verify_mcp(binary: Path, output: Path) -> None:
                 send("initialize", {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "motion-ci", "version": "1"}})
                 send("notifications/initialized", notification=True)
                 tools = send("tools/list")["tools"]
-                expected_tools = {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save", "command_list", "command_run", "command_batch", "render_preview", "import_model"}
+                expected_tools = {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save", "command_list", "command_run", "command_batch", "render_preview", "import_model", "configure_prerender"}
                 actual_tools = {tool["name"] for tool in tools}
                 if actual_tools != expected_tools:
                     raise RuntimeError(f"MCP catalogue differs: missing={sorted(expected_tools - actual_tools)}, unexpected={sorted(actual_tools - expected_tools)}")
                 state = send("tools/call", {"name": "motion_state", "arguments": {}})["structuredContent"]
+                if state["desktop"]["prerender"]["enabled"] is not False:
+                    raise RuntimeError("background prerender must be disabled by default")
+                enabled = send("tools/call", {"name": "configure_prerender", "arguments": {"enabled": True, "window": 2}})
+                if enabled.get("isError") or enabled["structuredContent"]["enabled"] is not True:
+                    raise RuntimeError(f"shared prerender enable failed: {enabled}")
+                rejected = send("tools/call", {"name": "configure_prerender", "arguments": {"enabled": False, "window": 9}})
+                if rejected.get("isError") is not True:
+                    raise RuntimeError("invalid prerender policy must be rejected")
+                still_enabled = send("tools/call", {"name": "motion_state", "arguments": {}})["structuredContent"]
+                if still_enabled["desktop"]["prerender"]["enabled"] is not True:
+                    raise RuntimeError("invalid prerender policy changed the active policy")
+                disabled = send("tools/call", {"name": "configure_prerender", "arguments": {"enabled": False}})
+                if disabled.get("isError") or disabled["structuredContent"]["enabled"] is not False:
+                    raise RuntimeError(f"shared prerender disable failed: {disabled}")
+                after_policy = send("tools/call", {"name": "motion_state", "arguments": {}})["structuredContent"]
+                for key in ("project", "revision", "canUndo", "canRedo", "frame", "document_generation"):
+                    if key not in state or after_policy[key] != state[key]:
+                        raise RuntimeError(f"prerender policy changed authored state: {key}")
                 result = send("tools/call", {"name": "motion_edit", "arguments": {
                     "expectedRevision": state["revision"],
                     "commands": [{"op": "add_shape", "id": 2, "name": "MCP 矩形", "shape": "rectangle", "size": [120, 120], "position": [960, 540, 0]}],
