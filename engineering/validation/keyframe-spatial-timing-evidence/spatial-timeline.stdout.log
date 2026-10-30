@@ -1,0 +1,61 @@
+
+running 56 tests
+test panels::timeline_shortcuts_tests::a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts ... ok
+test panels::timeline_shortcuts_tests::active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph ... ok
+test panels::timeline_shortcuts_tests::bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits ... ok
+test panels::timeline_shortcuts_tests::clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer ... ok
+test panels::timeline_shortcuts_tests::curve_selection_box_delete_owns_keys_only_in_the_focused_timeline ... ok
+test panels::timeline_shortcuts_tests::curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss ... ok
+test panels::timeline_shortcuts_tests::curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes ... ok
+test panels::timeline_shortcuts_tests::custom_animated_property_chords_preserve_double_press_and_input_ownership ... ok
+test panels::timeline_shortcuts_tests::custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority ... ok
+test panels::timeline_shortcuts_tests::custom_select_all_routes_the_graph_selection_and_disables_its_old_chord ... ok
+test panels::timeline_shortcuts_tests::ease_does_not_edit_without_explicit_selection_or_a_locked_or_foreign_layer ... ok
+test panels::timeline_shortcuts_tests::easy_ease_changes_the_selected_keys_two_sides_as_one_undoable_edit ... ok
+test panels::timeline_shortcuts_tests::f4_toggles_composite_columns_and_shift_f4_toggles_parent ... ok
+test panels::timeline_shortcuts_tests::fields_search_ime_and_drag_own_animation_shortcuts ... ok
+test panels::timeline_shortcuts_tests::graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key ... ok
+test panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_faults_use_bounded_default_file_and_error_stderr_without_stdout ... ok
+test panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_rejects_noninteger_composition_frames_before_history_and_recovers ... ok
+test panels::timeline_shortcuts_tests::graph_drag_return_to_origin_then_cancel_restores_engine_bytes ... ok
+test panels::timeline_shortcuts_tests::graph_property_tree_selects_y_without_separating_or_editing_the_track ... ok
+test panels::timeline_shortcuts_tests::graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history ... ok
+test panels::timeline_shortcuts_tests::graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid ... ok
+test panels::timeline_shortcuts_tests::group_reveal_tests::effect_and_mask_keys_reveal_filtered_collapsed_items_and_toggle_in_both_hosts_and_locales ... ok
+test panels::timeline_shortcuts_tests::group_reveal_tests::group_keys_defer_to_text_ime_lost_focus_repeat_menus_and_active_gestures ... ok
+test panels::timeline_shortcuts_tests::group_reveal_tests::group_shortcuts_can_be_remapped_persisted_and_suppressed_without_stealing_other_chords ... ok
+test panels::timeline_shortcuts_tests::group_reveal_tests::mixed_selections_only_reveal_real_groups_without_changing_keys_or_document_history ... ok
+test panels::timeline_shortcuts_tests::group_reveal_tests::native::native_group_shortcuts_capture_both_owners_and_locales_without_document_edits ... ignored, manual native timeline disclosure captures; retained artifacts required
+test panels::timeline_shortcuts_tests::group_reveal_tests::supported_content::supported_content_plans_keep_real_channels_and_exclude_unimplemented_properties ... ok
+test panels::timeline_shortcuts_tests::in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers ... ok
+test panels::timeline_shortcuts_tests::in_out_shortcuts_seek_to_the_selected_clip_without_editing ... ok
+test panels::timeline_shortcuts_tests::linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection ... ok
+test panels::timeline_shortcuts_tests::navigation_uses_visible_property_times_and_accumulates_repeated_keys ... ok
+test panels::timeline_shortcuts_tests::one_sided_easing_preserves_the_opposite_bezier_handle ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::changed_project_composition_target_or_dimensions_blocks_stale_navigation ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::explicit_property_navigation_uses_one_channel_in_normal_and_graph_hosts ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::invalid_scope_cancels_an_active_graph_transaction_exactly_once_and_restores_authored_data ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_displayed_key ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::projection_keeps_unselected_layer_navigation_and_cannot_rebind_explicit_selection ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::property_reveal_selects_an_available_separated_axis_including_2d_rotation_z ... ok
+test panels::timeline_shortcuts_tests::property_context_tests::stale_key_owns_delete_without_editing_reused_objects_or_falling_through_to_layer_delete ... ok
+test panels::timeline_shortcuts_tests::property_keys_filter_and_append_without_editing_and_u_omits_static_channels ... ok
+test panels::timeline_shortcuts_tests::repeated_p_can_be_reopened_manually_in_both_property_views ... ok
+test panels::timeline_shortcuts_tests::reveal_axis_tests::property_inspector_reveal_retains_the_selected_axis_and_key ... ok
+test panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_does_not_reuse_a_stale_scope_or_another_property_axis ... ok
+test panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_retains_selected_axis_and_key_for_ease_delete_and_undo ... ok
+test panels::timeline_shortcuts_tests::reveal_axis_tests::scale_and_rotation_reveal_keep_each_valid_selected_axis ... ok
+test panels::timeline_shortcuts_tests::separated_axis_easing_and_value_sampling_use_composition_offsets ... ok
+test panels::timeline_shortcuts_tests::shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling ... ok
+test panels::timeline_shortcuts_tests::stale_feedback_tests::ime_text_and_repeat_ownership_keep_existing_feedback ... ok
+test panels::timeline_shortcuts_tests::stale_feedback_tests::notice_lifetime_follows_reselection_clear_and_restored_keys_without_erasing_other_messages ... ok
+test panels::timeline_shortcuts_tests::stale_feedback_tests::reselecting_an_available_key_allows_real_easing_delete_and_single_undo ... ok
+test panels::timeline_shortcuts_tests::stale_feedback_tests::stale_edits_are_explained_without_clearing_ownership_or_editing_the_project ... ok
+test panels::timeline_shortcuts_tests::stale_feedback_tests::stale_notice_is_painted_in_both_window_hosts_and_locales ... ok
+test panels::timeline_shortcuts_tests::three_dimensional_layer_anchor_graph_has_only_two_pixel_components ... ok
+test panels::timeline_shortcuts_tests::timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded ... ok
+test panels::timeline_shortcuts_tests::toggle_and_delete_keys_preserve_other_frames_and_do_not_disable_the_track ... ok
+test panels::timeline_shortcuts_tests::visible_bezier_handles_edit_the_curve_without_moving_keyframes ... ok
+
+test result: ok. 55 passed; 0 failed; 1 ignored; 0 measured; 1450 filtered out; finished in 9.29s
+

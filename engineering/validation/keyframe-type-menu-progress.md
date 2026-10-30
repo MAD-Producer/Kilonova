@@ -90,5 +90,9 @@ motion_studio-9c5cdc7b4281ddf0.exe panels::animation_menu::type_state::native_te
 
 ## 仍待完成
 
-#260 的 Roving、实际导出／渲染一致性、操作系统输入与完整浮窗原生验收、最小窗口、
+#260 在本阶段的 Roving、实际导出／渲染一致性、操作系统输入与完整浮窗原生验收、最小窗口、
 DPI 及跨平台 CI 仍未完成。实际 GPU 菜单截图不替代这些验收，不能据此关闭 issue。
+
+后续已补齐已实现自动类型的[真实编码输出验证](keyframe-automatic-export.md)，以及
+Roving 的[空间计算基础](keyframe-spatial-timing-progress.md)。它们各自标明源码基线、
+证据和剩余范围，不把本阶段未执行的工作追记为已通过。

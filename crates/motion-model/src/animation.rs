@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 
 #[path = "animation/automatic.rs"]
 mod automatic;
+#[path = "animation/path_metric.rs"]
+mod path_metric;
+pub use path_metric::{SpatialPath, SpatialPathBudget, SpatialPathSample};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -40,6 +43,9 @@ pub trait Tween: Copy + PartialEq {
     fn bounded(self, bound: f32) -> bool;
     fn add(self, other: Self) -> Self;
     fn spatial_supported() -> bool { false }
+    /// Spatial timing is restricted to explicit 2D/3D geometry. A four-channel
+    /// color or packed parameter must be projected by its semantic owner first.
+    fn spatial_dimensions() -> Option<usize> { None }
     fn spatial_components(self) -> Option<[f32;3]> { None }
     fn components(self) -> Option<[f32; 3]> {
         None
@@ -74,6 +80,7 @@ impl<const N: usize> Tween for [f32; N] {
     }
     fn add(self, other: Self) -> Self { std::array::from_fn(|i| self[i].add(other[i])) }
     fn spatial_supported() -> bool { (2..=4).contains(&N) }
+    fn spatial_dimensions() -> Option<usize> { (2..=3).contains(&N).then_some(N) }
     fn spatial_components(self) -> Option<[f32;3]> {
         Self::spatial_supported().then(|| std::array::from_fn(|i| self.get(i).copied().unwrap_or(0.)))
     }

@@ -7,7 +7,7 @@
 
 仅以[公开速度指南](https://helpx.adobe.com/after-effects/desktop/animate-in-after-effects/speed-between-keyframes/speed.html)
 核验空间属性、首尾固定键及中间键随邻键改变而重新求时的行为边界。未读取产品二进制、
-资源或专有工程，未复制文案、图标、截图或算法实现。运动路径及几何计算将独立编写，
+资源或专有工程，未复制文案、图标、截图或算法实现。运动路径及几何计算独立编写，
 不新增依赖或第三方资产。
 
 ## 当前代码的约束
@@ -45,3 +45,7 @@
 
 实际自动类型的 MP4 证据见[冻结导出验收](keyframe-automatic-export.md)。该验收不覆盖
 尚未实现的 Roving，不能据此关闭 #260。
+
+已新增不可变的空间路径度量、小数候选时间和弧长查询基础，详见
+[计算基础与独立积分验证](keyframe-spatial-timing-progress.md)。该 API 没有接入作者
+键时间、持久化或编辑器，因此不改变上表的时间身份约束，也不能据此开放 Roving。
