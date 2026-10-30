@@ -13,6 +13,7 @@ use std::{
 };
 
 mod key;
+pub mod coordinator;
 mod sources;
 pub mod worker;
 
