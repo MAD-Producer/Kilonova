@@ -169,6 +169,10 @@ fn native_controls_record_edit_and_scrub_latency_with_real_optional_work() {
             )
             .unwrap();
             for number in 0..SAMPLES {
+                // History verification may author another revision after the
+                // measured Present. Both modes show that revision before the
+                // next warmup, outside timing, as the application's redraw does.
+                show(&mut events, &mut shell);
                 // Reset the optional generation outside timing. A nonempty
                 // cache from the previous edit is not before-input evidence.
                 crate::mcp::ToolRouter {
