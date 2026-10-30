@@ -48,6 +48,7 @@ pub struct Coordinator {
     cpu_bytes: u64,
     gpu_bytes: u64,
     epoch: u64,
+    retiring: bool,
 }
 impl Coordinator {
     pub fn new(policy: schedule::Policy, cpu_bytes: u64, gpu_bytes: u64) -> Result<Self> {
@@ -61,7 +62,11 @@ impl Coordinator {
             cpu_bytes,
             gpu_bytes,
             epoch: 0,
+            retiring: false,
         })
+    }
+    pub fn profile(&self) -> Option<Profile> {
+        self.profile
     }
     pub fn status(&self) -> schedule::Status {
         self.scheduler.status()
@@ -80,6 +85,12 @@ impl Coordinator {
             .set_policy(policy)
             .map_err(|e| e.to_string())?;
         self.policy = policy;
+        if !policy.enabled || policy.window == 0 {
+            if let Some(worker) = &mut self.worker {
+                worker.shutdown();
+                self.retiring = true;
+            }
+        }
         Ok(())
     }
     /// Publish the caller's cancel control before this operation can enqueue.
@@ -87,6 +98,15 @@ impl Coordinator {
     pub fn prepare(&mut self, plan: PrerenderPlan, control: ExportControl) -> Result<bool> {
         if !self.policy.enabled || self.policy.window == 0 || self.active.is_some() {
             return Ok(false);
+        }
+        if self.retiring {
+            if let Some(worker) = &self.worker {
+                if !worker.stopped() || worker.snapshot()?.retained_cpu_bytes != 0 {
+                    return Ok(false);
+                }
+            }
+            self.worker = None;
+            self.retiring = false;
         }
         self.invalidate()?;
         if self.worker.is_none() {
