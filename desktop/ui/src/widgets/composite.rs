@@ -473,6 +473,23 @@ impl Dropdown {
         enabled: bool,
         focused: bool,
     ) -> Option<usize> {
+        self.draw_inline_styled(list, atlas, area, bounds, items, selected, input,
+            enabled, focused, "field.number")
+    }
+    /// Same interaction target and popup ownership with a window-owned style.
+    pub fn draw_inline_styled(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        bounds: Rect,
+        items: &[DropdownItem<'_>],
+        selected: usize,
+        input: &impl crate::InputSource,
+        enabled: bool,
+        focused: bool,
+        class: &str,
+    ) -> Option<usize> {
         let view = input.input_view();
         let input = &view;
         self.draw_grouped_styled(
@@ -487,7 +504,7 @@ impl Dropdown {
             focused,
             &[],
             true,
-            Some("field.number"),
+            Some(class),
         )
     }
     /// Menu for an independently rendered action button. The host opens it.
@@ -558,7 +575,14 @@ impl Dropdown {
                     states(input, area, enabled, focused || self.open),
                 )
                 .unwrap();
-            box_style(list, area, style);
+            // Compact effect enums retain the whole property row as their hit
+            // target, while the visible field shares the numeric-field height.
+            let visible = if anchor_style == "field.effect_number" {
+                let height = sheet.metric("field.height", 18.).min(area.height());
+                Rect::new(area.min[0], area.min[1] + (area.height() - height) * 0.5,
+                    area.width(), height)
+            } else { area };
+            box_style(list, visible, style);
             text_style(
                 list,
                 atlas,

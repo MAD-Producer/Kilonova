@@ -7,6 +7,9 @@ use std::{path::Path, sync::Arc};
 #[path = "../../motion-render/tests/support/imported_camera.rs"]
 mod fixture;
 
+#[path = "imported_cameras/aperture.rs"]
+mod aperture;
+
 struct CpuOnly;
 impl Platform for CpuOnly {
     fn name(&self) -> &'static str {

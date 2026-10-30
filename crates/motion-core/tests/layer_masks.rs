@@ -41,3 +41,35 @@ fn incremental_options_and_animation_keep_prior_edits_and_bound_elastic_alpha() 
     e.apply(Command::Mask{object:1,action:MaskAction::Curve{mask:1,property:MaskProperty::Opacity,frame:0,easing}}).unwrap();
     let mut s=Scene::new(e.project()).unwrap();for frame in 0..30{s.sample(e.project(),f64::from(frame),None, &motion_core::ExpressionEvaluator).unwrap();assert!((0. ..=1.).contains(&s.layers[0].masks[0].opacity));}
 }
+
+#[test]
+fn feather_link_is_persistent_undoable_metadata_and_does_not_change_sampling() {
+    let mut e = engine();
+    e.apply(Command::Mask { object: 1, action: MaskAction::Add { mask: mask() } }).unwrap();
+    let before = e.snapshot();
+    let sample = e.project().layers[0].masks[0].sample(21.).unwrap();
+    let command: Command = serde_json::from_value(serde_json::json!({
+        "op":"mask","object":1,"action":{"kind":"feather_link","mask":1,"linked":true}
+    })).unwrap();
+    e.apply(command).unwrap();
+    assert!(e.project().layers[0].masks[0].feather_linked);
+    assert_eq!(e.project().layers[0].masks[0].sample(21.).unwrap(), sample);
+    let root = tempfile::tempdir().unwrap();
+    motion_core::storage::save(root.path(),e.project()).unwrap();
+    assert_eq!(motion_core::storage::load(root.path()).unwrap(),e.snapshot());
+    let linked = e.snapshot();
+    e.undo().unwrap();
+    assert_eq!(e.snapshot(),before);
+    e.redo().unwrap();
+    assert_eq!(e.snapshot(),linked);
+    assert!(e.apply(Command::Mask { object:1, action:MaskAction::FeatherLink { mask:999, linked:false } }).is_err());
+    assert_eq!(e.snapshot(),linked);
+    let mut missing = serde_json::to_value(e.project()).unwrap();
+    missing["layers"][0]["masks"][0].as_object_mut().unwrap().remove("feather_linked");
+    assert!(serde_json::from_value::<Project>(missing).is_err());
+    let mut locked = linked.clone();
+    locked.layers[0].locked = true;
+    let mut readonly = Engine::new(locked.clone()).unwrap();
+    assert!(readonly.apply(Command::Mask { object:1,action:MaskAction::FeatherLink {mask:1,linked:false} }).is_err());
+    assert_eq!(readonly.snapshot(),locked);
+}

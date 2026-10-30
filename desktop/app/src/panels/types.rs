@@ -9,6 +9,8 @@ pub enum Action {
     OpenViewerInspection { floating: bool, point: [f32; 2] },
     CaptureViewerSnapshot { floating: bool },
     SaveViewerSnapshot { floating: bool },
+    BeginEffectPick(super::effect_pick::Ticket),
+    EffectPick { ticket: super::effect_pick::Ticket, point: [f64; 2] },
     SaveAnimationPreset { object: u64, effects: Option<Vec<u64>> },
     ApplyAnimationPreset { path: std::path::PathBuf, objects: Vec<u64> },
     OpenAnimationPreset,
@@ -39,6 +41,7 @@ pub enum Action {
     ProjectViewChanged(super::project::ViewPreferences),
     ProjectOpen { source: crate::layer_clipboard::KeyframeSource, composition: String },
     ProjectPlace { source: crate::layer_clipboard::KeyframeSource, target: motion_core::media_assets::AssetRef, at_frame: u32 },
+    ProjectPlaceModel { source: crate::layer_clipboard::KeyframeSource, asset: u64, at_frame: u32 },
     MediaAsset { source: crate::media_assets::Source, intent: crate::media_assets::Intent },
     ImportEffectPackage,
     ImportEffectPath(std::path::PathBuf),
@@ -195,6 +198,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) effect_pick: super::effect_pick::State,
     pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     pub(crate) property_reveal: super::modified_properties::RevealSequence,
     pub workspace_preset: crate::workspace::Preset,

@@ -4,7 +4,7 @@ use crate::*;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 pub(super) fn media_path(path: &std::path::Path) -> bool {
-    path.extension()
+    workflow::model::supported(path) || path.extension()
         .and_then(|s| s.to_str())
         .is_some_and(|extension| {
             [
@@ -159,10 +159,10 @@ impl Shell {
                 let Some(path) = rfd::FileDialog::new()
                     .set_title(self.workspace.locale.t(T::ImportMedia))
                     .add_filter(
-                        "Media",
+                        "Media / 3D models",
                         &[
                             "png", "jpg", "jpeg", "mp4", "mov", "mkv", "webm", "3gp", "m4a", "aac",
-                            "mp3", "wav", "flac", "ogg", "opus", "aiff",
+                            "mp3", "wav", "flac", "ogg", "opus", "aiff", "gltf", "glb", "obj",
                         ],
                     )
                     .pick_file()
@@ -179,7 +179,14 @@ impl Shell {
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if matches!(extension.as_str(), "png" | "jpg" | "jpeg") {
+        if workflow::model::supported(&path) {
+            if self.editing.is_some() {
+                return Err(self.workspace.locale.t(T::Importing).into());
+            }
+            let operation = workflow::library_media::Request::Model { file: path, folder };
+            self.editing = Some((Instant::now(), self.engine.request(|reply|
+                engine::Command::ProjectAsset { source, operation, reply })?));
+        } else if matches!(extension.as_str(), "png" | "jpg" | "jpeg") {
             let root = PathBuf::from(self.state["root"].as_str().ok_or("project root missing")?);
             let job=workflow::library_image::Task::start(&self.project_image_pool,root,path).map_err(|cause|{
                 log::error!("project image dispatch failed operation=prepare_library_image folder={folder:?} cause={cause}");cause

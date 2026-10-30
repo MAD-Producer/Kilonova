@@ -65,6 +65,8 @@ pub struct LayerMask {
     pub inverted: bool,
     pub opacity: Track<f32>,
     pub feather: Track<[f32; 2]>,
+    /// Editing constraint; does not alter the sampled feather or render output.
+    pub feather_linked: bool,
     pub expansion: Track<f32>,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -88,6 +90,7 @@ impl LayerMask {
             inverted: false,
             opacity: hundred(),
             feather: feather(),
+            feather_linked: false,
             expansion: zero(),
         }
     }
@@ -212,6 +215,7 @@ pub enum MaskProperty {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MaskAction {
+    FeatherLink { mask: u64, linked: bool },
     SetFirstVertex { mask: u64, path: u64, node: u64 },
     Add {
         mask: LayerMask,
@@ -277,6 +281,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
     let id = match &action {
         MaskAction::Add { mask } | MaskAction::Replace { mask } => mask.id,
         MaskAction::Remove { mask }
+        | MaskAction::FeatherLink { mask, .. }
         | MaskAction::SetFirstVertex { mask, .. }
         | MaskAction::Options { mask, .. }
         | MaskAction::Path { mask, .. }
@@ -326,6 +331,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
             if let Some(enabled)=enabled {m.enabled=enabled;}
         }
         MaskAction::Path { path, .. } => masks[existing_index()?].path = path,
+        MaskAction::FeatherLink { linked, .. } => masks[existing_index()?].feather_linked = linked,
         MaskAction::SetFirstVertex { path, node, .. } => {
             let target = &mut masks[existing_index()?].path;
             ensure(target.id == path, "first vertex mask path ID changed")?;

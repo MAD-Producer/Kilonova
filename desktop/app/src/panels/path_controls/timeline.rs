@@ -263,6 +263,9 @@ pub(in crate::panels) fn render(
                 out,
             );
             label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
+            if index == 1 {
+                panels.path_controls.feather_link(list, atlas, area, py, owner, mask, Panel::Timeline, input, out);
+            }
             if index == mask_path::CHANNEL {
                 let slot = list.styles().metric("icon.slot", 20.);
                 panels.path_controls.path_value(
@@ -300,6 +303,7 @@ pub(in crate::panels) fn render(
                     owner,
                     mask.id,
                     property.clone(),
+                    mask.feather_linked,
                     axis,
                     &values,
                     range,

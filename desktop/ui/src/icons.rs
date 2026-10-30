@@ -40,6 +40,8 @@ icons! {
     Menu => "menu",
     Rotate => "rotate", Scale => "scale", Anchor => "anchor",
     Reset => "reset",
+    Eyedropper => "eyedropper",
+    PickPosition => "pick_position",
     ChevronUp => "chevron_up", ChevronDown => "chevron_down", ChevronRight => "chevron_right",
     Minimize => "minimize", Maximize => "maximize",
     AlignLeft => "align_left", AlignCenter => "align_center", AlignRight => "align_right",

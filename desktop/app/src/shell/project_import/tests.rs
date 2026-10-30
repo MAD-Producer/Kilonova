@@ -1,6 +1,35 @@
 use super::*;
 use motion_core::{LibraryAction, ProjectItem};
 
+#[test]
+fn model_project_drop_registers_only_in_the_captured_folder() {
+    for format in ["gltf", "GLB", "OBJ"] {
+        let directory = tempfile::tempdir().unwrap();
+        let original = directory.path().join("originals");
+        let path = crate::engine::model_import_tests::triangle(&original, format);
+        let mut shell = Shell::new(directory.path().join("project"), None, Some(Locale::Zh)).unwrap();
+        folder(&mut shell);
+        let before = shell.state.clone();
+        assert!(media_path(&path));
+        assert!(!media_path(&directory.path().join("unsupported.fbx")));
+        let bounds = motion_ui::Rect::new(0., 0., 400., 300.);
+        assert!(shell.drop_project_media(path, Ok([40., 40.]), bounds));
+        shell.panels.project.browser.view.folder = None;
+        let action = shell.actions.pop_front().unwrap();
+        shell.action(action, None).unwrap();
+        settle(&mut shell).unwrap();
+        assert_eq!(shell.state["project"]["layers"], before["project"]["layers"]);
+        let asset = shell.state["assetRegistration"]["asset"].as_u64().unwrap();
+        let project: motion_core::Project = serde_json::from_value(shell.state["project"].clone()).unwrap();
+        assert_eq!(project.library.folder_of(&ProjectItem::Model { id: asset }), Some(7));
+        assert!(shell.panels.message.as_deref().unwrap().contains("放入当前合成"));
+        std::fs::remove_dir_all(original).unwrap();
+        let state = shell.engine.history(0).unwrap();
+        assert_eq!(state["project"], before["project"]);
+        assert_eq!(shell.engine.history(1).unwrap()["project"], shell.state["project"]);
+    }
+}
+
 fn folder(shell: &mut Shell) {
     shell.state = shell
         .engine

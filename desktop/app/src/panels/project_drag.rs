@@ -9,9 +9,14 @@ pub(crate) struct Controls {
     window: Option<Panel>,
     target: Option<(Rect, f32, f32, u32)>,
 }
+#[derive(Clone, Copy)]
+enum Asset {
+    Media(AssetRef),
+    Model(u64),
+}
 struct Session {
     source: KeyframeSource,
-    asset: AssetRef,
+    asset: Asset,
     origin: [f32; 2],
     source_window: Option<Panel>,
     owner: Option<Panel>,
@@ -32,6 +37,12 @@ impl Controls {
         self.target = None;
     }
     pub(crate) fn begin(&mut self, asset: AssetRef, point: [f32; 2], state: &Value) {
+        self.begin_asset(Asset::Media(asset), point, state);
+    }
+    pub(crate) fn begin_model(&mut self, asset: u64, point: [f32; 2], state: &Value) {
+        self.begin_asset(Asset::Model(asset), point, state);
+    }
+    fn begin_asset(&mut self, asset: Asset, point: [f32; 2], state: &Value) {
         self.session = Some(Session {
             source: KeyframeSource::of(state),
             asset,
@@ -119,10 +130,13 @@ pub(super) fn finish(
     });
     if session.released {
         if let Some(at_frame) = frame {
-            out.push(Action::ProjectPlace {
-                source: session.source.clone(),
-                target: session.asset,
-                at_frame,
+            out.push(match session.asset {
+                Asset::Media(target) => Action::ProjectPlace {
+                    source: session.source.clone(), target, at_frame,
+                },
+                Asset::Model(asset) => Action::ProjectPlaceModel {
+                    source: session.source.clone(), asset, at_frame,
+                },
             });
         }
         controls.cancel();

@@ -1,4 +1,4 @@
-//! Independent calibrated matte images use actual projected source geometry.
+//! Independent matte images use actual projected source geometry.
 use super::*;
 use crate::renderer::depth_materials::DepthMaterial;
 use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePlane};
@@ -6,7 +6,7 @@ use crate::scene_gpu::{ScenePass, ScenePassFrame, ScenePlane};
 /// Iterative dependency traversal bounds storage by the sampled layer count.
 /// Ordinary and calibrated parents read independently projected dependencies.
 /// Cycles are rejected before any dependency is rendered.
-pub(super) fn source_order(scene: &Scene, roots: &[u64]) -> Result<Vec<u64>> {
+pub(in crate::renderer) fn source_order(scene: &Scene, roots: &[u64]) -> Result<Vec<u64>> {
     let mut marks = HashMap::new();
     let mut ordered = Vec::new();
     for &root in roots {
@@ -46,7 +46,7 @@ pub(super) fn source_order(scene: &Scene, roots: &[u64]) -> Result<Vec<u64>> {
 }
 
 impl Renderer {
-    pub(in crate::renderer) fn project_calibrated_matte_source(
+    pub(in crate::renderer) fn project_native_matte_source(
         &mut self,
         scene: &Scene,
         source: u64,
@@ -84,7 +84,7 @@ impl Renderer {
         let mut encoder = self.allocation_command_encoder_for(
             crate::gpu_commands::CommandStage::RetainedLayer,
             &wgpu::CommandEncoderDescriptor {
-                label: Some("independent calibrated matte geometry"),
+                label: Some("independent native matte geometry"),
             },
         )?;
         let mut mask_scene = scene.clone();
@@ -120,6 +120,7 @@ impl Renderer {
         }).transpose()?;
         let plane = ScenePlane {
             object: source,
+            working_material: material.is_some(),
             world: layer.model,
             size: layer.size,
             color: material.map_or([layer.color[0], layer.color[1], layer.color[2], layer.color[3] * layer.opacity], DepthMaterial::color),

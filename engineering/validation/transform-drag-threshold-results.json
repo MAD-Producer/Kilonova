@@ -1,0 +1,157 @@
+{
+  "issue": 159,
+  "scope": "Use the existing owning-window motion.drag_threshold for gizmo activation; no other gesture/visual contract change",
+  "before": {
+    "head": "0be8d2d45d32a283063124c70b8eb759488e6c6a",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\before-02\\motion-studio-tests.exe",
+      "sha256": "1e6976d0146f13d9c1b51e5356a65eecc600824b0283e0465724a693b3803b78"
+    },
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\before-02\\motion-studio-tests.exe",
+        "panels::transform_controls::threshold_tests::",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "seconds": 7.81
+    },
+    "summary": [
+      [
+        "FAILED",
+        "1",
+        "2",
+        "0"
+      ]
+    ]
+  },
+  "after": {
+    "head": "a23ad8aafb06e390c1290800772ccf4662d8ce90",
+    "binary": {
+      "path": "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\after-02\\motion-studio-tests.exe",
+      "sha256": "0ff45a629934d3a6f5de6cf0b91d8560fc00c712ceb7e9f62cfedf7cfbc97219"
+    },
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\after-02\\motion-studio-tests.exe",
+        "panels::transform_controls::threshold_tests::",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 7.14
+    },
+    "summary": [
+      [
+        "ok",
+        "3",
+        "0",
+        "0"
+      ]
+    ]
+  },
+  "source_delta": [
+    "desktop/app/src/panels/transform_controls.rs",
+    "desktop/app/src/panels/transform_guide_tests.rs"
+  ],
+  "same_new_test_source": true,
+  "source_unchanged_during_each_run": true,
+  "regressions": {
+    "head": "a23ad8aafb06e390c1290800772ccf4662d8ce90",
+    "test": {
+      "command": [
+        "E:\\Dev\\aem\\.tools\\transform-drag-threshold\\after-02\\motion-studio-tests.exe",
+        "panels::transform_controls::",
+        "--include-ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 15.98
+    },
+    "check": {
+      "command": [
+        "cargo",
+        "check",
+        "-p",
+        "motion-desktop",
+        "--all-targets",
+        "--features",
+        "ffmpeg",
+        "--locked",
+        "--offline",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 99.06
+    },
+    "cases": [
+      "panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides",
+      "panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets",
+      "panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal",
+      "panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once",
+      "panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio",
+      "panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture",
+      "panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style",
+      "panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target",
+      "panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target",
+      "panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset",
+      "panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides",
+      "panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo",
+      "panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently",
+      "panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint",
+      "panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview",
+      "panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture",
+      "panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion",
+      "panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it",
+      "panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale",
+      "panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels",
+      "panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks",
+      "panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d",
+      "panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks",
+      "panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input",
+      "panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract",
+      "panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo",
+      "panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history"
+    ],
+    "unique_passing_tests": 27,
+    "includes_new_three": true
+  },
+  "actual_new_cases": {
+    "short_motion_no_history": "12 logical px threshold, 5 px motion/release; four tools in 2D/3D",
+    "small_threshold_real_edit": "1 px threshold, 2 px motion; real move/rotate/scale/anchor commands and one Undo, 2D/3D",
+    "boundary_and_continuation": "default 3 px, 12 px, accumulated pointer travel, already-started continuation and one Undo"
+  },
+  "retained_first_postfix_failure": {
+    "phase": "after-01",
+    "summary": [
+      "FAILED",
+      2,
+      1,
+      0
+    ],
+    "cause": "new fixture incorrectly allowed only PreviewDrag/EditBatch; existing Anchor uses a single Edit(Command::Anchor)",
+    "disposition": "fixture now checks the exact existing action per tool; original implementation was restored and the corrected before-02 still failed 2/3; no product command changed"
+  },
+  "design_07_files_identical_to_f2f12514": {
+    "desktop/app/src/panels/path_controls.rs": "fdcca782e196cba311049de60b27f18f4a70c421846ed96b388e10e87e60a381",
+    "desktop/app/src/panels/effect_controls.rs": "165c0554977bf670e018dd490cf1d16d30753b9dfe5d00903cfdeb5f4cfc61ce",
+    "desktop/app/src/panels/timeline.rs": "009587d88a840f3a3d30ab8593c1db7002101a05f893f78d1d511dab35a9cc17"
+  },
+  "limits": [
+    "no new native OS mouse injection or cross-DPI screenshots",
+    "no claim to close the whole issue 159",
+    "existing unrelated visual violations retained"
+  ],
+  "archive": {
+    "path": "data/transform-drag-threshold-evidence.zip",
+    "members": 26,
+    "bytes": 1501820,
+    "sha256": "066b4ab6ef6c2ee6501589a39edf4509b0cee60f36b73cb239c0e8e01d37fdd6",
+    "contains_executable_dll_pdb_font_asset": false
+  },
+  "ci": "Pending final-head CI: all five effective checks, all 27 named cases in each desktop log, full tested trees equal to fresh-main composition."
+}

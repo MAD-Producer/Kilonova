@@ -29,6 +29,7 @@ impl ImportedCamera {
 #[derive(Clone, Copy, Debug)]
 pub struct CameraSample {
     pub pose: CameraPose,
+    pub depth_of_field: Option<SampledDepthOfField>,
     pub world: Mat4,
     /// Composition pixels; retained separately from projection to preserve aspect.
     pub viewport: [f32; 4],
@@ -70,6 +71,7 @@ impl CameraSampler for AuthoredCameraSampler {
         );
         Ok(CameraSample {
             pose,
+            depth_of_field: camera.depth_of_field.as_ref().map(|dof| dof.sample(frame)).transpose()?,
             world: (projection.inverse() * pose.view_projection).inverse(),
             viewport: [0., 0., width as f32, height as f32],
         })

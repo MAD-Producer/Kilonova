@@ -7,6 +7,7 @@ use super::{
 };
 use crate::shortcuts::Command as Shortcut;
 use motion_core::{Axis, Easing};
+mod groups;
 
 fn axis(index: usize) -> Axis {
     [Axis::X, Axis::Y, Axis::Z][index]
@@ -342,6 +343,12 @@ pub(super) fn handle(
         .selected
         .filter(|id| visual_layer(state, *id).is_some());
     match command {
+        Shortcut::ToggleEffectGroup | Shortcut::ToggleMaskGroup => {
+            if panels.focused != Some(Panel::Timeline) {
+                return false;
+            }
+            groups::toggle(panels, state, command == Shortcut::ToggleEffectGroup);
+        }
         Shortcut::KeyframeTiming => {
             let operation = super::animation_menu::Operation::TimingSettings;
             if super::animation_menu::enabled(panels, state, operation) {

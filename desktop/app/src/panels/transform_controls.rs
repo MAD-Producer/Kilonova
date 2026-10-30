@@ -262,10 +262,10 @@ impl Drag {
     }
     #[cfg(test)]
     fn commands(&mut self, state: &Value, input: &Input) -> Vec<Action> {
-        self.commands_with_guides(state, input, None)
+        self.commands_with_guides(state, input, None, &PaintList::default().styles())
     }
     fn commands_with_guides(&mut self, state: &Value, input: &Input,
-        snapping: Option<&super::viewer_guides::Snapping>) -> Vec<Action>
+        snapping: Option<&super::viewer_guides::Snapping>, styles: &motion_ui::style::StyleSheet) -> Vec<Action>
     {
         let snapping = snapping.filter(|_| !input.modifiers.alt);
         let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
@@ -273,7 +273,7 @@ impl Drag {
             return vec![];
         }
         let movement = distance(input.mouse, self.seed.point).max(input.pointer_travel);
-        if movement < 3. && !self.begun {
+        if movement < styles.metric("motion.drag_threshold", 3.) && !self.begun {
             return vec![];
         }
         let mut out = vec![];
@@ -630,7 +630,7 @@ impl Controls {
             }
         }
         if let Some(mut d) = self.drag.take() {
-            out.extend(d.commands_with_guides(state, input, snapping));
+            out.extend(d.commands_with_guides(state, input, snapping, &styles));
             if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
                 if d.begun {
                     out.push(Action::History(3));
@@ -930,3 +930,7 @@ mod hit_tests;
 #[cfg(test)]
 #[path = "transform_controls_scale_tests.rs"]
 mod scale_tests;
+
+#[cfg(test)]
+#[path = "transform_controls_threshold_tests.rs"]
+mod threshold_tests;
