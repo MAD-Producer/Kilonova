@@ -852,7 +852,7 @@ impl Engine {
                         break;
                     }
                     let (QueuedCommand {command,queued,request,context}, received) = if prerender.polling() {
-                        match receiver.recv_timeout(prerender::POLL_INTERVAL) {
+                        match receiver.recv_timeout(prerender.wait_interval()) {
                             Ok(command) => (command, true),
                             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
                             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (QueuedCommand {
