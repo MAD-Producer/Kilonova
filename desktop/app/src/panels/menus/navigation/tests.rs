@@ -159,3 +159,21 @@ fn shared_menu_hints_follow_current_remapping_and_checks_follow_current_state() 
         next.matte
     );
 }
+
+#[test]
+fn layer_menu_delete_dispatches_the_current_playhead() {
+    for locale in [Locale::Zh, Locale::En] {
+        let mut project = motion_core::Project::new(64, 64, 30, 60).unwrap();
+        project.layers.push(motion_core::Layer::solid(7, "Layer", [32.; 2], [0.; 3], [1.; 4]));
+        let state = serde_json::json!({"root":"a", "composition":project.composition_id,
+            "frame":21.8, "project":project});
+        let mut panels = Panels { locale, selected: Some(7), menu: Some(3), ..Default::default() };
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        assert!(frame(&mut panels, &state, &mut atlas, &Input::default()).is_empty());
+        panels.menu_navigation.highlighted = 9;
+        let actions = frame(&mut panels, &state, &mut atlas, &key(Key::Enter));
+        assert!(matches!(actions.as_slice(),
+            [Action::Edit(Command::RemoveLayers { objects, frame: 21 })] if objects.as_slice() == [7]));
+        assert_eq!(panels.menu, None);
+    }
+}

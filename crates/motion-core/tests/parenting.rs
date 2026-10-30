@@ -217,3 +217,26 @@ fn deleting_a_parent_detaches_children_and_rejects_a_track_matte_source() {
     assert!(error.to_string().contains("track matte"), "unexpected error: {error}");
     assert_eq!(matte.snapshot(), snapshot);
 }
+
+#[test]
+fn removing_animated_parent_preserves_children_and_camera_at_playhead() {
+    let mut project = Project::demo().unwrap();
+    project.layers.iter_mut().find(|layer| layer.id == 1).unwrap().transform.position.keys = [
+        (0, [540., 960., 0.]), (21, [640., 800., 500.]),
+    ].into_iter().map(|(frame, value)| motion_core::Keyframe {
+        frame, value, ease: motion_core::Ease::Linear, curve: None, spatial: None,
+    }).collect();
+    let mut e = Engine::new(project).unwrap();
+    for child in [0, 2] {
+        e.apply(Command::Parent { object: child, parent: Some(1), frame: 0 }).unwrap();
+    }
+    let before = e.project().clone();
+    let scene_before = scene(&before, 21.);
+    e.apply(Command::RemoveLayers { objects: vec![1], frame: 21 }).unwrap();
+    let scene_after = scene(e.project(), 21.);
+    for object in [0, 2] {
+        close(scene_before.world_matrix(object).unwrap(), scene_after.world_matrix(object).unwrap());
+    }
+    assert!(e.undo().unwrap());
+    assert_eq!(e.project(), &before);
+}

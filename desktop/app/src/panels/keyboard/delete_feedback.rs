@@ -6,7 +6,7 @@ fn deletes_layer(mut command: &Edit) -> bool {
     while let Edit::InComposition { command: inner, .. } = command {
         command = inner;
     }
-    matches!(command, Edit::Delete { .. })
+    matches!(command, Edit::Delete { .. } | Edit::RemoveLayers { .. })
 }
 
 pub(super) fn publish(panels: &mut Panels, actions: &[Action]) {

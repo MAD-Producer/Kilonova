@@ -194,7 +194,7 @@ fn latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners() {
             );
             assert!(matches!(
                 route(&mut panels, &state, Key::Delete, owner).as_slice(),
-                [Action::Edit(Command::Delete { object: 7 })]
+                [Action::Edit(Command::RemoveLayers { objects, frame: 40 })] if objects == &vec![7]
             ));
             assert_eq!(engine.project(), &before);
         }

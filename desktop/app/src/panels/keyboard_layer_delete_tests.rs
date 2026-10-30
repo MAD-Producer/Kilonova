@@ -70,6 +70,36 @@ fn apply(engine: &mut Engine, actions: Vec<Action>) {
 }
 
 #[test]
+fn deleting_animated_parent_preserves_child_at_current_playhead() {
+    let mut project = Project::new(640, 360, 30, 120).unwrap();
+    let mut parent = Layer::solid(7, "parent", [100.; 2], [0.; 3], [1.; 4]);
+    parent.transform.position.keys = [
+        (0, [0., 0., 0.]),
+        (30, [120., 0., 0.]),
+    ].into_iter().map(|(frame, value)| Keyframe {
+        frame, value, ease: Ease::Linear, curve: None, spatial: None,
+    }).collect();
+    project.layers.push(parent);
+    project.layers.push(Layer::solid(9, "child", [100.; 2], [20., 10., 0.], [1.; 4]));
+    let mut engine = Engine::new(project).unwrap();
+    engine.apply(Edit::Parent { object: 9, parent: Some(7), frame: 0 }).unwrap();
+    let original = engine.project().clone();
+    let world = |project: &Project| {
+        let mut scene = motion_render::Scene::new(project).unwrap();
+        scene.sample(project, 30., None, &motion_core::ExpressionEvaluator).unwrap();
+        scene.world_matrix(9).unwrap()
+    };
+    let before = world(&original);
+    let mut panels = setup(Locale::En, Panel::Timeline, false);
+    let actions = invoke(&mut panels, &state(&engine), &input(Key::Delete), None);
+    apply(&mut engine, actions);
+    let after = world(engine.project());
+    assert!(before.abs_diff_eq(after, 0.005), "child moved at playhead: {before:?} -> {after:?}");
+    assert!(engine.undo().unwrap());
+    assert_eq!(engine.project(), &original);
+}
+
+#[test]
 fn layer_delete_reports_its_target_and_real_single_and_multi_delete_undo_once() {
     for locale in [Locale::En, Locale::Zh] {
         for focus in [Panel::Timeline, Panel::Composition] {
@@ -82,8 +112,9 @@ fn layer_delete_reports_its_target_and_real_single_and_multi_delete_undo_once() 
                         let actions = invoke(&mut p, &state(&engine), &input(key), owner);
                         assert_eq!(actions.len(), 1);
                         assert!(
-                            matches!(actions[0], Action::Edit(Edit::Delete { object: 7 }))
-                                || matches!(&actions[0],Action::EditBatch(commands) if commands.len()==2 && commands.iter().all(|command|matches!(command,Edit::Delete{object:7|8})))
+                            matches!(&actions[0], Action::Edit(Edit::RemoveLayers { objects, frame: 30 })
+                                if (multiple && objects.as_slice() == [7, 8])
+                                    || (!multiple && objects.as_slice() == [7]))
                         );
                         apply(&mut engine, actions);
                         assert_eq!(engine.project().layers.len(), if multiple { 1 } else { 2 });
@@ -302,7 +333,7 @@ fn remapped_delete_keeps_its_target_and_undo_retires_only_our_notice() {
         let actions = invoke(&mut p, &state(&engine), &event, None);
         assert!(matches!(
             actions.as_slice(),
-            [Action::Edit(Edit::Delete { object: 7 })]
+            [Action::Edit(Edit::RemoveLayers { objects, frame: 30 })] if objects == &vec![7]
         ));
         assert_eq!(p.message.as_deref(), Some(notice(locale)));
         apply(&mut engine, actions);

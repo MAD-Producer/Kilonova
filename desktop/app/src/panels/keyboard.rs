@@ -573,20 +573,13 @@ fn handle_context_shortcuts(
                 })
             }
             Command::Delete => {
-                let Some(object) = selected_ids.first().copied() else {
+                if selected_ids.is_empty() {
                     continue;
-                };
-                if selected_ids.len() > 1 {
-                    Action::EditBatch(
-                        selected_ids
-                            .iter()
-                            .copied()
-                            .map(|object| Edit::Delete { object })
-                            .collect(),
-                    )
-                } else {
-                    Action::Edit(Edit::Delete { object })
                 }
+                Action::Edit(Edit::RemoveLayers {
+                    objects: selected_ids.clone(),
+                    frame: frame.floor() as u32,
+                })
             }
             Command::SelectAll | Command::DeselectAll
                 if matches!(panels.focused, Some(Panel::Timeline | Panel::Composition))
