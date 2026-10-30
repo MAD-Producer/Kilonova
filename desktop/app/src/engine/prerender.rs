@@ -269,6 +269,19 @@ impl Runtime {
             self.hold = if pressure { "pressure" } else { "foreground" };
             return Ok(());
         }
+        // An acknowledged edit can leave the command queue empty while the UI
+        // builds its next Present. Give that revision's foreground redraw the
+        // first GPU slot even with a zero idle delay. Keep reconciliation and
+        // cancellation acknowledgment above this admission gate; never strand
+        // a canceled owner or install an obsolete completion while waiting.
+        // A never-presented session may still warm its initial frame, and
+        // playback advancing time alone does not change the authored revision.
+        if s.last_presented_frame.is_some()
+            && s.last_presented_revision != s.engine.revision()
+        {
+            self.hold = "foreground_refresh";
+            return Ok(());
+        }
         if owner.busy() {
             self.hold = "busy";
             return Ok(());

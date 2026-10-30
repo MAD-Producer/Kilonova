@@ -7,6 +7,7 @@ fn ui() -> UiFrame {
         atlas: None,
         logical_size: [640., 360.],
         composition: Some([0., 0., 640., 360.]),
+        inspection: Default::default(),
         composition_image: None,
         window: 0,
         node_preview: None,
