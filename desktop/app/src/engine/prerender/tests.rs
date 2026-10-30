@@ -191,6 +191,10 @@ fn native_idle_owner_presents_a_warm_frame_and_rejects_an_edited_source() {
     present(&mut events, &engine);
     let warm = read_front(&mut events, &engine);
     assert_eq!(warm["cachedPresented"], 1, "{warm}");
+    assert_eq!(
+        engine.state().unwrap()["desktop"]["prerender"]["cachedPresented"],
+        1
+    );
     assert_eq!(warm["pixels"], cold["pixels"]);
     assert!(warm["pixels"]
         .as_array()
@@ -209,6 +213,10 @@ fn native_idle_owner_presents_a_warm_frame_and_rejects_an_edited_source() {
     present(&mut events, &engine);
     let edited = read_front(&mut events, &engine);
     assert_eq!(edited["cachedPresented"], 1);
+    assert_eq!(
+        engine.state().unwrap()["desktop"]["prerender"]["cachedPresented"],
+        1
+    );
     assert!(edited["pixels"]
         .as_array()
         .unwrap()
