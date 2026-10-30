@@ -153,7 +153,12 @@ fn native_pressure_holds_admission_and_project_reopen_preserves_pixel_ownership(
     let held = loop {
         let state = engine.state().unwrap();
         assert!(state["desktop"]["prerender"]["fault"].is_null(), "{state}");
-        if state["desktop"]["prerender"]["hold"] == "pressure" {
+        let observation = engine.prerender_observation().unwrap().unwrap();
+        if state["desktop"]["prerender"]["hold"] == "pressure"
+            && observation.in_flight.is_none()
+            && !observation.completion_waiting
+            && observation.retained_cpu_bytes == 0
+        {
             break state;
         }
         assert!(began.elapsed() < Duration::from_secs(30), "{state}");
