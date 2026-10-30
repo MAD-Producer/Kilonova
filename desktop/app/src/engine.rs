@@ -2400,6 +2400,9 @@ fn handle(
         } else {
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
+        if matches!(&result, Ok(true)) && !frozen && ui.composition.is_some() {
+            prerender.foreground_presented();
+        }
         respond(reply,result);
         }
         },
