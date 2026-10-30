@@ -633,7 +633,7 @@ impl Controls {
             projection,
             offset,
             path: VectorPath {
-                id,
+                tangents: Default::default(), id,
                 closed: false,
                 nodes: vec![],
             },
@@ -1866,7 +1866,7 @@ mod numeric_tests {
                     [1.; 4],
                 );
                 let path = VectorPath {
-                    id: 1,
+                    tangents: Default::default(), id: 1,
                     closed: true,
                     nodes: [[0., 0.], [100., 0.], [0., 100.]]
                         .into_iter()
@@ -2050,7 +2050,7 @@ mod review327_regressions {
     fn review327_locked_path_does_not_advertise_hover() {
         let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
         let mut layer = Layer::solid(7, "Locked path", [100.;2], [0.;3], [1.;4]);
-        layer.content = Content::Vector { vector: new_vector(VectorPath { id: 1, closed: false, nodes: vec![
+        layer.content = Content::Vector { vector: new_vector(VectorPath { tangents: Default::default(), id: 1, closed: false, nodes: vec![
             PathNode { id: 1, geometry: Track::constant([0.;6]) },
             PathNode { id: 2, geometry: Track::constant([60.,0.,0.,0.,0.,0.]) },
         ] }) };

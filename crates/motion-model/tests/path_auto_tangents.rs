@@ -79,7 +79,7 @@ fn duplicates_cusps_empty_and_extreme_coordinates_are_finite() {
 
 #[test]
 fn invalid_geometry_and_topology_are_rejected_before_any_mutation() {
-    for bad in [f32::NAN, f32::INFINITY, 32769.] {
+    for bad in [f32::NAN, f32::INFINITY, 131073.] {
         let mut nodes = [point(0., 0.), point(2., 3.), point(4., bad)];
         let before: Vec<_> = nodes.iter().flatten().map(|v| v.to_bits()).collect();
         let cause = auto_tangents::apply(&mut nodes, false)

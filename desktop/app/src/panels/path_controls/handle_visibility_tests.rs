@@ -7,7 +7,7 @@ fn mask_handles_remain_visible_but_only_the_selected_node_can_be_dragged() {
         for origin in [[0., 0.], [90., 60.]] {
             let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
             let path = VectorPath {
-                id: 1,
+                tangents: Default::default(), id: 1,
                 closed: true,
                 nodes: [
                     (11, [100., 100., -20., 0., 20., 0.]),

@@ -401,7 +401,7 @@ fn summary_bundles_hidden_axes_masks_and_shape_keys_in_composition_time() {
     let mut mask = LayerMask::new(
         4,
         VectorPath {
-            id: 4,
+            tangents: Default::default(), id: 4,
             closed: false,
             nodes: vec![
                 PathNode { id: 1, geometry },

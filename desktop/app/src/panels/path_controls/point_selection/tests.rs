@@ -3,7 +3,7 @@ use motion_ui::input::Modifiers;
 
 fn path(closed: bool) -> VectorPath {
     VectorPath {
-        id: 3,
+        tangents: Default::default(), id: 3,
         closed,
         nodes: [
             (11, [-90., -60., -12., 0., 12., 0.]),

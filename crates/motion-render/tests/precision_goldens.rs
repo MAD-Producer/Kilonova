@@ -87,7 +87,7 @@ fn mask() -> LayerMask {
     let mut mask = LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [
                 [-2., -2.],

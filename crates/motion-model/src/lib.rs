@@ -90,6 +90,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("path sampling path={path} frame={frame}: {source}")]
+    PathSampling { path: u64, frame: f64, #[source] source: Box<Error> },
     #[error("project library operation={operation} folder={folder:?}: {source}")]
     ProjectLibrary {
         operation: &'static str,

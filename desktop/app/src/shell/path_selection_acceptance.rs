@@ -171,7 +171,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 let project_root = root.join(&label);
                 let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
                 let path = VectorPath {
-                    id: 3,
+                    tangents: Default::default(), id: 3,
                     closed: true,
                     nodes: [
                         (11, [-120., -80., -25., 0., 25., 0.]),

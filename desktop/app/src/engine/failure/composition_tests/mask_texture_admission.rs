@@ -11,7 +11,7 @@ fn native_mask_texture_refusal_keeps_old_pixels_cause_and_default_output_channel
         project.background = [0.; 4];
         let mut layer = motion_core::Layer::solid(77, "masked receiver", [32.; 2], [16., 16., 0.], [1.; 4]);
         let mut mask = motion_core::masks::LayerMask::new(55, motion_core::vector::VectorPath {
-            id: 1, closed: true,
+            tangents: Default::default(), id: 1, closed: true,
             nodes: [[4., 4.], [28., 4.], [28., 28.], [4., 28.]].into_iter().enumerate()
                 .map(|(i, p)| motion_core::vector::PathNode {
                     id: i as u64 + 1, geometry: motion_core::Track::constant([p[0], p[1], 0., 0., 0., 0.]),

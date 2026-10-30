@@ -165,17 +165,12 @@ impl LayerMask {
             expansion.is_finite() && expansion.abs() <= MAX_MASK_DISTANCE,
             "sampled mask expansion outside range",
         )?;
-        let nodes: Vec<_> = self
-            .path
-            .nodes
-            .iter()
-            .map(|n| n.geometry.sample(frame))
-            .collect::<Result<_>>()?;
+        let nodes = self.path.sample(frame)?.nodes;
         ensure(
             nodes
                 .iter()
                 .flatten()
-                .all(|v| v.is_finite() && v.abs() <= 131072.),
+                .all(|v| v.is_finite() && v.abs() <= crate::vector::MAX_SAMPLED_PATH_COORDINATE),
             "sampled mask path outside coordinate range",
         )?;
         Ok(Some(SampledMask {
@@ -217,6 +212,7 @@ pub enum MaskProperty {
 pub enum MaskAction {
     FeatherLink { mask: u64, linked: bool },
     SetFirstVertex { mask: u64, path: u64, node: u64 },
+    SetPathTangents { mask: u64, path: u64, mode: crate::vector::TangentMode },
     Add {
         mask: LayerMask,
     },
@@ -283,6 +279,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
         MaskAction::Remove { mask }
         | MaskAction::FeatherLink { mask, .. }
         | MaskAction::SetFirstVertex { mask, .. }
+        | MaskAction::SetPathTangents { mask, .. }
         | MaskAction::Options { mask, .. }
         | MaskAction::Path { mask, .. }
         | MaskAction::Set { mask, .. }
@@ -336,6 +333,11 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
             let target = &mut masks[existing_index()?].path;
             ensure(target.id == path, "first vertex mask path ID changed")?;
             target.set_first_vertex(node)?;
+        }
+        MaskAction::SetPathTangents { path, mode, .. } => {
+            let target = &mut masks[existing_index()?].path;
+            ensure(target.id == path, "path tangents mask path ID changed")?;
+            target.tangents = mode;
         }
         action => {
             let property = match &action {

@@ -30,7 +30,7 @@ fn fixture(root: &std::path::Path) {
                         vec![]
                     } else {
                         vec![VectorPath {
-                            id: 3,
+                            tangents: Default::default(), id: 3,
                             closed: true,
                             nodes: [[-12., -10.], [12., -10.], [12., 10.], [-12., 10.]]
                                 .into_iter()

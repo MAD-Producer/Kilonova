@@ -1,6 +1,6 @@
 //! Deterministic, bounded geometric tangents. Temporal interpolation remains
 //! with the authored position tracks; node ordering is never inferred here.
-use super::MAX_NODES;
+use super::{MAX_NODES, MAX_SAMPLED_PATH_COORDINATE};
 use crate::{ensure, Result};
 use glam::DVec2;
 
@@ -17,7 +17,10 @@ pub fn apply(nodes: &mut [[f32; 6]], closed: bool) -> Result<()> {
         "automatic path tangents: closed path requires at least three nodes",
     )?;
     for (index, node) in nodes.iter().enumerate() {
-        if !node.iter().all(|v| v.is_finite() && v.abs() <= 32768.) {
+        if !node
+            .iter()
+            .all(|v| v.is_finite() && v.abs() <= MAX_SAMPLED_PATH_COORDINATE)
+        {
             return Err(crate::Error::Invalid(format!(
                 "automatic path tangents: invalid geometry node={index}"
             )));

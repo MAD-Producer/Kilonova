@@ -897,7 +897,7 @@ mod tests {
             offset_frame: 12,
         });
         let path = VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [100., 0.], [0., 100.]]
                 .into_iter()

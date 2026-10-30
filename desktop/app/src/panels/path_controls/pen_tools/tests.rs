@@ -3,7 +3,7 @@ use motion_core::{Ease, Engine, Project};
 
 fn path(closed: bool) -> VectorPath {
     VectorPath {
-        id: 3,
+        tangents: Default::default(), id: 3,
         closed,
         nodes: [
             (11, [-90., -60., -15., -5., 60., -70.]),

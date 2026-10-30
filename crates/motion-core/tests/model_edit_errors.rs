@@ -9,7 +9,7 @@ fn mask(id: u64) -> LayerMask {
     LayerMask::new(
         id,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [16., 0.], [16., 16.]]
                 .into_iter()

@@ -674,8 +674,9 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             project.layers.push(layer);
         }
         Command::Vector { object, action } => {
-            let first_vertex = match &action {
-                crate::vector::VectorAction::SetFirstVertex { path, node, .. } => Some((*path, *node)),
+            let path_operation = match &action {
+                crate::vector::VectorAction::SetFirstVertex { path, node, .. } => Some(("first_vertex", *path, Some(*node))),
+                crate::vector::VectorAction::SetPathTangents { path, .. } => Some(("set_tangents", *path, None)),
                 _ => None,
             };
             if let crate::vector::VectorAction::EditGroupKey { edit, .. } = &action {
@@ -708,16 +709,17 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                 )?;
                 Ok(())
             })();
-            edited.map_err(|source| match first_vertex {
-                Some((path, node)) => Error::PathOperation {
-                    operation: "first_vertex", object, path, node: Some(node), source: Box::new(source),
+            edited.map_err(|source| match path_operation {
+                Some((operation, path, node)) => Error::PathOperation {
+                    operation, object, path, node, source: Box::new(source),
                 },
                 None => source,
             })?;
         }
         Command::Mask { object, action } => {
-            let first_vertex = match &action {
-                crate::masks::MaskAction::SetFirstVertex { path, node, .. } => Some((*path, *node)),
+            let path_operation = match &action {
+                crate::masks::MaskAction::SetFirstVertex { path, node, .. } => Some(("first_vertex", *path, Some(*node))),
+                crate::masks::MaskAction::SetPathTangents { path, .. } => Some(("set_tangents", *path, None)),
                 _ => None,
             };
             for frame in action.frames() { valid_frame(frame)?; }
@@ -727,9 +729,9 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                 crate::masks::edit(&mut layer.masks, action, layer.timeline.map_or(0, |t| t.offset_frame))?;
                 Ok(())
             })();
-            edited.map_err(|source| match first_vertex {
-                Some((path, node)) => Error::PathOperation {
-                    operation: "first_vertex", object, path, node: Some(node), source: Box::new(source),
+            edited.map_err(|source| match path_operation {
+                Some((operation, path, node)) => Error::PathOperation {
+                    operation, object, path, node, source: Box::new(source),
                 },
                 None => source,
             })?;

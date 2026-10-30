@@ -162,7 +162,7 @@ pub(super) fn run(
     let mask = LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[0., 0.], [32., 0.], [0., 32.]]
                 .into_iter()

@@ -12,7 +12,7 @@ pub(super) fn right_source_half() -> LayerMask {
     LayerMask::new(
         1,
         VectorPath {
-            id: 1,
+            tangents: Default::default(), id: 1,
             closed: true,
             nodes: [[32., 0.], [64., 0.], [64., 40.], [32., 40.]]
                 .into_iter()

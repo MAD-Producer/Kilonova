@@ -18,7 +18,7 @@ fn document(root: &Path, nodes: u64, keys: u32) -> motion_core::Project {
                         vec![]
                     } else {
                         vec![VectorPath {
-                            id: 3,
+                            tangents: Default::default(), id: 3,
                             closed: true,
                             nodes: (0..nodes)
                                 .map(|i| PathNode {

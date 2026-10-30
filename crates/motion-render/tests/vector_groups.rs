@@ -65,7 +65,7 @@ fn authored_group_node_and_separate_dash_edits_update_pixels_without_baking_copi
     let mut g=group();
     let GroupItem::Geometry{vector,..}=&mut g.items[0] else{unreachable!()};
     vector.fill=None;
-    vector.source=VectorSource::Paths{paths:vec![VectorPath{id:1,closed:false,nodes:vec![
+    vector.source=VectorSource::Paths{paths:vec![VectorPath{tangents: Default::default(), id:1,closed:false,nodes:vec![
         PathNode{id:1,geometry:Track::constant([-24.,0.,0.,0.,0.,0.])},
         PathNode{id:2,geometry:Track::constant([24.,0.,0.,0.,0.,0.])}]}]};
     g.items.push(GroupItem::Stroke{id:3,name:"Dash".into(),composite:Composite::Above,stroke:Stroke{

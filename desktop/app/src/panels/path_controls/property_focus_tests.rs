@@ -19,7 +19,7 @@ fn fixture() -> Engine {
     let mut layer = Layer::solid(7, "Properties", [100.; 2], [0.; 3], [1.; 4]);
     layer.transform.position.keys = vec![key(10, [0.; 3]), key(90, [100.; 3])];
     let path = VectorPath {
-        id: 1,
+        tangents: Default::default(), id: 1,
         closed: true,
         nodes: [[0., 0.], [100., 0.], [0., 100.]]
             .into_iter()

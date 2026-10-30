@@ -272,7 +272,7 @@ fn group_parameter_commands_use_clip_time_and_atomic_history_and_storage() {
 fn authored_path_nodes_remain_shared_editable_and_animated_after_repeating() {
     let mut g = root();
     let GroupItem::Geometry { vector, .. } = &mut g.items[0] else { unreachable!() };
-    vector.source = VectorSource::Paths { paths: vec![VectorPath { id: 1, closed: false,
+    vector.source = VectorSource::Paths { paths: vec![VectorPath { tangents: Default::default(), id: 1, closed: false,
         nodes: vec![PathNode { id: 1, geometry: Track::constant([-20., 0., 0., 0., 8., -12.]) },
                     PathNode { id: 2, geometry: Track::constant([20., 0., -8., -12., 0., 0.]) }] }] };
     g.items.push(repeat(3, 3., [15., 0.]));

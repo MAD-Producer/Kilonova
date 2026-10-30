@@ -10,7 +10,7 @@ use motion_core::{
 fn fixture(grouped: bool, closed: bool) -> Engine {
     let mut p = Project::new(160, 120, 30, 120).unwrap();
     let path = VectorPath {
-        id: 42,
+        tangents: Default::default(), id: 42,
         closed,
         nodes: (1..=4)
             .map(|id| PathNode {

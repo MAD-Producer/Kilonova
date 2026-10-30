@@ -3,7 +3,7 @@ use motion_render::Scene;
 use motion_render::{effect_plan::PlanBuilder, Renderer};
 
 fn rectangle(id:u64,x:f32,y:f32,w:f32,h:f32)->LayerMask {
-    LayerMask::new(id,VectorPath{id:1,closed:true,nodes:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]].into_iter().enumerate().map(|(i,p)|PathNode{id:i as u64+1,geometry:Track::constant([p[0],p[1],0.,0.,0.,0.])}).collect()})
+    LayerMask::new(id,VectorPath{tangents: Default::default(), id:1,closed:true,nodes:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]].into_iter().enumerate().map(|(i,p)|PathNode{id:i as u64+1,geometry:Track::constant([p[0],p[1],0.,0.,0.,0.])}).collect()})
 }
 fn project()->Project {
     let mut p=Project::new(1080,1920,30,60).unwrap();p.background=[0.;4];
