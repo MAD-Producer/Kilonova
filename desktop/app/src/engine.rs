@@ -38,6 +38,7 @@ pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
 mod shutdown;
 mod prerender;
+pub(crate) use prerender::InputActivity;
 #[cfg(test)]
 mod native_test_evidence;
 #[cfg(test)]
@@ -616,10 +617,16 @@ struct QueuedCommand {
     queued: std::time::Instant,
     request: u64,
     context: crate::diagnostics::Context,
+    prerender_input: u64,
 }
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
+    /// Publish input priority before UI layout/action generation, without queueing
+    /// work on the serial owner. This does not alter editor gesture semantics.
+    pub(crate) fn prerender_input(&self, activity: InputActivity) -> Result<(), String> {
+        self.prerender_signals.input(activity)
+    }
     /// Read the independent native owner even while the serial Engine is blocked.
     pub fn prerender_observation(&self) -> Result<Option<motion_desktop_media::movie::prerender::worker::Snapshot>, String> {
         self.prerender_signals.snapshot()
@@ -716,6 +723,7 @@ impl Engine {
                 queued: Instant::now(),
                 request: self.diagnostics.next_request(),
                 context,
+                prerender_input: 0,
             });
             if queued.is_ok() { self.queue_depth.fetch_add(1, Ordering::AcqRel); }
             queued
@@ -940,11 +948,11 @@ impl Engine {
                         }
                     }
                     let optional_poll = frame_completions.is_empty() && !worker_preparation.preparing() && prerender.polling();
-                    let (QueuedCommand {command,queued,request,context}, resumed, received) =
+                    let (QueuedCommand {command,queued,request,context,prerender_input}, resumed, received) =
                         if let Some(pending) = frame_completions.take_due() {
                             let frame_completion::Pending { command, meta, stamp, waiting } = pending;
                             (QueuedCommand { command, queued: meta.queued, request: meta.flight.request,
-                                context: meta.context }, Some((stamp, waiting, meta.flight)), false)
+                                context: meta.context, prerender_input: meta.prerender_input }, Some((stamp, waiting, meta.flight)), false)
                         } else {
                             let delay = [frame_completions.delay(),
                                 worker_preparation.preparing().then_some(preparation_progress::POLL_INTERVAL),
@@ -955,6 +963,7 @@ impl Engine {
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) if optional_poll => Some((QueuedCommand {
                                         command: Command::PrerenderPoll, queued: Instant::now(),
                                         request: worker_diagnostics.next_request(), context: worker_diagnostics.context(),
+                                        prerender_input: 0,
                                     }, false)),
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
                                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
@@ -981,7 +990,7 @@ impl Engine {
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
-                    let meta = frame_completion::Meta { queued, flight, context: context.clone() };
+                    let meta = frame_completion::Meta { queued, flight, context: context.clone(), prerender_input };
                     let mut deferred = false;
                     let handled=motion_host::ops::catch_panic(|| {
                         // Keep this inside the existing panic/reply boundary.
@@ -1030,6 +1039,7 @@ impl Engine {
                         &worker_factory,
                         &mut frame_completions,
                         &mut continuation,
+                        prerender_input,
                         command,
                     );
                         if let Some(command) = continuation {
@@ -1147,11 +1157,16 @@ impl Engine {
         self.check_running()?;
         // Publication uses the same generation before any background enqueue.
         // Never take the cancellation gate while holding the dispatch gate.
-        if matches!(&command, Command::Present { .. } | Command::PresentFrozen { .. } | Command::Seek { .. } | Command::SeekAudioPreview { .. }) {
-            self.prerender_signals.preempt()?;
-        } else if !matches!(&command, Command::State(_) | Command::PreviewInfo(_) | Command::ProjectTicket(_)) {
-            self.prerender_signals.interrupt()?;
-        }
+        let prerender_input = if matches!(&command, Command::Present { .. } | Command::PresentFrozen { .. }) {
+            self.prerender_signals.preempt_for_present()?
+        } else {
+            if matches!(&command, Command::Seek { .. } | Command::SeekAudioPreview { .. }) {
+                self.prerender_signals.preempt()?;
+            } else if !matches!(&command, Command::State(_) | Command::PreviewInfo(_) | Command::ProjectTicket(_)) {
+                self.prerender_signals.interrupt()?;
+            }
+            0
+        };
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
         let context = self.diagnostics.context();
@@ -1177,7 +1192,7 @@ impl Engine {
                 return Err(Rejected::Finished);
             }
             self.sender.try_send(QueuedCommand {
-                command, queued: Instant::now(), request, context,
+                command, queued: Instant::now(), request, context, prerender_input,
             }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
         });
         if failure_poisoned {
@@ -1810,6 +1825,7 @@ fn handle(
     factory: &Mutex<Option<SurfaceFactory>>,
     frame_completions: &mut frame_completion::Queue,
     continuation: &mut Option<Command>,
+    prerender_input: u64,
     command: Command,
 ) -> bool {
     // Project operations and view changes can overwrite the shared scratch.
@@ -2401,7 +2417,7 @@ fn handle(
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
         if matches!(&result, Ok(true)) && !frozen && ui.composition.is_some() {
-            prerender.foreground_presented();
+            prerender.foreground_presented(prerender_input);
         }
         respond(reply,result);
         }

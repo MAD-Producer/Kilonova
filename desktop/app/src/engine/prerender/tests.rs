@@ -8,6 +8,7 @@ mod pressure_lifecycle;
 mod static_window;
 mod foreground_refresh;
 mod source_freshness;
+mod input_priority;
 
 fn frame() -> UiFrame {
     UiFrame {
