@@ -293,6 +293,7 @@ mod tests {
                     atlas: None,
                     logical_size: [64.; 2],
                     composition: None,
+                    inspection: Default::default(),
                     composition_image: None,
                     window: 0,
                     node_preview: None,
