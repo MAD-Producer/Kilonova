@@ -392,7 +392,10 @@ impl Renderer {
                 ..Default::default()
             })
             .await?;
-        Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes).await
+        // The native initializer owns large pipeline futures. Keep the new
+        // adapter-sharing boundary from embedding another copy of that state
+        // in every caller's future, including the default-stack GUI thread.
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, timestamps, allocation_budget, precision_changes)).await
     }
     async fn new_on_adapter_with_options(
         adapter: wgpu::Adapter,
@@ -653,7 +656,7 @@ impl Renderer {
         budget: crate::AllocationBudget,
     ) -> Result<Self> {
         let format = crate::image_formats::native_format(crate::image_formats::color_storage(precision));
-        Self::new_on_adapter_with_options(adapter, format, false, budget, true).await
+        Box::pin(Self::new_on_adapter_with_options(adapter, format, false, budget, true)).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
     /// Successfully encoded snapshot draws in the latest local composition
