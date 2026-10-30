@@ -53,6 +53,58 @@ fn frame(image: &crate::CapturedImage, number: f64) -> CompositionFrameKey {
 
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn protected_native_admission_refuses_atomically_and_evicts_only_unprotected_pixels() {
+    let renderer = renderer(ChannelPrecision::Unorm8);
+    let image = image(ChannelPrecision::Unorm8);
+    let mut cache = CompositionFrameCache::new(context(), 128, 2).unwrap();
+    for number in [0., 1.] {
+        let target = cache
+            .prepare_native(&renderer, frame(&image, number))
+            .unwrap()
+            .unwrap();
+        assert!(cache.install_native(&renderer, target, &image).unwrap());
+    }
+    wait(&renderer);
+    let before = cache.info();
+    let bytes = renderer.allocation_budget.info().unwrap().admitted_bytes;
+    assert!(cache
+        .prepare_native_preserving(
+            &renderer,
+            frame(&image, 2.),
+            &[frame(&image, 0.), frame(&image, 1.)]
+        )
+        .unwrap()
+        .is_none());
+    assert_eq!(cache.info().evicted, before.evicted);
+    assert_eq!(cache.info().resident_frames, 2);
+    assert_eq!(cache.info().pending_bytes, 0);
+    assert_eq!(cache.info().hits, before.hits);
+    assert_eq!(cache.info().misses, before.misses);
+    assert_eq!(
+        renderer.allocation_budget.info().unwrap().admitted_bytes,
+        bytes
+    );
+    let kept = cache.get(&renderer, frame(&image, 1.)).unwrap().unwrap();
+    let target = cache
+        .prepare_native_preserving(&renderer, frame(&image, 2.), &[frame(&image, 1.)])
+        .unwrap()
+        .unwrap();
+    assert_eq!(cache.info().evicted, before.evicted + 1);
+    assert!(cache.install_native(&renderer, target, &image).unwrap());
+    assert!(cache.get(&renderer, frame(&image, 0.)).unwrap().is_none());
+    let again = cache.get(&renderer, frame(&image, 1.)).unwrap().unwrap();
+    assert!(Arc::ptr_eq(&kept, &again));
+    assert_eq!(
+        renderer
+            .read_native_render_target(again.source())
+            .unwrap()
+            .pixels,
+        image.pixels
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_destination_is_really_admitted_before_dispatch_and_shares_cache_limits() {
     let renderer = renderer(ChannelPrecision::Unorm8);
     wait(&renderer);
@@ -264,11 +316,19 @@ fn all_four_native_completion_uploads_preserve_encoded_storage_hdr_negative_and_
         );
         let mut preview = crate::SdrPreviewFrameTargets::new(&renderer, 4, 4).unwrap();
         preview.prepare(&renderer, 4, 4).unwrap();
-        let mut encoder = renderer.allocation_command_encoder(&Default::default()).unwrap();
-        stored.copy_to(&renderer, preview.prepared().unwrap(), &mut encoder).unwrap();
+        let mut encoder = renderer
+            .allocation_command_encoder(&Default::default())
+            .unwrap();
+        stored
+            .copy_to(&renderer, preview.prepared().unwrap(), &mut encoder)
+            .unwrap();
         preview.encode_output(&renderer, &mut encoder).unwrap();
         renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
-        assert_eq!(read(&renderer, preview.prepared().unwrap()), image.pixels, "native preview copy {precision:?}");
+        assert_eq!(
+            read(&renderer, preview.prepared().unwrap()),
+            image.pixels,
+            "native preview copy {precision:?}"
+        );
         preview.commit_submitted().unwrap();
     }
 }
@@ -288,20 +348,37 @@ fn cached_preview_copy_checks_owners_dimensions_format_and_usage_before_encoding
     let mut preview = crate::PreviewFrameTargets::new(&renderer, 4, 4).unwrap();
     preview.prepare(&renderer, 4, 4).unwrap();
     let destination = preview.prepared().unwrap();
-    let mut encoder = renderer.allocation_command_encoder(&Default::default()).unwrap();
+    let mut encoder = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
     assert!(stored.copy_to(&foreign, destination, &mut encoder).is_err());
-    let mut foreign_encoder = foreign.allocation_command_encoder(&Default::default()).unwrap();
-    assert!(stored.copy_to(&renderer, destination, &mut foreign_encoder).is_err());
+    let mut foreign_encoder = foreign
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    assert!(stored
+        .copy_to(&renderer, destination, &mut foreign_encoder)
+        .is_err());
     let foreign_target = foreign.render_target(4, 4).unwrap();
-    assert!(stored.copy_to(&renderer, &foreign_target, &mut encoder).is_err());
+    assert!(stored
+        .copy_to(&renderer, &foreign_target, &mut encoder)
+        .is_err());
     let no_copy_usage = renderer.render_target(4, 4).unwrap();
-    assert!(stored.copy_to(&renderer, &no_copy_usage, &mut encoder).is_err());
-    for (size, format) in [(2, renderer.target_format), (4, wgpu::TextureFormat::Rgba8Unorm)] {
-        let bad = renderer.render_target_with_format(size, 4, format, crate::TextureCategory::PreviewTargets).unwrap();
+    assert!(stored
+        .copy_to(&renderer, &no_copy_usage, &mut encoder)
+        .is_err());
+    for (size, format) in [
+        (2, renderer.target_format),
+        (4, wgpu::TextureFormat::Rgba8Unorm),
+    ] {
+        let bad = renderer
+            .render_target_with_format(size, 4, format, crate::TextureCategory::PreviewTargets)
+            .unwrap();
         assert!(stored.copy_to(&renderer, &bad, &mut encoder).is_err());
     }
     assert!(!preview.valid());
-    stored.copy_to(&renderer, destination, &mut encoder).unwrap();
+    stored
+        .copy_to(&renderer, destination, &mut encoder)
+        .unwrap();
     renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
     assert_eq!(read(&renderer, destination), image.pixels);
     preview.commit_submitted();

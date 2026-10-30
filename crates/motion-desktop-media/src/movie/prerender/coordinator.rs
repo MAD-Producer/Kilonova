@@ -58,6 +58,7 @@ pub struct Coordinator {
     gpu_bytes: u64,
     epoch: u64,
     retiring: bool,
+    demand: Option<schedule::Demand>,
 }
 impl Coordinator {
     pub fn new(policy: schedule::Policy, cpu_bytes: u64, gpu_bytes: u64) -> Result<Self> {
@@ -73,6 +74,7 @@ impl Coordinator {
             gpu_bytes,
             epoch: 0,
             retiring: false,
+            demand: None,
         })
     }
     pub fn profile(&self) -> Option<Profile> {
@@ -168,6 +170,7 @@ impl Coordinator {
             worker.cancel();
         }
         self.profile = None;
+        self.demand = None;
         Ok(())
     }
     pub fn update(&mut self, demand: Demand) -> Result<()> {
@@ -197,6 +200,7 @@ impl Coordinator {
             self.scheduler.update(demand)
         }
         .map_err(|e| e.to_string())?;
+        self.demand = Some(demand);
         if matches!(&self.active, Some(Active::Render { ticket, .. }) if ticket.canceled()) {
             if let Some(worker) = &self.worker {
                 worker.cancel();
@@ -323,8 +327,30 @@ impl Coordinator {
             return Ok(false);
         };
         let key = profile.frame_key(next.frame())?;
+        // Preserve the due frame and every nearer future frame. Admission for
+        // a distant lookahead must not turn a warm upcoming interval cold.
+        // This list is bounded by the scheduler window, never project length.
+        let mut protected = Vec::new();
+        if matches!(&control, Control::Yield(_)) {
+            if let Some(demand) = self.demand {
+                let sign = if demand.direction == schedule::Direction::Forward {
+                    1.
+                } else {
+                    -1.
+                };
+                for step in 0..=self.policy.window {
+                    let frame = demand.frame + sign * step as f64;
+                    if frame == next.frame() {
+                        break;
+                    }
+                    if frame >= 0. && frame < f64::from(profile.frames) {
+                        protected.push(profile.frame_key(frame)?);
+                    }
+                }
+            }
+        }
         let Some(target) = cache
-            .prepare_native(renderer, key)
+            .prepare_native_preserving(renderer, key, &protected)
             .map_err(|e| e.to_string())?
         else {
             self.scheduler.take_next(false).map_err(|e| e.to_string())?;

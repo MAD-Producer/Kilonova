@@ -131,6 +131,27 @@ fn native_playback_ignores_idle_delay_and_presents_a_warm_exact_frame() {
         .unwrap()
         .chunks_exact(4)
         .all(|p| p == [255, 0, 0, 255]));
+    // Unlike the gated first consumption, leave a real idle-poll gap between
+    // Seek and Present. The owner must finish a later frame and retain frame 2
+    // rather than admitting frame 4 by evicting the foreground-due pixels.
+    engine.seek(2.).unwrap();
+    let began = Instant::now();
+    let gap_state = loop {
+        let state = engine.state().unwrap();
+        let status = &state["desktop"]["prerender"];
+        assert!(status["fault"].is_null(), "{state}");
+        if status["completed"].as_u64().unwrap_or(0) >= 3
+            && status["cache"]["pending_bytes"].as_u64() == Some(0)
+        {
+            break state;
+        }
+        assert!(began.elapsed() < Duration::from_secs(30), "{state}");
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    present(&mut events, &engine);
+    let gap_front = read_front(&mut events, &engine);
+    assert_eq!(gap_front["cachedPresented"], 2);
+    assert_eq!(gap_front["pixels"], cold["pixels"]);
     engine.set_prerender_playing(false).unwrap();
     assert_eq!(
         engine.state().unwrap()["desktop"]["prerender"]["playing"],
@@ -141,7 +162,7 @@ fn native_playback_ignores_idle_delay_and_presents_a_warm_exact_frame() {
         root.join("report.json"),
         serde_json::to_vec_pretty(
             &serde_json::json!({"cold":cold,"warmState":warm_state,"warm":warm,
-            "idleDelaySeconds":3600,"warmupDeadlineSeconds":30,
+            "idleDelaySeconds":3600,"warmupDeadlineSeconds":30,"gapState":gap_state,"gapFront":gap_front,
             "scope":"actual native warm playback presentation; not a paced performance benchmark"}),
         )
         .unwrap(),
