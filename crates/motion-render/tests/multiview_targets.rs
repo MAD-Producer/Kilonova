@@ -6,6 +6,8 @@ use motion_render::{
 };
 #[path = "multiview_targets/inspection.rs"]
 mod inspection;
+#[path = "multiview_targets/translation.rs"]
+mod translation;
 
 const COLORS: [[f64; 4]; 4] = [
     [1., 0., 0., 1.],

@@ -1,0 +1,93 @@
+{
+  "base_commit": "994e2b74bf104101d514d62d1e1563b27cc39602",
+  "ci_failure": {
+    "run": 41189532526,
+    "job": 124503948170,
+    "cell": 3,
+    "row": 81,
+    "bytes": [
+      12,
+      13
+    ],
+    "assertions": "unchanged exact equality"
+  },
+  "source_sha256": {
+    "crates/motion-render/src/present.wgsl": "d4a30d6a39174e4a160cea1310f0168f34ab74b043540461db7d5c3dd0e9b62c",
+    "crates/motion-render/src/presenter.rs": "60d21b45deeea145e484b20316a505fccdcf927285ac0b2fa9f8d08292f42094",
+    "crates/motion-render/src/presenter/memory.rs": "b069e5fc18ff2820a42416c82dc70eae97ce2b31ea5f56dbacff9ca57939ddfc",
+    "crates/motion-render/tests/multiview_targets.rs": "bcc830276d07fc49deed554b988893182496bdf3e3c78f4088e2c9c9c8ee8631",
+    "crates/motion-render/tests/multiview_targets/translation.rs": "cc315b76cb40ebb88d68a7bae7cb00a1cb81d492f7e3ac2c6d3977c6d9baebba"
+  },
+  "program_sha256": {
+    "multiview_targets-54bf12474672d118.exe": "e3ab33993b2263893b21aa20aabfbf1fb7fe2c6de974add1f4c92f2d8fea325c",
+    "presentation-02362c275f6f1cba.exe": "cfafa118a067205c2a75da510c72320e405fab85788d5290e5c73e029f7535e2",
+    "motion_render-1fcc3fb8d09fa888.exe": "144b1d2b20dfa867e37af656311564d56ff9cbc9f1adad4fbfa8d9a306ec91f6"
+  },
+  "raw_evidence": {
+    "viewer-ui-ci-rust-gpu-second.log": {
+      "bytes": 386737,
+      "sha256": "d7572d929c3c527a7127ef5502099babc3a6ed4068545080fa10187e40a90099"
+    },
+    "multiview-translation-before-vulkan.log": {
+      "bytes": 203,
+      "sha256": "8feddd8b289315ed031bff7a5587e5b16f72bf8496f9b3b5a3ec072ef658da23"
+    },
+    "multiview-translation-before-swiftshader.log": {
+      "bytes": 854,
+      "sha256": "006e0060e91e6a8195671374d33c6b19811cbaf8c0e60c83291426e80b802f39"
+    },
+    "multiview-pixel-coordinates-build.log": {
+      "bytes": 1450,
+      "sha256": "799718f6fba76a48c0caf04e2367ba124257690b83c6b8cec2ee41447e44c271"
+    },
+    "multiview-pixel-coordinates-vulkan.log": {
+      "bytes": 72952,
+      "sha256": "bdf49163b0d0379a271e7eed895b30add9ddbf15dfb2f0720356c516ea94c4bc"
+    },
+    "multiview-pixel-coordinates-pattern-vulkan.log": {
+      "bytes": 1747,
+      "sha256": "197275609eae32ed4c92aae98f333eeafbafab0910a0a465706c3ebc97c0e2ff"
+    },
+    "multiview-translation-old-implementation-negative.log": {
+      "bytes": 3501,
+      "sha256": "7dadcdbfec52f6f8b5ef1511387a1b74f171e7b6dbeec72d0f4f0abccd4b6c47"
+    },
+    "multiview-translation-negative-control.json": {
+      "bytes": 553,
+      "sha256": "1f313b70dd6b4483ae39cf7ac503879ab382299652dcee3e0752827a1dc59e3e"
+    },
+    "multiview-pixel-coordinates-final-vulkan.log": {
+      "bytes": 3604,
+      "sha256": "7805f6a24a606887f2416103d08225101c63134681696e49e94cdf4969bfe2f6"
+    },
+    "multiview-pixel-coordinates-admission-vulkan.log": {
+      "bytes": 893,
+      "sha256": "9e4e0de0eb3605296c4812b7204df3f799e1ad0f4bd0b173279b2a487d931648"
+    },
+    "multiview-pixel-coordinates-dx12.log": {
+      "bytes": 2874,
+      "sha256": "8cb19be48d59e1809540d14f63d8f1f97dbbda792682fa4bead9c28941d94d67"
+    }
+  },
+  "verification": {
+    "Vulkan": {
+      "multiview_targets": 9,
+      "presentation": 8,
+      "presenter": 4
+    },
+    "Dx12": {
+      "multiview_targets": 9,
+      "presentation": 8,
+      "presenter": 4
+    },
+    "distinct_tests_this_round": 21,
+    "translation_comparisons_per_backend": 180,
+    "negative_control_old_production_exit": 101
+  },
+  "limits": [
+    "No claim of local software Vulkan execution; CI platform awaits a new run.",
+    "The initial fixed-size test readback failure is preserved and excluded from successful runs.",
+    "Repeated backend execution and earlier stage tests are not counted as additional distinct tests.",
+    "No new production observations, dependencies or distributed assets."
+  ]
+}
