@@ -94,3 +94,16 @@
 标题背景和文本使用现有 token。未改变属性行、枚举行为或既有命中容差。
 §12 本轮入口的主窗/浮窗、DPI、语言、菜单和取消按上述原生用例验证；其余历史面板
 基线不因为此 PR 编译通过而视为修复。
+
+## PR 首轮 CI 补验
+
+Rust/GPU job 124501152798 在编译旧 phase_adjustments 集成夹具时因 E0596 失败：
+嵌套 Scene 改为 Arc 共享，原故障注入仍直接修改克隆中的子场景。本轮只将该注入改成
+Arc::make_mut，保留所有原断言和恢复验证，生产共享语义不变。
+
+修复后实际 GPU 的 phase_adjustments 全部 9 项通过（含失败/恢复）；全工作区排除
+已退役 Android 的 all-targets 编译检查通过，启用桌面 FFmpeg 和宿主 diagnostics。
+该检查是类型/编译证据，不当作全部测试执行。三个平台与 software Vulkan 仍由当前
+PR CI 确认；原失败、检查及运行日志逐字节压缩归档于 ci-shared-scene-fix.zip，
+原始文件/程序身份见 ci-shared-scene-fix.json。去重新增 9 项，累计本地 309 项，
+不将重跑、编译目标或历史失败计入通过数量。

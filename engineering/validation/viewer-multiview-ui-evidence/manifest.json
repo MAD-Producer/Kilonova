@@ -83,7 +83,8 @@
     "desktop/app/src/shell/workspace_acceptance.rs": "8228fa88fe2d3381f98c118eee1228c7799b8e987df2df8a2b75689a5f00c8ae",
     "desktop/app/src/viewer_views.rs": "1c345f035a72d6bbbd56c25e1f455c094231980314ae51c160db44c4db974a57",
     "desktop/app/src/viewer_views/tests.rs": "98da2f5da3b8b6d3dfea8e7e3cd59f52731f402fbfdccaa24fe4f8b4518e844a",
-    "desktop/ui/styles/dark.json": "a9aa7d78910a9eef9aef0a5198a3dcf59623ef0fbcda8b45e81b246aa0eae0c6"
+    "desktop/ui/styles/dark.json": "a9aa7d78910a9eef9aef0a5198a3dcf59623ef0fbcda8b45e81b246aa0eae0c6",
+    "crates/motion-render/tests/phase_adjustments.rs": "23c0cfaae6a7d83ded898064cbb26b490e4551232e0b9ddfcd7aadb02376d013"
   },
   "buildWarnings": {
     "test": 26,
@@ -430,9 +431,20 @@
     "viewer-ui-symbols-waveform.log": {
       "bytes": 249,
       "sha256": "a389f1e572c816a8e13d13388771196d187aa39c5bb582ed921d968c3133630c"
+    },
+    "ci-shared-scene-fix.zip": {
+      "bytes": 24927,
+      "sha256": "a1e45e654b9d153b4ed2d7dd70937de725bc7251715530ac8de48a8493e5b299"
+    },
+    "ci-shared-scene-fix.json": {
+      "bytes": 1088,
+      "sha256": "8b2eb29d5829e7d789b1f99e6180959784c8279372e5fc9022fe7754b7978272"
     }
   },
   "acceptedDistinctDesktopTests": 187,
   "acceptedHostLibraryTests": 113,
-  "acceptedDistinctTestsIncludingHost": 300
+  "acceptedDistinctTestsIncludingHost": 300,
+  "acceptedRendererIntegrationTests": 9,
+  "acceptedDistinctTestsIncludingHostAndRenderer": 309,
+  "ciFollowup": "ci-shared-scene-fix.json"
 }
