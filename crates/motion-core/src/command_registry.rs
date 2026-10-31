@@ -97,6 +97,7 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
             "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
             "Vec<KeyframeSelection>" => json!({"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["target","frames"],"properties":{"target":{"type":"object","description":"Typed KeyframeTarget channel address"},"frames":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}}}),
+            "LocalKeyEdit" => local_key_edit_schema(),
             "SpatialKeyEdit" => json!({"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
                     "kind":{"const":"enable"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}},
@@ -134,6 +135,36 @@ fn named_schema(kind: &str) -> (bool, Value) {
             _ => json!({"type":"object","description":format!("Typed core {} payload",kind)}),
         },
     )
+}
+
+fn local_key_edit_schema() -> Value {
+    let frames = json!({"type":"array","minItems":1,"maxItems":crate::MAX_FRAMES,
+        "uniqueItems":true,"description":"Sorted signed authored local-frame identities; never rounded composition times",
+        "items":{"type":"integer","minimum":i32::MIN,"maximum":i32::MAX}});
+    let variant = |kind: &str, fields: Vec<(&str, Value)>, required: &[&str]| {
+        let mut properties = serde_json::Map::new();
+        properties.insert("kind".into(), json!({"const":kind}));
+        properties.insert("frames".into(), frames.clone());
+        for (name, schema) in fields { properties.insert(name.into(), schema); }
+        let required: Vec<_> = ["kind", "frames"].into_iter().chain(required.iter().copied()).collect();
+        json!({"type":"object","additionalProperties":false,"required":required,"properties":properties})
+    };
+    json!({"description":"Edits authored integer keys by local identity; ease sides follow increasing local time",
+        "oneOf":[
+        variant("translate", vec![
+            ("delta_frame",json!({"type":"integer","minimum":i32::MIN,"maximum":i32::MAX,
+                "description":"Signed layer-local frame delta; composition projection can be fractional"})),
+            ("copy",json!({"type":"boolean"})),
+            ("value_offset",json!({"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                "required":["component","delta"],"properties":{"component":{"type":"integer","minimum":0},
+                    "delta":{"type":"number"}}}]}))], &["delta_frame","copy"]),
+        variant("interpolation",vec![("ease",named_schema("Ease").1)], &["ease"]),
+        variant("curve",vec![("easing",named_schema("Easing").1)], &["easing"]),
+        variant("ease",vec![("incoming",json!({"type":"boolean"})),
+            ("outgoing",json!({"type":"boolean"}))], &["incoming","outgoing"]),
+        variant("automatic",vec![("enabled",json!({"type":"boolean"}))], &["enabled"]),
+        variant("delete",vec![], &[])
+    ]})
 }
 
 fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDescriptor {
@@ -209,6 +240,7 @@ registry! {
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::KeyframeAutomatic { .. } => "keyframe_automatic" [("selections","Vec<KeyframeSelection>",true),("enabled","bool",true)];
+    Command::LocalKeyframes { .. } => "local_keyframes" [("target","KeyframeTarget",true),("edit","LocalKeyEdit",true)];
     Command::SpatialKeyframes { .. } => "spatial_keyframes" [("target","KeyframeTarget",true),("edit","SpatialKeyEdit",true)];
     Command::KeyframeHandle { .. } => "keyframe_handle" [("target","KeyframeTarget",true),("frame","u32",true),("incoming","bool",true),("control","[f64;2]",true)];
     Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];

@@ -164,7 +164,7 @@ impl CurveTrack {
         let bb = b.value.lut()?;
         Ok(std::array::from_fn(|i| std::array::from_fn(|c| aa[i][c] + (bb[i][c] - aa[i][c]) * t)))
     }
-    fn validate(&self, _frames: u32) -> Result<()> {
+    pub(crate) fn validate(&self, _frames: u32) -> Result<()> {
         self.value.validate()?;
         ensure(
             self.keys.len() <= crate::MAX_FRAMES as usize,

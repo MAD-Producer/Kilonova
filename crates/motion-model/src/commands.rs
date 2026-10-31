@@ -250,6 +250,8 @@ pub enum Command {
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     KeyframeInterpolation { selections: Vec<crate::KeyframeSelection>, ease: Ease },
     KeyframeAutomatic { selections: Vec<crate::KeyframeSelection>, enabled: bool },
+    /// Signed authored-frame identities; no rounding through composition time.
+    LocalKeyframes { target: crate::KeyframeTarget, edit: crate::keyframe_clipboard::local::LocalKeyEdit },
     /// Continuous spatial edits address a property and persistent key IDs.
     SpatialKeyframes { target:crate::KeyframeTarget, edit:crate::keyframe_clipboard::spatial::SpatialKeyEdit },
     /// `frame` addresses the interval's first key in composition time. Incoming
@@ -343,7 +345,7 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
-        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
+        if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. } | Self::LocalKeyframes { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }
     }
 }

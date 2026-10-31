@@ -70,7 +70,7 @@ pub fn ease_keys(
     Ok(())
 }
 
-fn intervals<T>(
+pub(super) fn intervals<T>(
     keys: &[Keyframe<T>],
     frames: &[i32],
     incoming: bool,

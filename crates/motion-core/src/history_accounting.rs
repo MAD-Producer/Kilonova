@@ -97,7 +97,8 @@ impl Changes {
             | Command::Mask { object, .. } => *object,
             Command::SetWorkingPrecision { .. } | Command::SetWorkArea { .. } | Command::SetGuides { .. } | Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
-            Command::KeyframeHandle { target, .. } | Command::SpatialKeyframes {target,..} => target.object(),
+            Command::KeyframeHandle { target, .. } | Command::SpatialKeyframes {target,..}
+            | Command::LocalKeyframes { target, .. } => target.object(),
             Command::DepthCalibration { object, .. } | Command::VideoDepthCalibration { object, .. } => *object,
             Command::CameraMode { object, .. }
             | Command::CameraImported { object, .. }

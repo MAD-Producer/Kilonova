@@ -123,7 +123,7 @@ pub(super) fn preflight(
     Ok(local_frames)
 }
 
-fn check_keys<T>(keys: &[Keyframe<T>], frames: &[i32]) -> Result<()> {
+pub(super) fn check_keys<T>(keys: &[Keyframe<T>], frames: &[i32]) -> Result<()> {
     ensure(
         frames
             .iter()

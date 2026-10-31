@@ -1,0 +1,366 @@
+{
+  "recorded_utc": "2026-10-31T13:16:12.048789+00:00",
+  "base": "da0b3ffb71262877b31b43cfad847618fb74a6c9",
+  "branch": "feat/layer-time-mapping",
+  "issue": 257,
+  "status": "local integer authored-key protocol verified; desktop interaction integration pending",
+  "audio_choice": "user confirmed varispeed: pitch follows speed; pitch-preserving DSP not part of first version",
+  "final_counts": {
+    "core": {
+      "passed": 116,
+      "ignored": 0
+    },
+    "model": {
+      "passed": 211,
+      "ignored": 0
+    },
+    "native": {
+      "passed": 1,
+      "ignored": 0
+    }
+  },
+  "distinct_passed": 328,
+  "commands": {
+    "core": "cargo test -p motion-core --test local_keyframes --test keyframe_clipboard --test layer_time --test spatial_keyframes --test command_registry --test scoped_command_transport --test prepared_commands --test compositions --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1",
+    "model": "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1",
+    "native": "cargo test -p motion-desktop --features ffmpeg,motion-host/diagnostics --bin motion-studio --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target engine::keyframe_timing_tests::local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history -- --exact --test-threads=1 --nocapture",
+    "workspace": "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  },
+  "env": {
+    "MOTION_LOG": "removed for native child; default info",
+    "WGPU_BACKEND": "vulkan",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "archive": {
+    "bytes": 29214,
+    "sha256": "c4f4aea5842678963ca29c417ee5385e4e8d55ffc77d78e4bb1ac6a38cdcb651"
+  },
+  "logs": {
+    "before": {
+      "bytes": 3450,
+      "sha256": "20263de709247f55384ee370381d10e089a307bee13a69df7d5b321260e0b95a"
+    },
+    "first": {
+      "bytes": 1578,
+      "sha256": "65412aa5e53bd6a34d2da729b1a1cc8827529e494e5da34a4e692101b0cb5e5c"
+    },
+    "expanded": {
+      "bytes": 3418,
+      "sha256": "af65c3262daa9b57bd949df32ea3413ba2efad687ad0f65e99230ce120d359d5"
+    },
+    "channels": {
+      "bytes": 3716,
+      "sha256": "1e90c3bc701f69a2d9eada107087b358500300902d16854a089570cc22e17305"
+    },
+    "correct-fixtures": {
+      "bytes": 2245,
+      "sha256": "c80d163cbd66b9bf34db17e2056647a2c7f720179936183cf0cac117facf302a"
+    },
+    "core": {
+      "bytes": 14720,
+      "sha256": "c1dd955d28f41a40005230aa973ca917d6c45c41583c515f3315619dd51409b6"
+    },
+    "model": {
+      "bytes": 30454,
+      "sha256": "5bc7a73259afd368c98783ac22ec0d1ca15d8560e793c57f0fcccf036022836e"
+    },
+    "native": {
+      "bytes": 14054,
+      "sha256": "8b16a44469f7050e23ccb265c171e41f24aa61f2b8de791745eb70df3e5c311d"
+    },
+    "workspace": {
+      "bytes": 22603,
+      "sha256": "0a7c2e066d54ded79a6aac838195b7d9e6234336141936611d061fb447ffd2af"
+    }
+  },
+  "native_error_channels": {
+    "stdout.log": {
+      "bytes": 252,
+      "sha256": "47c51621519a4715eaa6ee114c524bca762272ce4f52ab39a90b4a00cf6b8109"
+    },
+    "stderr.log": {
+      "bytes": 467,
+      "sha256": "26d9e9a956d593e0b57fda1f5d568673bbc8b8f2bd84796dcce01d340e81015c"
+    },
+    "logs/motion-studio.log": {
+      "bytes": 2932,
+      "sha256": "b556283b94a23e1af7181d3d1c646b2e72019356b236d50a3eae8fdb5c13e667"
+    }
+  },
+  "programs": {
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\command_registry-81f280b949e13a3c.exe": {
+      "bytes": 26342912,
+      "sha256": "ce5e146c9ec7ac7cf7b1904335ca88958664dc8b8627cac45a88ccb133897865"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\compositions-d38f665730d7ba4e.exe": {
+      "bytes": 30052864,
+      "sha256": "93f31c65e020c9fa0188261fcf0149f30c70f1b4e113b33ac376ebebf005bb2d"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\keyframe_clipboard-9098284b54fd9ffd.exe": {
+      "bytes": 38979584,
+      "sha256": "eb7a4931b17770c258f425d90e97671bdbf6e5eea8cb624dd62116241ef4768c"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time-13aa0ad16c060a95.exe": {
+      "bytes": 28241920,
+      "sha256": "e5eafb8bfbdff7b1522a5fa271a7abd7540d366be69e5e65ec202c0c15e8eb67"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\local_keyframes-c5bdb349b4372f42.exe": {
+      "bytes": 37056000,
+      "sha256": "8e31dce425c1f26c1f9fa0e8990a5299e8ab52dd31d2cb2fa506409667f69018"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\prepared_commands-547c98cdfd7370de.exe": {
+      "bytes": 20851200,
+      "sha256": "e2668cf90d85736dc06b00f829c622b04c777ab8d87282ccc184ee5cf1969475"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\scoped_command_transport-4fea45c6039f5caa.exe": {
+      "bytes": 26761728,
+      "sha256": "1a554cb16642402b49f662ffc0fa33db41ac1cb5e3956067da7a5356f5b3ae62"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_keyframes-4d66e073a0a9fddb.exe": {
+      "bytes": 29782016,
+      "sha256": "b35aa5ac9b2c1687ebd33c13cf9aa3e2488d80c4b9eb582c7d25b3497e576ad2"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_model-40401b121414d355.exe": {
+      "bytes": 1581568,
+      "sha256": "a16c5ebe3e61622527906534d727c82d805938e3d4c0392177811ff1ae6309ca"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\animation_sampling_errors-4f11c019005fa93c.exe": {
+      "bytes": 1380352,
+      "sha256": "6c895ca6d3c2037b06bb6c60911b851a845d4cbae2909c700ce6acba8847eb35"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\audio_plan_time_bounds-c1603dc8da725a97.exe": {
+      "bytes": 3004928,
+      "sha256": "7fe5d6d8447cb651b75b43f11311f274fa28f6ff7aaf8dff982301a258847ee4"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\automatic_bezier-e98df2f93fb5a7e2.exe": {
+      "bytes": 1972736,
+      "sha256": "5cdd6e9f8bb13921b78c95da874dfaa10319d36941efc12645228872cc0308d8"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\color_curve_failures-6346e6a64a4bbc24.exe": {
+      "bytes": 1220608,
+      "sha256": "3d9c50669ffd1b3ae54119b01d927ece3a12b4d19b931c74451fc434d83d9e5b"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\composition_boundaries-8a268af74154aea2.exe": {
+      "bytes": 6780416,
+      "sha256": "e36345217791e23d17f6102913114bcf2434607eec07016be6065b5cc2305929"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\composition_candidate_oracle-9bcf3a254af14c14.exe": {
+      "bytes": 2770432,
+      "sha256": "3ce9aa84ad88be7b37a159200279dfef712494fc0b94584472ce39e97956251d"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\composition_frame_mapping-d3f383ca6aa57005.exe": {
+      "bytes": 984064,
+      "sha256": "11fd572ae3d3b5841637ac53004260eac1b3cf07ddb8577f36a39999e9d8cda6"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\composition_queries-39a659e3641afde9.exe": {
+      "bytes": 2976256,
+      "sha256": "5963f0d4a969f2c0e42e454236a9f97abb7020747213ff07a22989b9174645ff"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\dense_color_curves-72bb9759010306c3.exe": {
+      "bytes": 1413120,
+      "sha256": "43021fdaf95667aa01ff9106b516806f422cdde5d67339cd7aee5c2ba86f29d9"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\dependency_boundaries-53f019ff7bc3f4dc.exe": {
+      "bytes": 1042944,
+      "sha256": "e57a7d6bcd6d24de66d443b567dd4d3d2e4855ef22a9950fa625be0c94abaa73"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth-276a1e9938b310ba.exe": {
+      "bytes": 1533440,
+      "sha256": "06cb4848f4e9fd7d3b20e30b19b9d0c5fe6b89cc76fba75987c3bd4204017c43"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_calibration-b68df62cab502140.exe": {
+      "bytes": 1167360,
+      "sha256": "ad8f3d62f3729ab576aae279a5e1fec252b7bfeab5d79e531b099252c9281067"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_of_field-87c934a83bcdba39.exe": {
+      "bytes": 2059264,
+      "sha256": "b6783590b55e06411a312f2f87645eac841fba5e1b7a8d82609844f962db40b4"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_prepared-bac6339b80d70d54.exe": {
+      "bytes": 1281024,
+      "sha256": "1dc731b0c7c8e51d63029231fb38b98e3482f623a3e3c0f87a013d328f76727e"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_saved-8a8851208156ce1c.exe": {
+      "bytes": 1593856,
+      "sha256": "66f7a8de668cd7051a8843d969c34ccfb2ac0b6cd5846fc34fdebb68d67a9d12"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_surface-2d36fd856f2b3090.exe": {
+      "bytes": 1844224,
+      "sha256": "0e5c74f18f5debc7d502d42ac0361672752df719ce4e81e86f2fbbce2d5cbb63"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\depth_video_track-9102da7d3a3c7c69.exe": {
+      "bytes": 2026496,
+      "sha256": "a2a4d92ec1fc4ff42d65108da82b41d0cd3464cc02723899ed9f64da468b5a2c"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\dimension_conversion_errors-7670df326f97ffab.exe": {
+      "bytes": 1274368,
+      "sha256": "2697992b50440e8d2ab68866aa2b76443fd4095bb5e43e829ebbec191b86bce8"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\dimension_edit_errors-805559df8d69deec.exe": {
+      "bytes": 1496064,
+      "sha256": "e3a2666ae9f1b0d58455bab7aa9bc6aec0992ee74198803e3d7c6da3199bcbd3"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\effect_parameter_errors-8d77c8b25f462e8c.exe": {
+      "bytes": 15690752,
+      "sha256": "cb979a350c774836b319f6cb983bf561c37f266416a717929f98e710d56cba7b"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\key_collisions-9b2079be8ad86182.exe": {
+      "bytes": 15099392,
+      "sha256": "0f1846ce0ae5dc7418c5f223b576e3f885cd23308ff52c8daaa75ad8d0789b87"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time-d65314f053dc1c41.exe": {
+      "bytes": 2051584,
+      "sha256": "96e7a5842858c9aa79d31f7f6e90d4b4699adf4692d5aeb3b90b138c9f4efe53"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time_direction-b2e777fd4acbbddd.exe": {
+      "bytes": 926208,
+      "sha256": "4d21bae72a3c4d1c8abce04b79d67bec7723bed482820d444157770aa56a3aef"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time_document-4f2f1e07a3232566.exe": {
+      "bytes": 6765568,
+      "sha256": "24b9ed266ad00a96609f9d8499f02604fdfc31102f339ae8e7f2a86af066eb51"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time_projection-031131098be9a580.exe": {
+      "bytes": 3167744,
+      "sha256": "4a36e575f5ee7e376debb80374eca1aed867ec9d60655c34442da2102ee9149c"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time_stationary-4ec2736c9296e6e3.exe": {
+      "bytes": 991232,
+      "sha256": "f21bd1ffc1ff4ee3f727cc11f7bb053def911e705d787041cc8e634f9a159afa"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\layer_time_video-b6341bad5be4442f.exe": {
+      "bytes": 1372672,
+      "sha256": "67c9f3f6de4744c955189d847f70852ab566e5718cff857d9dab1a526a0d7410"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\node_resources-72b6fc5e391a8a95.exe": {
+      "bytes": 1111040,
+      "sha256": "874a31af4c264e3cc988e21505d296cdbd20698ca21694066cf66e70e3545d9a"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\observability-0e980bd6d47e517d.exe": {
+      "bytes": 1294848,
+      "sha256": "3857109d66565e11d9c81d0a9c24e0c77a5164c98e3d86a2235b9b17deac0292"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\path_auto_tangents-0c917193f28a82f8.exe": {
+      "bytes": 1049088,
+      "sha256": "91034c5c5ba2cb226ad08d6de5674f98386ca17d1a9133df556302a009eab311"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\path_tangent_sampling-1e7fb94b1eacafe1.exe": {
+      "bytes": 2820608,
+      "sha256": "b8cb82ec90a3b9086b9a24d29c66e0bb8c8a97fd47ff7f1c7e1e1fb8f94993dc"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\sample_time-1f599466a1ca0a07.exe": {
+      "bytes": 1104384,
+      "sha256": "19dfed8c6fdbfc3ea3bc7fcc91b5f116963af625ed0ba3c2f9462ee1c6f72c65"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\shape_parameter_errors-ed53318ec6afa455.exe": {
+      "bytes": 2810368,
+      "sha256": "9c2ef515f16048b2827a2325e43d723fb38bc08c5cf1fe2498791e6d09d620e0"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_hot_path-0281114c01d352e7.exe": {
+      "bytes": 1906176,
+      "sha256": "7650d901df8833abc24add57ef188e8b56fd7aed1c35938c88751bc1a04e7499"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_schedule-1630a1fe24dc35b0.exe": {
+      "bytes": 2457600,
+      "sha256": "2192d51ec282524c24f144bbf0d66fdada74d2bc39ee3a96df147c77d76ec18c"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_timing-b03009c2ec1746eb.exe": {
+      "bytes": 1594880,
+      "sha256": "0eab3446d244e28012c4668dadf16e1b12c82ec3fe14857ea42267074b249838"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_track-48bc46fb7a0e247d.exe": {
+      "bytes": 9368064,
+      "sha256": "af158f7c15379b4b615a250b7f94891f2a53e8750e06bd8656c3f2dfb5f67b32"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_velocity-5f298d84ce84dcbf.exe": {
+      "bytes": 1902592,
+      "sha256": "621ca14cd2b96f45ee7cdaaf85ba5b4d50b9942d16cad1d6c15ffda2922ee84e"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\timeline_errors-72c3e75b1ac8eedc.exe": {
+      "bytes": 2957312,
+      "sha256": "5d3f9cf6dc4a473aa2fbc82a40f38983840b926a8b5358f93fbeed1cf0cea482"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\vector_path_inputs-17a74fa710ab79ff.exe": {
+      "bytes": 1091072,
+      "sha256": "5bfae8946d381e75985b8485a96cd7ddd7b68c288d27ed86e2d4df6a85268de6"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\working_precision-08f000340deaf256.exe": {
+      "bytes": 6504448,
+      "sha256": "fd24b2d7ecf9547f7570323542fddf43028073931c2ce81f36c86ce3eb9e7e47"
+    },
+    "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe": {
+      "bytes": 135139328,
+      "sha256": "7bd88857af377bb89b86f6f372d4165bb14438edabdbe2860aa7ed0ed760ef17"
+    }
+  },
+  "sources_and_completion_docs": {
+    "crates/motion-core/tests/local_keyframes.rs": {
+      "bytes": 25725,
+      "sha256": "2bb6535b5488a6927554c3bc9c0b148db2df7fda992724b061a627b4a6616bdf"
+    },
+    "crates/motion-model/src/keyframe_clipboard/local.rs": {
+      "bytes": 12760,
+      "sha256": "91266530aef8ed098c85dad66777c662c9e4b0f77703f413a9fe2db52225dbf6"
+    },
+    "engineering/validation/layer-time-local-keys.md": {
+      "bytes": 7328,
+      "sha256": "84bc0c9cf1d62e917344e37a1ed2f3946baef0d8d6ca9c1790bf1d3effeda06b"
+    },
+    "crates/motion-core/src/command_registry.rs": {
+      "bytes": 23347,
+      "sha256": "acae221da63f02048b150f8887e8af65538db26c34be82330246956ea3615077"
+    },
+    "crates/motion-core/src/editor.rs": {
+      "bytes": 63055,
+      "sha256": "04369fb45cf1c5bb97a0750b54de7f6988e2368eb85629e5e1b00f161c6e64ca"
+    },
+    "crates/motion-core/src/history_accounting.rs": {
+      "bytes": 15101,
+      "sha256": "b85f89c7bfe6a11dca1d222886e8195d2d12fd723f3719103e9109a80e0d92a4"
+    },
+    "crates/motion-core/src/lib.rs": {
+      "bytes": 4727,
+      "sha256": "ca414e1bbf3cea36cb1913de37fdb1d0e8e2c40fb4301894e178cc6985efe935"
+    },
+    "crates/motion-model/src/commands.rs": {
+      "bytes": 11593,
+      "sha256": "64ce1372b5d9ade5e394d2f7e95a5fb1ce59c8cd7c9abe20bea11fb26cf51589"
+    },
+    "crates/motion-model/src/effects.rs": {
+      "bytes": 34505,
+      "sha256": "addfa53940147cff6042d625bfb6cb405e4c3e64b80cd1673efeb08bb1ff95d6"
+    },
+    "crates/motion-model/src/keyframe_clipboard.rs": {
+      "bytes": 21819,
+      "sha256": "ba040b3e00accbd7e86bfe238f4ce5762c8d15d516672d8556bc1ee8d85fe6f3"
+    },
+    "crates/motion-model/src/keyframe_clipboard/easing.rs": {
+      "bytes": 4436,
+      "sha256": "74a9aefd26fea4c10caf8188f1906fb11df9d03691b35275bf2a24909fb3ce3d"
+    },
+    "crates/motion-model/src/keyframe_clipboard/interpolation.rs": {
+      "bytes": 4908,
+      "sha256": "7fdf8ca3d48bfef206a3fec8ffa668d1177df27969234ade358b6155072abdbd"
+    },
+    "crates/motion-model/src/keyframe_clipboard/transform.rs": {
+      "bytes": 6699,
+      "sha256": "be1a46d4f2a81553dae3bdaf790f8672b96572cfc734c179161112c9073a82b9"
+    },
+    "desktop/app/src/engine/keyframe_timing_tests.rs": {
+      "bytes": 14974,
+      "sha256": "0ee241fb96d21f14ecbdb81611e2ed3fb84b46fa36a11ebc0fdb27d8aaeaeb3a"
+    },
+    "engineering/host-api/layer-time-mapping.md": {
+      "bytes": 11277,
+      "sha256": "a695a590d07033785b6cdbe540060bbd4efb872982991bd576b760041f459630"
+    }
+  },
+  "limits": [
+    "No UI screenshots or actual gesture acceptance; no panels changed",
+    "Local integer frame identities require source/revision guarding at GUI integration",
+    "Continuous spatial stable-ID mapping remains separate and pending",
+    "Existing logger, thresholds, timeouts, retries and native event behavior unchanged",
+    "No macOS/Linux execution or GitHub CI claimed"
+  ]
+}

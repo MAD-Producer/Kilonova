@@ -10,7 +10,7 @@ pub struct KeyframeValueOffset {
     pub delta: f32,
 }
 
-trait NumericOffset: Clone {
+pub(super) trait NumericOffset: Clone {
     fn offset(&self, component: usize, delta: f32) -> Result<Self>;
 }
 impl NumericOffset for f32 {
@@ -41,7 +41,7 @@ impl NumericOffset for crate::CurveObject {
     }
 }
 
-fn plan<T: NumericOffset>(
+pub(super) fn plan<T: NumericOffset>(
     keys: &[Keyframe<T>],
     source: &[i32],
     destination: &[i32],
