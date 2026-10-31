@@ -1,5 +1,7 @@
 # Issue 82 acceptance map
 
+Current integration: see [main-8573 integration](native-prerender-integration-main-8573-current.md). The latest completed combined result below remains failed; later component passes and rebasing do not qualify the final source.
+
 Issue: [#82](https://github.com/MAD-Producer/Kilonova/issues/82).
 Delivery: [draft PR #575](https://github.com/MAD-Producer/Kilonova/pull/575).
 This is an acceptance index, not a completion declaration. It maps the five

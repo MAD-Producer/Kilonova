@@ -1,5 +1,7 @@
 # Combined native prerender gate: v8 remains failed
 
+Current integration: see [main-8573 integration](native-prerender-integration-main-8573-current.md). The latest completed combined result below remains failed; later component passes and rebasing do not qualify the final source.
+
 Issue [#82](https://github.com/MAD-Producer/Kilonova/issues/82), draft
 [PR #575](https://github.com/MAD-Producer/Kilonova/pull/575).
 Tested source `652fbe6525f5813a85620fe0d5d2ad4eef5f9bfb`, main baseline
