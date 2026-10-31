@@ -58,6 +58,7 @@ pub(super) struct Runtime {
     direction: Direction,
     policy: Policy,
     static_intervals: Option<StaticIntervals>,
+    disk: Option<motion_desktop_media::movie::prerender::disk::Config>,
 }
 impl Runtime {
     pub fn new(signals: Arc<Signals>) -> Self {
@@ -75,6 +76,7 @@ impl Runtime {
             direction: Direction::Forward,
             policy: Policy::default(),
             static_intervals: None,
+            disk: None,
         }
     }
     pub fn polling(&self) -> bool {
@@ -105,6 +107,10 @@ impl Runtime {
     /// Explicit policy change is the recovery boundary. No implicit retry of a
     /// failing source and no replacement of a spontaneously stopped worker.
     pub fn configure(&mut self, policy: Policy) -> Result<(), String> {
+        self.configure_with_disk(policy, None)
+    }
+    pub fn configure_with_disk(&mut self, policy: Policy,
+        disk: Option<motion_desktop_media::movie::prerender::disk::Config>) -> Result<(), String> {
         motion_host::prerender::Scheduler::new(policy).map_err(|e| e.to_string())?;
         self.signals.interrupt()?;
         match &mut self.owner {
@@ -114,7 +120,9 @@ impl Runtime {
             }
             None => {}
         }
+        if let Some(owner) = &mut self.owner { owner.set_disk_cache(disk.clone())?; }
         self.enabled = policy.enabled && policy.window != 0;
+        self.disk = disk;
         self.policy = policy;
         self.signature = None;
         self.static_intervals = None;
@@ -405,7 +413,9 @@ impl Runtime {
             "started":scheduler.map_or(0,|s|s.counts.started),"completed":scheduler.map_or(0,|s|s.counts.completed),
             "canceled":scheduler.map_or(0,|s|s.counts.canceled),"stale":scheduler.map_or(0,|s|s.counts.stale),
             "cpuQuotaBytes":CPU_BYTES,"gpuQuotaBytes":GPU_BYTES,
-            "sourceChanges":"native_visual_source_watch","diskCache":false})
+            "sourceChanges":"native_visual_source_watch","diskCache":self.enabled && self.owner.as_ref().is_some_and(|owner|owner.disk_info().ready),
+            "diskConfigured":self.disk.is_some(),"diskQuotaBytes":self.disk.as_ref().map_or(0,|c|c.quota_bytes()),
+            "disk":self.owner.as_ref().map(Coordinator::disk_info)})
     }
 }
 impl Drop for Runtime {

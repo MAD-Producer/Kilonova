@@ -35,7 +35,7 @@ impl ToolRouter<'_> {
             "command_batch" => &["commands", "expectedRevision"],
             "render_preview" => &["frame"],
             "import_model" => &["path", "expectedRevision"],
-            "configure_prerender" => &["enabled", "window", "idleDelayMs"],
+            "configure_prerender" => &["enabled", "window", "idleDelayMs", "diskQuotaBytes"],
             _ => return Err("unknown editor tool".into()),
         };
         if args.keys().any(|key| !fields.contains(&key.as_str())) {
@@ -68,12 +68,16 @@ impl ToolRouter<'_> {
                     .filter(|delay| *delay <= 60_000)
                     .ok_or("idleDelayMs must be an integer in [0, 60000]"))
                     .transpose()?.unwrap_or(200);
-                self.engine.configure_prerender(motion_host::prerender::Policy {
+                let disk_quota = args.get("diskQuotaBytes").map(|value| value.as_u64()
+                    .filter(|bytes| *bytes == 0 || (81..=(64u64 << 30)).contains(bytes))
+                    .ok_or("diskQuotaBytes must be 0 or an integer in [81, 68719476736]"))
+                    .transpose()?.unwrap_or(0);
+                self.engine.configure_prerender_with_disk(motion_host::prerender::Policy {
                     enabled,
                     window,
                     idle_delay: std::time::Duration::from_millis(idle_delay),
                     ..Default::default()
-                })
+                }, disk_quota)
             }
             "import_model" => {
                 let path = args.get("path").and_then(Value::as_str)
@@ -159,7 +163,7 @@ pub fn tools() -> Value {
         tool("motion_history","Undo or redo the most recent committed operation.",schema(json!({"operation":{"type":"string","enum":["undo","redo"]}}),&["operation"]),false),
         tool("motion_save","Atomically save the current project and validate its assets.",schema(json!({}),&[]),false),
         tool("import_model","Import a local glTF, GLB or OBJ plus bounded dependencies into an owned model layer with one undo step. Rest pose, 100 pixels per metre, no automatic animation. Fetch the current revision first.",schema(json!({"path":{"type":"string","minLength":1,"maxLength":4096},"expectedRevision":{"type":"integer","minimum":0}}),&["path","expectedRevision"]),false),
-        tool("configure_prerender","Replace the experimental background prerender policy without editing the project. Disabled by default; requires a shared native High preview with authored camera and single-time rendering. Headless stdio reports no_surface and creates no background GPU owner. Window defaults to 3 frames, idle delay to 200 ms; window 0 also disables. Read motion_state for actual holds, faults and cached presentations.",schema(json!({"enabled":{"type":"boolean"},"window":{"type":"integer","minimum":0,"maximum":motion_host::prerender::MAX_WINDOW},"idleDelayMs":{"type":"integer","minimum":0,"maximum":60000}}),&["enabled"]),false),
+        tool("configure_prerender","Replace the experimental background prerender policy without editing the project. Disabled by default; requires a shared native High preview with authored camera and single-time rendering. Headless stdio reports no_surface and creates no background GPU owner. Window defaults to 3 frames, idle delay to 200 ms; window 0 also disables. Optional diskQuotaBytes defaults to 0 (disabled); nonzero enables app-owned native-byte caching without changing the project. Read motion_state for actual holds, disk hits/faults and cached presentations.",schema(json!({"enabled":{"type":"boolean"},"window":{"type":"integer","minimum":0,"maximum":motion_host::prerender::MAX_WINDOW},"idleDelayMs":{"type":"integer","minimum":0,"maximum":60000},"diskQuotaBytes":{"type":"integer","minimum":0,"maximum":68719476736u64,"oneOf":[{"const":0},{"minimum":81}],"description":"Optional app-owned native disk cache quota. 0 (default) disables disk IO; otherwise at least 81 bytes. Cache faults fall back to rendering; reads/writes run on the background owner."}}),&["enabled"]),false),
         tool("command_list","List registered editing commands and their JSON schemas.",schema(json!({}),&[]),true),
         tool("command_run","Execute one registered core command with a revision check and one undo boundary.",schema(json!({"command":command_schema,"expectedRevision":{"type":"integer","minimum":0}}),&["command","expectedRevision"]),false),
         tool("command_batch","Execute an atomic batch of registered editing commands with one undo boundary.",schema(json!({"commands":{"type":"array","minItems":1,"items":command_schema},"expectedRevision":{"type":"integer","minimum":0}}),&["commands","expectedRevision"]),false),

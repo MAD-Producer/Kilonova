@@ -118,6 +118,7 @@ impl YieldControl {
 pub struct Completion {
     pub id: u64,
     pub outcome: Outcome,
+    pub disk: disk::Stats,
     /// A yielded render published no pixels, but its immutable native owner is
     /// reusable. Preparation, strong cancellation and failures never set this.
     pub retained_native: bool,
@@ -138,6 +139,7 @@ pub struct Snapshot {
     pub cpu_limit_bytes: u64,
     pub last_failure: Option<String>,
     pub source: Option<source_watch::Snapshot>,
+    pub disk: disk::Stats,
 }
 /// Read-only and Send + Sync: a watchdog need not enqueue a command on either
 /// the Engine owner or the potentially blocked native rendering thread.
@@ -165,6 +167,7 @@ impl Observation {
             retained_cpu_bytes: self.cpu.live.load(Ordering::Acquire),
             cpu_limit_bytes: self.cpu.limit,
             last_failure: state.last_failure.clone(),
+            disk: state.disk.clone(),
             source: state
                 .source
                 .as_ref()
@@ -187,6 +190,7 @@ struct State {
     stopped: bool,
     last_failure: Option<String>,
     source: Option<source_watch::Observation>,
+    disk: disk::Stats,
 }
 enum Work {
     Prepare(PrerenderPlan),
@@ -246,6 +250,7 @@ impl Worker {
                     if let Some(id) = flight {
                         let _ = completed.try_send(Completion {
                             id,
+                            disk: disk::Stats::default(),
                             retained_native: false,
                             outcome: Outcome::Failed(
                                 "prerender worker panicked; native owner retired".into(),
@@ -493,6 +498,7 @@ fn run(
 ) {
     let mut input: Option<PreparedPrerender> = None;
     let mut renderer: Option<NativePrerender> = None;
+    let mut disk = disk::Owner::default();
     let mut last_id = 0;
     while let Ok(Job {
         id,
@@ -544,6 +550,8 @@ fn run(
             control.check()?;
             match work {
                 Work::Prepare(plan) => {
+                    let disk_config = plan.disk.clone();
+                    let frame_limit = plan.max_frame_bytes;
                     retiring(state, phase_hook, id);
                     renderer = None;
                     input = None;
@@ -562,10 +570,30 @@ fn run(
                         frames: project.frames,
                         precision: project.working_precision,
                     };
+                    if disk_config.is_some() { progress(Phase::DiskOpen); }
+                    disk.configure(disk_config, frame_limit, id, &control)?;
                     input = Some(prepared);
                     Ok(Outcome::Prepared(profile))
                 }
                 Work::Render { frame, permit } => {
+                    let prepared = input.as_ref().or_else(|| renderer.as_ref().map(|r| &r.input))
+                        .ok_or("prerender worker prepared input missing")?;
+                    let disk_key = disk.key(prepared, frame)?;
+                    let source = prepared.watch.as_ref().map(source_watch::SourceWatch::observation);
+                    let cached = if let Some(key) = &disk_key {
+                        let _lease = source.as_ref().map(|source| source_lease(source, &control)).transpose()?;
+                        progress(Phase::DiskRead);
+                        disk.load(key, id, &control)?
+                    } else { None };
+                    if let Some(image) = cached {
+                        if image.pixels.capacity() as u64 > permit.bytes {
+                            return Err("prerender disk completion capacity exceeds CPU admission".into());
+                        }
+                        return Ok(Outcome::Frame(WorkerFrame {
+                            frame: CompletedFrame { key: disk_key.ok_or("prerender disk key missing")?.composition, image },
+                            _permit: permit,
+                        }));
+                    }
                     if renderer.is_none() {
                         progress(Phase::Initialize);
                         renderer = Some(NativePrerender::open(
@@ -583,6 +611,11 @@ fn run(
                         return Err(
                             "prerender native completion capacity exceeds CPU admission".into()
                         );
+                    }
+                    if let Some(key) = &disk_key {
+                        let _lease = source.as_ref().map(|source| source_lease(source, &control)).transpose()?;
+                        progress(Phase::DiskWrite);
+                        disk.store(key, frame.image(), id, &control)?;
                     }
                     Ok(Outcome::Frame(WorkerFrame {
                         frame,
@@ -633,6 +666,7 @@ fn run(
         // State publication precedes completion: the owner can never drain a
         // reply and then have the worker restore a stale waiting=true flag.
         if let Ok(mut state) = state.lock() {
+            state.disk = disk.stats.clone();
             state.flight = None;
             state.waiting = true;
             if failure.is_some() {
@@ -651,6 +685,7 @@ fn run(
         if let Err(error) = completed.try_send(Completion {
             id,
             outcome,
+            disk: disk.stats.clone(),
             retained_native,
         }) {
             if matches!(error, TrySendError::Full(_)) {

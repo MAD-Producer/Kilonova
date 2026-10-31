@@ -1,6 +1,7 @@
 use super::*;
 mod foreground_logging;
 mod source_freshness;
+mod disk_cache;
 
 fn policy() -> schedule::Policy {
     schedule::Policy {

@@ -192,6 +192,17 @@ jobs:
         # Exercise the optional depth contract/process tests without installing
         # a model or Python inference runtime on the native matrix.
         run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/ai-depth,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests,motion-desktop-media/ai-depth -- --test-threads=1
+      - name: Verify native cache on an actual full bounded volume
+        if: runner.os == 'Linux'
+        run: python tools/validate_prerender_full_volume.py --artifacts artifacts/desktop/prerender-full-volume
+      - name: Upload bounded full-volume cache evidence
+        if: always() && runner.os == 'Linux' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prerender-full-volume-${{ matrix.platform }}
+          path: artifacts/desktop/prerender-full-volume/**
+          if-no-files-found: warn
+          retention-days: 7
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache

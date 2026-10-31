@@ -1,6 +1,11 @@
 {
   "version": 1,
   "tools": {
+    "tools/validate_prerender_full_volume.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Linux desktop CI runs a real native cache ENOSPC and recovery control on a separately mounted 8 MiB tmpfs; host volumes are never filled and other platform full-volume behavior is not inferred."
+    },
     "tools/analyze_prerender_paced.py": {
       "mode": "ci",
       "runner": "tools/test_ci_prerender_paced.py",

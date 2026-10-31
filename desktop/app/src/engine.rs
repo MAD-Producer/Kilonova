@@ -172,6 +172,7 @@ fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>,
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
     ConfigurePrerender { policy: motion_host::prerender::Policy, reply: Sender<Result<Value, String>> },
+    ConfigurePrerenderDisk { policy: motion_host::prerender::Policy, disk: Option<motion_desktop_media::movie::prerender::disk::Config>, reply: Sender<Result<Value, String>> },
     /// Internal idle poll; it does not enter the foreground command queue.
     PrerenderPoll,
     CurveClipboardRead { source: crate::layer_clipboard::KeyframeSource, selection: Option<motion_core::KeyframeSelection>, reply: Sender<Result<crate::layer_clipboard::curves::Read, String>> },
@@ -514,7 +515,7 @@ impl Command {
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
-            | ResourceInfo { reply, .. } | ConfigurePrerender { reply, .. } => ErrorReply::Value(reply.clone()),
+            | ResourceInfo { reply, .. } | ConfigurePrerender { reply, .. } | ConfigurePrerenderDisk { reply, .. } => ErrorReply::Value(reply.clone()),
             #[cfg(test)]
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
                 ErrorReply::Value(reply.clone())
@@ -595,6 +596,13 @@ impl Engine {
     /// Experimental profile; no UI setting or capability is enabled.
     pub fn configure_prerender(&self, policy: motion_host::prerender::Policy) -> Result<Value, String> {
         self.call(|reply| Command::ConfigurePrerender { policy, reply })
+    }
+    pub fn configure_prerender_with_disk(&self, policy: motion_host::prerender::Policy, quota: u64) -> Result<Value, String> {
+        let disk = if quota == 0 { None } else {
+            Some(motion_desktop_media::movie::prerender::disk::Config::new(
+                crate::directories().join("cache/prerender"), quota)?)
+        };
+        self.call(|reply| Command::ConfigurePrerenderDisk { policy, disk, reply })
     }
     pub fn set_prerender_playing(&self, playing: bool) -> Result<(), String> {
         self.check_running()?;
@@ -1664,7 +1672,7 @@ fn handle(
     if !matches!(
         &command,
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
-        | Command::PrerenderPoll | Command::ConfigurePrerender { .. }
+        | Command::PrerenderPoll | Command::ConfigurePrerender { .. } | Command::ConfigurePrerenderDisk { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
         | Command::EffectPick { .. }
@@ -1675,6 +1683,8 @@ fn handle(
     match command {
         Command::ConfigurePrerender { policy, reply } => respond(reply,
             prerender.configure(policy).map(|()| prerender.status()).map_err(Into::into)),
+        Command::ConfigurePrerenderDisk { policy, disk, reply } => respond(reply,
+            prerender.configure_with_disk(policy, disk).map(|()| prerender.status()).map_err(Into::into)),
         Command::PrerenderPoll => {
             let result = motion_host::session::with_session(id, |s| {
                 prerender.tick(s, foreground_depth, CURRENT_COMMAND.get().map_or(0, |f| f.request));
