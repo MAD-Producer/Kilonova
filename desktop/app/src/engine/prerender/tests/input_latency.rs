@@ -200,6 +200,7 @@ fn native_controls_record_edit_and_scrub_latency_with_real_optional_work() {
                 } else {
                     dock::Panel::Timeline
                 });
+                begin_phases();
                 let began = Instant::now();
                 feed(
                     &mut events,
@@ -226,10 +227,11 @@ fn native_controls_record_edit_and_scrub_latency_with_real_optional_work() {
                 let committed = began.elapsed();
                 let polls = show(&mut events, &mut shell);
                 let elapsed = began.elapsed();
+                let phases = finish_phases();
                 evidence.partial.push(serde_json::json!({"sample":number,"foregroundUs":elapsed.as_micros(),
                     "pressUs":pressed.as_micros(),"changeUs":changed.as_micros(),"commitUs":committed.as_micros(),
                     "presentUs":elapsed.saturating_sub(committed).as_micros(),"presentPolls":polls,
-                    "actions":[first,movement,released],"before":observation,"warm":warm,
+                    "actions":[first,movement,released],"before":observation,"warm":warm,"phases":phases,
                     "verified":false}));
                 evidence.save();
                 // All state reads, pixel readback, history checks and disk IO

@@ -1,5 +1,49 @@
 use super::*;
 
+#[derive(serde::Serialize)]
+struct PhaseTiming {
+    phase: &'static str,
+    elapsed_us: u128,
+    count: usize,
+}
+#[derive(serde::Serialize)]
+struct PhaseTrace {
+    records: Vec<PhaseTiming>,
+    dropped: u64,
+}
+thread_local! {
+    static PHASES: std::cell::RefCell<Option<PhaseTrace>> = const { std::cell::RefCell::new(None) };
+}
+pub(super) fn begin_phases() {
+    // Allocate before the measured interval. No logger, filesystem or growing
+    // unbounded trace is introduced into the native input path.
+    PHASES.with(|phases| {
+        *phases.borrow_mut() = Some(PhaseTrace {
+            records: Vec::with_capacity(64),
+            dropped: 0,
+        })
+    });
+}
+pub(super) fn finish_phases() -> Value {
+    PHASES.with(|phases| serde_json::to_value(phases.borrow_mut().take().unwrap()).unwrap())
+}
+fn phase(name: &'static str, began: Instant, count: usize) {
+    let elapsed_us = began.elapsed().as_micros();
+    PHASES.with(|phases| {
+        if let Some(phases) = phases.borrow_mut().as_mut() {
+            if phases.records.len() < 64 {
+                phases.records.push(PhaseTiming {
+                    phase: name,
+                    elapsed_us,
+                    count,
+                });
+            } else {
+                phases.dropped = phases.dropped.saturating_add(1);
+            }
+        }
+    });
+}
+
 pub(super) fn layout() -> dock::Node {
     dock::Node::Split {
         edge: dock::Edge::Top,
@@ -33,10 +77,13 @@ struct InputBatch<'a> {
 impl InputBatch<'_> {
     fn send(&mut self, active: &ActiveEventLoop) {
         if let Some(events) = self.events.take() {
+            let began = Instant::now();
+            let count = events.len();
             let id = self.shell.window.as_ref().unwrap().id();
             for event in events {
                 self.shell.window_event(active, id, event);
             }
+            phase("input.window_events", began, count);
         }
     }
 }
@@ -62,16 +109,25 @@ pub(super) fn feed(events: &mut EventLoop<()>, shell: &mut Shell, batch: Vec<Win
             "native input dispatch deadline"
         );
     }
+    phase("input.pump", began, 1);
 }
 pub(super) fn draw_dispatch(events: &mut EventLoop<()>, shell: &mut Shell) -> usize {
+    let began = Instant::now();
     let (_, actions) = shell.draw_commands(SIZE);
+    phase("actions.draw_commands", began, actions.len());
     let count = actions.len();
     shell.actions.extend(actions);
     while let Some(action) = shell::actions::pop_action(&mut shell.actions) {
+        let began = Instant::now();
         shell.action(action, None).unwrap();
+        phase("actions.apply", began, 1);
         if let Some((_, reply)) = shell.editing.take() {
+            let began = Instant::now();
             let state = receive(events, &reply);
+            phase("actions.await_reply", began, 1);
+            let began = Instant::now();
             shell.accept_edit_state(state);
+            phase("actions.accept_state", began, 1);
         }
     }
     count
@@ -80,15 +136,25 @@ pub(super) fn show(events: &mut EventLoop<()>, shell: &mut Shell) -> u32 {
     let began = Instant::now();
     let mut polls = 0;
     loop {
+        let phase_began = Instant::now();
         let (paint, actions) = shell.draw_commands(SIZE);
+        phase("present.draw_commands", phase_began, 1);
         assert!(
             actions.is_empty(),
             "presentation must not discard pending actions"
         );
+        let phase_began = Instant::now();
         let ui = shell.ui_frame(paint, SIZE, false);
+        phase("present.ui_frame", phase_began, 1);
         assert!(ui.composition.is_some());
         polls += 1;
-        if receive(events, &shell.present_ui_async(ui).unwrap()) {
+        let phase_began = Instant::now();
+        let pending = shell.present_ui_async(ui).unwrap();
+        phase("present.enqueue", phase_began, 1);
+        let phase_began = Instant::now();
+        let presented = receive(events, &pending);
+        phase("present.await_reply", phase_began, 1);
+        if presented {
             return polls;
         }
         assert!(
