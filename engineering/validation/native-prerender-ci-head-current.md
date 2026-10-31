@@ -1,54 +1,43 @@
 # Exact-head native prerender PR CI
 
-Issue: [#82](https://github.com/MAD-Producer/Kilonova/issues/82).
-PR: [#575](https://github.com/MAD-Producer/Kilonova/pull/575), still a draft.
-Tested source: `8bb44d4a81f67f693a20e7bc3c067a987d37cb31`.
-[CI run 41169667594](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594)
-completed successfully. All five required jobs passed: dependency audit, Rust/GPU,
-Linux desktop, Windows desktop and macOS Intel desktop. Android is retired and
-excluded as instructed.
+Issue [#82](https://github.com/MAD-Producer/Kilonova/issues/82), draft
+[PR #575](https://github.com/MAD-Producer/Kilonova/pull/575).
+Tested source: `652fbe6525f5813a85620fe0d5d2ad4eef5f9bfb`.
+[CI run 41177231677](https://github.com/MAD-Producer/Kilonova/actions/runs/41177231677)
+completed successfully. All five required jobs passed.
 
-The actual final summary lines in each original job log report:
+| Job | Actual job ID | Passed / failed / ignored executions |
+| --- | ---: | --- |
+| Rust and GPU | 124467192970 | 2041 / 0 / 7 |
+| Desktop build (ubuntu-24.04, linux-x86_64, motion-studio, x86_64-unknown-linux-gnu) | 124467193099 | 2015 / 0 / 6 |
+| Desktop build (windows-2022, windows-x86_64, motion-studio.exe, x86_64-pc-windows-msvc) | 124467193121 | 2068 / 0 / 60 |
+| Dependency audit | 124467193175 | 0 / 0 / 0 |
+| Desktop build (macos-15-intel, macos-x86_64, motion-studio, x86_64-apple-darwin) | 124467193185 | 2015 / 0 / 6 |
 
-| Job | Summary lines | Passed executions | Failed | Ignored |
-| --- | ---: | ---: | ---: | ---: |
-| [windows](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594/job/124444681695) | 56 | 2010 | 0 | 53 |
-| [macos-intel](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594/job/124444681609) | 55 | 1957 | 0 | 6 |
-| [linux](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594/job/124444681546) | 55 | 1957 | 0 | 6 |
-| [rust-gpu](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594/job/124444681439) | 296 | 1970 | 0 | 7 |
+These are observed execution totals from raw log summaries, not unique tests.
+Jobs overlap; do not sum them as coverage. Both libav and release publication
+were skipped by PR policy. Arm64 and FFmpeg packaging/video publication remain
+outside this PR run. Android is retired and excluded.
 
-These are observed execution totals, not unique test counts. Jobs overlap;
-never add their totals to claim coverage. Rust/GPU includes separate commands.
-Explicitly ignored native performance studies remain outside ordinary CI.
-
-The Linux job separately passed [actual bounded-full-volume recovery](native-prerender-full-volume-current.md).
-Desktop PR jobs also passed `tools/build_desktop.py --task check`. By policy,
-this PR run does not execute arm64, FFmpeg release packaging, packaged video
-verification or the main/tag publication chain. It is not four-platform release
-qualification; #87 has its independent [release evidence](scene3d-main-release-current.md).
-
-## Acceptance boundary
-
-The exact-head CI requirement is satisfied for this source only. Local source
-commits `71a2a696`, `b1daab53` and `3aaab948` have not been integrated into the
-PR and are not covered by this run. Their local scoped evidence remains separate.
-
-Current-source local desktop regression has completed 1,463 passed, zero failed
-and 51 ignored, including the two tests that failed on the older source. The
-full local FFmpeg/AI-depth workspace gate subsequently completed with 4,009
-passed, zero failed and 63 ignored; actual shared-window MCP also passed.
-The [combined gate](native-prerender-combined-gate-current.md) still failed its
-input assessment. The strict 480-sample input
-assessment still fails the second property pair (ratio `1.1349866349866349`).
-Old illegal-instruction, stack-overflow, Naga precondition and child-exit evidence
-remains unresolved. Current CI and changed-source passes do not explain it.
-The draft must not be merged or #82 closed on these CI results alone.
+Raw Linux, macOS Intel and Windows logs contain actual successful native worker
+priority controls before source preparation. Windows also reports a pass for the
+native effect-search test that failed in the local FFmpeg/AI-depth workspace.
+A different-machine/features pass does not diagnose the local access violation.
+The [combined local gate](native-prerender-combined-gate-current.md) remains
+failed: strict foreground input P95, native UI regression and MCP startup.
+Uncommitted upload/input-admission changes and subsequent message-only changes
+are not covered by this head. The final changed source requires its own CI and
+full acceptance. PR #575 must remain a draft until those failures are resolved.
 
 ## Evidence
 
-Archive: [exact-head job records](data/native-prerender-ci-head-v1.zip).
-SHA-256: `971f2a3554e7aa37fed6fc6c601bd50a1f72054cfb7314705b81251962d1de50`. All 12 members were read back byte for byte.
-The manifest binds final run/job identities, original command/summary excerpts
-and tested workflow source. Full original logs are retained separately with
-SHA-256 values in the receipt. No private dumps, executables, PDBs or machine
-hardware records are included.
+[Exact head, terminal jobs and complete original logs](data/native-prerender-ci-652-five-checks.zip):
+eight members, SHA-256
+`261a271caab7828af3a897c06cfb6066d9343d1448a776771284788535e68204`.
+Every member was read back byte for byte. The first collector stopped before log
+collection because it did not classify the seventh skipped publication job;
+its incomplete receipt is retained locally. The corrected collector verified
+all five original required jobs and both skipped jobs; no CI test was rerun.
+
+The [older exact-head archive](data/native-prerender-ci-head-v1.zip) remains
+historical evidence for `8bb44d4a`, not qualification for newer changes.

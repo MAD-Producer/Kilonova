@@ -452,7 +452,8 @@ fn effect_search_native_pixels_and_default_failure_sinks() {
     std::fs::write(artifacts.join("stderr.log"), &output.stderr).unwrap();
     assert!(
         output.status.success(),
-        "{}\n{}",
+        "child status={}\n{}\n{}",
+        output.status,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
