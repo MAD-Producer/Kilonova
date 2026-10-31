@@ -374,12 +374,23 @@ impl SourceTimeSample {
         offset: i32,
         remap: Option<&TimeRemap>,
     ) -> Result<Self> {
+        Self::new(self.frame, self.rate)?;
         let local = clock.local_frame(self.frame, offset)?;
-        let sample = match remap {
-            Some(remap) => remap.sample(local)?,
-            None => Self::new(local, 1.)?,
-        };
-        Self::new(sample.frame, self.rate * clock.rate() * sample.rate)
+        let rate = self.rate * clock.rate();
+        match remap {
+            Some(remap) => remap.sample_directed(local, rate),
+            None => Self::new(local, rate),
+        }
+    }
+    /// A reversed cursor enters through the exclusive end, without moving the
+    /// coordinate by a composition epsilon or quantizing before the media leaf.
+    /// A frozen cursor retains ordinary exact-point membership.
+    pub fn in_interval(self, start: f64, end: f64) -> bool {
+        start < end && if self.rate < 0. {
+            self.frame > start && self.frame <= end
+        } else {
+            self.frame >= start && self.frame < end
+        }
     }
 }
 impl TimeRemap {
@@ -412,8 +423,14 @@ impl TimeRemap {
         &self.keys
     }
     pub fn sample(&self, local_frame: f64) -> Result<SourceTimeSample> {
+        self.sample_directed(local_frame, 1.)
+    }
+    fn sample_directed(&self, local_frame: f64, incoming_rate: f64) -> Result<SourceTimeSample> {
         check_time(local_frame, "remap_input")?;
-        let upper = self.keys.partition_point(|key| key.frame <= local_frame);
+        SourceTimeSample::new(local_frame, incoming_rate)?;
+        let upper = self.keys.partition_point(|key| {
+            if incoming_rate < 0. { key.frame < local_frame } else { key.frame <= local_frame }
+        });
         // Construction makes the first/last element total, even for one key.
         if upper == 0 {
             return SourceTimeSample::new(self.keys[0].source_frame, 0.);
@@ -434,13 +451,15 @@ impl TimeRemap {
         SourceTimeSample::new(
             if local_frame == a.frame {
                 a.source_frame
+            } else if local_frame == b.frame {
+                b.source_frame
             } else {
                 a.source_frame + delta * sample.progress
             },
-            if sample.velocity == 0. {
+            if sample.velocity == 0. || incoming_rate == 0. {
                 0.
             } else {
-                delta / duration * sample.velocity
+                delta / duration * sample.velocity * incoming_rate
             },
         )
     }

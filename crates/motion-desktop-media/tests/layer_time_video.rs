@@ -304,3 +304,171 @@ fn frozen_png_matches_an_unmapped_native_source_oracle_after_live_clock_changes(
         assert_eq!(actual, expected, "{name} {mode} frozen image");
     }
 }
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn nested_cfr_vfr_native_export_and_gpu_exposure_match_flat_source_pixels() {
+    use motion_core::{Camera, Composition, CompositionClip, WorkArea};
+    use motion_desktop_media::movie::{frame::FrameFreezePlan, ExportControl};
+    use motion_host::{
+        preview_video::PreviewVideoCache,
+        render_sampling::{ExposureMedia, ExposureMediaPolicy},
+    };
+    use motion_render::{
+        exposure_scene::{ExposureDocument, ExposureScenes},
+        ExposureFrame, ExposurePoll, Renderer,
+    };
+    use std::sync::Arc;
+
+    for name in ["silent-24fps.mp4", "variable.mp4"] {
+        let root = tempfile::tempdir().unwrap();
+        let project_dir = root.path().join("project");
+        std::fs::create_dir(&project_dir).unwrap();
+        let (base, _) = project(&project_dir, name);
+        let child_fps = base.fps;
+        let mut p = base.clone();
+        p.fps = child_fps / 2;
+        p.compositions.push(Composition {
+            id: "comp-child".into(),
+            name: "source".into(),
+            width: 32,
+            height: 32,
+            fps: child_fps,
+            frames: 72,
+            work_area: WorkArea::full(72),
+            guides: vec![],
+            background: [0.; 4],
+            camera: Camera::new(32, 32),
+            layers: p.layers.clone(),
+            expressions: vec![],
+        });
+        let mut reference = Layer::solid(10, "reference", [32.; 2], [16., 16., 0.], [1.; 4]);
+        reference.content = Content::Composition {
+            clip: CompositionClip::new("comp-child".into()),
+        };
+        reference.timeline = Some(LayerTimeline {
+            in_frame: 3,
+            out_frame: 27,
+            offset_frame: 3,
+        });
+        reference.time_mapping = Some(LayerTimeMapping {
+            clock: LayerClock::new(TimeStretch::default(), TimeDirection::Reverse, 0., 24.)
+                .unwrap(),
+            remap: None,
+        });
+        p.layers = vec![reference];
+        p.validate().unwrap();
+        for (frame, expected_source) in if child_fps == 24 {
+            [(3., 1_999_999), (15., 999_999)]
+        } else {
+            [(3., 1_124_999), (15., 624_999)]
+        } {
+            let control = ExportControl::default();
+            let mut session = Session::new(p.clone(), project_dir.clone(), platform()).unwrap();
+            session.frame = frame;
+            session.sample().unwrap();
+            assert_eq!(
+                session.scene.nested[0].scene.layers[0]
+                    .video
+                    .as_ref()
+                    .unwrap()
+                    .source_time_us,
+                expected_source
+            );
+            let output = root.path().join("nested.png");
+            let frozen =
+                FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+            drop(session);
+            frozen.export(&control).unwrap();
+
+            let mut oracle_session =
+                Session::new(base.clone(), project_dir.clone(), platform()).unwrap();
+            oracle_session.frame =
+                6. + (expected_source as f64 - 250_000.) * f64::from(child_fps) / 1_000_000.;
+            oracle_session.sample().unwrap();
+            assert_eq!(
+                oracle_session.scene.layers[0]
+                    .video
+                    .as_ref()
+                    .unwrap()
+                    .source_time_us,
+                expected_source
+            );
+            let oracle_output = root.path().join("flat.png");
+            let oracle =
+                FrameFreezePlan::capture(&oracle_session, Some(oracle_output.clone()), &control)
+                    .unwrap();
+            drop(oracle_session);
+            oracle.export(&control).unwrap();
+            let expected = image::open(oracle_output).unwrap().to_rgba8();
+            assert_eq!(
+                image::open(output).unwrap().to_rgba8(),
+                expected,
+                "{name} C={frame} ordinary frozen export"
+            );
+
+            // The public single-phase exposure path still reconstructs child
+            // scenes. Its media callback must receive the inherited direction.
+            let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+            renderer.configure_assets(&p, &project_dir).unwrap();
+            let document = ExposureDocument::new(Arc::new(p.clone())).unwrap();
+            let scenes = ExposureScenes::new(
+                document,
+                &p.composition_id,
+                frame,
+                false,
+                None,
+                motion_core::ExpressionEvaluator,
+            )
+            .unwrap();
+            let mut task = ExposureFrame::new(&mut renderer, scenes, 32, 32).unwrap();
+            let mut videos = VideoFrames::new(platform());
+            let mut proxies = PreviewVideoCache::default();
+            let mut media = ExposureMedia {
+                project: &p,
+                root: &project_dir,
+                videos: &mut videos,
+                proxies: &mut proxies,
+                policy: ExposureMediaPolicy::FULL,
+            };
+            let deadline = Instant::now() + Duration::from_secs(30);
+            let mut actual_source_seen = false;
+            loop {
+                let poll = task
+                    .poll(
+                        &mut renderer,
+                        Duration::from_millis(8),
+                        |renderer, scene| {
+                            for layer in &scene.layers {
+                                if let Some(video) = &layer.video {
+                                    assert_eq!(
+                                        video.source_time_us, expected_source,
+                                        "{name} exposure child"
+                                    );
+                                    actual_source_seen = true;
+                                }
+                            }
+                            media.prepare(renderer, scene)
+                        },
+                    )
+                    .unwrap();
+                if matches!(poll, ExposurePoll::Ready(_)) {
+                    break;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "native nested exposure timed out"
+                );
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            assert!(actual_source_seen, "actual video media callback must run");
+            assert_eq!(
+                renderer.capture_exposure(task.target()).unwrap(),
+                expected.into_raw(),
+                "{name} C={frame} nested exposure pixels"
+            );
+            drop(task);
+            videos.finish().unwrap();
+        }
+    }
+}

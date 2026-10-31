@@ -58,6 +58,10 @@ impl Layer {
     pub fn source_time_sample(&self, composition_frame: f64) -> Result<SourceTimeSample> {
         let input = SourceTimeSample::new(composition_frame, 1.)
             .map_err(|source| failure(self.id, "source_input", source))?;
+        self.source_time_sample_from(input)
+    }
+    /// Compose an unquantized parent cursor, retaining its signed derivative.
+    pub fn source_time_sample_from(&self, input: SourceTimeSample) -> Result<SourceTimeSample> {
         let offset = self.timeline.map_or(0, |t| t.offset_frame);
         let result = match &self.time_mapping {
             Some(mapping) => input.through(mapping.clock, offset, mapping.remap.as_ref()),
@@ -68,6 +72,11 @@ impl Layer {
     /// Final video timestamp, with reverse half-open quantization applied once.
     /// Property time and source-remapped time are separate coordinates.
     pub fn video_source_time_us(&self, composition_frame: f64, fps: u32) -> Result<i64> {
+        let input = SourceTimeSample::new(composition_frame, 1.)
+            .map_err(|source| failure(self.id, "source_input", source))?;
+        self.video_source_time_at(input, fps)
+    }
+    pub fn video_source_time_at(&self, input: SourceTimeSample, fps: u32) -> Result<i64> {
         let Content::Video { video } = &self.content else {
             return Err(failure(
                 self.id,
@@ -75,7 +84,7 @@ impl Layer {
                 Error::Invalid("layer is not video".into()),
             ));
         };
-        self.source_time_sample(composition_frame)?
+        self.source_time_sample_from(input)?
             .video_time_us(video, fps)
             .map_err(|source| failure(self.id, "video_source", source))
     }
@@ -84,6 +93,16 @@ impl Layer {
     pub fn video_picture_time_us(
         &self,
         composition_frame: f64,
+        fps: u32,
+        asset: &crate::VideoAsset,
+    ) -> Result<i64> {
+        let input = SourceTimeSample::new(composition_frame, 1.)
+            .map_err(|source| failure(self.id, "source_input", source))?;
+        self.video_picture_time_at(input, fps, asset)
+    }
+    pub fn video_picture_time_at(
+        &self,
+        input: SourceTimeSample,
         fps: u32,
         asset: &crate::VideoAsset,
     ) -> Result<i64> {
@@ -104,7 +123,7 @@ impl Layer {
                 )),
             ));
         }
-        let time = self.video_source_time_us(composition_frame, fps)?;
+        let time = self.video_source_time_at(input, fps)?;
         Ok(
             if video.hold_first_frame && time >= 0 && time < asset.video_start_us as i64 {
                 asset.video_start_us as i64
