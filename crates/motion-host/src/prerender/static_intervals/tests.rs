@@ -95,3 +95,28 @@ fn authored_animation_and_unknown_temporal_sources_keep_the_full_window() {
         assert!(StaticIntervals::from_project(&source).is_none());
     }
 }
+
+#[test]
+fn stable_identity_roving_tracks_never_reduce_the_animated_lookahead_window() {
+    for camera in [false, true] {
+        let mut project = project();
+        let track = if camera {
+            &mut project.camera.position
+        } else {
+            &mut project.layers[0].transform.position
+        };
+        for (frame, x) in [(0, 8.), (20, 10.), (80, 40.)] {
+            track
+                .upsert(frame, [x, 32., 0.], motion_core::Ease::Linear)
+                .unwrap();
+        }
+        track.enable_roving(&[20]).unwrap();
+        assert!(track.keys.is_empty(), "Roving owns separate stable-ID storage");
+        assert_ne!(track.sample(10.).unwrap(), track.sample(30.).unwrap());
+        project.validate().unwrap();
+        assert!(
+            StaticIntervals::from_project(&project).is_none(),
+            "camera={camera}: empty integer keys do not imply a static composition"
+        );
+    }
+}

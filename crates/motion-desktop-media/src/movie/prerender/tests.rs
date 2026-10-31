@@ -1,6 +1,7 @@
 use super::*;
 use motion_core::{Asset, Content, Ease, Layer};
 use motion_effects::image_contract::{ChannelPrecision, ImageStorage};
+mod spatial_timing;
 
 fn frozen(project: Project, root: &Path, revision: u64) -> FrozenMovie {
     FrozenMovie::new(
