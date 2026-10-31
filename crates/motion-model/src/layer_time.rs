@@ -3,7 +3,9 @@
 use crate::{CurveSample, Ease, Easing, Error, Result};
 use serde::{Deserialize, Serialize};
 
+mod document;
 mod media;
+pub use document::{apply, LayerTimeAction, LayerTimeMapping};
 
 pub const MAX_TIME_REMAP_KEYS: usize = crate::MAX_FRAMES as usize;
 /// A rate bound, independent of the number of samples a consumer may prepare.
@@ -170,6 +172,12 @@ impl LayerClock {
     ) -> Result<Self> {
         check_time(elapsed_pivot, "elapsed_pivot")?;
         check_time(local_pivot, "local_pivot")?;
+        if stretch == TimeStretch::default()
+            && direction == TimeDirection::Forward
+            && elapsed_pivot == local_pivot
+        {
+            return Ok(Self::default());
+        }
         Ok(Self {
             definition: ClockDefinition {
                 stretch,
@@ -190,14 +198,24 @@ impl LayerClock {
     }
     pub fn local_frame(self, composition_frame: f64, offset: i32) -> Result<f64> {
         check_time(composition_frame, "composition_input")?;
+        check_time(
+            self.sample_local_frame(composition_frame, offset),
+            "property_output",
+        )
+    }
+    /// Algebra used by the existing infallible Layer.local_frame query after
+    /// project/request validation. No fallible result is discarded here.
+    pub(crate) fn sample_local_frame(self, composition_frame: f64, offset: i32) -> f64 {
         let elapsed = composition_frame - f64::from(offset);
         // Preserve the old C-offset expression exactly for identity maps.
-        let local = if self == Self::default() {
+        if self.definition.stretch == TimeStretch::default()
+            && self.definition.direction == TimeDirection::Forward
+            && self.definition.elapsed_pivot == self.definition.local_pivot
+        {
             elapsed
         } else {
             self.definition.local_pivot + (elapsed - self.definition.elapsed_pivot) * self.rate()
-        };
-        check_time(local, "property_output")
+        }
     }
     /// Inverse PROPERTY time, deliberately independent of a possibly frozen or
     /// non-monotonic source remap. Keys retain their local storage identity.

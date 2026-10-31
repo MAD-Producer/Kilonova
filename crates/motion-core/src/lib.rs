@@ -24,6 +24,7 @@ pub mod storage;
 
 pub use motion_model::{compositing, composition, color_curves, particle_history, masks, vector};
 pub use motion_model::render_sampling;
+pub use motion_model::layer_time;
 pub use motion_model::LayerSwitch;
 pub use motion_model::{AuthoredCameraSampler, CameraSample, CameraSampler};
 pub use motion_model::lens;

@@ -561,9 +561,12 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
         "null and camera objects do not have image effects",
     )?;
     let clip = layer.clip(frames);
+    let clock = layer.time_mapping.as_ref().map_or_else(crate::layer_time::LayerClock::default, |m| m.clock);
+    let object = layer.id;
     let local = |f| {
         ensure(f < frames, "effect edit frame outside composition")?;
-        clip.edit_frame(f)
+        clock.integer_key_frame(f64::from(f), clip.offset_frame)
+            .map_err(|source| Error::LayerTimeObject { object, phase: "effect_edit", source: Box::new(source) })
     };
     match action {
         EffectAction::Replace { instance } => {

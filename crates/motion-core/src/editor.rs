@@ -200,6 +200,13 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::LayerTime { object, action } => {
+            let frames = project.frames;
+            let layer = project.layer_mut(object).map_err(|source| Error::LayerTimeObject {
+                object, phase: "edit_lookup", source: Box::new(source),
+            })?;
+            motion_model::layer_time::apply(layer, frames, action)?;
+        }
         Command::ApplyAnimationPreset { preset, objects, at_frame } => preset.apply(project, &objects, at_frame)?,
         Command::PasteLayers { clipboard, at_frame, keep_external_references } => {
             result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);

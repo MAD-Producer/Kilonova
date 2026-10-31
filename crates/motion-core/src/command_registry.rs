@@ -76,6 +76,21 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
             "LayerSwitch" => json!({"type":"string","enum":["solo","effects","video","audio"]}),
+            "LayerTimeAction" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","stretch","anchor_frame","resize_clip"],"properties":{
+                    "kind":{"const":"stretch"},"anchor_frame":{"type":"number","minimum":-i64::from(crate::MAX_FRAMES),"maximum":crate::MAX_FRAMES},
+                    "resize_clip":{"type":"boolean"},"stretch":{"type":"object","additionalProperties":false,
+                        "required":["numerator","denominator"],"properties":{"numerator":{"type":"integer","minimum":1,"maximum":1000000},
+                            "denominator":{"type":"integer","minimum":1,"maximum":1000000}}}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"reverse"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","remap"],"properties":{
+                    "kind":{"const":"remap"},"remap":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                        "required":["keys"],"properties":{"keys":{"type":"array","minItems":1,
+                            "maxItems":motion_model::layer_time::MAX_TIME_REMAP_KEYS,"items":{"type":"object","additionalProperties":false,
+                                "required":["frame","source_frame","easing"],"properties":{"frame":{"type":"number"},
+                                    "source_frame":{"type":"number"},"easing":named_schema("Easing").1}}}}}]}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"reset"}}}
+            ]}),
             "Property" => {
                 json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
             }
@@ -148,6 +163,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
         input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
+    Command::LayerTime { .. } => "layer_time" [("object","u64",true),("action","LayerTimeAction",true)];
     Command::ApplyAnimationPreset { .. } => "apply_animation_preset" [("preset","AnimationPreset",true),("objects","Vec<u64>",true),("at_frame","u32",true)];
     Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
     Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];

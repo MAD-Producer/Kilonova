@@ -1,0 +1,112 @@
+{
+  "base_commit": "37d07c6a97ffbdb3df44bb37c948dabccabe510a",
+  "stage": "工程与编辑事务，尚未交付整个 #257",
+  "source_sha256": {
+    "crates/motion-core/src/command_registry.rs": "e1e4d5dfd9594184a28a3af2dd6771905ff7fc5993801cc8d5dc5382bb715298",
+    "crates/motion-core/src/editor.rs": "fb9958e0078293067bf939422acea5efb88b7d34792f5b6223668b9d020e2de6",
+    "crates/motion-core/src/history_accounting.rs": "d04adec17e65d17e0e42c7c2fe62a175cb46edeac52162bed23ab78879a9f493",
+    "crates/motion-core/src/lib.rs": "3b00db50d8b4dc5142ea236a8de5173bef65577aec8dd40161120e3e9145beae",
+    "crates/motion-core/src/plugin_editor.rs": "3bf7aa4df5fa7d9defbc49b4ddfb2c6e5d2e54d87ad8e8b7566765571ff5cd6d",
+    "crates/motion-core/tests/layer_time.rs": "2037946b81aa735461c58c437d4506bcd81f0d79366df12f74a845751d1d190d",
+    "crates/motion-model/src/audio_edit.rs": "9a45f9d04aa6eff8b47886423c99c2e4f0bdce8a3ff56e27fc1cc27e5ab26bd0",
+    "crates/motion-model/src/audio_levels.rs": "84f814a65cea0b4279a67522e5d5e35951c03b0b5dbdd0a8bffa0517d639b954",
+    "crates/motion-model/src/commands.rs": "640e598438d244547c9706f32d7a4e42c4ff7cb3b1caae37736f23f0c37f3087",
+    "crates/motion-model/src/effects.rs": "b4cbc21cb0ecaf65a8369f3787535fabc07bd830d45d3fbe08f0c5c34e9dc13e",
+    "crates/motion-model/src/layer_time.rs": "a55fa1fcdb97f7f099f769db0bdac73c97d914d4d111451651375625d4523bcd",
+    "crates/motion-model/src/layer_time/document.rs": "cd71f37a0b66516580ed4f4484933a38cc4a81d175b91f460cd80a236d001914",
+    "crates/motion-model/src/lib.rs": "fe081cc5c0889bb0fd82c6fd6e2027e759b179266e8ef78e909e22b023832535",
+    "crates/motion-model/src/model.rs": "4a320c9e830f5ebdecd936fbc2843b7028c2d268bc2271db3030d0799e55512a",
+    "crates/motion-model/tests/layer_time_document.rs": "95a63c51ce0b13aa6b6a31e8d16001113e498d3c93c8a6e4f89acb6a11876b83"
+  },
+  "executed_new_test_program_sha256": {
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time-13aa0ad16c060a95.exe": "643dae853c7f48c30c623b0853405e7925770fd9bcba8020815cdc42ed7f6a06",
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time-d65314f053dc1c41.exe": "a51d450d52c4e6dcb58d8a072073b334c788a87e7cfa602d8cbef2a341adb120",
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_document-4f2f1e07a3232566.exe": "5b508f98a984b4afabfd3f87470fd47fecc18b2909982f810fb7e3b5976d02e1"
+  },
+  "raw_evidence": {
+    "layer-time-data-core-check-first.log": {
+      "bytes": 777,
+      "sha256": "7ee7798f721a6393cd5a5b35e3db1ea4eed6e5e31387c704821ac54660846543"
+    },
+    "layer-time-document-foundation-regression.log": {
+      "bytes": 2187,
+      "sha256": "fb577db55f2260a89e8d4cc5144b923924ecb540e0852c53f27d364af28400f0"
+    },
+    "layer-time-document-core-check.log": {
+      "bytes": 168,
+      "sha256": "a69a3923505183e327997a00c348d440c2183717fba24865bf9fc8b05af2ea9f"
+    },
+    "layer-time-document-tests-first.log": {
+      "bytes": 8171,
+      "sha256": "fdb60d56ec8809f4cf9cad001aad35cbabefda6b5764417cf5a4d468c0829c6d"
+    },
+    "layer-time-document-tests-fixed.log": {
+      "bytes": 3171,
+      "sha256": "46a1a94ecb3e258a514cc489a73396a211384d42d26fe788fe832705ee4cdae6"
+    },
+    "layer-time-core-transaction-tests-first.log": {
+      "bytes": 4179,
+      "sha256": "0494e84aa0d7387b4529a0ee685b62242cef6fe3218d760b8b48ccce1c4f82fd"
+    },
+    "layer-time-model-full-document-regression.log": {
+      "bytes": 1725,
+      "sha256": "1b3412dc1a5f5c607ab00aac723174b482255a3d1b6cdaebb80acb1ec812e078"
+    },
+    "layer-time-model-full-document-serial.log": {
+      "bytes": 26454,
+      "sha256": "1402380ccd1970f6f8b14a53bf8069710cd497a6b7fe4d992f0117dee7908ddb"
+    },
+    "layer-time-document-workspace-check-first.log": {
+      "bytes": 263,
+      "sha256": "e205e056f732548fd7e01336b254b166e4f7e93d8923abd026e24154969d48a5"
+    },
+    "layer-time-document-workspace-check.log": {
+      "bytes": 20505,
+      "sha256": "b72133f1482a120afc5e1b347d898f59ad679037e4abd575c27f0141d2c008dc"
+    },
+    "layer-time-project-fixture-scan.json": {
+      "bytes": 1165,
+      "sha256": "b6f7a7e5dae209922c717e609970f35f0f9bf82dab0ef1c165a83a6b67130265"
+    }
+  },
+  "verified": {
+    "model_all": {
+      "passed": 190,
+      "failed": 0,
+      "ignored": 0,
+      "includes_foundation_time_tests": 22,
+      "includes_new_document_tests": 8
+    },
+    "core_selected": {
+      "command_registry": 3,
+      "layer_time": 6,
+      "project_format_contract": 5,
+      "subframe_clips": 6
+    },
+    "workspace_check": {
+      "all_targets": true,
+      "excluded_packages": [
+        "motion-android"
+      ],
+      "features": [
+        "motion-desktop/ffmpeg",
+        "motion-host/diagnostics"
+      ],
+      "build_jobs": 1
+    }
+  },
+  "pending": [
+    "Continuous key addressing and all timeline/property consumers",
+    "Mapped media source validation and video/depth/model/nested sampling",
+    "Bounded PCM reverse/remap playback and export, unchanged legacy fast path",
+    "Frozen export, prerender and cache source invalidation",
+    "Default-level worker/error-channel failure-path verification",
+    "Native UI, window focus/cancellation, bilingual screenshots and full CI"
+  ],
+  "original_failures_preserved": [
+    "E0600 unsigned schema minimum",
+    "new document tests: 5 passed / 3 failed",
+    "parallel build mmap/pagefile os error 1455",
+    "workspace feature used binary name instead of package name"
+  ]
+}
