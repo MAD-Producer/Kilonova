@@ -2,10 +2,13 @@
 
 Issue: [#82](https://github.com/MAD-Producer/Kilonova/issues/82)
 
-Status: portable control applied and compiled on Windows; actual Linux ENOSPC
-execution is pending CI. Normal and optimized Python both reject Windows before
-creating artifacts or mounting anything. This does not complete #82 or qualify
-Windows/macOS full-volume behavior.
+Status: actual Linux ENOSPC and recovery component accepted on source
+`8bb44d4a81f67f693a20e7bc3c067a987d37cb31` in
+[CI job 124444681546](https://github.com/MAD-Producer/Kilonova/actions/runs/41169667594/job/124444681546).
+The bounded-volume step completed successfully at `2026-10-31T05:20:07Z`.
+Normal and optimized Python reject Windows before creating artifacts or
+mounting anything. This does not complete #82 or qualify Windows/macOS
+full-volume behavior.
 
 The Linux desktop CI launcher mounts its own 8 MiB tmpfs with a bounded inode
 count and nodev/nosuid/noexec. It verifies the actual capacity and independent
@@ -31,15 +34,33 @@ does not prove physical storage hardware durability, strict input P95, native
 crash causes, or final integrated-source regression and cross-platform CI.
 
 The Linux native test is explicitly ignored by ordinary unit runs and must run
-through the bounded-volume launcher. Its expected error, fallback pixels,
-existing-hit and recovery assertions have compiled, not yet executed. The
-additional source preserves the existing project-directory fixture contract.
+through the bounded-volume launcher. The actual CI launcher reported exit 0,
+exactly one passed test with none failed or ignored, and an independently
+verified capacity of 8,388,608 bytes. The expected ENOSPC, fallback pixels,
+existing-hit, project preservation/reload and recovery assertions executed.
+The source preserves the existing project-directory fixture contract.
 CI writes its evidence locally on all events and uploads it only outside PRs,
 preserving the repository's established PR artifact policy. The two affected
 workflow-policy modules passed (15 and 14 tests) after the one-line condition
 repair; no existing test assertion changed. Partial evidence and remaining
 native-fault-sink limits are recorded in
 [the disk-cache report](native-prerender-disk-cache-current.md).
+
+## Executed Linux evidence
+
+Archive: [bounded-volume CI component](data/native-prerender-linux-full-volume-v1.zip).
+SHA-256: `caff338164887944d0df65c309ee67ebf1e1c4ee5d441153238577d90854a58c`.
+All nine members were read back byte for byte. The archive binds the original
+step log, run/job identities and exact tested launcher/native/worker-cache/CI
+sources to their hashes. The full original job log is retained separately;
+its SHA-256 is `e0f38a50fe58071cd4be82d0550b18893e2776196be29b9fac47e1c72bf12670`.
+
+The PR did not upload the native result JSON. This component acceptance rests
+on the preserved exact-source assertions and launcher checks plus the actual
+successful CI result; it does not claim a separately inspected native JSON.
+Later launcher evidence repairs `71a2a696` and `b1daab53` passed their scoped
+local controls and have not yet run in this CI. Strict foreground input P95,
+retained native crash causes and final integrated regression remain open.
 
 ## Failure evidence in PR job logs
 
