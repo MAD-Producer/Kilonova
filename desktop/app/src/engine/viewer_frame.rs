@@ -4,10 +4,20 @@ use super::UiFrame;
 use motion_host::session::viewer::View;
 use motion_render::{multiview::ViewPlacement, ViewCamera};
 
+#[derive(Clone)]
 pub(crate) enum Camera {
     Composition,
     Camera(u64),
     Observer(motion_core::Observer),
+}
+impl Camera {
+    pub(crate) fn borrow(&self) -> ViewCamera<'_> {
+        match self {
+            Self::Composition => ViewCamera::Composition,
+            Self::Camera(id) => ViewCamera::Camera(*id),
+            Self::Observer(observer) => ViewCamera::Observer(observer),
+        }
+    }
 }
 pub(crate) struct Cell {
     pub camera: Camera,
@@ -23,11 +33,7 @@ impl Plan {
         self.cells
             .iter()
             .map(|cell| View {
-                camera: match &cell.camera {
-                    Camera::Composition => ViewCamera::Composition,
-                    Camera::Camera(id) => ViewCamera::Camera(*id),
-                    Camera::Observer(observer) => ViewCamera::Observer(observer),
-                },
+                camera: cell.camera.borrow(),
                 placement: cell.placement,
             })
             .collect()

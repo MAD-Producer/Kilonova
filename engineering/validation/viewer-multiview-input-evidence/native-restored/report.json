@@ -1,0 +1,46 @@
+{
+  "closedWindowCancellation": true,
+  "frameCancellation": {
+    "cancelled": true,
+    "reason": "context_changed",
+    "window": 0
+  },
+  "invalidCount": "multiview phase=input_states: expected 1, 2, or 4 cameras",
+  "invalidPoint": "invalid hit-test point",
+  "missingCamera": "multiview view=0 phase=input_states: viewer_camera object=999 composition=comp-main frame=0 phase=resolve: camera layer does not exist",
+  "queries": 2,
+  "recoveredPick": {
+    "cancelled": false,
+    "frame": 10.0,
+    "pick": {
+      "candidates": [
+        {
+          "depth": 0.9933383464813232,
+          "id": 8,
+          "order": 3,
+          "three_d": true,
+          "uv": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "depth": 0.9941225647926331,
+          "id": 7,
+          "order": 2,
+          "three_d": true,
+          "uv": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "coordinates": "composition_pixels",
+      "selection": "geometry_bounds"
+    },
+    "window": 0
+  },
+  "scope": "Production worker queries; per-view panel integration is pending.",
+  "sharedStatePreserved": true,
+  "sourceCancellation": true
+}

@@ -717,3 +717,6 @@ fn validate_surface(views: &[View<'_>], size: [u32; 2]) -> Result<()> {
 
 #[cfg(all(test, target_os = "windows"))]
 mod tests;
+
+#[cfg(test)]
+mod interaction_tests;

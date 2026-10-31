@@ -1,0 +1,3 @@
+ERROR motion_studio::engine: error #5 viewer_states 0ms: multiview view=0 phase=input_states: viewer_camera object=999 composition=comp-main frame=0 phase=resolve: camera layer does not exist
+ERROR motion_studio::engine: error #6 viewer_states 0ms: multiview phase=input_states: expected 1, 2, or 4 cameras
+ERROR motion_studio::engine: error #7 viewer_pick 0ms: invalid hit-test point

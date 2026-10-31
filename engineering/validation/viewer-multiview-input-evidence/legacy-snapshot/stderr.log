@@ -1,0 +1,12 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f26d90b50, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f26d90b50, name: ?)
+ERROR motion_studio::engine: viewer snapshot failed request=3 session=1 window=0 phase=capture elapsed_ms=0 cause=no completed viewer frame is available
+ERROR motion_studio::engine: error #3 capture_viewer_snapshot 0ms: no completed viewer frame is available
+ERROR motion_studio::engine: viewer snapshot failed operation=save request=11 session=1 window=0 elapsed_ms=10 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-input-context/legacy-snapshot\absent\snapshot.png cause=phase=save: 系统找不到指定的路径。 (os error 3)
+ERROR motion_studio::engine: error #11 save_viewer_snapshot 10ms: phase=save: 系统找不到指定的路径。 (os error 3)
+ERROR motion_studio::engine: viewer snapshot failed operation=save request=28 session=1 window=1 elapsed_ms=0 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-input-context/legacy-snapshot\closed.png cause=floating viewer window is closed
+ERROR motion_studio::engine: error #28 save_viewer_snapshot 0ms: floating viewer window is closed

@@ -1,0 +1,33 @@
+
+running 1 test
+
+thread 'engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels' (40708) panicked at desktop\app\src\engine\viewer_input\tests.rs:33:9:
+
+running 1 test
+test engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels ... FAILED
+
+failures:
+
+failures:
+    engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1560 filtered out; finished in 5.17s
+
+
+
+thread 'engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels' (41288) panicked at desktop\app\src\engine\viewer_input\tests.rs:67:9:
+assertion `left == right` failed
+  left: Number(8)
+ right: 7
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels ... FAILED
+
+failures:
+
+failures:
+    engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1560 filtered out; finished in 5.20s
+

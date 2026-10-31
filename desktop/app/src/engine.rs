@@ -30,6 +30,7 @@ mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
 mod viewer_inspection;
+pub(crate) mod viewer_input;
 pub(crate) mod viewer_frame;
 mod shutdown;
 #[cfg(test)]
@@ -434,6 +435,10 @@ pub enum Command {
         y: f64,
         reply: Sender<Result<Value, String>>,
     },
+    ViewerInput {
+        request: viewer_input::Request,
+        reply: Sender<Result<Value, String>>,
+    },
     Plugin {
         request: String,
         reply: Sender<Result<Value, String>>,
@@ -510,7 +515,7 @@ impl Command {
             | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
-            | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
+            | HitCandidates { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
@@ -1272,6 +1277,10 @@ impl Engine {
     pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, String> {
         self.call(|reply| Command::HitCandidates { x, y, reply })
     }
+    pub(crate) fn viewer_input_async(&self, request: viewer_input::Request)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::ViewerInput { request, reply })
+    }
     pub fn plugin_async(&self, request: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         if request.len() > REQUEST_LIMIT { return Err("plugin request exceeds 256 KiB".into()); }
         self.request(|reply| Command::Plugin { request, reply })
@@ -1608,6 +1617,7 @@ fn handle(
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
+        | Command::ViewerInput { .. }
         | Command::EffectPick { .. }
     ) {
         presentation.retained = None;
@@ -2278,6 +2288,10 @@ fn handle(
         Command::PreviewInfo(reply) => respond(reply,preview::preview_info(id)),
         Command::CurveGraph { text, reply } => respond(reply,editing::curve_graph(&text)),
         Command::HitCandidates { x, y, reply } => respond(reply,geometry::hit_candidates(id, x, y)),
+        Command::ViewerInput { request, reply } => {
+            let closed = request.window != 0 && !windows.contains_key(&request.window);
+            respond(reply, motion_host::session::with_session(id, |s| viewer_input::apply(s, request, closed)));
+        },
         Command::Plugin { request, reply } => respond(reply,effects::plugin(id, &request)),
         Command::ColorCurveGraph { text, reply } => respond(reply,effects::color_curve_graph(&text)),
         Command::Composition { text, reply } => respond(reply,composition::request(id, &text)),

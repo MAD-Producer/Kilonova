@@ -1,0 +1,138 @@
+
+running 113 tests
+test depth_snapshot::wire::tests::empty_wire_checks_version_truncation_trailing_data_and_primary_cancellation ... ok
+test ops::alignment::distribution_tests::animated_offset_clips_update_only_the_current_local_key_and_keep_other_frames ... ok
+test ops::alignment::distribution_tests::four_distributions_keep_endpoints_other_axis_and_tracks_with_parent_order_independence_and_atomic_history ... ok
+test ops::alignment::distribution_tests::insufficient_duplicate_missing_locked_and_expression_selections_reject_whole_batch ... ok
+test ops::alignment::distribution_tests::negative_gaps_are_equal_overlap_and_ties_use_object_id_without_selection_order_dependence ... ok
+test ops::alignment::tests::clip_offsets_write_the_existing_local_key_and_keep_unrelated_keys ... ok
+test ops::alignment::tests::expression_control_and_singular_parent_reject_the_entire_plan ... ok
+test ops::alignment::tests::rejection_and_already_aligned_are_nonmutating ... ok
+test ops::alignment::tests::rotated_scaled_parent_and_selected_ancestor_are_compensated_independent_of_selection_order ... ok
+test ops::alignment::tests::six_edges_use_evaluated_bounds_and_preserve_other_tracks_with_one_undo_and_save_reopen ... ok
+test ops::composition::diagnostic_tests::typed_error_cause_is_bounded_without_truncating_returned_failure ... ok
+test ops::editing::preparation_failure_tests::native_renderer_prepare_error_survives_model_rollback_and_recovery ... ok
+test ops::effects::recovery_tests::batch_effect_add_deduplicates_targets_and_roundtrips_with_one_step_undo ... ok
+test ops::effects::recovery_tests::editor_preview_competes_with_live_session_allocations_and_retires_on_close ... ok
+test ops::effects::recovery_tests::expired_or_disconnected_pages_cancel_and_restore_history_and_saved_edits ... ok
+test ops::effects::recovery_tests::host_history_commit_and_cancel_finish_the_plugin_page_consistently ... ok
+test ops::effects::recovery_tests::invalid_batch_effect_targets_fail_atomically_and_leave_history_unchanged ... ok
+test ops::effects::recovery_tests::precision::editor_sdr_resize_refusal_retains_old_target_and_recovers_without_project_edits ... ok
+test ops::effects::recovery_tests::precision::packaged_editor_preview_tracks_four_precisions_reuses_targets_and_keeps_history ... ok
+test ops::effects::recovery_tests::trusted_plugin_cancel_does_not_cancel_an_unrelated_host_gesture ... ok
+test ops::effects::recovery_tests::unrelated_host_entry_recovers_an_expired_page_before_editing ... ok
+test ops::effects::recovery_tests::valid_heartbeat_renews_the_lease_but_stale_tokens_cannot_keep_it_alive ... ok
+test ops::export::failure_tests::corrupt_effect_resource_reports_path_instead_of_zero_dimensions ... ok
+test ops::media::frozen::tests::blend_read_keeps_native_render_source_and_recovers_the_same_reader ... ok
+test ops::media::frozen::tests::frozen_camera_keeps_owned_sources_and_independent_clock_after_edits_and_close ... ok
+test ops::media::frozen::tests::frozen_camera_native_pixels_match_live_sampling_at_all_precisions_after_source_removal ... ok
+test ops::media::frozen::tests::real_cache_failure_preserves_native_source_and_recovers_without_a_reserved_slot_leak ... ok
+test ops::media::frozen::tests::video_snapshot_sequences_and_legacy_wire_shapes_remain_compatible_after_session_close ... ok
+
+thread 'ops::media::frozen_registry::tests::constructor_and_reader_panics_preserve_capacity_and_isolate_poison' (24432) panicked at crates\motion-host\src\ops\media\frozen_registry\tests.rs:115:44:
+constructor panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'ops::media::frozen_registry::tests::constructor_and_reader_panics_preserve_capacity_and_isolate_poison' (24432) panicked at crates\motion-host\src\ops\media\frozen_registry\tests.rs:122:59:
+reader panic
+test ops::media::frozen_registry::tests::constructor_and_reader_panics_preserve_capacity_and_isolate_poison ... ok
+test ops::media::frozen_registry::tests::held_reader_does_not_block_other_handles_and_released_work_keeps_its_permit ... ok
+test ops::media::frozen_registry::tests::native_resource_drop_holds_its_capacity_but_not_the_registry_lock ... ok
+test ops::media::frozen_registry::tests::pending_constructor_reserves_capacity_without_holding_the_map ... ok
+test ops::media::frozen_registry::tests::same_handle_waiters_serialize_and_publish_the_active_request_after_handoff ... ok
+test ops::media::relink::tests::directory_exclusive_ownership_preserves_foreign_files_and_rejects_nested_names ... ok
+test ops::media::request_tests::file_opener_requires_a_regular_file_and_preserves_length_and_path_errors ... ok
+test ops::media::request_tests::mobile_uri_and_desktop_path_preserve_the_same_import_and_probe_contract ... ok
+test ops::media::request_tests::pixel_readback_reports_rgba_bytes_instead_of_native_yuv_cache_bytes ... ok
+test ops::project::cleanup_tests::cleanup_error_preserves_primary_and_does_not_delete_substituted_file ... ok
+test ops::project::cleanup_tests::cleanup_refuses_directory_outside_canonical_library ... ok
+test ops::project::cleanup_tests::rollback_removes_only_owned_directory_and_retains_original_error ... ok
+test ops::project::cleanup_tests::unwind_cleanup_failure_is_observable_without_holding_business_lock ... ok
+
+thread 'ops::project::cleanup_tests::unwind_releases_business_lock_then_cleans_without_swallowing_panic' (25808) panicked at crates\motion-host\src\ops\project_cleanup_tests.rs:93:9:
+original controlled panic
+test ops::project::cleanup_tests::unwind_releases_business_lock_then_cleans_without_swallowing_panic ... ok
+test prerender::tests::budget_refusal_preserves_pending_work_without_starting ... ok
+test prerender::tests::canceled_worker_keeps_its_slot_until_acknowledged ... ok
+test prerender::tests::cross_scheduler_ticket_cannot_install_or_clear_a_flight ... ok
+test prerender::tests::dropping_owner_publishes_cancellation_to_blocked_worker ... ok
+test prerender::tests::each_content_output_and_device_change_rejects_old_installation ... ok
+test prerender::tests::exact_fractional_directional_window_is_bounded ... ok
+test prerender::tests::fast_seek_cancels_and_recovers_after_idle_without_sleeping ... ok
+test prerender::tests::foreground_editing_pressure_and_disable_cancel_before_new_admission ... ok
+test prerender::tests::healthy_polling_neither_duplicates_nor_cancels_work ... ok
+test prerender::tests::idle_admission_uses_injected_monotonic_time ... ok
+test prerender::tests::invalid_clock_or_frame_cancels_existing_work ... ok
+test prerender::tests::policy_bounds_and_ticket_exhaustion_are_explicit ... ok
+test preview_video::memory_tests::proxy_snapshot_counts_owned_capacity_and_never_retains_weak_source_pixels ... ok
+test resource_memory::pixel_caches::tests::actual_image_arcs_keep_spare_capacity_and_distinct_equal_allocations_without_retention ... ok
+test resource_memory::pixel_caches::tests::allocation_and_reference_limits_preserve_aliases_mark_unknown_and_reset_per_query ... ok
+test session::last_error_observation_tests::successful_edits_with_sample_errors_are_observed_after_unlock_without_rollback ... ok
+test session::metadata_observation_tests::unavailable_mtime_keeps_optional_fallback_and_logs_after_session_unlock ... ok
+test session::output_precision_tests::actual_host_png_uses_project_precision_and_straight_sdr_pixels_without_editing_history ... ok
+test session::precision_preview_tests::actual_surface_preview_changes_precision_without_replacing_the_device_and_retains_sdr_fronts ... ok
+test session::preview_pressure::tests::default_pressure_events_are_bounded_reset_and_leave_session_locks_before_logging ... ok
+test session::preview_pressure::tests::native::actual_session_evicts_idle_before_downsampling_and_preserves_front_project_and_full_capture ... ok
+test session::registry_observation::tests::actual_recovery_is_quiet_when_healthy_and_emits_bounded_evidence_after_unlock ... ok
+test session::registry_scope_tests::handler_poison_is_local_and_retained_slots_do_not_keep_session_resources ... ok
+test session::resource_observation_tests::unresolved_resource_roots_are_visible_bounded_and_keep_report_scope ... ok
+test session::sampling::tests::allocation_failure_is_terminal_until_explicit_memory_policy_disposition ... ok
+GPU_EXPOSURE_IDENTITY {"actualCommandRecords":27,"actualPixelsChecked":1024,"actualPolls":14,"available":true,"requests":[3,4],"scope":"actual host exposure polls, native timestamp callbacks and supersession; no video decoding or surface presentation acceptance"}
+test session::sampling::tests::native_exposure_request_survives_pending_polls_and_late_commands_keep_the_original_identity ... ok
+test session::sampling::tests::observation_request_and_poll_exhaustion_never_wrap_or_refuse_the_request ... ok
+test session::sampling::tests::preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle ... ok
+test session::sampling::tests::request_identity_releases_partial_images_and_revision_replaces_immutable_document ... ok
+test session::surface_admission_tests::native_presenter_refusal_during_surface_replacement_preserves_front_and_recovers ... ok
+test session::viewer::interaction_tests::explicit_view_geometry_and_picks_preserve_the_complete_shared_state ... ok
+test session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal ... ok
+test session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts ... ok
+test session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter ... ok
+test video_cache::tests::cache_keeps_required_frame_and_stays_bounded ... ok
+test video_cache::tests::full_hd_prefetch_and_four_k_yuv_use_actual_bytes_with_same_memory_ceiling ... ok
+test video_cache::tests::large_source_cache_keeps_full_4k_pixels_without_unbounded_prefetch ... ok
+test video_cache::tests::required_pair_pins_both_full_rgba_frames_and_hold_releases_the_extra_budget ... ok
+test video_cache::tests::vfr_intervals_are_exact_and_seek_invalidates_old_window ... ok
+test video_decode_policy::tests::cancelled_requests_keep_the_worker_marker_and_real_errors_keep_context ... ok
+test video_decode_policy::tests::forward_misses_drain_submitted_frames_but_real_seeks_still_reset ... ok
+test video_frames::frame_blend_tests::blocked_right_is_published_and_required_errors_do_not_become_prefetch_failures ... ok
+test video_frames::frame_blend_tests::boundaries_offset_trim_and_old_hold_keep_their_source_clock ... ok
+test video_frames::frame_blend_tests::exact_vfr_pair_matches_gpu_preview_and_frozen_bytes_without_nominal_fps_or_weight_redecoding ... ok
+test video_frames::frame_blend_tests::exposure_cancellation_retires_only_pending_reads_and_preserves_ready_and_failed_streams ... ok
+test video_frames::frame_blend_tests::exposure_media_pending_reuses_required_generation_and_exact_vfr_pair_across_all_phases_and_proxy ... ok
+test video_frames::frame_blend_tests::exposure_required_decoder_error_is_terminal_and_new_explicit_reader_can_recover ... ok
+test video_frames::frame_blend_tests::frozen_composition_protocol_keeps_sampling_snapshot_and_rejects_stale_or_closed_reads ... ok
+test video_frames::frame_blend_tests::nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_frames ... ok
+test video_frames::frame_blend_tests::sampling_idle_cache_evicts_oldest_without_exceeding_four_live_or_retiring_workers ... ok
+test video_frames::frame_blend_tests::superseded_blocked_neighbor_does_not_overwrite_the_new_required_target ... ok
+test video_frames::frame_blend_tests::yuv_required_sources_mix_on_gpu_and_survive_proxy_and_hold_handoff ... ok
+test video_frames::generation_failure_tests::changed_source_retires_the_old_timebase_before_allocating_a_generation ... ok
+test video_frames::generation_failure_tests::generation_exhaustion_respects_the_decoders_signed_sequence_contract ... ok
+
+thread 'video_frames::generation_failure_tests::poisoned_video_state_is_an_error_without_fabricating_a_new_generation' (18208) panicked at crates\motion-host\src\video_frames.rs:894:13:
+injected frame-state poison
+test video_frames::generation_failure_tests::poisoned_video_state_is_an_error_without_fabricating_a_new_generation ... ok
+
+thread '<unnamed>' (29352) panicked at crates\motion-host\src\video_frames.rs:1002:44:
+injected retirement cause
+test video_frames::generation_failure_tests::retired_worker_panic_preserves_the_cause_in_result_and_metrics ... ok
+test video_frames::generation_failure_tests::same_source_reuses_frame_generation_but_bad_timebase_does_not_advance_it ... ok
+test video_frames::generation_failure_tests::speculative_decode_failure_is_diagnosed_without_poisoning_the_required_frame ... ok
+test video_frames::memory::tests::busy_cache_is_unknown_without_blocking_and_recovers_after_release ... ok
+test video_frames::memory::tests::busy_original_cache_preserves_known_active_pixels_and_recovers_without_blocking ... ok
+test video_frames::memory::tests::cached_pixel_capacity_deduplicates_shared_frames_and_preserves_distinct_allocations ... ok
+test video_frames::memory::tests::independent_stream_collections_share_one_identity_scope_and_release_each_owner ... ok
+
+thread 'video_frames::memory::tests::poisoned_cache_preserves_object_source_and_phase_in_an_actual_error' (27204) panicked at crates\motion-host\src\video_frames\memory\tests.rs:185:9:
+controlled cache poison
+test video_frames::memory::tests::poisoned_cache_preserves_object_source_and_phase_in_an_actual_error ... ok
+test video_frames::memory::tests::stream_observation_bounds_mark_unvisited_caches_unknown_without_changing_them ... ok
+test video_frames::memory::tests::yuv_capacity_counts_both_owned_planes_without_materializing_rgba ... ok
+test video_frames::observability_tests::blocked_decoder_exposes_open_and_frame_flights_and_escalates_pending_once ... ok
+test video_frames::observability_tests::decoder_stop_preserves_discarded_failure_but_not_expected_supersession ... ok
+test video_frames::observability_tests::shutdown_tests::failed_decoder_closes_outside_state_lock_after_the_primary_error_is_recorded ... ok
+test video_frames::observability_tests::shutdown_tests::reader_drop_explicitly_reports_bounded_detachment_then_the_worker_can_finish ... ok
+test video_frames::observability_tests::shutdown_tests::stream_drop_joins_finished_worker_and_reports_its_original_panic ... ok
+test video_frames::observability_tests::unpolled_required_failures_and_outer_unwind_leave_file_evidence ... ok
+
+test result: ok. 113 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 183.10s
+
