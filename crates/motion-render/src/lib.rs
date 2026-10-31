@@ -95,5 +95,5 @@ mod plane_coverage;
 mod plane_coordinates;
 pub mod selection_geometry;
 pub mod position_path;
-pub use scene::{DrawLayer, HitCandidate, NestedScene, Scene};
+pub use scene::{DrawLayer, HitCandidate, NestedScene, Scene, ViewCamera};
 pub use compositor::{PlaneBatch, PlaneCompositor, PlaneVertex};

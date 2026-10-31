@@ -1,5 +1,8 @@
 # 多视图状态与输入归属基础（#221，尚未交付完整功能）
 
+本文件记录 `663b35f3` 阶段；后续显式相机与曝光取样进展见
+[第二阶段记录](viewer-multiview-scene.md)，不与下述历史范围混淆。
+
 基于 #577 的 `203d3e4f`，使用独立分支 `feat/viewer-multiview`。
 开始前检查了开放 PR 和本地工作树；#575 的预渲染由其他 agent 处理。
 本阶段没有修改其 engine、session、renderer 或 shell 呈现路径，也没有改动根目录草稿。
