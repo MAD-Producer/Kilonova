@@ -6,12 +6,14 @@ use std::{
     time::{Duration, Instant},
 };
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
+mod inspection;
 
 fn frame(window: u64, size: [u32; 2], pan: bool) -> UiFrame {
     let w = size[0] as f32 / 2.;
     let h = size[1] as f32 / 2.;
     UiFrame {
         views: Some(Plan {
+            active: 0,
             cells: [1, 2, 1, 2]
                 .into_iter()
                 .enumerate()
@@ -23,6 +25,7 @@ fn frame(window: u64, size: [u32; 2], pan: bool) -> UiFrame {
                     } else {
                         Camera::Camera(camera)
                     },
+                    inspection: Default::default(),
                     placement: ViewPlacement {
                         viewport: [(i % 2) as f32 * w, (i / 2) as f32 * h, w, h],
                         image: (pan && i == 0).then_some([12., 0., w, h]),
@@ -135,7 +138,7 @@ fn normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity() 
             "viewer_camera object=998",
             "phase=capture: completed group is no longer current",
             "floating window is closed",
-            "per-cell inspection is not connected yet",
+            "inspection must be set on each cell",
         ] {
             assert!(log.contains(marker), "file missing {marker}");
             assert!(stderr.contains(marker), "stderr missing {marker}");
@@ -303,7 +306,7 @@ fn normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity() 
     let mut unsupported = frame(0, [96, 96], false);
     unsupported.inspection.channel = motion_render::ViewChannel::Alpha;
     let inspection = receive(&mut events, &engine.present_async(unsupported).unwrap()).unwrap_err();
-    assert!(inspection.contains("per-cell inspection is not connected yet"));
+    assert!(inspection.contains("inspection must be set on each cell"));
     engine.close_window(7).unwrap();
     let closed = receive(
         &mut events,

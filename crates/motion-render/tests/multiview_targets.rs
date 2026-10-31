@@ -4,6 +4,8 @@ use motion_render::{
     multiview::{ViewFramePresenter, ViewFrameTargets, ViewPlacement},
     AllocationEncoder, Presenter, RenderError, RenderTarget, Renderer, Scene, ViewCamera,
 };
+#[path = "multiview_targets/inspection.rs"]
+mod inspection;
 
 const COLORS: [[f64; 4]; 4] = [
     [1., 0., 0., 1.],

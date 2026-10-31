@@ -1854,6 +1854,7 @@ fn handle(
             let result=motion_host::session::with_session(id, |s| {
             viewer_frame::validate(&ui)?;
             presentation.inspection.reconcile(s);
+            let view_inspections = presentation.inspection.views(&ui)?;
             capture_phase = "capture.target";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
@@ -1890,7 +1891,7 @@ fn handle(
             } else { None };
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some(plan)=&ui.views {
-                s.encode_view_group_capture(ui.window,&plan.borrow(),&mut encoder,target.view(),[width,height])?;
+                s.encode_view_group_capture_with_inspection(ui.window,&plan.borrow(),&view_inspections,&mut encoder,target.view(),[width,height])?;
             } else if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
@@ -1917,6 +1918,9 @@ fn handle(
                 g.scratch.collect_texture_resources(ledger);
                 if let Some(presenter)=&presenter { presenter.collect_inspection_resources(ledger); }
                 if ui.views.is_some() { ledger.merge(s.view_group_resource_ledger()); }
+                for inspection in &view_inspections { if let Some((source,_))=inspection.comparison {
+                    source.collect_texture_resources(ledger,"viewer/capture-comparison",motion_render::TextureState::Retained);
+                }}
             }).map_err(|e|e.to_string())?;
             capture_phase = "capture.readback";
             #[cfg(test)]
@@ -2035,6 +2039,7 @@ fn handle(
                         }
                     }
                 }
+                let view_inspections=presentation.inspection.views(&ui)?;
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
@@ -2081,10 +2086,10 @@ fn handle(
                     let result=if let Some(views)=&batch {
                         if reuse {
                             presentation.composition_reuses+=1;
-                            s.present_retained_views_with_overlay(ui.window,views,frozen,overlay)
+                            s.present_retained_views_with_inspection(ui.window,views,&view_inspections,frozen,overlay)
                         } else {
                             presentation.composition_renders+=1;
-                            s.render_views_with_overlay(ui.window,frame,views,overlay)
+                            s.render_views_with_inspection(ui.window,frame,views,&view_inspections,overlay)
                         }
                     } else if reuse {
                         presentation.composition_reuses+=1;
@@ -2113,6 +2118,7 @@ fn handle(
                     // Never relabel the frozen texture with the new clock:
                     // stopping must render the current frame again.
                     {if frozen && reuse {retained}else{Some(stamp)}}else{None};
+                    if result.as_ref().is_ok_and(|value|*value) { presentation.inspection.did_present(&ui); }
                     result
                 }else{
                     #[cfg(test)]

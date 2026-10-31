@@ -314,7 +314,7 @@ impl Presenter {
         Ok(())
     }
 
-    fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
+    pub(crate) fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
         split: Option<f32>) -> Result<(Option<[u32; 4]>, Option<[u32; 4]>), crate::RenderError> {
         let [x, y, w, h] = viewport;
         let [ix, iy, iw, ih] = image.unwrap_or(viewport);

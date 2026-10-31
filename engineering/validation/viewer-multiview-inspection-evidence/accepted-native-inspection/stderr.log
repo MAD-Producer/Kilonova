@@ -1,0 +1,14 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26aa1e4b030, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26aa1e4b030, name: ?)
+ERROR motion_studio::engine: viewer snapshot failed request=13 session=1 window=0 phase=capture elapsed_ms=0 cause=multiview phase=snapshot: completed group is no longer current
+ERROR motion_studio::engine: error #13 capture_viewer_snapshot 0ms: multiview phase=snapshot: completed group is no longer current
+ERROR motion_studio::engine: error #22 present 0ms: present window=0 logical_size=[96.0, 96.0]: viewer comparison window=0 cell=2: snapshot is unavailable
+ERROR motion_studio::engine: error #24 present 0ms: present window=7 logical_size=[128.0, 96.0]: viewer comparison window=7 cell=0: snapshot is unavailable
+ERROR motion_studio::engine: viewer snapshot failed request=26 session=1 window=0 phase=capture elapsed_ms=0 cause=multiview phase=snapshot: completed group is no longer current
+ERROR motion_studio::engine: error #26 capture_viewer_snapshot 0ms: multiview phase=snapshot: completed group is no longer current
+ERROR motion_studio::engine: viewer snapshot failed request=29 session=1 window=7 phase=capture elapsed_ms=0 cause=floating viewer window is closed
+ERROR motion_studio::engine: error #29 capture_viewer_snapshot 0ms: floating viewer window is closed

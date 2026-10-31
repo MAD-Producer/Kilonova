@@ -1,0 +1,6 @@
+
+running 1 test
+test engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1559 filtered out; finished in 8.12s
+

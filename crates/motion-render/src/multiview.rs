@@ -196,6 +196,24 @@ pub struct ViewPlacement {
     pub image: Option<[f32; 4]>,
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct ViewInspection<'a> {
+    pub channel: crate::ViewChannel,
+    pub region: Option<[f32; 4]>,
+    pub comparison: Option<(&'a RenderTarget, f32)>,
+}
+impl ViewInspection<'_> {
+    pub fn validate(&self, placement: ViewPlacement) -> Result<(), RenderError> {
+        Presenter::inspection_scissors(
+            placement.viewport,
+            placement.image,
+            self.region,
+            self.comparison.map(|(_, split)| split),
+        )?;
+        Ok(())
+    }
+}
+
 /// Independent source and uniform bindings per cell. All cells encode into one
 /// caller-owned surface; only the first clears it. UI chrome can be drawn after.
 #[derive(Default)]
@@ -205,6 +223,11 @@ pub struct ViewFramePresenter {
     owner: Option<std::sync::Arc<()>>,
 }
 impl ViewFramePresenter {
+    pub fn collect_texture_resources(&self, ledger: &mut TextureResourceLedger) {
+        for presenter in &self.presenters {
+            presenter.collect_inspection_resources(ledger);
+        }
+    }
     pub fn clear(&mut self) {
         self.presenters.clear();
         self.format = None;
@@ -222,6 +245,36 @@ impl ViewFramePresenter {
         background: [f32; 4],
     ) -> Result<(), RenderError> {
         view_count(placements.len())?;
+        self.encode_inspected(
+            renderer,
+            frames,
+            encoder,
+            output,
+            format,
+            surface,
+            placements,
+            &[ViewInspection::default(); 4][..placements.len()],
+            background,
+        )
+    }
+    pub fn encode_inspected(
+        &mut self,
+        renderer: &Renderer,
+        frames: &ViewFrameTargets,
+        encoder: &mut AllocationEncoder,
+        output: &wgpu::TextureView,
+        format: wgpu::TextureFormat,
+        surface: [u32; 2],
+        placements: &[ViewPlacement],
+        inspections: &[ViewInspection<'_>],
+        background: [f32; 4],
+    ) -> Result<(), RenderError> {
+        view_count(placements.len())?;
+        if inspections.len() != placements.len() {
+            return Err(RenderError::Invalid(
+                "multiview phase=inspection: cell counts differ".into(),
+            ));
+        }
         if placements.len() != frames.len() {
             return Err(RenderError::Invalid(
                 "multiview phase=present: layout and ready frame counts differ".into(),
@@ -247,6 +300,21 @@ impl ViewFramePresenter {
             ));
         }
         for (index, placement) in placements.iter().enumerate() {
+            let inspection = &inspections[index];
+            inspection
+                .validate(*placement)
+                .map_err(|cause| RenderError::Context {
+                    message: format!("multiview view={index} phase=inspection: {cause}"),
+                    cause: Box::new(cause),
+                })?;
+            if let Some((target, _)) = inspection.comparison {
+                target
+                    .check_owner(renderer)
+                    .map_err(|cause| RenderError::Context {
+                        message: format!("multiview view={index} phase=comparison_source: {cause}"),
+                        cause: Box::new(cause),
+                    })?;
+            }
             let [x, y, w, h] = placement.viewport;
             if !placement.viewport.iter().all(|v| v.is_finite())
                 || x < 0.
@@ -286,15 +354,29 @@ impl ViewFramePresenter {
         }
         self.owner = Some(renderer.allocation_owner.clone());
         for (index, placement) in placements.iter().enumerate() {
-            let source = frames
-                .output(index)
-                .ok_or_else(|| RenderError::Invalid("multiview ready output missing".into()))?;
+            let inspection = &inspections[index];
+            let source = if inspection.channel == crate::ViewChannel::Color {
+                frames.output(index)
+            } else {
+                frames.working_output(index)
+            }
+            .ok_or_else(|| RenderError::Invalid("multiview ready output missing".into()))?;
             if index == self.presenters.len() {
                 self.presenters
                     .push(Presenter::new_admitted(renderer, &source.view, format)?);
             }
             let presenter = &mut self.presenters[index];
+            presenter.set_view_channel(&renderer.queue, inspection.channel)?;
             presenter.set_admitted_source(&renderer.device, &source.view);
+            if let Some((target, _)) = inspection.comparison {
+                presenter.set_comparison_source(&renderer.device, target);
+            } else {
+                presenter.clear_comparison_source();
+            }
+            presenter.set_inspection_geometry(
+                inspection.region,
+                inspection.comparison.map(|(_, split)| split),
+            );
             presenter.encode_view_load(
                 &renderer.queue,
                 encoder,

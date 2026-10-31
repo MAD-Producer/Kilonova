@@ -1,0 +1,380 @@
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-host v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-host)
+   Compiling motion-desktop-media v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-desktop-media)
+   Compiling motion-desktop v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\desktop\app)
+warning: unnecessary parentheses around pattern
+   --> desktop\app\src\panels\graph_handles.rs:201:21
+    |
+201 |                     (Curve {
+    |                     ^
+...
+204 |                     })
+    |                      ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+201 ~                     Curve {
+202 |                         space: CurveSpace::Progress,
+203 |                         shape: CurveShape::Cubic { .. }
+204 ~                     }
+    |
+
+warning: unused imports: `chrome` and `floating_chrome`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:3:21
+  |
+3 | use crate::panels::{chrome, floating_chrome};
+  |                     ^^^^^^  ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `dock::Node`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:4:17
+  |
+4 | use motion_ui::{dock::Node, input::Modifiers, paint::PaintList, text::TextAtlas};
+  |                 ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\viewer_guides\native_tests.rs:447:9
+    |
+447 |     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `state`
+   --> desktop\app\src\panels\effect_controls.rs:910:9
+    |
+910 |         state: &Value,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\graph_handles.rs:158:5
+    |
+158 |     atlas: &mut TextAtlas,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `slot`
+   --> desktop\app\src\panels\properties.rs:293:9
+    |
+293 |     let slot = styles.metric("icon.slot", 20.);
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_slot`
+
+warning: type `panels::animation_controls::mini::Context<'_>` is more private than the item `panels::animation_controls::Controls::render`
+   --> desktop\app\src\panels\animation_controls.rs:159:5
+    |
+159 | /     pub fn render(
+160 | |         &mut self,
+161 | |         list: &mut PaintList,
+162 | |         atlas: &mut TextAtlas,
+...   |
+172 | |         ranges: Option<mini::Context<'_>>,
+173 | |     ) {
+    | |_____^ method `panels::animation_controls::Controls::render` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::animation_controls::mini::Context<'_>` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\animation_controls\mini.rs:14:1
+    |
+ 14 | pub(in crate::panels) struct Context<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `viewer_guides::Visibility` is more private than the item `viewer_guides::Controls::visibility`
+  --> desktop\app\src\panels\viewer_guides.rs:36:5
+   |
+36 |     pub visibility: Visibility,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^ field `viewer_guides::Controls::visibility` is reachable at visibility `pub(crate)`
+   |
+note: but type `viewer_guides::Visibility` is only usable at visibility `pub(in crate::panels)`
+  --> desktop\app\src\panels\viewer_guides.rs:13:1
+   |
+13 | pub(super) struct Visibility {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `panels::menus::navigation::Navigation` is more private than the item `panels::types::Panels::menu_navigation`
+   --> desktop\app\src\panels\types.rs:240:5
+    |
+240 |     pub(crate) menu_navigation: super::menus::Navigation,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `panels::types::Panels::menu_navigation` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::menus::navigation::Navigation` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\menus\navigation.rs:7:1
+    |
+  7 | pub(in crate::panels) struct Navigation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `toolbar_style::Controls` is more private than the item `panels::types::Panels::toolbar_style`
+   --> desktop\app\src\panels\types.rs:271:5
+    |
+271 |     pub(crate) toolbar_style: super::toolbar_style::Controls,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `panels::types::Panels::toolbar_style` is reachable at visibility `pub(crate)`
+    |
+note: but type `toolbar_style::Controls` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\toolbar_style.rs:38:1
+    |
+ 38 | pub(in crate::panels) struct Controls {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `panels::timeline::Row` is more private than the item `panels::types::TimelineState::rows_cache`
+   --> desktop\app\src\panels\types.rs:605:5
+    |
+605 | /     pub rows_cache: Option<(
+606 | |         (String, String, u64),
+607 | |         std::sync::Arc<Vec<super::timeline::Row>>,
+608 | |     )>,
+    | |______^ field `panels::types::TimelineState::rows_cache` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::timeline::Row` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\timeline.rs:12:1
+    |
+ 12 | pub(super) struct Row {
+    | ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `configured` is never used
+   --> desktop\app\src\diagnostics.rs:214:12
+    |
+ 96 | impl Diagnostics {
+    | ---------------- method in this implementation
+...
+214 |     pub fn configured(&self) -> bool {
+    |            ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `queue` is never read
+    --> desktop\app\src\engine.rs:1570:5
+     |
+1566 | struct SurfaceFactory {
+     |        -------------- field in this struct
+...
+1570 |     queue: wgpu::Queue,
+     |     ^^^^^
+
+warning: multiple variants are never constructed
+   --> desktop\app\src\i18n.rs:49:5
+    |
+ 38 | pub enum Text {
+    |          ---- variants in this enum
+...
+ 49 |     Project,
+    |     ^^^^^^^
+ 50 |     EffectControls,
+    |     ^^^^^^^^^^^^^^
+ 51 |     Timeline,
+    |     ^^^^^^^^
+ 52 |     Nodes,
+    |     ^^^^^
+...
+ 64 |     NodePreviewUnavailable,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 74 |     Pen,
+    |     ^^^
+ 75 |     Mask,
+ 76 |     SelectTool,
+    |     ^^^^^^^^^^
+...
+ 97 |     ColorCurve,
+    |     ^^^^^^^^^^
+...
+125 |     Enable3D,
+    |     ^^^^^^^^
+...
+132 |     Effects,
+    |     ^^^^^^^
+...
+135 |     Duration,
+    |     ^^^^^^^^
+...
+138 |     Type,
+    |     ^^^^
+...
+146 |     Pause,
+    |     ^^^^^
+...
+149 |     Fit,
+    |     ^^^
+...
+156 |     ProjectOpened,
+    |     ^^^^^^^^^^^^^
+...
+159 |     EnterValid,
+    |     ^^^^^^^^^^
+160 |     EnterFinite,
+161 |     SharedProject,
+    |     ^^^^^^^^^^^^^
+162 |     Dock,
+163 |     Default,
+    |     ^^^^^^^
+164 |     Language,
+    |     ^^^^^^^^
+165 |     Chinese,
+    |     ^^^^^^^
+166 |     English,
+    |     ^^^^^^^
+...
+178 |     AddPositionKey,
+    |     ^^^^^^^^^^^^^^
+...
+186 |     FrameStep,
+    |     ^^^^^^^^^
+187 |     OperationFailed,
+188 |     PlayShortcut,
+    |     ^^^^^^^^^^^^
+189 |     PreviewVideo,
+    |     ^^^^^^^^^^^^
+190 |     PreviewAudio,
+    |     ^^^^^^^^^^^^
+191 |     CacheThenPlay,
+    |     ^^^^^^^^^^^^^
+192 |     TrackingLeading,
+    |     ^^^^^^^^^^^^^^^
+193 |     FillStroke,
+    |     ^^^^^^^^^^
+194 |     Reset,
+    |     ^^^^^
+    |
+    = note: `Text` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `start` is never used
+  --> desktop\app\src\movie_export.rs:26:12
+   |
+25 | impl MovieExport {
+   | ---------------- associated function in this implementation
+26 |     pub fn start(snapshot: FrozenMovie, output: PathBuf) -> Result<Self, String> {
+   |            ^^^^^
+
+warning: method `compile_preview_runtime` is never used
+   --> desktop\app\src\node_editor.rs:104:12
+    |
+ 82 | impl EditorSnapshot {
+    | ------------------- method in this implementation
+...
+104 |     pub fn compile_preview_runtime(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `revision` and `semantic_revision` are never read
+   --> desktop\app\src\node_editor.rs:136:9
+    |
+135 |     Changed {
+    |     ------- fields in this variant
+136 |         revision: u64,
+    |         ^^^^^^^^
+137 |         semantic_revision: u64,
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `Action` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `floating_mode` is never read
+   --> desktop\app\src\node_editor.rs:347:5
+    |
+294 | pub struct NodeEditor {
+    |            ---------- field in this struct
+...
+347 |     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
+    |     ^^^^^^^^^^^^^
+
+warning: methods `options`, `set_floating_mode`, and `is_floating_mode` are never used
+   --> desktop\app\src\node_editor.rs:487:12
+    |
+385 | impl NodeEditor {
+    | --------------- methods in this implementation
+...
+487 |     pub fn options(&self) -> &CompileOptions {
+    |            ^^^^^^^
+...
+515 |     pub fn set_floating_mode(&mut self, floating: bool) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+519 |     pub fn is_floating_mode(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `font_diagnostics` is never used
+   --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:191:4
+    |
+191 | fn font_diagnostics(atlas: &mut TextAtlas, paint: &PaintList) -> String {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: method `title` is never used
+  --> desktop\app\src\panels\path_controls.rs:46:12
+   |
+45 | impl Tool {
+   | --------- method in this implementation
+46 |     pub fn title(self) -> T {
+   |            ^^^^^
+
+warning: variant `Language` is never constructed
+   --> desktop\app\src\panels\types.rs:119:5
+    |
+  8 | pub enum Action {
+    |          ------ variant in this enum
+...
+119 |     Language(Locale),
+    |     ^^^^^^^^
+    |
+    = note: `Action` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: multiple variants are never constructed
+   --> desktop\app\src\panels\types.rs:496:5
+    |
+495 | pub(crate) enum Tool {
+    |                 ---- variants in this enum
+496 |     Open,
+    |     ^^^^
+497 |     Save,
+    |     ^^^^
+...
+500 |     Solid,
+    |     ^^^^^
+501 |     Text,
+    |     ^^^^
+502 |     Null,
+    |     ^^^^
+503 |     Rectangle,
+    |     ^^^^^^^^^
+504 |     Ellipse,
+    |     ^^^^^^^
+    |
+    = note: `Tool` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: `motion-desktop` (bin "motion-studio" test) generated 26 warnings (run `cargo fix --bin "motion-studio" -p motion-desktop --tests` to apply 9 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 33s

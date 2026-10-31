@@ -5,7 +5,7 @@ use super::*;
 use crate::render_sampling::{ExposureMedia, ExposureMediaPolicy};
 use motion_render::{
     exposure_scene::{ExposureDocument, ExposureScenes},
-    multiview::{ViewFramePresenter, ViewFrameTargets, ViewPlacement},
+    multiview::{ViewFramePresenter, ViewFrameTargets, ViewInspection, ViewPlacement},
     preview_memory::PreviewMemoryQuality,
     ExposureFrame, ExposurePoll, RenderError, TextureResourceLedger, ViewCamera,
 };
@@ -61,6 +61,7 @@ impl State {
     }
     pub(crate) fn collect(&self, ledger: &mut TextureResourceLedger) {
         self.targets.collect_texture_resources(ledger);
+        self.presenter.collect_texture_resources(ledger);
         if let Some(request) = &self.request {
             for task in &request.tasks {
                 ledger.merge(task.texture_resource_ledger());
@@ -281,6 +282,21 @@ impl Session {
         frozen: bool,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        validate_views(views)?;
+        let inspections = &[ViewInspection::default(); 4][..views.len()];
+        self.present_retained_views_with_inspection(owner, views, inspections, frozen, overlay)
+    }
+
+    pub fn present_retained_views_with_inspection(
+        &mut self,
+        owner: u64,
+        views: &[View<'_>],
+        inspections: &[ViewInspection<'_>],
+        frozen: bool,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<bool> {
+        self.check_thread()?;
+        validate_inspections(views, inspections)?;
         self.observe_preview_pressure()?;
         if !self.view_group_current(owner, views, frozen)? {
             return Ok(false);
@@ -301,6 +317,7 @@ impl Session {
             g,
             &self.scene,
             views,
+            inspections,
             &mut encoder,
             &target,
             g.config.format,
@@ -325,6 +342,28 @@ impl Session {
         output: &wgpu::TextureView,
         surface: [u32; 2],
     ) -> Result<()> {
+        validate_views(views)?;
+        let inspections = &[ViewInspection::default(); 4][..views.len()];
+        self.encode_view_group_capture_with_inspection(
+            owner,
+            views,
+            inspections,
+            encoder,
+            output,
+            surface,
+        )
+    }
+
+    pub fn encode_view_group_capture_with_inspection(
+        &self,
+        owner: u64,
+        views: &[View<'_>],
+        inspections: &[ViewInspection<'_>],
+        encoder: &mut motion_render::AllocationEncoder,
+        output: &wgpu::TextureView,
+        surface: [u32; 2],
+    ) -> Result<()> {
+        validate_inspections(views, inspections)?;
         let key = self.views_key(owner, self.frame, views, Some(surface))?;
         let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
         if key.as_ref() != g.views.published.as_ref()
@@ -337,7 +376,7 @@ impl Session {
             return Err("multiview phase=capture: completed group is no longer current".into());
         }
         let placements = placements(&self.scene, views);
-        ViewFramePresenter::default().encode(
+        ViewFramePresenter::default().encode_inspected(
             &g.renderer,
             &g.views.targets,
             encoder,
@@ -345,9 +384,58 @@ impl Session {
             output.texture().format(),
             surface,
             &placements,
+            inspections,
             self.scene.background,
         )?;
         Ok(())
+    }
+
+    /// Preserve the active cell's working image only when its completed group
+    /// belongs to this owner and current document/clock/quality. Native floating
+    /// surfaces need not be swapped into Graphics to copy their retained image.
+    pub fn capture_view_cell(
+        &self,
+        owner: u64,
+        index: usize,
+    ) -> Result<motion_render::ViewerSnapshot> {
+        self.check_thread()?;
+        let g = self
+            .graphics
+            .as_ref()
+            .ok_or("multiview phase=snapshot: graphics missing")?;
+        let key = g
+            .views
+            .published
+            .as_ref()
+            .ok_or("multiview phase=snapshot: completed group missing")?;
+        if key.document != self.document_generation
+            || key.composition != self.engine.project().composition_id
+            || key.revision != self.engine.revision()
+            || key.frame != self.frame.to_bits()
+            || key.owner != owner
+            || key.surface != self.surface_epoch
+            || key.view_revision != self.view_revision
+            || key.preview != (self.preview.mode != PreviewMode::High)
+            || key.quality
+                != self
+                    .preview_memory
+                    .quality(self.preview.mode == PreviewMode::High)
+            || self.preview_memory_held
+            || self.last_error.is_some()
+            || !g
+                .views
+                .request
+                .as_ref()
+                .is_some_and(|request| request.complete && request.failure.is_none())
+        {
+            return Err("multiview phase=snapshot: completed group is no longer current".into());
+        }
+        let source = g
+            .views
+            .targets
+            .working_output(index)
+            .ok_or("multiview phase=snapshot: cell is unavailable")?;
+        Ok(motion_render::ViewerSnapshot::capture(&g.renderer, source)?)
     }
 
     pub fn view_group_resource_ledger(&self) -> TextureResourceLedger {
@@ -370,6 +458,20 @@ impl Session {
         views: &[View<'_>],
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        validate_views(views)?;
+        let inspections = &[ViewInspection::default(); 4][..views.len()];
+        self.render_views_with_inspection(owner, frame, views, inspections, overlay)
+    }
+
+    pub fn render_views_with_inspection(
+        &mut self,
+        owner: u64,
+        frame: f64,
+        views: &[View<'_>],
+        inspections: &[ViewInspection<'_>],
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<bool> {
+        validate_inspections(views, inspections)?;
         self.check_thread()?;
         validate_views(views)?;
         if !frame.is_finite() || frame < 0. || frame >= f64::from(self.engine.project().frames) {
@@ -509,6 +611,7 @@ impl Session {
             g,
             &self.scene,
             views,
+            inspections,
             &mut encoder,
             &view,
             g.config.format,
@@ -547,12 +650,13 @@ fn encode_group(
     g: &mut Graphics,
     scene: &Scene,
     views: &[View<'_>],
+    inspections: &[ViewInspection<'_>],
     encoder: &mut motion_render::AllocationEncoder,
     output: &wgpu::TextureView,
     format: wgpu::TextureFormat,
     surface: [u32; 2],
 ) -> Result<()> {
-    g.views.presenter.encode(
+    g.views.presenter.encode_inspected(
         &g.renderer,
         &g.views.targets,
         encoder,
@@ -560,8 +664,22 @@ fn encode_group(
         format,
         surface,
         &placements(scene, views),
+        inspections,
         scene.background,
     )?;
+    Ok(())
+}
+
+fn validate_inspections(views: &[View<'_>], inspections: &[ViewInspection<'_>]) -> Result<()> {
+    validate_views(views)?;
+    if views.len() != inspections.len() {
+        return Err("multiview phase=inspection: cell counts differ".into());
+    }
+    for (index, (view, inspection)) in views.iter().zip(inspections).enumerate() {
+        inspection.validate(view.placement).map_err(|cause| {
+            crate::Error::with_context(format!("multiview view={index} phase=inspection"), cause)
+        })?;
+    }
     Ok(())
 }
 

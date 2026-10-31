@@ -12,9 +12,11 @@ pub(crate) enum Camera {
 pub(crate) struct Cell {
     pub camera: Camera,
     pub placement: ViewPlacement,
+    pub inspection: super::ViewerInspectionFrame,
 }
 pub(crate) struct Plan {
     pub cells: Vec<Cell>,
+    pub active: usize,
 }
 impl Plan {
     pub(super) fn borrow(&self) -> Vec<View<'_>> {
@@ -39,6 +41,9 @@ pub(super) fn validate(ui: &UiFrame) -> Result<(), String> {
     if !matches!(plan.cells.len(), 1 | 2 | 4) {
         return Err("multiview phase=frame: expected 1, 2, or 4 cells".into());
     }
+    if plan.active >= plan.cells.len() {
+        return Err("multiview phase=frame: active cell is unavailable".into());
+    }
     let outer = ui
         .composition
         .ok_or("multiview phase=frame: composition viewport missing")?;
@@ -53,14 +58,13 @@ pub(super) fn validate(ui: &UiFrame) -> Result<(), String> {
     if ui.composition_image.is_some() {
         return Err("multiview phase=frame: use each cell's canvas image".into());
     }
-    // Activation is gated until inspection is explicitly routed per cell.
-    // Reject unsupported settings; silently displaying the wrong channel or
-    // another window's comparison would make the frame look successful.
+    // Inspection belongs to cells; a shared setting would ambiguously override
+    // one or all of them and could bind another cell's preserved image.
     if ui.inspection.channel != motion_render::ViewChannel::Color
         || ui.inspection.region.is_some()
         || ui.inspection.comparison_split.is_some()
     {
-        return Err("multiview phase=frame: per-cell inspection is not connected yet".into());
+        return Err("multiview phase=frame: inspection must be set on each cell".into());
     }
     for (index, cell) in plan.cells.iter().enumerate() {
         let [x, y, w, h] = cell.placement.viewport;
