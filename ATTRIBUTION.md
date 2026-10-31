@@ -13,6 +13,22 @@
   界面和故障夹具由本项目独立实现；没有复制 VS Code 扩展或其他编辑器界面资源。
 - 标准来源：[Microsoft LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/)。
 
+## Native source notifications
+
+The desktop prerender source observer uses the unmodified `notify` crate
+**8.2.0**, by Felix Saparelli, Daniel Faust, Aron Heinecke and notify-rs
+contributors. Source: <https://github.com/notify-rs/notify>, revision
+`a1d7c2d8f80786679d58ec6d5986a1d4278bc8cf`, subdirectory `notify`.
+The crates.io archive SHA-256 is
+`4d3d07927151ff8575b7087f245456e549fea62edf0ec4e565a5ee50c8402bc3`.
+The published package declares **CC0-1.0** (not MIT); see
+<https://creativecommons.org/publicdomain/zero/1.0/legalcode>.
+No upstream code or assets are copied into this repository. Scope: Cargo links
+the native filesystem notification library; Motion Studio's bounded watches,
+cancellation leases, validity gates, diagnostics and tests are independently
+authored. Backend limitations, including remote/network filesystem delivery,
+remain applicable. Dependency addition is not a claim of completed acceptance.
+
 本文件列出当前计划进入仓库或发布包的第三方材料。每个组件保留原始许可证和版权声明。根目录 [LICENSE](LICENSE) 只适用于按该许可证贡献的 Motion Studio 代码。
 
 This file lists third-party material currently intended for the repository or a release. Each component keeps its original license and copyright notice. The root [LICENSE](LICENSE) applies only to Motion Studio code contributed under that license.
@@ -162,7 +178,7 @@ the exact registry checksums are recorded in `Cargo.lock`.
 | --- | --- | --- | --- |
 | base64 | Marshall Pierce and contributors; [rust-base64](https://github.com/marshallpierce/rust-base64), 0.23.1 | MIT OR Apache-2.0 | Unmodified Cargo dependency for data URIs and portable node-image payloads; exact package checksum in Cargo.lock |
 | percent-encoding | rust-url developers; [rust-url](https://github.com/servo/rust-url), 2.3.2 | MIT OR Apache-2.0 | Unmodified Cargo dependency for local URI decoding |
-| sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity |
+| sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity and producer build identity in runtime/build scripts |
 
 External validation uses unmodified `Avocado` (Microsoft, public 2017) and
 `BoxVertexColors` (Marco Hutter, public 2023) from

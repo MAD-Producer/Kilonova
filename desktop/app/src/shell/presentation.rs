@@ -8,6 +8,7 @@ mod curve_playback_tests;
 impl Shell {
     pub(crate) fn present_ui_async(&self, ui: UiFrame)
         -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        self.engine.set_prerender_playing(self.playback.is_some() && !self.audio_only_preview)?;
         if self.audio_only_preview { self.engine.present_frozen_async(ui) }
         else { self.engine.present_async(ui) }
     }
@@ -143,6 +144,8 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        #[cfg(test)]
+        let mut draw_stage = crate::shell::draw_evidence::DrawStage::start();
         self.input.text_clipboard = Some(self.text_clipboard.clone());
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
@@ -154,6 +157,8 @@ impl Shell {
         paint.stylesheet = self.panels.styles.clone();
         let neutral = Input::default();
         let project_modal = self.project_modal();
+        #[cfg(test)]
+        draw_stage.next("shell.preparation");
         let began = Instant::now();
         let mut actions = if let Some(home) = &mut self.home {
             home.draw(
@@ -198,6 +203,8 @@ impl Shell {
                 &mut actions,
             );
         }
+        #[cfg(test)]
+        draw_stage.next("shell.chrome");
         let mut context = self.engine.diagnostics().context();
         context.panel = self.panels.focused.map(|p| p.dock().0);
         context.playing = self.playback.is_some();
@@ -213,6 +220,8 @@ impl Shell {
             Some(began.elapsed()),
             context,
         );
+        #[cfg(test)]
+        draw_stage.next("shell.diagnostics");
         if let Some(dialog) = self.dialog.as_mut().filter(|d|d.timing_owner().is_none_or(|owner|owner==0)) {
             if let Some(event) = dialog.render(
                 &mut paint,
@@ -405,6 +414,8 @@ impl Shell {
             }
         }
         project_lifecycle::render(self, &mut paint, size);
+        #[cfg(test)]
+        draw_stage.next("shell.overlays");
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
         self.paint_input = self.input.clone();
         if let Some(window) = &self.window {
@@ -418,6 +429,8 @@ impl Shell {
                 ),
             );
         }
+        #[cfg(test)]
+        draw_stage.next("shell.input_cursor");
         (paint, actions)
     }
     pub(crate) fn viewer_image(&self, view: motion_ui::Rect, scale: f32) -> Option<[f32; 4]> {
@@ -1668,6 +1681,7 @@ impl Shell {
             self.frame = frame;
             if finished { self.stop(); }
         }
+        self.engine.set_prerender_playing(self.playback.is_some() && !self.audio_only_preview)?;
         self.editing = Some((Instant::now(), if self.audio_only_preview {
             self.engine.seek_audio_preview_async(self.frame)?
         } else { self.engine.seek_async(self.frame)? }));

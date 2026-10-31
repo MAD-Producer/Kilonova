@@ -5,6 +5,11 @@ wgsl-analyzer。客户端及其故障夹具独立编写，不复制上游编辑�
 固定验收版本、官方资产 hash、许可及修改范围记录在 ATTRIBUTION.md；
 正式发布包尚未捆绑或自动安装语言服务器。
 
+Native desktop prerender source notifications use the unmodified, pinned
+CC0-1.0 `notify` 8.2.0 dependency. Its authors, source revision, archive hash and
+integration scope are recorded in `ATTRIBUTION.md`. The source validity protocol
+and regression fixtures are independently authored; no product assets are added.
+
 **状态 / Status:** 仓库政策与发布证据 / Repository policy and release evidence
 **生效日期 / Effective date:** 2026-10-14
 

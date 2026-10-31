@@ -43,7 +43,9 @@ impl ImageCaptureTarget {
         if std::sync::Arc::ptr_eq(&renderer.allocation_owner, &self.owner) {
             Ok(())
         } else {
-            Err(RenderError::Invalid("image target belongs to another renderer".into()))
+            Err(RenderError::Invalid(
+                "image target belongs to another renderer".into(),
+            ))
         }
     }
     pub fn view(&self) -> &wgpu::TextureView {
@@ -148,6 +150,60 @@ impl Renderer {
             row_bytes: layout.row_bytes,
             row_stride: layout.row_stride,
         })
+    }
+
+    /// Export/validation readback of a native compositor/cache target. Owner,
+    /// canonical working storage and shared-budget admission are checked before
+    /// copying. This synchronous path is never used by preview cache polling.
+    pub fn read_native_render_target(
+        &self,
+        source: &crate::RenderTarget,
+    ) -> Result<CapturedImage, RenderError> {
+        source.check_owner(self)?;
+        self.check_health()?;
+        let precision = crate::image_formats::color_precision(source.texture().format())
+            .ok_or_else(|| {
+                RenderError::Invalid("native readback requires working color storage".into())
+            })?;
+        let contract = ImageContract::new(
+            motion_effects::image_contract::ImageMeaning::Color {
+                space: motion_effects::WorkingSpace::Linear,
+                alpha: motion_effects::AlphaMode::Premultiplied,
+            },
+            precision,
+        );
+        let storage = crate::image_formats::color_storage(precision);
+        if crate::image_formats::native_format(storage) != source.texture().format() {
+            return Err(RenderError::Invalid(
+                "native readback refuses implicit format conversion".into(),
+            ));
+        }
+        let layout = capture_layout(source.width, source.height, storage, &self.device.limits())?;
+        let buffer = crate::allocation_buffer::AllocationBuffer::new(
+            &self.device,
+            self.allocation_budget(),
+            &wgpu::BufferDescriptor {
+                label: Some("native cache readback staging"),
+                size: layout.buffer_bytes,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            },
+        )?;
+        // Retain the admitted native source; allocate only staging, with no
+        // intermediate texture or COPY_DST requirement on render-only targets.
+        let output = ImageCaptureTarget {
+            texture: source.texture().clone(),
+            view: source.view.clone(),
+            buffer,
+            owner: self.allocation_owner.clone(),
+            contract,
+            storage,
+            width: source.width,
+            height: source.height,
+            row_bytes: layout.row_bytes,
+            row_stride: layout.row_stride,
+        };
+        self.read_image_target(&output)
     }
 
     /// Read storage bytes without unpremultiplying, gamma conversion or clamping.

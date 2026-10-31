@@ -599,6 +599,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.plugin_author.event(event_loop, id, event);
             return;
         }
+        if self.window.as_ref().is_some_and(|window| window.id() == id)
+            || self.floating.contains_key(&id)
+        {
+            self.observe_prerender_input(&event);
+        }
         if self.route_project_drag_event(id, &event) { return; }
         if self.route_effect_drag_event(id, &event) { return; }
         if self.floating.contains_key(&id) {

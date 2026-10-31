@@ -929,6 +929,7 @@ impl Shell {
                     }
                     self.frame = plan.origin;
                     self.audio_only_preview = audio_only;
+                    self.engine.set_prerender_playing(!audio_only)?;
                     self.playback = Some((Instant::now(), self.frame));
                     self.playback_plan = Some(plan);
                     self.panels.playing = true;
@@ -1018,5 +1019,8 @@ impl Shell {
         self.audio_only_preview = false;
         self.next_composition = Instant::now();
         self.panels.playing = false;
+        if let Err(error) = self.engine.set_prerender_playing(false) {
+            log::error!("prerender playback state phase=stop cause={error}");
+        }
     }
 }

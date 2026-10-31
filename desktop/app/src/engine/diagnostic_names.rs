@@ -3,6 +3,9 @@ impl Command {
     pub(super) fn diagnostic_name(&self) -> &'static str {
         use Command::*;
         match self {
+            ConfigurePrerender { .. } => "configure_prerender",
+            ConfigurePrerenderDisk { .. } => "configure_prerender_disk",
+            PrerenderPoll => "prerender_poll",
             CurveClipboardRead { .. } => "curve_clipboard_read",
             ClipboardRead { .. } => "clipboard_read",
             KeyframeClipboardRead { .. } => "keyframe_clipboard_read",

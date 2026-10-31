@@ -1,6 +1,26 @@
 {
   "version": 1,
   "tools": {
+    "tools/test_ci_prerender_full_volume.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Verify actual child failure evidence, bounded stderr excerpts and exact test summaries without mounting or native GPU work"
+    },
+    "tools/validate_prerender_full_volume.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Linux desktop CI runs a real native cache ENOSPC and recovery control on a separately mounted 8 MiB tmpfs; host volumes are never filled and other platform full-volume behavior is not inferred."
+    },
+    "tools/analyze_prerender_paced.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_prerender_paced.py",
+      "reason": "Synthetic evidence parser tests run in ordinary CI; actual native playback measurements remain manual and are never inferred from parser success."
+    },
+    "tools/test_ci_prerender_paced.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Lightweight unittest discovery verifies raw percentile, regression, hit-count and incomplete-evidence rejection without launching native playback."
+    },
     "tools/ai_depth_onnx.py": {
       "mode": "manual",
       "command": "python tools/ai_depth_onnx.py <host-generated-request.json>",
@@ -409,6 +429,16 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
+    },
+    "tools/analyze_prerender_input.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_prerender_input.py",
+      "reason": "Synthetic parser controls reject incomplete native-input evidence and paired P95 regressions; they do not substitute for manual native measurements."
+    },
+    "tools/test_ci_prerender_input.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Lightweight unittest discovery checks native-input evidence completeness, outcome consistency and every paired P95 criterion without opening native windows."
     }
   },
   "android_tests": {

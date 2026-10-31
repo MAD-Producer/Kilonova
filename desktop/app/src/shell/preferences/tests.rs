@@ -2,6 +2,22 @@ use super::*;
 use crate::workspace::Workspace;
 
 #[test]
+fn playback_actions_publish_explicit_prerender_demand_without_enabling_the_cache() {
+    let root = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(root.path().join("project"), None, Some(Locale::En)).unwrap();
+    shell.layout_path = root.path().join("layout.json");
+    let state = shell.engine.state().unwrap();
+    assert_eq!(state["desktop"]["prerender"]["playing"], false);
+    shell.action(panels::Action::TogglePlay, None).unwrap();
+    let state = shell.engine.state().unwrap();
+    assert_eq!(state["desktop"]["prerender"]["playing"], true);
+    assert_eq!(state["desktop"]["prerender"]["enabled"], false);
+    assert!(shell.engine.prerender_observation().unwrap().is_none());
+    shell.stop();
+    assert_eq!(shell.engine.state().unwrap()["desktop"]["prerender"]["playing"], false);
+}
+
+#[test]
 fn preview_options_persist_restart_and_save_failure_rolls_back() {
     use crate::preview_playback::{Options,Start,Skip};
     let root = tempfile::tempdir().unwrap();

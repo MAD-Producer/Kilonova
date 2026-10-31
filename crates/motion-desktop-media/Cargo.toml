@@ -29,6 +29,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
 log.workspace = true
+notify = "=8.2.0"
 image.workspace = true
 wgpu.workspace = true
 pollster.workspace = true
@@ -43,3 +44,6 @@ ffmpeg-next = { version = "9", optional = true, default-features = false, featur
 [dev-dependencies]
 motion-scene = { path = "../motion-scene" }
 motion-model = { path = "../motion-model" }
+
+[build-dependencies]
+sha2 = "0.10"

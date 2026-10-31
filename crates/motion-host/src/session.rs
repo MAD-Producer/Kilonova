@@ -49,6 +49,8 @@ mod preview_pressure;
 mod surface_admission_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod precision_preview_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod cached_preview_tests;
 pub(crate) mod metadata_observation;
 #[cfg(test)]
 mod metadata_observation_tests;
@@ -122,6 +124,8 @@ pub struct Session {
     pub graphics: Option<Graphics>,
     pub owner: ThreadId,
     pub presented: u64,
+    /// Lifetime successfully submitted native-cache presentations.
+    pub cached_presented: u64,
     pub last_cpu_us: u64,
     pub render_attempts: u64,
     pub video_pending_attempts: u64,
@@ -230,6 +234,7 @@ impl Session {
             graphics: None,
             owner: thread::current().id(),
             presented: 0,
+            cached_presented: 0,
             last_cpu_us: 0,
             render_attempts: 0,
             video_pending_attempts: 0,
@@ -521,7 +526,19 @@ impl Session {
     ) -> Result<bool> {
         self.render_with_view(frame, viewport, None, overlay)
     }
+    /// The owner must validate source/revision/output generations before offering
+    /// cached pixels. Session additionally checks document/surface/native profile.
+    pub fn render_cached_with_view(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
+        cached: &motion_render::CachedCompositionFrame, context: motion_render::CompositionFrameContext,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        self.render_with_view_inner(frame, viewport, image, Some((cached, context)), overlay)
+    }
     pub fn render_with_view(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        self.render_with_view_inner(frame, viewport, image, None, overlay)
+    }
+    fn render_with_view_inner(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
+        cached: Option<(&motion_render::CachedCompositionFrame, motion_render::CompositionFrameContext)>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
         validate_canvas_image(image)?;
         use motion_render::preview_memory::PREVIEW_MEMORY_LEVELS;
@@ -568,6 +585,16 @@ impl Session {
             self.presented += u64::from(held);
             return Ok(held);
         }
+        let cached = cached.filter(|(cached, context)| {
+            self.preview.mode == PreviewMode::High && !self.observing && !exposure
+                && self.preview_memory.quality(true).level == 0
+                && context.document_generation == self.document_generation
+                && context.device_generation == self.surface_epoch
+                && cached.key().context() == *context && cached.key().frame() == frame
+                && cached.size() == [self.scene.width, self.scene.height]
+                && cached.format() == motion_render::image_formats::native_format(
+                    motion_render::image_formats::color_storage(self.engine.project().working_precision))
+        }).map(|(cached, _)| cached);
         if exposure { return self.render_exposure_with_view(frame,viewport,image,overlay); }
         g.renderer.retain_video_instances(&self.scene);
         self.preview_video.retain(&self.scene);
@@ -578,12 +605,9 @@ impl Session {
         if !self.preview_memory.allows_image_prefetch() { upcoming.clear(); }
         g.renderer.set_image_prefetch(upcoming);
         let preparing = Instant::now();
-        let frames = self.video_frames.prepare_scene(
-            self.engine.project(),
-            &self.root,
-            &self.scene,
-            frame,
-        )?;
+        let frames = if cached.is_some() { Some(Vec::new()) } else {
+            self.video_frames.prepare_scene(self.engine.project(), &self.root, &self.scene, frame)?
+        };
         self.video_prepare_us = preparing.elapsed().as_micros() as u64;
         let Some(frames) = frames else {
             self.video_pending_attempts += 1;
@@ -617,10 +641,14 @@ impl Session {
             let quality = self
                 .preview_memory
                 .quality(self.preview.mode == PreviewMode::High);
+            // If a native cache copy was refused and pressure reduced quality,
+            // retain the submitted front. The next cold attempt prepares media
+            // for that reduced profile; never draw with the empty cached-media set.
+            if cached.is_some() && quality.level != 0 { break; }
             let image_resolution = quality.image_resolution();
-            let ready =
-                g.renderer
-                    .prepare_scene_assets(&self.scene, image_resolution, quality.level == 0);
+            let ready = if cached.is_some() { Ok(true) } else {
+                g.renderer.prepare_scene_assets(&self.scene, image_resolution, quality.level == 0)
+            };
             match ready {
                 Ok(false) => return Ok(false),
                 Ok(true) => {}
@@ -699,7 +727,11 @@ impl Session {
                 }
                 break;
             }
-            let slot = g.timer.as_mut().and_then(|t| t.begin(sequence));
+            // A transfer has no composition render pass to write timestamp
+            // queries. Do not resolve an unwritten composition timer slot.
+            let slot = if cached.is_some() { None } else {
+                g.timer.as_mut().and_then(|t| t.begin(sequence))
+            };
             let timestamps = slot.map(|i| g.timer.as_ref().unwrap().writes(i, 0));
             let candidate_view = g
                 .scratch
@@ -707,7 +739,9 @@ impl Session {
                 .expect("prepared preview target")
                 .view
                 .clone();
-            let encoded = if self.preview.mode == PreviewMode::High {
+            let encoded = if let Some(cached) = cached {
+                cached.copy_to(&g.renderer, g.scratch.prepared().ok_or("cached preview target missing")?, &mut encoder)
+            } else if self.preview.mode == PreviewMode::High {
                 g.renderer.encode(
                     &self.scene,
                     &candidate_view,
@@ -715,7 +749,7 @@ impl Session {
                     rh,
                     &mut encoder,
                     timestamps,
-                )
+                ).map(|_| ())
             } else {
                 g.renderer.encode_preview(
                     &self.scene,
@@ -724,7 +758,7 @@ impl Session {
                     rh,
                     &mut encoder,
                     timestamps,
-                )
+                ).map(|_| ())
             };
             let encoded = encoded.and_then(|_| g.scratch.encode_output(&g.renderer, &mut encoder));
             if let Err(error) = encoded {
@@ -805,6 +839,7 @@ impl Session {
             g.renderer.queue.present(output);
             let present_call_us = presenting.elapsed().as_micros() as u64;
             self.presented += 1;
+            if cached.is_some() { self.cached_presented = self.cached_presented.saturating_add(1); }
             let render_wall_us = began.elapsed().as_micros() as u64;
             self.last_cpu_us = render_wall_us
                 .saturating_sub(acquire_us)
