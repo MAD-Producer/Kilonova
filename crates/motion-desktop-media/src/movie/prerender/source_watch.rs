@@ -372,12 +372,21 @@ fn path_matches(a: &Path, b: &Path) -> bool {
 pub struct SourceWatch {
     observation: Observation,
     // Dropped after retire, outside every observation lock.
-    _watcher: RecommendedWatcher,
+    _watcher: Option<RecommendedWatcher>,
 }
+type EventCallback = Box<dyn FnMut(notify::Result<Event>) + Send>;
 impl SourceWatch {
     /// Background-only IO. Arm before opening/copying source bytes; retain the
     /// watcher for the entire frozen owner/cache lifetime. No recursive scans.
     pub fn arm(request: u64, root: &Path, sources: &[PathBuf]) -> Result<Self> {
+        Self::arm_with_backend(request, root, sources, notify::recommended_watcher)
+    }
+    fn arm_with_backend(
+        request: u64,
+        root: &Path,
+        sources: &[PathBuf],
+        create: impl FnOnce(EventCallback) -> notify::Result<RecommendedWatcher>,
+    ) -> Result<Self> {
         let began = Instant::now();
         log::info!(
             "start #{request} prerender_source_watch sources={}",
@@ -398,31 +407,39 @@ impl SourceWatch {
             let observation = Observation::new(request);
             let callback = observation.clone();
             let directories: Vec<_> = scopes.0.keys().cloned().collect();
-            let mut watcher =
-                notify::recommended_watcher(move |event: notify::Result<Event>| match event {
-                    Ok(event) if scopes.relevant(&event) => {
-                        let path = event
-                            .paths
-                            .first()
-                            .map(|p| p.to_string_lossy().chars().take(192).collect::<String>());
-                        callback.invalidate(
-                            format!(
-                                "kind={:?} rescan={} path={path:?}",
-                                event.kind,
-                                event.need_rescan()
-                            ),
-                            false,
-                        );
-                    }
-                    Ok(_) => {}
-                    Err(error) => callback.invalidate(error.to_string(), true),
-                })
-                .map_err(|e| format!("create native source watcher: {e}"))?;
-            for directory in directories {
-                watcher
-                    .watch(&directory, RecursiveMode::NonRecursive)
-                    .map_err(|e| format!("arm native source watcher: {e}"))?;
-            }
+            // Procedural-only closures still own validity and cancellation leases,
+            // but have no filesystem entries to observe. Avoid an idle OS backend
+            // and its event thread on every captured generation.
+            let watcher = if directories.is_empty() {
+                None
+            } else {
+                let mut watcher =
+                    create(Box::new(move |event: notify::Result<Event>| match event {
+                        Ok(event) if scopes.relevant(&event) => {
+                            let path = event
+                                .paths
+                                .first()
+                                .map(|p| p.to_string_lossy().chars().take(192).collect::<String>());
+                            callback.invalidate(
+                                format!(
+                                    "kind={:?} rescan={} path={path:?}",
+                                    event.kind,
+                                    event.need_rescan()
+                                ),
+                                false,
+                            );
+                        }
+                        Ok(_) => {}
+                        Err(error) => callback.invalidate(error.to_string(), true),
+                    }))
+                    .map_err(|e| format!("create native source watcher: {e}"))?;
+                for directory in directories {
+                    watcher
+                        .watch(&directory, RecursiveMode::NonRecursive)
+                        .map_err(|e| format!("arm native source watcher: {e}"))?;
+                }
+                Some(watcher)
+            };
             for (path, target) in identities {
                 if path
                     .canonicalize()

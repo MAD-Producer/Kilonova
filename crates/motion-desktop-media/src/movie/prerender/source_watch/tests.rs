@@ -22,6 +22,49 @@ fn fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
 }
 
 #[test]
+fn procedural_sources_do_not_require_an_os_watcher_and_keep_real_job_lifetimes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let calls = std::cell::Cell::new(0);
+    let watch = SourceWatch::arm_with_backend(201, temporary.path(), &[], |_| {
+        calls.set(calls.get() + 1);
+        Err(notify::Error::generic("native watcher unavailable"))
+    });
+    assert!(watch.is_ok(), "procedural sources must not depend on a native watcher");
+    assert_eq!(calls.get(), 0, "no OS backend or event thread is needed");
+    let watch = watch.unwrap();
+    let observation = watch.observation();
+    assert!(observation.valid());
+    let first_control = ExportControl::default();
+    let first = observation.attach(first_control.clone()).unwrap().unwrap();
+    assert!(observation.attach(ExportControl::default()).is_err());
+    drop(first);
+    assert!(first_control.check().is_ok());
+    let next_control = ExportControl::default();
+    let next = observation.attach(next_control.clone()).unwrap().unwrap();
+    drop(watch);
+    assert!(!observation.valid());
+    assert!(observation.snapshot().unwrap().retired);
+    assert!(next_control.check().is_err());
+    assert!(observation.attach(ExportControl::default()).unwrap().is_none());
+    drop(next);
+    assert_eq!(observation.snapshot().unwrap().active_ticket, None);
+}
+
+#[test]
+fn visual_sources_still_require_the_backend_and_preserve_its_original_failure() {
+    let (_temporary, root, relative) = fixture();
+    let calls = std::cell::Cell::new(0);
+    let result = SourceWatch::arm_with_backend(202, &root, &[relative], |_| {
+        calls.set(calls.get() + 1);
+        Err(notify::Error::generic("owned backend failure 202"))
+    });
+    assert_eq!(calls.get(), 1);
+    let error = result.err().expect("a visual source cannot bypass watch setup failure");
+    assert!(error.contains("create native source watcher"), "{error}");
+    assert!(error.contains("owned backend failure 202"), "{error}");
+}
+
+#[test]
 fn lease_retains_one_real_job_until_ack_and_refuses_stale_reuse() {
     let observation = Observation::new(17);
     let first_control = ExportControl::default();
