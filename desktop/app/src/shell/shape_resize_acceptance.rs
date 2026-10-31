@@ -215,9 +215,12 @@ impl Shell {
                 }
                 let mut ui = self.ui_frame(paint, window_size, true);
                 ui.node_preview = None;
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                ui.views = None;
                 ui.composition = None;
                 ui.composition_image = None;
                 if panel == Panel::Composition {
+                    ui.views = None;
                     ui.composition = Some(
                         [view.min[0], view.min[1], view.width(), view.height()]
                             .map(|v| v * self.scale),
@@ -233,7 +236,7 @@ impl Shell {
                     );
                 }
                 let path = report.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(ui, path.clone())?;
+                self.capture_presented_ui(ui, path.clone())?;
                 let pixels = image::open(&path).map_err(|e| e.to_string())?;
                 let width = (panel_size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
                 let height =

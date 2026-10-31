@@ -316,6 +316,8 @@ fn effect_search_native_pixels_and_default_failure_sinks() {
                 let path = artifacts.join(format!("{tag}-alternate-{name}.png"));
                 let mut ui = shell.ui_frame(paint, size, true);
                 ui.window = key;
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                ui.views = None;
                 ui.composition = None;
                 ui.composition_image = None;
                 ui.node_preview = None;
@@ -403,6 +405,7 @@ fn effect_search_native_pixels_and_default_failure_sinks() {
                     let path = artifacts.join(format!("{tag}-{name}-{scale}.png"));
                     let mut ui = shell.ui_frame(paint, size, true);
                     ui.window = key;
+                    ui.views = None;
                     ui.composition = None;
                     ui.composition_image = None;
                     ui.node_preview = None;

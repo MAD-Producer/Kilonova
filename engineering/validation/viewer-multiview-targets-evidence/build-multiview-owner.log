@@ -1,0 +1,35 @@
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+error[E0599]: no method named `total_bytes` found for struct `TextureResourceLedger` in the current scope
+   --> crates\motion-render\tests\multiview_targets.rs:675:27
+    |
+675 |         assert_eq!(ledger.total_bytes(), targets.texture_bytes());
+    |                           ^^^^^^^^^^^
+    |
+help: there is a method `total_known_bytes` with a similar name
+    |
+675 |         assert_eq!(ledger.total_known_bytes(), targets.texture_bytes());
+    |                                 ++++++
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `motion-render` (test "multiview_targets") due to 1 previous error

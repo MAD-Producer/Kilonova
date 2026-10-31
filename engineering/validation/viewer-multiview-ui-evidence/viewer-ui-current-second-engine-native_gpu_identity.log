@@ -1,0 +1,7 @@
+
+running 1 test
+GPU_PRESENT_IDENTITY {"actualCommandRecords":39,"actualSuccessfulPresentations":4,"available":true,"identities":[{"command":{"epoch":1,"id":1},"exposure":null,"frame":0.25,"mode":"normal","sequence":1},{"command":{"epoch":1,"id":2},"exposure":null,"frame":1.25,"mode":"normal","sequence":2},{"command":{"epoch":2,"id":19},"exposure":{"poll":2,"request":1},"frame":0.25,"mode":"exposure","sequence":2},{"command":{"epoch":2,"id":37},"exposure":{"poll":1,"request":2},"frame":1.25,"mode":"exposure","sequence":3}],"normalAndExposure":true,"scope":"actual native surface via worker, real successful FrameRecorder entries and original query words; no scanout, scene pixel-oracle or steady-state performance claim"}
+test engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1567 filtered out; finished in 8.87s
+

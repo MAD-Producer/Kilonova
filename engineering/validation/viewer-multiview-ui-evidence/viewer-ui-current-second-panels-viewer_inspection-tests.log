@@ -1,0 +1,11 @@
+
+running 6 tests
+test panels::viewer_inspection::tests::closing_float_clears_its_owner_even_after_main_was_drawn ... ok
+test panels::viewer_inspection::tests::floating_input_cancels_pending_main_region_without_mutating_it ... ok
+test panels::viewer_inspection::tests::late_capture_completion_updates_its_original_cell_only ... ok
+test panels::viewer_inspection::tests::region_selection_uses_composition_coordinates_and_cancel_preserves_previous_region ... ok
+test panels::viewer_inspection::tests::selecting_owns_pointer_until_release_outside_viewer ... ok
+test panels::viewer_inspection::tests::snapshots_are_window_owned_and_stale_completion_does_not_reenable_comparison ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1562 filtered out; finished in 0.01s
+

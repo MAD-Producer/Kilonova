@@ -1,0 +1,6 @@
+
+running 1 test
+test shell::native_input_tests::native_main_and_floating_input_remain_isolated_and_consume_each_event_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1567 filtered out; finished in 7.33s
+

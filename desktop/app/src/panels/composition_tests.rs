@@ -188,7 +188,8 @@ fn selection_uses_the_same_zoomed_panned_mapping_as_drawing() {
         },
         &mut atlas,
     );
-    assert!(matches!(actions.as_slice(),[Action::SelectAt(value)] if *value == expected));
+    assert!(matches!(actions.as_slice(),[Action::ViewerPick{key,cell:0,point}] if *point==expected
+        && *key==panels.viewer_views.key(&state)));
 }
 
 #[test]
@@ -219,4 +220,40 @@ fn malformed_mapping_is_bounded_visible_and_recovers_at_default_log_level() {
     assert_eq!(file.matches(error).count(),2);
     assert_eq!(String::from_utf8_lossy(&output.stderr).matches(error).count(),2);
     assert!(!String::from_utf8_lossy(&output.stdout).contains(error));
+}
+
+#[test]
+fn multiview_pan_rolls_back_on_escape_focus_clock_and_geometry_changes() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for cancel in ["escape", "focus", "clock", "resize"] {
+        let mut state = state();
+        let mut panels = Panels::default();
+        panels.viewer_views.settings.set_layout(crate::viewer_views::Layout::Four);
+        let mut area = Rect::new(0.,0.,900.,600.);
+        let mut render_input = |panels:&mut Panels,state:&Value,area:Rect,input:Input| {
+            let mut out=vec![];
+            render(&mut PaintList::default(),&mut atlas,area,panels,state,&input,&mut out);
+            assert!(out.is_empty(),"navigation dispatched commands: {out:?}");
+        };
+        render_input(&mut panels,&state,area,Input::default());
+        let tiles=panels.viewer_views.settings.layout().tiles(styled_viewer(area,&PaintList::default().styles()),2.).unwrap();
+        let point=[(tiles[1].min[0]+tiles[1].max[0])*0.5,(tiles[1].min[1]+tiles[1].max[1])*0.5];
+        let before=panels.viewer_views.settings.clone();
+        render_input(&mut panels,&state,area,Input {mouse:point,pressed:Some((MouseButton::Middle,point)),held:Some(MouseButton::Middle),..Default::default()});
+        let moved=[point[0]+25.,point[1]+18.];
+        render_input(&mut panels,&state,area,Input {mouse:moved,held:Some(MouseButton::Middle),..Default::default()});
+        assert_eq!(panels.viewer_views.settings.active(),1);
+        assert_ne!(panels.viewer_views.settings.view(1).unwrap().navigation,before.view(1).unwrap().navigation,"{cancel}");
+        let input=match cancel {
+            "escape"=>Input {keys:vec![(Key::Escape,Default::default())],..Default::default()},
+            "focus"=>{assert!(super::super::cancel_for_focus_loss(&mut panels).is_empty());Input {focus_lost:true,..Default::default()}},
+            "clock"=>{state["frame"]=serde_json::json!(20.);Input::default()},
+            "resize"=>{area=Rect::new(0.,0.,1000.,600.);Input::default()},
+            _=>unreachable!(),
+        };
+        render_input(&mut panels,&state,area,input);
+        assert_eq!(panels.viewer_views.settings.view(1).unwrap().navigation,before.view(1).unwrap().navigation,"{cancel}");
+        assert!(panels.composition.pan.is_none());
+        for i in [0,2,3] {assert_eq!(panels.viewer_views.settings.view(i),before.view(i),"{cancel} neighbour {i}");}
+    }
 }

@@ -1,0 +1,52 @@
+
+running 2 tests
+
+thread 'session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal' (39328) panicked at crates\motion-host\src\session\viewer\tests.rs:132:5:
+
+running 1 test
+test session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 110 filtered out; finished in 0.02s
+
+
+
+thread 'session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal' (41076) panicked at crates\motion-host\src\session\viewer\tests.rs:261:36:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpiTbuoT", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal ... FAILED
+
+thread 'session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts' (40852) panicked at crates\motion-host\src\session\viewer\tests.rs:132:5:
+
+running 1 test
+test session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 110 filtered out; finished in 0.02s
+
+
+
+thread 'session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts' (38164) panicked at crates\motion-host\src\session\viewer\tests.rs:153:36:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpPvGNF6", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+test session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal
+    session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 109 filtered out; finished in 0.08s
+

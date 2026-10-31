@@ -1,0 +1,48 @@
+1793433072.797 INFO [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] motion_studio::logging: logging initialized level=INFO
+1793433072.800 INFO [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpJA7TwH
+1793433072.800 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793433072.801 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpJA7TwH
+1793433078.790 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793433078.791 INFO [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpJA7TwH 5990ms
+1793433078.982 ERROR [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793433078.982 ERROR [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f26d90b50, name: ?)
+1793433078.982 ERROR [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793433078.982 ERROR [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x21f26d90b50, name: ?)
+1793433079.082 INFO [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793433079.298 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793433079.359 INFO [motion-engine] motion_studio::engine: start #2 float_window
+1793433079.360 INFO [motion-engine] motion_studio::engine: start #3 capture_viewer_snapshot
+1793433079.360 ERROR [motion-engine] motion_studio::engine: viewer snapshot failed request=3 session=1 window=0 phase=capture elapsed_ms=0 cause=no completed viewer frame is available
+1793433079.360 ERROR [motion-engine] motion_studio::engine: error #3 capture_viewer_snapshot 0ms: no completed viewer frame is available
+1793433079.362 INFO [motion-engine] motion_studio::engine: start #4 state
+1793433079.558 WARN [panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793433079.736 INFO [motion-engine] motion_studio::engine: start #6 capture_viewer_snapshot
+1793433079.741 INFO [motion-engine] motion_studio::engine: start #8 capture_viewer_snapshot
+1793433079.742 INFO [motion-engine] motion_studio::engine: start #9 save_viewer_snapshot
+1793433079.793 INFO [motion-engine] motion_studio::engine: start #10 save_viewer_snapshot
+1793433079.849 INFO [motion-engine] motion_studio::engine: start #11 save_viewer_snapshot
+1793433079.860 ERROR [motion-engine] motion_studio::engine: viewer snapshot failed operation=save request=11 session=1 window=0 elapsed_ms=10 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-input-context/legacy-snapshot\absent\snapshot.png cause=phase=save: 系统找不到指定的路径。 (os error 3)
+1793433079.860 ERROR [motion-engine] motion_studio::engine: error #11 save_viewer_snapshot 10ms: phase=save: 系统找不到指定的路径。 (os error 3)
+1793433079.861 INFO [motion-engine] motion_studio::engine: start #12 state
+1793433079.862 INFO [motion-engine] motion_studio::engine: start #13 state
+1793433079.864 INFO [motion-engine] motion_studio::engine: start #14 state
+1793433079.866 INFO [motion-engine] motion_studio::engine: start #15 state
+1793433079.867 INFO [motion-engine] motion_studio::engine: start #16 state
+1793433079.869 INFO [motion-engine] motion_studio::engine: start #17 edit
+1793433079.875 INFO [motion-engine] motion_studio::engine: start #19 capture_ui
+1793433079.986 INFO [motion-engine] motion_studio::engine: start #21 capture_ui
+1793433080.094 INFO [motion-engine] motion_studio::engine: start #23 capture_ui
+1793433080.185 INFO [motion-engine] motion_studio::engine: start #25 capture_ui
+1793433080.275 INFO [motion-engine] motion_studio::engine: start #26 save_viewer_snapshot
+1793433080.326 INFO [motion-engine] motion_studio::engine: start #27 close_window
+1793433080.328 INFO [motion-engine] motion_studio::engine: start #28 save_viewer_snapshot
+1793433080.329 ERROR [motion-engine] motion_studio::engine: viewer snapshot failed operation=save request=28 session=1 window=1 elapsed_ms=0 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-input-context/legacy-snapshot\closed.png cause=floating viewer window is closed
+1793433080.329 ERROR [motion-engine] motion_studio::engine: error #28 save_viewer_snapshot 0ms: floating viewer window is closed
+1793433080.336 INFO [motion-engine] motion_studio::engine: start #29 shutdown
+1793433080.336 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793433080.336 INFO [motion-engine] motion_studio::engine::shutdown: start #30 shutdown_cleanup session=1
+1793433080.338 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793433080.359 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793433080.359 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

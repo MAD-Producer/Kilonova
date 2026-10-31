@@ -229,7 +229,7 @@ fn frame(host: &mut Host, floating: Option<WindowId>, size: [f32; 2]) -> engine:
     } else {
         panels::node_view_bound(&shell.workspace.root, size, false)
     };
-    engine::UiFrame {
+    engine::UiFrame { views: None,
         paint,
         atlas: Some(engine::AtlasUpload {
             pixels: shell.atlas.pixel_data().to_vec(),

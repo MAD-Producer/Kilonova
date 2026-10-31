@@ -1,0 +1,31 @@
+
+running 1 test
+
+test session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 111 filtered out; finished in 35.82s
+
+thread 'session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter' (17952) panicked at crates\motion-host\src\session\viewer\tests.rs:133:5:
+
+running 1 test
+test session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 111 filtered out; finished in 35.72s
+
+
+
+thread 'session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter' (16304) panicked at crates\motion-host\src\session\viewer\tests.rs:121:9:
+multiview never became ready
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

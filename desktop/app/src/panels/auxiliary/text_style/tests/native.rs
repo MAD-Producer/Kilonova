@@ -83,7 +83,7 @@ fn capture(
         loop {
             let reply = shell
                 .engine
-                .present_async(crate::engine::UiFrame {
+                .present_async(crate::engine::UiFrame { views: None,
                     paint: PaintList::default(),
                     atlas: None,
                     logical_size: ui.logical_size,

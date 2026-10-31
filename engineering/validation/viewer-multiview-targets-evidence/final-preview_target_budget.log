@@ -1,0 +1,10 @@
+
+running 5 tests
+test allocation_refusal_uses_combined_capacity_and_replacement_retains_only_two_targets ... ok
+test combined_budget_rejects_reused_candidate_preserves_pixels_and_allows_smaller_frame ... ok
+test float_color_targets_are_charged_their_actual_capacity ... ok
+test legacy_policy_defaults_and_invalid_updates_preserve_the_live_policy ... ok
+test real_target_refusals_exhaust_once_hold_front_and_recover_after_a_budget_change ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.17s
+

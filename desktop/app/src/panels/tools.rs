@@ -31,7 +31,7 @@ pub(crate) enum Active {
 pub(crate) struct State {
     /// Path and transform controls retain ownership of their existing gestures.
     auxiliary: Option<Active>,
-    camera: camera::State,
+    pub(super) camera: camera::State,
     shape: Option<ShapeGesture>,
     owner: Option<motion_ui::dock::Panel>,
     render_owner: Option<motion_ui::dock::Panel>,
@@ -98,7 +98,8 @@ pub(crate) fn active(panels: &Panels) -> Active {
     }
 }
 pub(crate) fn choose(panels: &mut Panels, tool: Active, state: &Value, out: &mut Vec<Action>) {
-    if camera::is_tool(tool) && state["observing"] != true {
+    if camera::is_tool(tool) && state["observing"]!=true && !panels.viewer_views.settings.view(panels.viewer_views.settings.active()).is_some_and(|view|
+        matches!(view.mode,crate::viewer_views::Mode::Free|crate::viewer_views::Mode::Top|crate::viewer_views::Mode::Side)) {
         panels.message = Some(
             if panels.locale == Locale::Zh {
                 "摄影机工具仅用于观察视图，请先切换到观察视图"

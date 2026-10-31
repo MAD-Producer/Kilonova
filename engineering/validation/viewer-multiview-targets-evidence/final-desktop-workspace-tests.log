@@ -1,0 +1,12 @@
+
+running 7 tests
+test workspace::tests::all_registered_panels_keep_unique_ownership_through_close_float_and_reopen ... ok
+test workspace::tests::every_panel_keeps_one_owner_after_dock_float_and_close ... ok
+test workspace::tests::floating_geometry_round_trips_without_accepting_duplicate_or_unknown_panels ... ok
+test workspace::tests::layout_round_trips_and_invalid_preferences_reset ... ok
+test workspace::tests::node_view_preferences_save_reopen_and_accept_legacy_workspace ... ok
+test workspace::tests::optional_nodes_tab_survives_save_float_and_redock ... ok
+test workspace::tests::timeline_column_visibility_defaults_visible_for_legacy_json_and_round_trips ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 1505 filtered out; finished in 0.34s
+

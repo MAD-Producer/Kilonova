@@ -1,0 +1,211 @@
+{
+  "design_revision": 2,
+  "favorites": [],
+  "floating": [],
+  "hidden": [],
+  "legacy_layout": null,
+  "locale": "zh",
+  "movie_export_scope": "composition",
+  "named_layouts": {},
+  "node_recents": [],
+  "node_view": {
+    "grid": true,
+    "minimap": false
+  },
+  "preset": "default",
+  "preset_layouts": {},
+  "preview_playback": {
+    "looping": true,
+    "scope": "composition",
+    "skip": "none",
+    "start": "current"
+  },
+  "preview_quality": "auto",
+  "project_view": {
+    "folder": null,
+    "query": "",
+    "root": "",
+    "search_all": false
+  },
+  "recent_projects": [],
+  "root": {
+    "Split": {
+      "edge": "Right",
+      "first": {
+        "Split": {
+          "edge": "Top",
+          "first": {
+            "Split": {
+              "edge": "Left",
+              "first": {
+                "Split": {
+                  "edge": "Top",
+                  "first": {
+                    "Dock": {
+                      "active": 0,
+                      "id": 1,
+                      "tabs": [
+                        1
+                      ]
+                    }
+                  },
+                  "second": {
+                    "Dock": {
+                      "active": 0,
+                      "id": 2,
+                      "tabs": [
+                        2
+                      ]
+                    }
+                  },
+                  "split": 0.5216535329818726
+                }
+              },
+              "second": {
+                "Dock": {
+                  "active": 0,
+                  "id": 3,
+                  "tabs": [
+                    3
+                  ]
+                }
+              },
+              "split": 0.22100313007831573
+            }
+          },
+          "second": {
+            "Dock": {
+              "active": 0,
+              "id": 4,
+              "tabs": [
+                4,
+                18
+              ]
+            }
+          },
+          "split": 0.5682326555252075
+        }
+      },
+      "second": {
+        "Split": {
+          "edge": "Top",
+          "first": {
+            "Dock": {
+              "active": 0,
+              "id": 11,
+              "tabs": [
+                11
+              ]
+            }
+          },
+          "second": {
+            "Split": {
+              "edge": "Top",
+              "first": {
+                "Dock": {
+                  "active": 0,
+                  "id": 13,
+                  "tabs": [
+                    13,
+                    12,
+                    8
+                  ]
+                }
+              },
+              "second": {
+                "Split": {
+                  "edge": "Top",
+                  "first": {
+                    "Dock": {
+                      "active": 0,
+                      "id": 5,
+                      "tabs": [
+                        5
+                      ]
+                    }
+                  },
+                  "second": {
+                    "Dock": {
+                      "active": 0,
+                      "id": 14,
+                      "tabs": [
+                        14,
+                        15,
+                        16
+                      ]
+                    }
+                  },
+                  "split": 0.5708501935005188
+                }
+              },
+              "split": 0.18300653994083405
+            }
+          },
+          "split": 0.3087248206138611
+        }
+      },
+      "split": 0.20000000298023224
+    }
+  },
+  "send_diagnostics": false,
+  "shortcut_bindings": {
+    "overrides": []
+  },
+  "style_path": null,
+  "timeline_column_blend": true,
+  "timeline_column_matte": true,
+  "timeline_column_parent": true,
+  "timeline_hide_shy": false,
+  "timeline_sampling_columns": [
+    true,
+    true,
+    true
+  ],
+  "viewer_views": {
+    "active": 99,
+    "layout": "single",
+    "views": [
+      {
+        "mode": {
+          "kind": "composition"
+        },
+        "navigation": {
+          "center": null,
+          "zoom": null
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "top"
+        },
+        "navigation": {
+          "center": null,
+          "zoom": null
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "side"
+        },
+        "navigation": {
+          "center": null,
+          "zoom": null
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "free"
+        },
+        "navigation": {
+          "center": null,
+          "zoom": null
+        },
+        "orbit": null
+      }
+    ]
+  },
+  "window_geometry": {}
+}

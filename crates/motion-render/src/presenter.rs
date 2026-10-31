@@ -227,11 +227,27 @@ impl Presenter {
             ],
         })
     }
+    fn write_view_geometry(&self, queue: &wgpu::Queue, viewport: [f32; 4],
+        image: Option<[f32; 4]>) -> Result<(), crate::RenderError> {
+        let [x, y, _, _] = viewport;
+        let [ix, iy, iw, ih] = image.unwrap_or(viewport);
+        // Keep the two existing 32-byte bindings. mode.zw holds the viewport
+        // origin; uv holds the local image offset and reciprocal image extent.
+        let geometry = [x, y, x-ix, y-iy, 1./iw, 1./ih];
+        self.view_buffer.write(queue, 8, bytemuck::cast_slice(&geometry))
+    }
     /// Crop a virtual canvas inside a valid surface viewport. Pan/zoom never sets
     /// an out-of-surface GPU viewport or changes the compositor/export camera.
     pub fn encode_view(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4]) -> Result<(), crate::RenderError> {
+        self.encode_view_load(queue, encoder, output, timestamps, viewport, image, background, false)
+    }
+    /// Keep earlier cells in the same surface. Each cell must have its own
+    /// Presenter, because queued uniform writes are shared by its draw calls.
+    pub(crate) fn encode_view_load(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4], load: bool) -> Result<(), crate::RenderError> {
         if self.inspection_region.is_some() || self.comparison_split.is_some() {
             let comparison = match self.comparison_split {
                 Some(split) => Some((self.comparison_group.as_ref().ok_or_else(||
@@ -240,17 +256,15 @@ impl Presenter {
             };
             let (live, captured) = Self::inspection_scissors(viewport, image, self.inspection_region, self.comparison_split)?;
             let [x, y, w, h] = viewport;
-            let [ix, iy, iw, ih] = image.unwrap_or(viewport);
-            let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
-            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
+            self.write_view_geometry(queue, viewport, image)?;
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("viewer inspection"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     depth_slice: None, view: output, resolve_target: None,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color {
+                    ops: wgpu::Operations { load: if load { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(wgpu::Color {
                         r: background[0] as f64, g: background[1] as f64,
                         b: background[2] as f64, a: background[3] as f64,
-                    }), store: wgpu::StoreOp::Store },
+                    }) }, store: wgpu::StoreOp::Store },
                 })],
                 depth_stencil_attachment: None, timestamp_writes: timestamps,
                 occlusion_query_set: None, multiview_mask: None,
@@ -269,17 +283,8 @@ impl Presenter {
             }
             return Ok(());
         }
-        if let Some([ix, iy, iw, ih]) = image {
-            let [x, y, w, h] = viewport;
-            let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
-            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
-            self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
-        } else if self.view_channel != ViewChannel::Color {
-            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&[0.0f32, 0., 1., 1.]))?;
-            self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
-        } else {
-            self.encode(encoder, output, timestamps, Some(viewport), background);
-        }
+        self.write_view_geometry(queue, viewport, image)?;
+        self.encode_group_impl(encoder, output, timestamps, Some(viewport), background, &self.view_group, None, load, false);
         Ok(())
     }
     /// Present a live image, optionally comparing a captured image to its right.
@@ -295,11 +300,8 @@ impl Presenter {
                 return Err(crate::RenderError::Invalid("invalid viewer comparison split, format or channel".into()));
             }
         }
-        let [x, y, w, h] = viewport;
-        let [ix, iy, iw, ih] = image.unwrap_or(viewport);
-        let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
-        self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
-        if let Some((other, _)) = comparison { other.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?; }
+        self.write_view_geometry(queue, viewport, image)?;
+        if let Some((other, _)) = comparison { other.write_view_geometry(queue, viewport, image)?; }
         self.encode_group_region(encoder, output, Some(viewport), background, &self.view_group, live, false);
         if let Some((other, _)) = comparison {
             other.encode_group_region(encoder, output, Some(viewport), background, &other.view_group, captured, true);
@@ -307,7 +309,7 @@ impl Presenter {
         Ok(())
     }
 
-    fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
+    pub(crate) fn inspection_scissors(viewport: [f32; 4], image: Option<[f32; 4]>, region: Option<[f32; 4]>,
         split: Option<f32>) -> Result<(Option<[u32; 4]>, Option<[u32; 4]>), crate::RenderError> {
         let [x, y, w, h] = viewport;
         let [ix, iy, iw, ih] = image.unwrap_or(viewport);

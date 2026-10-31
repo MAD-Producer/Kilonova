@@ -101,6 +101,16 @@ impl SdrPreviewFrameTargets {
             + self.front_output.as_ref().map_or(0, Output::bytes)
             + self.candidate_output.as_ref().map_or(0, Output::bytes)
     }
+    pub(crate) fn retained_bytes(&self) -> u64 {
+        self.working.front.texture_bytes() + self.front_output.as_ref().map_or(0, Output::bytes)
+    }
+    pub(crate) fn estimated_slot_bytes(renderer: &Renderer, size: [u32; 2]) -> Result<u64, RenderError> {
+        slot_bytes(renderer, size[0], size[1])
+    }
+    pub(crate) fn candidate_matches(&self, renderer: &Renderer, size: [u32; 2]) -> bool {
+        self.prepared().is_some_and(|target| [target.width, target.height] == size
+            && target.texture().format() == renderer.target_format)
+    }
     pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger) {
         self.working.collect_texture_resources(ledger);
         for (output, owner, state) in [

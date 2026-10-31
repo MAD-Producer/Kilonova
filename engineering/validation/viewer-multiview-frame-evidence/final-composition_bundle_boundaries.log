@@ -1,0 +1,11 @@
+
+running 6 tests
+test active_instance_limit_is_typed_and_clears_previous_output ... ok
+test depth_and_byte_limits_keep_the_existing_text_and_typed_measurements ... ok
+test missing_reference_and_asset_return_typed_errors_and_allow_recovery ... ok
+test mixed_rate_shared_subtrees_keep_every_byte_parent_slot_and_video_binding ... ok
+test nested_budget_refusal_keeps_original_source_identity_text_and_recovery ... ok
+test warm_bundle_allocations_drop_without_changing_output ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.64s
+

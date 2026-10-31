@@ -61,6 +61,9 @@ pub struct Workspace {
     pub node_recents: crate::node_editor::RecentNodes,
     #[serde(default)]
     pub project_view: crate::panels::project::ViewPreferences,
+    /// View layout is application state, never project or undo data.
+    #[serde(default)]
+    pub(crate) viewer_views: crate::viewer_views::Settings,
     #[serde(default = "visible_column")]
     pub timeline_column_blend: bool,
     #[serde(default = "visible_column")]
@@ -90,6 +93,7 @@ impl Default for Workspace {
             node_view: Default::default(),
             node_recents: Default::default(),
             project_view: Default::default(),
+            viewer_views: Default::default(),
             timeline_column_blend: true,
             timeline_column_parent: true,
             timeline_column_matte: true,
@@ -129,7 +133,7 @@ impl Workspace {
         self.timeline_column_matte = visibility.matte;
     }
     pub fn valid(&self) -> bool {
-        self.layout.valid() && self.project_view.valid()
+        self.layout.valid() && self.project_view.valid() && self.viewer_views.valid()
             && self
                 .owned_panels()
                 .iter()

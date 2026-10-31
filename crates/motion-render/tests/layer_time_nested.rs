@@ -139,6 +139,61 @@ fn zero_speed_reverse_ease_enters_the_child_end_but_a_real_freeze_does_not() {
 }
 
 #[test]
+fn zero_speed_curve_cursor_is_retained_when_shared_scenes_are_resampled_for_another_view() {
+    use motion_core::Observer;
+    use motion_render::ViewCamera;
+    let mut p = fixture();
+    p.layers[0].time_mapping = Some(remap(&[(0., 48., Ease::In), (48., 0., Ease::Linear)]));
+    p.layers.push(Layer::camera(2, "camera", 32, 32));
+    p.validate().unwrap();
+    let before = p.clone();
+    let mut scene = Scene::new(&p).unwrap();
+    scene
+        .sample_view(
+            &p,
+            0.,
+            ViewCamera::Composition,
+            &motion_core::ExpressionEvaluator,
+        )
+        .unwrap();
+    let retained = scene.clone();
+    let first_child = scene.nested[0].scene.clone();
+    let observer = Observer::new(32, 32);
+    for view in [ViewCamera::Observer(&observer), ViewCamera::Camera(2)] {
+        scene
+            .sample_view(&p, 24., view, &motion_core::ExpressionEvaluator)
+            .unwrap();
+        assert_eq!(scene.nested[0].scene.frame, 72.);
+        assert_eq!(
+            scene.nested[0].scene.layers[0]
+                .video
+                .as_ref()
+                .unwrap()
+                .source_time_us,
+            1_499_999
+        );
+        assert_eq!(retained.nested[0].scene.frame, 96.);
+        assert_eq!(
+            retained.nested[0].scene.layers[0]
+                .video
+                .as_ref()
+                .unwrap()
+                .source_time_us,
+            1_999_999
+        );
+        assert!(std::sync::Arc::ptr_eq(
+            &first_child,
+            &retained.nested[0].scene
+        ));
+        assert!(!std::sync::Arc::ptr_eq(
+            &first_child,
+            &scene.nested[0].scene
+        ));
+    }
+    assert_eq!(p, before);
+}
+
+#[test]
 fn nested_nonmonotonic_remap_keeps_its_turn_and_freeze_in_source_time() {
     let mut p = fixture();
     p.layers[0].time_mapping = Some(remap(&[

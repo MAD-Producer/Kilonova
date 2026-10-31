@@ -1,0 +1,2 @@
+error: extra arguments to `rustc` can only be passed to one target, consider filtering
+the package by passing, e.g., `--lib` or `--bin NAME` to specify a single target

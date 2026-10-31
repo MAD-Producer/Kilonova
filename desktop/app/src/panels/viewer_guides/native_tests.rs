@@ -89,7 +89,7 @@ fn capture(
     let composition = Some(rect(viewport));
     let composition_image = Some(rect(mapping.image));
     let presented = engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,
@@ -109,7 +109,7 @@ fn capture(
     crate::native_test_support::capture_ui(
         events,
         engine,
-        UiFrame {
+        UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: atlas.pixel_data().to_vec(),
@@ -159,6 +159,23 @@ fn dispatch(events: &mut EventLoop<()>, engine: &Engine, actions: Vec<Action>) {
                     .unwrap(),
                 false,
             ),
+            Action::ViewerDrag {key,cell,object,delta,size} => {
+                assert_eq!(cell,0,"single-view fixture must keep its view identity");
+                (engine.viewer_drag_async(crate::engine::viewer_input::Drag {
+                    window:key.window,source:key.source,frame:f64::from_bits(key.frame),
+                    camera:crate::engine::viewer_frame::Camera::Composition,object,delta,size}).unwrap(),false)
+            },
+            Action::ViewerPick {key,cell,point} => {
+                assert_eq!(cell,0,"single-view fixture must keep its view identity");
+                let reply=engine.viewer_input_async(crate::engine::viewer_input::Request {
+                    window:key.window,source:key.source,frame:f64::from_bits(key.frame),
+                    query:crate::engine::viewer_input::Query::Pick {
+                        camera:crate::engine::viewer_frame::Camera::Composition,point}}).unwrap();
+                let value=crate::native_test_support::receive(events,&reply,Duration::from_secs(30)).unwrap().unwrap();
+                assert_eq!(value["cancelled"],false);
+                assert_eq!(value["pick"]["candidates"][0]["id"],7);
+                continue;
+            },
             Action::PreviewDrag {
                 object,
                 delta,
@@ -445,7 +462,7 @@ fn viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs() {
     assert!(crate::native_test_support::receive(&mut events, &missing_frame, Duration::from_secs(30)).unwrap().is_err());
     let before = engine.state().unwrap();
     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
-    let frame = |window, inspection, atlas: Option<AtlasUpload>| UiFrame {
+    let frame = |window, inspection, atlas: Option<AtlasUpload>| UiFrame { views: None,
         paint: PaintList::default(), atlas, logical_size: if window == 0 { [900., 600.] } else { [720., 640.] },
         composition: Some([50., 50., 640., 480.]), composition_image: Some([50., 50., 640., 480.]),
         inspection, window, node_preview: None,

@@ -1,0 +1,11 @@
+
+running 5 tests
+test session::sampling::tests::allocation_failure_is_terminal_until_explicit_memory_policy_disposition ... ok
+GPU_EXPOSURE_IDENTITY {"actualCommandRecords":27,"actualPixelsChecked":1024,"actualPolls":14,"available":true,"requests":[3,4],"scope":"actual host exposure polls, native timestamp callbacks and supersession; no video decoding or surface presentation acceptance"}
+test session::sampling::tests::native_exposure_request_survives_pending_polls_and_late_commands_keep_the_original_identity ... ok
+test session::sampling::tests::observation_request_and_poll_exhaustion_never_wrap_or_refuse_the_request ... ok
+test session::sampling::tests::preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle ... ok
+test session::sampling::tests::request_identity_releases_partial_images_and_revision_replaces_immutable_document ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 107 filtered out; finished in 6.58s
+

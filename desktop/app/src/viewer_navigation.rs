@@ -1,4 +1,4 @@
-//! Ephemeral canvas navigation. These coordinates never enter the project or undo history.
+//! View-only canvas navigation. These coordinates never enter the project or undo history.
 use motion_ui::input::Rect;
 
 const MIN_ZOOM: f64 = 0.01;
@@ -20,10 +20,30 @@ impl Mapping {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "SavedNavigation")]
 pub(crate) struct Navigation {
     zoom: Option<f64>,
     center: Option<[f64; 2]>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedNavigation {
+    zoom: Option<f64>,
+    center: Option<[f64; 2]>,
+}
+impl TryFrom<SavedNavigation> for Navigation {
+    type Error = &'static str;
+    fn try_from(saved: SavedNavigation) -> Result<Self, Self::Error> {
+        match (saved.zoom, saved.center) {
+            (None, None) => Ok(Self::default()),
+            (Some(zoom), Some(center)) if zoom.is_finite()
+                && (MIN_ZOOM..=MAX_ZOOM).contains(&zoom)
+                && center.iter().all(|v| v.is_finite()) => Ok(Self {zoom:Some(zoom),center:Some(center)}),
+            _ => Err("invalid saved viewer navigation"),
+        }
+    }
 }
 impl Navigation {
     pub fn is_fit(&self) -> bool {

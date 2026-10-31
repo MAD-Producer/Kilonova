@@ -6,6 +6,10 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    ViewerSettings(crate::viewer_views::Settings),
+    ViewerPick { key: super::composition_views::Key, cell: usize, point: [f64; 2] },
+    ViewerCamera { key: super::composition_views::Key, cell: usize, action: motion_host::ops::preview::CameraGesture },
+    ViewerDrag { key: super::composition_views::Key, cell: usize, object:u64, delta:[f32;2], size:[i32;2] },
     OpenPluginEditor,
     OpenViewerInspection { floating: bool, point: [f32; 2] },
     CaptureViewerSnapshot { floating: bool },
@@ -271,6 +275,7 @@ pub struct Panels {
     pub(crate) toolbar_style: super::toolbar_style::Controls,
     pub transform_controls: crate::panels::transform_controls::Controls,
     pub(crate) composition: CompositionState,
+    pub(crate) viewer_views: super::composition_views::Controls,
     pub(crate) viewer_guides: super::viewer_guides::Controls,
     pub(crate) viewer_inspection: super::viewer_inspection::Controls,
 }

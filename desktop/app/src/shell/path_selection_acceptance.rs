@@ -110,6 +110,8 @@ fn capture(
     let mut ui = shell.ui_frame(paint, size(), true);
     ui.window = u64::from(floating);
     ui.node_preview = None;
+    // This isolated capture overrides shell geometry; use the single-view frame protocol.
+    ui.views = None;
     ui.composition = Some([view.min[0], view.min[1], view.width(), view.height()].map(|v| v * pixel_ratio()));
     ui.composition_image = Some([
         mapping.image.min[0],
@@ -121,7 +123,7 @@ fn capture(
     loop {
         let reply = shell
             .engine
-            .present_async(crate::engine::UiFrame {
+            .present_async(crate::engine::UiFrame { views: None,
                 paint: PaintList::default(),
                 atlas: None,
                 logical_size: size(),

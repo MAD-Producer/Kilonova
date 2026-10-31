@@ -1,0 +1,31 @@
+
+running 1 test
+
+thread 'session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter' (28056) panicked at crates\motion-host\src\session\viewer\tests.rs:133:5:
+
+running 1 test
+test session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 111 filtered out; finished in 6.45s
+
+
+
+thread 'session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter' (13184) panicked at crates\motion-host\src\session\viewer\tests.rs:117:14:
+called `Result::unwrap()` on an `Err` value: Model(Invalid("viewer_camera object=1 composition=comp-main frame=6 phase=resolve: camera layer does not exist"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter ... FAILED
+
+failures:
+
+failures:
+    session::viewer::tests::video::native_video_wait_keeps_whole_group_and_never_supersedes_another_cells_shutter
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 111 filtered out; finished in 6.54s
+

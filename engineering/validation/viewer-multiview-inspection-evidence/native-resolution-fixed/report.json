@@ -1,0 +1,32 @@
+{
+  "authoredStateUnchanged": true,
+  "closedWindow": "floating viewer window is closed",
+  "firstSnapshot": {
+    "cell": 0,
+    "generation": 1,
+    "height": 32,
+    "width": 32,
+    "window": 0
+  },
+  "floatingSnapshot": {
+    "cell": 0,
+    "generation": 3,
+    "height": 32,
+    "width": 32,
+    "window": 7
+  },
+  "foreignOwner": "multiview phase=snapshot: completed group is no longer current",
+  "gateway": "production Present/CaptureUi/CaptureViewerSnapshot/SaveViewerSnapshot; hidden windows, product layout producers pending",
+  "inspectionDidNotRenderContent": true,
+  "missingCell": "present window=0 logical_size=[96.0, 96.0]: viewer comparison window=0 cell=2: snapshot is unavailable",
+  "missingWindow": "present window=7 logical_size=[128.0, 96.0]: viewer comparison window=7 cell=0: snapshot is unavailable",
+  "secondSnapshot": {
+    "cell": 1,
+    "generation": 2,
+    "height": 32,
+    "width": 32,
+    "window": 0
+  },
+  "snapshotSourcesAreIndependent": true,
+  "stale": "multiview phase=snapshot: completed group is no longer current"
+}

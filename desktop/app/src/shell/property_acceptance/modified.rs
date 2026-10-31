@@ -106,9 +106,11 @@ impl Shell {
                 for (name, paint) in captures {
                     let path = report.with_extension(format!("uu-{name}.png"));
                     let mut ui = self.ui_frame(paint, window_size, true);
+                    // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                    ui.views = None;
                     ui.composition = None;
                     ui.node_preview = None;
-                    self.engine.capture_ui(ui, path.clone())?;
+                    self.capture_presented_ui(ui, path.clone())?;
                     let pixels = image::open(&path).map_err(|e| e.to_string())?;
                     let width = (size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
                     let height = (size[1] * pixels.height() as f32 / window_size[1]).round() as u32;

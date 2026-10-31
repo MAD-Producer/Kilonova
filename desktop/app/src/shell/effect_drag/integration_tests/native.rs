@@ -21,13 +21,15 @@ fn capture(
     let mut ui = shell.ui_frame(paint, size, true);
     ui.window = u64::from(owner.is_some());
     if owner.is_some() {
+        // This isolated capture overrides shell geometry; use the single-view frame protocol.
+        ui.views = None;
         ui.composition = None;
         ui.composition_image = None;
         ui.node_preview = None;
     }
     let front = shell
         .engine
-        .present_async(crate::engine::UiFrame {
+        .present_async(crate::engine::UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,

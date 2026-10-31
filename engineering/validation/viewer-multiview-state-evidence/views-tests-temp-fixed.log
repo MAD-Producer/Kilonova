@@ -1,0 +1,23 @@
+
+running 7 tests
+test viewer_views::tests::invalid_saved_settings_reject_partial_navigation_unknown_modes_and_invalid_observer_values ... ok
+test viewer_views::tests::invalid_workspace_view_state_preserves_input_and_reports_default_channels_with_recovery_reset ... ok
+test viewer_views::tests::navigation_gestures_only_change_the_captured_tile_and_foreign_owners_cannot_steal_them ... ok
+test viewer_views::tests::observer_views_sample_independent_actual_scene_matrices_without_mutating_the_project ... ok
+test viewer_views::tests::stale_document_frame_revision_layout_and_geometry_roll_back_before_further_input ... ok
+test viewer_views::tests::tile_hit_regions_are_disjoint_bounded_and_exclude_gaps_in_small_and_fractional_windows ... ok
+
+thread 'viewer_views::tests::workspace_round_trip_keeps_layout_each_view_and_native_panel_ownership_in_both_locales' (9912) panicked at desktop\app\src\viewer_views\tests.rs:263:9:
+assertion `left == right` failed
+  left: Settings { layout: Four, active: 2, views: [View { mode: Camera(73), navigation: Navigation { zoom: Some(0.25), center: Some([960.0, 580.0]) }, orbit: None }, View { mode: Top, navigation: Navigation { zoom: Some(0.5), center: Some([930.0, 560.0]) }, orbit: None }, View { mode: Side, navigation: Navigation { zoom: Some(0.75), center: Some([920.0, 553.3333333333334]) }, orbit: None }, View { mode: Free, navigation: Navigation { zoom: Some(1.0), center: Some([915.0, 550.0]) }, orbit: Some(Orbit { target: [960.0, 540.0, 0.0], radius: 869.1169, azimuth: 18.0, elevation: -14.0, fov: 45.0 }) }] }
+ right: Settings { layout: Four, active: 2, views: [View { mode: Camera(73), navigation: Navigation { zoom: Some(0.25), center: Some([960.0000000000001, 580.0]) }, orbit: None }, View { mode: Top, navigation: Navigation { zoom: Some(0.5), center: Some([930.0000000000001, 560.0]) }, orbit: None }, View { mode: Side, navigation: Navigation { zoom: Some(0.75), center: Some([920.0000000000001, 553.3333333333334]) }, orbit: None }, View { mode: Free, navigation: Navigation { zoom: Some(1.0), center: Some([915.0000000000001, 550.0]) }, orbit: Some(Orbit { target: [960.0, 540.0, 0.0], radius: 869.1169, azimuth: 18.0, elevation: -14.0, fov: 45.0 }) }] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test viewer_views::tests::workspace_round_trip_keeps_layout_each_view_and_native_panel_ownership_in_both_locales ... FAILED
+
+failures:
+
+failures:
+    viewer_views::tests::workspace_round_trip_keeps_layout_each_view_and_native_panel_ownership_in_both_locales
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 1505 filtered out; finished in 5.91s
+

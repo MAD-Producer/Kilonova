@@ -1,0 +1,898 @@
+
+running 1567 tests
+test animation_presets::tests::actual_missing_file_locked_target_and_schema_failure_reach_default_error_channels ... ok
+test animation_presets::tests::late_cancel_preserves_published_save_and_does_not_mask_an_independent_io_failure ... ok
+test animation_presets::tests::native::native_preset_and_effect_context_menus_use_bilingual_main_and_floating_windows ... ignored, manual native screenshots; run explicitly with MOTION_ANIMATION_PRESET_UI_ARTIFACTS
+test animation_presets::tests::queued_job_publishes_in_flight_state_before_controlled_blocking_io ... ok
+test animation_presets::tests::stale_snapshot_stale_commit_and_explicit_cancel_do_not_write_history ... ok
+test animation_presets::tests::worker_save_catalog_apply_undo_redo_and_reopen_use_real_engine_transactions ... ok
+test audio_output::callback_observation_tests::invalid_timestamps_are_deferred_until_watchdog_and_reset_after_valid_callback ... ok
+test audio_output::failure_log_tests::watchdog_logs_the_first_device_failure_once_without_callback_io_or_normal_stop_errors ... ok
+test audio_output::meter::tests::audio_meter_keeps_inter_callback_peak_but_reports_actual_mono_downmix_and_stop ... ok
+test audio_output::meter::tests::audio_meter_measures_consumed_pcm_channels_and_resets_after_poll_or_silence ... ok
+test audio_output::playhead_tests::audio_only_preview_output_failure_stops_with_original_cause_in_default_channels ... ok
+test audio_output::playhead_tests::audio_only_preview_uses_callback_clock_without_canvas_gates_and_scrub_stops_it ... ok
+test audio_output::playhead_tests::public_clock_rescales_device_samples_and_retains_latency_underrun_and_end_boundaries ... ok
+test audio_output::playhead_tests::shell_uses_audio_position_for_seek_and_stops_at_the_final_composition_frame ... ok
+test audio_output::producer_observation::tests::start_precedes_blocking_read_and_all_producer_exits_remain_observable ... ok
+test audio_output::tests::absent_device_callbacks_report_error_at_the_timeout_boundary ... ok
+test audio_output::tests::callback_heartbeat_prevents_false_device_loss_during_underruns ... ok
+test audio_output::tests::callback_timeout_starts_with_play_request_and_unprimed_output_keeps_start_frame ... ok
+test audio_output::tests::device_error_keeps_first_failure_and_cancels_queued_audio ... ok
+test audio_output::tests::injected_underrun_and_recovery_keep_playhead_monotonic ... ok
+test audio_output::tests::long_tail_playback_latency_does_not_count_as_missing_callbacks ... ok
+test audio_output::tests::lost_device_releases_a_producer_waiting_on_a_full_queue ... ok
+
+thread 'motion-audio-mix' (22700) panicked at desktop\app\src\audio_output.rs:846:17:
+injected mixer failure
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'motion-audio-mix' (3816) panicked at desktop\app\src\audio_output.rs:846:17:
+injected mixer failure
+test audio_output::tests::mixer_initialization_and_mix_panics_stop_even_with_healthy_device_callbacks ... ok
+test audio_output::tests::mixer_initialization_failure_is_reported_asynchronously ... ok
+test audio_output::tests::preempted_clock_writer_has_bounded_read_and_preserves_last_position ... ok
+test audio_output::tests::producer_and_callback_queue_preserve_samples_during_concurrent_wrap ... ok
+test audio_output::tests::real_output_device_clock_advances_and_reaches_composition_end ... ignored, requires an actual native audio output device
+test audio_output::tests::ring_preserves_stereo_order_across_wrap_and_full_queue ... ok
+test audio_output::tests::skipped_audio_playback_stops_on_the_same_last_frame_as_the_wall_clock ... ok
+test audio_output::tests::startup_and_composition_end_silence_are_not_underruns ... ok
+test audio_output::tests::stop_does_not_wait_for_background_disk_io_and_cancels_refill ... ok
+test audio_output::work_area_tests::looping_reuses_the_same_mixer_and_wraps_both_resampling_taps_at_the_selected_edge ... ok
+test audio_output::work_area_tests::non_looping_audio_stops_at_the_exclusive_edge_and_rejects_invalid_plans ... ok
+test configuration_tests::shell_preferences_ignore_external_configuration ... ok
+test cursors::tests::thin_cursors_have_valid_centered_hotspots_at_fractional_dpi ... ok
+
+thread 'diagnostics::native_test_evidence::native_evidence_reads_busy_poisoned_and_recovered_state_without_waiting' (36628) panicked at desktop\app\src\diagnostics\native_test_evidence.rs:67:9:
+controlled evidence lock poison
+test diagnostics::native_test_evidence::native_evidence_reads_busy_poisoned_and_recovered_state_without_waiting ... ok
+test diagnostics::tests::actual_engine_queue_records_waiting_separately_and_reply_context_preserves_the_action ... ok
+test diagnostics::tests::automatic_checkpoints_require_a_destination_but_explicit_exports_keep_all_records ... ok
+test diagnostics::tests::consent_gates_real_sdk_envelopes_and_attachments_and_upload_is_rate_limited ... ok
+test diagnostics::tests::contended_recording_never_waits_for_the_report_lock ... ok
+test diagnostics::tests::export_replaces_the_file_atomically_and_reports_write_failure_without_stopping_recorder ... ok
+test diagnostics::tests::fast_activity_does_not_count_as_a_stall_or_claim_a_measured_gpu_duration ... ok
+test diagnostics::tests::in_flight_and_queue_depth_track_a_blocked_worker ... ok
+test diagnostics::tests::oversized_report_replies_with_failure_and_reporter_remains_usable ... ok
+test diagnostics::tests::poisoned_diagnostic_state_preserves_context_and_snapshot_with_visible_recovery ... ok
+test diagnostics::tests::recorder_is_bounded_and_keeps_queue_and_execution_distinct_without_payload_data ... ok
+test diagnostics::tests::reporter_logs_before_snapshot_and_preserves_unobserved_write_failures ... ok
+test diagnostics::tests::reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error ... ok
+test diagnostics::tests::timing_report_contention_cannot_erase_context_or_gpu_identity ... ok
+test dialogs::composition::duration_tests::duration_accepts_frames_and_validated_timecode ... ok
+test dialogs::keyframe_timing::tests::defaults_use_property_units_and_unit_switches_keep_independent_uncommitted_drafts ... ok
+test dialogs::keyframe_timing::tests::dropdown_enter_and_escape_belong_to_the_popup_before_the_dialog ... ok
+test dialogs::keyframe_timing::tests::invalid_numbers_and_no_changes_remain_local_and_ime_cannot_apply_the_draft ... ok
+test dialogs::keyframe_timing::tests::keyboard_focus_scrolls_small_floating_forms_and_vector_speed_errors_stay_in_the_dialog ... ok
+test dialogs::keyframe_timing::tests::keyboard_numeric_edit_emits_one_typed_batch_only_after_apply_and_cancel_has_no_history ... ok
+test dialogs::keyframe_timing::tests::stale_identity_and_missing_keys_cannot_open_an_edit_and_layout_stays_inside_small_hosts ... ok
+test dialogs::preferences::tests::compact_preferences_scroll_reaches_controls_without_hidden_hits_and_reset_is_draft_only ... ok
+test dialogs::preferences::tests::preferences_dropdown_owns_clicks_escape_and_focus_without_changing_live_settings ... ok
+test dialogs::preferences::tests::shortcut_capture_owns_footer_escape_ime_and_supports_local_undo_without_project_edits ... ok
+test dialogs::project_precision::tests::four_distinct_options_are_draft_only_until_default_apply_in_both_locales ... ok
+test dialogs::project_precision::tests::popup_owns_footer_escape_focus_loss_and_ime_without_accidental_apply ... ok
+test dialogs::project_precision::tests::required_project_precision_is_never_inferred_from_missing_or_invalid_metadata ... ok
+test dialogs::text_input::tests::clipboard_composition_width_undo_recomputes_locked_height_and_tab_keeps_field_ownership ... ok
+test dialogs::text_input::tests::clipboard_dialogs_keep_ime_confirmation_and_popup_inputs_out_of_apply ... ok
+test dialogs::text_input::tests::clipboard_form_edits_keep_local_history_and_emit_only_the_final_validated_event ... ok
+test effect_import::tests::installed_package_is_logged_before_a_failed_catalogue_refresh ... ok
+test effect_import::tests::real_package_import_refreshes_catalogue_and_bad_archive_keeps_previous_registry ... ok
+test engine::animation_action_tests::animation_actions_keep_default_error_sinks_and_cancel_superseded_document_work_without_editing ... ok
+test engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels ... ok
+test engine::animation_action_tests::key_selection_edits_keep_original_failures_on_default_channels_and_recover_atomically ... ok
+test engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history ... ok
+test engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels ... ok
+test engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state ... ok
+test engine::bound_numeric_tests::node_bound_worker_reuses_canonical_and_native_programs_with_default_failure_channels ... ok
+test engine::capture_context_tests::actual_capture_failures_report_bounded_paths_and_phases_without_changing_replies ... ok
+test engine::expression_startup_tests::persisted_expression_preparation_keeps_first_frame_authored_data_and_default_error_sinks ... ok
+test engine::failure::audio_clock_tests::actual_zero_clock_import_reaches_task_status_and_default_sinks_without_panic ... ok
+test engine::failure::composition_tests::accumulator_admission::resized_accumulator_refusal_preserves_pixels_cause_and_default_output_channels ... ok
+test engine::failure::composition_tests::capacity_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::compositing_admission::compositor_refusal_preserves_cause_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::effect_admission::effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::fixed_admission::fixed_startup_refusal_preserves_cause_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::frame_blend_admission::blend_uniform_refusal_preserves_reply_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::input_snapshot_context::snapshot_refusal_reports_frame_layer_extent_and_original_cause_at_default_level ... ok
+test engine::failure::composition_tests::mask_admission::mask_refusal_preserves_cause_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::mask_texture_admission::native_mask_texture_refusal_keeps_old_pixels_cause_and_default_output_channels ... ok
+test engine::failure::composition_tests::matte_texture_admission::resized_matte_refusal_keeps_old_pixels_and_original_cause_in_default_output_channels ... ok
+test engine::failure::composition_tests::package_budget::actual_package_install_refusal_reaches_default_worker_reply_file_and_stderr_then_recovers ... ok
+test engine::failure::composition_tests::plan_error::cached_plan_failure_reaches_original_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::plan_error::exposure_frame::actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_task_recovers ... ok
+test engine::failure::composition_tests::plan_error::generator_settings::actual_generator_refusals_keep_native_sources_and_default_reply_log_channels ... ok
+test engine::failure::composition_tests::plan_error::generator_settings::history::deferred_particle_history_refusal_reaches_default_reply_file_and_stderr_then_recovers ... ok
+test engine::failure::composition_tests::plan_error::mask_geometry::actual_mask_failures_keep_causes_and_default_reply_channels_then_recover ... ok
+test engine::failure::composition_tests::plan_error::node_runtime::actual_owned_zip_failure_reaches_worker_reply_default_logs_and_rollback_then_recovers ... ok
+test engine::failure::composition_tests::plan_error::vector_geometry::actual_vector_failures_preserve_native_causes_and_default_reply_channels ... ok
+test engine::failure::composition_tests::retained_raster_admission::retained_receiver_refusal_preserves_budgets_pixels_cause_and_default_output_channels ... ok
+test engine::failure::composition_tests::source_time_failures_reach_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::timing_admission::timing_refusal_preserves_cause_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::timing_admission::unsupported_timing_is_quiet_and_preserves_default_output_channels ... ok
+test engine::failure::composition_tests::vector_admission::vector_refusal_preserves_cause_and_reaches_default_file_and_stderr ... ok
+test engine::failure::composition_tests::vector_texture_admission::native_vector_texture_refusal_keeps_old_pixels_cause_and_default_output_channels ... ok
+test engine::failure::composition_tests::video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::composition_tests::video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::failure::model_edit_tests::animation_sampling::actual_sampling_refusals_preserve_native_causes_and_default_reply_sinks ... ok
+test engine::failure::model_edit_tests::expression_causes::refused_expression_edits_reach_actual_worker_default_channels_and_recover ... ok
+test engine::failure::model_edit_tests::invalid_model_edits_keep_history_and_reach_default_error_channels ... ok
+test engine::failure::model_edit_tests::path_ops::actual_path_refusals_keep_native_identity_and_reach_default_reply_file_and_stderr ... ok
+test engine::failure::model_edit_tests::shape_parameters::actual_missing_shape_parameters_reach_native_reply_and_default_error_sinks ... ok
+test engine::failure::model_edit_tests::timeline_queries::actual_timeline_refusals_keep_native_causes_and_default_error_channels ... ok
+test engine::failure::model_edit_tests::track_dimensions::actual_dimension_conversion_failures_reach_native_reply_and_default_error_sinks ... ok
+test engine::failure::project_tests::real_save_publication_failure_reaches_reply_file_and_stderr ... ok
+test engine::failure::project_tests::recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise ... ok
+test engine::failure::project_tests::rejected_project_schema_preserves_files_state_and_default_error_channels ... ok
+test engine::failure::project_tests::rejected_project_switch_rolls_back_directory_and_preserves_error_channels ... ok
+test engine::failure::sampling_tests::camera_plane_refusal_reaches_shell_and_default_logs_then_recovers ... ok
+test engine::failure::sampling_tests::gpu_coordinate_refusal_reaches_shell_and_default_logs_then_recovers ... ok
+test engine::failure::tests::asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic ... ok
+
+thread 'motion-engine' (21560) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+test engine::failure::tests::attached_hidden_surface_and_factory_release_after_worker_panic ... ok
+test engine::failure::tests::image_errors::native_image_failures_keep_default_output_channels_and_recover ... ok
+test engine::failure::tests::impossible_memory_budget_is_rejected_before_creating_or_locking_the_project ... ok
+
+thread 'motion-engine' (37520) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+
+thread 'motion-engine' (10320) panicked at desktop\app\src\engine.rs:1636:135:
+injected preparation panic
+test engine::failure::tests::panic_saves_last_valid_project_releases_session_lock_and_reports_the_failure ... ok
+
+thread 'motion-engine' (20776) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+test engine::failure::tests::queued_requests_disconnect_after_panic_and_ordinary_errors_keep_the_worker_alive ... ok
+
+thread 'motion-engine' (39868) panicked at desktop\app\src\engine.rs:1653:13:
+injected panic with unavailable recovery directory
+test engine::failure::tests::recovery_io_failure_is_reported_and_still_releases_the_session ... ok
+test engine::failure::tests::recovery_writer_is_bounded_and_reports_partial_writes ... ok
+test engine::failure::tests::reply_poll_distinguishes_pending_success_failure_and_disconnection ... ok
+test engine::failure::tests::reply_timeout_does_not_retry_or_turn_a_late_success_into_a_failed_worker ... ok
+test engine::failure::tests::shader_errors::native_shader_failures_keep_default_channels_and_healthy_compilation ... ok
+
+thread 'motion-engine' (23524) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+test engine::failure::tests::stopped_renderer_can_close_without_attachment_or_a_gpu_modal ... ok
+
+thread 'motion-engine' (41140) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+
+thread 'motion-engine' (25708) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+
+thread 'motion-engine' (28468) panicked at desktop\app\src\engine.rs:1638:13:
+injected worker panic
+test engine::failure::tests::stopped_renderer_preserves_node_graph_on_cancel_and_save_failure ... ok
+test engine::failure::video_frame_tests::video_frame_refusals_keep_native_causes_and_default_output_channels ... ok
+test engine::failure::work_area_tests::invalid_work_area_reaches_reply_file_and_stderr_without_mutation_at_default_level ... ok
+test engine::fallback_tests::bounded_dispatch_and_shutdown_emit_after_releasing_the_flight_gate ... ok
+test engine::fallback_tests::poisoned_engine_caches_keep_drop_policy_and_terminal_messages ... ok
+test engine::frame_allocation::tests::failed_present_publishes_its_actual_request_and_preserves_the_original_error ... ok
+test engine::frame_allocation::tests::readout_does_not_queue_behind_a_blocked_worker ... ok
+test engine::frame_allocation::tests::saturation_escalates_once_and_resets_with_default_file_and_stderr_channels ... ok
+test engine::frame_capture::tests::export_window_omissions_escalate_and_recover_in_default_file_and_stderr ... ok
+
+thread '<unnamed>' (33628) panicked at desktop\app\src\engine\frame_capture\tests.rs:142:40:
+controlled completed PNG panic
+test engine::frame_capture::tests::finished_worker_panic_clears_observation_before_returning_its_original_error ... ok
+test engine::frame_capture::tests::real_png_completion_and_cancelled_shutdown_preserve_output_transaction ... ok
+test engine::frame_capture::tests::session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr ... ok
+test engine::frame_capture::tests::shutdown_panic_preserves_context_in_default_file_and_stderr_without_stdout_noise ... ok
+test engine::frame_capture::tests::shutdown_waits_for_blocked_png_source_before_clearing_in_flight ... ok
+test engine::keyframe_timing_tests::timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover ... ok
+test engine::memory_lifecycle_tests::actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload ... ok
+test engine::memory_lifecycle_tests::repeated_native_resize_seek_and_project_switch_retire_capacity_without_pixel_or_history_drift ... ok
+test engine::model_import_tests::gltf_glb_obj_import_is_owned_atomic_undoable_and_reopens_without_sources ... ok
+test engine::model_import_tests::imported_model_ids_share_the_existing_asset_namespace ... ok
+test engine::model_import_tests::mcp_model_import_checks_write_permission_schema_and_revision_before_publication ... ok
+test engine::model_import_tests::missing_dependency_and_stale_revision_preserve_project_history_and_files ... ok
+test engine::model_import_tests::refused_publication_removes_only_its_frozen_file_and_recovers ... ok
+test engine::model_import_tests::superseded_ui_import_cancels_before_opening_the_source ... ok
+test engine::model_library_tests::model_library_refusals_and_superseded_requests_preserve_document_and_owned_files ... ok
+test engine::model_library_tests::model_library_registration_and_repeated_placement_have_independent_undo_boundaries ... ok
+[libopenh264 @ 000002b97ac3c6c0] [OpenH264] this = 0x000002b977e2ef10, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002b97ac3c6c0] [OpenH264] this = 0x000002b977e2ef10, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002b976b81f00] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002b97ac3ca80] Qavg: 65536.000
+test engine::movie_freeze::tests::actual_movie_request_survives_freezing_and_engine_exit_in_all_frame_windows ... ok
+test engine::movie_freeze::tests::blocked_freeze_retains_one_source_owner_and_rejects_additional_workers ... ok
+test engine::movie_freeze::tests::completed_snapshot_handoff_keeps_independent_export_control_usable ... ok
+test engine::movie_freeze::tests::completed_worker_is_reaped_and_explicit_next_request_can_recover ... ok
+test engine::movie_freeze::tests::queued_movie_capture_rejects_stale_identity_and_keeps_the_accepted_revision ... ok
+[libopenh264 @ 000002b97a94ad00] [OpenH264] this = 0x000002b97a442780, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002b97a94ad00] [OpenH264] this = 0x000002b97a442780, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002b97a94d0c0] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002b97a94a1c0] Qavg: 65536.000
+test engine::movie_freeze::tests::real_snapshot_can_export_and_decode_after_engine_shutdown ... ok
+
+thread 'motion-freeze-movie' (33896) panicked at desktop\app\src\engine\movie_freeze\tests.rs:195:13:
+controlled reply drop panic
+test engine::movie_freeze::tests::reply_cleanup_panic_is_reported_and_clears_in_flight_before_next_request ... ok
+test engine::movie_freeze::tests::shutdown_publishes_cancellation_then_joins_source_work_before_returning ... ok
+test engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits ... ok
+
+thread 'engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames' (6776) panicked at desktop\app\src\engine\native_gpu_identity.rs:246:5:
+child status=exit code: 101
+
+running 1 test
+test engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames ... FAILED
+
+failures:
+
+failures:
+    engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1566 filtered out; finished in 5.70s
+
+
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x20e5a80bfe0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x20e5a80bfe0, name: ?)
+
+thread 'engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames' (34724) panicked at desktop\app\src\engine\native_gpu_identity.rs:166:13:
+assertion `left == right` failed: normal: {"acquireUs":null,"commandJoinScope":"presentationCommand is the exact encoder epoch/id, not proof of query completion or total GPU cost. Exposure request joins phases across polls; the current presentation poll is not the originating content of retained frames. Unavailable or omitted identities remain null. Never join by authored source-frame value or add overlapping root/command intervals.","cpuPrepareUs":null,"cpuVideoCacheBytes":null,"cpuVideoProxyBytes":null,"durationSeconds":0.0739865,"exposureMediaUs":null,"exposureTargetBytes":null,"frameCount":0,"frames":[],"gpuCompositionUs":null,"gpuPresentationUs":null,"gpuSampleCount":0,"gpuSampleCoverage":0.0,"gpuTotalUs":null,"logicalTextureBytes":null,"metadata":{"graphics":{"adapter":"NVIDIA GeForce RTX 4070 Laptop GPU","assetTextureBytes":8212,"backend":"Vulkan","driver":"NVIDIA","driverInfo":"591.86","gpuCommandTrace":{"active":[],"counterSaturated":false,"epoch":1,"epochCountsAtSnapshot":{"cancelled":0,"completed":4,"discarded":2,"evictedRecent":0,"invalid":0,"mapFailed":0,"omittedBusy":0,"omittedContexts":0,"omittedExposureScopes":0,"omittedIdentityExhausted":0,"omittedInputIdentifiers":0,"omittedInvalidContext":0,"omittedLogEvents":0,"omittedSlots":0,"saturated":false,"started":6,"unconfirmed":0},"epochCountsAtStart":{"cancelled":0,"completed":0,"discarded":0,"evictedRecent":0,"invalid":0,"mapFailed":0,"omittedBusy":0,"omittedContexts":0,"omittedExposureScopes":0,"omittedIdentityExhausted":0,"omittedInputIdentifiers":0,"omittedInvalidContext":0,"omittedLogEvents":0,"omittedSlots":0,"saturated":false,"started":0,"unconfirmed":0},"excludedActiveAtStart":0,"firstOmittedCommand":null,"lastOmittedCommand":null,"maxCommands":8192,"maxMetadataBytes":16777216,"observationFault":false,"omittedRecords":0,"records":[{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":83,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":1,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":6913,"epoch":1,"exposure":null,"gpuElapsedUs":22.528,"id":2,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974866384896,1793437974866407424]},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":20167,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":3,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974871944192,1793437974871994368]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":35,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":4,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3026,"epoch":1,"exposure":null,"gpuElapsedUs":14.336,"id":5,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974887387136,1793437974887401472]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3875,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":6,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974889411584,1793437974889461760]}],"retainedMetadataBytes":2032096,"startedAfterCommand":0,"startedCommands":6,"stoppedAtCommand":6,"truncated":false,"window":1},"gpuCommands":{"capacity":32,"commands":{"active":[],"activeExposureScopes":[],"consecutiveReadbackFailures":0,"counts":{"cancelled":0,"completed":4,"discarded":2,"evictedRecent":0,"invalid":0,"mapFailed":0,"omittedBusy":0,"omittedContexts":0,"omittedExposureScopes":0,"omittedIdentityExhausted":0,"omittedInputIdentifiers":0,"omittedInvalidContext":0,"omittedLogEvents":0,"omittedSlots":0,"saturated":false,"started":6,"unconfirmed":0},"epoch":1,"observationFault":false,"recent":[{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":83,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":1,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":6913,"epoch":1,"exposure":null,"gpuElapsedUs":22.528,"id":2,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974866384896,1793437974866407424]},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":20167,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":3,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974871944192,1793437974871994368]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":35,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":4,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3026,"epoch":1,"exposure":null,"gpuElapsedUs":14.336,"id":5,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974887387136,1793437974887401472]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3875,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":6,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974889411584,1793437974889461760]}],"suppressedExposureScopes":0},"quarantinedSlots":0,"readback":{"countersSaturated":false,"encodedCopyBytes":64,"encodedResolveBytes":64,"encodedResolveCalls":4,"invalidSamples":0,"mapFailures":0,"mapRequests":4,"mapSuccesses":4,"mappedBufferBytes":64,"validSamples":4},"timestampPeriodNs":1.0},"imageReadback":{"completedCalls":0,"countersSaturated":false,"failedCalls":0,"inFlightCalls":0,"mappedBufferBytes":0,"requestedCalls":0,"returnedPayloadBytes":0,"submittedBufferSpanBytes":0,"submittedCalls":0,"submittedPayloadBytes":0},"renderHeight":1,"renderTargetBytes":32772,"renderWidth":1,"surfaceHeight":800,"surfaceWidth":1280,"timestampReadback":{"countersSaturated":false,"encodedCopyBytes":0,"encodedResolveBytes":0,"encodedResolveCalls":0,"invalidSamples":0,"mapFailures":0,"mapRequests":0,"mapSuccesses":0,"mappedBufferBytes":0,"validSamples":0},"timestampReadbackBytesPerSample":32,"timingErrors":0,"timingSkipped":0},"layerCount":1,"platform":"libav","preview":{"compositingPipelineSetBuilds":0,"effectPipelineBuilds":0,"effectPlanBuilds":2,"effectPlanCacheHits":0,"effectResolution":"projected_2d","exposure":null,"exposureRequired":false,"fps":60,"gpuCommands":{"capacity":32,"commands":{"active":[],"activeExposureScopes":[],"consecutiveReadbackFailures":0,"counts":{"cancelled":0,"completed":4,"discarded":2,"evictedRecent":0,"invalid":0,"mapFailed":0,"omittedBusy":0,"omittedContexts":0,"omittedExposureScopes":0,"omittedIdentityExhausted":0,"omittedInputIdentifiers":0,"omittedInvalidContext":0,"omittedLogEvents":0,"omittedSlots":0,"saturated":false,"started":6,"unconfirmed":0},"epoch":1,"observationFault":false,"recent":[{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":83,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":1,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":6913,"epoch":1,"exposure":null,"gpuElapsedUs":22.528,"id":2,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974866384896,1793437974866407424]},{"cause":null,"contexts":[{"allocationFrame":1,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":6,"sourceFrame":null}],"elapsedUs":20167,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":3,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974871944192,1793437974871994368]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":35,"epoch":1,"exposure":null,"gpuElapsedUs":null,"id":4,"input":null,"omittedContexts":0,"phase":"discarded","stage":"exposure_media","timestampWords":null},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3026,"epoch":1,"exposure":null,"gpuElapsedUs":14.336,"id":5,"input":null,"omittedContexts":0,"phase":"complete","stage":"unclassified","timestampWords":[1793437974887387136,1793437974887401472]},{"cause":null,"contexts":[{"allocationFrame":2,"exposurePoll":null,"exposureRequest":null,"operation":"present","request":8,"sourceFrame":null}],"elapsedUs":3875,"epoch":1,"exposure":null,"gpuElapsedUs":50.176,"id":6,"input":null,"omittedContexts":0,"phase":"complete","stage":"composition_and_presentation","timestampWords":[1793437974889411584,1793437974889461760]}],"suppressedExposureScopes":0},"quarantinedSlots":0,"readback":{"countersSaturated":false,"encodedCopyBytes":64,"encodedResolveBytes":64,"encodedResolveCalls":4,"invalidSamples":0,"mapFailures":0,"mapRequests":4,"mapSuccesses":4,"mappedBufferBytes":64,"validSamples":4},"timestampPeriodNs":1.0},"gpuTimestampSupported":true,"gpuTimingActive":true,"height":64,"imageDecodes":0,"imageIdleBudgetBytes":33554432,"imageIdleBytes":0,"imageMemoryCacheHits":0,"imagePrefetchSeconds":0.5,"imagePrefetches":0,"imageProxyCacheHits":0,"imageResolution":"proxy_max_2048","imageUploadBytes":0,"memoryAdaptation":{"actual":{"imageEdge":2048,"level":0,"targetDivisor":1,"videoEdge":null},"actualHeight":null,"actualWidth":null,"failures":0,"hasLastValidFrame":false,"held":false,"maxLevels":4,"nativePressure":{"consecutiveHighSamples":0,"level":0,"nextQualityChangeInMs":0,"nextSampleInMs":973,"recoverySamples":1,"scope":"adapter_advisory_preview_only","source":"vulkan_device_local_heaps","status":"low","unavailable":null,"worstPool":{"budgetBytes":7528775680,"index":0,"usageBytes":224702464}},"nextProbeInMs":0,"refusalCount":0,"rejection":null,"requested":{"imageEdge":2048,"level":0,"targetDivisor":1,"videoEdge":null},"requestedHeight":64,"requestedWidth":64,"status":"normal","version":1},"memoryBreakdown":{"categories":{"curveLuts":0,"effectInputSnapshots":0,"effectScratch":0,"layerCompositingScratch":0,"maskOutputs":0,"maskScratch":0,"matteBlendScratch":0,"modelSources":0,"nestedCompositions":0,"pluginResources":0,"staticImages":0,"systemTextures":1032,"vectorGroupScratch":0,"vectorRasterScratch":6840,"vectorSources":1368,"videoPlanes":0,"videoRgba":0},"cpuDecodedCacheBytes":null,"cpuVideoDecodedCacheBytes":0,"cpuVideoPreviewProxyBytes":0,"driverResidentBytes":null,"excludes":["gpu_buffers","upload_staging","cpu_decode_caches","swapchain","decoder_external_allocations","ui_and_independent_preview_textures"],"exposureTargetBytes":0,"legacyTextureBytes":8212,"previewOwnedTextureBytes":42012,"previewTargetBytes":32772,"rendererBytes":9240,"scope":"logical_texture_capacity","version":1},"memoryPolicy":{"decodedImageBudgetBytes":134217728,"previewTargetBudgetBytes":134217728,"scratchBudgetBytes":402653184,"sessionAllocationBudgetBytes":536870912,"sourceTextureBudgetBytes":134217728},"memoryPolicyVersion":5,"mode":"auto","pluginEditorRecovery":{"cancelOperation":"cancel_plugin_gesture","gesture":false,"last":null,"leaseMillis":120000,"open":false},"previewVideoProxyBytes":0,"profiling":true,"readbacks":{"atomicAcrossCounters":false,"completeCoverage":false,"image":{"completedCalls":0,"countersSaturated":false,"failedCalls":0,"inFlightCalls":0,"mappedBufferBytes":0,"requestedCalls":0,"returnedPayloadBytes":0,"submittedBufferSpanBytes":0,"submittedCalls":0,"submittedPayloadBytes":0},"scope":"preview_renderer_image_and_timer_lifetime_counters","timestamp":{"countersSaturated":false,"encodedCopyBytes":0,"encodedResolveBytes":0,"encodedResolveCalls":0,"invalidSamples":0,"mapFailures":0,"mapRequests":0,"mapSuccesses":0,"mappedBufferBytes":0,"validSamples":0},"version":1},"resourceLedgerVersion":1,"scratchBudgetBytes":402653184,"sourceTextureBudgetBytes":134217728,"surfaceBounded":true,"tier":"high","video":{"cacheBudgetBytes":0,"cacheBytes":0,"cacheFrames":0,"cacheHits":0,"cacheMisses":0,"cancelledFrames":0,"decodeInFlight":[],"decodeWorkersStopped":0,"decodedFrames":0,"decoderSeeks":0,"encodedConversions":0,"frameBlendSubmissions":0,"gpuConversions":0,"holdMaxCacheBudgetBytes":150994944,"lastPrepareUs":0,"lastUploadUs":0,"lookaheadFrames":4,"maxCacheBudgetBytes":283115520,"maxDecoderWorkers":4,"pendingAttempts":0,"prefetchFailures":0,"renderAttempts":2,"retirementError":null,"retiringStreams":0,"retiringWorkers":[],"standaloneConversionSubmissions":0,"streams":0,"uploadBytes":0,"uploads":0},"videoResolution":"decoded_source","width":64},"projectFps":30,"projectFrames":60,"projectHeight":64,"projectWidth":64,"resourceLedger":{"combinedCapacity":{"atomicAcrossRenderers":false,"completeCoverage":false,"isDriverResidency":false,"isFramePeak":false,"observation":{"activeRenderers":1,"allActiveRenderersTracked":true,"knownCombinedBytes":42012,"knownOwnedBytes":42012,"knownRetiredBytes":0,"pendingUntracked":0,"unknownCapacityCount":0},"scope":"current_ownership_and_instrumented_pending_texture_capacity","version":1},"driverResidentBytes":null,"editorRendererAvailable":false,"excludes":["gpu_buffers","upload_staging","cpu_decode_caches","swapchain","decoder_external_allocations","ui_and_independent_preview_textures","gpu_retirement"],"gpuRetirementBytes":null,"graphicsAvailable":true,"knownBytes":42012,"resources":[{"depthOrArrayLayers":1,"format":"Rgba8UnormSrgb","height":1,"id":"texture-1","logicalBytes":4,"mipLevels":1,"references":[{"category":"systemTextures","owner":"images/Static(0)","state":"retained"}],"samples":1,"width":1},{"depthOrArrayLayers":1,"format":"Rgba8Unorm","height":1,"id":"texture-2","logicalBytes":4,"mipLevels":1,"references":[{"category":"systemTextures","owner":"effects/white","state":"retained"}],"samples":1,"width":1},{"depthOrArrayLayers":1,"format":"Rgba8Unorm","height":1,"id":"texture-3","logicalBytes":1024,"mipLevels":1,"references":[{"category":"systemTextures","owner":"effects/identity","state":"retained"}],"samples":1,"width":256},{"depthOrArrayLayers":1,"format":"Rgba8UnormSrgb","height":1,"id":"texture-4","logicalBytes":4,"mipLevels":1,"references":[{"category":"previewTargets","owner":"preview/front","state":"previewFront"}],"samples":1,"width":1},{"depthOrArrayLayers":1,"format":"Rgba8UnormSrgb","height":64,"id":"texture-6","logicalBytes":16384,"mipLevels":1,"references":[{"category":"previewTargets","owner":"preview/front","state":"previewFront"}],"samples":1,"width":64},{"depthOrArrayLayers":1,"format":"Rgba8UnormSrgb","height":64,"id":"texture-7","logicalBytes":16384,"mipLevels":1,"references":[{"category":"previewTargets","owner":"preview/candidate","state":"previewCandidate"}],"samples":1,"width":64},{"depthOrArrayLayers":1,"format":"Rgba8UnormSrgb","height":18,"id":"texture-8","logicalBytes":1368,"mipLevels":1,"references":[{"category":"vectorSources","owner":"images/Vector(1)","state":"retained"}],"samples":1,"width":19},{"depthOrArrayLayers":1,"format":"Rgba8Unorm","height":18,"id":"texture-9","logicalBytes":5472,"mipLevels":1,"references":[{"category":"vectorRasterScratch","owner":"vectors/raster/19x18/msaa","state":"retained"}],"samples":4,"width":19},{"depthOrArrayLayers":1,"format":"Rgba8Unorm","height":18,"id":"texture-10","logicalBytes":1368,"mipLevels":1,"references":[{"category":"vectorRasterScratch","owner":"vectors/raster/19x18/resolve","state":"retained"}],"samples":1,"width":19}],"scope":"session_application_owned_texture_capacity","submissionTracking":{"coverage":"conservative_instrumented_submissions","editor":null,"excludes":["raw_queue_submissions","standalone_video_conversions","gpu_uploads","swapchain","ui_and_node_preview_resources","detached_renderer_contexts","view_and_bind_group_only_references"],"preview":{"completed":4,"enabled":true,"knownPendingBytes":0,"knownRetiredBytes":0,"maxSnapshots":8,"peakKnownPendingBytes":42008,"pendingSubmissions":0,"pendingUntracked":0,"skippedSnapshots":0,"submitted":4,"unknownCapacityCount":0},"requested":false},"unknownCapacityCount":0,"version":1},"surfaceEpoch":1},"overflowFrames":0,"presentCallUs":null,"presentationCommandIdentityCount":0,"presentationScope":"Native present() calls and GPU pass timestamps. Actual display deadlines require platform presentation tracing (for example PresentMon or FrameTimeline).","readbackScope":"Per-renderer image and per-timer timestamp lifetime counters at successful frame boundaries, individually atomic. Missing observations stay null. Encoded spans and mapped buffer lengths are not physical bus traffic. Image capture outside the recorded interval is not an exclusive frame cost.","renderWallUs":null,"resourceSampleCount":0,"resourceSampleScope":"Successful frame boundaries; logical application texture capacity, separate vector upload buffers and CPU video caches. Excludes transient peaks, other buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.","submitUs":null,"vectorBufferCapacityBytes":null,"vectorCompletedUploadBytesTotal":null,"vectorEncodedUploadBytesTotal":null,"vectorUploadBufferCreatesTotal":null,"videoPrepareUs":null,"videoUploadUs":null}
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+test engine::native_gpu_identity::actual_surface_reports_join_native_encoders_for_normal_and_exposure_frames ... FAILED
+test engine::native_video_study::fixture::fixed_study_rejects_duplicate_or_non_native_source_manifests ... ok
+test engine::native_video_study::pressure::real_file_video_pressure_cost_study ... ignored, explicit Release native application-budget study; real four-file video and production recovery cooldown
+test engine::native_video_study::pressure::stepped_native_pressure_seek_updates_shell_and_worker_frame ... ok
+test engine::native_video_study::real_file_video_window_cost_study ... ignored, explicit Release performance study; requires four real files and a native Windows desktop
+test engine::node_admission_tests::node_admission_refusal_preserves_installed_graph_and_default_log_channels ... ok
+test engine::numeric_reuse_tests::node_numeric_reuse_records_real_faults_and_restores_preview ... ok
+test engine::parent_policy_tests::parent_policy_failures_reach_default_sinks_and_a_valid_local_bind_recovers ... ok
+test engine::pending_video_tests::exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit_seek ... ok
+test engine::pending_video_tests::pending_video_presents_chrome_without_acknowledging_an_unready_composition ... ok
+test engine::pending_video_tests::png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_cancel ... ok
+test engine::precision_capture_tests::real_worker_ui_and_node_pngs_remain_display_encoded_in_all_four_precisions ... ok
+test engine::project_library_import_tests::errors::project_library_import_failures_preserve_publication_and_reach_default_file_stderr_without_stdout ... ok
+test engine::project_library_import_tests::project_library_audio_registration_reuses_prepared_pcm_without_creating_a_layer ... ok
+test engine::project_library_import_tests::project_library_delayed_video_placement_keeps_audio_clock_and_first_picture ... ok
+test engine::project_library_import_tests::project_library_foreign_document_cannot_cancel_a_new_documents_import_with_a_reused_request_id ... ok
+test engine::project_library_import_tests::project_library_image_registration_and_placement_have_separate_atomic_history_and_reopen ... ok
+test engine::project_library_import_tests::project_library_stale_prepared_media_is_cancelled_and_released_without_publishing_or_blocking_new_imports ... ok
+test engine::project_library_import_tests::project_library_video_and_linked_audio_register_together_and_remain_usable_for_placement ... ok
+test engine::project_library_tests::project_library_failures_reach_default_channels_and_stale_actions_preserve_the_document ... ok
+test engine::project_library_tests::project_open_rejects_stale_targets_reports_actual_failures_and_preserves_library_and_context_frames ... ok
+test engine::project_library_tests::project_view_close_saves_pending_search_and_reports_actual_preference_io_failure_without_user_text ... ok
+test engine::queue_tests::explicit_shutdown_drains_full_queue_and_releases_project_with_another_arc_alive ... ok
+test engine::queue_tests::idle_shutdown_wakes_the_receiver_and_is_idempotent ... ok
+
+thread '<unnamed>' (17996) panicked at desktop\app\src\engine\queue_tests.rs:49:17:
+injected node expectation poison
+test engine::queue_tests::poisoned_node_expectations_report_through_the_command_reply_boundary ... ok
+test engine::queue_tests::saturation_is_nonblocking_preserves_accepted_edits_and_coalesces_node_expectations ... ok
+test engine::sampling_playback_tests::failure_evidence::stalled_worker_evidence_preserves_cause_and_avoids_busy_observation_locks ... ok
+test engine::sampling_playback_tests::paced_sampling_playback_records_native_costs_without_starving_frames ... ok
+test engine::shutdown::tests::real_shutdown_publishes_before_join_and_preserves_default_error_channels ... ok
+test engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels ... ok
+test engine::tests::asynchronous_edit_replies_preserve_one_transaction_and_undo ... ok
+test engine::tests::capability_queries_reject_bad_requests_instead_of_answering_defaults ... ok
+test engine::tests::project_lock_releases_on_worker_shutdown ... ok
+[libopenh264 @ 000002b9770dc740] [OpenH264] this = 0x000002b9779ac0d0, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 000002b9770dc740] [OpenH264] this = 0x000002b9779ac0d0, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+[mp4 @ 000002b97a94fe80] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 000002b9770ddd40] Qavg: 65536.000
+test engine::text_style_tests::export::text_style_png_movie_and_independent_reopen_preserve_authored_pixels ... ok
+test engine::text_style_tests::text_layout_failures_keep_model_history_and_default_file_stderr_stdout_boundaries ... ok
+test engine::text_style_tests::text_styles_are_one_transaction_preserve_transform_reopen_and_cancel_stale_sources ... ok
+test engine::ui_paint::admission_tests::native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout ... ok
+test engine::ui_paint::tests::real_paint_limit_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+test engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell ... ok
+test engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity ... ok
+test engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels ... ok
+test fallback_observation::tests::application_fallbacks_report_real_failures_recover_and_keep_previous_styles ... ok
+test fallback_observation::tests::poisoned_business_lock_is_released_before_logging_even_during_unwind ... ok
+test layer_clipboard::curves::tests::curve_clipboard_publishes_blocked_phase_and_cancels_without_opening_system_clipboard ... ok
+test layer_clipboard::curves::tests::curve_clipboard_real_system_roundtrip_between_processes_and_default_error_output ... ignored, manual system clipboard integration; requires an existing text clipboard to restore
+test layer_clipboard::tests::actual_failures_and_worker_panic_reach_default_file_and_error_stderr_without_stdout ... ok
+test layer_clipboard::tests::curve_bridge::curve_clipboard_cancel_and_superseded_source_never_open_the_system_clipboard ... ok
+test layer_clipboard::tests::curve_bridge::curve_clipboard_engine_capture_and_commit_keep_stamp_cancellation_and_single_undo_contract ... ok
+test layer_clipboard::tests::destination_junction_cannot_create_font_directories_outside_the_project ... ok
+test layer_clipboard::tests::frozen_bytes_survive_removed_source_and_cross_project_paste_reuses_verified_resources ... ok
+test layer_clipboard::tests::keyframe_bridge::cancellation_waits_for_reply_and_queued_commit_is_a_noop ... ok
+test layer_clipboard::tests::keyframe_bridge::cut_caches_before_commit_and_superseded_cut_never_deletes_changed_source ... ok
+test layer_clipboard::tests::keyframe_bridge::document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reused ... ok
+test layer_clipboard::tests::keyframe_bridge::late_cancellation_preserves_successful_ack_and_frozen_data_survives_source_engine ... ok
+test layer_clipboard::tests::keyframe_bridge::queued_source_is_bound_before_composition_switch_and_never_replaces_the_cache ... ok
+test layer_clipboard::tests::keyframe_bridge::separate_caches_survive_failed_copy_and_share_one_pending_slot ... ok
+test layer_clipboard::tests::keyframe_bridge::typed_failures_and_queued_panic_reply_reach_default_error_outputs ... ok
+test layer_clipboard::tests::keyframe_bridge::typed_transport_pastes_payload_larger_than_json_limit_and_undoes_once ... ok
+test layer_clipboard::tests::keyframes::keyframe_clipboard_failures_use_default_engine_error_channel_and_preserve_state ... ok
+test layer_clipboard::tests::node_images::node_image_layer_clipboard_survives_removed_sources_cancel_and_repeated_paste ... ok
+test layer_clipboard::tests::path_bridge::capture_and_commit_failures_reach_default_file_and_stderr_without_stdout_leaks ... ok
+test layer_clipboard::tests::path_bridge::cut_freezes_before_delete_cancel_and_stale_commit_preserve_model_and_caches ... ok
+test layer_clipboard::tests::path_bridge::document_generation_and_missing_identity_reject_reads_and_commits_before_geometry_resolution ... ok
+test layer_clipboard::tests::path_bridge::independent_path_keyframe_and_layer_caches_survive_a_rejected_capture ... ok
+test layer_clipboard::tests::path_bridge::path_operation_failures_publish_start_and_default_file_stderr_without_stdout ... ok
+test layer_clipboard::tests::path_bridge::path_operations_reject_stale_documents_before_resolving_reused_ids_and_undo_once ... ok
+test layer_clipboard::tests::path_bridge::pending_read_keeps_slot_until_reply_and_rejects_queued_stale_source ... ok
+test layer_clipboard::tests::path_bridge::typed_geometry_above_json_limit_survives_source_shutdown_cross_project_save_and_one_undo ... ok
+
+thread 'layer_clipboard::tests::post_commit_error_and_panic_preserve_referenced_files_and_the_original_failure' (40400) panicked at desktop\app\src\layer_clipboard\tests.rs:321:21:
+clipboard-post-commit-panic
+test layer_clipboard::tests::post_commit_error_and_panic_preserve_referenced_files_and_the_original_failure ... ok
+test layer_clipboard::tests::replacing_the_same_root_and_revision_changes_document_generation ... ok
+test layer_clipboard::tests::source_failure_retains_layers_and_completed_cache_allows_one_step_cut ... ok
+test layer_clipboard::tests::staging_failure_removes_only_created_files_and_preserves_foreign_collision ... ok
+test layer_clipboard::tests::stale_target_and_cancelled_commit_discard_uncommitted_owned_sources ... ok
+test layer_clipboard::tests::unrelated_edits_preserve_external_parent_but_changed_dependencies_cannot_alias ... ok
+test layer_clipboard::worker::tests::controlled_block_publishes_in_flight_state_and_cancellation_before_io ... ok
+test logging::command_error_tests::long_command_and_startup_errors_are_bounded_without_truncating_replies ... ok
+test logging::composition_bundle_tests::composition_bundle_failure_reaches_file_and_stderr_and_recovers ... ok
+test logging::execution_ir_tests::execution_ir_faults_reach_default_worker_logs_and_preserve_gpu_pixels ... ok
+test logging::frame_blend_tests::persistent_exposure_media_uses_default_decoder_logs_inflight_and_keeps_failure_terminal ... ok
+test logging::frame_blend_tests::required_right_reports_default_file_stderr_and_pending_threshold_recovery ... ok
+test logging::frame_blend_tests::retirement_tests::same_source_retirement_reports_default_threshold_suppression_and_fresh_episode_after_recovery ... ok
+test logging::frame_blend_tests::shutdown_tests::blocked_reader_drop_reports_timeout_to_default_sinks_and_an_explicit_new_reader_recovers ... ok
+test logging::frozen_reader_tests::missing_frozen_pcm_keeps_native_cause_and_reaches_default_log_sinks ... ok
+test logging::gpu_callback_tests::native_gpu_callback_is_bounded_and_reaches_default_sinks_without_health_polling ... ok
+GPU_COMMAND_FILE {"available":true,"defaultInfo":true,"firstEpochOmissions":120,"guardExitRequiredForFileRecord":true,"metadataFaultEpochs":2,"originalFailurePreserved":true,"realSession":true,"scope":"actual deferred metadata-invariant faults through real Session and desktop logger; not native map failure or occurrence-60 file acceptance"}
+test logging::gpu_command_tests::deferred_command_faults_reach_default_file_and_console_after_the_real_session_guard ... ok
+GPU_NATIVE_FILE {"actualInvalidNativeSamples":130,"actualRecoveryPixelsChecked":64,"actualValidNativeSamples":2,"available":true,"defaultInfo":true,"errorEpisodes":2,"guardExitRequiredForFileRecord":true,"primaryFailurePreserved":true,"realSession":true,"scope":"actual native diagnostic-word corruption, occurrence60 Error suppression/reset and real default desktop file/stderr sinks; not a driver/hardware fault"}
+test logging::gpu_command_tests::native_readback::native_readback_sixty_errors_reach_default_sinks_only_after_guard_exit_and_recover ... ok
+test logging::media_commit_tests::cache_directory_tests::directory_rollback_faults_keep_default_errors_and_explicit_import_recovery ... ok
+test logging::media_commit_tests::import_rollback_keeps_primary_and_secondary_causes_in_default_channels ... ok
+test logging::media_commit_tests::media_commit_ok_failures_reach_default_file_and_console_without_replay_errors ... ok
+test logging::media_commit_tests::media_resource_cleanup_and_poisoned_reservation_preserve_default_channels ... ok
+test logging::media_commit_tests::media_teardown_cleanup_warnings_reach_default_file_without_console_noise ... ok
+test logging::media_error_tests::real_media_io_and_codec_faults_keep_default_error_channels ... ok
+test logging::media_task_bounds_tests::media_provider_error_is_bounded_in_logs_but_complete_in_task_replies ... ok
+test logging::mp4_sample_clock_tests::actual_mp4_clock_failure_keeps_default_sinks_and_recovers_without_panic ... ok
+test logging::mp4_sample_layout_tests::actual_mp4_mapping_failures_reach_default_sinks_and_the_worker_recovers ... ok
+test logging::package_publication_tests::archive_publication_and_cleanup_faults_reach_default_channels_without_stranded_tasks ... ok
+test logging::pointwise_compile_tests::compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries ... ok
+test logging::pointwise_compile_tests::warm_compiler_failures_reach_default_file_and_stderr_after_unlock_without_retries ... ok
+test logging::tests::debug_preserves_motion_details_and_dependency_signals_without_frame_descriptor_flooding ... ok
+test logging::tests::error_is_flushed_to_disk_before_an_undrained_console_pipe_can_block ... ok
+test logging::tests::errors_reach_file_and_stderr_without_leaking_log_records_to_stdout ... ok
+test logging::tests::file_sink_filters_debug_and_flushes_buffered_info_on_warning ... ok
+
+thread 'logging::tests::formatter_panic_does_not_disable_subsequent_file_logging' (33984) panicked at desktop\app\src\logging.rs:341:17:
+injected formatter panic
+test logging::tests::formatter_panic_does_not_disable_subsequent_file_logging ... ok
+test logging::tests::model_failures_reach_default_file_and_error_console_without_stdout_logs ... ok
+test logging::tests::panic_hook_captures_caught_panics_and_never_waits_for_its_own_sink ... ok
+test logging::vector_upload_tests::native_vector_upload_failure_reaches_default_file_and_stderr ... ok
+test mcp::tests::bounded_reader_recovers_after_oversized_or_malformed_input ... ok
+test mcp::tests::initialization_and_live_notifications_keep_the_shared_engine_consistent ... ok
+test mcp::tests::mcp_round_trip_edits_seeks_undoes_and_saves ... ok
+test mcp::tests::merge_dimensions_uses_registered_mcp_permissions_revisions_and_history ... ok
+test mcp::tests::nonfinite_expression_seek_keeps_worker_editing_and_history_available ... ok
+test mcp::tests::registered_tools_share_atomic_history_revision_and_permissions ... ok
+test memory_probe_tests::memory_probe_refuses_zero_overflow_and_signed_budget_wraparound ... ok
+test memory_probe_tests::memory_probe_uses_the_total_and_validates_units ... ok
+test movie_export::tests::closure_panic_reaches_default_sinks_and_preserves_an_existing_primary_error ... ok
+test movie_export::tests::real_movie_completion_and_cancellation_survive_owner_cleanup ... ok
+test movie_export::tests::shutdown_cancels_then_waits_for_owned_source_release ... ok
+test native_test_support::capture_wait_evidence_preserves_timeout_write_failure_and_worker_progress ... ok
+test native_test_support::native_reply_wait_services_cross_thread_messages_and_preserves_deadlines ... ok
+test node_editor::clipboard::image_tests::image_clipboard_cut_and_delete_release_unreferenced_content_and_undo_restores_it ... ok
+test node_editor::clipboard::image_tests::image_clipboard_in_nested_scope_propagates_pool_and_format_and_preserves_outer_references ... ok
+test node_editor::clipboard::image_tests::image_clipboard_refusal_preserves_allocator_history_and_all_resources ... ok
+test node_editor::clipboard::image_tests::image_clipboard_transfers_owned_content_deduplicates_and_undoes_atomically ... ok
+test node_editor::clipboard::tests::clipboard_failures_reach_default_file_stderr_and_never_stdout ... ok
+test node_editor::clipboard::tests::copy_paste_keeps_internal_wires_detaches_external_and_undoes_once ... ok
+test node_editor::clipboard::tests::cut_caches_before_delete_and_clipboard_survives_undo_and_opening_other_graph ... ok
+test node_editor::clipboard::tests::invalid_pastes_preserve_document_selection_allocator_history_and_clipboard ... ok
+test node_editor::clipboard::tests::main_and_floating_chrome_route_clipboard_once_and_preserve_ime_ownership ... ok
+test node_editor::clipboard::tests::native::native_clipboard_menus_and_pasted_graph_use_real_window_surfaces ... ok
+test node_editor::clipboard::tests::nested_depth_and_missing_copy_targets_preserve_the_previous_clipboard ... ok
+test node_editor::clipboard::tests::nested_groups_remap_interfaces_and_public_parameters_without_aliases ... ok
+test node_editor::clipboard::tests::output_can_move_to_an_empty_graph_but_never_creates_a_second_output ... ok
+test node_editor::clipboard::tests::pasted_subgraph_save_reopen_compile_and_export_are_real ... ok
+test node_editor::clipboard::tests::text_search_rename_and_unfocused_inputs_do_not_cut_or_paste_nodes ... ok
+test node_editor::compact_example_tests::compact_examples_keep_nested_edits_parameters_source_and_history_editable ... ok
+test node_editor::image_import::tests::image_drop_freezes_zoomed_canvas_coordinates_and_commits_one_owned_edit ... ok
+test node_editor::image_import::tests::image_drop_rejects_stale_invalid_and_over_budget_results_without_partial_state ... ok
+test node_editor::naming_tests::aliases_roundtrip_with_one_undo_without_changing_identity_shader_or_preview ... ok
+test node_editor::naming_tests::context_menu_opens_native_rename_and_commit_is_one_transaction ... ok
+test node_editor::naming_tests::generated_group_and_parameter_labels_are_human_readable_and_unique ... ok
+test node_editor::naming_tests::group_and_port_names_keep_boundary_keys_types_connections_and_shader ... ok
+test node_editor::naming_tests::invalid_names_and_missing_ports_leave_document_and_history_untouched ... ok
+test node_editor::naming_tests::rename_popup_cancellation_ime_and_limits_preserve_uncommitted_state ... ok
+test node_editor::search::tests::all_catalogue_entries_have_unique_keys_help_and_real_signatures ... ok
+test node_editor::search::tests::bilingual_aliases_pinyin_and_rank_are_stable ... ok
+test node_editor::search::tests::query_crosses_categories_and_requires_every_token ... ok
+test node_editor::search::tests::recents_bound_deduplicate_reorder_and_sanitize_saved_keys ... ok
+test node_editor::search_input::tests::long_unicode_paste_is_bounded_without_selecting_the_retained_text ... ok
+test node_editor::search_input::tests::query_uses_native_selection_caret_delete_and_ime_rules ... ok
+test node_editor::tests::action_snapshots_commit_valid_fields_and_are_owned ... ok
+test node_editor::tests::add_menu_latches_pointer_coordinates_and_consumes_enter_and_outside_click ... ok
+test node_editor::tests::catalog_uses_only_n1_ports ... ok
+test node_editor::tests::connections_reject_types_and_cycles_without_losing_old_input ... ok
+test node_editor::tests::deleting_parameter_node_preserves_parameter_slots ... ok
+test node_editor::tests::demo_validates_and_compiles ... ok
+test node_editor::tests::duplicate_subgraph_copies_only_internal_edges_and_undo_restores_it_once ... ok
+test node_editor::tests::duplication_rejects_budget_and_unique_output_without_partial_edits ... ok
+test node_editor::tests::f_frames_selection_and_arrange_preserves_external_nodes_and_edges ... ok
+test node_editor::tests::home_fits_distant_nodes_and_ctrl_wheel_retains_the_anchor_at_fit_scale ... ok
+test node_editor::tests::incomplete_unused_nodes_keep_live_validation_and_history_reversible ... ok
+test node_editor::tests::library_search_add_delete_and_focus_transfer_use_real_input ... ok
+test node_editor::tests::marquee_selection_supports_group_drag_modifiers_and_cancel ... ok
+test node_editor::tests::node_body_selects_without_dragging_and_header_moves_the_selected_group ... ok
+test node_editor::tests::node_navigation_is_layout_only_and_text_keeps_ime_commits ... ok
+test node_editor::tests::numeric_editing_is_finite_typed_and_atomic ... ok
+test node_editor::tests::real_inspector_text_input_and_save_shortcut_capture_committed_value ... ok
+test node_editor::tests::real_pointer_events_drag_undo_zoom_pan_and_connect_both_directions ... ok
+test node_editor::tests::responsive_layout_and_paint_remain_within_panel ... ok
+test node_editor::tests::save_reopen_and_real_msfx_export_round_trip ... ok
+test node_editor::tests::semantic_coordinate_mismatch_preserves_existing_wire_and_document ... ok
+test node_editor::tests::stale_worker_results_and_save_completion_order_are_safe ... ok
+test node_editor::tests::type_change_removes_incompatible_wires_and_undo_restores ... ok
+test node_editor::tests::wheel_navigation_uses_ctrl_zoom_and_normal_scrolling_without_graph_edits ... ok
+test node_editor::tests::wheel_scrolls_node_library_and_inspector_in_the_same_direction ... ok
+test node_editor::texture_chain::tests::texture_mapping_keeps_authored_constants_and_only_creates_missing_coordinates ... ok
+test node_editor::texture_chain::tests::texture_mapping_preserves_image_output_and_existing_uv_in_one_undoable_edit ... ok
+test node_editor::texture_chain::tests::texture_mapping_rejects_ambiguous_pixel_invalid_and_exhausted_targets_without_partial_edits ... ok
+test node_editor::texture_chain::tests::texture_mapping_shortcut_respects_focus_ime_modifiers_and_repeat_in_both_languages ... ok
+test node_editor::texture_chain::tests::texture_mapping_uses_typed_group_image_output_without_replacing_canonical_color ... ok
+test node_editor::view::canvas::node_index::tests::fresh_pass_sees_removed_replaced_and_reordered_nodes ... ok
+test node_editor::view::canvas::node_index::tests::lookup_preserves_first_identity_for_duplicate_reordered_and_missing_ids ... ok
+test node_editor::view::canvas::node_index::tests::real_node_lookup_scaling_matches_linear_identity ... nodes=128 queries=128 linear_comparisons=8256 linear_us=59 index_build_and_lookup_us=69
+nodes=512 queries=512 linear_comparisons=131328 linear_us=715 index_build_and_lookup_us=266
+nodes=2048 queries=2048 linear_comparisons=2098176 linear_us=11574 index_build_and_lookup_us=990
+ok
+test node_editor::view::canvas::node_index::tests::small_visible_sets_and_normal_misses_do_not_build_a_table ... ok
+test node_editor::view::compact_example_tests::compact_example_root_cards_do_not_overlap ... ok
+test node_editor::view::control_tests::blend_catalog_defaults_compile_immediately_and_keep_wire_precedence ... ok
+test node_editor::view::control_tests::blend_dropdown_keeps_wires_defaults_and_history_in_both_languages ... ok
+test node_editor::view::control_tests::canceled_numeric_drag_restores_preview_without_losing_existing_redo ... ok
+test node_editor::view::control_tests::choice_popup_attaches_to_field_and_flips_inside_canvas ... ok
+test node_editor::view::control_tests::choice_popup_pointer_selection_and_cancel_work_at_canvas_zooms ... ok
+test node_editor::view::control_tests::choice_popup_tracks_the_clicked_field_on_multi_choice_nodes ... ok
+test node_editor::view::control_tests::color_picker_live_hsv_alpha_apply_and_cancel_share_one_transaction ... ok
+test node_editor::view::control_tests::compact_color_popup_scrolls_to_alpha_and_tiny_panel_cancels_preview ... ok
+test node_editor::view::control_tests::dropdown_explicit_type_change_undo_restores_removed_connections ... ok
+test node_editor::view::control_tests::focus_cancellation_notifies_host_and_blocks_external_inspector_edits ... ok
+test node_editor::view::control_tests::gradient_catalog_creation_needs_only_uv_and_keeps_wired_fallbacks ... ok
+test node_editor::view::control_tests::gradient_mode_dropdown_preserves_defaults_and_wires_and_is_undoable ... ok
+test node_editor::view::control_tests::initial_layout_leaves_room_for_taller_controls_and_choices_filter_unsupported_types ... ok
+test node_editor::view::control_tests::inspector_clip_borrows_payloads_and_keeps_legacy_pointer_mask ... ok
+test node_editor::view::control_tests::noise_catalog_defaults_require_only_uv_and_respect_wire_precedence ... ok
+test node_editor::view::control_tests::noise_mode_and_octave_choices_preserve_each_other_and_undo_independently ... ok
+test node_editor::view::control_tests::numeric_live_drag_preserves_positions_multiselection_and_one_history_step ... ok
+test node_editor::view::control_tests::numeric_save_commits_valid_text_and_invalid_text_blocks_the_request ... ok
+test node_editor::view::control_tests::numeric_text_validates_and_owns_delete_arrows_and_ime_confirmation ... ok
+test node_editor::view::control_tests::out_and_back_drag_is_not_a_text_click_and_shift_starts_fine_scrubbing ... ok
+test node_editor::view::control_tests::parameter_slider_uses_shared_default_range_and_step_without_moving_nodes ... ok
+test node_editor::view::control_tests::popup_close_consumes_click_and_boolean_toggle_does_not_select_or_drag ... ok
+test node_editor::view::diagnostic_tests::diagnostic_rings_cover_all_missing_inputs_but_exclude_defaults_and_connections ... ok
+test node_editor::view::diagnostic_tests::drawer_click_locates_offscreen_node_and_preserves_source_history_and_preview ... ok
+test node_editor::view::diagnostic_tests::drawer_navigation_resolves_nested_scopes_without_losing_edits_or_collapsed_state ... ok
+test node_editor::view::diagnostic_tests::drawer_wraps_full_unicode_cause_scrolls_and_resets_on_new_failure_and_recovery ... ok
+test node_editor::view::diagnostic_tests::narrow_drawer_keeps_controls_inside_and_does_not_steal_drag_or_menu_input ... ok
+test node_editor::view::diagnostic_tests::numeric_drag_released_over_drawer_rolls_back_instead_of_changing_a_hidden_value ... ok
+test node_editor::view::diagnostic_tests::releasing_a_wire_over_the_drawer_cancels_without_connecting_through_it ... ok
+test node_editor::view::diagnostic_tests::stale_or_absent_diagnostic_targets_do_not_move_selection_or_scopes ... ok
+test node_editor::view::failure_tests::canceling_node_movement_publishes_restoration_without_changing_semantics_or_history ... ok
+test node_editor::view::failure_tests::file_shortcut_rejection_already_retains_the_invalid_field_and_visible_error ... ok
+test node_editor::view::failure_tests::inspector_rejection_is_logged_without_mutating_the_node_or_its_history ... ok
+test node_editor::view::failure_tests::invalid_neighbour_ports_keep_the_cause_when_incompatible_connections_are_removed ... ok
+test node_editor::view::failure_tests::shrinking_canvas_cancels_a_held_nudge_without_committing_an_undo_step ... ok
+test node_editor::view::failure_tests::shrinking_canvas_cancels_node_drag_and_reports_restoration ... ok
+test node_editor::view::field_text::tests::clipboard_node_field_failure_preserves_selection_and_grapheme_navigation ... ok
+test node_editor::view::field_text::tests::clipboard_node_field_history_stays_local_then_saves_and_undoes_once ... ok
+test node_editor::view::field_text::tests::clipboard_vector_field_keeps_validation_and_ime_out_of_graph_history ... ok
+test node_editor::view::frame_cards_tests::minimap_drag_and_cancel_refresh_the_final_canvas_geometry ... ok
+test node_editor::view::frame_cards_tests::navigation_rebuilds_current_geometry_without_editing_the_document ... ok
+test node_editor::view::frame_cards_tests::parent_navigation_invalidates_geometry_even_when_view_and_revision_match ... ok
+test node_editor::view::frame_cards_tests::port_labels_keep_live_first_identity_for_duplicate_and_reordered_cards ... ok
+test node_editor::view::frame_cards_tests::unchanged_draws_build_card_geometry_once_per_frame ... ok
+test node_editor::view::frame_cards_tests::uncommitted_node_moves_release_and_cancel_keep_fresh_geometry_and_history ... ok
+test node_editor::view::group_tests::boundaries_cannot_be_deleted_or_regrouped_and_nested_cycles_are_atomic ... ok
+test node_editor::view::group_tests::collapsed_cards_keep_visible_wires_but_no_controls_or_connectable_sockets ... ok
+test node_editor::view::group_tests::exposing_new_group_ports_updates_parent_types_and_can_rewire_a_new_input ... ok
+test node_editor::view::group_tests::group_boundaries_preserve_types_units_export_and_atomic_undo_then_ungroup ... ok
+test node_editor::view::group_tests::group_duplication_respects_recursive_budgets_and_output_uniqueness ... ok
+test node_editor::view::group_tests::nested_scope_edits_save_full_root_shared_parameters_and_reopen_folded_nodes ... ok
+test node_editor::view::group_tests::preview_inside_a_group_uses_root_dependencies_without_mutating_export ... ok
+test node_editor::view::group_tests::shortcuts_double_click_navigation_and_header_fold_are_independent_of_drag ... ok
+test node_editor::view::input_default_tests::bool_and_color_defaults_use_native_controls_and_color_cancel_restores_document ... ok
+test node_editor::view::input_default_tests::changing_storage_type_replaces_incompatible_defaults_and_undo_restores_wires ... ok
+test node_editor::view::input_default_tests::defaults_share_the_input_row_and_outputs_do_not_overlap_the_editor ... ok
+test node_editor::view::input_default_tests::input_default_fields_stay_inside_cards_with_wide_style_columns ... ok
+test node_editor::view::input_default_tests::input_default_scalar_drag_scales_and_commits_one_history_step ... ok
+test node_editor::view::input_default_tests::saving_inside_a_group_upgrades_the_root_and_preserves_defaults_across_navigation ... ok
+test node_editor::view::input_default_tests::vector_default_text_validates_ime_owns_keys_and_cancels_without_history ... ok
+test node_editor::view::input_default_tests::wired_default_is_read_only_and_disconnect_restores_it_with_undo ... ok
+test node_editor::view::inspector_layout_tests::compact_inspector_connections_navigate_disconnect_and_undo_at_each_width ... ok
+test node_editor::view::nudge_tests::release_and_new_press_in_one_frame_start_a_new_undo_step ... ok
+test node_editor::view::nudge_tests::remapped_movement_holds_repeat_until_release_and_undoes_in_one_step ... ok
+test node_editor::view::nudge_tests::repeated_arrows_keep_earlier_history_and_undo_in_one_step ... ok
+test node_editor::view::nudge_tests::save_focus_loss_escape_and_undo_settle_pending_movement ... ok
+test node_editor::view::nudge_tests::unmodified_remapped_file_command_defers_to_node_search_text ... ok
+test node_editor::view::observability_tests::malformed_ports_and_rejected_requests_log_once_per_site_without_editing ... ok
+test node_editor::view::observability_tests::real_popup_and_inspector_degradations_are_bounded_and_keep_their_context ... ok
+test node_editor::view::onboarding_tests::adding_the_first_node_to_an_empty_root_preserves_the_drop_position_and_undo ... ok
+test node_editor::view::onboarding_tests::diagnostic_drawer_blocks_a_welcome_button_under_its_region ... ok
+test node_editor::view::onboarding_tests::diagnostic_location_uses_the_canvas_below_welcome ... ok
+test node_editor::view::onboarding_tests::dismiss_preserves_node_screen_positions_source_selection_and_preview ... ok
+test node_editor::view::onboarding_tests::empty_root_offers_examples_but_bound_and_nested_graphs_are_untouched ... ok
+test node_editor::view::onboarding_tests::opening_or_restoring_a_document_does_not_reintroduce_the_welcome_strip ... ok
+test node_editor::view::onboarding_tests::recommended_example_is_small_editable_and_reversible ... ok
+test node_editor::view::onboarding_tests::welcome_fits_both_languages_and_yields_to_popups_and_small_docks ... ok
+test node_editor::view::onboarding_tests::welcome_requests_existing_example_flow_without_changing_source_or_history ... ok
+test node_editor::view::search_tests::library_keyboard_uses_shared_aliases_and_recent_choices ... ok
+test node_editor::view::search_tests::menu_empty_results_cancel_and_failed_additions_do_not_record_recent_nodes ... ok
+test node_editor::view::search_tests::menu_search_crosses_the_clicked_category_and_preserves_ime_and_placement ... ok
+test node_editor::view::search_tests::popup_geometry_remains_inside_small_and_offset_bounds ... ok
+test node_editor::view::search_tests::recent_nodes_survive_workspace_save_reopen_and_legacy_json ... ok
+test node_editor::view::search_tests::result_description_remains_visible_when_workspace_rows_are_taller ... ok
+test node_editor::view::search_tests::short_popup_keeps_categories_reachable_and_category_click_clears_the_query ... ok
+test node_editor::view::tests::alt_right_stroke_cuts_all_intersections_as_one_edit_and_cancel_keeps_edges ... ok
+test node_editor::view::tests::content_transform_scales_explicit_strokes_and_preserves_one_pixel_lines ... ok
+test node_editor::view::tests::ctrl_shift_preview_selects_ports_and_restores_without_document_or_history_edits ... ok
+test node_editor::view::tests::cut_geometry_uses_visible_curve_and_screen_space_tolerance ... ok
+test node_editor::view::tests::invalid_wire_feedback_matches_cycle_budget_and_units_without_mutation ... ok
+test node_editor::view::tests::reconnect_on_wrong_direction_or_node_body_preserves_original_input ... ok
+test node_editor::view::tests::reconnecting_same_input_is_noop_and_over_budget_replacement_keeps_old_edges ... ok
+test node_editor::view::view_preferences_tests::minimap_navigation_is_view_only_and_escape_focus_loss_or_lost_release_restore_pan ... ok
+test node_editor::view::view_preferences_tests::minimap_transform_tracks_nonzero_origins_pan_zoom_and_empty_graphs ... ok
+test node_editor::view::view_preferences_tests::node_view_shortcuts_are_local_exact_and_not_repeated ... ok
+test node_editor::view::view_preferences_tests::toggles_leave_graph_history_compile_and_permanent_output_unchanged ... ok
+test node_editor::view::view_preferences_tests::view_and_canvas_menus_share_checked_actions_and_cancel_without_toggling ... ok
+test node_editor::view::view_preferences_tests::view_keys_respect_text_ime_focus_popups_and_active_gestures ... ok
+test node_editor::view::wire_target_tests::ambiguous_body_drop_requires_a_choice_and_cancel_preserves_document_and_history ... ok
+test node_editor::view::wire_target_tests::body_rejections_keep_primary_type_unit_cycle_and_budget_causes ... ok
+test node_editor::view::wire_target_tests::explicit_wrong_port_does_not_fall_back_to_compatible_body_and_original_wire_survives ... ok
+test node_editor::view::wire_target_tests::large_group_port_chooser_scrolls_reveals_keyboard_selection_and_mouse_chooses_visible_row ... ok
+test node_editor::view::wire_target_tests::nearest_dense_socket_is_shared_by_feedback_and_release_at_every_zoom ... ok
+test node_editor::view::wire_target_tests::reverse_multi_output_and_collapsed_or_empty_drops_give_explicit_results ... ok
+test node_editor::view::wire_target_tests::rewire_menu_keeps_both_original_edges_until_commit_and_undo_restores_them ... ok
+test node_editor::view::wire_target_tests::socket_hit_preserves_hover_area_visible_edges_and_front_card_occlusion ... ok
+test node_editor::view::wire_target_tests::unique_body_drop_connects_in_both_directions_as_one_undo ... ok
+test node_editor::view::wires::socket_index_tests::coincident_connections_keep_hit_priority_and_all_cut_inputs ... ok
+test node_editor::view::wires::socket_index_tests::direction_identity_missing_and_duplicate_ports_preserve_first_match ... ok
+test node_editor::view::wires::socket_index_tests::fresh_geometry_keeps_painted_selected_and_cut_curves_identical ... ok
+test node_editor::view::wires::socket_index_tests::socket_lookup_scaling_matches_the_linear_oracle ... sockets=128 queries=128 linear_comparisons=8256 linear_us=244 index_build_and_lookup_us=68
+sockets=512 queries=512 linear_comparisons=131328 linear_us=4031 index_build_and_lookup_us=451
+sockets=2048 queries=2048 linear_comparisons=2098176 linear_us=64574 index_build_and_lookup_us=1114
+ok
+test node_layer::tests::images::node_image_animation_preset_restores_runtime_and_resources_in_a_fresh_project ... ok
+test node_layer::tests::images::node_images_and_last_valid_runtime_reopen_offline_with_small_draft_metadata ... ok
+test node_layer::tests::images::refused_node_image_update_keeps_model_and_existing_files_and_leaves_no_new_resource ... ok
+test node_layer::tests::independent_editors_do_not_share_async_stamps ... ok
+test node_layer::tests::invalid_authoring_source_is_kept_without_replacing_valid_runtime ... ok
+test node_layer::tests::invalid_owned_runtime_identity_is_rejected_when_no_cached_package_exists ... ok
+test node_layer::tests::layer_effect_source_persists_and_runtime_updates_one_instance_as_one_undo ... ok
+test node_layer::tests::numeric::node_bound_numeric_data_reuses_package_and_native_pipeline_with_independent_instances ... ok
+test node_layer::tests::numeric::node_structural_edit_rebuilds_only_its_native_program_in_four_precisions ... ok
+test node_layer::tests::numeric_precision::node_private_numeric_instances_match_baked_and_analytic_pixels_in_four_precisions ... ok
+test node_layer::tests::public_parameter_animation_survives_recompile_and_source_reopen_is_noop ... ok
+test node_layer::tests::removed_existing_target_cannot_be_recreated_by_stale_compile ... ok
+test node_layer::tests::runtime_and_unfinished_source_survive_project_package ... ok
+test node_preview::admission_tests::every_preview_allocation_refuses_before_creation_and_pending_uploads_retire ... ok
+test node_preview::admission_tests::refused_replacement_preserves_live_pixels_and_recovery_keeps_full_raster_capacity ... ok
+test node_preview::image_tests::image_candidates_replace_content_and_leave_live_preview_intact_on_refusal ... ok
+test node_preview::image_tests::image_preview_pipeline_cache_releases_every_resource_after_submission ... ok
+test node_preview::image_tests::independent_image_preview_uploads_all_slots_alongside_numeric_overflow ... ok
+test node_preview::tests::editable_uniform_and_byte_data_match_baked_preview_and_remain_admitted ... ok
+test node_preview::tests::gpu_preview_obeys_live_time_parameters_alpha_and_pause_cache ... ok
+test node_preview::tests::node_canonical_cache_retains_pipelines_without_candidate_allocations ... ok
+test node_preview::tests::node_preview_respects_occupied_session_admission ... ok
+test node_preview::tests::node_viewports_stay_inside_editor_panel ... ok
+test node_preview::tests::numeric_candidates_reuse_native_pipelines_and_keep_failures_transactional ... ok
+test node_preview::tests::temporary_output_changes_gpu_pixels_and_restores_canonical_save_and_export ... ok
+test node_tasks::bound_source_tests::bound_image_loading_publishes_state_before_blocking_and_preserves_errors_and_stale_edits ... ok
+test node_tasks::bound_source_tests::cancelled_node_jobs_and_unconsumed_results_share_one_bounded_capacity ... ok
+test node_tasks::graph_native_effect_tests::corrupt_export_reaches_default_sinks_and_explicit_clean_destination_recovers ... ok
+test node_tasks::image_import_tests::image_import_worker_observes_blocking_native_failures_cancel_stale_and_recovery ... ok
+test node_tasks::image_source_tests::image_source_worker_preserves_default_error_sinks_state_and_explicit_recovery ... ok
+test node_tasks::observability_tests::cancelled_completions_log_real_failures_before_discarding_results ... ok
+test node_tasks::observability_tests::source_side_effects_and_failures_are_logged_even_after_editor_replacement ... ok
+test node_tasks::tests::background_compile_returns_owned_cpu_work_for_renderer_validation ... ok
+test node_tasks::tests::canceled_jobs_cannot_apply_to_replaced_graph ... ok
+test node_tasks::tests::live_compiler_worker_changes_private_data_without_changing_baked_compile_contract ... ok
+test node_tasks::tests::serial_source_saves_and_export_do_not_mutate_project_or_new_document ... ok
+test owned_file::tests::exclusive_creation_never_claims_an_existing_file ... ok
+
+thread 'owned_file::tests::failed_write_scope_and_unwind_close_and_remove_only_the_owned_file' (25812) panicked at desktop\app\src\owned_file.rs:78:21:
+injected operation panic
+test owned_file::tests::failed_write_scope_and_unwind_close_and_remove_only_the_owned_file ... ok
+test owned_file::tests::kept_file_survives_and_a_missing_temporary_is_already_cleaned ... ok
+test panels::align::interaction_tests::alignment_controls_in_main_and_floating_windows_dispatch_one_typed_atomic_request_and_modal_cancel_is_safe ... ok
+test panels::align::interaction_tests::alignment_worker_errors_reach_default_file_and_stderr_and_valid_requests_recover_without_project_loss ... ok
+test panels::align::interaction_tests::distribution_actual_worker_failure_and_recovery_preserve_project_and_history_and_default_log_channels ... ok
+test panels::align::interaction_tests::distribution_controls_dispatch_all_four_actions_and_disable_insufficient_or_locked_selection_in_both_hosts_and_locales ... ok
+test panels::align::tests::centered_components_do_not_overwrite_each_other_or_touch_z ... ok
+test panels::animation_controls::mini::tests::actual_readouts_preserve_zero_and_negative_amplitude_and_duration_in_physical_units ... ok
+test panels::animation_controls::mini::tests::adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples ... ok
+test panels::animation_controls::mini::tests::automatic_ranges_include_authored_controls_and_actual_extrema_without_clipping ... ok
+test panels::animation_controls::mini::tests::coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_cache ... ok
+test panels::animation_controls::mini::tests::fault_tests::adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet ... ok
+test panels::animation_controls::mini::tests::fault_tests::default_failure_channels_cache_suppression_recovery_and_process_reset_use_real_consumers ... ok
+test panels::animation_controls::mini::tests::last_key_readout_remains_normalized_without_fabricated_frames_or_physical_units ... ok
+test panels::animation_controls::mini::tests::mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints ... ok
+test panels::animation_controls::mini::tests::outgoing_interval_maps_composition_time_once_and_never_invents_last_key_time ... ok
+test panels::animation_controls::mini::tests::physical_readout_keeps_component_values_and_units_visible_with_long_layer_names ... ok
+test panels::animation_controls::mini::tests::unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache ... ok
+test panels::animation_controls::tests::editing_a_separated_interval_emits_only_the_captured_axis_and_composition_time ... ok
+test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... ignored, manual real GPU, FFmpeg and independent reopen acceptance for Roving timing
+test panels::animation_menu::roving::native_tests::native_roving_menu_captures_conversion_fixed_and_mixed_states_in_both_languages ... ignored, manual native Roving menu GPU captures with real worker transactions
+test panels::animation_menu::roving::tests::actual_menu_click_dispatches_one_action_and_stale_or_cancelled_menu_dispatches_none ... ok
+test panels::animation_menu::roving::tests::anchor_and_global_or_layer_camera_channels_keep_offsets_identities_and_atomic_history ... ok
+test panels::animation_menu::roving::tests::cached_capabilities_are_readonly_revision_scoped_and_missing_identity_never_reuses_them ... ok
+test panels::animation_menu::roving::tests::conversion_completion_never_rebinds_changed_selection_documents_or_unrelated_revisions ... ok
+test panels::animation_menu::roving::tests::malformed_candidates_report_default_error_channels_without_poisoning_recovery ... ok
+test panels::animation_menu::roving::tests::mixed_storage_and_partial_constraints_enable_atomically_and_keep_both_channels_selected ... ok
+test panels::animation_menu::roving::tests::real_menu_conversion_rebinds_ids_and_freezing_preserves_samples_reopen_and_one_undo ... ok
+test panels::animation_menu::roving::tests::roving_binding_conflicts_remapping_and_saved_custom_chords_keep_their_owner ... ok
+test panels::animation_menu::roving::tests::roving_shortcut_matches_menu_in_main_and_floating_owners_and_rejects_text_ime_and_repeat ... ok
+test panels::animation_menu::roving::tests::unsupported_endpoints_separated_axes_and_mixed_properties_never_dispatch_a_subset ... ok
+test panels::animation_menu::tests::curve_clipboard_menu_captures_same_explicit_interval_in_both_locales_and_rejects_busy_or_stale ... ok
+test panels::animation_menu::tests::disabled_menu_entry_focus_loss_and_outside_click_never_edit ... ok
+test panels::animation_menu::tests::interpolation_targets_only_the_explicit_property_without_moving_key_times ... ok
+test panels::animation_menu::tests::invalid_readonly_and_stale_contexts_disable_edits_and_reverse_time_is_explicitly_unavailable ... ok
+test panels::animation_menu::tests::menu_and_keyboard_share_current_property_commands_and_single_undo ... ok
+test panels::animation_menu::tests::open_menu_rejects_changed_document_revision_selection_property_and_focus_before_dispatch ... ok
+test panels::animation_menu::tests::sequence_follows_visible_stack_and_preserves_sources_and_one_step_history ... ok
+test panels::animation_menu::tests::sequence_rejects_the_whole_selection_for_a_locked_missing_or_fractionally_shifted_layer ... ok
+test panels::animation_menu::tests::timing_menu_and_shortcut_freeze_the_same_selection_without_editing_or_changing_view_mode ... ok
+test panels::animation_menu::tests::timing_shortcut_without_editable_keys_explains_the_disabled_action_in_both_hosts_and_locales ... ok
+test panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages ... ignored, manual native type-menu GPU captures; retains screenshots and original log streams
+test panels::animation_menu::type_state::tests::automatic_shortcut_conflicts_are_rejected_and_custom_presets_keep_their_owner ... ok
+test panels::animation_menu::type_state::tests::automatic_shortcut_matches_menu_in_main_and_floating_owners_with_single_undo ... ok
+test panels::animation_menu::type_state::tests::automatic_shortcut_respects_text_ime_repeat_focus_loss_and_readonly_selection ... ok
+test panels::animation_menu::type_state::tests::discrete_effects_are_disabled_even_though_their_storage_is_a_numeric_vector ... ok
+test panels::animation_menu::type_state::tests::malformed_type_snapshots_reach_default_error_channels_and_healthy_capabilities_stay_quiet ... ok
+test panels::animation_menu::type_state::tests::menu_types_convert_only_selected_keys_freeze_exact_samples_and_restore_on_undo ... ok
+test panels::animation_menu::type_state::tests::selection_state_and_checkmarks_distinguish_mixed_manual_hold_and_automatic ... ok
+test panels::animation_menu::type_state::tests::type_cache_reuses_revision_and_selection_but_invalidates_authored_changes ... ok
+test panels::animation_menu::type_state::tests::unsupported_neighbours_and_single_key_disable_automatic_without_mutating_history ... ok
+test panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales ... ignored, requires Windows native GPU capture; explicitly run for audio monitor acceptance
+test panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands ... ok
+test panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history ... ok
+test panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit ... ok
+test panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable ... ok
+test panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts ... ok
+test panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist ... ok
+test panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route ... ok
+test panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen ... ok
+test panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id ... ok
+test panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership ... ok
+test panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback ... ok
+test panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync ... ok
+test panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages ... ok
+test panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history ... ok
+test panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text ... ok
+test panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers ... ok
+test panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows ... ok
+test panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo ... ok
+test panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item ... ok
+test panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once ... ok
+
+thread 'panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics' (27996) panicked at desktop\app\src\panels\audio\waveform.rs:489:9:
+
+running 1 test
+test panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics ... FAILED
+
+failures:
+
+failures:
+    panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1566 filtered out; finished in 2.14s
+
+
+
+thread 'audio-waveform-view' (22624) panicked at desktop\app\src\panels\audio\waveform.rs:466:45:
+controlled waveform handler panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::panels::audio::waveform: audio waveform worker exited request=2 operation=waveform_view object=24 source=8 elapsed_ms=10 phase=panic
+ERROR motion_studio::panels::audio::waveform: audio waveform disconnected request=2 operation=waveform_view object=24 source=8 elapsed_ms=10
+
+thread 'panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics' (31660) panicked at desktop\app\src\panels\audio\waveform.rs:478:13:
+force-captured panic backtrace is retained
+
+test panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics ... FAILED
+test panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply ... ok
+test panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs ... ok
+test panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity ... ok
+test panels::auxiliary::render_queue::tests::frozen_jobs_can_start_after_live_composition_dimensions_change ... ok
+test panels::auxiliary::render_queue::tests::native::render_queue_native_tasks_templates_and_actual_output ... ignored, explicit native render queue UI, frozen exports and shared-window input evidence
+test panels::auxiliary::render_queue::tests::passive_queue_paint_does_not_dispatch_a_file_io_intent ... ok
+test panels::auxiliary::render_queue::tests::render_queue_actions_use_the_same_task_identity_in_both_windows_and_languages ... ok
+test panels::auxiliary::render_queue::tests::render_queue_can_create_a_valid_template_after_deleting_the_entire_library ... ok
+test panels::auxiliary::render_queue::tests::render_queue_template_text_owns_ime_cancel_and_passive_rows_without_touching_tasks ... ok
+test panels::auxiliary::render_queue::tests::stopped_queue_can_be_explicitly_reloaded_but_active_work_cannot ... ok
+test panels::auxiliary::render_queue::tests::template_save_waits_for_success_receipt_keeps_failed_drafts_and_cancels_replaced_sources ... ok
+test panels::auxiliary::selection_tests::effect_controls_with_no_selection_render_the_empty_state_for_malformed_layers ... ok
+test panels::auxiliary::selection_tests::empty_selection_never_matches_missing_or_malformed_layer_ids ... ok
+test panels::auxiliary::selection_tests::explicit_selection_keeps_first_valid_identity_and_missing_selection_stays_empty ... ok
+test panels::auxiliary::tests::content_shrink_clamps_scroll_even_when_pointer_is_outside ... ok
+test panels::auxiliary::tests::loop_checkbox_and_movie_scope_dropdown_dispatch_real_values_in_both_hosts ... ok
+test panels::auxiliary::tests::preview_range_start_and_skip_select_explicit_values_in_both_hosts_and_locales ... ok
+test panels::auxiliary::tests::quality_dropdown_selects_explicitly_and_blocks_transport_behind_the_popup ... ok
+test panels::auxiliary::text_style::tests::cancellation_and_invalid_or_stale_drafts_never_dispatch_partial_edits ... ok
+test panels::auxiliary::text_style::tests::native::text_style_native_controls_pixels_transactions_and_floating_input ... ignored, manual native GPU character/paragraph captures and window routing
+test panels::auxiliary::text_style::tests::text_and_paragraph_controls_edit_one_draft_and_explicit_apply_in_both_hosts_and_languages ... ok
+test panels::auxiliary::text_style::tests::text_style_discrete_fields_retain_invalid_input_and_ime_focus_stay_local ... ok
+test panels::camera_controls::lens::tests::actual_lens_failures_reach_default_logs_and_stderr_with_recovery_and_stdout_isolation ... ok
+test panels::camera_controls::lens::tests::derived_numeric_gestures_share_fov_and_cancel_or_commit_one_history_entry ... ok
+test panels::camera_controls::lens::tests::lens_editor_rejects_malformed_snapshots_and_does_not_edit_locked_or_observed_cameras ... ok
+test panels::camera_controls::lens::tests::native::native_camera_lens_presets_render_in_both_languages_and_commit_to_the_fov_track ... ok
+test panels::camera_controls::lens::tests::preset_popup_consumes_outside_click_before_the_camera_mode_can_open ... ok
+test panels::camera_controls::tests::elevation_rejects_poles_and_non_finite_text_and_clamps_drag_with_localized_feedback ... ok
+test panels::camera_controls::tests::legacy_camera_rails_toggle_and_seek_real_coupled_and_separated_keys ... ok
+test panels::camera_controls::tests::missing_sample_streak_reports_once_at_sixty_and_recovers_at_default_log_level ... ok
+test panels::camera_controls::tests::native::native_reset_and_bounds_use_main_and_floating_routes_in_both_languages_at_four_dpis ... ok
+test panels::camera_controls::tests::reset_is_one_undoable_value_edit_preserving_animation_and_other_channels_after_reopen ... ok
+test panels::camera_controls::tests::reset_popup_cancels_on_escape_focus_loss_context_lock_and_subframe_without_editing ... ok
+test panels::clipboard_menu::tests::layer_shortcuts_defer_to_editors_graphs_nodes_menus_ime_and_repeat ... ok
+test panels::clipboard_menu::tests::menu_enablement_distinguishes_copy_locked_cut_empty_paste_busy_and_captured_owner ... ok
+test panels::composition::tests::collapsed_viewers_never_submit_a_fabricated_pixel_outside_the_window ... ok
+test panels::composition::tests::hidden_handles_leave_pen_creation_available_and_do_not_toggle_during_its_active_draft ... ok
+test panels::composition::tests::malformed_mapping_is_bounded_visible_and_recovers_at_default_log_level ... ok
+test panels::composition::tests::multiview_pan_rolls_back_on_escape_focus_clock_and_geometry_changes ... ok
+test panels::composition::tests::selection_uses_the_same_zoomed_panned_mapping_as_drawing ... ok
+test panels::composition::tests::wheel_pan_cancel_fit_and_project_switch_emit_no_project_or_camera_commands ... ok
+test panels::composition_views::tests::layout_dropdown_starts_from_the_actual_layout_and_only_commits_that_setting ... ok
+test panels::curve_comparison::tests::clicks_select_the_authored_channel_and_single_key_drag_uses_one_atomic_existing_command ... ok
+test panels::curve_comparison::tests::collection_expands_components_deduplicates_and_keeps_unit_groups_separate_without_editing ... ok
+test panels::curve_comparison::tests::compact_controls_keep_a_visible_plot_and_own_popup_keys_and_closing_clicks ... ok
+comparison keyboard zh=true float=false speed=false unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=true float=false speed=false unit=Some(Percent) compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=true float=false speed=true unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard zh=true float=true speed=false unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=true float=true speed=false unit=Some(Percent) compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=true float=true speed=true unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard zh=false float=false speed=false unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=false float=false speed=false unit=Some(Percent) compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=false float=false speed=true unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard zh=false float=true speed=false unit=None compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=false float=true speed=false unit=Some(Percent) compact=false focus=Some(1) mode_open=false
+comparison keyboard step zh=false float=true speed=true unit=None compact=false focus=Some(1) mode_open=false
+test panels::curve_comparison::tests::error_tests::comparison_menu_and_keyboard_controls_work_in_read_only_views_and_do_not_start_playback ... ok
+test panels::curve_comparison::tests::error_tests::malformed_tracks_report_once_per_revision_at_default_level_then_recover_without_stdout_diagnostics ... ok
+test panels::curve_comparison::tests::local_offsets_physical_units_and_signed_separated_axes_follow_actual_samples ... ok
+test panels::curve_comparison::tests::native_effect_values_do_not_share_axes_without_the_same_parameter_identity ... ok
+test panels::curve_comparison::tests::ranges::comparison_actual_samples_keep_dense_high_zoom_error_bounds_for_values_and_physical_speed ... ok
+test panels::curve_comparison::tests::ranges::comparison_context_snapshot_notices_visibility_collection_and_group_changes_without_allocating_each_match ... ok
+test panels::curve_comparison::tests::ranges::comparison_sampling_budget_failure_is_not_a_partial_curve_and_is_cached_until_the_view_changes ... ok
+test panels::curve_comparison::tests::ranges::comparison_tessellation_cache_tracks_ordinate_geometry_and_time_scale_even_when_end_is_capped ... ok
+test panels::curve_comparison::tests::samples_reuse_the_revision_cache_while_visibility_and_graph_modes_leave_the_project_unchanged ... ok
+test panels::curve_comparison::tests::spatial_selection_opens_its_real_curves_without_using_integer_clipboard_payloads ... ok
+test panels::curve_comparison::tests::stale_keys_partial_add_limits_and_removed_dimensions_preserve_authored_state ... ok
+test panels::curve_comparison::tests::wide_legend_reserves_the_same_time_viewport_for_ruler_keys_zoom_and_navigation ... ok
+test panels::effect_controls::application_reveal_tests::reveal_reopens_reused_ids_clears_filters_and_scrolls_only_the_target_layer_once ... ok
+test panels::effect_controls::color_observation_tests::invalid_color_track_still_closes_popup_and_reports_the_object ... ok
+test panels::effect_controls::curve::observation_tests::zero_extent_and_retained_curve_drag_emit_bounded_real_draw_evidence ... ok
+test panels::effect_controls::curve::sampling_failure_tests::actual_curve_draw_failures_log_at_default_level_with_bounded_lifetime_counts ... ok
+test panels::effect_controls::curve::sampling_failure_tests::refused_drag_sampling_cancels_once_and_retains_last_healthy_cache ... ok
+test panels::effect_controls::curve::sampling_failure_tests::refused_key_toggle_emits_no_edits_and_preserves_default_failure_channels_then_recovers ... ok
+test panels::effect_controls::curve::tests::channel_dropdown_is_observational_and_escape_cancels_an_unmoved_gesture ... ok
+test panels::effect_controls::curve::tests::click_adds_point_and_drag_commits_one_undo ... ok
+test panels::effect_controls::curve::tests::right_click_removes_interior_points_only ... ok
+test panels::effect_controls::dropdown_cache::tests::names_are_owned_and_effect_parameter_states_close_independently ... ok
+test panels::effect_controls::identity_tests::malformed_effect_ids_do_not_reserve_rows_or_change_the_valid_effect_paint ... ok
+test panels::effect_controls::identity_tests::real_invalid_id_diagnostics_are_bounded_visible_at_default_level_and_reset_on_recovery ... ok
+test panels::effect_controls::identity_tests::surviving_effect_context_keeps_its_identity_and_original_array_index ... ok
+test panels::effect_controls::key_navigation::dense_tests::dense_channel_tables_freeze_without_duplicate_payload_through_the_actual_worker ... ok
+test panels::effect_controls::key_navigation::dense_tests::diamond_keeps_sub_preview_detail_in_all_precisions_and_roundtrips_one_history_step ... ok
+test panels::effect_controls::key_navigation::dense_tests::locked_or_malformed_curve_diamond_cannot_emit_an_edit ... ok
+test panels::effect_controls::key_navigation::selection_tests::property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_stale_commands ... ok
+test panels::effect_controls::key_navigation::tests::custom_effect_key_navigation_disables_old_chord_and_uses_typed_parameter_times ... ok
+test panels::effect_controls::key_navigation::tests::malformed_navigation_parameters_reach_default_file_and_error_stderr_without_stdout ... ok
+test panels::effect_controls::library::bound_tests::bound_runtime_versions_are_hidden_from_public_effect_search ... ok
+test panels::effect_controls::library::scroll_tests::scrolling_the_library_keeps_the_import_button_fixed ... ok
+test panels::effect_controls::library::tests::categories_use_manifest_metadata_and_never_package_names_or_effect_id_guesses ... ok
+test panels::effect_controls::library::tests::delayed_fixture_work_preserves_synthetic_double_click_interval_and_disabled_target ... ok
+test panels::effect_controls::library::tests::double_click_interval_and_intervening_click_preserve_exact_package_identity ... ok
+test panels::effect_controls::library::tests::import_button_works_without_a_selected_layer_and_browsing_does_not_apply ... ok
+test panels::effect_controls::library::tests::newest_enabled_version_wins_without_collapsing_different_providers ... ok
+test panels::effect_controls::library::tests::row_selection_double_click_and_enter_apply_exact_package_identity ... ok
+test panels::effect_controls::removal_tests::cancellation_closes_both_menus_without_editing ... ok
+test panels::effect_controls::removal_tests::context_removal_keeps_its_single_layer_scope_at_both_host_sizes ... ok
+test panels::effect_controls::removal_tests::effect_menu_removes_selected_layers_atomically_and_one_undo_restores_all ... ok
+test panels::effect_controls::removal_tests::invalidated_batch_returns_the_engine_error_without_partial_removal_or_history ... ok
+test panels::effect_controls::removal_tests::localized_scope_and_counts_are_fully_painted_in_the_existing_menu_row ... ok
+test panels::effect_controls::removal_tests::menu_refreshes_live_targets_and_keeps_primary_and_empty_layer_scope ... ok
+test panels::effect_controls::removal_tests::real_main_and_floating_input_owners_preserve_removal_and_cancellation ... ok
+test panels::effect_controls::removal_tests::unavailable_targets_disable_whole_selection_and_empty_contexts ... ok
+test panels::effect_controls::tests::color_row_opens_popup_and_channel_scrub_commits_one_undo ... ok
+test panels::effect_controls::tests::inline_rows_keep_vectors_together_and_real_discrete_and_curve_edits_undo ... ok
+test panels::effect_controls::track_cache_tests::render_reloads_reused_ids_for_each_snapshot_identity_component ... ok
+test panels::effect_controls::track_cache_tests::same_snapshot_resamples_the_displayed_scalar_at_the_current_local_frame ... ok
+test panels::effect_drag::tests::click_threshold_and_passive_other_window_do_not_apply_or_finish_drag ... ok
+test panels::effect_drag::tests::escape_focus_loss_and_project_composition_change_consume_without_edit ... ok
+test panels::effect_drag::tests::explicit_unselected_row_and_viewer_selection_have_distinct_targets ... ok
+test panels::effect_drag::tests::locked_incompatible_empty_missing_and_changed_package_cancel_atomically ... ok
+test panels::effect_pick::tests::armed_pick_survives_window_transfer_but_cancels_on_escape_right_click_and_stale_source ... ok
+test panels::effect_pick::tests::effect_pick_owns_the_viewer_when_inspection_menu_was_open ... ok
+test panels::effect_pick::tests::native::native_effect_picks_preserve_source_coordinates_precision_history_and_failure_channels ... ok
+test panels::effect_pick::tests::position_hints_exclude_offsets_sizes_and_radii ... ok
+test panels::effect_search::tests::cache_tracks_snapshot_identity_locale_query_and_package_choices ... ok
+test panels::effect_search::tests::chinese_ui_matches_english_name_and_category ... ok
+test panels::effect_search::tests::continuous_search_is_explicit_and_ignores_repeat_and_ime_confirmations ... ok
+test panels::effect_search::tests::effect_search_applies_once_and_keeps_disabled_empty_or_repeated_enter_open ... ok
+test panels::effect_search::tests::search_preserves_package_identity_for_shared_plugin_command ... ok
+test panels::effect_search::tests::warm_search_applies_to_current_selection_and_stops_for_no_selection ... ok
+test panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing ... ok
+test panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom ... ok
+test panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges ... ok
+test panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key ... ok
+test panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo ... ok
+test panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform ... ok
+test panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history ... ok
+test panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler ... ok
+test panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages ... ok
+test panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout ... ok
+test panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent ... ok
+test panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts ... ok
+test panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache ... locale=En size=900x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=En size=900x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=En size=900x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=En size=900x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=En size=1600x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=En size=1600x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=En size=1600x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=En size=1600x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=Zh size=900x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=Zh size=900x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=Zh size=900x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=Zh size=900x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+locale=Zh size=1600x180 reversed=false initial=(3669942662239031206, 312.0) transition=(11386203765710053673, 26.0) fresh=(11386203765710053673, 26.0)
+locale=Zh size=1600x180 reversed=true initial=(11386203765710053673, 26.0) transition=(3669942662239031206, 312.0) fresh=(3669942662239031206, 312.0)
+locale=Zh size=1600x240 reversed=false initial=(13623701817514496304, 252.0) transition=(9629774705060888486, 0.0) fresh=(9629774705060888486, 0.0)
+locale=Zh size=1600x240 reversed=true initial=(9629774705060888486, 0.0) transition=(13623701817514496304, 252.0) fresh=(13623701817514496304, 252.0)
+ok
+test panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits ... ok
+test panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries ... ok
+test panels::expressions::expanded::tests::blocked_worker_keeps_check_and_apply_polling_nonblocking_and_reports_real_failures ... ok
+test panels::expressions::expanded::tests::expanded_editor_routes_both_windows_and_locales_and_persists_one_transaction ... ok
+test panels::expressions::expanded::tests::native::expression_editor_native_drafts_menus_diagnostics_and_floating_input ... ignored, manual native GPU expression editor captures and input routing
+test panels::expressions::expanded::tests::native::reference::property_reference_native_menus_drag_drafts_and_float_transactions ... ignored, manual native GPU property reference gestures and menu captures
+test panels::expressions::expanded::tests::picking::reference_drag_inserts_only_source_and_apply_uses_one_real_transaction_in_both_windows_and_locales ... ok
+test panels::expressions::expanded::tests::picking::reference_gestures_cancel_on_missing_release_escape_focus_loss_and_stale_source_without_touching_drafts ... ok
+test panels::expressions::expanded::tests::picking::reference_pick_is_owned_by_its_native_window_and_insertion_keeps_local_history_and_byte_limits ... ok
+test panels::expressions::expanded::tests::syntax_location_runtime_failure_stale_apply_and_old_replies_preserve_the_draft ... ok
+test panels::expressions::tests::effect_parameter_context_menu_and_checkbox_preserve_the_exact_target ... ok
+test panels::expressions::tests::expression_toggle_preserves_source_seed_target_history_and_save_in_both_windows ... ok
+test panels::expressions::tests::inline_enter_commits_one_expression_and_never_renames_the_layer ... ok
+test panels::expressions::tests::invalid_disabled_expression_stays_editable_and_apply_preserves_disabled_metadata ... ok
+test panels::expressions::tests::right_click_opens_inline_draft_and_escape_does_not_edit_in_either_window ... ok
+test panels::frame_cache_tests::a_borrowed_optional_cache_slot_falls_back_without_panicking_or_changing_geometry ... ok
+test panels::frame_cache_tests::cached_frames_match_the_original_geometry_for_tabs_sizes_and_invalid_inputs ... ok
+test panels::frame_cache_tests::geometry_is_still_available_after_the_optional_thread_cache_is_destroyed ... ok
+test panels::frame_cache_tests::returned_frame_edits_and_in_place_layout_changes_do_not_poison_later_queries ... ok
+test panels::graph_adaptive::tests::duplicate_knot_budget_preserves_the_available_evaluation_and_output_counts ... ok
+test panels::graph_adaptive::tests::errors_keep_the_original_cause_and_budgets_do_not_return_partial_success ... ok
+test panels::graph_adaptive::tests::key_boundaries_preserve_hold_steps_without_diagonal_interpolation ... ok
+test panels::graph_adaptive::tests::overflowing_screen_geometry_cannot_be_misreported_as_a_flat_curve ... ok
+test panels::graph_adaptive::tests::periodic_knots_prevent_midpoint_aliasing_of_the_valid_elastic_frequency ... ok
+test panels::graph_adaptive::tests::quadratic_envelopes_refine_narrow_velocity_peaks_between_ordinary_probes ... ok
+test panels::graph_adaptive::tests::vertical_magnification_adds_geometry_and_follows_a_dense_screen_oracle ... ok
+test panels::graph_box::tests::anchor_curve_drag_converts_pixels_without_inventing_a_third_axis ... ok
+test panels::graph_box::tests::selection_geometry_uses_theme_sizes_and_preserves_the_six_pixel_hit_radius ... ok
+test panels::graph_handles::observation_tests::malformed_easing_logs_context_without_changing_fallbacks ... ok
+test panels::graph_handles::tests::handle_command_rejects_a_missing_or_velocity_space_curve ... ok
+test panels::graph_handles::tests::handle_commands_send_only_the_selected_control_for_properties_and_effects ... ok
+test panels::graph_handles::tests::linked_handles_do_not_rewrite_hold_or_non_cubic_segments ... ok
+test panels::graph_native_performance_tests::actual_native_graph_costs_match_info_counters ... ignored, manual native baseline/current graph cost study; raw artifacts required
+test panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files ... ignored, manual native graph-range windows, GPU captures and byte invariance; explicitly retained artifacts
+test panels::graph_ranges::tests::a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_view_is_unlocked ... ok
+test panels::graph_ranges::tests::actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key ... ok
+test panels::graph_ranges::tests::actual_property_graph_menu_fits_composition_time_once_and_owned_empty_does_not_fall_back ... ok
+test panels::graph_ranges::tests::automatic_fit_resets_old_vertical_navigation_and_preserves_a_locked_axis ... ok
+test panels::graph_ranges::tests::comparison::comparison_axis_locks_are_per_unit_and_automatic_preserves_other_unit_and_legacy_y ... ok
+test panels::graph_ranges::tests::comparison::comparison_fit_selection_uses_only_its_unit_group_and_composition_time_without_history ... ok
+test panels::graph_ranges::tests::comparison::comparison_menu_cancels_mode_and_collection_changes_and_consumes_delete_escape ... ok
+test panels::graph_ranges::tests::comparison::comparison_more_button_owns_left_press_without_starting_marquee_or_changing_key_context ... ok
+test panels::graph_ranges::tests::effect::effect_locks_survive_playback_wheel_and_main_float_escape_consumes_the_key ... ok
+test panels::graph_ranges::tests::effect::effect_menu_cancels_projected_key_changes_and_owned_empty_never_uses_the_old_diamond ... ok
+test panels::graph_ranges::tests::effect::effect_range_menu_fits_local_keys_once_and_retains_native_values_and_per_second_speed ... ok
+test panels::graph_ranges::tests::faults::effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve ... ok
+test panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover ... 

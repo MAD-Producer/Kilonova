@@ -1,0 +1,9 @@
+{
+  "source": "desktop/app/src/engine/viewer_input.rs",
+  "originalSha256": "97A921BE8C48D36766F57DD0EB4E02E88FD40F5391421694F5D20C3D36B3A1F6",
+  "positiveProgramSha256": "F9C3DE85F41CC4824A1BA17DF979E840770170BD9DF42F039211E3A32BD9FDE5",
+  "mutation": "Ignore the requested picking camera and use Composition; leave geometry queries and all test assertions unchanged",
+  "buildExit": 0,
+  "testExit": 101,
+  "restoredSha256": "97A921BE8C48D36766F57DD0EB4E02E88FD40F5391421694F5D20C3D36B3A1F6"
+}

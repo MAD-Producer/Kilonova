@@ -1,0 +1,353 @@
+{
+  "schema": 1,
+  "issue": 221,
+  "branch": "feat/viewer-multiview",
+  "base": "33c68747d599bdf43e5b104d08e304ed4d901bf2",
+  "status": "shared_sampled_frame_only_native_batch_present_and_ui_pending",
+  "tests": {
+    "final-composition_bundle_boundaries.log": 6,
+    "final-compositions.log": 5,
+    "final-desktop-panels-composition-tests.log": 5,
+    "final-desktop-viewer_navigation-tests.log": 3,
+    "final-desktop-viewer_views-tests.log": 7,
+    "final-desktop-workspace-tests.log": 7,
+    "final-exposure_scenes.log": 8,
+    "final-model_layers.log": 53,
+    "final-multiple_camera_compositions.log": 3,
+    "final-viewer_frame_views.log": 8,
+    "final-viewer_views.log": 11
+  },
+  "distinct_total": 116,
+  "sources": [
+    {
+      "path": "desktop/app/Cargo.toml",
+      "bytes": 1756,
+      "sha256": "3a312d88f9134ac2e493dad9f6aaa54130badcd0f9caf5e6197cc149bcc31c51"
+    },
+    {
+      "path": "desktop/app/src/main.rs",
+      "bytes": 70328,
+      "sha256": "d1a5dae55ca59efb57761a878d5996c634e8408e1c033ba8e37ed7c8eab533b7"
+    },
+    {
+      "path": "desktop/app/src/viewer_navigation.rs",
+      "bytes": 7120,
+      "sha256": "da8f56d364418af26a86bdb2364e33081c1b023f57b16fffc04a11dad6b51d1e"
+    },
+    {
+      "path": "desktop/app/src/workspace.rs",
+      "bytes": 16149,
+      "sha256": "9991b89a8c300be3b9f496482dce0501c19db5be002b1a4728b4ee071ccfd890"
+    },
+    {
+      "path": "desktop/app/src/viewer_views.rs",
+      "bytes": 11199,
+      "sha256": "703b2de3ed007839ca9a60e5438cfb78e20d2222b4554b6e6d697349fded89d7"
+    },
+    {
+      "path": "desktop/app/src/viewer_views/tests.rs",
+      "bytes": 18101,
+      "sha256": "cde232c52eaae8632bc36e2b4326e91dc0cbaa7a37f37ef6ccfcec85266cb974"
+    },
+    {
+      "path": "crates/motion-render/src/lib.rs",
+      "bytes": 3804,
+      "sha256": "8f5c2bd9cda8dc84a8cdbcc7120a0eb82ff29da41218d3769b285423485a4a7e"
+    },
+    {
+      "path": "crates/motion-render/src/scene.rs",
+      "bytes": 47171,
+      "sha256": "4eb8280a3a90409b6d0d9d3f7dfd111268002fef3ca6de3c2887f3061ae092b5"
+    },
+    {
+      "path": "crates/motion-render/src/scene/view.rs",
+      "bytes": 6846,
+      "sha256": "9d3a2e9e1308025f37697f5d044c78903e4957844fac1493b9bd0c0255ad32de"
+    },
+    {
+      "path": "crates/motion-render/src/exposure_scene.rs",
+      "bytes": 16743,
+      "sha256": "9c15086beff76bf9c0dd4068d84cf0ccc725f088d92c67104aa4eeb90fcf00b5"
+    },
+    {
+      "path": "crates/motion-render/tests/viewer_views.rs",
+      "bytes": 25539,
+      "sha256": "b11e70600eafb3fe618aa13520ee24b6988625965016fd0e46ebc1c02db9a183"
+    },
+    {
+      "path": "crates/motion-render/tests/viewer_frame_views.rs",
+      "bytes": 18796,
+      "sha256": "60542563a37971b05ec55c04349d49a1602abab9f6fbf8b494e7b628cdd0766a"
+    },
+    {
+      "path": "crates/motion-render/tests/composition_bundle_boundaries.rs",
+      "bytes": 14436,
+      "sha256": "97f8d1297d08d89303e5fe451e1b6fa0f8b908606674a01928411671117aed5f"
+    },
+    {
+      "path": "engineering/validation/viewer-multiview-frame.md",
+      "bytes": 7269,
+      "sha256": "4f5aca1104a68e6bb9381c73c4197d09c35662bbfac9b4e424cece89927e545b"
+    }
+  ],
+  "program_root": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\viewer-multiview-frame",
+  "programs": [
+    {
+      "path": "programs/frame-tests.exe",
+      "bytes": 40355840,
+      "sha256": "2730958d2cfb4c4cf7085380cf55d735e8367828fa54eac59b0befd8d9953d0e"
+    },
+    {
+      "path": "programs/desktop-tests.exe",
+      "bytes": 126253568,
+      "sha256": "a6689b68d73b877a21dcafa1bac5f70390e984322e76d5eefe0219d5412e163c"
+    },
+    {
+      "path": "programs/motion-studio.exe",
+      "bytes": 101770752,
+      "sha256": "fb33ed81d84c8618646074eebf326c5ef6726b18475c45b0c227b925f828412c"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "build-composition_bundle_boundaries.log",
+      "bytes": 1040,
+      "sha256": "89b9cfcf94c1292141e7faebbda0f616a3fa472c95ad11fa918c90b462bcd6a9"
+    },
+    {
+      "path": "build-compositions.log",
+      "bytes": 1040,
+      "sha256": "14f398750ecd37fd855383d6b09eeac246722ee9ba1b1c6f835815745ce8ad41"
+    },
+    {
+      "path": "build-desktop-tests.log",
+      "bytes": 13365,
+      "sha256": "7159680dcb000af3ca3748533f08ac68c8dfa12ec3f5b2ec59cde9946468d764"
+    },
+    {
+      "path": "build-desktop.log",
+      "bytes": 16618,
+      "sha256": "dd2e435912c3bcb5a95d5b780542e7e26a18f0721f5710713d4f2f032a34221a"
+    },
+    {
+      "path": "build-existing-views.log",
+      "bytes": 1041,
+      "sha256": "f52740d02eefe33a408ae52dd2ade3d76bf2adcdcd16090510ca6d44d3b5471e"
+    },
+    {
+      "path": "build-exposure_scenes.log",
+      "bytes": 1040,
+      "sha256": "9a47b67f4ae129147e343265c064ce265ccde80dbc1201aa70f61879fa015471"
+    },
+    {
+      "path": "build-frame-views-final.log",
+      "bytes": 1040,
+      "sha256": "ac353e728c86936134d9abeda2a17a73c4084b4c145bf1903fa1812b30820189"
+    },
+    {
+      "path": "build-frame-views-fixed.log",
+      "bytes": 1040,
+      "sha256": "0a51b05db20a7bd5b06bbcdecbe79034683484c9d564629ea3d6db74e10cef97"
+    },
+    {
+      "path": "build-frame-views.log",
+      "bytes": 1430,
+      "sha256": "fcf4d4179afec79ba6f01adb2df943f40a743fc0ea5ddd9608f7398d3ffb9b6a"
+    },
+    {
+      "path": "build-model_layers.log",
+      "bytes": 1040,
+      "sha256": "b3c26ddf849fa7934464ae2aee7dbcc432f9b790913a001c5d6e39ee03b3c396"
+    },
+    {
+      "path": "build-multiple_camera_compositions.log",
+      "bytes": 1040,
+      "sha256": "d66fe57288a9151a3a467be7f93d72913da3c32614ff90b447158affc78ca7c8"
+    },
+    {
+      "path": "channels/invalid-workspace.json",
+      "bytes": 4586,
+      "sha256": "22aa2b8cb61d193045a34ca9d87f1dba18aeebd903cb5c672e6ac5cae1afd027"
+    },
+    {
+      "path": "channels/motion-studio.log",
+      "bytes": 1863,
+      "sha256": "c45cfdeeca95129d68bfa91d719d77738921fb7bcd16b4a96d93cec2bdc8384d"
+    },
+    {
+      "path": "channels/stderr.txt",
+      "bytes": 584,
+      "sha256": "1ef33613af921bdb4e1525848b22f4ca69f99474bb57e05c786c9af072dbc925"
+    },
+    {
+      "path": "channels/stdout.txt",
+      "bytes": 242,
+      "sha256": "3957382adc5edde1902cd1082077c71b9c37f8a2c1ae96d77b0998ddb8833444"
+    },
+    {
+      "path": "channels/workspace.json",
+      "bytes": 4516,
+      "sha256": "5de3d95bb7f4e7e8c1e32cf3591eff7cfd05e3ea2aa0591542ee9758319be958"
+    },
+    {
+      "path": "composition_bundle_boundaries.log",
+      "bytes": 586,
+      "sha256": "0a7175b4580e37cd939a9da9268116b208f11fc7b28cec303570327edbf06fa4"
+    },
+    {
+      "path": "compositions.log",
+      "bytes": 583,
+      "sha256": "3dff1f503c2dad2f0f75d0237cb4f63e773e66670ed6f57749dd690c8aeca603"
+    },
+    {
+      "path": "existing-views.log",
+      "bytes": 1154,
+      "sha256": "d1bcfc5bab8de955fc53c6e996888b4868c028ea5195ce0afad08b3db051a171"
+    },
+    {
+      "path": "exposure_scenes.log",
+      "bytes": 881,
+      "sha256": "81e7dd358afec83139965b3639ee11e9e692c76f037b007ae0ddf7081b40610a"
+    },
+    {
+      "path": "final-build-composition_bundle_boundaries.log",
+      "bytes": 1040,
+      "sha256": "d66fe57288a9151a3a467be7f93d72913da3c32614ff90b447158affc78ca7c8"
+    },
+    {
+      "path": "final-build-compositions.log",
+      "bytes": 1040,
+      "sha256": "14f398750ecd37fd855383d6b09eeac246722ee9ba1b1c6f835815745ce8ad41"
+    },
+    {
+      "path": "final-build-desktop-dev.log",
+      "bytes": 16618,
+      "sha256": "690969d23a911665c09e28197fad6d90402b50626ce84721ab4ec418d1601209"
+    },
+    {
+      "path": "final-build-desktop-test.log",
+      "bytes": 13365,
+      "sha256": "4b8bf263346a2b28498221d993587cc7f0a21fa73265a7c36596a845caec328a"
+    },
+    {
+      "path": "final-build-exposure_scenes.log",
+      "bytes": 1040,
+      "sha256": "876d51834c22a6740b5de29aa06a095cba4ed2909718da10158a5f4675d66820"
+    },
+    {
+      "path": "final-build-model_layers.log",
+      "bytes": 1040,
+      "sha256": "d3d1d3527bbd8c915a4dc0f90011dc68589e50626b6be89017307eaf407aac96"
+    },
+    {
+      "path": "final-build-multiple_camera_compositions.log",
+      "bytes": 1040,
+      "sha256": "c8e0b0f362ed3868ef298c98c54960ac0e815c0b9ae4e74db201413d99be63a3"
+    },
+    {
+      "path": "final-build-viewer_frame_views.log",
+      "bytes": 1041,
+      "sha256": "9022234bcef132c4f80179a43a3a5d32b065fddabc80fe26d625ee186f224612"
+    },
+    {
+      "path": "final-build-viewer_views.log",
+      "bytes": 1040,
+      "sha256": "e2b8b725c86822226f630031ca5f040481da04a686aff84750f3a43a152e2551"
+    },
+    {
+      "path": "final-composition_bundle_boundaries.log",
+      "bytes": 586,
+      "sha256": "82affd91c0dc6fbbf59dcf2a2034ba40f34a2fb4aa6007bbbbefd159d2c9fdbe"
+    },
+    {
+      "path": "final-compositions.log",
+      "bytes": 583,
+      "sha256": "67e34335f0f39f126e8f94ad3df889032cf9c5732cce457c77b1ba4e8944dac3"
+    },
+    {
+      "path": "final-desktop-panels-composition-tests.log",
+      "bytes": 684,
+      "sha256": "ceb6f9dfbf6d65f7eb9e0260bd186769b3d861e6d7d885058251d436b2ee5f22"
+    },
+    {
+      "path": "final-desktop-viewer_navigation-tests.log",
+      "bytes": 396,
+      "sha256": "b4319e74eb8dd81bd816b7ebe672235ba18713a58155fb10abab943dcf092a5d"
+    },
+    {
+      "path": "final-desktop-viewer_views-tests.log",
+      "bytes": 971,
+      "sha256": "da68e3114e04de18da04c09f5cf995aa446be5ec1d278dde87ec1819bed8225c"
+    },
+    {
+      "path": "final-desktop-workspace-tests.log",
+      "bytes": 781,
+      "sha256": "16fced370e8d3ca3ec28a1b33f6f244f3f3fc1e2dc79f046774c0aec4c4c2dd6"
+    },
+    {
+      "path": "final-exposure_scenes.log",
+      "bytes": 881,
+      "sha256": "0ed338be94d745a100d9f6e616cd347485ebe6e6e06f8b9124123b062bec756e"
+    },
+    {
+      "path": "final-gpu/fork-back.png",
+      "bytes": 568,
+      "sha256": "262cd1e00a0853e99d35daf72a6e524036b4e9b6ba1f374123fd95f31a9e260c"
+    },
+    {
+      "path": "final-gpu/fork-front.png",
+      "bytes": 568,
+      "sha256": "2729a606cba1729c39d52d80c8a8341fe1c1eea8980b58a9415de2e0593c6da0"
+    },
+    {
+      "path": "final-model_layers.log",
+      "bytes": 6031,
+      "sha256": "d0bf9209d109db07d738a13d97030e4ba218e1326b48ddcc0a25c864677c5daa"
+    },
+    {
+      "path": "final-multiple_camera_compositions.log",
+      "bytes": 385,
+      "sha256": "262a6712b8d77d2e5e9126b3e3942ffcab4e6e9e4030c7f35d4ecb84828d4b71"
+    },
+    {
+      "path": "final-viewer_frame_views.log",
+      "bytes": 791,
+      "sha256": "9c3ef69f1813ce981024f7de496cc5b17ff7dfd040c0fd8b415b50ee4d75ab34"
+    },
+    {
+      "path": "final-viewer_views.log",
+      "bytes": 1154,
+      "sha256": "a5e687cb3c01603d25a2e618c0c4728d52681f3554138827b5e80d168d7af31e"
+    },
+    {
+      "path": "frame-views-final.log",
+      "bytes": 791,
+      "sha256": "2535c513bbff124a4d16c773f5bf208109994daca36cb67afdb48de98cb0525a"
+    },
+    {
+      "path": "frame-views.log",
+      "bytes": 1325,
+      "sha256": "78655fe2ff67fd2134b6b1a984381f36aa2196b8ae59a3e3cb94aa53f5eff0c7"
+    },
+    {
+      "path": "gpu/fork-back.png",
+      "bytes": 568,
+      "sha256": "262cd1e00a0853e99d35daf72a6e524036b4e9b6ba1f374123fd95f31a9e260c"
+    },
+    {
+      "path": "gpu/fork-front.png",
+      "bytes": 568,
+      "sha256": "2729a606cba1729c39d52d80c8a8341fe1c1eea8980b58a9415de2e0593c6da0"
+    },
+    {
+      "path": "model_layers.log",
+      "bytes": 6031,
+      "sha256": "57c0757703bfb86840d4bd1bf5791eee97a7f0438b7625c7f4c24c88910231e2"
+    },
+    {
+      "path": "multiple_camera_compositions.log",
+      "bytes": 385,
+      "sha256": "fdbf7d992111d4390020d25238bba721ac77c8f293743d2d1e4437fb8bd6aa3c"
+    }
+  ]
+}

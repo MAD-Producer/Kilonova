@@ -30,6 +30,8 @@ fn capture(
 ) {
     let mut ui = shell.ui_frame(paint, size, true);
     ui.window = window;
+    // This isolated capture overrides shell geometry; use the single-view frame protocol.
+    ui.views = None;
     ui.composition = None;
     ui.composition_image = None;
     ui.node_preview = None;

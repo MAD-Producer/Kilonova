@@ -1,0 +1,13 @@
+
+running 2 tests
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x180aaecbc90, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x180aaecbc90, name: ?)
+test shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen ... ok
+test shell::viewer_views::native_tests::view_camera_and_preferences_failures_keep_default_file_stderr_and_stdout_contracts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1566 filtered out; finished in 18.73s
+

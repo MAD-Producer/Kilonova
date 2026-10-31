@@ -6,6 +6,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 pub(crate) struct Pending {
     window: u64,
     floating: bool,
+    cell:usize,
     source: Identity,
     capture: bool,
     receive: Receiver<Result<Value, String>>,
@@ -26,7 +27,7 @@ impl Shell {
         }
         let receive = self.engine.capture_viewer_snapshot_async(window)?;
         self.panels.viewer_inspection.set_busy(floating, true);
-        self.viewer_pending.push(Pending { window, floating, source, capture: true, receive });
+        self.viewer_pending.push(Pending { window, floating, cell:self.panels.viewer_inspection.cell(floating), source, capture: true, receive });
         self.dirty = true;
         Ok(())
     }
@@ -42,7 +43,7 @@ impl Shell {
         if path.extension().is_none() { path.set_extension("png"); }
         let receive = self.engine.save_viewer_snapshot_async(window, path, self.panels.viewer_guides.channel(floating))?;
         self.panels.viewer_inspection.set_busy(floating, true);
-        self.viewer_pending.push(Pending { window, floating, source, capture: false, receive });
+        self.viewer_pending.push(Pending { window, floating, cell:self.panels.viewer_inspection.cell(floating), source, capture: false, receive });
         self.dirty = true;
         Ok(())
     }
@@ -51,17 +52,17 @@ impl Shell {
         self.panels.viewer_inspection.synchronize(&self.state);
         let mut completed = Vec::new();
         self.viewer_pending.retain(|pending| match pending.receive.try_recv() {
-            Ok(result) => { completed.push((pending.window, pending.floating, pending.source.clone(), pending.capture, result)); false }
+            Ok(result) => { completed.push((pending.window, pending.floating, pending.cell, pending.source.clone(), pending.capture, result)); false }
             Err(TryRecvError::Empty) => true,
             Err(TryRecvError::Disconnected) => {
-                completed.push((pending.window, pending.floating, pending.source.clone(), pending.capture,
+                completed.push((pending.window, pending.floating, pending.cell, pending.source.clone(), pending.capture,
                     Err("viewer snapshot worker disconnected".into()))); false
             }
         });
-        for (window, floating, source, capture, result) in completed {
+        for (window, floating, cell, source, capture, result) in completed {
             if self.viewer_window(floating).ok() != Some(window) { continue; }
-            if capture { self.panels.viewer_inspection.capture_done(floating, &source, result.is_ok()); }
-            else { self.panels.viewer_inspection.save_done(floating, &source); }
+            if capture { self.panels.viewer_inspection.capture_done_for(floating, cell, &source, result.is_ok()); }
+            else { self.panels.viewer_inspection.save_done_for(floating, cell, &source); }
             if identity(&self.state).as_ref() != Some(&source) { continue; }
             match result {
                 Ok(_) => self.panels.message = Some(if self.workspace.locale == crate::i18n::Locale::Zh {

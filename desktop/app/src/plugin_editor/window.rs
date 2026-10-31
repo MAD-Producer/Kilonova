@@ -356,7 +356,7 @@ impl App {
                 colors.PANEL,
             );
             background.append(paint);
-            return Ok(UiFrame {
+            return Ok(UiFrame { views: None,
                 paint: background,
                 atlas: None,
                 logical_size: [width, height],
@@ -544,7 +544,7 @@ impl App {
             paint_outside(&mut background, canvas, preview_hole, colors.SUNKEN);
         }
         background.append(paint);
-        Ok(UiFrame {
+        Ok(UiFrame { views: None,
             paint: background,
             atlas: None,
             logical_size: [width, height],

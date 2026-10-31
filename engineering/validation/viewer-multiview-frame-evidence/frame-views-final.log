@@ -1,0 +1,13 @@
+
+running 8 tests
+test child_scenes_are_shared_until_resampling_and_keep_local_camera_bindings ... ok
+test failed_samples_and_invalid_batches_cannot_publish_partial_or_stale_views ... ok
+test forked_named_active_and_orthographic_views_match_independent_sampling ... ok
+test imported_fork_keeps_source_camera_letterbox_without_reopening_sources ... ok
+test malformed_orthographic_observer_fails_without_changing_retained_views ... ok
+test one_sample_supplies_one_two_and_four_views_without_repeating_evaluation ... ok
+test retained_nested_frame_pixels_survive_source_scene_resampling ... ok
+test shared_frame_views_render_and_pick_opposite_occlusion_without_moving_flat_layers ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.33s
+

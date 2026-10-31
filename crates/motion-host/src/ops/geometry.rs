@@ -6,15 +6,33 @@ use serde_json::json;
 pub fn hit_candidates(id: i64, x: f64, y: f64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         s.sample()?;
-        let mut picking = s.scene.clone();
-        for layer in &mut picking.layers {
-            *layer = motion_render::selection_geometry::picking_layer(layer, &s.scene, &s.effects.registry);
-        }
-        let candidates = picking
-            .hit_candidates([x as f32, y as f32])
-            .map_err(crate::Error::from)?;
-        Ok(json!({"candidates":candidates,"coordinates":"composition_pixels","selection":"geometry_bounds"}))
+        candidates(s, &s.scene, [x, y])
     })
+}
+
+impl crate::session::Session {
+    /// Pick using the same sampled camera and effect bounds as a viewer cell.
+    /// A query never changes the global observer, clock or project history.
+    pub fn hit_candidates_for_view(
+        &self,
+        view: motion_render::ViewCamera<'_>,
+        point: [f64; 2],
+    ) -> Result<serde_json::Value> {
+        self.check_thread()?;
+        let scene = self.scene.fork_view(view)?;
+        candidates(self, &scene, point)
+    }
+}
+
+fn candidates(s: &crate::session::Session, scene: &motion_render::Scene, point: [f64; 2]) -> Result<serde_json::Value> {
+    let mut picking = scene.clone();
+    for layer in &mut picking.layers {
+        *layer = motion_render::selection_geometry::picking_layer(layer, scene, &s.effects.registry);
+    }
+    let candidates = picking
+        .hit_candidates(point.map(|v| v as f32))
+        .map_err(crate::Error::from)?;
+    Ok(json!({"candidates":candidates,"coordinates":"composition_pixels","selection":"geometry_bounds"}))
 }
 
 /// Packed plane parameters and vertices for one frame.

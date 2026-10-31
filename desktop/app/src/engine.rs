@@ -30,6 +30,8 @@ mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
 mod viewer_inspection;
+pub(crate) mod viewer_input;
+pub(crate) mod viewer_frame;
 mod shutdown;
 #[cfg(test)]
 mod native_test_evidence;
@@ -79,6 +81,8 @@ mod native_gpu_identity;
 mod memory_lifecycle_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod surface_admission_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod multiview_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
@@ -95,6 +99,7 @@ pub struct ViewerInspectionFrame {
 }
 /// CPU draw commands only. All GPU objects stay with the session worker.
 pub struct UiFrame {
+    pub views: Option<viewer_frame::Plan>,
     pub paint: motion_ui::paint::PaintList,
     pub atlas: Option<AtlasUpload>,
     pub logical_size: [f32; 2],
@@ -430,6 +435,11 @@ pub enum Command {
         y: f64,
         reply: Sender<Result<Value, String>>,
     },
+    ViewerDrag { request: viewer_input::Drag, reply: Sender<Result<Value,String>> },
+    ViewerInput {
+        request: viewer_input::Request,
+        reply: Sender<Result<Value, String>>,
+    },
     Plugin {
         request: String,
         reply: Sender<Result<Value, String>>,
@@ -506,7 +516,7 @@ impl Command {
             | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
-            | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
+            | HitCandidates { reply, .. } | ViewerDrag { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
@@ -1268,6 +1278,13 @@ impl Engine {
     pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, String> {
         self.call(|reply| Command::HitCandidates { x, y, reply })
     }
+    pub(crate) fn viewer_drag_async(&self,request:viewer_input::Drag)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
+        self.request(|reply|Command::ViewerDrag{request,reply})
+    }
+    pub(crate) fn viewer_input_async(&self, request: viewer_input::Request)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::ViewerInput { request, reply })
+    }
     pub fn plugin_async(&self, request: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         if request.len() > REQUEST_LIMIT { return Err("plugin request exceeds 256 KiB".into()); }
         self.request(|reply| Command::Plugin { request, reply })
@@ -1604,6 +1621,7 @@ fn handle(
         Command::Present { .. } | Command::PresentFrozen { .. } | Command::SeekAudioPreview { .. }
         | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. } | Command::CaptureUi { .. }
         | Command::CaptureViewerSnapshot { .. } | Command::SaveViewerSnapshot { .. }
+        | Command::ViewerInput { .. }
         | Command::EffectPick { .. }
     ) {
         presentation.retained = None;
@@ -1780,7 +1798,8 @@ fn handle(
                 "diagnostic":motion_core::expression_source_diagnostic(&source)})));
         },
         Command::EffectPick { ticket, point, reply } => {
-            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref()));
+            let closed=ticket.view.as_ref().is_some_and(|(window,_,_)|*window!=0&&!windows.contains_key(window));
+            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref(),closed));
             presentation.retained = None;
         },
         Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
@@ -1848,7 +1867,9 @@ fn handle(
             let mut capture_phase = "capture.session";
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
+            viewer_frame::validate(&ui)?;
             presentation.inspection.reconcile(s);
+            let view_inspections = presentation.inspection.views(&ui)?;
             capture_phase = "capture.target";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
@@ -1869,7 +1890,8 @@ fn handle(
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
+            let mut presenter = if ui.views.is_none() {
+                let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
                 &g.scratch.working_front().ok_or("working preview target missing")?.view
             } else { &g.scratch.view };
             let mut presenter = motion_render::Presenter::new_admitted(&g.renderer, source, wgpu::TextureFormat::Rgba8UnormSrgb)
@@ -1880,11 +1902,15 @@ fn handle(
             }
             presentation.inspection.configure_capture(&ui, &g.renderer, &mut presenter)
                 .map_err(|e| format!("phase=capture.inspection: {e}"))?;
+                Some(presenter)
+            } else { None };
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
-            if let Some([x,y,w,h])=ui.composition {
+            if let Some(plan)=&ui.views {
+                s.encode_view_group_capture_with_inspection(ui.window,&plan.borrow(),&view_inspections,&mut encoder,target.view(),[width,height])?;
+            } else if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
-                presenter.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
+                presenter.as_mut().ok_or("single-view capture presenter missing")?.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
                     .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             } else {clear_target(&mut encoder,target.view());}
@@ -1905,7 +1931,11 @@ fn handle(
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
-                presenter.collect_inspection_resources(ledger);
+                if let Some(presenter)=&presenter { presenter.collect_inspection_resources(ledger); }
+                if ui.views.is_some() { ledger.merge(s.view_group_resource_ledger()); }
+                for inspection in &view_inspections { if let Some((source,_))=inspection.comparison {
+                    source.collect_texture_resources(ledger,"viewer/capture-comparison",motion_render::TextureState::Retained);
+                }}
             }).map_err(|e|e.to_string())?;
             capture_phase = "capture.readback";
             #[cfg(test)]
@@ -2006,6 +2036,9 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             let result=(|| -> motion_host::Result<bool> {
+                viewer_frame::validate(&ui)?;
+                if ui.views.is_some() { presentation.retained = None; }
+                else if ui.composition.is_some() { s.clear_view_group()?; }
                 presentation.inspection.configure(s, &ui).map_err(motion_host::Error::from)?;
                 if ui.composition.is_some() {
                     if let Some(g) = s.graphics.as_mut() {
@@ -2021,6 +2054,7 @@ fn handle(
                         }
                     }
                 }
+                let view_inspections=presentation.inspection.views(&ui)?;
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
@@ -2032,12 +2066,15 @@ fn handle(
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
                     let retained=presentation.retained.clone();
-                    let reuse=retained.as_ref().is_some_and(|previous| {
+                    let batch=ui.views.as_ref().map(viewer_frame::Plan::borrow);
+                    let reuse=if let Some(views)=&batch {
+                        s.view_group_current(ui.window,views,frozen)?
+                    } else {retained.as_ref().is_some_and(|previous| {
                         let mut comparison=stamp.clone();
                         if frozen { comparison.frame=previous.frame; }
                         previous==&comparison
                     })
-                        && !s.preview_memory_held && s.last_error.is_none();
+                        && !s.preview_memory_held && s.last_error.is_none()};
                     let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
                     // The overlay targets the swapchain, not the composition scratch texture.
                     let surface_format=g.config.format;
@@ -2061,7 +2098,15 @@ fn handle(
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.host_render");
 
-                    let result=if reuse {
+                    let result=if let Some(views)=&batch {
+                        if reuse {
+                            presentation.composition_reuses+=1;
+                            s.present_retained_views_with_inspection(ui.window,views,&view_inspections,frozen,overlay)
+                        } else {
+                            presentation.composition_renders+=1;
+                            s.render_views_with_inspection(ui.window,frame,views,&view_inspections,overlay)
+                        }
+                    } else if reuse {
                         presentation.composition_reuses+=1;
                         s.present_retained_with_view(viewport,ui.composition_image,overlay)
                     }else {
@@ -2082,12 +2127,13 @@ fn handle(
                         (Err(primary),None)=>Err(primary),
                         (Err(primary),Some(error))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(motion_host::Error::from(format!("UI overlay window={}: {error}",ui.window)))}),
                     };
-                    presentation.retained=if result.as_ref().is_ok_and(|v|*v)
+                    presentation.retained=if batch.is_none() && result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
                     // Never relabel the frozen texture with the new clock:
                     // stopping must render the current frame again.
                     {if frozen && reuse {retained}else{Some(stamp)}}else{None};
+                    if result.as_ref().is_ok_and(|value|*value) { presentation.inspection.did_present(&ui); }
                     result
                 }else{
                     #[cfg(test)]
@@ -2247,6 +2293,14 @@ fn handle(
         Command::PreviewInfo(reply) => respond(reply,preview::preview_info(id)),
         Command::CurveGraph { text, reply } => respond(reply,editing::curve_graph(&text)),
         Command::HitCandidates { x, y, reply } => respond(reply,geometry::hit_candidates(id, x, y)),
+        Command::ViewerDrag {request,reply}=>{
+            let closed=request.window!=0&&!windows.contains_key(&request.window);
+            respond(reply,motion_host::session::with_session(id,|s|viewer_input::drag(s,request,closed)));
+        }
+        Command::ViewerInput { request, reply } => {
+            let closed = request.window != 0 && !windows.contains_key(&request.window);
+            respond(reply, motion_host::session::with_session(id, |s| viewer_input::apply(s, request, closed)));
+        },
         Command::Plugin { request, reply } => respond(reply,effects::plugin(id, &request)),
         Command::ColorCurveGraph { text, reply } => respond(reply,effects::color_curve_graph(&text)),
         Command::Composition { text, reply } => respond(reply,composition::request(id, &text)),

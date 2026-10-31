@@ -70,7 +70,7 @@ fn capture(
     let (paint, actions) = frame(shell, window, size, panel, &Input::default());
     assert!(actions.is_empty(), "{actions:?}");
     let config = shell.atlas.config();
-    let ui = UiFrame {
+    let ui = UiFrame { views: None,
         paint,
         atlas: Some(AtlasUpload {
             pixels: shell.atlas.pixel_data().to_vec(),
@@ -86,7 +86,7 @@ fn capture(
     };
     let front = shell
         .engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,

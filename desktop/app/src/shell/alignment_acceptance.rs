@@ -300,6 +300,8 @@ impl Shell {
                     [view.min[0], view.min[1], view.width(), view.height()],
                 )?;
                 let mut ui = self.ui_frame(paint, window, true);
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                ui.views = None;
                 ui.composition = Some([
                     view.min[0] * self.scale,
                     view.min[1] * self.scale,
@@ -309,7 +311,7 @@ impl Shell {
                 ui.composition_image = self.viewer_image(view, self.scale);
                 ui.node_preview = None;
                 let path = report.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(ui, path.clone())?;
+                self.capture_presented_ui(ui, path.clone())?;
                 let pixels = image::open(&path).map_err(|e| e.to_string())?;
                 let crop = [
                     (size[0] * pixels.width() as f32 / window[0]).round() as u32,

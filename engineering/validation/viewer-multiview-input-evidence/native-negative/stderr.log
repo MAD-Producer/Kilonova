@@ -1,0 +1,6 @@
+
+thread 'engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels' (41288) panicked at desktop\app\src\engine\viewer_input\tests.rs:67:9:
+assertion `left == right` failed
+  left: Number(8)
+ right: 7
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

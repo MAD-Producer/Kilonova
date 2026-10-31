@@ -678,7 +678,7 @@ fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens(
                     ));
                     let report = engine
                         .capture_ui(
-                            crate::engine::UiFrame {
+                            crate::engine::UiFrame { views: None,
                                 paint,
                                 atlas: Some(crate::engine::AtlasUpload {
                                     pixels: atlas.pixel_data().to_vec(),

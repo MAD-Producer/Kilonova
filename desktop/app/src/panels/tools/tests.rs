@@ -545,6 +545,10 @@ fn observation_camera_tool_uses_existing_orbit_commands_and_disables_on_exit() {
     let mut out = route(&mut p, &s, key(Key::C));
     assert!(out.is_empty());
     assert_eq!(active(&p), Active::Camera);
+    // This fixture exercises the original host observer API. Bind its actual
+    // projected snapshot explicitly before passing it through the view wrapper.
+    p.viewer_views.settings.view_mut(0).unwrap().mode=crate::viewer_views::Mode::Free;
+    p.viewer_views.cache=Some((p.viewer_views.key(&s),vec![s.clone()]));
     let mut atlas = TextAtlas::from_system(12.).unwrap();
     let mut list = PaintList::default();
     let area = Rect::new(0., 0., 900., 600.);
@@ -568,15 +572,18 @@ fn observation_camera_tool_uses_existing_orbit_commands_and_disables_on_exit() {
     ] {
         super::super::composition::render(&mut list, &mut atlas, area, &mut p, &s, &i, &mut out);
     }
-    assert!(matches!(out.first(), Some(Action::CameraGesture(motion_host::ops::preview::CameraGesture::Begin { .. }))));
-    assert!(matches!(out.last(), Some(Action::CameraGesture(motion_host::ops::preview::CameraGesture::End { commit:true, .. }))));
+    assert!(matches!(out.first(), Some(Action::ViewerCamera {cell:0,action:motion_host::ops::preview::CameraGesture::Begin { .. },..})));
+    assert!(matches!(out.last(), Some(Action::ViewerCamera {cell:0,action:motion_host::ops::preview::CameraGesture::End { commit:true, .. },..})));
     for a in out.drain(..) {
-        let Action::CameraGesture(op)=a else { panic!("camera gesture escaped observer scope") };
+        let Action::ViewerCamera {key,cell:0,action:op}=a else { panic!("camera gesture escaped observer scope") };
+        assert_eq!(key,p.viewer_views.key(&s));
         e.camera_gesture(op).unwrap();
     }
     assert_ne!(e.state().unwrap()["observationCamera"],s["observationCamera"]);
     assert_eq!(e.state().unwrap()["sampledCamera"],s["sampledCamera"]);
     let s = e.observe(false, 0., 0.).unwrap();
+    p.viewer_views.settings.view_mut(0).unwrap().mode=crate::viewer_views::Mode::Composition;
+    p.viewer_views.cache=None;
     out.clear();
     super::super::composition::render(
         &mut list,

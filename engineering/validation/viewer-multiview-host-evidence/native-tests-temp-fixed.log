@@ -1,0 +1,7 @@
+
+running 2 tests
+test session::viewer::tests::native_exposure_group_matches_independent_camera_oracles_and_failed_request_is_terminal ... ok
+test session::viewer::tests::native_group_cameras_canvas_reuse_and_invalid_inputs_preserve_host_and_fronts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 109 filtered out; finished in 15.24s
+

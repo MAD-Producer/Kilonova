@@ -147,7 +147,7 @@ fn ui() -> UiFrame {
         motion_ui::Rect::new(0., 0., 8., 64.),
         motion_ui::Color([0.2, 0.4, 0.6, 1.]),
     );
-    UiFrame {
+    UiFrame { views: None,
         paint,
         atlas: None,
         logical_size: [64., 64.],
@@ -486,7 +486,7 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
                 // composition pixel. The independent oracle uses four ordinary
                 // scenes with an authored constant white source.
                 let path=root.join(format!("native-exposure-{floating}.png"));
-                engine.capture_ui(UiFrame {paint:Default::default(),atlas:Some(AtlasUpload {pixels:vec![255;4],width:1,height:1}),
+                engine.capture_ui(UiFrame { views: None,paint:Default::default(),atlas:Some(AtlasUpload {pixels:vec![255;4],width:1,height:1}),
                     logical_size:[64.,64.],composition:Some([0.,0.,32.,32.]),inspection: Default::default(), composition_image:None,window:key,node_preview:None},path.clone()).unwrap();
                 let screenshot=image::open(&path).unwrap().to_rgba8();
                 let actual=image::imageops::crop_imm(&screenshot,0,0,32,32).to_image().into_raw();

@@ -1,0 +1,9 @@
+
+running 4 tests
+test panels::effect_pick::tests::armed_pick_survives_window_transfer_but_cancels_on_escape_right_click_and_stale_source ... ok
+test panels::effect_pick::tests::effect_pick_owns_the_viewer_when_inspection_menu_was_open ... ok
+test panels::effect_pick::tests::native::native_effect_picks_preserve_source_coordinates_precision_history_and_failure_channels ... ok
+test panels::effect_pick::tests::position_hints_exclude_offsets_sizes_and_radii ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1564 filtered out; finished in 9.74s
+

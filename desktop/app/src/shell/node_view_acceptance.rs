@@ -66,7 +66,7 @@ impl Shell {
             }
         }
         let config = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),
@@ -90,7 +90,7 @@ impl Shell {
             .as_ref()
             .ok_or("smoke report missing")?
             .with_extension(format!("node-view-{mode}-{suffix}.png"));
-        self.engine.capture_ui(ui, path.clone())?;
+        self.capture_presented_ui(ui, path.clone())?;
         Ok(path)
     }
 

@@ -1,0 +1,13 @@
+
+running 8 tests
+test actual_sampled_project_layers_reach_gpu_and_keep_the_unblurred_moving_reference_sharp ... ok
+test boundaries_preserve_transparent_weights_and_preview_changes_only_sample_count ... ok
+test evaluator_failure_is_contextual_and_terminal_while_drop_cancels_snapshot_ownership ... ok
+test nested_composition_root_resolves_owning_document_and_fractional_rates_with_stable_aliases ... ok
+test observer_pose_is_frozen_for_every_receiver_and_subframe_absence_is_transparent ... ok
+test pending_polls_and_equal_times_reuse_context_and_phase_requires_explicit_completion ... ok
+test receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_unblurred_time ... ok
+test validated_snapshot_is_immutable_and_signed_zero_contexts_are_distinct ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.80s
+

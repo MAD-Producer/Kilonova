@@ -1,0 +1,14 @@
+{
+  "authoredStateUnchanged": true,
+  "closedWindow": "floating window is closed",
+  "foreignCapture": "multiview phase=capture: completed group is no longer current",
+  "frozenClockPreserved": true,
+  "missingCamera": "present window=0 logical_size=[96.0, 96.0]: viewer_camera object=998 composition=comp-main frame=10 phase=resolve: camera layer does not exist",
+  "panOnlyChangedFirstCell": true,
+  "protocol": "production Present, PresentFrozen, CaptureUi and FloatWindow",
+  "retiredCapture": "multiview phase=capture: completed group is no longer current",
+  "singleViewRoundTripPreservedPixels": true,
+  "staleCapture": "multiview phase=capture: completed group is no longer current",
+  "uiActivation": "layout/menu producers still pending; hidden native protocol acceptance",
+  "unsupportedInspection": "present window=0 logical_size=[96.0, 96.0]: multiview phase=frame: per-cell inspection is not connected yet"
+}

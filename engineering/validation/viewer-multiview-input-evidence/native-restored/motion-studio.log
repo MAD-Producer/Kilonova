@@ -1,0 +1,29 @@
+1793433187.490 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793433187.494 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpp3q1om\project
+1793433187.494 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793433187.496 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpp3q1om\project
+1793433192.590 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793433192.591 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpp3q1om\project 5096ms
+1793433192.591 INFO [motion-engine] motion_studio::engine: start #1 state
+1793433192.595 INFO [motion-engine] motion_studio::engine: start #2 viewer_states
+1793433192.598 INFO [motion-engine] motion_studio::engine: start #3 viewer_pick
+1793433192.598 INFO [motion-engine] motion_studio::engine: start #4 viewer_pick
+1793433192.599 INFO [motion-engine] motion_studio::engine: start #5 viewer_states
+1793433192.599 ERROR [motion-engine] motion_studio::engine: error #5 viewer_states 0ms: multiview view=0 phase=input_states: viewer_camera object=999 composition=comp-main frame=0 phase=resolve: camera layer does not exist
+1793433192.599 INFO [motion-engine] motion_studio::engine: start #6 viewer_states
+1793433192.599 ERROR [motion-engine] motion_studio::engine: error #6 viewer_states 0ms: multiview phase=input_states: expected 1, 2, or 4 cameras
+1793433192.599 INFO [motion-engine] motion_studio::engine: start #7 viewer_pick
+1793433192.600 ERROR [motion-engine] motion_studio::engine: error #7 viewer_pick 0ms: invalid hit-test point
+1793433192.600 INFO [motion-engine] motion_studio::engine: start #8 state
+1793433192.601 INFO [motion-engine] motion_studio::engine: start #9 seek
+1793433192.602 INFO [motion-engine] motion_studio::engine: start #10 viewer_states
+1793433192.602 INFO [motion-engine] motion_studio::engine: start #11 state
+1793433192.603 INFO [motion-engine] motion_studio::engine: start #12 viewer_states
+1793433192.603 INFO [motion-engine] motion_studio::engine: start #13 viewer_states
+1793433192.603 INFO [motion-engine] motion_studio::engine: start #14 viewer_pick
+1793433192.607 INFO [motion-engine] motion_studio::engine: start #15 shutdown
+1793433192.607 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793433192.607 INFO [motion-engine] motion_studio::engine::shutdown: start #16 shutdown_cleanup session=1
+1793433192.607 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793433192.608 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793433192.608 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

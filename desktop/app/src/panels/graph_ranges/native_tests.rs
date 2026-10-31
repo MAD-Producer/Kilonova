@@ -422,7 +422,7 @@ fn capture(
     crate::native_test_support::capture_ui(
         events,
         engine,
-        UiFrame {
+        UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: atlas.pixel_data().to_vec(),

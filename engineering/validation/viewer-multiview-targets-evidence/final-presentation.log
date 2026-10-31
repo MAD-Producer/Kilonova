@@ -1,0 +1,13 @@
+
+running 8 tests
+test android_presentation_shader_is_valid_on_an_actual_gpu ... ok
+test canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport ... ok
+test presentation_validation_failures_are_visible_to_the_test ... ok
+test raw_viewer_channels_keep_alpha_intensity_and_leave_color_and_source_unchanged ... ok
+test retained_inspection_in_normal_present_clears_old_pixels_and_keeps_snapshot ... ok
+test viewer_comparison_and_region_clear_previous_pixels ... ok
+test viewer_region_includes_pixels_whose_centers_are_inside_fractional_edges ... ok
+test viewer_snapshot_is_independent_and_refusal_keeps_previous_pixels ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.81s
+

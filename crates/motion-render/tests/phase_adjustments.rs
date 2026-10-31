@@ -560,7 +560,8 @@ fn nested_dependency_failure_is_not_bypassed_in_preview_and_valid_child_recovers
     p.layers = vec![reference_layer, adjustment(2, "tint")];
     let center = sample(&mut p, 3.);
     let mut bad = center.clone();
-    bad.nested[0].scene.effects[0].effect = "controlled_nested_effect_failure".into();
+    std::sync::Arc::make_mut(&mut bad.nested[0].scene).effects[0].effect =
+        "controlled_nested_effect_failure".into();
     for preview in [true, false] {
         let expected = reference(&mut r, &center, 64, 64, preview);
         let images = retained(&mut r, &center, 64, 64, preview);
