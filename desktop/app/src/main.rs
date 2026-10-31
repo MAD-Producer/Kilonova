@@ -33,6 +33,7 @@ mod plugin_editor;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
+mod viewer_views;
 mod workflow;
 mod workspace;
 #[cfg(test)]

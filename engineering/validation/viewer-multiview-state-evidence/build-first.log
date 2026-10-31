@@ -1,0 +1,32 @@
+   Compiling motion-effects v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-effects)
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-model)
+   Compiling motion-scene v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-scene)
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-media v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-media)
+   Compiling motion-core v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-core)
+   Compiling motion-host v0.1.0 (E:\Dev\aem\.worktrees\viewer-multiview\crates\motion-host)
+error: could not compile `motion-host` (lib)
+
+Caused by:
+  process didn't exit successfully: `C:\Users\nova\.rustup\toolchains\1.97.1-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name motion_host --edition=2021 crates\motion-host\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type rlib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"ai-depth\", \"default\", \"diagnostics\", \"gpu-tests\"))" -C metadata=b1024549ceeea7ec -C extra-filename=-d0dfad7860967642 --out-dir E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps -C incremental=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\incremental -L dependency=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps --extern bytemuck=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libbytemuck-7135f62076bf9e73.rmeta --extern glam=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libglam-2f5b4f240bff7b35.rmeta --extern image=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libimage-16d1f20dca60723a.rmeta --extern log=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\liblog-875bf28102c76585.rmeta --extern motion_core=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_core-d3f6f0df3fedd5a8.rmeta --extern motion_effects=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_effects-9b6fc95b543c7f0d.rmeta --extern motion_media=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_media-e612859ba54cdee3.rmeta --extern motion_render=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_render-903f41a0490d1ddb.rmeta --extern motion_scene=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_scene-1c6023e325f39be8.rmeta --extern pollster=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libpollster-859a1dd12cc9cec7.rmeta --extern raw_window_handle=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libraw_window_handle-f0be2a9e8e5e10ee.rmeta --extern serde=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libserde-4ceedb73798be045.rmeta --extern serde_json=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libserde_json-1e5ad50048f8a397.rmeta --extern thiserror=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libthiserror-c144593f61dc1d6a.rmeta --extern wgpu=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libwgpu-8717ff29f036ee5f.rmeta -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\rquickjs-sys-119217510692b3ca\out -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\stacker-2290549faf8bfcd7\out -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\psm-cb053719ea269dc9\out` (exit code: 0xc0000374, STATUS_HEAP_CORRUPTION)

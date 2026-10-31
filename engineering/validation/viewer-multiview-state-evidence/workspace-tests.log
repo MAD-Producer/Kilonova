@@ -1,0 +1,26 @@
+
+running 19 tests
+test workspace::maximize::tests::expanded_nodes_preview_fits_both_native_acceptance_sizes_and_restores_layout ... {"expandedPreview":[[658.0,223.0],[890.0,455.0]],"nodeContent":[[0.0,104.0],[612.0,445.0]],"normalPreview":null,"size":[900.0,600.0]}
+{"expandedPreview":[[1250.0,223.0],[1590.0,563.0]],"nodeContent":[[0.0,104.0],[1088.0,737.0]],"normalPreview":[[793.3599853515625,223.0],[1078.0,507.6400146484375]],"size":[1600.0,1000.0]}
+ok
+test workspace::maximize::tests::invalid_floating_hidden_or_removed_targets_cannot_hide_the_layout ... ok
+test workspace::maximize::tests::projection_is_transient_across_save_reload_and_preset_switches ... ok
+test workspace::maximize::tests::projection_preserves_ratios_tabs_ownership_and_serialized_layout ... ok
+test workspace::preferences::tests::failed_publication_preserves_destination_and_removes_only_owned_temporary ... ok
+test workspace::preferences::tests::locked_existing_settings_remain_byte_identical_when_replace_is_denied ... ok
+test workspace::preferences::tests::preference_candidate_retains_layout_and_unrelated_settings_and_legacy_defaults ... ok
+test workspace::presets::restore_observation_tests::invalid_saved_geometry_is_reported_and_does_not_replace_the_layout ... ok
+test workspace::presets::tests::legacy_expression_layouts_redirect_to_properties_without_touching_project_data ... ok
+test workspace::presets::tests::legacy_layout_is_preserved_while_adopting_the_design ... ok
+test workspace::presets::tests::legacy_mask_panels_are_hidden_without_losing_properties_or_other_layout_ownership ... ok
+test workspace::presets::tests::presets_remember_docks_and_floating_geometry_without_duplicate_owners ... ok
+test workspace::tests::all_registered_panels_keep_unique_ownership_through_close_float_and_reopen ... ok
+test workspace::tests::every_panel_keeps_one_owner_after_dock_float_and_close ... ok
+test workspace::tests::floating_geometry_round_trips_without_accepting_duplicate_or_unknown_panels ... ok
+test workspace::tests::layout_round_trips_and_invalid_preferences_reset ... ok
+test workspace::tests::node_view_preferences_save_reopen_and_accept_legacy_workspace ... ok
+test workspace::tests::optional_nodes_tab_survives_save_float_and_redock ... ok
+test workspace::tests::timeline_column_visibility_defaults_visible_for_legacy_json_and_round_trips ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 1493 filtered out; finished in 0.76s
+
