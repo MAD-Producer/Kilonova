@@ -243,12 +243,12 @@ fn key_commands_convert_composition_time_and_keep_negative_local_keys() {
     })
     .unwrap();
     let t = &e.project().timeline_layers(15.0).unwrap()[1].properties.position;
-    assert!(t.keys.iter().any(|k| k.frame == 5 && k.local_frame == -15));
-    assert!(t.keys.iter().any(|k| k.frame == 10 && k.local_frame == -10 && k.ease == Ease::Hold));
+    assert!(t.keys.iter().any(|k| k.frame == 5. && k.local_frame == -15));
+    assert!(t.keys.iter().any(|k| k.frame == 10. && k.local_frame == -10 && k.ease == Ease::Hold));
     assert!(t
         .keys
         .iter()
-        .any(|k| k.frame == 15 && k.local_frame == -5 && k.ease == Ease::InOut));
+        .any(|k| k.frame == 15. && k.local_frame == -5 && k.ease == Ease::InOut));
     e.apply(Command::DeleteKey {
         axis: None,
         object: 2,

@@ -314,8 +314,8 @@ impl Session {
             }).collect();
             let parameters=match stored {
                 Some(motion_core::vector::VectorSource::Shape{parameters,..})=>{
-                    let offset=p.layers.iter().find(|l|l.id==layer.id).map_or(0,|l|l.clip(p.frames).offset_frame);
-                    parameters.iter().map(|(name,track)| -> motion_core::Result<_> {Ok((name.clone(),json!(track.sample(f-f64::from(offset))?)))}).collect::<motion_core::Result<serde_json::Map<_,_>>>()?
+                    let local=p.layers.iter().find(|l|l.id==layer.id).ok_or(motion_core::Error::Missing(layer.id))?.checked_local_frame(f)?;
+                    parameters.iter().map(|(name,track)| -> motion_core::Result<_> {Ok((name.clone(),json!(track.sample(local)?)))}).collect::<motion_core::Result<serde_json::Map<_,_>>>()?
                 },_=>serde_json::Map::new(),
             };
             let mut modifier_parameters=serde_json::Map::new();

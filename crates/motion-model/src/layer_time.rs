@@ -221,13 +221,28 @@ impl LayerClock {
     /// non-monotonic source remap. Keys retain their local storage identity.
     pub fn composition_frame(self, local_frame: f64, offset: i32) -> Result<f64> {
         check_time(local_frame, "property_input")?;
+        check_time(self.inverse_frame(local_frame, offset), "composition_output")
+    }
+    /// Projection metadata is not a sampling request. Retained local keys can
+    /// map far outside the clip, without changing their signed storage identity.
+    pub(crate) fn projected_composition_frame(self, local_frame: f64, offset: i32) -> Result<f64> {
+        if !local_frame.is_finite() || local_frame < f64::from(i32::MIN) || local_frame > f64::from(i32::MAX) {
+            return Err(invalid("key_projection_input", "key time is outside the local storage range"));
+        }
+        let frame = self.inverse_frame(local_frame, offset);
+        if !frame.is_finite() {
+            return Err(invalid("key_projection_output", "projected key time is non-finite"));
+        }
+        Ok(frame)
+    }
+    fn inverse_frame(self, local_frame: f64, offset: i32) -> f64 {
         let elapsed = if self == Self::default() {
             local_frame
         } else {
             self.definition.elapsed_pivot
                 + (local_frame - self.definition.local_pivot) / self.rate()
         };
-        check_time(elapsed + f64::from(offset), "composition_output")
+        elapsed + f64::from(offset)
     }
     /// Existing integer-track commands must explicitly refuse an unrepresentable
     /// local instant. Rounding would edit a different key or merge two keys.

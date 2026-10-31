@@ -91,7 +91,7 @@ impl Layer {
         self.time_mapping
             .as_ref()
             .map_or_else(LayerClock::default, |m| m.clock)
-            .composition_frame(local_frame, offset)
+            .projected_composition_frame(local_frame, offset)
             .map_err(|source| failure(self.id, "key_projection", source))
     }
     pub fn validate_time_mapping(&self, frames: u32) -> Result<()> {

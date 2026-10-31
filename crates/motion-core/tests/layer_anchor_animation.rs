@@ -103,7 +103,7 @@ fn anchor_uses_local_time_and_survives_save_reopen_and_frozen_snapshot() {
             .iter()
             .map(|k| k.frame)
             .collect::<Vec<_>>(),
-        [10, 50]
+        [10., 50.]
     );
     let root = tempfile::tempdir().unwrap();
     motion_core::storage::save(root.path(), e.project()).unwrap();

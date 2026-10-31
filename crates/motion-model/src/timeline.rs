@@ -1,10 +1,22 @@
-use crate::{Curve, Ease, Project, Result, Track, Tween};
+use crate::{Curve, Ease, Layer, Project, Result, Track, Tween};
 use serde::Serialize;
+
+fn serialize_frame<S: serde::Serializer>(frame: &f64, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    if !frame.is_finite() {
+        return Err(serde::ser::Error::custom("non-finite projected key time"));
+    }
+    if frame.fract() == 0. && (-9223372036854775808. ..9223372036854775808.).contains(frame) {
+        serializer.serialize_i64(*frame as i64)
+    } else {
+        serializer.serialize_f64(*frame)
+    }
+}
 
 /// Derived edit data, built only for state responses, never for frame sampling.
 #[derive(Debug, Serialize)]
 pub struct TimelineKey<T> {
-    pub frame: i64,
+    #[serde(serialize_with = "serialize_frame")]
+    pub frame: f64,
     pub local_frame: i32,
     pub value: T,
     pub ease: Ease,
@@ -47,6 +59,14 @@ pub struct TimelineAxes {
 }
 impl<T: Tween> Track<T> {
     pub fn timeline(&self, offset: i32) -> Result<TimelineTrack<T>> {
+        self.timeline_projected(&|local| Ok(local + f64::from(offset)))
+    }
+    /// Keys keep their local order and interval metadata even under reverse.
+    /// Composition coordinates can be fractional or outside the visible range.
+    pub fn timeline_for_layer(&self, layer: &Layer) -> Result<TimelineTrack<T>> {
+        self.timeline_projected(&|local| layer.property_composition_frame(local))
+    }
+    fn timeline_projected(&self, project: &impl Fn(f64) -> Result<f64>) -> Result<TimelineTrack<T>> {
         Ok(TimelineTrack {
             value: self.static_value()?,
             spatial_keys: if let Some(animation) = &self.spatial_animation {
@@ -58,7 +78,7 @@ impl<T: Tween> Track<T> {
                     .map(|(index, (key, (_, time)))| {
                         Ok(TimelineSpatialKey {
                             id: key.id,
-                            frame: time + f64::from(offset),
+                            frame: project(time)?,
                             local_frame: time,
                             roving: key.fixed.is_none(),
                             incoming_length: if index == 0 {
@@ -82,24 +102,24 @@ impl<T: Tween> Track<T> {
                 .as_ref()
                 .map(|a| {
                     Ok::<_, crate::Error>(Box::new(TimelineAxes {
-                        x: a.x.timeline(offset)?,
-                        y: a.y.timeline(offset)?,
-                        z: a.z.timeline(offset)?,
+                        x: a.x.timeline_projected(project)?,
+                        y: a.y.timeline_projected(project)?,
+                        z: a.z.timeline_projected(project)?,
                     }))
                 })
                 .transpose()?,
             keys: self
                 .keys
                 .iter()
-                .map(|k| TimelineKey {
-                    frame: i64::from(k.frame) + i64::from(offset),
+                .map(|k| Ok(TimelineKey {
+                    frame: project(f64::from(k.frame))?,
                     local_frame: k.frame,
                     value: k.value,
                     ease: k.ease,
                     curve: k.curve,
                     spatial: k.spatial.clone(),
-                })
-                .collect(),
+                }))
+                .collect::<Result<_>>()?,
         })
     }
 }
@@ -246,22 +266,22 @@ impl Project {
                         None
                     },
                     properties: TimelineProperties {
-                        anchor: t.anchor.timeline(clip.offset_frame)?,
-                        position: l.camera_data().map_or(&t.position, |c| &c.position).timeline(clip.offset_frame)?,
-                        target: l.camera_data().map(|c| c.target.timeline(clip.offset_frame)).transpose()?,
-                        roll: l.camera_data().map(|c| c.roll.timeline(clip.offset_frame)).transpose()?,
-                        fov: l.camera_data().map(|c| c.fov.timeline(clip.offset_frame)).transpose()?,
-                        radius: l.camera_data().map(|c| c.radius.timeline(clip.offset_frame)).transpose()?,
-                        azimuth: l.camera_data().map(|c| c.azimuth.timeline(clip.offset_frame)).transpose()?,
-                        elevation: l.camera_data().map(|c| c.elevation.timeline(clip.offset_frame)).transpose()?,
-                        rotation: t.rotation.timeline(clip.offset_frame)?,
-                        scale: t.scale.timeline(clip.offset_frame)?,
-                        opacity: t.opacity.timeline(clip.offset_frame)?,
+                        anchor: t.anchor.timeline_for_layer(l)?,
+                        position: l.camera_data().map_or(&t.position, |c| &c.position).timeline_for_layer(l)?,
+                        target: l.camera_data().map(|c| c.target.timeline_for_layer(l)).transpose()?,
+                        roll: l.camera_data().map(|c| c.roll.timeline_for_layer(l)).transpose()?,
+                        fov: l.camera_data().map(|c| c.fov.timeline_for_layer(l)).transpose()?,
+                        radius: l.camera_data().map(|c| c.radius.timeline_for_layer(l)).transpose()?,
+                        azimuth: l.camera_data().map(|c| c.azimuth.timeline_for_layer(l)).transpose()?,
+                        elevation: l.camera_data().map(|c| c.elevation.timeline_for_layer(l)).transpose()?,
+                        rotation: t.rotation.timeline_for_layer(l)?,
+                        scale: t.scale.timeline_for_layer(l)?,
+                        opacity: t.opacity.timeline_for_layer(l)?,
                     },
                     masks: l.masks.iter().map(|m| Ok(TimelineMask {
-                        id: m.id, opacity: m.opacity.timeline(clip.offset_frame)?,
-                        feather: m.feather.timeline(clip.offset_frame)?, expansion: m.expansion.timeline(clip.offset_frame)?,
-                        nodes: m.path.nodes.iter().map(|n| Ok(TimelineMaskNode { id:n.id, geometry:n.geometry.timeline(clip.offset_frame)? })).collect::<Result<_>>()?,
+                        id: m.id, opacity: m.opacity.timeline_for_layer(l)?,
+                        feather: m.feather.timeline_for_layer(l)?, expansion: m.expansion.timeline_for_layer(l)?,
+                        nodes: m.path.nodes.iter().map(|n| Ok(TimelineMaskNode { id:n.id, geometry:n.geometry.timeline_for_layer(l)? })).collect::<Result<_>>()?,
                     })).collect::<Result<_>>()?,
                     blend:l.blend,track_matte:l.track_matte,
                 })
