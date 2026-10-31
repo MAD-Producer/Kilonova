@@ -3,6 +3,8 @@ use crate::{Camera, Content, Error, Layer, LayerTimeline, Project, PropertyExpre
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+mod audio_time;
+pub use audio_time::{AudioMappedSample, AudioTimePath};
 
 pub const MAIN_COMPOSITION: &str = "comp-main";
 pub const MAX_COMPOSITIONS: usize = 256;
@@ -66,6 +68,9 @@ pub struct AudioVoice {
     pub volume: f32,
     pub envelopes: Vec<AudioEnvelope>,
     pub source_channel: crate::AudioSourceChannel,
+    /// None retains the original rational PCM path. Mapped voices use this
+    /// immutable path rather than offset_sample to address their source.
+    pub time_mapping: Option<std::sync::Arc<AudioTimePath>>,
 }
 #[derive(Clone, Debug)]
 pub struct AudioEnvelope {
@@ -75,10 +80,20 @@ pub struct AudioEnvelope {
     pub origin_sample: f64,
 }
 impl AudioVoice {
-    pub fn animated_levels(&self)->bool {self.envelopes.iter().any(|e|e.levels.animated())}
+    pub fn animated_levels(&self)->bool {
+        self.envelopes.iter().any(|e|e.levels.animated())
+            || self.time_mapping.as_ref().is_some_and(|path| path.animated_levels())
+    }
     pub fn gain_at(&self,sample:u64)->Result<[f32;2]> {
-        let mut db=[0.;2];
-        let mut balance=[1.;2];
+        if let Some(path) = &self.time_mapping {
+            return match path.sample(sample)? {
+                Some(mapped) => self.gain_with(sample, mapped.db, mapped.balance),
+                None => Ok([0.; 2]),
+            };
+        }
+        self.gain_with(sample, [0.; 2], [1.; 2])
+    }
+    fn gain_with(&self,sample:u64,mut db:[f32;2],mut balance:[f32;2])->Result<[f32;2]> {
         for envelope in &self.envelopes {
             let local=(sample as f64-envelope.origin_sample)*f64::from(envelope.fps)/48_000.;
             let values=envelope.levels.sample(local)?;
@@ -349,6 +364,7 @@ impl Project {
             end: i64,
             volume: f32,
             envelopes: &[AudioEnvelope],
+            mapping: Option<AudioTimePath>,
             depth: usize,
             visited: &mut usize,
             out: &mut Vec<AudioVoice>,
@@ -380,7 +396,7 @@ impl Project {
                     crate::ensure(range.covers(clip), "integer clip bounds do not cover precise interval")
                         .map_err(|source| context("validate_precise_clip", source))?;
                 }
-                let (clip_first,clip_last)=if let Some(range)=l.subframe_range {
+                let (clip_first,clip_last)=if mapping.is_some() {(begin,end)} else if let Some(range)=l.subframe_range {
                     let base=origin.numerator as f64/origin.denominator as f64;
                     ((base+range.in_frame*48_000./f64::from(p.fps)).ceil() as i64,
                      (base+range.out_frame*48_000./f64::from(p.fps)).ceil() as i64)
@@ -390,29 +406,36 @@ impl Project {
                 if first >= last {
                     continue;
                 }
-                let offset = add(origin,i64::from(clip.offset_frame),p.fps)?;
+                let offset = if mapping.is_some() { Time { numerator: 0, denominator: 1 } }
+                    else { add(origin,i64::from(clip.offset_frame),p.fps)? };
+                let layer_path = mapping.clone().or_else(|| l.time_mapping.as_ref().map(|_|
+                    AudioTimePath::new(origin.numerator as f64 / origin.denominator as f64, p.fps)));
                 let mut layer_envelopes=envelopes.to_vec();
-                if let Some(levels)=&l.audio_levels {
+                if layer_path.is_none() { if let Some(levels)=&l.audio_levels {
                     layer_envelopes.push(AudioEnvelope {levels:levels.clone(),fps:p.fps,
                         origin_sample:offset.numerator as f64/offset.denominator as f64});
-                }
+                } }
                 if let Content::Composition { clip } = &l.content {
                     if clip.muted || clip.volume == 0. {
                         continue;
                     }
                     let child = document.composition_view(&clip.composition)?;
                     validate_clock(child)?;
-                    let child_origin =
-                        add(offset,-i64::from(clip.source_start_frame),child.fps)?;
+                    let child_path = layer_path.map(|path|
+                        path.with_layer(l, p.id, p.fps, p.frames, Some((clip.clone(), child.fps))));
+                    let child_origin = if child_path.is_some() { Time { numerator: 0, denominator: 1 } }
+                        else { add(offset,-i64::from(clip.source_start_frame),child.fps)? };
+                    let (child_begin, child_end) = if child_path.is_some() { (first, last) }
+                        else { (first.max(child_origin.sample()),
+                            last.min(add(child_origin,i64::from(child.frames),child.fps)?.sample())) };
                     visit(
                         document, child,
                         child_origin,
-                        first.max(child_origin.sample()),
-                        last.min(
-                            add(child_origin,i64::from(child.frames),child.fps)?.sample(),
-                        ),
+                        child_begin,
+                        child_end,
                         volume * clip.volume,
                         &layer_envelopes,
+                        child_path,
                         depth + 1,
                         visited,
                         out,
@@ -430,6 +453,8 @@ impl Project {
                         volume: volume * audio.volume,
                         envelopes: layer_envelopes,
                         source_channel: l.audio_source_channel,
+                        time_mapping: layer_path.map(|path| std::sync::Arc::new(
+                            path.with_layer(l, p.id, p.fps, p.frames, None))),
                     });
                 }
             }
@@ -448,6 +473,7 @@ impl Project {
             i64::from(self.frames) * 48_000 / i64::from(self.fps),
             1.,
             &[],
+            None,
             0,
             &mut visited,
             &mut out,

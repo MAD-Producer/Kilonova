@@ -17,6 +17,10 @@ impl AudioMixer {
                 "audio_resample_scratch",
                 &self.samples,
             ),
+            CpuBufferAllocation::vector("mapped-points".into(),
+                "audio_mapped_output_points", &self.mapped.points),
+            CpuBufferAllocation::vector("mapped-windows".into(),
+                "audio_mapped_read_windows", &self.mapped.windows),
         ];
         resources.retain(|r| r.capacity_bytes > 0);
         let mut identities = HashMap::new();

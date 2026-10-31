@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 mod memory;
+mod mapped;
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct WaveBucket {
@@ -30,6 +31,7 @@ pub struct AudioMixer {
     bytes: Vec<u8>,
     samples: Vec<f32>,
     voices: Vec<motion_model::composition::AudioVoice>,
+    mapped: mapped::Scratch,
 }
 impl AudioMixer {
     pub fn new(project: Project, root: &Path) -> Result<Self> {
@@ -87,6 +89,7 @@ impl AudioMixer {
             bytes: Vec::with_capacity((MAX_BLOCK_FRAMES + 64) * 8),
             samples: Vec::with_capacity((MAX_BLOCK_FRAMES + 64) * 2),
             voices,
+            mapped: mapped::Scratch::default(),
         })
     }
     pub fn total_frames(&self) -> u64 {
@@ -113,6 +116,13 @@ impl AudioMixer {
                 .iter()
                 .find(|a| a.id == audio.asset)
                 .ok_or("audio asset missing")?;
+            if audio.time_mapping.is_some() {
+                let source = self.sources.iter_mut().find(|source| source.id == audio.asset)
+                    .ok_or("audio mapped source cache is not prepared")?;
+                self.mapped.mix_voice(audio, asset, source, &mut self.bytes,
+                    &mut self.samples, begin, end, start_sample, out)?;
+                continue;
+            }
             let rate = i128::from(asset.sample_rate);
             let den = i128::from(OUTPUT_RATE) * 1_000_000;
             let position = |sample: u64| {
