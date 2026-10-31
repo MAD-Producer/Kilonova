@@ -1,0 +1,106 @@
+[
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 0,
+    "reached_target": [
+      640.8875732421875,
+      579.5
+    ],
+    "release_and_single_undo": true,
+    "tool": "Move"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 0,
+    "reached_target": [
+      640.8875732421875,
+      579.5
+    ],
+    "release_and_single_undo": true,
+    "tool": "Move"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 0,
+    "reached_target": [
+      668.3875122070312,
+      468.1937561035156
+    ],
+    "release_and_single_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 0,
+    "reached_target": [
+      668.3875122070312,
+      468.1937561035156
+    ],
+    "release_and_single_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 1,
+    "reached_target": [
+      643.2974853515625,
+      546.0208740234375
+    ],
+    "release_and_single_undo": true,
+    "tool": "Move"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 1,
+    "reached_target": [
+      643.2974853515625,
+      546.0208740234375
+    ],
+    "release_and_single_undo": true,
+    "tool": "Move"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 1,
+    "reached_target": [
+      671.5265502929688,
+      431.7632751464844
+    ],
+    "release_and_single_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "actual_gpu_capture": true,
+    "alt_bypass": true,
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 1,
+    "reached_target": [
+      671.5265502929688,
+      431.7632751464844
+    ],
+    "release_and_single_undo": true,
+    "tool": "Scale"
+  }
+]

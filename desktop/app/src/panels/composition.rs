@@ -374,7 +374,11 @@ pub(super) fn render(
         out,
     );
     let consumed = if handles_visible && !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
-        let snapping = panels.viewer_guides.snapping(state, mapping, canvas, &sheet);
+        // Build automatic geometry targets only while an input gesture needs
+        // them; idle paints do not traverse other layers for transform snapping.
+        let snapping = if panels.transform_controls.gesture_active() || input.pressed.is_some() {
+            panels.viewer_guides.transform_snapping(state, mapping, canvas, panels.selected, &sheet)
+        } else { None };
         panels.transform_controls.draw_with_guides(
             &mut editing,
             canvas_clip,

@@ -74,6 +74,26 @@ fn dispatch(events: &mut EventLoop<()>, engine: &Engine, actions: Vec<Action>) {
             Action::Edit(command) => engine
                 .edit_async(serde_json::to_string(&command).unwrap())
                 .unwrap(),
+            Action::PreviewDrag {
+                object,
+                delta,
+                size,
+            } => engine.drag_async(object as i64, delta, size).unwrap(),
+            Action::SelectAt(point) => {
+                let reply = engine
+                    .request(|reply| crate::engine::Command::HitCandidates {
+                        x: point[0],
+                        y: point[1],
+                        reply,
+                    })
+                    .unwrap();
+                let value =
+                    crate::native_test_support::receive(events, &reply, Duration::from_secs(30))
+                        .unwrap()
+                        .unwrap();
+                assert_eq!(value["candidates"][0]["id"], 7);
+                continue;
+            }
             other => panic!("unexpected native spatial action: {other:?}"),
         };
         crate::native_test_support::receive(events, &reply, Duration::from_secs(30))
@@ -145,6 +165,8 @@ fn pointer(point: [f32; 2]) -> Input {
         ..Default::default()
     }
 }
+
+mod snapping;
 
 #[test]
 #[ignore = "explicit native GPU, main/floating routes, screenshots and default error-channel acceptance"]

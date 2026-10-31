@@ -1,0 +1,708 @@
+{
+  "schema": 1,
+  "issue": 159,
+  "related_issue": 236,
+  "base": "97a09e963f29d4b47d699a17265bf176d7e89c9c",
+  "branch": "feat/spatial-transform-gizmo",
+  "tests": {
+    "transform": 37,
+    "guides": 20,
+    "composition": 5,
+    "tools": 12,
+    "native_input": 1,
+    "explicit_native_snapping": 1,
+    "explicit_native_spatial": 1,
+    "distinct_total": 77
+  },
+  "final_logs": [
+    "transform-current.log",
+    "guides-current.log",
+    "composition-current.log",
+    "tools-current.log",
+    "input-current.log",
+    "native-current.log",
+    "spatial-current.log"
+  ],
+  "programs": [
+    {
+      "path": "artifacts/issue-goal-current/viewport-transform-snapping/program/final-tests.exe",
+      "bytes": 126158848,
+      "sha256": "746d0b2111b8d31125326281af78f6a786cb565650c33c562ef22b148770f985"
+    },
+    {
+      "path": ".tools/viewer-inspection/native-target/debug/motion-studio.exe",
+      "bytes": 101681152,
+      "sha256": "a246712efdbb9ee4a70e5c2113fd74ded51de3ecb400e63f0a3f3c7406550253"
+    }
+  ],
+  "limitations": [
+    "Native tests use real GPU/window owners and explicitly injected events, not physical OS input or IME emulation",
+    "The latest commit requires cross-platform CI before merge",
+    "Three-dimensional constrained axis/plane handles retain their spatial constraint instead of being projected to two-dimensional snap targets",
+    "Old failures and pre-final executions are retained and not counted again"
+  ],
+  "compiled_inputs": [
+    {
+      "path": "crates/motion-core/src/lib.rs",
+      "bytes": 4543,
+      "sha256": "6cd7ab2bef00710731a66ae1877deb725686afe0bc9b4a4c95245885ae8a0584"
+    },
+    {
+      "path": "desktop/app/src/panels/composition.rs",
+      "bytes": 17236,
+      "sha256": "7d10e75a1751f37ef07d15717e8319f253ba54ef7d4d41bb7ff90944cfac3f9a"
+    },
+    {
+      "path": "desktop/app/src/panels/path_controls.rs",
+      "bytes": 86444,
+      "sha256": "7b15b087ebb148c4f79935c3a467c38669e3dd4c0c46e9c9d7a5e50d38795248"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls.rs",
+      "bytes": 42020,
+      "sha256": "576a3d76837e339f0bd786bbcf4e02cc4c2dc14ffe7c8fa619c7fe161b22992c"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/snap_feedback.rs",
+      "bytes": 1172,
+      "sha256": "35928e17f0ab3fcfd62a716aa24c3440518294f3133418bbd8ed1dd83438eaf3"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/snap_feedback/tests.rs",
+      "bytes": 5648,
+      "sha256": "011dc6a215ec7c494200a2fec6830b22c7bbce468156e9fba06fdbaf048b1fd0"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial.rs",
+      "bytes": 23870,
+      "sha256": "60e30d6cb03facb445cac5323038538ecb37a325e06a2b89b57282f4ad85eb28"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/native_tests.rs",
+      "bytes": 15683,
+      "sha256": "e07eccb0bc0a94c2b1398aed1430cd0bdb6d58ecc9a0c972f209981cee0f2054"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/native_tests/snapping.rs",
+      "bytes": 11905,
+      "sha256": "8a63e25ba8aeb0602fa31e015a97f3fa10885714fc7b5fc9a0ea712217446140"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/tests.rs",
+      "bytes": 11053,
+      "sha256": "6518db91de2f41790fe55c2a7444d8781c55ffe8692799d41207392659c0ee63"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/worker_tests.rs",
+      "bytes": 19637,
+      "sha256": "d0131cc15afa25fc14f480a0b5688eaa7f41354f17a2e421a06148a2a5bcf877"
+    },
+    {
+      "path": "desktop/app/src/panels/viewer_guides/snapping.rs",
+      "bytes": 6856,
+      "sha256": "e65d67c2fe40c7c8b94f0c2471a36092e19a1f29b2bf50dfffaf68ab21e4f0d8"
+    },
+    {
+      "path": "desktop/app/src/panels/viewer_guides/snapping/tests.rs",
+      "bytes": 4527,
+      "sha256": "653d55bf3e189502029334d87ddc8264425a188aabcae2b3893adba9f47fec16"
+    },
+    {
+      "path": "desktop/ui/styles/dark.json",
+      "bytes": 19915,
+      "sha256": "4856e9e4767f45cee66f18318f25073cc2923b026b838399c42a347681687644"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "build-application-final.log",
+      "bytes": 13634,
+      "sha256": "5dc25dc1ad58055e9f9c095e7715c15d922829f1ad028114f9064ae17feee771"
+    },
+    {
+      "path": "build-application.log",
+      "bytes": 13908,
+      "sha256": "0c4dd5d6190011be48e5469c6b9e27da7235d04622ee39620f0a90652b146c7c"
+    },
+    {
+      "path": "build-final.log",
+      "bytes": 13071,
+      "sha256": "7ce10a91013ff572133ea2f884a84dbf26db33e0e7e4d45c9bb41fffe3c46046"
+    },
+    {
+      "path": "build-first.log",
+      "bytes": 13161,
+      "sha256": "57b4c1d742ff3b23cd7e38c3874088664fb38a3568e4f8ad879b8b86f0856b76"
+    },
+    {
+      "path": "build-native.log",
+      "bytes": 13071,
+      "sha256": "325fb7ad57b195522977379e6d940acb83b7c80f349c8fbc35eb83f39e0f1bae"
+    },
+    {
+      "path": "ci-runner-disk-full.json",
+      "bytes": 2422,
+      "sha256": "efa47a042affb7667d8188995ad36e78482ac733c53030f112c25b49dffb24ec"
+    },
+    {
+      "path": "composition-current.log",
+      "bytes": 684,
+      "sha256": "10c3390bf9f8b62bfe6fbc4c7acb18eec976e04c2e7192e1df958b816652ad95"
+    },
+    {
+      "path": "composition-final.log",
+      "bytes": 684,
+      "sha256": "3104fa205ff8fb154c5ee6abeced0eed0f723cd20d8451b97c49692ea4519c43"
+    },
+    {
+      "path": "guides-current.log",
+      "bytes": 3222,
+      "sha256": "7acb3f5bddb95ed46d0ae855cb9d8ee637a8b51d9a878a9b081037d8cea15404"
+    },
+    {
+      "path": "guides-final.log",
+      "bytes": 3222,
+      "sha256": "6890b5dcd7e1bd1b3eab87d8cef69a40451f1229220ae13dedfa81d1a5eee335"
+    },
+    {
+      "path": "input-current.log",
+      "bytes": 235,
+      "sha256": "f6adc6d3428d55b6746d578aad9cdabeab14225042bf2a27adb5427ec515799b"
+    },
+    {
+      "path": "input-final.log",
+      "bytes": 235,
+      "sha256": "029743c9b622fb271aec39800331bbda08c29678810fa663399bd3f8b2b7a585"
+    },
+    {
+      "path": "native-current/0-Move-En-alt.png",
+      "bytes": 43770,
+      "sha256": "e399b25a1c77b9076fed67d0c0585b488c6ca75b96cd9e1e1d9674c6e22ecde4"
+    },
+    {
+      "path": "native-current/0-Move-En-before.png",
+      "bytes": 43724,
+      "sha256": "1010d47eca9bf7bd4823d70f7f5a7c499d03ddee36fc3e1a9d8977cc544864a3"
+    },
+    {
+      "path": "native-current/0-Move-En-snapped.png",
+      "bytes": 43949,
+      "sha256": "dd696279d9609742cbcc05610047da0a22827770b8c77010a38e70ec0f9d2dc0"
+    },
+    {
+      "path": "native-current/0-Move-Zh-alt.png",
+      "bytes": 44467,
+      "sha256": "e5f4d2c4a6395256825d996962683c951bab881572c750da962cb37e9e246ec1"
+    },
+    {
+      "path": "native-current/0-Move-Zh-before.png",
+      "bytes": 44403,
+      "sha256": "10aa6ef6afc73c56a3f16ed3bccbfcc5c37dce92e864420e42f829649e24cfc7"
+    },
+    {
+      "path": "native-current/0-Move-Zh-snapped.png",
+      "bytes": 44646,
+      "sha256": "495bc035f338ceb52d1bdddf7a84c3d8b0a40f4ac7ded674867963f89ea77815"
+    },
+    {
+      "path": "native-current/0-Scale-En-alt.png",
+      "bytes": 43569,
+      "sha256": "5ecfdcd72465a535937b9d335c8b448ec4db5cd62e1d747ff39d1c7cbe55bc52"
+    },
+    {
+      "path": "native-current/0-Scale-En-before.png",
+      "bytes": 43687,
+      "sha256": "67d10bf5ca80c8369033438846c37b5d1b9f894bf629ef5a64d07a5048d80af3"
+    },
+    {
+      "path": "native-current/0-Scale-En-snapped.png",
+      "bytes": 43916,
+      "sha256": "338db9689001aa42ee92bdad7d36a069d5fb4b5969a4388fc94db5f3063fbf51"
+    },
+    {
+      "path": "native-current/0-Scale-Zh-alt.png",
+      "bytes": 44302,
+      "sha256": "5ca2463a84be26af899692b450514150d74695ae652ce4bf8937482bd397c2d9"
+    },
+    {
+      "path": "native-current/0-Scale-Zh-before.png",
+      "bytes": 44401,
+      "sha256": "24e9a70d3dbfabee7d932da4121a9eab49589058823cb0c654cdef7979fbf20d"
+    },
+    {
+      "path": "native-current/0-Scale-Zh-snapped.png",
+      "bytes": 44650,
+      "sha256": "8fa508b4f259abd748258ba73cb976aa75cc92eb046fb7153876f2365b3ac25c"
+    },
+    {
+      "path": "native-current/1-Move-En-alt.png",
+      "bytes": 28038,
+      "sha256": "6a7b0af052c142b20fafd0a2f7d9039904ad1c0280ee641b97d5a18c9083495e"
+    },
+    {
+      "path": "native-current/1-Move-En-before.png",
+      "bytes": 27635,
+      "sha256": "1e721b1cdb061aa5d177a4bf15eaab6810dca252298c91ac0caccf43e83ea00c"
+    },
+    {
+      "path": "native-current/1-Move-En-snapped.png",
+      "bytes": 27955,
+      "sha256": "f5440df01ff9e929ec01e869253f2637cd99e70fd8d0741a896fce0a66cc24f9"
+    },
+    {
+      "path": "native-current/1-Move-Zh-alt.png",
+      "bytes": 28286,
+      "sha256": "db7cec54552f0bf50a74fa053e8fbcde9f8a70c70d2c45e71954148373d629f8"
+    },
+    {
+      "path": "native-current/1-Move-Zh-before.png",
+      "bytes": 27883,
+      "sha256": "2ad521336a88acd8e5744777330ee6ded7be2748cef82e76e4821942589729c6"
+    },
+    {
+      "path": "native-current/1-Move-Zh-snapped.png",
+      "bytes": 28203,
+      "sha256": "9d7a76379818b618b63fdc07b2eccdd0fff905c093d97dcaaf02d6fe630575c4"
+    },
+    {
+      "path": "native-current/1-Scale-En-alt.png",
+      "bytes": 27671,
+      "sha256": "a83d53e4e3d534d31396a6562fedc17fe34627cb41e8f1916a0d8ade5068c9a2"
+    },
+    {
+      "path": "native-current/1-Scale-En-before.png",
+      "bytes": 27635,
+      "sha256": "1e721b1cdb061aa5d177a4bf15eaab6810dca252298c91ac0caccf43e83ea00c"
+    },
+    {
+      "path": "native-current/1-Scale-En-snapped.png",
+      "bytes": 27938,
+      "sha256": "708969747db232a4b313470425f3f069e66e6be8e4db2bb64951ec164a30ca84"
+    },
+    {
+      "path": "native-current/1-Scale-Zh-alt.png",
+      "bytes": 27918,
+      "sha256": "36d39f406fb2fdbe2c7c399bfae46b0ecde6a028d92c9c45839218174a565e3a"
+    },
+    {
+      "path": "native-current/1-Scale-Zh-before.png",
+      "bytes": 27883,
+      "sha256": "2ad521336a88acd8e5744777330ee6ded7be2748cef82e76e4821942589729c6"
+    },
+    {
+      "path": "native-current/1-Scale-Zh-snapped.png",
+      "bytes": 28186,
+      "sha256": "952bd98d6198727d9ab94bbcbb8206ff82e78518e2ea2be7bbb1d842e13009bc"
+    },
+    {
+      "path": "native-current/motion-studio.log",
+      "bytes": 25087,
+      "sha256": "4048c481f0f82acddf739a0ebd1bc73a7193ad615a9ff9691028133e3c7cfba6"
+    },
+    {
+      "path": "native-current/report.json",
+      "bytes": 2086,
+      "sha256": "7560312496bd89d391051ad10fda45059e6e3e34b75a74397fe5d2ddf4a86101"
+    },
+    {
+      "path": "native-current/stderr.txt",
+      "bytes": 836,
+      "sha256": "966b4509e9c4440c091f68a2f07a156f94e7f9df9112f9bb7e8cf0b049e62053"
+    },
+    {
+      "path": "native-current/stdout.txt",
+      "bytes": 261,
+      "sha256": "8442d068d4f2936ccb0e6c1c01bcc65ab768d648f9a6686e85411ac1a0906373"
+    },
+    {
+      "path": "native-current.log",
+      "bytes": 267,
+      "sha256": "8db9ac8dc5cdf635c3fbc389d1de50a84dbf1905a9c9db8dde938921e3454d27"
+    },
+    {
+      "path": "native-first/0-Move-En-alt.png",
+      "bytes": 43770,
+      "sha256": "e399b25a1c77b9076fed67d0c0585b488c6ca75b96cd9e1e1d9674c6e22ecde4"
+    },
+    {
+      "path": "native-first/0-Move-En-before.png",
+      "bytes": 43724,
+      "sha256": "1010d47eca9bf7bd4823d70f7f5a7c499d03ddee36fc3e1a9d8977cc544864a3"
+    },
+    {
+      "path": "native-first/0-Move-En-snapped.png",
+      "bytes": 43949,
+      "sha256": "dd696279d9609742cbcc05610047da0a22827770b8c77010a38e70ec0f9d2dc0"
+    },
+    {
+      "path": "native-first/0-Move-Zh-alt.png",
+      "bytes": 44467,
+      "sha256": "e5f4d2c4a6395256825d996962683c951bab881572c750da962cb37e9e246ec1"
+    },
+    {
+      "path": "native-first/0-Move-Zh-before.png",
+      "bytes": 44403,
+      "sha256": "10aa6ef6afc73c56a3f16ed3bccbfcc5c37dce92e864420e42f829649e24cfc7"
+    },
+    {
+      "path": "native-first/0-Move-Zh-snapped.png",
+      "bytes": 44646,
+      "sha256": "495bc035f338ceb52d1bdddf7a84c3d8b0a40f4ac7ded674867963f89ea77815"
+    },
+    {
+      "path": "native-first/0-Scale-En-alt.png",
+      "bytes": 43569,
+      "sha256": "5ecfdcd72465a535937b9d335c8b448ec4db5cd62e1d747ff39d1c7cbe55bc52"
+    },
+    {
+      "path": "native-first/0-Scale-En-before.png",
+      "bytes": 43687,
+      "sha256": "67d10bf5ca80c8369033438846c37b5d1b9f894bf629ef5a64d07a5048d80af3"
+    },
+    {
+      "path": "native-first/0-Scale-En-snapped.png",
+      "bytes": 43916,
+      "sha256": "338db9689001aa42ee92bdad7d36a069d5fb4b5969a4388fc94db5f3063fbf51"
+    },
+    {
+      "path": "native-first/0-Scale-Zh-alt.png",
+      "bytes": 44302,
+      "sha256": "5ca2463a84be26af899692b450514150d74695ae652ce4bf8937482bd397c2d9"
+    },
+    {
+      "path": "native-first/0-Scale-Zh-before.png",
+      "bytes": 44401,
+      "sha256": "24e9a70d3dbfabee7d932da4121a9eab49589058823cb0c654cdef7979fbf20d"
+    },
+    {
+      "path": "native-first/0-Scale-Zh-snapped.png",
+      "bytes": 44650,
+      "sha256": "8fa508b4f259abd748258ba73cb976aa75cc92eb046fb7153876f2365b3ac25c"
+    },
+    {
+      "path": "native-first/1-Move-En-alt.png",
+      "bytes": 28038,
+      "sha256": "6a7b0af052c142b20fafd0a2f7d9039904ad1c0280ee641b97d5a18c9083495e"
+    },
+    {
+      "path": "native-first/1-Move-En-before.png",
+      "bytes": 27635,
+      "sha256": "1e721b1cdb061aa5d177a4bf15eaab6810dca252298c91ac0caccf43e83ea00c"
+    },
+    {
+      "path": "native-first/1-Move-En-snapped.png",
+      "bytes": 27955,
+      "sha256": "f5440df01ff9e929ec01e869253f2637cd99e70fd8d0741a896fce0a66cc24f9"
+    },
+    {
+      "path": "native-first/1-Move-Zh-alt.png",
+      "bytes": 28286,
+      "sha256": "db7cec54552f0bf50a74fa053e8fbcde9f8a70c70d2c45e71954148373d629f8"
+    },
+    {
+      "path": "native-first/1-Move-Zh-before.png",
+      "bytes": 27883,
+      "sha256": "2ad521336a88acd8e5744777330ee6ded7be2748cef82e76e4821942589729c6"
+    },
+    {
+      "path": "native-first/1-Move-Zh-snapped.png",
+      "bytes": 28203,
+      "sha256": "9d7a76379818b618b63fdc07b2eccdd0fff905c093d97dcaaf02d6fe630575c4"
+    },
+    {
+      "path": "native-first/1-Scale-En-alt.png",
+      "bytes": 27671,
+      "sha256": "a83d53e4e3d534d31396a6562fedc17fe34627cb41e8f1916a0d8ade5068c9a2"
+    },
+    {
+      "path": "native-first/1-Scale-En-before.png",
+      "bytes": 27635,
+      "sha256": "1e721b1cdb061aa5d177a4bf15eaab6810dca252298c91ac0caccf43e83ea00c"
+    },
+    {
+      "path": "native-first/1-Scale-En-snapped.png",
+      "bytes": 27938,
+      "sha256": "708969747db232a4b313470425f3f069e66e6be8e4db2bb64951ec164a30ca84"
+    },
+    {
+      "path": "native-first/1-Scale-Zh-alt.png",
+      "bytes": 27918,
+      "sha256": "36d39f406fb2fdbe2c7c399bfae46b0ecde6a028d92c9c45839218174a565e3a"
+    },
+    {
+      "path": "native-first/1-Scale-Zh-before.png",
+      "bytes": 27883,
+      "sha256": "2ad521336a88acd8e5744777330ee6ded7be2748cef82e76e4821942589729c6"
+    },
+    {
+      "path": "native-first/1-Scale-Zh-snapped.png",
+      "bytes": 28186,
+      "sha256": "952bd98d6198727d9ab94bbcbb8206ff82e78518e2ea2be7bbb1d842e13009bc"
+    },
+    {
+      "path": "native-first/motion-studio.log",
+      "bytes": 25087,
+      "sha256": "c269f65ef037d7f314382b6633221a5365141e45d888f8625e954fcb89383a41"
+    },
+    {
+      "path": "native-first/report.json",
+      "bytes": 2086,
+      "sha256": "7560312496bd89d391051ad10fda45059e6e3e34b75a74397fe5d2ddf4a86101"
+    },
+    {
+      "path": "native-first/stderr.txt",
+      "bytes": 836,
+      "sha256": "c7ced1f91afdf9314a6516843b9522aa59bdcc731016db5351ab0aa70a22b888"
+    },
+    {
+      "path": "native-first/stdout.txt",
+      "bytes": 261,
+      "sha256": "d20632df4eb208eb507a30cf97419ef4f5ab0205d8689ed10d4f7ce900bfa996"
+    },
+    {
+      "path": "native-first.log",
+      "bytes": 267,
+      "sha256": "4643efaf7df9d928932f0ff237b38f549ced793005fdda39036c38042b85bb7c"
+    },
+    {
+      "path": "native-spatial/0-Move-En-before.png",
+      "bytes": 50218,
+      "sha256": "7d67479aab452778f3df6239b1a3e85049c86b4ca7376bf64a71b9d7c8e7fa99"
+    },
+    {
+      "path": "native-spatial/0-Move-En-drag.png",
+      "bytes": 50449,
+      "sha256": "7c9257581ae3dadeeb3170bc4b6f7ebc5e9da5de7432fdf8a2f1b04e50c3bed7"
+    },
+    {
+      "path": "native-spatial/0-Move-Zh-before.png",
+      "bytes": 50897,
+      "sha256": "ce6f84503cca158e5ee3fe36b59019cf371ff7f10ec0043babaa6d67687e700f"
+    },
+    {
+      "path": "native-spatial/0-Move-Zh-drag.png",
+      "bytes": 51146,
+      "sha256": "12746e8403bb2a1bb0667bf10412da35bd842e7d1d7c8d4a61e4a1652aebaa1d"
+    },
+    {
+      "path": "native-spatial/0-Scale-En-before.png",
+      "bytes": 50111,
+      "sha256": "a1a795384a30dcd298513a9d6a26dffa2f5c1d236e2ecec2887752597755ef66"
+    },
+    {
+      "path": "native-spatial/0-Scale-En-drag.png",
+      "bytes": 50218,
+      "sha256": "932bbb170580643c2a4029ffddd8887653c1193d83805031b5bbf37796f61d87"
+    },
+    {
+      "path": "native-spatial/0-Scale-Zh-before.png",
+      "bytes": 50826,
+      "sha256": "b81b4cf01ae3fb903a284040220bc0c12bcde49481ea2362556a26c572455fc2"
+    },
+    {
+      "path": "native-spatial/0-Scale-Zh-drag.png",
+      "bytes": 50952,
+      "sha256": "58c653f4cc9585908eec2efb43a5b438c9ff2a3bba919a75a8b48d3e612429b5"
+    },
+    {
+      "path": "native-spatial/1-Move-En-before.png",
+      "bytes": 34315,
+      "sha256": "31bb75028ee65090583cf6f00b35f18843c0dc79762273fb87ed3dbdedffd84d"
+    },
+    {
+      "path": "native-spatial/1-Move-En-drag.png",
+      "bytes": 34478,
+      "sha256": "e467af54182e2e0607138fd34776439e87c775ce18a8762302a5ef0a5ee53c32"
+    },
+    {
+      "path": "native-spatial/1-Move-Zh-before.png",
+      "bytes": 34563,
+      "sha256": "47c5973eefd778f02562dbf50cb14e355a72fbd4b91219c9a990d7fc2f3c8c7f"
+    },
+    {
+      "path": "native-spatial/1-Move-Zh-drag.png",
+      "bytes": 34726,
+      "sha256": "4d70c2c0c4eb4f4902a225d5ce4d4eabefb500cef6b3fcb599214a1aab69a537"
+    },
+    {
+      "path": "native-spatial/1-Scale-En-before.png",
+      "bytes": 34401,
+      "sha256": "106b0d6bbcaaa53047062ce42c73bfa34dfcaea1efb0c7cf29c889961dfc2e15"
+    },
+    {
+      "path": "native-spatial/1-Scale-En-drag.png",
+      "bytes": 34451,
+      "sha256": "10d7ea29d5a5249d79e2c653399c8e6f7086b13d6957538381b29465ebc95487"
+    },
+    {
+      "path": "native-spatial/1-Scale-Zh-before.png",
+      "bytes": 34649,
+      "sha256": "d41158632eab7d79a3206c7f5891829ade18a725df2a91f60a10596534e586cb"
+    },
+    {
+      "path": "native-spatial/1-Scale-Zh-drag.png",
+      "bytes": 34699,
+      "sha256": "115e643c5d31e5b019e0d3b17c78283dc8728664d441ce3ddc54061482792d7c"
+    },
+    {
+      "path": "native-spatial/motion-studio.log",
+      "bytes": 18000,
+      "sha256": "43b9e1b629c41874730fce27efff25cb8e61da85493b6d02b5879d08a8bf073c"
+    },
+    {
+      "path": "native-spatial/report.json",
+      "bytes": 966,
+      "sha256": "9b197e8dc97ed7e8dc910ce1d84422c63cc4252c0a3b4f4859e66bd8583c1ce7"
+    },
+    {
+      "path": "native-spatial/stderr.txt",
+      "bytes": 781,
+      "sha256": "e926e68542b673f392639238b7df537ddca2e52ea7455cc8b9e6e2737a59e1bd"
+    },
+    {
+      "path": "native-spatial/stdout.txt",
+      "bytes": 263,
+      "sha256": "5f60c0d602aca9bd19088735c3f9bf94c7bfe399861c3fa6aaaa973991b9df57"
+    },
+    {
+      "path": "spatial-current/0-Move-En-before.png",
+      "bytes": 50218,
+      "sha256": "7d67479aab452778f3df6239b1a3e85049c86b4ca7376bf64a71b9d7c8e7fa99"
+    },
+    {
+      "path": "spatial-current/0-Move-En-drag.png",
+      "bytes": 50449,
+      "sha256": "7c9257581ae3dadeeb3170bc4b6f7ebc5e9da5de7432fdf8a2f1b04e50c3bed7"
+    },
+    {
+      "path": "spatial-current/0-Move-Zh-before.png",
+      "bytes": 50897,
+      "sha256": "ce6f84503cca158e5ee3fe36b59019cf371ff7f10ec0043babaa6d67687e700f"
+    },
+    {
+      "path": "spatial-current/0-Move-Zh-drag.png",
+      "bytes": 51146,
+      "sha256": "12746e8403bb2a1bb0667bf10412da35bd842e7d1d7c8d4a61e4a1652aebaa1d"
+    },
+    {
+      "path": "spatial-current/0-Scale-En-before.png",
+      "bytes": 50111,
+      "sha256": "a1a795384a30dcd298513a9d6a26dffa2f5c1d236e2ecec2887752597755ef66"
+    },
+    {
+      "path": "spatial-current/0-Scale-En-drag.png",
+      "bytes": 50218,
+      "sha256": "932bbb170580643c2a4029ffddd8887653c1193d83805031b5bbf37796f61d87"
+    },
+    {
+      "path": "spatial-current/0-Scale-Zh-before.png",
+      "bytes": 50826,
+      "sha256": "b81b4cf01ae3fb903a284040220bc0c12bcde49481ea2362556a26c572455fc2"
+    },
+    {
+      "path": "spatial-current/0-Scale-Zh-drag.png",
+      "bytes": 50952,
+      "sha256": "58c653f4cc9585908eec2efb43a5b438c9ff2a3bba919a75a8b48d3e612429b5"
+    },
+    {
+      "path": "spatial-current/1-Move-En-before.png",
+      "bytes": 34315,
+      "sha256": "31bb75028ee65090583cf6f00b35f18843c0dc79762273fb87ed3dbdedffd84d"
+    },
+    {
+      "path": "spatial-current/1-Move-En-drag.png",
+      "bytes": 34478,
+      "sha256": "e467af54182e2e0607138fd34776439e87c775ce18a8762302a5ef0a5ee53c32"
+    },
+    {
+      "path": "spatial-current/1-Move-Zh-before.png",
+      "bytes": 34563,
+      "sha256": "47c5973eefd778f02562dbf50cb14e355a72fbd4b91219c9a990d7fc2f3c8c7f"
+    },
+    {
+      "path": "spatial-current/1-Move-Zh-drag.png",
+      "bytes": 34726,
+      "sha256": "4d70c2c0c4eb4f4902a225d5ce4d4eabefb500cef6b3fcb599214a1aab69a537"
+    },
+    {
+      "path": "spatial-current/1-Scale-En-before.png",
+      "bytes": 34401,
+      "sha256": "106b0d6bbcaaa53047062ce42c73bfa34dfcaea1efb0c7cf29c889961dfc2e15"
+    },
+    {
+      "path": "spatial-current/1-Scale-En-drag.png",
+      "bytes": 34451,
+      "sha256": "10d7ea29d5a5249d79e2c653399c8e6f7086b13d6957538381b29465ebc95487"
+    },
+    {
+      "path": "spatial-current/1-Scale-Zh-before.png",
+      "bytes": 34649,
+      "sha256": "d41158632eab7d79a3206c7f5891829ade18a725df2a91f60a10596534e586cb"
+    },
+    {
+      "path": "spatial-current/1-Scale-Zh-drag.png",
+      "bytes": 34699,
+      "sha256": "115e643c5d31e5b019e0d3b17c78283dc8728664d441ce3ddc54061482792d7c"
+    },
+    {
+      "path": "spatial-current/motion-studio.log",
+      "bytes": 18000,
+      "sha256": "d1c00d3f39eef481487825b7f36203cc4e8d24dc85a65aa2bece1c3208f39404"
+    },
+    {
+      "path": "spatial-current/report.json",
+      "bytes": 966,
+      "sha256": "9b197e8dc97ed7e8dc910ce1d84422c63cc4252c0a3b4f4859e66bd8583c1ce7"
+    },
+    {
+      "path": "spatial-current/stderr.txt",
+      "bytes": 781,
+      "sha256": "a92f7617f3fafa33b2c545b200d71f6c26e70c7a201517d94e90c6adce735da3"
+    },
+    {
+      "path": "spatial-current/stdout.txt",
+      "bytes": 263,
+      "sha256": "7be567fb2e34eaed8cb1ff4536c52e328eb01d74bb10ddcfd55b42702cf754fc"
+    },
+    {
+      "path": "spatial-current.log",
+      "bytes": 269,
+      "sha256": "a35e20455dac1494500b4afbee26b3e3501a2653b3b9360db8888fac0b48b2f9"
+    },
+    {
+      "path": "spatial-final.log",
+      "bytes": 269,
+      "sha256": "58884da2b4a912f3476257730722ca61002508d979f560b07c51490b3afd71af"
+    },
+    {
+      "path": "targets-first.log",
+      "bytes": 1004,
+      "sha256": "9d91af272837c10ab5a08e643a6c6fad9497922dec566aa52ff4cd4e9cdcac9b"
+    },
+    {
+      "path": "tools-current.log",
+      "bytes": 1345,
+      "sha256": "736b1b1bfb8b685c368ace034ed26662bdbc63f5f7be57a001c2da30f9fb1f6a"
+    },
+    {
+      "path": "tools-final.log",
+      "bytes": 1345,
+      "sha256": "7a90dae059bebc7ab36551ea2d31d53b4621334b16381bf96efb5faf16889bf1"
+    },
+    {
+      "path": "transform-current.log",
+      "bytes": 5222,
+      "sha256": "626ff1fc3c3bde2f5f5b1859448946019a1d4dcc7a5c8922ecb1fb7a92db1a08"
+    },
+    {
+      "path": "transform-final.log",
+      "bytes": 5221,
+      "sha256": "25fdb4d9e57586dce9571a52c7dadc4fdc45985e2d2dfc5789e42629458e5b05"
+    },
+    {
+      "path": "transform-first.log",
+      "bytes": 380,
+      "sha256": "7158efb45330e52cb1ff04b58ea797d3a34a46a47474eaf5c6c876e60eca556c"
+    }
+  ]
+}

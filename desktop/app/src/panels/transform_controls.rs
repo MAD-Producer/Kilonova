@@ -10,6 +10,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 mod spatial;
+mod snap_feedback;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tool {
@@ -259,6 +260,7 @@ struct Drag {
     spatial: Option<Box<spatial::Gesture>>,
     spatial_context: Option<Value>,
     notice: Option<spatial::Problem>,
+    snap_feedback: Option<([f32; 2], [Option<f32>; 2])>,
 }
 impl Drag {
     fn new(seed: Seed, pose: Pose, handle: Handle) -> Option<Self> {
@@ -289,6 +291,7 @@ impl Drag {
             spatial: None,
             spatial_context: None,
             notice: None,
+            snap_feedback: None,
         })
     }
     #[cfg(test)]
@@ -310,6 +313,7 @@ impl Drag {
         if matches!(self.handle, Handle::Spatial(..)) {
             return self.spatial_commands(state, input, styles);
         }
+        self.snap_feedback = None;
         let mut out = vec![];
         if !self.begun {
             self.begun = true;
@@ -319,7 +323,9 @@ impl Drag {
             Handle::Move => {
                 let pointer = if let Some(snapping) = snapping {
                     let predicted = std::array::from_fn(|i| self.pose.pivot[i] + input.mouse[i] - self.seed.point[i]);
-                    let target = snapping.point(predicted);
+                    let targets = snapping.targets(predicted);
+                    let target = std::array::from_fn(|i| targets[i].unwrap_or(predicted[i]));
+                    if targets.iter().any(Option::is_some) { self.snap_feedback = Some((target, targets)); }
                     std::array::from_fn(|i| input.mouse[i] + target[i] - predicted[i])
                 } else { input.mouse };
                 let delta = [
@@ -408,7 +414,14 @@ impl Drag {
                             }
                         }
                         if let Some(snapping) = snapping {
-                            value = self.snapped_scale(value, uniform, x, y, snapping).unwrap_or(value);
+                            if let Some(adjusted) = self.snapped_scale(value, uniform, x, y, snapping) {
+                                if let (Some(raw), Some(actual)) = (self.scaled_grip(value), self.scaled_grip(adjusted)) {
+                                    let targets = snapping.targets(raw);
+                                    let reached = std::array::from_fn(|i| targets[i].filter(|target| (actual[i] - target).abs() <= 0.05));
+                                    if reached.iter().any(Option::is_some) { self.snap_feedback = Some((actual, reached)); }
+                                }
+                                value = adjusted;
+                            }
                         }
                         out.extend(self.vector(Property::Scale, value, state));
                     }
@@ -691,6 +704,7 @@ impl Controls {
         }
         if let Some(mut d) = self.drag.take() {
             out.extend(d.commands_with_guides(state, input, snapping, &styles));
+            d.paint_snap_feedback(list, clip);
             if let Some(problem) = d.notice.take() { self.notice = Some(problem); }
             if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
                 if d.begun {

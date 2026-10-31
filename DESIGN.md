@@ -208,11 +208,19 @@ Drag a guide back to either ruler to remove it; releasing outside the viewer,
 Escape, focus loss, a changed document/revision/view, or input in another window
 cancels its local preview. Release commits one version-checked guide-list edit.
 Guide lock and visibility are ephemeral viewer preferences.
-When visible guides or the grid provide targets, Move snaps the layer anchor and
-Scale snaps the held grip using `viewer.overlay.snap.distance` in logical pixels.
+Move snaps the layer anchor and Scale snaps the held source grip using
+`viewer.overlay.snap.distance` in logical pixels. Targets include composition
+bounds and center, other visible layers' projected bounds and centers, and
+visible guides or grid. Exclude the selected layer. When neither screen axis
+has a geometric reference within tolerance, fall back to composition-pixel
+integers; integer fallback must not steal a proportion-constrained scale from
+a geometric reference on the other axis. Render reached axes with `viewer.guide`
+and `viewer.overlay.line.width`, and the transient reached-point marker with
+`viewer.overlay.snap.marker.radius`. Feedback is viewer-only and lasts only
+for the active gesture; it is never exported or added to history.
 Alt bypasses snapping and retains its existing scale-proportion meaning. Uniform
 scaling preserves its constraint; unreachable targets do not snap. Hidden guides
-do not contribute targets, and no overlays means the original transform behavior.
+do not contribute targets; hiding guides does not disable geometry snapping.
 Existing transform grips retain their full hit tolerance and take priority where
 a guide crosses them. Canvas guide dragging belongs to the selection tool;
 other tools keep their canvas input. Ruler strips can begin a guide without
@@ -505,6 +513,12 @@ cache preparation changes the authored project or its history.
 | `Ctrl` / `Shift` | Segment click | Additive/range selection; suppress dragging |
 | `Shift` | Bézier handle | Snap angles to 15° |
 | `Shift` | Rotation handle | Snap angles to 15° |
+
+Rotation's Shift+15° is an independent angular step, not a screen-distance
+target from `snap::nearest`. Alt bypasses spatial targets in viewer transforms
+and timeline drags; in scaling it also releases the proportional constraint.
+It does not implicitly switch to the Anchor tool. Path mirroring, Bézier
+unlinking and other context-specific Alt operations in this table are retained.
 
 These are **only** behaviors evidenced in the supplied audit, **not** an exhaustive listing across every input context reported in the audit. Verify `timeline.rs`, `graph_keys.rs`, `graph_handles.rs`, `path_controls.rs`, and `transform_controls.rs` before changing them.
 
