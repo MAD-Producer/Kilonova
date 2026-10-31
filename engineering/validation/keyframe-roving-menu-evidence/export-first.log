@@ -1,0 +1,85 @@
+
+running 1 test
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258735a9b60, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258735a9b60, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879287190, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879287190, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879c75da0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879c75da0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2587379abc0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2587379abc0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25872df6500, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25872df6500, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879b3afc0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879b3afc0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25878de8ca0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25878de8ca0, name: ?)
+[libopenh264 @ 00000258798def00] [OpenH264] this = 0x0000025879b68720, Warning:layerId(0) doesn't support profile(578), change to UNSPECIFIC profile
+[libopenh264 @ 00000258798def00] [OpenH264] this = 0x0000025879b68720, Warning:bEnableFrameSkip = 0,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25873796c90, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25873796c90, name: ?)
+[mp4 @ 000002584f3c0540] Starting second pass: moving the moov atom to the beginning of the file
+[aac @ 00000258798de7c0] Qavg: 65536.000
+
+thread 'panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing' (41364) panicked at desktop\app\src\panels\animation_menu\roving\export_tests.rs:228:5:
+
+running 1 test
+test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... FAILED
+
+failures:
+
+failures:
+    panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1534 filtered out; finished in 5.23s
+
+
+
+thread 'panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing' (35420) panicked at desktop\app\src\panels\animation_menu\roving\export_tests.rs:65:9:
+assertion `left == right` failed
+  left: Object {"assets": Array [], "background": Array [Number(0.05000000074505806), Number(0.05999999865889549), Number(0.09000000357627869), Number(1.0)], "camera": Object {"azimuth": Object {"keys": Array [], "value": Number(0.0)}, "created": Bool(false), "elevation": Object {"keys": Array [], "value": Number(0.0)}, "film_width_mm": Number(36.0), "fov": Object {"keys": Array [], "value": Number(45.0)}, "mode": String("position"), "position": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(-77.25482940673828)]}, "radius": Object {"keys": Array [], "value": Number(77.25482940673828)}, "roll": Object {"keys": Array [], "value": Number(0.0)}, "target": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(0.0)]}}, "composition_id": String("comp-main"), "fps": Number(30), "frames": Number(20), "height": Number(64), "layers": Array [Object {"audio_source_channel": String("stereo"), "blend": Object {"mode": String("normal"), "space": String("linear")}, "content": Object {"color": Array [Number(1.0), Number(1.0), Number(1.0), Number(1.0)], "kind": String("solid")}, "effects": Array [], "effects_enabled": Bool(true), "id": Number(7), "locked": Bool(false), "name": String("Roving output"), "rotation_order": String("local_xyz"), "sampling": Object {"continuous_rasterization": Bool(false), "frame_blend": String("hold"), "motion_blur": Null}, "shy": Bool(false), "size": Array [Number(12.0), Number(12.0)], "solo": Bool(false), "three_d": Bool(false), "transform": Object {"anchor": Array [Number(0.5), Number(0.5)], "opacity": Object {"keys": Array [], "value": Number(1.0)}, "position": Object {"spatial_animation": Object {"keys": Array [Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Number(0.0), "id": Number(1), "reference": Number(0.0), "spatial": Null, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Null, "id": Number(2), "reference": Number(10.0), "spatial": Null, "value": Array [Number(32.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(false), "easing": Object {"ease": String("linear")}, "fixed": Number(19.0), "id": Number(3), "reference": Number(19.0), "spatial": Null, "value": Array [Number(112.0), Number(32.0), Number(0.0)]}], "next_id": Number(4)}, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, "rotation": Object {"keys": Array [], "value": Array [Number(0.0), Number(0.0), Number(0.0)]}, "scale": Object {"keys": Array [], "value": Array [Number(100.0), Number(100.0), Number(100.0)]}}, "visible": Bool(true)}], "library": Object {"folders": Array [], "placements": Array []}, "model_assets": Array [], "name": String("空间练习 01"), "plugin_dependencies": Array [], "version": Number(31), "width": Number(128), "work_area": Object {"in_frame": Number(0), "out_frame": Number(20)}, "working_precision": String("unorm8")}
+ right: Object {"assets": Array [], "background": Array [Number(0.05), Number(0.06), Number(0.09), Number(1.0)], "camera": Object {"azimuth": Object {"keys": Array [], "value": Number(0.0)}, "created": Bool(false), "elevation": Object {"keys": Array [], "value": Number(0.0)}, "film_width_mm": Number(36.0), "fov": Object {"keys": Array [], "value": Number(45.0)}, "mode": String("position"), "position": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(-77.25483)]}, "radius": Object {"keys": Array [], "value": Number(77.25483)}, "roll": Object {"keys": Array [], "value": Number(0.0)}, "target": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(0.0)]}}, "composition_id": String("comp-main"), "fps": Number(30), "frames": Number(20), "height": Number(64), "layers": Array [Object {"audio_source_channel": String("stereo"), "blend": Object {"mode": String("normal"), "space": String("linear")}, "content": Object {"color": Array [Number(1.0), Number(1.0), Number(1.0), Number(1.0)], "kind": String("solid")}, "effects": Array [], "effects_enabled": Bool(true), "id": Number(7), "locked": Bool(false), "name": String("Roving output"), "rotation_order": String("local_xyz"), "sampling": Object {"continuous_rasterization": Bool(false), "frame_blend": String("hold"), "motion_blur": Null}, "shy": Bool(false), "size": Array [Number(12.0), Number(12.0)], "solo": Bool(false), "three_d": Bool(false), "transform": Object {"anchor": Array [Number(0.5), Number(0.5)], "opacity": Object {"keys": Array [], "value": Number(1.0)}, "position": Object {"spatial_animation": Object {"keys": Array [Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Number(0.0), "id": Number(1), "reference": Number(0.0), "spatial": Null, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Null, "id": Number(2), "reference": Number(10.0), "spatial": Null, "value": Array [Number(32.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(false), "easing": Object {"ease": String("linear")}, "fixed": Number(19.0), "id": Number(3), "reference": Number(19.0), "spatial": Null, "value": Array [Number(112.0), Number(32.0), Number(0.0)]}], "next_id": Number(4)}, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, "rotation": Object {"keys": Array [], "value": Array [Number(0.0), Number(0.0), Number(0.0)]}, "scale": Object {"keys": Array [], "value": Array [Number(100.0), Number(100.0), Number(100.0)]}}, "visible": Bool(true)}], "library": Object {"folders": Array [], "placements": Array []}, "model_assets": Array [], "name": String("空间练习 01"), "plugin_dependencies": Array [], "version": Number(31), "width": Number(128), "work_area": Object {"in_frame": Number(0), "out_frame": Number(20)}, "working_precision": String("unorm8")}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... FAILED
+
+failures:
+
+failures:
+    panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1534 filtered out; finished in 16.91s
+

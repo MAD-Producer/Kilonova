@@ -171,6 +171,10 @@ impl Set {
         self.claimed
     }
 
+    pub(super) fn same_document(&self, state: &Value) -> bool {
+        self.scope.is_some() && self.scope == Scope::of(state)
+    }
+
     pub fn status(&self, state: &Value) -> Status {
         self.validate(state, |target, frame| {
             source::contains(state, target, frame)

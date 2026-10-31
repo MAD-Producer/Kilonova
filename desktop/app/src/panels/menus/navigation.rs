@@ -32,6 +32,11 @@ fn hint(choice: &Choice, panels: &Panels, state: &Value, root: usize, index: usi
                 super::super::animation_menu::Operation::Automatic(true)))
                 .then_some((Scope::Animation, S::ToggleAutomaticBezier))
         }
+        Choice::Animation(super::super::animation_menu::Operation::Roving(enabled)) => {
+            (*enabled != super::super::animation_menu::checked(panels,state,
+                super::super::animation_menu::Operation::Roving(true)))
+                .then_some((Scope::Animation,S::ToggleRoving))
+        }
         Choice::Direct(action) => Some((
             Scope::Application,
             match action {

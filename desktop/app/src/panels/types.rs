@@ -377,6 +377,7 @@ impl Panels {
     }
 
     pub(crate) fn normalize_selection(&mut self, state: &serde_json::Value) -> bool {
+        super::animation_menu::reconcile_roving(self,state);
         let mut context_changed = false;
         let root = state["root"].as_str().unwrap_or("");
         if let Some(composition) = state["composition"].as_str()

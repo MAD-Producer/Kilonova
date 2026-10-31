@@ -1,0 +1,1 @@
+ERROR motion_studio::panels::observation: persistent panel degradation site=animation.roving.track count=60 object=7 phase=roving_capability reason=invalid type: string "malformed", expected an array of length 3

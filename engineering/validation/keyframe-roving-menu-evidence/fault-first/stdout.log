@@ -1,0 +1,6 @@
+
+running 1 test
+test panels::animation_menu::roving::tests::malformed_candidates_report_default_error_channels_without_poisoning_recovery ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1531 filtered out; finished in 0.01s
+

@@ -1,0 +1,11 @@
+
+running 1 test
+test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... FAILED
+
+failures:
+
+failures:
+    panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1534 filtered out; finished in 5.23s
+

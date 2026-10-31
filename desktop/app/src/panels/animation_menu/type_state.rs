@@ -85,6 +85,7 @@ impl Summary {
 #[derive(Default)]
 pub(crate) struct Cache {
     entry: Option<(MenuScope, Summary)>,
+    pub(super) roving: super::roving::Cache,
     #[cfg(test)]
     pub(super) solves: usize,
 }

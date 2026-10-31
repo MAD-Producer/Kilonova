@@ -48,6 +48,7 @@
 | Animation | E | false | false | false | ToggleEffectGroup | false |
 | Animation | V | true | false | false | PasteSelection | false |
 | Animation | V | true | true | false | PasteInPlace | false |
+| Animation | F8 | true | false | true | ToggleRoving | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |

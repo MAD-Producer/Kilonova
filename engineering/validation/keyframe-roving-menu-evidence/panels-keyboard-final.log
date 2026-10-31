@@ -1,0 +1,34 @@
+
+running 29 tests
+test panels::keyboard::export_feedback_tests::export_is_dispatched_or_explained_for_each_locale_and_window_owner ... ok
+test panels::keyboard::export_feedback_tests::ime_text_ownership_and_repeat_do_not_replace_feedback_or_export ... ok
+test panels::keyboard::layer_delete_tests::blocked_inputs_and_existing_action_prefixes_do_not_publish_a_layer_target ... ok
+test panels::keyboard::layer_delete_tests::committed_host_delete_with_a_real_sample_failure_publishes_and_displays_the_original_error ... ok
+test panels::keyboard::layer_delete_tests::deleting_animated_parent_preserves_child_at_current_playhead ... ok
+test panels::keyboard::layer_delete_tests::key_delete_clears_only_the_previous_layer_notice_and_does_not_delete_a_layer ... ok
+test panels::keyboard::layer_delete_tests::layer_delete_reports_its_target_and_real_single_and_multi_delete_undo_once ... ok
+test panels::keyboard::layer_delete_tests::real_main_and_floating_status_paint_the_target_and_keep_it_after_state_refresh ... ok
+test panels::keyboard::layer_delete_tests::rejected_core_delete_keeps_state_and_error_snapshot_outranks_the_target ... ok
+test panels::keyboard::layer_delete_tests::remapped_delete_keeps_its_target_and_undo_retires_only_our_notice ... ok
+test panels::keyboard::node_scope_tests::node_scope_application_reachability_matrix ... ok
+test panels::keyboard::node_scope_tests::space_routes_once_without_a_node_canvas_in_main_and_floating_windows ... ok
+test panels::keyboard::node_scope_tests::stale_canvas_focus_does_not_steal_timeline_space ... ok
+test panels::keyboard::redo_tests::main_and_floating_chords_redo_real_history_and_keep_solid_creation_distinct ... ok
+test panels::keyboard::redo_tests::native_menus_show_redo_and_solid_chords_in_both_languages ... ignored, manual GPU menu evidence, two native window owners
+test panels::keyboard::redo_tests::repeat_ime_and_text_drafts_keep_y_chords_out_of_project_history ... ok
+test panels::keyboard::redo_tests::y_redoes_only_the_focused_node_document_in_all_node_hosts ... ok
+test panels::keyboard::search_chord_tests::alternate_defers_to_text_menus_repeat_and_ime_and_cannot_be_rebound ... ok
+test panels::keyboard::search_chord_tests::both_search_chords_open_and_close_main_floating_and_node_owners_without_actions ... ok
+test panels::keyboard::search_chord_tests::only_exact_search_chords_without_repeat_or_ime_are_recognized ... ok
+test panels::keyboard::tests::duplicate_and_delete_use_one_batch_for_multiple_selected_layers ... ok
+test panels::keyboard::tests::effect_search_blocks_only_its_owner_and_other_window_can_save ... ok
+test panels::keyboard::tests::escape_and_toggle_from_either_window_close_and_consume_the_frame ... ok
+test panels::keyboard::tests::locked_layers_cannot_edit_and_repeated_frame_steps_accumulate ... ok
+test panels::keyboard::tests::modal_has_priority_in_nodes_and_its_closing_frame_is_consumed ... ok
+test panels::keyboard::tests::node_preview_history_uses_the_node_document_without_a_canvas ... ok
+test panels::keyboard::tests::node_properties_file_commands_and_floating_modal_keep_their_owner ... ok
+test panels::keyboard::tests::search_and_repeat_do_not_open_modal ... ok
+test panels::keyboard::tests::unrelated_focus_loss_keeps_effect_search_and_owner_focus_loss_closes_it ... ok
+
+test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 1505 filtered out; finished in 8.76s
+

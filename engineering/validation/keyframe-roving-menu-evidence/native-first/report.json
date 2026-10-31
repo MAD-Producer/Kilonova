@@ -1,0 +1,66 @@
+[
+  {
+    "checked": false,
+    "enable": true,
+    "file": "zh-ordinary.png",
+    "freeze": false,
+    "title": null,
+    "undoEntries": 0
+  },
+  {
+    "checked": true,
+    "enable": false,
+    "file": "zh-roving.png",
+    "freeze": true,
+    "title": "空间时间约束：Roving",
+    "undoEntries": 1
+  },
+  {
+    "checked": false,
+    "enable": true,
+    "file": "zh-fixed.png",
+    "freeze": false,
+    "title": "空间时间约束：固定",
+    "undoEntries": 2
+  },
+  {
+    "checked": false,
+    "enable": false,
+    "file": "zh-mixed.png",
+    "freeze": true,
+    "title": "时间约束：混合（1 / 2 个 Roving）",
+    "undoEntries": 1
+  },
+  {
+    "checked": false,
+    "enable": true,
+    "file": "en-ordinary.png",
+    "freeze": false,
+    "title": null,
+    "undoEntries": 0
+  },
+  {
+    "checked": true,
+    "enable": false,
+    "file": "en-roving.png",
+    "freeze": true,
+    "title": "Spatial timing: Roving",
+    "undoEntries": 1
+  },
+  {
+    "checked": false,
+    "enable": true,
+    "file": "en-fixed.png",
+    "freeze": false,
+    "title": "Spatial timing: fixed",
+    "undoEntries": 2
+  },
+  {
+    "checked": false,
+    "enable": false,
+    "file": "en-mixed.png",
+    "freeze": true,
+    "title": "Mixed timing (1 / 2 Roving keys)",
+    "undoEntries": 1
+  }
+]
