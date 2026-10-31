@@ -138,6 +138,7 @@ fn shared_menu_hints_follow_current_remapping_and_checks_follow_current_state() 
         hint(
             &Choice::Direct(Action::Edit(Command::Duplicate { object: 7 })),
             &panels,
+            &Value::Null,
             3,
             8
         ),

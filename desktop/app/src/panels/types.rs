@@ -239,6 +239,7 @@ pub struct Panels {
     pub(crate) menu: Option<usize>,
     pub(crate) menu_navigation: super::menus::Navigation,
     pub(crate) animation_menu_scope: Option<super::animation_menu::MenuScope>,
+    pub(crate) animation_type_cache: std::cell::RefCell<super::animation_menu::TypeCache>,
     pub(crate) clipboard_available: bool,
     pub(crate) keyframe_clipboard_available: bool,
     pub(crate) path_clipboard_available: bool,
@@ -376,6 +377,7 @@ impl Panels {
     }
 
     pub(crate) fn normalize_selection(&mut self, state: &serde_json::Value) -> bool {
+        super::animation_menu::reconcile_roving(self,state);
         let mut context_changed = false;
         let root = state["root"].as_str().unwrap_or("");
         if let Some(composition) = state["composition"].as_str()
@@ -616,6 +618,7 @@ pub(crate) struct TimelineState {
     pub graph_mode: bool,
     pub(super) graph_ranges: super::graph_ranges::Controls,
     pub(super) comparison: super::curve_comparison::Controls,
+    pub(super) graph_samples: super::timeline_graph::Cache,
     pub(super) clip_view: Option<TimelineViewport>,
     pub(super) curve_view: Option<TimelineViewport>,
     pub speed_graph: bool,

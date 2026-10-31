@@ -1,0 +1,8 @@
+
+running 3 tests
+test panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing ... ok
+test panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom ... ok
+test panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1460 filtered out; finished in 1.49s
+

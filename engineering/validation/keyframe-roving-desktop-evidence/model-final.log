@@ -1,0 +1,54 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.01s
+     Running tests\spatial_hot_path.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_hot_path-13a9e88f92d1e4b5.exe)
+
+running 2 tests
+test authoritative_and_reopened_track_sampling_does_not_allocate_on_the_present_path ... ok
+test prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_real_allocations ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\spatial_schedule.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_schedule-28aafead3168f095.exe)
+
+running 11 tests
+test closed_cubic_roving_uses_geometric_arc_distance_and_retains_authored_handles ... ok
+test coincident_effective_times_keep_ids_and_invalid_edits_preserve_primary_cause_and_state ... ok
+test freezing_selected_keys_preserves_samples_and_reference_order_is_independent_of_fixed_times ... ok
+test identity_exhaustion_corrupt_controls_and_two_dimensional_samples_are_explicit ... ok
+test inserting_and_deleting_keys_keeps_survivor_ids_and_never_reuses_a_deleted_identity ... ok
+test rejected_selections_and_malformed_persistence_are_atomic ... ok
+test save_reopen_neighbor_edits_and_frozen_snapshots_share_one_time_definition ... ok
+test stable_ids_and_fractional_times_drive_real_sampling_without_editing_source_geometry ... ok
+test stationary_spans_keep_authored_proportions_and_time_edits_target_stable_id ... ok
+test tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically ... ok
+test unsupported_imports_do_not_reinterpret_other_temporal_policies_or_nonspatial_values ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests\spatial_timing.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_timing-8a17dc348756e9a8.exe)
+
+running 8 tests
+test closed_cubic_uses_arc_length_and_distance_queries_match_independent_integrals ... ok
+test collinear_cubic_with_nonlinear_parameterization_is_not_treated_as_linear_parameter ... ok
+test constant_speed_times_stay_fractional_and_preserve_author_storage_and_prepared_snapshot ... ok
+test local_span_avoids_cancellation_and_tiny_or_large_paths_keep_their_metric ... ok
+test preparation_limits_apply_to_the_whole_path_instead_of_resetting_per_interval ... ok
+test repeated_positions_keep_distinct_entries_and_stationary_paths_keep_authored_time_ratios ... ok
+test resource_limits_invalid_geometry_and_bad_queries_reject_without_changing_authored_values ... ok
+test two_dimensional_tracks_keep_both_coordinates_and_later_fixed_spans ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\spatial_track.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_track-ec878bdac440160d.exe)
+
+running 7 tests
+test ambiguous_playhead_and_dual_storage_reject_without_losing_authored_values ... ok
+test conversion_preserves_manual_intervals_and_roving_only_changes_its_incident_span ... ok
+test frame_addressed_edits_reject_but_playhead_edits_preserve_ids_and_static_conversion_samples_once ... ok
+test full_project_load_preserves_identity_and_resource_failure_causes_for_position_and_anchor ... ok
+test nonlinear_incident_timing_rejects_conversion_without_changing_any_track_state ... ok
+test property_semantics_and_numeric_limits_are_checked_on_spatial_values_and_controls ... ok
+test real_project_round_trip_and_timeline_preserve_continuous_time_ids_and_local_offsets ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+

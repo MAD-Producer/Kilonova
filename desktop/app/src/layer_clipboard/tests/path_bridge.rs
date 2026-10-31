@@ -24,10 +24,12 @@ fn document(root: &Path, nodes: u64, keys: u32) -> motion_core::Project {
                                 .map(|i| PathNode {
                                     id: i + 10,
                                     geometry: Track {
+                                        spatial_animation: None,
                                         axes: None,
                                         value: [i as f32, 0., -1., 2., 3., -4.],
                                         keys: (0..keys)
                                             .map(|frame| motion_core::Keyframe {
+                                                auto_bezier: false,
                                                 frame: frame as i32,
                                                 value: [i as f32, frame as f32, -1., 2., 3., -4.],
                                                 ease: motion_core::Ease::InOut,
@@ -132,6 +134,7 @@ fn path_operation_failures_publish_start_and_default_file_stderr_without_stdout(
         let VectorSource::Paths{paths}=&mut vector.source else {panic!()};
         paths[0].tangents=motion_core::vector::TangentMode::Automatic;
         paths[0].nodes[0].geometry.keys=[(0,-32768.),(10,32768.)].into_iter().map(|(frame,x)|motion_core::Keyframe {
+            auto_bezier: false,
             frame,value:[x,0.,0.,0.,0.,0.],ease:motion_core::Ease::Linear,
             curve:Some(motion_core::Curve{space:motion_core::CurveSpace::Progress,shape:motion_core::CurveShape::Cubic {
                 control1:[0.25,8.],control2:[0.75,8.],start:0.,end:1.

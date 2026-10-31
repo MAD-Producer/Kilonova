@@ -11,6 +11,14 @@ pub(super) struct Plan {
     pub selected: Set,
     pub channels: Vec<Occupancy>,
     pub total: u32,
+    spatial: Vec<SpatialOccupancy>,
+}
+struct SpatialOccupancy {
+    target: KeyframeTarget,
+    ids: Vec<u64>,
+    // Authored order, effective composition time and ownership. Prepared only
+    // once per gesture; pointer movement never rebuilds spatial geometry.
+    keys: Vec<(u64, f64, bool, f64)>,
 }
 impl Plan {
     pub fn capture(selected: &Set, state: &Value) -> motion_core::Result<Self> {
@@ -48,14 +56,117 @@ impl Plan {
                 authored,
             });
         }
+        let mut spatial = Vec::new();
+        for (target, ids) in selected.spatial_selections() {
+            let KeyframeTarget::Property {
+                object,
+                property,
+                axis: None,
+            } = &target
+            else {
+                return Err(Error::Invalid(
+                    "spatial selection requires a coupled property".into(),
+                ));
+            };
+            let (authored, offset) = source::track(state, &target).ok_or_else(|| {
+                Error::Invalid("spatial transform authored channel missing".into())
+            })?;
+            let author_keys = authored["spatial_animation"]["keys"]
+                .as_array()
+                .ok_or_else(|| Error::Invalid("spatial transform authored keys missing".into()))?;
+            let view = super::super::animation_data::channel(state, *object, *property, None)
+                .ok_or_else(|| {
+                    Error::Invalid("spatial transform timeline channel missing".into())
+                })?;
+            let view_keys = view["spatial_keys"]
+                .as_array()
+                .ok_or_else(|| Error::Invalid("spatial transform solved keys missing".into()))?;
+            bytes = bytes.saturating_add(author_keys.len().saturating_mul(std::mem::size_of::<(
+                u64,
+                f64,
+                bool,
+                f64,
+            )>()));
+            if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES || author_keys.len() > 16_385 {
+                return Err(Error::Invalid(
+                    "spatial transform occupancy exceeds metadata limit".into(),
+                ));
+            }
+            if author_keys.len() != view_keys.len() {
+                return Err(Error::Invalid(
+                    "spatial transform authored and solved key counts differ".into(),
+                ));
+            }
+            let mut keys = Vec::with_capacity(author_keys.len());
+            let mut seen = BTreeSet::new();
+            for (author, view) in author_keys.iter().zip(view_keys) {
+                let id = author["id"].as_u64().filter(|id| *id > 0).ok_or_else(|| {
+                    Error::Invalid("spatial transform key identity missing".into())
+                })?;
+                let time = view["frame"]
+                    .as_f64()
+                    .filter(|t| t.is_finite())
+                    .ok_or_else(|| {
+                        Error::Invalid("spatial transform solved time missing".into())
+                    })?;
+                let fixed = author.get("fixed").ok_or_else(|| {
+                    Error::Invalid("spatial transform time ownership missing".into())
+                })?;
+                if !seen.insert(id)
+                    || view["id"].as_u64() != Some(id)
+                    || !fixed.is_null() && fixed.as_f64().is_none_or(|t| t + offset as f64 != time)
+                    || view["roving"].as_bool() != Some(fixed.is_null())
+                {
+                    return Err(Error::Invalid(
+                        "spatial transform authored and solved identities or timing differ".into(),
+                    ));
+                }
+                let incoming = view["incoming_length"]
+                    .as_f64()
+                    .filter(|v| v.is_finite() && *v >= 0.)
+                    .ok_or_else(|| {
+                        Error::Invalid("spatial transform incoming metric missing".into())
+                    })?;
+                keys.push((id, time, !fixed.is_null(), incoming));
+            }
+            if ids.iter().any(|id| !seen.contains(id)) {
+                return Err(Error::Invalid(
+                    "spatial transform selected identity missing".into(),
+                ));
+            }
+            spatial.push(SpatialOccupancy { target, ids, keys });
+        }
         Ok(Self {
             selected: selected.clone(),
             channels,
             total,
+            spatial,
         })
     }
     pub fn allows(&self, delta: i32, copy: bool) -> bool {
-        self.channels.iter().all(|c| {
+        if copy && !self.spatial.is_empty() {
+            return false;
+        }
+        self.spatial.iter().all(|c| {
+            let mut previous = None;
+            let mut moving = false;
+            c.keys.iter().all(|(id, time, fixed, incoming)| {
+                moving |= *incoming > 0.;
+                let chosen = c.ids.binary_search(id).is_ok();
+                let next = *time + if chosen { f64::from(delta) } else { 0. };
+                if chosen && !(next >= 0. && next < f64::from(self.total)) {
+                    return false;
+                }
+                if chosen || *fixed {
+                    if previous.is_some_and(|p| p > next || p == next && moving) {
+                        return false;
+                    }
+                    previous = Some(next);
+                    moving = false;
+                }
+                true
+            })
+        }) && self.channels.iter().all(|c| {
             c.selected.iter().all(|from| {
                 let to = i64::from(*from) + i64::from(delta);
                 (0..i64::from(self.total)).contains(&to)
@@ -64,18 +175,33 @@ impl Plan {
             })
         })
     }
-    pub fn command(
+    pub fn commands(
         &self,
         delta: i32,
         value_offset: Option<motion_core::KeyframeValueOffset>,
         copy: bool,
-    ) -> motion_core::Command {
-        motion_core::Command::TransformKeyframes {
-            selections: self.selected.selections(),
-            delta_frame: delta,
-            value_offset,
-            copy,
+    ) -> Vec<motion_core::Command> {
+        let mut commands = Vec::new();
+        if !self.channels.is_empty() {
+            commands.push(motion_core::Command::TransformKeyframes {
+                selections: self.selected.selections(),
+                delta_frame: delta,
+                value_offset,
+                copy,
+            });
         }
+        commands.extend(
+            self.spatial
+                .iter()
+                .map(|c| motion_core::Command::SpatialKeyframes {
+                    target: c.target.clone(),
+                    edit: motion_core::SpatialKeyEdit::Move {
+                        keys: c.ids.clone(),
+                        delta: f64::from(delta),
+                    },
+                }),
+        );
+        commands
     }
     pub fn times(&self) -> impl Iterator<Item = u32> + '_ {
         self.channels
@@ -159,7 +285,7 @@ pub(super) fn nudge(
     };
     out.push(Action::EditorAction {
         source: crate::layer_clipboard::KeyframeSource::of(state),
-        commands: vec![plan.command(delta, None, false)],
+        commands: plan.commands(delta, None, false),
     });
     panels.selected_keys = moved;
     ui::project_primary(panels, state);

@@ -166,6 +166,7 @@ fn comparison_sampling_budget_failure_is_not_a_partial_curve_and_is_cached_until
     let mut layer = Layer::solid(7, "Budget fixture", [100.; 2], [0.; 3], [1.; 4]);
     layer.transform.opacity.keys = (0..33000)
         .map(|frame| motion_core::Keyframe {
+            auto_bezier: false,
             frame,
             value: if frame % 2 == 0 { 0.2 } else { 0.8 },
             ease: Ease::InOut,

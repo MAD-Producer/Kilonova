@@ -132,19 +132,22 @@ fn words(locale: Locale, zh: &'static str, en: &'static str) -> &'static str {
         en
     }
 }
-fn selected(panels: &Panels, state: &Value) -> Option<super::keyframe_clipboard::Selection> {
-    if panels.selected_keys.owns_keys()
-        && panels.selected_keys.status(state) == super::key_selection::Status::Stale
-    {
-        return None;
+fn selected(panels: &Panels, state: &Value) -> Option<Vec<KeyframeTarget>> {
+    if panels.selected_keys.owns_keys() {
+        if panels.selected_keys.status(state)!=super::key_selection::Status::Current {return None;}
+        let mut targets:Vec<_>=panels.selected_keys.selections().into_iter().map(|s|s.target).collect();
+        for (target,_) in panels.selected_keys.spatial_selections() {
+            if !targets.contains(&target) {targets.push(target);}
+        }
+        return Some(targets);
     }
-    super::keyframe_clipboard::selection(panels, state)
+    super::keyframe_clipboard::selection(panels, state).map(|s|s.targets)
 }
 pub(super) fn open(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
     let mut controls = std::mem::take(&mut panels.timeline.comparison);
     controls.sync(state, panels.locale);
     let selected = selected(panels, state);
-    let targets = selected.as_ref().map_or(&[][..], |s| s.targets.as_slice());
+    let targets = selected.as_ref().map_or(&[][..],Vec::as_slice);
     if !targets.is_empty() {
         if let Err(error) = controls.add(state, panels.locale, targets) {
             panels.message = Some(format!(

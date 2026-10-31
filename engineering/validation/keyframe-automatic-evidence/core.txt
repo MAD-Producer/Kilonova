@@ -1,0 +1,92 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+   Compiling motion-core v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-core)
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.92s
+     Running tests\keyframe_clipboard.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\keyframe_clipboard-d38b4d7a9609ea2b.exe)
+
+running 61 tests
+test channels::timing::continuity::equal_endpoint_spatial_loops_can_have_physical_speed_but_have_no_displacement_average ... ok
+test channels::timing::adjacent_selected_keys_merge_both_handles_of_the_shared_interval_before_writing ... ok
+test automatic::speed_profile_and_portable_easing_copy_use_the_current_derived_curve ... ok
+test automatic::quick_ease_converts_only_selected_key_and_preserves_automatic_neighbour ... ok
+test automatic::later_unsupported_or_locked_target_rejects_the_whole_command_without_history ... ok
+test channels::timing::anchor_units_use_source_pixels_and_signed_separated_axes_keep_local_offsets ... ok
+test channels::timing::average_multiple_and_property_units_produce_the_same_authored_curve ... ok
+test channels::numeric_aliases_cannot_duplicate_a_source_or_mutate_a_destination_twice ... ok
+test automatic::a_single_automatic_key_can_be_copied_and_cut_without_inventing_neighbours ... ok
+test channels::audio_envelopes_copy_between_stereo_channels_without_spatial_fallback ... ok
+test channels::camera_keys_use_their_own_channel_and_layer_local_time ... ok
+test channels::timing::continuity::equal_scalar_values_and_hold_or_elastic_require_explicit_conversion_and_cannot_invent_speed ... ok
+test channels::easing::batch_edit_preflight_rejects_every_invalid_member_without_partial_model_or_history_changes ... ok
+test channels::easing::quick_ease_edits_interval_start_before_composition_and_keeps_one_sided_policy ... ok
+test channels::masks_and_path_geometry_transfer_without_cross_property_fallback ... ok
+test channels::timing::continuity::equal_vector_rates_prove_c1_only_when_spatial_directions_also_match ... ok
+test channels::easing::batch_edit_registry_exposes_explicit_policy_and_routes_composition_transactions ... ok
+test channels::timing::preserve_with_an_unchanged_side_keeps_that_entire_velocity_interval_exact ... ok
+test channels::interpolation::interpolation_registry_routes_the_selected_composition_and_requires_a_policy ... ok
+test channels::timing::vector_physical_speed_is_a_nonnegative_magnitude_and_preserves_existing_reverse_direction ... ok
+test channels::timing::timing_rejections_preserve_all_channels_revision_and_history_including_late_failures ... ok
+test channels::flat_and_nested_vector_channels_preserve_typed_values_modifiers_and_single_undo ... ok
+test channels::timing::velocity_space_conversion_requires_explicit_choice_and_never_changes_values_or_spatial_tangents ... ok
+test channels::transform::direct_model_preflight_does_not_partially_write_when_a_later_numeric_component_is_invalid ... ok
+test channels::timing::grouped_and_ungrouped_vector_channels_keep_every_value_when_changing_influence ... ok
+test channels::timing::unrepresentable_speeds_and_stationary_endpoints_fail_without_clamping_or_partial_edits ... ok
+test channels::transform::collision_bounds_copy_overlap_and_late_component_failure_preserve_the_entire_transaction ... ok
+test channels::timing::selected_key_matches_real_rates_across_different_intervals ... ok
+test channels::clipboard_channel_count_is_independent_of_the_layer_count_limit ... ok
+test channels::timing::timing_command_is_registered_and_can_edit_an_inactive_composition_atomically ... ok
+test channels::transform::duplicate_aliases_unsorted_frames_and_missing_keys_are_rejected_before_any_move ... ok
+test collisions_locked_targets_and_late_failures_roll_back_every_channel_and_history ... ok
+test channels::transform::separated_axes_and_different_layer_offsets_keep_one_composition_delta ... ok
+test channels::transform::copying_preserves_all_source_keys_and_offsets_only_the_selected_numeric_component ... ok
+test automatic::automatic_type_is_local_offset_aware_undoable_and_persisted_without_replacing_keys ... ok
+test curve_clipboard::easing_paste_rejects_stale_terminal_or_locked_targets_without_partial_edits ... ok
+test channels::transform::typed_transform_command_routes_only_to_the_requested_inactive_composition ... ok
+test curve_clipboard::versioned_easing_survives_process_independent_text_and_rejects_bad_units ... ok
+test mismatched_properties_types_and_malformed_clipboard_fail_without_history ... ok
+test curve_clipboard::easing_paste_requires_an_explicit_separated_axis_and_preserves_other_axes ... ok
+test multi_track_clipboard_freezes_values_tangents_easing_and_uses_one_history_entry ... ok
+test stale_cut_cannot_delete_modified_keys_or_other_channels ... ok
+test separated_axes_remain_explicit_and_can_copy_only_matching_properties ... ok
+test channels::timing::continuity::matching_scalar_rates_reaches_actual_samples_even_when_the_next_interval_reverses ... ok
+test typed_commands_parse_register_and_route_to_an_inactive_composition ... ok
+test channels::timing::physical_endpoint_speed_uses_real_spatial_derivative_and_preserves_the_other_handle ... ok
+test channels::easing::quick_ease_unions_adjacent_keys_and_preserves_unselected_handles_and_values ... ok
+test channels::transform::overlapping_selected_sources_move_as_one_edit_without_changing_fallback_or_metadata ... ok
+test curve_clipboard::easing_paste_crosses_property_units_with_one_undo_and_unchanged_key_values_and_times ... ok
+test cut_is_one_transaction_and_frozen_keys_survive_source_removal_and_save_reopen ... ok
+test thousands_of_frozen_keys_cut_as_one_edit_and_keep_the_final_static_value ... ok
+test channels::interpolation::interpolation_preflight_rejects_missing_duplicate_locked_and_ambiguous_axes_atomically ... ok
+test channels::interpolation::interpolation_preserves_flat_and_nested_vector_channels_and_one_step_history ... ok
+test clipboard_errors_retain_the_original_cause_with_bounded_channel_context ... ok
+test channels::color_curve_cut_retains_the_final_removed_value_and_undo_restores_both_keys ... ok
+test channels::timing::color_curve_keys_allow_relative_progress_rates_but_reject_physical_speed_without_history ... ok
+test channels::effect_and_color_curve_keys_preserve_values_and_reject_foreign_parameter_schema ... ok
+test channels::easing::batch_selection_edits_cover_vector_scalar_color_geometry_and_color_curve_channels ... ok
+test channels::transform::scalar_vector_geometry_and_color_curve_channels_translate_without_value_or_easing_changes ... ok
+test channels::easing_clipboard_preserves_nested_vector_effect_and_color_curve_payloads ... ok
+test channels::interpolation::interpolation_preserves_effect_color_curve_and_mask_geometry_values ... ok
+
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.25s
+

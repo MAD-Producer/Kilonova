@@ -1,0 +1,38 @@
+{
+  "keys": [
+    {
+      "id": 1,
+      "reference": 0.0,
+      "fixed": 100.0,
+      "value": [
+        7.0,
+        7.0,
+        7.0
+      ],
+      "spatial": null
+    },
+    {
+      "id": 2,
+      "reference": 2.0,
+      "fixed": 126.25,
+      "value": [
+        7.0,
+        7.0,
+        7.0
+      ],
+      "spatial": null
+    },
+    {
+      "id": 3,
+      "reference": 10.0,
+      "fixed": 200.0,
+      "value": [
+        7.0,
+        7.0,
+        7.0
+      ],
+      "spatial": null
+    }
+  ],
+  "next_id": 4
+}

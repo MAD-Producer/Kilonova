@@ -1,0 +1,4 @@
+ERROR motion_studio::panels::timeline_graph: timeline graph failed operation=load object=7 target=Property { object: 7, property: Position, axis: None } revision=Some(1) generation=Some(1) phase=decode elapsed_ms=0 cause=missing field `fixed`
+ERROR motion_studio::panels::timeline_graph: timeline graph failed operation=load object=7 target=Property { object: 7, property: Position, axis: None } revision=Some(3) generation=Some(1) phase=decode elapsed_ms=0 cause=missing field `fixed`
+ERROR motion_studio::panels::timeline_graph: timeline graph failed operation=load object=7 target=Property { object: 7, property: Position, axis: None } revision=None generation=Some(1) phase=decode elapsed_ms=0 cause=missing field `fixed`
+ERROR motion_studio::panels::timeline_graph: timeline graph failed operation=load object=7 target=Property { object: 7, property: Position, axis: None } revision=None generation=Some(1) phase=decode elapsed_ms=0 cause=missing field `fixed`

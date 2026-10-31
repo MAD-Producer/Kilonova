@@ -300,6 +300,7 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
         layer.timeline.as_mut().unwrap().out_frame = 36000;
         layer.transform.opacity.keys = (0..33000)
             .map(|frame| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: if frame % 2 == 0 { 0.2 } else { 0.8 },
                 ease: motion_core::Ease::InOut,
@@ -309,6 +310,7 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
             .collect();
         layer.effects[0].params.get_mut("speed").unwrap().track.keys = (0..33000)
             .map(|frame| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: [if frame % 2 == 0 { 0.2 } else { 0.8 }, 0., 0., 0.],
                 ease: motion_core::Ease::InOut,
@@ -332,8 +334,11 @@ fn real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_leve
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         // Collection creation is an explicit command with an expected Info
         // start record. Finish setup before measuring passive render silence.
+        // Three complete Panels values plus debug move temporaries exceed the
+        // default Windows test stack. Keep the same full-size fixtures on the
+        // heap; all production renderers, key counts and assertions are retained.
         let mut renderers = [Graph::Property, Graph::Effect, Graph::Comparison]
-            .map(|graph| (graph, graph.panels(&state, &catalogue)));
+            .map(|graph| (graph, Box::new(graph.panels(&state, &catalogue))));
         let _logger = crate::logging::init(root.clone()).unwrap();
         let file = root.join("motion-studio.log");
         for (graph, p) in &mut renderers {

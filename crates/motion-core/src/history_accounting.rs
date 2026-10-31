@@ -1,6 +1,7 @@
 //! Exact compact-JSON history accounting. Payload sizes are immutable caches:
 //! normal edits revisit only changed layers/cameras, and history moves reuse
-//! the whole cache. This counts model JSON, not heap capacity or image/GPU data.
+//! the whole cache. Derived spatial allocations are accounted separately;
+//! general model heap capacity and image/GPU data remain outside this policy.
 use crate::{Camera, Command, Layer, Project, PropertyExpression};
 use serde::{
     ser::{Error as _, Impossible, SerializeStruct},
@@ -10,6 +11,11 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+#[path = "history_accounting/spatial.rs"]
+mod spatial;
+pub(crate) use spatial::history_usage;
+#[cfg(test)]
+pub(crate) use spatial::HistoryUsage;
 
 type JsonResult<T> = std::result::Result<T, serde_json::Error>;
 
@@ -90,6 +96,7 @@ impl Changes {
             | Command::Mask { object, .. } => *object,
             Command::SetWorkingPrecision { .. } | Command::SetWorkArea { .. } | Command::SetGuides { .. } | Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
+            Command::KeyframeHandle { target, .. } | Command::SpatialKeyframes {target,..} => target.object(),
             Command::DepthCalibration { object, .. } | Command::VideoDepthCalibration { object, .. } => *object,
             Command::CameraMode { object, .. }
             | Command::CameraImported { object, .. }
@@ -202,6 +209,7 @@ pub(crate) struct ProjectSize {
     bytes: usize,
     globals: Arc<HashMap<&'static str, usize>>,
     nodes: Arc<HashMap<String, NodeSize>>,
+    spatial: spatial::SpatialSizes,
 }
 impl ProjectSize {
     pub(crate) fn new(project: &Project) -> Self {
@@ -229,6 +237,7 @@ impl ProjectSize {
             bytes: 0,
             globals: Arc::new(globals),
             nodes: Arc::new(nodes),
+            spatial: spatial::SpatialSizes::new(project),
         };
         size.refresh_header(project);
         size
@@ -241,6 +250,7 @@ impl ProjectSize {
             return Self::new(project);
         }
         let mut next = self.clone();
+        next.spatial = self.spatial.updated(project, changes);
         if changes.library {
             Arc::make_mut(&mut next.globals).insert("library", counted(&project.library));
         }

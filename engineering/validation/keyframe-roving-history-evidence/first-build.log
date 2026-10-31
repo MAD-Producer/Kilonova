@@ -1,0 +1,47 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-core v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 23s
+     Running unittests src\lib.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\motion_core-ea3a09d95d5b93c9.exe)
+
+running 6 tests
+
+thread 'editor::history_spatial_tests::all_compositions_anchors_and_camera_owners_contribute_without_activation_changes' (81372) panicked at crates\motion-core\src\history_spatial_tests.rs:256:43:
+called `Result::unwrap()` on an `Err` value: Invalid("camera spatial properties belong to the camera tracks")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test editor::history_spatial_tests::all_compositions_anchors_and_camera_owners_contribute_without_activation_changes ... FAILED
+test editor::history_spatial_tests::branching_drops_redo_before_budget_trimming_for_commands_and_gestures ... ok
+test editor::history_spatial_tests::gestures_refresh_derived_cache_owners_only_on_commit_and_cancel_restores_identity ... ok
+test editor::history_spatial_tests::shared_cache_is_counted_once_and_rebuilt_history_caches_remain_distinct ... ok
+test editor::history_spatial_tests::spatial_history_cache_alone_changes_the_real_budget_boundary ... ok
+test history_accounting::spatial::tests::history_byte_overflow_saturates_instead_of_wrapping_below_budget ... ok
+
+failures:
+
+failures:
+    editor::history_spatial_tests::all_compositions_anchors_and_camera_owners_contribute_without_activation_changes
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p motion-core --lib`

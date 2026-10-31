@@ -94,6 +94,7 @@ fn parameter<'a>(state: &'a Value, effect: u64, param: &str) -> &'a Value {
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: Ease::Linear,

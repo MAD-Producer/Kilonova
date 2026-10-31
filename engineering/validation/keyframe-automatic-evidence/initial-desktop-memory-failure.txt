@@ -1,0 +1,163 @@
+   Compiling motion-effects v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-effects)
+   Compiling motion-scene v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-scene)
+   Compiling motion-ui v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\desktop\ui)
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+   Compiling motion-graph v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-graph)
+   Compiling motion-media v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-media)
+   Compiling motion-render v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-render)
+   Compiling motion-core v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-core)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+   Compiling motion-host v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-host)
+   Compiling motion-desktop-media v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-desktop-media)
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-desktop v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\desktop\app)
+warning: unnecessary parentheses around pattern
+   --> desktop\app\src\panels\graph_handles.rs:159:21
+    |
+159 |                     (Curve {
+    |                     ^
+...
+162 |                     })
+    |                      ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+159 ~                     Curve {
+160 |                         space: CurveSpace::Progress,
+161 |                         shape: CurveShape::Cubic { .. }
+162 ~                     }
+    |
+
+warning: unused imports: `chrome` and `floating_chrome`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:3:21
+  |
+3 | use crate::panels::{chrome, floating_chrome};
+  |                     ^^^^^^  ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `dock::Node`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:4:17
+  |
+4 | use motion_ui::{dock::Node, input::Modifiers, paint::PaintList, text::TextAtlas};
+  |                 ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\viewer_guides\native_tests.rs:447:9
+    |
+447 |     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `state`
+   --> desktop\app\src\panels\effect_controls.rs:910:9
+    |
+910 |         state: &Value,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\graph_handles.rs:116:5
+    |
+116 |     atlas: &mut TextAtlas,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+memory allocation of 2097152 bytes failed
+stack backtrace:
+   0:     0x7ff8af8ef38e - std::backtrace_rs::backtrace::win64::trace
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\..\..\backtrace\src\backtrace\win64.rs:85
+   1:     0x7ff8af8ef38e - std::backtrace_rs::backtrace::trace_unsynchronized
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\..\..\backtrace\src\backtrace\mod.rs:66
+   2:     0x7ff8af8ef38e - std::sys::backtrace::_print_fmt
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\sys\backtrace.rs:74
+   3:     0x7ff8af8ef38e - std::sys::backtrace::impl$0::print::impl$0::fmt
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\sys\backtrace.rs:44
+   4:     0x7ff8af917c61 - core::fmt::write
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\core\src\fmt\mod.rs:0
+   5:     0x7ff8af8ff7e4 - std::io::default_write_fmt
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\io\mod.rs:622
+   6:     0x7ff8af8ff7e4 - std::io::Write::write_fmt<std::sys::stdio::windows::Stderr>
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\io\mod.rs:1977
+   7:     0x7ff8af8e2794 - std::sys::backtrace::BacktraceLock::print
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\sys\backtrace.rs:47
+   8:     0x7ff8af8e2794 - std::alloc::default_alloc_error_hook
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\alloc.rs:397
+   9:     0x7ff8af8c808c - std::alloc::rust_oom::closure$0
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\alloc.rs:428
+  10:     0x7ff8af8c579f - std::sys::backtrace::__rust_end_short_backtrace<std::alloc::rust_oom::closure_env$0,never$>
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\sys\backtrace.rs:182
+  11:     0x7ff8af8e283b - std::alloc::rust_oom
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\alloc.rs:424
+  12:     0x7ff8af8c8fd8 - std::alloc::_::__rust_alloc_error_handler
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\alloc.rs:423
+  13:     0x7ff8b3e7cbf9 - alloc::alloc::handle_alloc_error::rt_error
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\alloc\src\alloc.rs:551
+  14:     0x7ff8b3e7cbf9 - alloc::alloc::handle_alloc_error
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\alloc\src\alloc.rs:557
+  15:     0x7ff8b3e7cc16 - alloc::raw_vec::handle_error
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\alloc\src\raw_vec\mod.rs:890
+  16:     0x7ff8b10e6f93 - <rustc_arena[9ab42e2fa10c937d]::DroplessArena>::grow
+  17:     0x7ff8b0fce006 - <rustc_middle[327ca6dd13956ce7]::ty::context::CtxtInterners>::intern_predicate
+  18:     0x7ff8b10650c0 - <rustc_middle[327ca6dd13956ce7]::ty::predicate::Predicate as rustc_type_ir[8de04b864c6e8106]::upcast::UpcastFrom<rustc_middle[327ca6dd13956ce7]::ty::context::TyCtxt, rustc_type_ir[8de04b864c6e8106]::predicate_kind::ClauseKind<rustc_middle[327ca6dd13956ce7]::ty::context::TyCtxt>>>::upcast_from
+  19:     0x7ff8b01dc897 - <rustc_borrowck[2700d9f3b578093d]::type_check::TypeChecker as rustc_middle[327ca6dd13956ce7]::mir::visit::Visitor>::visit_operand
+  20:     0x7ff8b019aca9 - <rustc_borrowck[2700d9f3b578093d]::type_check::TypeChecker as rustc_middle[327ca6dd13956ce7]::mir::visit::Visitor>::visit_body
+  21:     0x7ff8b017056c - <alloc[61df5e49bb59a840]::rc::Rc<rustc_mir_dataflow[6fe6076996238b53]::points::DenseLocationMap>>::drop_slow
+  22:     0x7ff8b00f7b0f - rustc_borrowck[2700d9f3b578093d]::mir_borrowck
+  23:     0x7ff8b008e645 - rustc_borrowck[2700d9f3b578093d]::mir_borrowck
+  24:     0x7ff8b0813ecb - rustc_query_impl[e1e7bd42ece5b6be]::dep_kind_vtables::make_dep_kind_vtables
+  25:     0x7ff8b071b4e4 - RINvMs6_NtCsfS3O9ZKjYUs_9hashbrown3rawINtB6_8RawTableTTNtNtNtCs4kJVeIPopPT_12rustc_middle2ty8instance8InstanceNtNtBX_4mono14CollectionModeETINtNtNtBX_5query5erase10ErasedDataAhj20_ENtNtNtBX_9dep_graph5graph12DepNodeIndexEEE14reserve_rehashNCNvMs1_NtCsdNe2z
+  26:     0x7ff8af3dd47b - llvm::TargetTransformInfoImplBase::canHaveNonUndefGlobalInitializerInAddressSpace
+  27:     0x7ff8af948eed - rustc_interface[7971ec2362d01f78]::passes::analysis
+  28:     0x7ff8af40415a - llvm::TargetTransformInfoImplBase::canHaveNonUndefGlobalInitializerInAddressSpace
+  29:     0x7ff8af2eb380 - <<rustc_ty_utils[526278a885831dab]::opaque_types::OpaqueTypeCollector>::collect_taits_declared_in_body::TaitInBodyFinder as rustc_hir[1ea8a90067a68ca8]::intravisit::Visitor>::visit_nested_item
+  30:     0x7ff8af4040ab - llvm::TargetTransformInfoImplBase::canHaveNonUndefGlobalInitializerInAddressSpace
+  31:     0x7ff8acb9e63a - std[fc79cc53f84b73ec]::sys::backtrace::__rust_begin_short_backtrace::<std[fc79cc53f84b73ec]::thread::lifecycle::spawn_unchecked<ctrlc[85c6d45e5360c17e]::set_handler_inner<rustc_driver_impl[3c242465527f1190]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  32:     0x7ff8acb9a591 - RINvNtNtCslFVcyoAu48q_3std3sys9backtrace28___rust_begin_short_backtraceNCNCINvNtCsaqrPHTSpvJs_15rustc_interface4util26run_in_thread_with_globalsNCINvB1e_31run_in_thread_pool_with_globalsNCINvNtB1g_9interface12run_compileruNCNvCs5a844wrxEGq_17rustc_driver_i
+  33:     0x7ff8acba3507 - std[fc79cc53f84b73ec]::sys::backtrace::__rust_begin_short_backtrace::<std[fc79cc53f84b73ec]::thread::lifecycle::spawn_unchecked<ctrlc[85c6d45e5360c17e]::set_handler_inner<rustc_driver_impl[3c242465527f1190]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  34:     0x7ff8af8ec55a - std::sys::thread::windows::impl$0::new::thread_start
+                               at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\sys\thread\windows.rs:58
+  35:     0x7ffa330ddda7 - BaseThreadInitThunk
+  36:     0x7ffa352bee4c - RtlUserThreadStart
+warning: `motion-desktop` (bin "motion-studio" test) generated 8 warnings (run `cargo fix --bin "motion-studio" -p motion-desktop --tests` to apply 8 suggestions)
+error: could not compile `motion-desktop` (bin "motion-studio" test); 8 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `C:\Users\nova\.rustup\toolchains\1.97.1-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name motion_studio --edition=2021 desktop\app\src\main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --cfg "feature=\"default\"" --cfg "feature=\"ffmpeg\"" --cfg "feature=\"gpu-tests\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"default\", \"ffmpeg\", \"gpu-tests\"))" -C metadata=718bd0a18be55705 -C extra-filename=-9c5cdc7b4281ddf0 --out-dir E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps -C incremental=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\incremental -L dependency=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps --extern arboard=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libarboard-3781c9b0b7e01beb.rlib --extern bytemuck=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libbytemuck-7135f62076bf9e73.rlib --extern cpal=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libcpal-5ff5bed090e7f40d.rlib --extern fontdb=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libfontdb-3aa6b7525722b4f2.rlib --extern glam=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libglam-2f5b4f240bff7b35.rlib --extern image=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libimage-16d1f20dca60723a.rlib --extern log=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\liblog-875bf28102c76585.rlib --extern motion_core=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_core-d3f6f0df3fedd5a8.rlib --extern motion_desktop_media=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_desktop_media-a5e05f3c18f361de.rlib --extern motion_effects=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_effects-9b6fc95b543c7f0d.rlib --extern motion_graph=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_graph-47936b9347bdb18d.rlib --extern motion_host=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_host-d0dfad7860967642.rlib --extern motion_media=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_media-e612859ba54cdee3.rlib --extern motion_model=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_model-45d27c96728e5dbc.rlib --extern motion_render=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_render-903f41a0490d1ddb.rlib --extern motion_scene=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_scene-1c6023e325f39be8.rlib --extern motion_ui=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libmotion_ui-bc3c9439a5193ffc.rlib --extern pollster=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libpollster-859a1dd12cc9cec7.rlib --extern raw_window_handle=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libraw_window_handle-f0be2a9e8e5e10ee.rlib --extern rfd=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\librfd-475738984ba32dd4.rlib --extern sentry=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libsentry-0b70797600db731e.rlib --extern serde=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libserde-4ceedb73798be045.rlib --extern serde_json=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libserde_json-1e5ad50048f8a397.rlib --extern sha2=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libsha2-8385af2eaf63c960.rlib --extern tempfile=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libtempfile-5fd6895573737e5a.rlib --extern wgpu=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libwgpu-8717ff29f036ee5f.rlib --extern winit=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\deps\libwinit-dfdcb1e18d976df6.rlib -C debuginfo=0 -C link-arg=/DEBUG:NONE -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\rquickjs-sys-119217510692b3ca\out -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\stacker-2290549faf8bfcd7\out -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\psm-cb053719ea269dc9\out -L native=E:/Dev/aem/.tools/viewer-inspection/native-target\debug\build\ring-a3781983aa04179f\out -L native=C:\Users\nova\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib -L native=E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\lib` (exit code: 0xc0000409, STATUS_STACK_BUFFER_OVERRUN)

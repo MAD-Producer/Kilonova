@@ -13,7 +13,7 @@ mod tests {
         use crate::shortcuts::{bindings::Bindings,Command,Scope};
         let mut parameter=EffectParam {kind:motion_effects::ParamKind::Float,animatable:true,min:0.,max:100.,
             implemented:true,default:[0.;4],track:motion_core::Track::constant([0.;4]),curve:None};
-        parameter.track.keys=vec![motion_core::Keyframe {frame:20,value:[1.;4],ease:motion_core::Ease::Linear,curve:None,spatial:None}];
+        parameter.track.keys=vec![motion_core::Keyframe { auto_bezier: false,frame:20,value:[1.;4],ease:motion_core::Ease::Linear,curve:None,spatial:None}];
         let state=serde_json::json!({"root":"fixture","composition":"main","frame":12,"project":{"frames":120,"layers":[{"id":7,"effects":[{"id":1,"params":{"amount":parameter}}]}]}});
         let mut bindings=Bindings::default();bindings.bind(Scope::Animation,Command::NextKey,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
         let mut panels=crate::panels::Panels {selected:Some(7),focused:Some(motion_ui::dock::Panel::EffectControls),shortcut_bindings:std::sync::Arc::new(bindings),..Default::default()};

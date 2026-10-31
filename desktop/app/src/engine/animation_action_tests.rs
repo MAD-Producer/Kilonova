@@ -3,6 +3,172 @@ use motion_core::{Ease, Keyframe, KeyframeSelection, KeyframeTarget, Layer, Proj
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
+#[path = "animation_action_tests/spatial.rs"]
+mod spatial;
+
+#[test]
+fn single_handle_fault_is_atomic_and_reaches_default_error_channels() {
+    const NAME: &str = "engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels";
+    const CHILD: &str = "MOTION_HANDLE_KEYFRAME_ERROR_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logging = crate::logging::init(root.join("logs")).unwrap();
+        let mut project = Project::new(640, 360, 30, 120).unwrap();
+        let mut layer = Layer::solid(7, "Private handle layer", [32.; 2], [0.; 3], [1.; 4]);
+        for (frame, value) in [(0, 0.), (10, 0.2), (40, 1.)] {
+            layer
+                .transform
+                .opacity
+                .upsert(frame, value, Ease::Linear)
+                .unwrap();
+        }
+        for frame in [10, 40] {
+            layer
+                .transform
+                .opacity
+                .set_auto_bezier(frame, true)
+                .unwrap();
+        }
+        project.layers.push(layer);
+        let directory = root.join("project");
+        motion_core::storage::save(&directory, &project).unwrap();
+        let engine = Engine::start(directory, motion_desktop_media::platform(), 8 << 30).unwrap();
+        let before = engine.state().unwrap();
+        let apply = |frame| {
+            engine.call(|reply| Command::EditorAction {
+                source: crate::layer_clipboard::KeyframeSource::of(&before),
+                commands: vec![motion_core::Command::KeyframeHandle {
+                    target: KeyframeTarget::Property {
+                        object: 7,
+                        property: Property::Opacity,
+                        axis: None,
+                    },
+                    frame,
+                    incoming: false,
+                    control: [0.25, 0.1],
+                }],
+                reply,
+            })
+        };
+        let error = apply(99).unwrap_err();
+        assert!(
+            error.contains("operation=curve_handle") && error.contains("object=7"),
+            "{error}"
+        );
+        assert!(
+            error.contains("selected keyframe does not exist"),
+            "{error}"
+        );
+        let after = engine.state().unwrap();
+        for field in ["project", "revision", "history"] {
+            assert_eq!(before[field], after[field], "{field}");
+        }
+        let applied = apply(10).unwrap();
+        let keys = &applied["project"]["layers"][0]["transform"]["opacity"]["keys"];
+        assert_ne!(keys[1]["auto_bezier"], true);
+        assert_eq!(keys[2]["auto_bezier"], true);
+        assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        engine.request_shutdown().unwrap();
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::env::var_os("MOTION_HANDLE_KEYFRAME_ERROR_ARTIFACTS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| temp.path().into());
+    std::fs::create_dir_all(&root).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+        .env(CHILD, &root)
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+    std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let file = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let cause = "operation=curve_handle";
+    assert_eq!(
+        file.lines()
+            .filter(|line| line.contains(" ERROR ") && line.contains(cause))
+            .count(),
+        1
+    );
+    assert!(stderr.contains(cause));
+    assert!(!stdout.contains(cause) && !stdout.contains("motion_studio::"));
+    assert!(file.lines().any(|line| line.contains(" INFO ")
+        && line.contains("start #")
+        && line.ends_with(" editor_action")));
+    for text in [&*file, &*stderr, &*stdout] {
+        assert!(!text.contains("Private handle layer"));
+    }
+}
+
+#[test]
+fn automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels() {
+    const NAME: &str = "engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels";
+    const CHILD: &str = "MOTION_AUTOMATIC_KEYFRAME_ERROR_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logging = crate::logging::init(root.join("logs")).unwrap();
+        let mut project = Project::new(640, 360, 30, 120).unwrap();
+        let mut layer = Layer::solid(7, "Private authored layer", [32.; 2], [0.; 3], [1.; 4]);
+        for (frame, value) in [(0, 0.), (10, 0.2), (40, 1.)] {
+            layer.transform.opacity.upsert(frame, value, Ease::Linear).unwrap();
+        }
+        project.layers.push(layer);
+        let directory = root.join("project");
+        motion_core::storage::save(&directory, &project).unwrap();
+        let engine = Engine::start(directory, motion_desktop_media::platform(), 8 << 30).unwrap();
+        let before = engine.state().unwrap();
+        let apply = |frame| engine.call(|reply| Command::EditorAction {
+            source: crate::layer_clipboard::KeyframeSource::of(&before),
+            commands: vec![motion_core::Command::KeyframeAutomatic {
+                selections: vec![KeyframeSelection {
+                    target: KeyframeTarget::Property { object: 7, property: Property::Opacity, axis: None },
+                    frames: vec![frame],
+                }],
+                enabled: true,
+            }],
+            reply,
+        });
+        let error = apply(99).unwrap_err();
+        assert!(error.contains("operation=automatic_bezier") && error.contains("object=7"), "{error}");
+        assert!(error.contains("selected keyframe does not exist"), "{error}");
+        let after = engine.state().unwrap();
+        for field in ["project", "revision", "history"] { assert_eq!(before[field], after[field], "{field}"); }
+        let applied = apply(10).unwrap();
+        assert_eq!(applied["project"]["layers"][0]["transform"]["opacity"]["keys"][1]["auto_bezier"], true);
+        assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        engine.request_shutdown().unwrap();
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::env::var_os("MOTION_AUTOMATIC_KEYFRAME_ERROR_ARTIFACTS").map(PathBuf::from).unwrap_or_else(|| temp.path().into());
+    std::fs::create_dir_all(&root).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+        .env(CHILD, &root).env_remove("MOTION_LOG").output().unwrap();
+    std::fs::write(root.join("stdout.log"), &output.stdout).unwrap();
+    std::fs::write(root.join("stderr.log"), &output.stderr).unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let file = std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let cause = "operation=automatic_bezier";
+    assert_eq!(file.lines().filter(|line| line.contains(" ERROR ") && line.contains(cause)).count(), 1);
+    assert!(stderr.contains(cause));
+    assert!(!stdout.contains(cause) && !stdout.contains("motion_studio::"));
+    assert!(file.lines().any(|line| line.contains(" INFO ") && line.contains("start #") && line.ends_with(" editor_action")));
+    for text in [&*file, &*stderr, &*stdout] { assert!(!text.contains("Private authored layer")); }
+}
+
 fn edit(engine: &Engine, state: &Value, object: u64, frames: &[u32]) -> Result<Value, String> {
     let source = crate::layer_clipboard::KeyframeSource::of(state);
     let selections = vec![KeyframeSelection {
@@ -37,6 +203,7 @@ fn animation_actions_keep_default_error_sinks_and_cancel_superseded_document_wor
             layer.transform.position.keys = [0, 10, 20]
                 .into_iter()
                 .map(|frame| Keyframe {
+                    auto_bezier: false,
                     frame,
                     value: [frame as f32, 0., 0.],
                     ease: Ease::Linear,

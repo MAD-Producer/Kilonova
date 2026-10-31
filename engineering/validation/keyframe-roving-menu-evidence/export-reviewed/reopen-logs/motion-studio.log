@@ -1,0 +1,73 @@
+1793416851.213 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::logging: logging initialized level=INFO
+1793416851.214 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-reviewed\project
+1793416851.214 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793416851.215 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-reviewed\project
+1793416857.769 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793416857.769 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-reviewed\project 6555ms
+1793416857.769 INFO [motion-engine] motion_studio::engine: start #1 state
+1793416857.770 INFO [motion-engine] motion_studio::engine: start #2 seek
+1793416857.771 INFO [motion-engine] motion_studio::engine: start #3 capture
+1793416857.794 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #3 capture phase=freeze_render_publish
+1793416857.913 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416857.913 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0e9259f0, name: ?)
+1793416857.913 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416857.913 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0e9259f0, name: ?)
+1793416858.010 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416858.538 INFO [motion-engine] motion_studio::engine: start #4 seek
+1793416858.539 INFO [motion-engine] motion_studio::engine: start #5 capture
+1793416858.569 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #5 capture phase=freeze_render_publish
+1793416858.586 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416858.586 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0e922fd0, name: ?)
+1793416858.586 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416858.586 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0e922fd0, name: ?)
+1793416858.605 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416859.185 INFO [motion-engine] motion_studio::engine: start #6 seek
+1793416859.186 INFO [motion-engine] motion_studio::engine: start #7 capture
+1793416859.222 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #7 capture phase=freeze_render_publish
+1793416859.252 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416859.252 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f547f0000, name: ?)
+1793416859.252 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416859.252 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f547f0000, name: ?)
+1793416859.281 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416859.978 INFO [motion-engine] motion_studio::engine: start #8 seek
+1793416859.979 INFO [motion-engine] motion_studio::engine: start #9 capture
+1793416860.018 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #9 capture phase=freeze_render_publish
+1793416860.041 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416860.041 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0ee03ba0, name: ?)
+1793416860.041 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416860.041 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f0ee03ba0, name: ?)
+1793416860.064 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416860.576 INFO [motion-engine] motion_studio::engine: start #10 seek
+1793416860.578 INFO [motion-engine] motion_studio::engine: start #11 capture
+1793416860.615 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #11 capture phase=freeze_render_publish
+1793416860.640 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416860.640 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f5401ad80, name: ?)
+1793416860.640 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416860.640 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f5401ad80, name: ?)
+1793416860.665 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416861.404 INFO [motion-engine] motion_studio::engine: start #12 seek
+1793416861.406 INFO [motion-engine] motion_studio::engine: start #13 capture
+1793416861.450 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #13 capture phase=freeze_render_publish
+1793416861.485 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416861.485 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f545a2560, name: ?)
+1793416861.485 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416861.485 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x12f545a2560, name: ?)
+1793416861.518 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416862.178 INFO [motion-engine] motion_studio::engine: start #14 shutdown
+1793416862.178 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793416862.178 INFO [motion-engine] motion_studio::engine::shutdown: start #15 shutdown_cleanup session=1
+1793416862.179 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793416862.179 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793416862.179 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

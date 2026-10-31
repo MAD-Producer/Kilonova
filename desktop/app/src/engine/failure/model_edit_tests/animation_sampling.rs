@@ -58,6 +58,7 @@ fn actual_sampling_refusals_preserve_native_causes_and_default_reply_sinks() {
                 track.separate().unwrap();
                 if case == 1 {
                     track.keys.push(motion_core::Keyframe {
+                        auto_bezier: false,
                         frame: 0,
                         value: [4.; 3],
                         ease: Ease::Linear,

@@ -81,6 +81,63 @@ fn exact(project: &Project) -> usize {
 }
 
 #[test]
+fn handle_gestures_count_only_the_target_layer_and_keep_exact_undo_accounting() {
+    let mut project = Project::new(640, 360, 30, 4000).unwrap();
+    let mut owner = Layer::solid(7, "Handle owner", [32.; 2], [0.; 3], [1.; 4]);
+    owner.transform.opacity.upsert(0, 0., Ease::Linear).unwrap();
+    owner
+        .transform
+        .opacity
+        .upsert(20, 1., Ease::Linear)
+        .unwrap();
+    owner.transform.opacity.set_auto_bezier(0, true).unwrap();
+    let mut untouched = Layer::solid(9, "Untouched animation", [32.; 2], [0.; 3], [1.; 4]);
+    for frame in 0..2000 {
+        untouched
+            .transform
+            .opacity
+            .upsert(frame, 0.5, Ease::Linear)
+            .unwrap();
+    }
+    let untouched_bytes = motion_model::serialized_bytes(&untouched);
+    project.layers = vec![owner, untouched];
+    let mut engine = Engine::new(project).unwrap();
+    let baseline = engine.snapshot();
+    engine.begin_gesture().unwrap();
+    reset_serialized_bytes();
+    for i in 0..12 {
+        engine
+            .apply(Command::KeyframeHandle {
+                target: crate::KeyframeTarget::Property {
+                    object: 7,
+                    property: Property::Opacity,
+                    axis: None,
+                },
+                frame: 0,
+                incoming: false,
+                control: [0.25, 0.1 + f64::from(i) / 100.],
+            })
+            .unwrap();
+    }
+    assert_eq!(
+        serialized_visit_bytes(),
+        0,
+        "preview reserialized history metadata"
+    );
+    engine.end_gesture(true).unwrap();
+    assert!(
+        serialized_visit_bytes() < untouched_bytes,
+        "commit reserialized unrelated animation"
+    );
+    assert_exact(&engine);
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &baseline);
+    assert_exact(&engine);
+    engine.redo().unwrap();
+    assert_exact(&engine);
+}
+
+#[test]
 fn guide_metadata_accounting_matches_real_json_after_scoped_edits_and_history_moves() {
     let mut project = Project::new(640, 360, 30, 90).unwrap();
     project.compositions.push(crate::Composition {

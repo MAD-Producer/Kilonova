@@ -1,13 +1,16 @@
-//! Authored key identities are channel + composition time, independent of the
+//! Authored keys use a channel plus a frame address or persistent spatial ID,
 //! displayed property, graph component, playhead and primary layer selection.
 use motion_core::{Error, KeyframeSelection, KeyframeTarget, MAX_KEYFRAME_CLIPBOARD_BYTES};
 use serde_json::Value;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 mod movement;
-mod transform;
 mod source;
-pub(super) fn authored_track<'a>(state: &'a Value, target: &KeyframeTarget) -> Option<(&'a Value, i64)> {
+mod transform;
+pub(super) fn authored_track<'a>(
+    state: &'a Value,
+    target: &KeyframeTarget,
+) -> Option<(&'a Value, i64)> {
     source::track(state, target)
 }
 pub(super) mod ui;
@@ -16,6 +19,38 @@ pub(super) mod ui;
 pub(crate) struct Key {
     pub target: KeyframeTarget,
     pub frame: u32,
+}
+
+/// Persistent identity never aliases a rounded composition frame. Distinct
+/// spatial keys may legitimately have the same solved time.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SpatialKey {
+    pub target: KeyframeTarget,
+    pub id: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum AddressedKey {
+    Frame(Key),
+    Spatial(SpatialKey),
+}
+impl From<Key> for AddressedKey {
+    fn from(key: Key) -> Self {
+        Self::Frame(key)
+    }
+}
+impl From<SpatialKey> for AddressedKey {
+    fn from(key: SpatialKey) -> Self {
+        Self::Spatial(key)
+    }
+}
+impl AddressedKey {
+    fn target(&self) -> &KeyframeTarget {
+        match self {
+            Self::Frame(k) => &k.target,
+            Self::Spatial(k) => &k.target,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +91,7 @@ impl Scope {
 struct Channel {
     target: Option<KeyframeTarget>,
     frames: BTreeSet<u32>,
+    ids: BTreeSet<u64>,
 }
 impl Channel {
     // Worst-case serialized u32 is ten digits plus a comma. The channel
@@ -66,6 +102,48 @@ impl Channel {
             .saturating_add(32)
             .saturating_add(count.saturating_mul(11))
     }
+    fn retained_bytes(&self, address: &str) -> usize {
+        Self::bytes(address, self.frames.len()).saturating_add(self.ids.len().saturating_mul(21))
+    }
+    fn insert(&mut self, key: &AddressedKey, toggle: bool) {
+        match key {
+            AddressedKey::Frame(k) => {
+                if !toggle || !self.frames.remove(&k.frame) {
+                    self.frames.insert(k.frame);
+                }
+            }
+            AddressedKey::Spatial(k) => {
+                if !toggle || !self.ids.remove(&k.id) {
+                    self.ids.insert(k.id);
+                }
+            }
+        }
+    }
+    fn empty(&self) -> bool {
+        self.frames.is_empty() && self.ids.is_empty()
+    }
+    fn keys(&self) -> impl Iterator<Item = AddressedKey> + '_ {
+        self.frames
+            .iter()
+            .filter_map(|frame| {
+                Some(
+                    Key {
+                        target: self.target.clone()?,
+                        frame: *frame,
+                    }
+                    .into(),
+                )
+            })
+            .chain(self.ids.iter().filter_map(|id| {
+                Some(
+                    SpatialKey {
+                        target: self.target.clone()?,
+                        id: *id,
+                    }
+                    .into(),
+                )
+            }))
+    }
 }
 
 #[derive(Clone, Default)]
@@ -75,6 +153,7 @@ pub(crate) struct Set {
     scope: Option<Scope>,
     channels: BTreeMap<String, Channel>,
     primary: Option<Key>,
+    spatial_primary: Option<SpatialKey>,
     // A valid authoritative document revision permits reusing presence checks.
     // Missing revision disables caching; view-only changes do not invalidate it.
     validated: Cell<Option<(u64, Status)>>,
@@ -82,11 +161,18 @@ pub(crate) struct Set {
 impl Set {
     /// Popup identity excludes the mutable presence cache and one-frame intent.
     pub(crate) fn same_selection(&self, other: &Self) -> bool {
-        self.claimed == other.claimed && self.scope == other.scope
-            && self.channels == other.channels && self.primary == other.primary
+        self.claimed == other.claimed
+            && self.scope == other.scope
+            && self.channels == other.channels
+            && self.primary == other.primary
+            && self.spatial_primary == other.spatial_primary
     }
     pub fn owns_keys(&self) -> bool {
         self.claimed
+    }
+
+    pub(super) fn same_document(&self, state: &Value) -> bool {
+        self.scope.is_some() && self.scope == Scope::of(state)
     }
 
     pub fn status(&self, state: &Value) -> Status {
@@ -115,6 +201,43 @@ impl Set {
         self.primary.as_ref()
     }
 
+    fn addressed_primary(&self) -> Option<AddressedKey> {
+        self.spatial_primary
+            .clone()
+            .map(AddressedKey::Spatial)
+            .or_else(|| self.primary.clone().map(AddressedKey::Frame))
+    }
+    fn set_primary(&mut self, key: Option<AddressedKey>) {
+        self.primary = None;
+        self.spatial_primary = None;
+        match key {
+            Some(AddressedKey::Frame(k)) => self.primary = Some(k),
+            Some(AddressedKey::Spatial(k)) => self.spatial_primary = Some(k),
+            None => {}
+        }
+    }
+    pub fn has_spatial(&self) -> bool {
+        self.channels.values().any(|c| !c.ids.is_empty())
+    }
+    pub fn spatial_selections(&self) -> Vec<(KeyframeTarget, Vec<u64>)> {
+        self.channels
+            .values()
+            .filter_map(|c| {
+                (!c.ids.is_empty())
+                    .then(|| Some((c.target.clone()?, c.ids.iter().copied().collect())))?
+            })
+            .collect()
+    }
+    pub(super) fn contains_addressed(&self, key: &AddressedKey) -> bool {
+        match key {
+            AddressedKey::Frame(k) => self.contains(k),
+            AddressedKey::Spatial(k) => self
+                .channels
+                .values()
+                .any(|c| c.target.as_ref() == Some(&k.target) && c.ids.contains(&k.id)),
+        }
+    }
+
     pub fn contains(&self, key: &Key) -> bool {
         self.channels.values().any(|channel| {
             channel.target.as_ref() == Some(&key.target) && channel.frames.contains(&key.frame)
@@ -122,14 +245,24 @@ impl Set {
     }
 
     fn translated(&self, delta: i32) -> motion_core::Result<Self> {
-        let shifted=|frame:u32| u32::try_from(i64::from(frame)+i64::from(delta))
-            .map_err(|_|Error::Invalid("key selection time overflow".into()));
-        let mut set=self.clone();
+        let shifted = |frame: u32| {
+            u32::try_from(i64::from(frame) + i64::from(delta))
+                .map_err(|_| Error::Invalid("key selection time overflow".into()))
+        };
+        let mut set = self.clone();
         for channel in set.channels.values_mut() {
-            channel.frames=channel.frames.iter().map(|f|shifted(*f)).collect::<motion_core::Result<_>>()?;
+            channel.frames = channel
+                .frames
+                .iter()
+                .map(|f| shifted(*f))
+                .collect::<motion_core::Result<_>>()?;
         }
-        if let Some(primary)=&mut set.primary {primary.frame=shifted(primary.frame)?;}
-        set.validated.set(None);set.intent=true;Ok(set)
+        if let Some(primary) = &mut set.primary {
+            primary.frame = shifted(primary.frame)?;
+        }
+        set.validated.set(None);
+        set.intent = true;
+        Ok(set)
     }
 
     /// Explicit layer/property navigation relinquishes ownership. Clearing only
@@ -144,6 +277,7 @@ impl Set {
         self.scope = Scope::of(state);
         self.channels.clear();
         self.primary = None;
+        self.spatial_primary = None;
         self.validated.set(None);
     }
 
@@ -151,6 +285,9 @@ impl Set {
         self.channels
             .values()
             .filter_map(|channel| {
+                if channel.frames.is_empty() {
+                    return None;
+                }
                 Some(KeyframeSelection {
                     target: channel.target.clone()?,
                     frames: channel.frames.iter().copied().collect(),
@@ -167,6 +304,15 @@ impl Set {
         keys: impl IntoIterator<Item = Key>,
         mode: Mode,
     ) -> motion_core::Result<()> {
+        self.apply_addressed(state, keys.into_iter().map(AddressedKey::Frame), mode)
+    }
+
+    pub(super) fn apply_addressed(
+        &mut self,
+        state: &Value,
+        keys: impl IntoIterator<Item = AddressedKey>,
+        mode: Mode,
+    ) -> motion_core::Result<()> {
         let Some(scope) = Scope::of(state) else {
             self.claimed = true;
             self.intent = true;
@@ -179,15 +325,15 @@ impl Set {
         let mut last = None;
         let mut bytes = 2usize;
         for key in keys {
-            let address = serde_json::to_string(&key.target)?;
+            let address = serde_json::to_string(key.target())?;
             let channel = incoming.entry(address.clone()).or_default();
             if channel.target.is_none() {
                 bytes = bytes.saturating_add(Channel::bytes(&address, 0));
-                channel.target = Some(key.target.clone());
+                channel.target = Some(key.target().clone());
             }
-            if channel.frames.insert(key.frame) {
-                bytes = bytes.saturating_add(11);
-            }
+            let old = channel.retained_bytes(&address);
+            channel.insert(&key, false);
+            bytes = bytes.saturating_add(channel.retained_bytes(&address).saturating_sub(old));
             if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES {
                 return Err(Error::Invalid(
                     "key selection exceeds metadata limit".into(),
@@ -202,22 +348,20 @@ impl Set {
             self.channels
                 .iter()
                 .fold(2usize, |sum, (address, channel)| {
-                    sum.saturating_add(Channel::bytes(address, channel.frames.len()))
+                    sum.saturating_add(channel.retained_bytes(address))
                 })
         };
         for (address, channel) in &incoming {
             let old = (!replace).then(|| self.channels.get(address)).flatten();
-            let count = if let Some(old) = old {
-                bytes = bytes.saturating_sub(Channel::bytes(address, old.frames.len()));
-                match mode {
-                    Mode::Toggle => old.frames.symmetric_difference(&channel.frames).count(),
-                    _ => old.frames.union(&channel.frames).count(),
-                }
-            } else {
-                channel.frames.len()
-            };
-            if count != 0 {
-                bytes = bytes.saturating_add(Channel::bytes(address, count));
+            let mut merged = old.cloned().unwrap_or_default();
+            if let Some(old) = old {
+                bytes = bytes.saturating_sub(old.retained_bytes(address));
+            }
+            for key in channel.keys() {
+                merged.insert(&key, mode == Mode::Toggle);
+            }
+            if !merged.empty() {
+                bytes = bytes.saturating_add(merged.retained_bytes(address));
             }
         }
         if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES {
@@ -233,15 +377,14 @@ impl Set {
                 .channels
                 .entry(address.clone())
                 .or_insert_with(|| Channel {
-                    target: incoming.target,
+                    target: incoming.target.clone(),
                     frames: BTreeSet::new(),
+                    ids: BTreeSet::new(),
                 });
-            for frame in incoming.frames {
-                if mode != Mode::Toggle || !channel.frames.remove(&frame) {
-                    channel.frames.insert(frame);
-                }
+            for key in incoming.keys() {
+                channel.insert(&key, mode == Mode::Toggle);
             }
-            if channel.frames.is_empty() {
+            if channel.empty() {
                 self.channels.remove(&address);
             }
         }
@@ -249,14 +392,11 @@ impl Set {
         self.intent = true;
         self.scope = Some(scope);
         self.validated.set(None);
-        let candidate = last.or_else(|| (!replace).then(|| self.primary.clone()).flatten());
-        self.primary = candidate.filter(|key| self.contains(key)).or_else(|| {
-            let channel = self.channels.values().next_back()?;
-            Some(Key {
-                target: channel.target.clone()?,
-                frame: *channel.frames.last()?,
-            })
-        });
+        let candidate = last.or_else(|| (!replace).then(|| self.addressed_primary()).flatten());
+        let primary = candidate
+            .filter(|key| self.contains_addressed(key))
+            .or_else(|| self.channels.values().next_back()?.keys().last());
+        self.set_primary(primary);
         Ok(())
     }
 
@@ -285,10 +425,11 @@ impl Set {
             return status;
         }
         let current = self.channels.values().all(|channel| {
-            channel
-                .target
-                .as_ref()
-                .is_some_and(|target| channel.frames.iter().all(|&frame| present(target, frame)))
+            channel.target.as_ref().is_some_and(|target| {
+                channel.frames.iter().all(|&frame| present(target, frame))
+                    && (channel.ids.is_empty()
+                        || source::contains_spatial(state, target, &channel.ids))
+            })
         });
         let status = if current {
             Status::Current
@@ -307,7 +448,20 @@ pub(super) fn choose(
     keys: impl IntoIterator<Item = Key>,
     mode: Mode,
 ) -> bool {
-    match panels.selected_keys.apply(state, keys, mode) {
+    choose_addressed(
+        panels,
+        state,
+        keys.into_iter().map(AddressedKey::Frame),
+        mode,
+    )
+}
+fn choose_addressed(
+    panels: &mut super::Panels,
+    state: &Value,
+    keys: impl IntoIterator<Item = AddressedKey>,
+    mode: Mode,
+) -> bool {
+    match panels.selected_keys.apply_addressed(state, keys, mode) {
         Ok(()) => true,
         Err(error) => {
             log::error!("key selection failed operation=select phase=preflight revision={:?} object={:?} cause={error}", state["revision"].as_u64(), panels.selected);
@@ -334,6 +488,7 @@ pub(super) fn ease_command(
         command,
         Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing
     ) || !panels.selected_keys.writable(state)
+        || panels.selected_keys.has_spatial()
     {
         return None;
     }
@@ -344,6 +499,52 @@ pub(super) fn ease_command(
     })
 }
 
+pub(super) fn delete_available(panels: &super::Panels, state: &Value) -> bool {
+    panels.selected_keys.writable(state)
+        && panels.selected_keys.channels.values().all(|channel| {
+            if channel.ids.is_empty() {
+                return true;
+            }
+            channel
+                .target
+                .as_ref()
+                .and_then(|target| source::track(state, target))
+                .and_then(|(track, _)| track["spatial_animation"]["keys"].as_array())
+                .is_some_and(|keys| keys.len().saturating_sub(channel.ids.len()) >= 2)
+        })
+}
+
+pub(super) fn delete_commands(
+    panels: &super::Panels,
+    state: &Value,
+) -> Option<Vec<motion_core::Command>> {
+    if !delete_available(panels, state) {
+        return None;
+    }
+    let mut commands = Vec::new();
+    let selections = panels.selected_keys.selections();
+    if !selections.is_empty() {
+        commands.push(motion_core::Command::DeleteKeyframes { selections });
+    }
+    for (target, ids) in panels.selected_keys.spatial_selections() {
+        let (track, _) = source::track(state, &target)?;
+        let keys = track["spatial_animation"]["keys"].as_array()?;
+        // Spatial storage must retain at least two keys. This unsupported edit
+        // is a normal disabled capability, not an engine error or partial delete.
+        if keys.len().saturating_sub(ids.len()) < 2 {
+            return None;
+        }
+        commands.extend(
+            ids.into_iter()
+                .map(|id| motion_core::Command::SpatialKeyframes {
+                    target: target.clone(),
+                    edit: motion_core::SpatialKeyEdit::Delete { key: id },
+                }),
+        );
+    }
+    (!commands.is_empty()).then_some(commands)
+}
+
 pub(super) fn shortcut(
     panels: &mut super::Panels,
     state: &Value,
@@ -352,7 +553,9 @@ pub(super) fn shortcut(
 ) -> bool {
     use crate::shortcuts::Command as Shortcut;
     use motion_ui::dock::Panel;
-    if transform::nudge(panels,state,command,out) { return true; }
+    if transform::nudge(panels, state, command, out) {
+        return true;
+    }
     if command == Shortcut::SelectAll
         && panels.focused == Some(Panel::Timeline)
         && (panels.selected_keys.owns_keys() || panels.timeline.graph_mode)
@@ -425,18 +628,18 @@ pub(super) fn shortcut(
         );
         return true;
     }
-    let command = if delete {
-        Some(motion_core::Command::DeleteKeyframes {
-            selections: panels.selected_keys.selections(),
-        })
+    let commands = if delete {
+        delete_commands(panels, state)
     } else {
-        ease_command(panels, state, command)
+        ease_command(panels, state, command).map(|command| vec![command])
     };
-    if let Some(command) = command {
+    if let Some(commands) = commands {
         out.push(super::Action::EditorAction {
             source: crate::layer_clipboard::KeyframeSource::of(state),
-            commands: vec![command],
+            commands,
         });
+    } else {
+        transform::unavailable(panels);
     }
     true
 }

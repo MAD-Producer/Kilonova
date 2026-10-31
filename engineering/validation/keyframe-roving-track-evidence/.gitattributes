@@ -1,0 +1,4 @@
+*.log -text -whitespace
+*.json -text -whitespace
+*.msproj binary
+.gitattributes -text

@@ -47,6 +47,7 @@ fn fixture() -> Engine {
     let mut node = paths_mut(&mut project, 7)[0].nodes[0].clone();
     node.geometry.keys = vec![
         Keyframe {
+            auto_bezier: false,
             frame: -5,
             value: [10., 20., -2., 3., 4., -5.],
             ease: Ease::InOut,
@@ -62,6 +63,7 @@ fn fixture() -> Engine {
             spatial: None,
         },
         Keyframe {
+            auto_bezier: false,
             frame: 10,
             value: [30., 40., -6., 7., 8., -9.],
             ease: Ease::Out,
@@ -589,10 +591,12 @@ fn payload_geometry_mask_and_time_limits_fail_before_publishing_a_partial_edit()
         .map(|id| PathNode {
             id,
             geometry: Track {
+                spatial_animation: None,
                 value: [100.12345; 6],
                 axes: None,
                 keys: (0..128)
                     .map(|frame| Keyframe {
+                        auto_bezier: false,
                         frame,
                         value: [100.12345; 6],
                         ease: Ease::Linear,

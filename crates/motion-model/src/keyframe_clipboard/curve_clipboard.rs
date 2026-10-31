@@ -116,10 +116,7 @@ impl CurveClipboard {
                     index + 1 < keys.len(),
                     "source keyframe has no outgoing interval",
                 )?;
-                Self::new(Easing {
-                    ease: keys[index].ease,
-                    curve: keys[index].curve,
-                })
+                Self::new($track.effective_easing(index)?)
             }};
         }
         (|| -> Result<Self> {

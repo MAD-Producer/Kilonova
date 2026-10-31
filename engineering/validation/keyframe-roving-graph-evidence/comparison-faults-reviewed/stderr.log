@@ -1,0 +1,1 @@
+ERROR motion_studio::panels::curve_comparison: curve comparison failed operation=load object=7 target=Property { object: 7, property: Position, axis: None } revision=Some(1) phase=decode elapsed_ms=0 cause=invalid type: string "not-a-frame", expected i32

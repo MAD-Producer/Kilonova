@@ -1,0 +1,74 @@
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-core v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-core)
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 22s
+     Running tests\spatial_keyframes.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_keyframes-1b6671cfaff08297.exe)
+
+running 6 tests
+test document_and_package_reopen_and_frozen_scene_share_the_real_sampler ... ok
+test failures_keep_project_revision_history_and_redo_and_preserve_original_causes ... ok
+test id_delete_and_freeze_survive_save_reopen_and_keep_survivor_identity ... ok
+test old_integer_bakes_fail_explicitly_instead_of_losing_continuous_timing ... ok
+test registry_conversion_and_id_time_edits_keep_full_undo_redo_and_fractional_offsets ... ok
+test unsupported_properties_locks_and_batch_failure_do_not_partially_enable_roving ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests\spatial_hot_path.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_hot_path-d436779bc1959c0d.exe)
+
+running 2 tests
+test authoritative_and_reopened_track_sampling_does_not_allocate_on_the_present_path ... ok
+test prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_real_allocations ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\spatial_schedule.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_schedule-1ea12ea0acf61dee.exe)
+
+running 11 tests
+test closed_cubic_roving_uses_geometric_arc_distance_and_retains_authored_handles ... ok
+test coincident_effective_times_keep_ids_and_invalid_edits_preserve_primary_cause_and_state ... ok
+test freezing_selected_keys_preserves_samples_and_reference_order_is_independent_of_fixed_times ... ok
+test identity_exhaustion_corrupt_controls_and_two_dimensional_samples_are_explicit ... ok
+test inserting_and_deleting_keys_keeps_survivor_ids_and_never_reuses_a_deleted_identity ... ok
+test rejected_selections_and_malformed_persistence_are_atomic ... ok
+test save_reopen_neighbor_edits_and_frozen_snapshots_share_one_time_definition ... ok
+test stable_ids_and_fractional_times_drive_real_sampling_without_editing_source_geometry ... ok
+test stationary_spans_keep_authored_proportions_and_time_edits_target_stable_id ... ok
+test tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically ... ok
+test unsupported_imports_do_not_reinterpret_other_temporal_policies_or_nonspatial_values ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests\spatial_track.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_track-615f8b2e038822a9.exe)
+
+running 7 tests
+test ambiguous_playhead_and_dual_storage_reject_without_losing_authored_values ... ok
+test conversion_preserves_manual_intervals_and_roving_only_changes_its_incident_span ... ok
+test frame_addressed_edits_reject_but_playhead_edits_preserve_ids_and_static_conversion_samples_once ... ok
+test full_project_load_preserves_identity_and_resource_failure_causes_for_position_and_anchor ... ok
+test nonlinear_incident_timing_rejects_conversion_without_changing_any_track_state ... ok
+test property_semantics_and_numeric_limits_are_checked_on_spatial_values_and_controls ... ok
+test real_project_round_trip_and_timeline_preserve_continuous_time_ids_and_local_offsets ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+

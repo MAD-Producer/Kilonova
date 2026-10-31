@@ -252,6 +252,7 @@ fn fine_gradients_and_temporal_seeks_reuse_numeric_tables_and_pipelines() {
     assert_eq!(renderer.texture_resource_ledger(), ids);
     curve(&mut project).keys = vec![
         Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: constant(0.5001),
             ease: Ease::Linear,
@@ -259,6 +260,7 @@ fn fine_gradients_and_temporal_seeks_reuse_numeric_tables_and_pipelines() {
             spatial: None,
         },
         Keyframe {
+            auto_bezier: false,
             frame: 10,
             value: constant(0.5003),
             ease: Ease::Linear,

@@ -1,0 +1,202 @@
+{
+  "baseline": "b737e5855840d291ffe0134338b722c82c617fb0",
+  "scope": "#260 类型菜单与能力限制；仍未完成 Roving、实际导出和原生操作系统输入验收",
+  "tests": {
+    "model": 8,
+    "menu": 19,
+    "shortcuts": 12,
+    "navigation": 5,
+    "timeline": 55,
+    "controls": 12,
+    "native": 1,
+    "total_distinct_passed": 112,
+    "remaining_ignored": 1
+  },
+  "executable": {
+    "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-9c5cdc7b4281ddf0.exe",
+    "sha256": "d7942c9bfdee7e45b148fd417b27a68f4c35817c22012748724f53da2ab1505f",
+    "bytes": 123603456
+  },
+  "files": [
+    {
+      "file": ".gitattributes",
+      "sha256": "47e85f79d30a0897ed33226f4c1ca85ce7a01fb2f633f9b5467af504a72f6f77",
+      "bytes": 82
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "06b5a5fa2c2fc7ec6bd42a4aa7cb5af4e89cd6bfa0a57939df17abab743ff6c6",
+      "bytes": 13295
+    },
+    {
+      "file": "build-first.log",
+      "sha256": "a9b6a39f9e4876142e2d9eb08a70f9f63b83da2de88c55c32d57f3be044dd5cb",
+      "bytes": 14574
+    },
+    {
+      "file": "build-hints.log",
+      "sha256": "2b060928f4ac8bc29e1f2e0637e13f6c737c33caf44f08d425bc4b04e2fbcbdd",
+      "bytes": 13295
+    },
+    {
+      "file": "build-reviewed.log",
+      "sha256": "06b5a5fa2c2fc7ec6bd42a4aa7cb5af4e89cd6bfa0a57939df17abab743ff6c6",
+      "bytes": 13295
+    },
+    {
+      "file": "build-second.log",
+      "sha256": "25a953b37068cbf01c75599ee0a276c77e06e43e8bfccf3f1cd6524e93f355ba",
+      "bytes": 19731
+    },
+    {
+      "file": "build-third.log",
+      "sha256": "a531e21933ec94d10171bebbd405eae97fba9b8a8cd7fd67674a866c91c147e8",
+      "bytes": 13295
+    },
+    {
+      "file": "controls-complete.log",
+      "sha256": "10f20bc983621e5da01cca9cad3324015045368c9e9484082defdc0e66d91251",
+      "bytes": 1780
+    },
+    {
+      "file": "error/motion-studio.log",
+      "sha256": "d3a47e07281d00b4c8084561595e3e4103ea0ec03ee2f3694373d3527a58d62d",
+      "bytes": 925
+    },
+    {
+      "file": "error/stderr.log",
+      "sha256": "7173851d58ac769d21c735a32d9c6c106d8588265a738a2b74072307e335c9bc",
+      "bytes": 214
+    },
+    {
+      "file": "error/stdout.log",
+      "sha256": "422471bb9ea9f3809261736447fd90333e6b01915264a5130a8403cb98066abc",
+      "bytes": 260
+    },
+    {
+      "file": "invocations.json",
+      "sha256": "c402ac0dafa80f7a5e2dac2e5985c0664eb6660130cf3f4266ad7c8863977c45",
+      "bytes": 458
+    },
+    {
+      "file": "menu-complete.log",
+      "sha256": "2ccaafb90cc7c3b6b3cdd2e6241c55d0c9aa7967f89e842ada01647c2ada21c7",
+      "bytes": 2822
+    },
+    {
+      "file": "menu-negative.log",
+      "sha256": "052b74b0e5c717fe1212595ee109e4283fa63972b5039129e83bce0161f291c0",
+      "bytes": 4448
+    },
+    {
+      "file": "model-first.log",
+      "sha256": "ca061f96b8f6c734baa47933d2adef393fd3459a1f14c9c08ebc53ce897601b4",
+      "bytes": 1241
+    },
+    {
+      "file": "native/contact-sheet.png",
+      "sha256": "4e21c85e656f481d0a3ad67994374222c93a0743ffb3ad9aebfb5f869e3ba2d0",
+      "bytes": 191260
+    },
+    {
+      "file": "native/en-automatic.png",
+      "sha256": "21c6bcb0f7ec91b50f640beb3cb3ec80e70d9521de3ab4d106f9d863de901b08",
+      "bytes": 122068
+    },
+    {
+      "file": "native/en-linear.png",
+      "sha256": "9955348ac25aa50ed962d97b29976025e3c38898baae36591d8285c8ef1f540b",
+      "bytes": 121718
+    },
+    {
+      "file": "native/en-manual.png",
+      "sha256": "491858f6dcf8ba43235674494b9952ad90157be46d539e8002483863c014e7a8",
+      "bytes": 121866
+    },
+    {
+      "file": "native/en-mixed.png",
+      "sha256": "409eee0286507ef804c85ee207a4f99af215c76ec6d49fd375ce1c5b105d2165",
+      "bytes": 123097
+    },
+    {
+      "file": "native/logs/motion-studio.log",
+      "sha256": "5100780548a900bb9ac00e35662e4ff698c9b5b1a5dd040e9115bc95550881a0",
+      "bytes": 6671
+    },
+    {
+      "file": "native/report.json",
+      "sha256": "d9707058e8686e0979eb1d232843db42e44d5ded839e01048cfee96040218611",
+      "bytes": 991
+    },
+    {
+      "file": "native/stderr.log",
+      "sha256": "976ca0de137e6d0e8e0358ff29f1dfdaa8226611ce5d4de3ac41ebaebf3cd463",
+      "bytes": 586
+    },
+    {
+      "file": "native/stdout.log",
+      "sha256": "4fffa1dd994d3e05b7fbd90e7cd09fc45ebc2ecc4325b154945da2330d5d339e",
+      "bytes": 251
+    },
+    {
+      "file": "native/zh-automatic-detail.png",
+      "sha256": "4cedc6af52afca987630a04fe2374969621e5690681a2eb75086ada05056c7bd",
+      "bytes": 42488
+    },
+    {
+      "file": "native/zh-automatic.png",
+      "sha256": "e740500cb5084da384581a49a5595644a4b6c78ee4186303ec6a4854de7a9e1e",
+      "bytes": 125661
+    },
+    {
+      "file": "native/zh-linear.png",
+      "sha256": "2d89cd80f0ce7ef55b53a409e44fa68cc03b85964eb148814f9d8e7d1ef0219c",
+      "bytes": 124912
+    },
+    {
+      "file": "native/zh-manual.png",
+      "sha256": "a20563700b1bf55de78d88a4f3a4e7d72c18a0a2b540a0fcff45d7c8d8f3658e",
+      "bytes": 125078
+    },
+    {
+      "file": "native/zh-mixed-detail.png",
+      "sha256": "35b9b6352eaea25d3ce9620508df207bd280c0cb4a117a81ad914211e3c1d52a",
+      "bytes": 42622
+    },
+    {
+      "file": "native/zh-mixed.png",
+      "sha256": "2685d0bfff0ab802b7ae85c0500662f0cb70f0f6fac6ca3308f1fc3c725e04ca",
+      "bytes": 125914
+    },
+    {
+      "file": "native-reviewed.log",
+      "sha256": "f4fcb67dc1fc80ce7cd0dab260fae853d748536df032546c29ed562da2a0d053",
+      "bytes": 257
+    },
+    {
+      "file": "navigation-complete.log",
+      "sha256": "772cfa4a38742ef7d97fe1bac5d6da791daffe9846d479c2c65f60373f85db43",
+      "bytes": 715
+    },
+    {
+      "file": "shortcut-docs.log",
+      "sha256": "a1d2a0e04581bb2599698cdad7910553aec6079fe3ce2252e852d0e27a73a32d",
+      "bytes": 213
+    },
+    {
+      "file": "shortcuts-complete.log",
+      "sha256": "492fb816a680d8c812db400adc71caf14614afba2a0bb2a2c784d834e930f8ce",
+      "bytes": 1433
+    },
+    {
+      "file": "shortcuts-negative.log",
+      "sha256": "0867969387c8f551da17250f89a9e3971e3f5f32241ad28f94c483d9e847eb71",
+      "bytes": 21870
+    },
+    {
+      "file": "timeline-complete.log",
+      "sha256": "f273edba9749f830d22ded194441614a6e14eadb5222cae31fb0231ce14dc7ad",
+      "bytes": 7424
+    }
+  ]
+}

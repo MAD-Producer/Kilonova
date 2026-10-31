@@ -1,0 +1,93 @@
+{
+  "cases": [
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-main-summary",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-main-property",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-float-summary",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-float-property",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-main-summary",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-main-property",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-float-summary",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-float-property",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    }
+  ],
+  "pid": 39744
+}

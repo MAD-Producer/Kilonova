@@ -2,13 +2,17 @@
 use super::*;
 use crate::shortcuts::{Command as Shortcut, Scope};
 use motion_core::Ease;
+mod type_state;
+mod roving;
+pub(crate) use type_state::Cache as TypeCache;
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct MenuScope {
     source: crate::layer_clipboard::KeyframeSource,
     objects: Vec<u64>,
     focused: Option<Panel>,
     keys: Vec<motion_core::KeyframeSelection>,
+    spatial_keys: Vec<(motion_core::KeyframeTarget, Vec<u64>)>,
 }
 impl MenuScope {
     pub(super) fn of(panels: &Panels, state: &Value) -> Self {
@@ -16,8 +20,17 @@ impl MenuScope {
             source: crate::layer_clipboard::KeyframeSource::of(state),
             objects: panels.selection_ids(),
             focused: panels.focused,
-            keys: super::keyframe_clipboard::selection(panels, state)
-                .map_or_else(Vec::new, |s| s.selections),
+            spatial_keys: if panels.selected_keys.status(state)==super::key_selection::Status::Current {
+                panels.selected_keys.spatial_selections()
+            } else {vec![]},
+            keys: if panels.selected_keys.owns_keys() {
+                if panels.selected_keys.status(state)==super::key_selection::Status::Current {
+                    panels.selected_keys.selections()
+                } else {vec![]}
+            } else {
+                super::keyframe_clipboard::selection(panels, state)
+                    .map_or_else(Vec::new, |s| s.selections)
+            },
         }
     }
 }
@@ -26,6 +39,9 @@ impl MenuScope {
 pub(super) enum Operation {
     Shortcut(Shortcut),
     Interpolation(Ease),
+    Automatic(bool),
+    Roving(bool),
+    TypeStatus,
     TimingSettings,
     CopyEasing,
     PasteEasing,
@@ -98,7 +114,7 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
         }
         Operation::Shortcut(Shortcut::Delete) => {
             if panels.selected_keys.owns_keys() {
-                return matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) && panels.selected_keys.writable(state);
+                return matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) && super::key_selection::delete_available(panels, state);
             }
             matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
                 && (super::effect_timeline::delete_available(panels, state)
@@ -114,6 +130,19 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
                         }))
         }
         Operation::Interpolation(_) | Operation::TimingSettings => interpolation_selection(panels, state).is_some(),
+        Operation::Automatic(enabled) => interpolation_selection(panels, state).is_some()
+            && panels.timeline.graph_drag.is_none()
+            && !panels.key_gestures.active()
+            && !panels.effect_timeline.editing()
+            && !panels.animation_controls.editing()
+            && type_state::summary(panels, state).available(enabled),
+        Operation::Roving(enabled) => panels.timeline.graph_drag.is_none()
+            && !panels.key_gestures.active()
+            && !panels.effect_timeline.editing()
+            && !panels.animation_controls.editing()
+            && roving::writable(panels,state)
+            && roving::plans(panels,state).commands(enabled).is_some(),
+        Operation::TypeStatus => false,
         Operation::CopyEasing => !panels.clipboard_busy && super::keyframe_clipboard::selection(panels, state)
             .is_some_and(|s| s.selections.len() == 1 && s.selections[0].frames.len() == 1),
         Operation::PasteEasing => !panels.clipboard_busy && interpolation_selection(panels, state).is_some(),
@@ -154,6 +183,16 @@ pub(super) fn apply(
                 }));
             }
         }
+        Operation::Automatic(enabled) => {
+            if let Some(selected) = interpolation_selection(panels, state) {
+                pending.push(Action::Edit(Command::KeyframeAutomatic {
+                    selections: selected.selections,
+                    enabled,
+                }));
+            }
+        }
+        Operation::Roving(enabled) => roving::apply(panels,state,enabled,&mut pending),
+        Operation::TypeStatus => {}
         Operation::TimingSettings => {
             if let Some(selected) = interpolation_selection(panels, state) {
                 out.push(Action::KeyframeTimingSettings {
@@ -249,6 +288,9 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
             .map(|s| s.frames.len())
             .sum::<usize>()
     });
+    let types = type_state::summary(panels, state);
+    let spatial = roving::plans(panels,state);
+    rows.push((spatial.title(panels.locale).unwrap_or_else(||types.title(panels.locale)), Operation::TypeStatus));
     for (ease, en, cn) in [
         (Ease::Linear, "Linear", "线性"),
         (Ease::Hold, "Hold", "保持"),
@@ -260,6 +302,14 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
         };
         rows.push((title, Operation::Interpolation(ease)));
     }
+    rows.push(((if zh {
+        if types.mixed_automatic() { "自动贝塞尔 · 部分启用" } else { "自动贝塞尔" }
+    } else if types.mixed_automatic() { "Automatic Bezier · partially enabled" } else { "Automatic Bezier" }).into(), Operation::Automatic(true)));
+    rows.push(((if zh { "冻结自动贝塞尔" } else { "Freeze automatic Bezier" }).into(), Operation::Automatic(false)));
+    rows.push(((if zh {
+        if spatial.partial() {"Roving · 部分启用"} else {"Roving · 按路径距离解算时间"}
+    } else if spatial.partial() {"Roving · partially enabled"} else {"Roving · solve time from path distance"}).into(), Operation::Roving(true)));
+    rows.push(((if zh {"固定所选 Roving 时间"} else {"Freeze selected Roving times"}).into(), Operation::Roving(false)));
     rows.push((panels.shortcut_bindings.label(
         if zh { "关键帧插值与速度…" } else { "Keyframe interpolation and velocity…" },
         Scope::Animation, Shortcut::KeyframeTiming), Operation::TimingSettings));
@@ -287,6 +337,39 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
     rows.into_iter()
         .map(|(label, op)| (label, op, enabled(panels, state, op)))
         .collect()
+}
+
+pub(super) fn checked(panels: &Panels, state: &Value, operation: Operation) -> bool {
+    if matches!(operation,Operation::Roving(true)) {return roving::plans(panels,state).all_roving();}
+    matches!(operation, Operation::Interpolation(_) | Operation::Automatic(true))
+        && type_state::summary(panels, state).checked(operation)
+}
+
+pub(super) fn reconcile_roving(panels:&mut Panels,state:&Value) {
+    roving::reconcile(panels,state);
+}
+
+pub(super) fn toggle_roving(panels:&mut Panels,state:&Value,out:&mut Vec<Action>) {
+    let operation=Operation::Roving(!roving::plans(panels,state).all_roving());
+    if enabled(panels,state,operation) {apply(panels,state,operation,out);}
+    else {panels.message=Some(if panels.locale==Locale::Zh {
+        "请选择可编辑的耦合位置、锚点或摄影机目标关键帧；首尾键、分离轴及不支持的混合选区不能启用 Roving。"
+    } else {
+        "Select editable coupled position, anchor or camera-target keys. Endpoints, separated axes and unsupported mixed selections cannot enable Roving."
+    }.into());}
+}
+
+pub(super) fn toggle_automatic(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
+    let operation = Operation::Automatic(!type_state::summary(panels, state).checked(Operation::Automatic(true)));
+    if enabled(panels, state, operation) {
+        apply(panels, state, operation, out);
+    } else {
+        panels.message = Some(if panels.locale == Locale::Zh {
+            "请选中支持自动贝塞尔的可编辑数值关键帧；至少需要两个键，手动空间路径、离散参数及速度或弹性曲线不支持。"
+        } else {
+            "Select editable numeric keys that support automatic Bezier. At least two keys are required; manual spatial paths, discrete parameters, velocity and elastic curves are unsupported."
+        }.into());
+    }
 }
 
 fn sequence_plan(panels: &Panels, state: &Value) -> Option<Vec<Command>> {

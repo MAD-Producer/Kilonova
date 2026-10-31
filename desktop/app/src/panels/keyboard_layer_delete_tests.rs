@@ -19,6 +19,7 @@ fn fixture() -> Engine {
     for id in [7, 8, 9] {
         let mut layer = Layer::solid(id, "Delete fixture", [100.; 2], [0.; 3], [1.; 4]);
         layer.transform.position.keys = vec![Keyframe {
+            auto_bezier: false,
             frame: 30,
             value: [20., 10., 0.],
             ease: Ease::Linear,
@@ -77,7 +78,7 @@ fn deleting_animated_parent_preserves_child_at_current_playhead() {
         (0, [0., 0., 0.]),
         (30, [120., 0., 0.]),
     ].into_iter().map(|(frame, value)| Keyframe {
-        frame, value, ease: Ease::Linear, curve: None, spatial: None,
+        frame, value, ease: Ease::Linear, curve: None, spatial: None, auto_bezier: false,
     }).collect();
     project.layers.push(parent);
     project.layers.push(Layer::solid(9, "child", [100.; 2], [20., 10., 0.], [1.; 4]));

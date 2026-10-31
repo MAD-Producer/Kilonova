@@ -1,0 +1,50 @@
+[
+  {
+    "enable": true,
+    "file": "zh-linear.png",
+    "freeze": false,
+    "title": "出侧插值：线性"
+  },
+  {
+    "enable": false,
+    "file": "zh-automatic.png",
+    "freeze": true,
+    "title": "时间约束：自动贝塞尔"
+  },
+  {
+    "enable": true,
+    "file": "zh-mixed.png",
+    "freeze": true,
+    "title": "出侧插值：混合"
+  },
+  {
+    "enable": true,
+    "file": "zh-manual.png",
+    "freeze": false,
+    "title": "出侧插值：手动曲线"
+  },
+  {
+    "enable": true,
+    "file": "en-linear.png",
+    "freeze": false,
+    "title": "Outgoing interpolation: Linear"
+  },
+  {
+    "enable": false,
+    "file": "en-automatic.png",
+    "freeze": true,
+    "title": "Temporal policy: Automatic Bezier"
+  },
+  {
+    "enable": true,
+    "file": "en-mixed.png",
+    "freeze": true,
+    "title": "Outgoing interpolation: Mixed"
+  },
+  {
+    "enable": true,
+    "file": "en-manual.png",
+    "freeze": false,
+    "title": "Outgoing interpolation: Manual curve"
+  }
+]

@@ -1,0 +1,86 @@
+{
+  "baseline": "49fd6ee69ba0ad39296d9cc23edfab220e563832",
+  "scope": "partial automatic temporal Bezier; issue 260 remains open",
+  "files": [
+    {
+      "file": "model.txt",
+      "sha256": "337449f675dfeaff3a951ccd40228f12bbba5f814a1bc83b11989f9344cdbce5",
+      "bytes": 18703
+    },
+    {
+      "file": "core.txt",
+      "sha256": "91659d0d62799c5e62e47172abf10311b9d2fdd0b0ffbda6c1feceac75bf0390",
+      "bytes": 7905
+    },
+    {
+      "file": "desktop-build.txt",
+      "sha256": "75b51b24f9d00eed889a2b3e77400d8ba9ad69f4e58731c55622785bec605b39",
+      "bytes": 13295
+    },
+    {
+      "file": "graph-sampling.txt",
+      "sha256": "92b24997080c81188929aa0ec14c9cf337d8238f3803cf2d501dd614d003dc59",
+      "bytes": 684
+    },
+    {
+      "file": "graph-handles.txt",
+      "sha256": "c23c337fcf01591b51d6b98a6ce3c67692ab80a274f35fd1eca302d3ad177158",
+      "bytes": 220
+    },
+    {
+      "file": "effect-graph.txt",
+      "sha256": "c08b16de302b52c0eeaa5239a4d03693776769a0832ca2bbc8ae09b48d64046e",
+      "bytes": 535
+    },
+    {
+      "file": "curve-comparison.txt",
+      "sha256": "4b6b960b189dbcd190bfb7ceb731dbea51e6ba03edbb9a86c8caf937e6f78df8",
+      "bytes": 2052
+    },
+    {
+      "file": "failure-channel-test.txt",
+      "sha256": "aed09ce0a6eca9cc74f72cf9db7b7e672f9ab23070bd120c2b9b8809c149d156",
+      "bytes": 238
+    },
+    {
+      "file": "worker-file.txt",
+      "sha256": "4761882b7460dbb07650f64869d60aadea23dc5ad60d1ce34ea0384c5d57f5f0",
+      "bytes": 2289
+    },
+    {
+      "file": "worker-stderr.txt",
+      "sha256": "4ff5257b853c5be26cf065d4f1e07d722bd950ba86406b7623320a6a4b50f9cb",
+      "bytes": 223
+    },
+    {
+      "file": "worker-stdout.txt",
+      "sha256": "e44b80c733c2e675da25adc270ef11f03c07fd8491dcffee2cc4ae94b41c1124",
+      "bytes": 232
+    },
+    {
+      "file": "initial-memory-failure.txt",
+      "sha256": "63c3a45202feff407e1619074f2d0e32f4a76ef6a6f9f8f01acb76a703d00c7a",
+      "bytes": 115607
+    },
+    {
+      "file": "initial-desktop-memory-failure.txt",
+      "sha256": "5ea3ef72da372ca433e405b3faa63f41057e2ed843fe95ee086dc034cbe4db1d",
+      "bytes": 15756
+    },
+    {
+      "file": "initial-link-failure.txt",
+      "sha256": "195ca552ba6b740baa7c1264e9990dd93508a124e5a74b09ae23361760a8be4e",
+      "bytes": 3421
+    },
+    {
+      "file": "initial-comparison-temp-failure.txt",
+      "sha256": "f8cb42567142ec688e471acaf55599e57db7f516cae87b31baee4cd68377650c",
+      "bytes": 3668
+    },
+    {
+      "file": "initial-core-test-failure.txt",
+      "sha256": "d0291d84c2563cffa2e711927e0a57988c341b608dcc36ff25799533e94898d1",
+      "bytes": 9001
+    }
+  ]
+}

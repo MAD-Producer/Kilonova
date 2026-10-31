@@ -1,0 +1,393 @@
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+   Compiling motion-desktop v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\desktop\app)
+warning: unnecessary parentheses around pattern
+   --> desktop\app\src\panels\graph_handles.rs:201:21
+    |
+201 |                     (Curve {
+    |                     ^
+...
+204 |                     })
+    |                      ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+201 ~                     Curve {
+202 |                         space: CurveSpace::Progress,
+203 |                         shape: CurveShape::Cubic { .. }
+204 ~                     }
+    |
+
+warning: unused imports: `chrome` and `floating_chrome`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:3:21
+  |
+3 | use crate::panels::{chrome, floating_chrome};
+  |                     ^^^^^^  ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `dock::Node`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:4:17
+  |
+4 | use motion_ui::{dock::Node, input::Modifiers, paint::PaintList, text::TextAtlas};
+  |                 ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\viewer_guides\native_tests.rs:447:9
+    |
+447 |     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `state`
+   --> desktop\app\src\panels\effect_controls.rs:910:9
+    |
+910 |         state: &Value,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\graph_handles.rs:158:5
+    |
+158 |     atlas: &mut TextAtlas,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `slot`
+   --> desktop\app\src\panels\properties.rs:293:9
+    |
+293 |     let slot = styles.metric("icon.slot", 20.);
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_slot`
+
+warning: type `panels::animation_controls::mini::Context<'_>` is more private than the item `panels::animation_controls::Controls::render`
+   --> desktop\app\src\panels\animation_controls.rs:159:5
+    |
+159 | /     pub fn render(
+160 | |         &mut self,
+161 | |         list: &mut PaintList,
+162 | |         atlas: &mut TextAtlas,
+...   |
+172 | |         ranges: Option<mini::Context<'_>>,
+173 | |     ) {
+    | |_____^ method `panels::animation_controls::Controls::render` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::animation_controls::mini::Context<'_>` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\animation_controls\mini.rs:14:1
+    |
+ 14 | pub(in crate::panels) struct Context<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `viewer_guides::Visibility` is more private than the item `viewer_guides::Controls::visibility`
+  --> desktop\app\src\panels\viewer_guides.rs:36:5
+   |
+36 |     pub visibility: Visibility,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^ field `viewer_guides::Controls::visibility` is reachable at visibility `pub(crate)`
+   |
+note: but type `viewer_guides::Visibility` is only usable at visibility `pub(in crate::panels)`
+  --> desktop\app\src\panels\viewer_guides.rs:13:1
+   |
+13 | pub(super) struct Visibility {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `panels::menus::navigation::Navigation` is more private than the item `panels::types::Panels::menu_navigation`
+   --> desktop\app\src\panels\types.rs:240:5
+    |
+240 |     pub(crate) menu_navigation: super::menus::Navigation,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `panels::types::Panels::menu_navigation` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::menus::navigation::Navigation` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\menus\navigation.rs:7:1
+    |
+  7 | pub(in crate::panels) struct Navigation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `toolbar_style::Controls` is more private than the item `panels::types::Panels::toolbar_style`
+   --> desktop\app\src\panels\types.rs:271:5
+    |
+271 |     pub(crate) toolbar_style: super::toolbar_style::Controls,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `panels::types::Panels::toolbar_style` is reachable at visibility `pub(crate)`
+    |
+note: but type `toolbar_style::Controls` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\toolbar_style.rs:38:1
+    |
+ 38 | pub(in crate::panels) struct Controls {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `panels::timeline::Row` is more private than the item `panels::types::TimelineState::rows_cache`
+   --> desktop\app\src\panels\types.rs:604:5
+    |
+604 | /     pub rows_cache: Option<(
+605 | |         (String, String, u64),
+606 | |         std::sync::Arc<Vec<super::timeline::Row>>,
+607 | |     )>,
+    | |______^ field `panels::types::TimelineState::rows_cache` is reachable at visibility `pub(crate)`
+    |
+note: but type `panels::timeline::Row` is only usable at visibility `pub(in crate::panels)`
+   --> desktop\app\src\panels\timeline.rs:12:1
+    |
+ 12 | pub(super) struct Row {
+    | ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `configured` is never used
+   --> desktop\app\src\diagnostics.rs:214:12
+    |
+ 96 | impl Diagnostics {
+    | ---------------- method in this implementation
+...
+214 |     pub fn configured(&self) -> bool {
+    |            ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `queue` is never read
+    --> desktop\app\src\engine.rs:1566:5
+     |
+1562 | struct SurfaceFactory {
+     |        -------------- field in this struct
+...
+1566 |     queue: wgpu::Queue,
+     |     ^^^^^
+
+warning: multiple variants are never constructed
+   --> desktop\app\src\i18n.rs:49:5
+    |
+ 38 | pub enum Text {
+    |          ---- variants in this enum
+...
+ 49 |     Project,
+    |     ^^^^^^^
+ 50 |     EffectControls,
+    |     ^^^^^^^^^^^^^^
+ 51 |     Timeline,
+    |     ^^^^^^^^
+ 52 |     Nodes,
+    |     ^^^^^
+...
+ 64 |     NodePreviewUnavailable,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 74 |     Pen,
+    |     ^^^
+ 75 |     Mask,
+ 76 |     SelectTool,
+    |     ^^^^^^^^^^
+...
+ 97 |     ColorCurve,
+    |     ^^^^^^^^^^
+...
+125 |     Enable3D,
+    |     ^^^^^^^^
+...
+132 |     Effects,
+    |     ^^^^^^^
+...
+135 |     Duration,
+    |     ^^^^^^^^
+...
+138 |     Type,
+    |     ^^^^
+...
+146 |     Pause,
+    |     ^^^^^
+...
+149 |     Fit,
+    |     ^^^
+...
+156 |     ProjectOpened,
+    |     ^^^^^^^^^^^^^
+...
+159 |     EnterValid,
+    |     ^^^^^^^^^^
+160 |     EnterFinite,
+161 |     SharedProject,
+    |     ^^^^^^^^^^^^^
+162 |     Dock,
+163 |     Default,
+    |     ^^^^^^^
+164 |     Language,
+    |     ^^^^^^^^
+165 |     Chinese,
+    |     ^^^^^^^
+166 |     English,
+    |     ^^^^^^^
+...
+178 |     AddPositionKey,
+    |     ^^^^^^^^^^^^^^
+...
+186 |     FrameStep,
+    |     ^^^^^^^^^
+187 |     OperationFailed,
+188 |     PlayShortcut,
+    |     ^^^^^^^^^^^^
+189 |     PreviewVideo,
+    |     ^^^^^^^^^^^^
+190 |     PreviewAudio,
+    |     ^^^^^^^^^^^^
+191 |     CacheThenPlay,
+    |     ^^^^^^^^^^^^^
+192 |     TrackingLeading,
+    |     ^^^^^^^^^^^^^^^
+193 |     FillStroke,
+    |     ^^^^^^^^^^
+194 |     Reset,
+    |     ^^^^^
+    |
+    = note: `Text` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `start` is never used
+  --> desktop\app\src\movie_export.rs:26:12
+   |
+25 | impl MovieExport {
+   | ---------------- associated function in this implementation
+26 |     pub fn start(snapshot: FrozenMovie, output: PathBuf) -> Result<Self, String> {
+   |            ^^^^^
+
+warning: method `compile_preview_runtime` is never used
+   --> desktop\app\src\node_editor.rs:104:12
+    |
+ 82 | impl EditorSnapshot {
+    | ------------------- method in this implementation
+...
+104 |     pub fn compile_preview_runtime(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `revision` and `semantic_revision` are never read
+   --> desktop\app\src\node_editor.rs:136:9
+    |
+135 |     Changed {
+    |     ------- fields in this variant
+136 |         revision: u64,
+    |         ^^^^^^^^
+137 |         semantic_revision: u64,
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `Action` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `floating_mode` is never read
+   --> desktop\app\src\node_editor.rs:347:5
+    |
+294 | pub struct NodeEditor {
+    |            ---------- field in this struct
+...
+347 |     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
+    |     ^^^^^^^^^^^^^
+
+warning: methods `options`, `set_floating_mode`, and `is_floating_mode` are never used
+   --> desktop\app\src\node_editor.rs:487:12
+    |
+385 | impl NodeEditor {
+    | --------------- methods in this implementation
+...
+487 |     pub fn options(&self) -> &CompileOptions {
+    |            ^^^^^^^
+...
+515 |     pub fn set_floating_mode(&mut self, floating: bool) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+519 |     pub fn is_floating_mode(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `font_diagnostics` is never used
+   --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:191:4
+    |
+191 | fn font_diagnostics(atlas: &mut TextAtlas, paint: &PaintList) -> String {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: method `title` is never used
+  --> desktop\app\src\panels\path_controls.rs:46:12
+   |
+45 | impl Tool {
+   | --------- method in this implementation
+46 |     pub fn title(self) -> T {
+   |            ^^^^^
+
+warning: method `draw` is never used
+   --> desktop\app\src\panels\transform_controls.rs:526:12
+    |
+508 | impl Controls {
+    | ------------- method in this implementation
+...
+526 |     pub fn draw(
+    |            ^^^^
+
+warning: variant `Language` is never constructed
+   --> desktop\app\src\panels\types.rs:119:5
+    |
+  8 | pub enum Action {
+    |          ------ variant in this enum
+...
+119 |     Language(Locale),
+    |     ^^^^^^^^
+    |
+    = note: `Action` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: multiple variants are never constructed
+   --> desktop\app\src\panels\types.rs:495:5
+    |
+494 | pub(crate) enum Tool {
+    |                 ---- variants in this enum
+495 |     Open,
+    |     ^^^^
+496 |     Save,
+    |     ^^^^
+...
+499 |     Solid,
+    |     ^^^^^
+500 |     Text,
+    |     ^^^^
+501 |     Null,
+    |     ^^^^
+502 |     Rectangle,
+    |     ^^^^^^^^^
+503 |     Ellipse,
+    |     ^^^^^^^
+    |
+    = note: `Tool` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+error: linking with `link.exe` failed: exit code: 1104
+  |
+  = note: "E:/Dev/aem/.tools/msvc-portable/vs/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64\\link.exe" "/NOLOGO" "E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\deps\\rustcRxnwXa\\symbols.o" "<257 object files omitted>" "kernel32.lib" "mincore.lib" "kernel32.lib" "user32.lib" "shell32.lib" "user32.lib" "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps/{libarboard-3781c9b0b7e01beb,libclipboard_win-9758b29c74caa8d0,liberror_code-1851c8ef727344dc,librfd-475738984ba32dd4,libwindows_sys-e50798f71d3282ab,libsentry-0b70797600db731e,libureq-e06d2f9279a49acf,libwebpki_roots-a2410e4a19daed4d,librustls-d339429df04ce496,libsubtle-a0e22f385b543739,libwebpki-36f63e38d121577c,libring-dd98137ec4896275,libgetrandom-c8e52facb67e9146,libuntrusted-b148d3df6f331df7,librustls_pki_types-5c6d176a571a00b6,libzeroize-d0aaf9a136972ec8,libutf8_zero-857386cfe200c874,libureq_proto-41f9f31ae23c6980,libhttparse-65ba8705fcde0470,libhttp-45a3eee306879891,libhttpdate-4b048eb3300544bb,libsentry_core-15e15b037cbbec9d,libsentry_types-4c91d7def079ffec,libhex-3ee8e981c24c6ef3,librand-786052cef41b52c1,libchacha20-49f7faaa7d1ddb0f,libcpufeatures-86ecbc0faaf6588b,libtime-4be4dd9e187d7816,libpowerfmt-14ac023d6504e930,libnum_conv-650c09401a8eaf56,libderanged-fef28c3e0f28b2c6,libtime_core-f86aca027a919595,libdebugid-24763e2e5a852bc6,libuuid-cac230014bacf06f}.rlib" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps/{libmotion_desktop_media-a5e05f3c18f361de,libtempfile-5fd6895573737e5a,libgetrandom-efa8f7c7f0faeced,librand_core-cd0fa6dddd5ac1da,libfastrand-3b26d1f9003298f2,libffmpeg_next-9190fa5df8290f8b,libffmpeg_sys_next-4885a26f2dfa7e88,libmotion_host-d0dfad7860967642,libmotion_render-903f41a0490d1ddb,libpollster-859a1dd12cc9cec7,libmotion_scene-1c6023e325f39be8,libwinit-dfdcb1e18d976df6,libwindows_sys-206767582264f959,libsmol_str-440ed68d469d4e35,libcursor_icon-2ef081122e52d499,libdpi-65fedb05b0a84c39,libmotion_ui-bc3c9439a5193ffc,libfontdb-3aa6b7525722b4f2,libmemmap2-42ddcf8167260092,libtinyvec-d1e5c1b3d432e4b1,libslotmap-d9762b848d8b959e,libunicode_segmentation-b6666e5cf3f78e47,libab_glyph-359f4fa4b24e0335,libowned_ttf_parser-5d58b92334e9b2d4,libab_glyph_rasterizer-169fae0552c06ef5,libwgpu-8717ff29f036ee5f,libwgpu_core-a50063dfa4debb42,libwgpu_hal-b81e088caba6170b,librenderdoc_sys-72793bfc07a8c4d2,libprofiling-11878d749a704020,libwgpu_naga_bridge-6aaff2dddafb0716,libgpu_allocator-480cb5faad4ca440,libpresser-f25ec1f3c2b65fce,libash-7d367165ebdf8e0a,liblibloading-686820099feb2028,libhashbrown-11f8fb79e2fc07c1,libordered_float-dd17e9aaf3c7882b,librange_alloc-65ce95d381adfd80,libwindows-d241b5cded804c25,libwindows_numerics-2f7aca2ca1cca821,libwindows_core-60e1f1e36a49a3c4,libwindows_strings-8caaca34a8bbcf9c,libwindows_result-00bca9895a80cb38,libparking_lot-b93116d458d505fc,libparking_lot_core-4d6c1db1118c0980,liblock_api-0a0af28a75aea520,libwgpu_types-14a9aa7df68f4e22,libraw_window_handle-f0be2a9e8e5e10ee,liblyon_tessellation-ed24f5ca5215e291,libfloat_next_after-9b596ac970195488,liblyon_path-685c6eeec7cb1f41,liblyon_geom-9b8304a0d46ef9ce,libeuclid-9db5534757dce91a,libmotion_media-e612859ba54cdee3,libfs2-ed9431a4f779dace,libwinapi-96deb24421b3c5f3,libsymphonia-30a8d39fee9e47a5,libsymphonia_format_riff-fb5660727550bdfe,libextended-1473f5ac6daf4b7c,libsymphonia_format_ogg-b8da52cc78457026,libsymphonia_format_isomp4-dc35e5c4db6724aa,libsymphonia_codec_vorbis-c2fcc7486a622862,libsymphonia_codec_pcm-67c04147f0ebd633,libsymphonia_codec_alac-d55c720956ed448e,libsymphonia_codec_aac-35b3126e793c6802,libsymphonia_bundle_mp3-fbf1074541f5941a,libsymphonia_bundle_flac-1617ba99da9f932e,libsymphonia_utils_xiph-960bca99eec09fba,libsymphonia_metadata-ea6c4b219467c1a0,libencoding_rs-9fae48f6d59de493,libscopeguard-cb13dda215d4d425,libsimdutf8-245deef3bf576ecd,libcore_detect-42042f81e5b60fbf,libsymphonia_core-84f5ac17cf5648f9,liblazy_static-47c51f9270004e06,libbitflags-0931932f8f34f97c,libfontdue-76ec4f2a791accb4,libttf_parser-e4e6240e650ec6a1,libmotion_core-d3f6f0df3fedd5a8,libswc_ecma_codegen-82b03d57925a9c0d,libswc_allocator-d767cc83f12083a6,libswc_ecma_utils-fa3006398ae54282,libdragonbox_ecma-81177d703a0b7b33,libnum_cpus-48a1ae4f1b5e36ff,libpar_core-e09b1b0f7d8b743b,libascii-e40f088be9ee385b,libswc_ecma_visit-1e50a6cb5f333956,libswc_ecma_parser-d70e6f6a5f441aa9,libstacker-9a7355e11a00197b,libpsm-ff0771e9883c5086,libwindows_sys-c2a2b26f3c6624e1,libwindows_link-7550f874b77473f4,liblibc-785e8a23f2c58fa2,libcompact_str-149bdf22d82a2321,libryu-7b145d31337ada81,libstatic_assertions-9cea1e94b22fc206,libcastaway-2a7a3bc58cfbfe58,libswc_ecma_ast-805b80764592ee09,libunicode_id_start-65ca002a03c06693,libphf-9e9fd44eb1a98abe,libphf_shared-bed5db862bebdf2f,libsiphasher-48eafd528add6bab,libswc_common-65f7b78919a901f7,libbetter_scoped_tls-7ced8a3ef126f6c9,libscoped_tls-a6423265fbb94f46,liburl-42f5e1dd0235c038,libidna-0e1de594ab836989,libidna_adapter-e824ee743cf8bf9a,libicu_properties-bdf0c0fbc4206a95,libicu_properties_data-6761c2ade82d027f,libicu_normalizer-9a74ac9ca1598cdc,libsmallvec-58a0b3efd314a208,libicu_normalizer_data-05e5a636a50ae207,libicu_collections-899cca3281bc0c04,libutf8_iter-2a951632d6ef0c9a,libpotential_utf-ad9b94cc5a915266,libicu_provider-7769706e786820ed,libicu_locale_core-e0a0f3162b122ab1,libtinystr-6838790b2f3b1c86,liblitemap-1d4eb7307d5e0dc9,libwriteable-94240a9cfaba9c36,libzerovec-2de0cfff936fcb70,libzerotrie-066b5912edcb09e0,libyoke-fd995a69c92ec1f1,libzerofrom-e6ecb930fc020334,libform_urlencoded-918fe758f3550d10,libpercent_encoding-f741c56e58a49b3a,libbytes_str-7c345d2581beb01d,libbytes-cf981eb208174f91,libsiphasher-8aaf972192c19425,libswc_visit-cead0947e46a614f,libeither-cdf6d770dd2ae456,libtracing-a1651b81322eecab,libpin_project_lite-0c151c739ee96d2f,libtracing_core-12c1e83136e5a7ac,libnum_bigint-d67dea074e78984f,libnum_integer-2c7074101dc22060,libswc_atoms-c8dcfd5239660ac0,libhstr-47214750d93954ce,libhashbrown-9f61e64dfe57dae9,libahash-5090d34d5e6bc48f,libtriomphe-3b4ded116bb53c37,libstable_deref_trait-21da44505b1416b6,libdebug_unreachable-2ee97247e57736de,librustc_hash-cdb61e8504fb71f9,librquickjs-95da59f1b535975e,librquickjs_core-f4a102206b625e93,librquickjs_sys-38b518948d94cee5,libmotion_model-45d27c96728e5dbc,libglam-2f5b4f240bff7b35,libcpal-5ff5bed090e7f40d,libdasp_sample-22ce7fc8091752e5,libwindows-869db4ff8d38f3f3,libwindows_core-d4edf71169f5628a,libwindows_result-69a083a3b3a2ced2,libwindows_targets-8077e1a3eb6c79a9,libmotion_graph-47936b9347bdb18d,libbase64-e50837a6a085864c,libmotion_effects-9b6fc95b543c7f0d,libregex-f2e44b5abfdf2f28,libregex_automata-34986364f39d4437,libaho_corasick-eaea58fff3cb1a92,libregex_syntax-38cdeb1feef5b94c,libsemver-600e102f9f4b2ce1,libnaga-07ebd4d93fefdd9b,liblibm-62084bad0152f22d,libunicode_ident-2040566da9cbcb27,libbit_set-0c483dcb39bf7114,libbit_vec-0f3263d28c0917a1,libonce_cell-b82a11021be0aa46,libhalf-c5049965f9317f2e,libzerocopy-0a054a7a239af2af,libcodespan_reporting-5dc66bad534d2d17,libunicode_width-e094e7ee3640d76d,libspirv-93ef22cc13e1b1df,libarrayvec-c3c9abfde82b6339,libthiserror-c144593f61dc1d6a,libnaga_types-428a8e1b334a7361,librustc_hash-34e9e4572ee4ca03,libzip-82f7a8114fbfaa23,libzopfli-395b9381a7465c44,libbumpalo-d21bda5f59a05a29,liblog-875bf28102c76585,libindexmap-a7fa48c4b0281832,libhashbrown-8dc3a1e4b70a9843,libequivalent-dd786ac792e581c8,libfoldhash-6910b210c550cb16,liballocator_api2-fc15a46e16897952,libtyped_path-5c1e1f35958b8714,libsha2-8385af2eaf63c960,libcpufeatures-cf30df1441525319,libdigest-c71f10248db09305,libblock_buffer-b18a44cee736cba8,libcrypto_common-9d8b1b9aa94be4f9,libgeneric_array-3c65006b7c1e7e36,libtypenum-a49cda8ae5a677b1,libserde_json-1e5ad50048f8a397,libmemchr-e530f6889bc1c9fd,libitoa-870d67c3f75d08a9,libzmij-dbeba41857b3a4f8,libserde-4ceedb73798be045,libserde_core-7d81e0b153654350,libimage-16d1f20dca60723a,libbytemuck-7135f62076bf9e73,libbyteorder_lite-90a2694f7555396e,libmoxcms-61e235d9b86a3209,libpxfm-04f6e84ac5827657,libpng-3b1ad2f623e6294f,libbitflags-7864b2ad21e99277,libflate2-bef8c8f1a6ce3cee,libzlib_rs-f97960d0b5953b5a,libfdeflate-4050ab9524344bb4,libsimd_adler32-0b53550d9fa704df,libcrc32fast-df06a5ae5755b9e0,libcfg_if-6e2de89bf78ddbdd,libzune_jpeg-4b6076621871504f,libzune_core-2ecc080c4292c881,libnum_traits-1651525f464b15a0}.rlib" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib/{libstd-*,libpanic_unwind-*,libcfg_if-*,libwindows_link-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libunwind-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "kernel32.lib" "user32.lib" "shell32.lib" "gdi32.lib" "advapi32.lib" "C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "bcrypt.lib" "advapi32.lib" "kernel32.lib" "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\lib\\avcodec.lib" "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\lib\\avformat.lib" "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\lib\\avutil.lib" "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\lib\\swscale.lib" "C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "gdi32.lib" "advapi32.lib" "cfgmgr32.lib" "kernel32.lib" "user32.lib" "kernel32.lib" "legacy_stdio_definitions.lib" "C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "kernel32.lib" "kernel32.lib" "kernel32.lib" "ntdll.lib" "userenv.lib" "ws2_32.lib" "dbghelp.lib" "/defaultlib:msvcrt" "/NXCOMPAT" "/LIBPATH:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\build\\rquickjs-sys-119217510692b3ca\\out" "/LIBPATH:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\build\\stacker-2290549faf8bfcd7\\out" "/LIBPATH:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\build\\psm-cb053719ea269dc9\\out" "/LIBPATH:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\build\\ring-a3781983aa04179f\\out" "/LIBPATH:C:\\Users\\nova\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib" "/LIBPATH:E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1\\lib" "/OUT:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\deps\\motion_studio-9c5cdc7b4281ddf0.exe" "/OPT:REF,NOICF" "/DEBUG" "/PDBALTPATH:%_PDB%" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\intrinsic.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\liballoc.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libcore.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libstd.natvis" "/NATVIS:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\deps\\rustcRxnwXa\\motion_studio-0.natvis" "/NATVIS:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\deps\\rustcRxnwXa\\motion_studio-1.natvis" "/NATVIS:E:/Dev/aem/.tools/viewer-inspection/native-target\\debug\\deps\\rustcRxnwXa\\motion_studio-2.natvis" "/DEBUG:NONE"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: LINK : fatal error LNK1104: cannot open file 'E:\Dev\aem\.tools\viewer-inspection\native-target\debug\deps\motion_studio-9c5cdc7b4281ddf0.exe'
+          
+
+warning: `motion-desktop` (bin "motion-studio" test) generated 27 warnings
+error: could not compile `motion-desktop` (bin "motion-studio" test) due to 1 previous error; 27 warnings emitted

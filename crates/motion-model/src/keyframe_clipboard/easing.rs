@@ -20,7 +20,7 @@ pub fn ease_keys(
         let plan = (|| -> Result<_> {
             macro_rules! plan {
                 ($t:expr) => {
-                    intervals(&$t.keys, frames, incoming, outgoing)
+                    intervals(&$t.keys, frames, incoming, outgoing, |i| $t.effective_easing(i))
                 };
             }
             match read(project, &selected.target)? {
@@ -39,8 +39,8 @@ pub fn ease_keys(
         let result = (|| -> Result<()> {
             macro_rules! edit {
                 ($t:expr) => {
-                    for (frame, easing) in plan {
-                        $t.set_curve(frame, easing)?;
+                    for (frame, easing, start, end) in plan {
+                        $t.set_curve_sides(frame, easing, start, end)?;
                     }
                 };
             }
@@ -51,7 +51,7 @@ pub fn ease_keys(
                 WriteChannel::Vec4(t) => edit!(t),
                 WriteChannel::Geometry(t) => edit!(t),
                 WriteChannel::ColorCurve(t) => {
-                    for (frame, easing) in plan {
+                    for (frame, easing, _, _) in plan {
                         let index =
                             t.keys
                                 .binary_search_by_key(&frame, |k| k.frame)
@@ -75,7 +75,8 @@ fn intervals<T>(
     frames: &[i32],
     incoming: bool,
     outgoing: bool,
-) -> Result<Vec<(i32, Easing)>> {
+    effective: impl Fn(usize) -> Result<Easing>,
+) -> Result<Vec<(i32, Easing, bool, bool)>> {
     let mut sides: BTreeMap<usize, (bool, bool)> = BTreeMap::new();
     for frame in frames {
         let index = keys
@@ -96,13 +97,9 @@ fn intervals<T>(
             let key = &keys[index];
             // The interval can start before composition zero while its selected end
             // is visible. Local addressing preserves that valid authored interval.
-            let easing = Easing {
-                ease: key.ease,
-                curve: key.curve,
-            }
-            .ease_sides(incoming, outgoing);
+            let easing = effective(index)?.ease_sides(incoming, outgoing);
             easing.validate()?;
-            Ok((key.frame, easing))
+            Ok((key.frame, easing, outgoing, incoming))
         })
         .collect()
 }

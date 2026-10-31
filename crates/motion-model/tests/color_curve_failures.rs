@@ -49,6 +49,7 @@ fn malformed_public_curve_inputs_return_the_validation_cause_without_mutation() 
 
 fn key(frame: i32, value: CurveObject) -> Keyframe<CurveObject> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: Ease::Linear,

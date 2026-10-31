@@ -156,6 +156,11 @@ pub(super) fn contains(state: &Value, target: &KeyframeTarget, frame: u32) -> bo
     let Some((source, offset)) = track(state, target) else {
         return false;
     };
+    // Conversion invalidates old frame addresses normally; it is not a
+    // malformed snapshot or a reason to report missing integer keys.
+    if source["spatial_animation"].is_object() {
+        return false;
+    }
     let Some(local) = i64::from(frame).checked_sub(offset) else {
         return false;
     };
@@ -188,6 +193,45 @@ pub(super) fn contains(state: &Value, target: &KeyframeTarget, frame: u32) -> bo
             Ok(found.is_ok())
         },
         "object={} frame={frame} phase=selection fallback=disable_key_edit",
+        target.object()
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn contains_spatial(
+    state: &Value,
+    target: &KeyframeTarget,
+    ids: &BTreeSet<u64>,
+) -> bool {
+    let Some((track, _)) = track(state, target) else {
+        return false;
+    };
+    let Some(animation) = track.get("spatial_animation").filter(|v| v.is_object()) else {
+        return false;
+    };
+    let present = (|| -> Result<bool, &'static str> {
+        let keys = animation["keys"]
+            .as_array()
+            .ok_or("spatial key array missing")?;
+        if keys.len() > 16_385 {
+            return Err("spatial key array exceeds limit");
+        }
+        let mut authored = BTreeSet::new();
+        for key in keys {
+            let id = key["id"]
+                .as_u64()
+                .filter(|v| *v > 0)
+                .ok_or("invalid spatial key identity")?;
+            if !authored.insert(id) {
+                return Err("duplicate spatial key identity");
+            }
+        }
+        Ok(ids.is_subset(&authored))
+    })();
+    observe!(
+        "selection.spatial_keys",
+        present,
+        "object={} phase=selection fallback=disable_key_edit",
         target.object()
     )
     .unwrap_or(false)

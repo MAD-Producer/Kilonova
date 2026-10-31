@@ -56,6 +56,7 @@ fn default_level_observes_real_model_failures_and_preserves_results() {
     let mut track = Track::constant(0.0_f32);
     track.keys = vec![
         Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: 0.0,
             ease: Ease::Linear,
@@ -70,6 +71,7 @@ fn default_level_observes_real_model_failures_and_preserves_results() {
             }),
         },
         Keyframe {
+            auto_bezier: false,
             frame: 10,
             value: f32::MAX,
             ease: Ease::Linear,

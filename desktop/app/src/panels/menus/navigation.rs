@@ -16,7 +16,7 @@ pub(in crate::panels) struct Navigation {
     pub(in crate::panels) cards: Vec<Rect>,
 }
 
-fn hint(choice: &Choice, panels: &Panels, root: usize, index: usize) -> String {
+fn hint(choice: &Choice, panels: &Panels, state: &Value, root: usize, index: usize) -> String {
     use crate::shortcuts::{Command as S, Scope};
     let command = match choice {
         Choice::Animation(super::super::animation_menu::Operation::Shortcut(command)) => {
@@ -24,6 +24,18 @@ fn hint(choice: &Choice, panels: &Panels, root: usize, index: usize) -> String {
         }
         Choice::Animation(super::super::animation_menu::Operation::TimingSettings) => {
             Some((Scope::Animation, S::KeyframeTiming))
+        }
+        Choice::Animation(super::super::animation_menu::Operation::Automatic(enabled)) => {
+            // A toggle has only one action in the current state. Do not label
+            // both rows with a shortcut that would execute the opposite action.
+            (*enabled != super::super::animation_menu::checked(panels, state,
+                super::super::animation_menu::Operation::Automatic(true)))
+                .then_some((Scope::Animation, S::ToggleAutomaticBezier))
+        }
+        Choice::Animation(super::super::animation_menu::Operation::Roving(enabled)) => {
+            (*enabled != super::super::animation_menu::checked(panels,state,
+                super::super::animation_menu::Operation::Roving(true)))
+                .then_some((Scope::Animation,S::ToggleRoving))
         }
         Choice::Direct(action) => Some((
             Scope::Application,
@@ -80,6 +92,7 @@ fn hint(choice: &Choice, panels: &Panels, root: usize, index: usize) -> String {
 }
 fn checked(choice: &Choice, panels: &Panels, state: &Value) -> bool {
     match choice {
+        Choice::Animation(operation) => super::super::animation_menu::checked(panels, state, *operation),
         Choice::Direct(Action::TimelineColumnVisibility(next)) => {
             let now = panels.timeline.column_visibility;
             if next.matte != now.matte {
@@ -209,7 +222,7 @@ pub(super) fn draw(
                 label
             };
             let mut entry = Entry::new(label, choice, enabled);
-            entry.hint = hint(&entry.choice, panels, root, index);
+            entry.hint = hint(&entry.choice, panels, state, root, index);
             entry.checked = checked(&entry.choice, panels, state);
             entry.submenu = matches!(entry.choice, Choice::Workspaces);
             entry.divider_after = match root {

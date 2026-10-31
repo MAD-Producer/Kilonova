@@ -8,13 +8,18 @@ use std::collections::BTreeSet;
 
 mod channels;
 mod interpolation;
+mod automatic;
+mod handle;
 mod easing;
 pub mod curve_clipboard;
 mod transform;
 pub mod timing;
+pub mod spatial;
 pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;
+pub use automatic::set_automatic;
+pub use handle::set_handle;
 use channels::{read, write, ReadChannel, WriteChannel};
 
 pub const MAX_KEYFRAME_CLIPBOARD_BYTES: usize = 16 * 1024 * 1024;
@@ -332,11 +337,12 @@ impl KeyframeClipboard {
             )?;
             fn validate_keys<T: Tween>(keys: &[Keyframe<T>]) -> Result<()> {
                 Track {
+                    spatial_animation: None,
                     value: keys[0].value,
                     keys: keys.to_vec(),
                     axes: None,
                 }
-                .validate_local()
+                .validate_clipboard()
             }
             match &track.data {
                 KeyframeData::Scalar(k) => validate_keys(k)?,
@@ -346,6 +352,7 @@ impl KeyframeClipboard {
                 KeyframeData::Geometry(k) => validate_keys(k)?,
                 KeyframeData::ColorCurve(keys) => {
                     for key in keys {
+                        ensure(!key.auto_bezier, "color transfer curves do not support automatic temporal Bezier")?;
                         key.value.validate()?;
                         ensure(
                             key.spatial.is_none(),
@@ -430,6 +437,7 @@ impl KeyframeClipboard {
                 }
                 macro_rules! track {
                     ($dest:expr, $data:expr) => {{
+                        ensure($dest.spatial_animation.is_none(),"pasting frame keys into spatial storage requires stable-ID transfer")?;
                         ensure(
                             $dest.axes.is_none(),
                             "choose a separated clipboard axis explicitly",
@@ -513,6 +521,7 @@ pub fn remove(project: &mut Project, clipboard: &KeyframeClipboard) -> Result<()
                     $track
                         .keys
                         .retain(|k| local.binary_search(&k.frame).is_err());
+                    if $track.keys.len() == 1 { $track.keys[0].auto_bezier = false; }
                 }};
             }
             match write(project, &selected.target)? {

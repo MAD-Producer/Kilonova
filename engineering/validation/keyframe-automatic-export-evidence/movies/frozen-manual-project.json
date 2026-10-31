@@ -1,0 +1,199 @@
+{
+  "version": 31,
+  "library": {
+    "folders": [],
+    "placements": []
+  },
+  "working_precision": "unorm8",
+  "composition_id": "comp-main",
+  "name": "空间练习 01",
+  "width": 64,
+  "height": 32,
+  "fps": 30,
+  "frames": 6,
+  "work_area": {
+    "in_frame": 0,
+    "out_frame": 6
+  },
+  "background": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "assets": [],
+  "model_assets": [],
+  "camera": {
+    "created": false,
+    "mode": "position",
+    "position": {
+      "value": [
+        32.0,
+        16.0,
+        -38.627415
+      ],
+      "keys": []
+    },
+    "target": {
+      "value": [
+        32.0,
+        16.0,
+        0.0
+      ],
+      "keys": []
+    },
+    "roll": {
+      "value": 0.0,
+      "keys": []
+    },
+    "fov": {
+      "value": 45.0,
+      "keys": []
+    },
+    "film_width_mm": 36.0,
+    "radius": {
+      "value": 38.627415,
+      "keys": []
+    },
+    "azimuth": {
+      "value": 0.0,
+      "keys": []
+    },
+    "elevation": {
+      "value": 0.0,
+      "keys": []
+    }
+  },
+  "layers": [
+    {
+      "id": 7,
+      "name": "Automatic output",
+      "content": {
+        "kind": "solid",
+        "color": [
+          1.0,
+          0.2,
+          0.1,
+          1.0
+        ]
+      },
+      "size": [
+        8.0,
+        8.0
+      ],
+      "transform": {
+        "position": {
+          "value": [
+            8.0,
+            16.0,
+            0.0
+          ],
+          "keys": [
+            {
+              "frame": 0,
+              "value": [
+                8.0,
+                16.0,
+                0.0
+              ],
+              "ease": "linear",
+              "curve": {
+                "space": "progress",
+                "shape": {
+                  "kind": "cubic",
+                  "control1": [
+                    0.3333333333333333,
+                    0.3333333333333333
+                  ],
+                  "control2": [
+                    0.6666666666666666,
+                    0.9
+                  ],
+                  "start": 0.0,
+                  "end": 1.0
+                }
+              }
+            },
+            {
+              "frame": 2,
+              "value": [
+                40.0,
+                16.0,
+                0.0
+              ],
+              "ease": "linear",
+              "curve": {
+                "space": "progress",
+                "shape": {
+                  "kind": "cubic",
+                  "control1": [
+                    0.3333333333333333,
+                    0.6
+                  ],
+                  "control2": [
+                    0.6666666666666666,
+                    0.6666666666666667
+                  ],
+                  "start": 0.0,
+                  "end": 1.0
+                }
+              }
+            },
+            {
+              "frame": 5,
+              "value": [
+                48.0,
+                16.0,
+                0.0
+              ],
+              "ease": "linear"
+            }
+          ]
+        },
+        "rotation": {
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "keys": []
+        },
+        "scale": {
+          "value": [
+            100.0,
+            100.0,
+            100.0
+          ],
+          "keys": []
+        },
+        "opacity": {
+          "value": 1.0,
+          "keys": []
+        },
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "visible": true,
+      "locked": false,
+      "solo": false,
+      "effects_enabled": true,
+      "shy": false,
+      "three_d": false,
+      "sampling": {
+        "frame_blend": "hold",
+        "motion_blur": null,
+        "continuous_rasterization": false
+      },
+      "rotation_order": "local_xyz",
+      "effects": [],
+      "blend": {
+        "mode": "normal",
+        "space": "linear"
+      },
+      "audio_source_channel": "stereo"
+    }
+  ],
+  "plugin_dependencies": []
+}

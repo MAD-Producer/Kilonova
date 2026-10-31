@@ -1,0 +1,216 @@
+{
+  "baseline": "56400af5",
+  "scope": "#260 独立空间动画模型的稳定 ID、连续时间、序列化和取样；未装入 Track/工程/核心/UI",
+  "tests": {
+    "schedule": 11,
+    "allocation": 1,
+    "spatial_metric": 8,
+    "automatic": 8,
+    "desktop_menu": 19,
+    "desktop_timeline": 55,
+    "desktop_plugin_base": 6,
+    "total_distinct_passed": 108,
+    "desktop_ignored_not_executed": 2
+  },
+  "sources": [
+    {
+      "file": "crates/motion-model/src/animation.rs",
+      "bytes": 32698,
+      "sha256": "2ef5b51a508e49f52c6cd42cd814b53b4351696ecce2dfccc30a20c53bb9f8db"
+    },
+    {
+      "file": "crates/motion-model/src/lib.rs",
+      "bytes": 8324,
+      "sha256": "780fe253dd8872b82285e4c9d91bc6be1a62a48257bb2ceb448aca13ca9b7144"
+    },
+    {
+      "file": "crates/motion-model/src/animation/path_metric.rs",
+      "bytes": 16188,
+      "sha256": "6d33c18dc0bffdfde0598d0a919726015cd4f0661bdcdf7dc766485011625c79"
+    },
+    {
+      "file": "crates/motion-model/src/animation/spatial_schedule.rs",
+      "bytes": 12068,
+      "sha256": "313b64ebcf9b3e7d07b9f9d18696b1f6f97251fced306d1bdfca9e2abb727cd3"
+    },
+    {
+      "file": "crates/motion-model/src/animation/spatial_animation.rs",
+      "bytes": 10514,
+      "sha256": "6b063c2a2bc8826a1e2f82ec1651b2df2409d2e501096a216a9716be360d8ecc"
+    },
+    {
+      "file": "crates/motion-model/tests/spatial_schedule.rs",
+      "bytes": 17504,
+      "sha256": "fe0882824ece707f660832d44526b5568dfc451debfcfb09a8589d13fbe7333e"
+    },
+    {
+      "file": "crates/motion-model/tests/spatial_hot_path.rs",
+      "bytes": 2934,
+      "sha256": "92c5793ee74f64919443eeac0579c2b8a701a10c236a54bb091c1f182ab5210d"
+    }
+  ],
+  "executables": [
+    {
+      "file": "spatial_schedule-28aafead3168f095.exe",
+      "bytes": 2168832,
+      "sha256": "abada06252776c29cbcb35521da803ad9af6ec5f3f657c4aa00c20781f5e3034"
+    },
+    {
+      "file": "spatial_hot_path-13a9e88f92d1e4b5.exe",
+      "bytes": 1469952,
+      "sha256": "41eb3116adf3ee4f34d871f2483ee3cca77bac1163bb5970d065f055007c86bf"
+    },
+    {
+      "file": "motion_studio-9c5cdc7b4281ddf0.exe",
+      "bytes": 126296576,
+      "sha256": "640d3c4ecc9314b095a4879bf0fcf6cc3225a2a1f345cba719e7cb944acd5173"
+    }
+  ],
+  "files": [
+    {
+      "file": ".gitattributes",
+      "bytes": 70,
+      "sha256": "d6ea0d92c612124f997b53ffb66af013c6095c1284dd71b03671922efe5f0f46"
+    },
+    {
+      "file": "existing-type-error/motion-studio.log",
+      "bytes": 925,
+      "sha256": "97273f2f970db961e64d2f8cd20798fad3447ea14a524ad7ee616d32aa59621a"
+    },
+    {
+      "file": "existing-type-error/stderr.log",
+      "bytes": 214,
+      "sha256": "7173851d58ac769d21c735a32d9c6c106d8588265a738a2b74072307e335c9bc"
+    },
+    {
+      "file": "existing-type-error/stdout.log",
+      "bytes": 260,
+      "sha256": "fd0f726fc33f9aa887fdba807409990df2c0134208981376fa4cc90d6094f726"
+    },
+    {
+      "file": "models/coincident-keys-after-valid-edit.json",
+      "bytes": 669,
+      "sha256": "bd10cbecdcef1a5f1202fb61a9247db3ab71f251eb6e5d9f2a06a0a238e3ce6a"
+    },
+    {
+      "file": "models/coincident-keys-after-valid-edit.samples.json",
+      "bytes": 16385,
+      "sha256": "535feb6b56e45f4040fb5778f31ab3887363c4463293e6459b25b6a20cf1125f"
+    },
+    {
+      "file": "models/cubic-frozen.json",
+      "bytes": 693,
+      "sha256": "e21a6a4be032d8e732ca67c23a3c216ddf779970d799bb1cdb8502eeab811fee"
+    },
+    {
+      "file": "models/cubic-frozen.samples.json",
+      "bytes": 20160,
+      "sha256": "d7d6f7701db358347f0c0c0b541fa2d2786864e9c8cd99dda49dca92fd7d7caa"
+    },
+    {
+      "file": "models/linear-roving.json",
+      "bytes": 670,
+      "sha256": "95efc26e262bf0cdc0c5e8bb885d637a4c4f47f746571dc71801c0df8ab65bd5"
+    },
+    {
+      "file": "models/linear-roving.samples.json",
+      "bytes": 16461,
+      "sha256": "948832912cf304a2bf8333492d5a97a63c01f97061224dd91347e769577bcc03"
+    },
+    {
+      "file": "models/partially-frozen.json",
+      "bytes": 684,
+      "sha256": "c4787993ce6f1fe796c070df7a48be8566e0ed6326025bafa58dbf9e0bfb2076"
+    },
+    {
+      "file": "models/partially-frozen.samples.json",
+      "bytes": 16461,
+      "sha256": "948832912cf304a2bf8333492d5a97a63c01f97061224dd91347e769577bcc03"
+    },
+    {
+      "file": "models/rejected-zero-duration-edit.json",
+      "bytes": 229,
+      "sha256": "66724bab88c586b75ad0c5993340b0ccd54c325e8755e35bdc17527c1a8aa97b"
+    },
+    {
+      "file": "models/stationary-fixed.json",
+      "bytes": 516,
+      "sha256": "ba1fee00b4b7a85da30d267f4cf580b3ffaae10404b76a08bb74b3581b2cc9f8"
+    },
+    {
+      "file": "models/stationary-fixed.samples.json",
+      "bytes": 14886,
+      "sha256": "706e05cbd5dfc84fe0bc7379e3756a8a51e891cc19e5fc806f03d4b533b8c823"
+    },
+    {
+      "file": "schedule-desktop-build.log",
+      "bytes": 13867,
+      "sha256": "3117f4cd8a900cedc8054516f41c264f78e207a8299ce2f26b8f865a38c5c2ee"
+    },
+    {
+      "file": "schedule-desktop-final-build.log",
+      "bytes": 13867,
+      "sha256": "2a5a34d7d9314c4dc058755ce9aabceb9200c186d938f54abb06c0f0fa571e39"
+    },
+    {
+      "file": "schedule-evidence.log",
+      "bytes": 3647,
+      "sha256": "2e3ff10bbe3543c33151f3c990fa95c467dc19a78a414be96c4571ac6c8bf950"
+    },
+    {
+      "file": "schedule-final-evidence.log",
+      "bytes": 3745,
+      "sha256": "6bbd5fdbc7617604c5f78b8a592b76059405c4d83d813dd5c8fefd451bc803d9"
+    },
+    {
+      "file": "schedule-final.log",
+      "bytes": 3298,
+      "sha256": "b71c36f54bec4356e152d23e6aea66e153eaa03d4a6fdd112016d6629bf213fa"
+    },
+    {
+      "file": "schedule-first.log",
+      "bytes": 3109,
+      "sha256": "b068cc31790a97a22f0d3e115f3e1fdca30061b6ad4fe37b20a3c9435821ecaa"
+    },
+    {
+      "file": "schedule-menu.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schedule-menu.stdout.log",
+      "bytes": 2797,
+      "sha256": "c250792db6cc3bc7f04d5e092e8ad14d1cb857cd1ef40f65e8b9f2b403a4b2df"
+    },
+    {
+      "file": "schedule-plugin.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schedule-plugin.stdout.log",
+      "bytes": 719,
+      "sha256": "7196e9be52af78cc6408dfe5b0f1266d6dd565102227ea457723fb9d1be4ca88"
+    },
+    {
+      "file": "schedule-timeline.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schedule-timeline.stdout.log",
+      "bytes": 7364,
+      "sha256": "3943481b7632a4f6cb3f69ee9e5d6d488b5598435630c4706e39482d5c12a40c"
+    },
+    {
+      "file": "schedule-tiny-first.log",
+      "bytes": 1023,
+      "sha256": "a23a4db6882893314606a6ddb058fa9af99ed67a8daba0c1311c2cde547b6afb"
+    },
+    {
+      "file": "schedule-verified.log",
+      "bytes": 3746,
+      "sha256": "c6155aa2027d6ef3307f795832050a3c07e9672b342d63547d8c374958bf85c7"
+    }
+  ]
+}

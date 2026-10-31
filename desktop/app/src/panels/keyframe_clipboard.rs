@@ -115,6 +115,12 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
         return None;
     }
     if panels.selected_keys.owns_keys() {
+        // The integer clipboard cannot represent persistent spatial IDs. Keep
+        // ownership and disable the whole mixed set, never copy only a subset
+        // or fall through to copying layers.
+        if panels.selected_keys.has_spatial() {
+            return Some(Selection::new(state, vec![], vec![], false));
+        }
         let selections = panels.selected_keys.selections();
         let status = panels.selected_keys.status(state);
         let mut selected = Selection::new(state,

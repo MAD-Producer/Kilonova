@@ -208,6 +208,9 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::PasteKeyframes { clipboard, targets, at_frame } => clipboard.paste(project, &targets, at_frame)?,
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
+        Command::KeyframeAutomatic { selections, enabled } => motion_model::keyframe_clipboard::set_automatic(project, &selections, enabled)?,
+        Command::SpatialKeyframes {target,edit} => motion_model::keyframe_clipboard::spatial::edit(project,&target,&edit)?,
+        Command::KeyframeHandle { target, frame, incoming, control } => motion_model::keyframe_clipboard::set_handle(project, &target, frame, incoming, control)?,
         Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,
         Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
         Command::EaseKeyframes { selections, incoming, outgoing } => motion_model::keyframe_clipboard::ease_keys(project, &selections, incoming, outgoing)?,
@@ -1005,6 +1008,8 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                 || old.transform.anchor.is_animated()
                 || old.transform.rotation.is_animated()
                 || old.transform.scale.is_animated();
+            ensure(old.transform.position.spatial_animation.is_none() && old.transform.anchor.spatial_animation.is_none(),
+                "anchor compensation cannot bake continuous spatial timing to integer keys")?;
             let mut position = Track::constant(compensate(0.0)?);
             if animated {
                 let first = old.clip(project.frames).edit_frame(0)?;
@@ -1017,7 +1022,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
                     .chain(old.transform.rotation.key_frames())
                     .chain(old.transform.scale.key_frames());
                 let (first, last) =
-                    key_frames.fold((first, last), |(a, b), f| (a.min(f), b.max(f)));
+                    key_frames.fold((first, last), |(a, b), f| (a.min(f as i32), b.max(f as i32)));
                 ensure(
                     i64::from(last) - i64::from(first) < i64::from(crate::MAX_FRAMES),
                     "anchor compensation exceeds key budget",
@@ -1109,8 +1114,10 @@ impl Engine {
     }
     /// Runtime-only history pressure; eviction is the existing bounded policy.
     pub fn history_diagnostics(&self) -> serde_json::Value {
+        let usage = crate::history_accounting::history_usage(self.undo.iter().chain(&self.redo).map(|h| &h.size));
         serde_json::json!({"undoEntries":self.undo.len(),"redoEntries":self.redo.len(),
             "budgetBytes":self.history_budget,"evictions":self.history_evictions,
+            "modelBytes":usage.model_bytes,"spatialCacheBytes":usage.spatial_bytes,"retainedBytes":usage.total(),
             "gestureActive":self.gesture.is_some(),
             "gestureElapsedMs":self.gesture.as_ref().map(|g|g.started.elapsed().as_millis().min(u64::MAX as u128) as u64)})
     }
@@ -1158,13 +1165,18 @@ impl Engine {
         if before.project != self.project {
             if commit {
                 self.size = self.size.updated(&self.project, &gesture.changes);
-                self.push_undo(before);
                 self.redo.clear();
+                self.push_undo(before);
             } else {
                 self.project = before.project;
                 self.size = before.size;
                 self.revision = self.revision.wrapping_add(1);
             }
+        } else {
+            // Preview edits may rebuild equal derived data. Restore the same
+            // allocation owners represented by the unchanged size cache.
+            self.project = before.project;
+            self.size = before.size;
         }
         Ok(())
     }
@@ -1269,16 +1281,19 @@ impl Engine {
             if self.gesture.is_none() {
                 let next_size = self.size.updated(&self.project, &changes);
                 let before_size = std::mem::replace(&mut self.size, next_size);
+                self.redo.clear();
                 self.push_undo(History {
                     project: before,
                     size: before_size,
                 });
-                self.redo.clear();
             } else if let Some(gesture) = &mut self.gesture {
                 // Continuous gesture updates create no snapshots or size walks.
                 gesture.changes.merge(changes);
             }
             self.revision = self.revision.wrapping_add(1);
+        } else {
+            // Equal author state is a no-op, including its resource ownership.
+            self.project = before;
         }
         Ok(results)
     }
@@ -1334,13 +1349,7 @@ impl Engine {
     }
     fn trim(&mut self) {
         while self.undo.len() + self.redo.len() > 128
-            || self
-                .undo
-                .iter()
-                .chain(&self.redo)
-                .map(|h| h.size.bytes())
-                .sum::<usize>()
-                > self.history_budget
+            || crate::history_accounting::history_usage(self.undo.iter().chain(&self.redo).map(|h| &h.size)).total() > self.history_budget
         {
             if self.undo.pop_front().or_else(|| self.redo.pop_front()).is_some() {
                 self.history_evictions = self.history_evictions.saturating_add(1);
@@ -1361,3 +1370,6 @@ impl motion_model::EditSink for Engine {
 #[cfg(test)]
 #[path = "history_accounting_tests.rs"]
 mod history_accounting_tests;
+#[cfg(test)]
+#[path = "history_spatial_tests.rs"]
+mod history_spatial_tests;

@@ -623,3 +623,28 @@ fn wide_legend_reserves_the_same_time_viewport_for_ruler_keys_zoom_and_navigatio
     }
     assert_eq!(engine.project(), &before);
 }
+
+#[test]
+fn spatial_selection_opens_its_real_curves_without_using_integer_clipboard_payloads() {
+    let mut project=fixture().snapshot();
+    project.layers[0].transform.position.enable_roving(&[30]).unwrap();
+    let engine=Engine::new(project).unwrap();let snapshot=state(&engine);
+    let mut panels=Panels {focused:Some(Panel::Timeline),..Default::default()};
+    panels.select_only(Some(7));
+    panels.selected_keys.apply_addressed(&snapshot,
+        [key_selection::SpatialKey {target:property(Property::Position),id:2}.into()],key_selection::Mode::Replace).unwrap();
+    assert_eq!(selected(&panels,&snapshot),Some(vec![property(Property::Position)]));
+    let mut actions=vec![];open(&mut panels,&snapshot,&mut actions);
+    assert!(actions.is_empty());assert!(panels.timeline.comparison.enabled);
+    assert_eq!(panels.timeline.comparison.entries.len(),2);
+    for entry in &panels.timeline.comparison.entries {
+        assert_eq!(entry.channel.target,property(Property::Position));
+        let data=entry.data.as_ref().unwrap();
+        assert!(data.frames.is_empty());assert_eq!(data.spatial_frames.len(),3);
+        assert!(data.sample(30.,entry.channel.component,30.,false).unwrap().is_finite());
+    }
+    let mut changed=snapshot.clone();changed["document_generation"]=2.into();
+    assert!(selected(&panels,&changed).is_none());
+    assert_eq!(engine.project(),&project_from_state(&snapshot));
+}
+fn project_from_state(snapshot:&Value)->Project {serde_json::from_value(snapshot["project"].clone()).unwrap()}

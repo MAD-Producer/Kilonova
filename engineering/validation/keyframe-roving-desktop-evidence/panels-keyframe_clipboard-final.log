@@ -1,0 +1,11 @@
+
+running 6 tests
+test panels::keyframe_clipboard::tests::clipboard_effect_owner_and_inspector_projection_copy_real_parameter_tracks ... ok
+test panels::keyframe_clipboard::tests::clipboard_malformed_key_snapshots_reach_default_error_channel_with_bounded_lifetime_evidence ... ok
+test panels::keyframe_clipboard::tests::clipboard_menu_retains_property_owner_and_disables_revised_locked_and_busy_writes ... ok
+test panels::keyframe_clipboard::tests::clipboard_projection_and_stale_property_never_steal_each_others_scope ... ok
+test panels::keyframe_clipboard::tests::clipboard_property_and_single_key_route_in_both_locales_and_timeline_modes ... ok
+test panels::keyframe_clipboard::tests::clipboard_shortcuts_defer_to_text_ime_menu_busy_and_custom_binding ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1510 filtered out; finished in 2.97s
+

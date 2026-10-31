@@ -100,6 +100,7 @@ fn scalar_fixture() -> Engine {
     project.layers[0].transform.opacity.keys = [(3, 0.), (33, 0.5), (63, 0.75)]
         .into_iter()
         .map(|(frame, value)| Keyframe {
+            auto_bezier: false,
             frame,
             value,
             ease: Ease::Linear,
@@ -168,6 +169,7 @@ fn anchor_units_use_source_pixels_and_signed_separated_axes_keep_local_offsets()
     project.layers[0].transform.anchor.keys = [(3, [0., 0.]), (33, [0.3, 0.8])]
         .into_iter()
         .map(|(frame, value)| Keyframe {
+            auto_bezier: false,
             frame,
             value,
             ease: Ease::Linear,

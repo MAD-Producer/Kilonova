@@ -22,13 +22,14 @@ pub(super) struct RowProbe {
     numbers: Vec<(usize, Rect)>,
 }
 
-fn scope(state: &Value) -> (&str, &str) {
+fn scope(state: &Value) -> (&str, &str, Option<u64>) {
     (
         state["root"].as_str().unwrap_or(""),
         state["composition"]
             .as_str()
             .or_else(|| state["project"]["composition_id"].as_str())
             .unwrap_or(motion_core::composition::MAIN_COMPOSITION),
+        state["document_generation"].as_u64(),
     )
 }
 
@@ -113,12 +114,12 @@ impl Controls {
         if self
             .track_scope
             .as_ref()
-            .is_some_and(|old| (old.0.as_str(), old.1.as_str()) != next)
+            .is_some_and(|old| (old.0.as_str(), old.1.as_str(), old.2) != next)
         {
             self.clear_key();
         }
         self.choose_track(object, property, axis);
-        self.track_scope = Some((next.0.to_owned(), next.1.to_owned()));
+        self.track_scope = Some((next.0.to_owned(), next.1.to_owned(), next.2));
     }
 
     pub(in crate::panels) fn select_key_in(
@@ -165,7 +166,7 @@ impl Controls {
             || self
                 .track_scope
                 .as_ref()
-                .is_some_and(|old| (old.0.as_str(), old.1.as_str()) != scope(state))
+                .is_some_and(|old| (old.0.as_str(), old.1.as_str(), old.2) != scope(state))
             || !crate::panels::timeline::property_row_exists(state, object, property, axis)
         {
             return TrackSelection::Invalid;

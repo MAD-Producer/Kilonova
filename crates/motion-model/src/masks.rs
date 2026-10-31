@@ -117,6 +117,7 @@ impl LayerMask {
         .validate()?;
         self.opacity.validate_local()?;
         self.feather.validate_local()?;
+        ensure(self.feather.spatial_animation.is_none(),"mask feather is not a spatial path")?;
         self.expansion.validate_local()?;
         ensure(
             self.opacity.axes.is_none()

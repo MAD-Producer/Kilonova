@@ -1,0 +1,6 @@
+
+running 1 test
+test movie::automatic_timing_tests::automatic_timing_survives_reopen_freeze_and_live_edits_in_actual_encoded_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 11.95s
+

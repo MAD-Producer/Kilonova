@@ -1,0 +1,133 @@
+{
+  "baseline": "2a92fb6a43050211de794a5e2d64e0887112c3c0",
+  "files": [
+    {
+      "path": "crates/motion-core/src/command_registry.rs",
+      "sha256": "f9310f67816b9437e7000dcb6664d5a83e751fb71601e1e7319d596cf1e91682"
+    },
+    {
+      "path": "crates/motion-core/src/editor.rs",
+      "sha256": "2fe4a968ec63f021576a16f02d9f6be2525648806e4da864fb9ab3160ae9205d"
+    },
+    {
+      "path": "crates/motion-core/src/history_accounting.rs",
+      "sha256": "7deebb34a9b3c32df5764f47a48e81bf6c2f8aa484ba4b438f6da501ffb9dfb7"
+    },
+    {
+      "path": "crates/motion-core/tests/animation_presets.rs",
+      "sha256": "7401421cd6866e5054566ff1f92a5e2521b068ed5dd6d5551ff0ced28eb7d327"
+    },
+    {
+      "path": "crates/motion-core/tests/path_clipboard.rs",
+      "sha256": "f43bbba6d182f6dbff144c8056a8c3ae51673d834a28074c216ad7e69b7c066b"
+    },
+    {
+      "path": "crates/motion-core/tests/path_conversion.rs",
+      "sha256": "77fb46d519f5d98c17bf9ee09796927f644e0761d566bb6799b13dade7e70411"
+    },
+    {
+      "path": "crates/motion-core/tests/spatial_keyframes.rs",
+      "sha256": "c26f5d9f505727125940fbd3514e96e67aeec18238c1ee0efa9ae8e70330ded3"
+    },
+    {
+      "path": "crates/motion-model/src/animation.rs",
+      "sha256": "a5da894ca25964776bd8e25a91b3a12499cf0b2aab73b76fb0ffff82f117a39f"
+    },
+    {
+      "path": "crates/motion-model/src/animation/automatic.rs",
+      "sha256": "f92334a64365bc37699808b26531bc3e42663265a2a99b5dc293ba9d305758d3"
+    },
+    {
+      "path": "crates/motion-model/src/animation/spatial_animation.rs",
+      "sha256": "c3670778dd4b258b000a26f52a854defc5b03f4c2f0ee73f4268d1c29d6ffd0b"
+    },
+    {
+      "path": "crates/motion-model/src/animation/spatial_schedule.rs",
+      "sha256": "84453eb16eb25b278b476e0759d6bce62a9310775a19b3911d57f278200e1db8"
+    },
+    {
+      "path": "crates/motion-model/src/animation/track_serde.rs",
+      "sha256": "fddc3ff68bcb019e36b3870bb6ad73f209e762a7cfe526e1057071a95d0ade41"
+    },
+    {
+      "path": "crates/motion-model/src/animation_presets.rs",
+      "sha256": "300b69595e30a667083f8768d75c16a16a6193ab27b95c5d360cbcdc06f5c071"
+    },
+    {
+      "path": "crates/motion-model/src/camera.rs",
+      "sha256": "b45896aeebad60b56fd0f65065a6cfdc20fcfef9bf1a4699befd6a255e663b80"
+    },
+    {
+      "path": "crates/motion-model/src/commands.rs",
+      "sha256": "d36ab2d4e4bf617493d17dd139fe0b68c71708514e62c702287aba1ddd64dc71"
+    },
+    {
+      "path": "crates/motion-model/src/expressions.rs",
+      "sha256": "1a8105a45a64ea859759953ae65a2d439d3ae3c3a79ce94a8c93e5be969b5259"
+    },
+    {
+      "path": "crates/motion-model/src/keyframe_clipboard.rs",
+      "sha256": "818efac34154c4c02818947bd2a64a006928ab7bb1100f8e7fa9b905dee90e9f"
+    },
+    {
+      "path": "crates/motion-model/src/keyframe_clipboard/spatial.rs",
+      "sha256": "40f1a394b3291e59b2db0269c873e6787fe51a68aee196db61779faef3286373"
+    },
+    {
+      "path": "crates/motion-model/src/masks.rs",
+      "sha256": "401c92da6f6078aa43228cb8e883d412ba83603ffaa7f95d7497f1e8f79ae9c0"
+    },
+    {
+      "path": "crates/motion-model/src/model.rs",
+      "sha256": "9b28b4c99a5bc7ee2e952b2f0e22787c2524d1b2921951ad7c82189bbf2fa4c1"
+    },
+    {
+      "path": "crates/motion-model/src/timeline.rs",
+      "sha256": "b789b00844a4fdcfdaf8fd6173dffc4758679ca2d1820769afe958895c01797f"
+    },
+    {
+      "path": "crates/motion-model/src/vector/groups.rs",
+      "sha256": "c27ac4419130b0444bcc0e2e02838d762f8c759e173a39111d8dfa49b7207437"
+    },
+    {
+      "path": "crates/motion-model/tests/spatial_hot_path.rs",
+      "sha256": "c5e92c49fccaa07efdc65e4f00d0bc379c00ada722b76c753ddee0fbf32e14c2"
+    },
+    {
+      "path": "crates/motion-model/tests/spatial_schedule.rs",
+      "sha256": "b29d100eb0b8c47550deea06a9e51560ac3c26097c6db2df62c1301312d7002c"
+    },
+    {
+      "path": "crates/motion-model/tests/spatial_track.rs",
+      "sha256": "9ba8003b016fc7564d98d190fbef95da0a4488957d2c4b6d7cb3a3ea9313b035"
+    },
+    {
+      "path": "crates/motion-render/src/position_path.rs",
+      "sha256": "c4fd177968eaa794ea01a6054987ccdbb9a061751142e546669ae2242a36471f"
+    },
+    {
+      "path": "desktop/app/src/engine/animation_action_tests.rs",
+      "sha256": "060bdbba399595c5581ed3c0da34710b0f2b3a82cbd9ae949e39494c60deccf5"
+    },
+    {
+      "path": "desktop/app/src/engine/animation_action_tests/spatial.rs",
+      "sha256": "422d951af2b9452b6ffe800b2df4a649dac36e7fa28cd2c4b3256e56851f5820"
+    },
+    {
+      "path": "desktop/app/src/layer_clipboard/tests/path_bridge.rs",
+      "sha256": "78a1283756c01f712e3a698a2415f2cf4c668b6f8b6ef4a350321b194a6d12b3"
+    },
+    {
+      "path": "desktop/app/src/panels/animation_data.rs",
+      "sha256": "704daa9fce915aeb17028683ba48293a15ef0610e46c68f444a46c7d8d1a6990"
+    },
+    {
+      "path": "desktop/app/src/panels/curve_comparison/data.rs",
+      "sha256": "48df4a64e6bd3102686488117d5875adadb68a27fc91601cfcb23814f3dcccb7"
+    },
+    {
+      "path": "desktop/app/src/panels/effect_controls/key_navigation/selection_tests.rs",
+      "sha256": "c4c8f32a415a8eac857c06e9e5e99af269ffbed85b17dec72120c0f76492379b"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ fn narrow() -> CurveObject {
 
 fn key(frame: i32, value: CurveObject) -> Keyframe<CurveObject> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: Ease::Linear,

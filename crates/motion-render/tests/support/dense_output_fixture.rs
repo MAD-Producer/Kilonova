@@ -79,6 +79,7 @@ pub fn project(mode: ChannelPrecision, exposure: bool) -> (Project, Registry) {
         keys: [(0, 1.), (4, 0.5)]
             .into_iter()
             .map(|(frame, height)| Keyframe {
+                auto_bezier: false,
                 frame,
                 value: source(height),
                 ease: Ease::Linear,

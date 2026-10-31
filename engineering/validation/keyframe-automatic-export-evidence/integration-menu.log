@@ -1,0 +1,25 @@
+
+running 20 tests
+test panels::animation_menu::tests::curve_clipboard_menu_captures_same_explicit_interval_in_both_locales_and_rejects_busy_or_stale ... ok
+test panels::animation_menu::tests::disabled_menu_entry_focus_loss_and_outside_click_never_edit ... ok
+test panels::animation_menu::tests::interpolation_targets_only_the_explicit_property_without_moving_key_times ... ok
+test panels::animation_menu::tests::invalid_readonly_and_stale_contexts_disable_edits_and_reverse_time_is_explicitly_unavailable ... ok
+test panels::animation_menu::tests::menu_and_keyboard_share_current_property_commands_and_single_undo ... ok
+test panels::animation_menu::tests::open_menu_rejects_changed_document_revision_selection_property_and_focus_before_dispatch ... ok
+test panels::animation_menu::tests::sequence_follows_visible_stack_and_preserves_sources_and_one_step_history ... ok
+test panels::animation_menu::tests::sequence_rejects_the_whole_selection_for_a_locked_missing_or_fractionally_shifted_layer ... ok
+test panels::animation_menu::tests::timing_menu_and_shortcut_freeze_the_same_selection_without_editing_or_changing_view_mode ... ok
+test panels::animation_menu::tests::timing_shortcut_without_editable_keys_explains_the_disabled_action_in_both_hosts_and_locales ... ok
+test panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages ... ignored, manual native type-menu GPU captures; retains screenshots and original log streams
+test panels::animation_menu::type_state::tests::automatic_shortcut_conflicts_are_rejected_and_custom_presets_keep_their_owner ... ok
+test panels::animation_menu::type_state::tests::automatic_shortcut_matches_menu_in_main_and_floating_owners_with_single_undo ... ok
+test panels::animation_menu::type_state::tests::automatic_shortcut_respects_text_ime_repeat_focus_loss_and_readonly_selection ... ok
+test panels::animation_menu::type_state::tests::discrete_effects_are_disabled_even_though_their_storage_is_a_numeric_vector ... ok
+test panels::animation_menu::type_state::tests::malformed_type_snapshots_reach_default_error_channels_and_healthy_capabilities_stay_quiet ... ok
+test panels::animation_menu::type_state::tests::menu_types_convert_only_selected_keys_freeze_exact_samples_and_restore_on_undo ... ok
+test panels::animation_menu::type_state::tests::selection_state_and_checkmarks_distinguish_mixed_manual_hold_and_automatic ... ok
+test panels::animation_menu::type_state::tests::type_cache_reuses_revision_and_selection_but_invalidates_authored_changes ... ok
+test panels::animation_menu::type_state::tests::unsupported_neighbours_and_single_key_disable_automatic_without_mutating_history ... ok
+
+test result: ok. 19 passed; 0 failed; 1 ignored; 0 measured; 1486 filtered out; finished in 3.23s
+

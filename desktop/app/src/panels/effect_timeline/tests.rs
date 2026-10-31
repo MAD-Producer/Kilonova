@@ -660,7 +660,7 @@ fn effect_speed_uses_the_same_clamp_as_the_value_sampler() {
     });
     assert!(parameter.track.sample(40.).unwrap()[0] > parameter.max);
     assert_eq!(parameter.sample(40.).unwrap()[0], 1.);
-    assert!(graph_sampling::velocity(&parameter.track, 40., 30., |v| v[0] as f64).abs() > 0.1);
+    assert!(graph_sampling::velocity(&parameter.track, 40., 30., |v| v[0] as f64).unwrap().abs() > 0.1);
     assert_eq!(graph::speed_value(&parameter, 40., 30., 0).unwrap(), 0.);
     assert_eq!(graph::speed_value(&parameter, 5., 30., 0).unwrap(), 0.);
     parameter.kind = motion_effects::ParamKind::Bool;
@@ -767,3 +767,5 @@ fn effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_hi
 
 mod scroll_cache_tests;
 mod zoom_tests;
+#[path = "handle_tests.rs"]
+mod handle_tests;

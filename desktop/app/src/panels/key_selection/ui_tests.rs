@@ -10,6 +10,8 @@ use motion_ui::{
 };
 #[path = "drag_tests.rs"]
 mod dragging;
+#[path = "spatial_ui_tests.rs"]
+mod spatial;
 
 fn view(engine: &Engine) -> Value {
     let mut value = state(engine);

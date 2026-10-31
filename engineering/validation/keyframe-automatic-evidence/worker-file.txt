@@ -1,0 +1,18 @@
+1793360360.094 INFO [engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793360360.102 INFO [engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/automatic-error-channels\project
+1793360360.102 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793360360.105 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/automatic-error-channels\project
+1793360371.231 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793360371.232 INFO [engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/automatic-error-channels\project 11129ms
+1793360371.232 INFO [motion-engine] motion_studio::engine: start #1 state
+1793360371.236 INFO [motion-engine] motion_studio::engine: start #2 editor_action
+1793360371.237 ERROR [motion-engine] motion_studio::engine: error #2 editor_action 0ms: keyframe edit operation=automatic_bezier object=7 channel=Property { object: 7, property: Opacity, axis: None } frames=[99] count=1: selected keyframe does not exist
+1793360371.237 INFO [motion-engine] motion_studio::engine: start #3 state
+1793360371.239 INFO [motion-engine] motion_studio::engine: start #4 editor_action
+1793360371.242 INFO [motion-engine] motion_studio::engine: start #5 history
+1793360371.244 INFO [motion-engine] motion_studio::engine: start #6 shutdown
+1793360371.244 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793360371.244 INFO [motion-engine] motion_studio::engine::shutdown: start #7 shutdown_cleanup session=1
+1793360371.245 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793360371.245 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793360371.245 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

@@ -5,6 +5,7 @@ fn parameter(ease: Ease, curve: Option<Curve>) -> EffectParam {
     let mut track = Track::constant([0.25, 0., 0., 0.]);
     track.keys = vec![
         Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: [0.25, 0., 0., 0.],
             ease,
@@ -12,6 +13,7 @@ fn parameter(ease: Ease, curve: Option<Curve>) -> EffectParam {
             spatial: None,
         },
         Keyframe {
+            auto_bezier: false,
             frame: 60,
             value: [0.75, 0., 0., 0.],
             ease: Ease::Linear,

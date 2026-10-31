@@ -1,0 +1,40 @@
+   Compiling motion-effects v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-effects)
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 01s
+     Running tests\spatial_timing.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_timing-8a17dc348756e9a8.exe)
+
+running 7 tests
+test closed_cubic_uses_arc_length_and_distance_queries_match_independent_integrals ... ok
+test collinear_cubic_with_nonlinear_parameterization_is_not_treated_as_linear_parameter ... ok
+
+thread 'constant_speed_times_stay_fractional_and_preserve_author_storage_and_prepared_snapshot' (50524) panicked at crates\motion-model\tests\spatial_timing.rs:66:5:
+assertion `left == right` failed
+  left: [0.0, 1.1111111111111112, 3.333333333333333, 10.0]
+ right: [0.0, 1.1111111111111112, 3.3333333333333335, 10.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test constant_speed_times_stay_fractional_and_preserve_author_storage_and_prepared_snapshot ... FAILED
+test local_span_avoids_cancellation_and_tiny_or_large_paths_keep_their_metric ... ok
+
+thread 'repeated_positions_keep_distinct_entries_and_stationary_paths_keep_authored_time_ratios' (64332) panicked at crates\motion-model\tests\spatial_timing.rs:152:5:
+assertion `left == right` failed
+  left: [0.0, 0.0, 3.333333333333333, 10.0]
+ right: [0.0, 0.0, 3.3333333333333335, 10.0]
+test repeated_positions_keep_distinct_entries_and_stationary_paths_keep_authored_time_ratios ... FAILED
+test resource_limits_invalid_geometry_and_bad_queries_reject_without_changing_authored_values ... ok
+
+thread 'two_dimensional_tracks_keep_both_coordinates_and_later_fixed_spans' (70108) panicked at crates\motion-model\tests\spatial_timing.rs:296:5:
+assertion `left == right` failed
+  left: 15.000000000000028
+ right: 15.0
+test two_dimensional_tracks_keep_both_coordinates_and_later_fixed_spans ... FAILED
+
+failures:
+
+failures:
+    constant_speed_times_stay_fractional_and_preserve_author_storage_and_prepared_snapshot
+    repeated_positions_keep_distinct_entries_and_stationary_paths_keep_authored_time_ratios
+    two_dimensional_tracks_keep_both_coordinates_and_later_fixed_spans
+
+test result: FAILED. 4 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p motion-model --test spatial_timing`

@@ -1,0 +1,134 @@
+{
+  "baseline": "a265ecfc",
+  "scope": "#260 空间路径计算基础；未启用 Roving，未改变作者键或现有 sampler",
+  "tests": {
+    "spatial": 8,
+    "automatic": 8,
+    "desktop_menu": 19,
+    "desktop_timeline": 55,
+    "desktop_plugin_base": 6,
+    "total_distinct_passed": 96,
+    "desktop_ignored_not_executed": 2
+  },
+  "sources": [
+    {
+      "file": "crates/motion-model/src/animation.rs",
+      "bytes": 32416,
+      "sha256": "f734c7ae3e85161c262a02bf15c07732a27a43fc6a89b05c9e02b9576a5bc8cc"
+    },
+    {
+      "file": "crates/motion-model/src/lib.rs",
+      "bytes": 8023,
+      "sha256": "665ba5e373c4816e105d212cecd7d437a4d39131edd8d0867e4e163cf5336036"
+    },
+    {
+      "file": "crates/motion-model/src/animation/path_metric.rs",
+      "bytes": 16120,
+      "sha256": "69739557791d46f41c7655cda785002215f6a8e4c84be2ad26dfced7921344be"
+    },
+    {
+      "file": "crates/motion-model/tests/spatial_timing.rs",
+      "bytes": 12291,
+      "sha256": "56cee8bfa3c74928c06a514c6dd820e081f1c86782db158d70618f0013365d90"
+    }
+  ],
+  "executables": [
+    {
+      "file": "spatial_timing-8a17dc348756e9a8.exe",
+      "bytes": 1393152,
+      "sha256": "96122d8e257a6381cf9c1ffe553213a9467b9a622bd6b9ec7cee23e34e659247"
+    },
+    {
+      "file": "automatic_bezier-74497b825e2a110b.exe",
+      "bytes": 1730048,
+      "sha256": "159314b7b39b7d257a765e0f918e657442251620ec397fa3663d8b022f77c67a"
+    },
+    {
+      "file": "motion_studio-9c5cdc7b4281ddf0.exe",
+      "bytes": 126295552,
+      "sha256": "c1c7ba6ebb8bd1ecdf8f1b966e5c75337d4d0c30fff5680a10173a6e4726c2c0"
+    }
+  ],
+  "files": [
+    {
+      "file": ".gitattributes",
+      "bytes": 70,
+      "sha256": "d6ea0d92c612124f997b53ffb66af013c6095c1284dd71b03671922efe5f0f46"
+    },
+    {
+      "file": "existing-type-error/motion-studio.log",
+      "bytes": 925,
+      "sha256": "d5721511b56cedfc8084dc9c783d9113eee9a8fdd65c196d51fcaf4a3d3474a5"
+    },
+    {
+      "file": "existing-type-error/stderr.log",
+      "bytes": 214,
+      "sha256": "7173851d58ac769d21c735a32d9c6c106d8588265a738a2b74072307e335c9bc"
+    },
+    {
+      "file": "existing-type-error/stdout.log",
+      "bytes": 260,
+      "sha256": "753d14112772992ada1d331430a65cfa87ff1f1ef505a7f4a6fd97ae798136b2"
+    },
+    {
+      "file": "spatial-desktop-build.log",
+      "bytes": 13867,
+      "sha256": "55d43ffb0ba1c9e1e829b83c3972a6bbbedded2f58e9111be93eb96147483522"
+    },
+    {
+      "file": "spatial-desktop-command-error.log",
+      "bytes": 66,
+      "sha256": "1ba3ceeecf09b4536cdea2cab95fee46b641a8223e0b0a51ba522690d31d69b1"
+    },
+    {
+      "file": "spatial-desktop-final-build.log",
+      "bytes": 13867,
+      "sha256": "5311e121034b15735f4aa9dbe2e41a47ecbcfd88fc6670b8888f03f4ecec61e0"
+    },
+    {
+      "file": "spatial-final.log",
+      "bytes": 2131,
+      "sha256": "abf1844b6411d3171e8bd473ee0ffb10ff59026e59bca33e6ee0270c6be6bb12"
+    },
+    {
+      "file": "spatial-first.log",
+      "bytes": 2461,
+      "sha256": "03affa9546153866d68b3dd2ff9580b93cd5cf86fdb7b1f57dfe0c0378b43b9d"
+    },
+    {
+      "file": "spatial-fixed.log",
+      "bytes": 2041,
+      "sha256": "c570f0c8305119795ecda043d0ad3b3faddee80f9a684119c0bb95efa2b28c47"
+    },
+    {
+      "file": "spatial-menu.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "spatial-menu.stdout.log",
+      "bytes": 2797,
+      "sha256": "808638956b716518edd14b7c500613dbd8cc5c7e29fbcb4640d31fedd97e3da1"
+    },
+    {
+      "file": "spatial-plugin.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "spatial-plugin.stdout.log",
+      "bytes": 719,
+      "sha256": "05fed9afccefbec2e9ae5f7816a518ce24ba2cd4a7433bec1a7f674b59f7f622"
+    },
+    {
+      "file": "spatial-timeline.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "spatial-timeline.stdout.log",
+      "bytes": 7363,
+      "sha256": "d652b52e75d179d30c241abf5109cd46862da87bb4d85168287efb28b0e832b5"
+    }
+  ]
+}

@@ -32,6 +32,7 @@ fn integral_track() -> Track<IntegralVector> {
     let mut track = Track::constant(IntegralVector([0.0; 3]));
     for (frame, value) in [(0, 0.0), (10, 10.0)] {
         track.keys.push(Keyframe {
+            auto_bezier: false,
             frame,
             value: IntegralVector([value; 3]),
             ease: Ease::Linear,
@@ -91,6 +92,7 @@ fn malformed_separated_storage_returns_errors_without_recursing_or_ignoring_vect
     assert_eq!(nested, before);
     assert_eq!(format!("{nested:?}"), format!("{before:?}"));
     vector.keys.push(Keyframe {
+        auto_bezier: false,
         frame: 0,
         value: [9.0; 3],
         ease: Ease::Linear,

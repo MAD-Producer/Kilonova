@@ -1,0 +1,278 @@
+{
+  "issue": 260,
+  "sourceBase": "1770502f3df86dac8711f036431202a274124be5",
+  "mainBase": "49890ce0da7d7701eaec5e521d749b562d3ffd47",
+  "sourceSha256": "source-sha256.json",
+  "testExecutable": {
+    "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-9c5cdc7b4281ddf0.exe",
+    "sha256": "77d061b7014f4bf6858500f9e308c55a8b2dd72548f2ebafe458d693162799bc",
+    "bytes": 128629248,
+    "kind": "FFmpeg/GPU test harness, not a release application"
+  },
+  "finalRuns": {
+    "model-final.log": [
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "core-final.log": [
+      {
+        "passed": 39,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "panels-key_selection-tests-final.log": [
+      {
+        "passed": 41,
+        "failed": 0,
+        "ignored": 2
+      }
+    ],
+    "panels-animation_menu--final.log": [
+      {
+        "passed": 19,
+        "failed": 0,
+        "ignored": 1
+      }
+    ],
+    "panels-keyframe_clipboard-final.log": [
+      {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "panels-curve_comparison--final.log": [
+      {
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "engine-animation_action_tests--final.log": [
+      {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "native-final.log": [
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "distinctPassed": 162,
+  "nativeCases": 8,
+  "screenshots": {
+    "original": 8,
+    "croppedDerivatives": 2,
+    "operation": "pixel crop only; no image generation or retouching"
+  },
+  "priorAttempts": {
+    "check-first.log": "exit 101: two new tests incorrectly indexed an iterator; fixed by nth(1), no assertion weakened",
+    "build-first.log": "success, before cached incoming-length preview guard",
+    "selection-first.log": "40 passed, 2 ignored; superseded by final 41-pass run",
+    "group-first.log": "8 passed; duplicate tests not counted twice"
+  },
+  "boundaries": [
+    "Roving menu enable/freeze and type status are still pending desktop integration",
+    "Spatial graphs, clipboard/presets and temporal interpolation editing remain incomplete",
+    "Spatial drags currently translate by whole-frame deltas, retaining fractional origins; continuous snap mapping remains pending",
+    "Native proof uses actual GPU capture and shared main/floating chrome with injected pointer input, not physical OS input",
+    "No new DPI, cross-platform CI or Roving video-encoding acceptance is claimed",
+    "Three ignored tests were not executed; the new native case was separately run explicitly"
+  ],
+  "files": {
+    "build-first.log": {
+      "sha256": "a6bce73535d7630800b3a3c606310363a573f8ea2d6a35d4bef8398c217469b7",
+      "bytes": 13867
+    },
+    "build-metric.log": {
+      "sha256": "4851e42ae354b239efb08bf65f84f03c412f21fe798d58cffe7e28e0de741f6d",
+      "bytes": 13867
+    },
+    "check-first.log": {
+      "sha256": "a5343315170082c3bbe593f5cf4d42a638c14aa9e5fa737605d89d2af4964239",
+      "bytes": 14990
+    },
+    "core-final.log": {
+      "sha256": "33f40183df5b742ef0b9389b224cd71b5096769083b902989db5e5d7a4f4efa1",
+      "bytes": 7783
+    },
+    "engine-animation_action_tests--final.log": {
+      "sha256": "9dd2c9f2af4a31a89c35ece0e4e03d994c44ecf446291ad161ecb92dd1833332",
+      "bytes": 891
+    },
+    "group-first.log": {
+      "sha256": "5e7b3c1e9e41fb9886c6081b9b14a160799167329a0f26dadb08eaee48e3f893",
+      "bytes": 2179
+    },
+    "model-final.log": {
+      "sha256": "5cf9049cd54de3a643551e64badb82098c347585ad7b88f19a04c02400075ef4",
+      "bytes": 3776
+    },
+    "native-final/en-float-property-after.json": {
+      "sha256": "2e1152988ba66fc24dae379321e7da16607e42228de5c9c04cd39adfd03b6590",
+      "bytes": 51068
+    },
+    "native-final/en-float-property.png": {
+      "sha256": "f2d64ef4f84b9eb57517192a7526bea2634fa1eee6f6e9c9380caabc99f7abcd",
+      "bytes": 57007
+    },
+    "native-final/en-float-summary-after.json": {
+      "sha256": "558a3b6378dcbd95fbc1c48f8ce3e4e8d6bb5c82b80c236621ad3e258e6ce246",
+      "bytes": 51068
+    },
+    "native-final/en-float-summary.png": {
+      "sha256": "2723ba8d39c2857d8834316ef7a8d077ed8af6ea6c4709c957c55b7441059e49",
+      "bytes": 42898
+    },
+    "native-final/en-main-property-after.json": {
+      "sha256": "c4a2ec2d2ad4525474f33949d00be2c8c120873735a0cb2f1e135468aa8e202e",
+      "bytes": 51068
+    },
+    "native-final/en-main-property.png": {
+      "sha256": "e53407d469b0bc22fcdf2e29f656b2aa43f2fab57c323c133ad78c20c01c8b94",
+      "bytes": 73658
+    },
+    "native-final/en-main-summary-after.json": {
+      "sha256": "a11edc6d26ea8a69a4a64d67eeedaa571e918fe071e50697f5a495fcc22f9879",
+      "bytes": 51067
+    },
+    "native-final/en-main-summary.png": {
+      "sha256": "196622b7dc0b0baff5a19682785ec0fac8d9829c61a108f9cf3778473db03d08",
+      "bytes": 59407
+    },
+    "native-final/logs/motion-studio.log": {
+      "sha256": "e7c75355fda6e4c17ef18889c2b7cd08226d4ea9828ce00f9a5bcd8853ac8325",
+      "bytes": 7518
+    },
+    "native-final/report.json": {
+      "sha256": "0a6981b8a3230d09bc81899f017103f869354738af18994a426a019db7568908",
+      "bytes": 1795
+    },
+    "native-final/stderr.log": {
+      "sha256": "b16c74900662b3fdd1869fc696fa85ff183a6905f595924ac369defdc365a93c",
+      "bytes": 586
+    },
+    "native-final/stdout.log": {
+      "sha256": "7c4a1980d40316912b279e5b340ff642fb525f1b33663967df4bedfa37639044",
+      "bytes": 233
+    },
+    "native-final/zh-float-property-after.json": {
+      "sha256": "23d1c6fd19e40ce9432c553856abb8f1f645f103a09b6e9de937ef1d9efeeaa7",
+      "bytes": 51067
+    },
+    "native-final/zh-float-property.png": {
+      "sha256": "c6633b677a523d73bae5c8205fd8582a7bf5df46385dc93fbb331b96e88194de",
+      "bytes": 56976
+    },
+    "native-final/zh-float-summary-after.json": {
+      "sha256": "86feb8b001ea0cf3afa6e5d7ddbb8adc8b11d51c52ee071f67d3cb1f844e8c3c",
+      "bytes": 51059
+    },
+    "native-final/zh-float-summary-detail.png": {
+      "sha256": "22ae0efe00bcf02d545964ffe3eb566f199b4e9a9b79e0429ecfcf320440f732",
+      "bytes": 13736
+    },
+    "native-final/zh-float-summary.png": {
+      "sha256": "85090a481fdc69be678791fb1429ca2025a773f4c21b6f9865f5b086d2a5840a",
+      "bytes": 42442
+    },
+    "native-final/zh-main-property-after.json": {
+      "sha256": "c4bef2065f05088e1612ae20d661860bd9c2d54c48df7a8928e830d32d723e3b",
+      "bytes": 51059
+    },
+    "native-final/zh-main-property-detail.png": {
+      "sha256": "77eeab9c9a64c2b8f9427e7d18d0c77ab4edbcd0f5a1040884c037444cd70dd6",
+      "bytes": 32340
+    },
+    "native-final/zh-main-property.png": {
+      "sha256": "5063d2005a38a815ba79e33e6c50a2b19b5e8db930ec548018d2c8aeb375ddd2",
+      "bytes": 74061
+    },
+    "native-final/zh-main-summary-after.json": {
+      "sha256": "8ad83a4d210e56b60d38ec5d99e49fa24894747e1b521d98eb2a1a2b1f2d9192",
+      "bytes": 51059
+    },
+    "native-final/zh-main-summary.png": {
+      "sha256": "a0c8633f06a5466a0fcf9d85abf7283e816dc606e14a831e07bf45f2099ad756",
+      "bytes": 59421
+    },
+    "native-final.log": {
+      "sha256": "dbc33fa58b618d3fd6957e1377a785f5c250a57e466141332f5db9856076c571",
+      "bytes": 239
+    },
+    "panels-animation_menu--final.log": {
+      "sha256": "ed46b4921fac98e6298cd744b7dc7fb90767e6f7aed8cee044a90600b21c2051",
+      "bytes": 2822
+    },
+    "panels-curve_comparison--final.log": {
+      "sha256": "f8ad6a09da950f4a469fdc071ada29d226b1945fea80104a8dab4c3c3b8450b8",
+      "bytes": 3408
+    },
+    "panels-key_selection-tests-final.log": {
+      "sha256": "c9759f838a532eaff42a8caacfdff0f6555a30f9cd559facc01590ae851becec",
+      "bytes": 5746
+    },
+    "panels-keyframe_clipboard-final.log": {
+      "sha256": "17a231c7205973b0efc3928241fd6b0c00628e8545dc33f36f0889bce8dd23c8",
+      "bytes": 871
+    },
+    "selection-first.log": {
+      "sha256": "faceaffe772ab390ddee96d1c06060ca092a1f2517e8809020bbcd2829e52ac5",
+      "bytes": 5608
+    },
+    "source-sha256.json": {
+      "sha256": "b2a5d0cd21df5ef49f8a60e877fc4d441fd1afc110f2bbc4022590ab4712e5f8",
+      "bytes": 2748
+    },
+    "worker-final/logs/motion-studio.log": {
+      "sha256": "143c3c12ada28b1bc583c2b4b53b3e644a331488efd6f83724b133090ea75f54",
+      "bytes": 3097
+    },
+    "worker-final/response.json": {
+      "sha256": "5ded9f617abd8d33e6225ab2a606f721c3b204aafcd544f10a529fefd7784570",
+      "bytes": 8549
+    },
+    "worker-final/stderr.log": {
+      "sha256": "0fe4bd4c8f393788ef3a87e233c8b394671a852fc99e0d2431a80e24dbb4fd3d",
+      "bytes": 499
+    },
+    "worker-final/stdout.log": {
+      "sha256": "90a322292434d33fc7f18e243e2ac828123bc70ae70ae08bae9f15544b9636e0",
+      "bytes": 254
+    },
+    ".gitattributes": {
+      "sha256": "7933ac4349adaa7c600be0bfd15e80ee5fb29eb0b17899f16670d68283e8e6fe",
+      "bytes": 74
+    }
+  },
+  "logPreservation": "Directory-local .log -text retains raw bytes; cr-at-eol recognizes Windows line endings and only blank-at-eof is exempt for original harness output."
+}

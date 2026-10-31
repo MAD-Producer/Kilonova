@@ -1,0 +1,29 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 32.38s
+     Running tests\spatial_hot_path.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_hot_path-13a9e88f92d1e4b5.exe)
+
+running 2 tests
+test authoritative_and_reopened_track_sampling_does_not_allocate_on_the_present_path ... ok
+test prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_real_allocations ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\spatial_velocity.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_velocity-bc42eb7346d9f44b.exe)
+
+running 3 tests
+test coincident_stationary_keys_do_not_create_nan_speed_or_key_identity_loss ... ok
+test manual_velocity_matches_value_derivative_with_easing_spatial_handles_and_hold ... ok
+
+thread 'roving_velocity_follows_actual_arc_sampler_and_reopens_identically' (11236) panicked at crates\motion-model\tests\spatial_velocity.rs:52:13:
+t=2.99 derivative=1.8398761749267578 rate=[0.13526898532784395, 1.824200274134118, 0.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test roving_velocity_follows_actual_arc_sampler_and_reopens_identically ... FAILED
+
+failures:
+
+failures:
+    roving_velocity_follows_actual_arc_sampler_and_reopens_identically
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p motion-model --test spatial_velocity`

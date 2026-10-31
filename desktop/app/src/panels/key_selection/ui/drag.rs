@@ -84,6 +84,11 @@ pub(super) fn arm(
     candidates: &[f64],
     out: &mut Vec<Action>,
 ) {
+    if chosen.has_spatial() && (copy || motion.is_some()) {
+        out.extend(crate::panels::cancel_interaction(panels));
+        transform::unavailable(panels);
+        return;
+    }
     let prepare = || -> motion_core::Result<_> {
         let plan = Plan::capture(&chosen, state)?;
         let limits = value_limits(&plan, state, motion.as_ref())?;
@@ -325,7 +330,7 @@ pub(super) fn finish(
                     Ok(selected) => {
                         out.push(Action::EditorAction {
                             source: drag.source,
-                            commands: vec![drag.plan.command(drag.delta, value, drag.copy)],
+                            commands: drag.plan.commands(drag.delta, value, drag.copy),
                         });
                         panels.selected_keys = selected;
                         project_primary(panels, state);
@@ -345,14 +350,22 @@ pub(super) fn ghost(
     point: [f32; 2],
     component: Option<usize>,
 ) -> Option<[f32; 2]> {
+    ghost_addressed(panels, &AddressedKey::Frame(key.clone()), point, component)
+}
+pub(super) fn ghost_addressed(
+    panels: &Panels,
+    key: &AddressedKey,
+    point: [f32; 2],
+    component: Option<usize>,
+) -> Option<[f32; 2]> {
     let drag = panels.key_gestures.drag.as_ref()?;
-    if !drag.started || !drag.valid || !drag.plan.selected.contains(key) {
+    if !drag.started || !drag.valid || !drag.plan.selected.contains_addressed(key) {
         return None;
     }
     let dy = drag
         .motion
         .as_ref()
-        .filter(|m| m.target == key.target && component == Some(m.component))
+        .filter(|m| &m.target == key.target() && component == Some(m.component))
         .map_or(0., |m| drag.value_delta / m.per_pixel);
     Some([
         point[0] + drag.delta as f32 * drag.view.mapping[0],

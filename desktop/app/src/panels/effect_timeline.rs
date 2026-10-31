@@ -41,6 +41,7 @@ pub(super) fn plan(row: &timeline::Row, state: &types::TimelineState) -> Vec<Pla
 struct Target {
     root: String,
     composition: String,
+    generation: Option<u64>,
     object: u64,
     effect: u64,
     param: String,
@@ -51,6 +52,7 @@ impl Target {
         Self {
             root: state["root"].as_str().unwrap_or("").into(),
             composition: state["composition"].as_str().unwrap_or("").into(),
+            generation: state["document_generation"].as_u64(),
             object,
             effect,
             param: param.into(),
@@ -77,6 +79,7 @@ impl Target {
     fn source<'a>(&self, state: &'a Value) -> Option<(&'a Value, &'a Value)> {
         if self.root != state["root"].as_str().unwrap_or("")
             || self.composition != state["composition"].as_str().unwrap_or("")
+            || self.generation != state["document_generation"].as_u64()
         {
             return None;
         }

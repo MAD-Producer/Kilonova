@@ -55,6 +55,7 @@ fn versioned_easing_survives_process_independent_text_and_rejects_bad_units() {
 fn easing_paste_crosses_property_units_with_one_undo_and_unchanged_key_values_and_times() {
     let mut project = fixture().snapshot();
     project.layers[0].transform.opacity.keys.push(Keyframe {
+        auto_bezier: false,
         frame: 18,
         value: 0.9,
         ease: Ease::Linear,

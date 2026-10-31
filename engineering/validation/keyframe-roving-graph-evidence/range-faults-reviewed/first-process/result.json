@@ -1,0 +1,25 @@
+{
+  "actualRenderers": true,
+  "comparisonNegativeCache": true,
+  "firstWarnAndErrorAtLifetime60": true,
+  "healthyRecoveryPreservesCounterScope": true,
+  "limits": "Invalid style tolerance and unrepresentable offsets are presentation boundaries, not legal stored project faults. Budget failures use Engine-validated project tracks. Other readout/Mini guard sites are not covered.",
+  "noEditsOrHistory": true,
+  "selectedFitRecoversOnShorterInterval": true,
+  "sites": [
+    "timeline.graph_view_bounds",
+    "effect.graph_view_bounds",
+    "curve.comparison.view_bounds",
+    "timeline.graph_adaptive",
+    "effect.graph_adaptive",
+    "curve.comparison.adaptive",
+    "timeline.graph_fit_all",
+    "timeline.graph_fit_selection",
+    "effect.graph_fit_all",
+    "effect.graph_fit_selection",
+    "curve.comparison.fit_all",
+    "curve.comparison.fit_selection"
+  ],
+  "suppressedAfter60": true,
+  "validatedKeysPerTrack": 33000
+}

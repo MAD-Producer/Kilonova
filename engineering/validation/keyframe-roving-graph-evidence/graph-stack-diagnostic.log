@@ -1,0 +1,6 @@
+
+running 1 test
+test panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1522 filtered out; finished in 418.85s
+

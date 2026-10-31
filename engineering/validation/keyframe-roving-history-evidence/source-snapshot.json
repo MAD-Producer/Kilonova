@@ -1,0 +1,41 @@
+{
+  "baseline": "59373178ffc62703c0261254e4fa12d952cab21d",
+  "files": [
+    {
+      "path": "crates/motion-core/src/editor.rs",
+      "sha256": "bcd4bdad2f37d780b8dfc81780d6727d3f78da547f48c83f6b333407e94f6e18"
+    },
+    {
+      "path": "crates/motion-core/src/history_accounting.rs",
+      "sha256": "88c3c905c6dc74a8302fb66b9794d6a7563e39da516cf61bd78c52a324db179f"
+    },
+    {
+      "path": "crates/motion-model/src/animation.rs",
+      "sha256": "a0711d2c05941e6e73cc05e64676d5814600d63b7e58432d97fd419d01c17d48"
+    },
+    {
+      "path": "crates/motion-model/src/animation/path_metric.rs",
+      "sha256": "027f2cd3e2f78b8cd0df0cd95b751b984be5677c5ef3f29715f87bfeb6783820"
+    },
+    {
+      "path": "crates/motion-model/src/animation/spatial_animation.rs",
+      "sha256": "517d0d3188ab4c96e2a40d3efba19c5f07b80f721ce9d95a699e227ac65b75a3"
+    },
+    {
+      "path": "crates/motion-model/src/animation/spatial_schedule.rs",
+      "sha256": "5eb153e753d062c879703326bfb7815cb7619ca7436195603c4aa16642baee08"
+    },
+    {
+      "path": "crates/motion-model/src/lib.rs",
+      "sha256": "ba7a4493da9e9778a74e93b5121b87ed9fbd913a0ef2297474a499a1a97141f7"
+    },
+    {
+      "path": "crates/motion-core/src/history_accounting/spatial.rs",
+      "sha256": "0d8728ea5e4032a4e64bfb471fe7276e5c9ce4c99c614fca0ee1edcf844926ea"
+    },
+    {
+      "path": "crates/motion-core/src/history_spatial_tests.rs",
+      "sha256": "316a71f441e13184f5af63a5bfde28f82a176cb6ace0bfc60fe8750b55aa6f77"
+    }
+  ]
+}

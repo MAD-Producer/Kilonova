@@ -48,6 +48,7 @@
 | Animation | E | false | false | false | ToggleEffectGroup | false |
 | Animation | V | true | false | false | PasteSelection | false |
 | Animation | V | true | true | false | PasteInPlace | false |
+| Animation | F8 | true | false | true | ToggleRoving | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |
@@ -78,6 +79,7 @@
 | Animation | F3 | false | true | false | ToggleGraph | false |
 | Animation | F9 | false | false | false | EaseBoth | false |
 | Animation | F9 | false | true | false | EaseIncoming | false |
+| Animation | F9 | true | false | true | ToggleAutomaticBezier | false |
 | Animation | F9 | true | true | false | EaseOutgoing | false |
 | Animation | M | false | false | false | ToggleMaskGroup | false |
 | Animation | X | true | false | false | CutSelection | false |

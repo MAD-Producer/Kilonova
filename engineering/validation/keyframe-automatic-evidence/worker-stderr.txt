@@ -1,0 +1,1 @@
+ERROR motion_studio::engine: error #2 editor_action 0ms: keyframe edit operation=automatic_bezier object=7 channel=Property { object: 7, property: Opacity, axis: None } frames=[99] count=1: selected keyframe does not exist

@@ -1,0 +1,17 @@
+
+running 12 tests
+test panels::animation_controls::mini::tests::actual_readouts_preserve_zero_and_negative_amplitude_and_duration_in_physical_units ... ok
+test panels::animation_controls::mini::tests::adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples ... ok
+test panels::animation_controls::mini::tests::automatic_ranges_include_authored_controls_and_actual_extrema_without_clipping ... ok
+test panels::animation_controls::mini::tests::coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_cache ... ok
+test panels::animation_controls::mini::tests::fault_tests::adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet ... ok
+test panels::animation_controls::mini::tests::fault_tests::default_failure_channels_cache_suppression_recovery_and_process_reset_use_real_consumers ... ok
+test panels::animation_controls::mini::tests::last_key_readout_remains_normalized_without_fabricated_frames_or_physical_units ... ok
+test panels::animation_controls::mini::tests::mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints ... ok
+test panels::animation_controls::mini::tests::outgoing_interval_maps_composition_time_once_and_never_invents_last_key_time ... ok
+test panels::animation_controls::mini::tests::physical_readout_keeps_component_values_and_units_visible_with_long_layer_names ... ok
+test panels::animation_controls::mini::tests::unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache ... ok
+test panels::animation_controls::tests::editing_a_separated_interval_emits_only_the_captured_axis_and_composition_time ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 1468 filtered out; finished in 1.42s
+

@@ -1,0 +1,320 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.94s
+     Running unittests src\lib.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\motion_model-2a7fe97bb9c45f05.exe)
+
+running 7 tests
+test render_sampling::tests::blending_uses_real_pts_not_nominal_fps_and_never_wraps_or_renormalizes ... ok
+test effects::curve_sampling::tests::unchanged_source_snapshots_share_backing_storage ... ok
+test render_sampling::tests::shutter_preview_and_frozen_share_exposure_and_preserve_transparent_weights ... ok
+test render_sampling::exposure_clock::tests::transparent_boundary_weights_and_invalid_inputs_are_preserved ... ok
+test vector::path_ops::tests::empty_join_pieces_return_phase_errors_instead_of_panicking ... ok
+test vector::path_ops::tests::malformed_measure_tables_propagate_through_partial_cuts ... ok
+test render_sampling::exposure_clock::tests::all_supported_counts_keep_exact_marginal_weights_with_a_bounded_schedule ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\animation_sampling_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\animation_sampling_errors-34fe44067fcfb5e2.exe)
+
+running 4 tests
+test valid_sampling_keeps_scalar_vector_easing_and_time_boundary_results ... ok
+test raw_track_rejects_invalid_component_and_parameter_dimensions ... ok
+test validated_generic_separation_returns_native_error_for_unrepresentable_intermediate_value ... ok
+test malformed_separated_storage_returns_errors_without_recursing_or_ignoring_vector_keys ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\audio_plan_time_bounds.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\audio_plan_time_bounds-86d644331bdd6b08.exe)
+
+running 5 tests
+test valid_fractional_boundaries_offsets_and_normal_silence_keep_exact_samples ... ok
+test invalid_integer_audio_clips_are_errors_even_when_the_bad_interval_would_be_silent ... ok
+test invalid_precise_audio_intervals_keep_the_original_cause_and_do_not_mutate_input ... ok
+test invalid_audio_composition_bounds_never_panic_or_return_a_partial_plan ... ok
+test audio_graph_instance_budget_accepts_the_boundary_and_rejects_excess_without_mutation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\automatic_bezier.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\automatic_bezier-74497b825e2a110b.exe)
+
+running 7 tests
+test moved_and_copied_keys_keep_their_policy_but_rederive_timing_from_new_neighbours ... ok
+test legacy_tracks_serialize_without_policy_and_hold_still_has_a_real_jump ... ok
+test unsupported_and_malformed_automatic_requests_reject_without_mutating_the_track ... ok
+test switching_off_freezes_both_incident_intervals_and_preserves_other_manual_handles ... ok
+test vector_automatic_timing_keeps_the_spatial_polyline_and_rejects_manual_spatial_handles ... ok
+test automatic_endpoint_has_one_physical_rate_on_unequal_intervals_and_reacts_to_neighbours ... ok
+test scalar_extrema_stop_and_dense_sampling_does_not_create_overshoot ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\color_curve_failures.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\color_curve_failures-6fd5c0976a084e35.exe)
+
+running 3 tests
+test temporal_curve_refusals_preserve_keys_and_recover_at_static_endpoint_and_intermediate_frames ... ok
+test malformed_public_curve_inputs_return_the_validation_cause_without_mutation ... ok
+test healthy_curves_keep_exact_endpoints_interpolation_and_frozen_channel_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\composition_boundaries.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\composition_boundaries-1df3de1a6fd4fd6b.exe)
+
+running 4 tests
+test zero_audio_frame_rate_returns_a_contextual_error_even_without_audio_layers ... ok
+test selection_and_range_errors_keep_their_precedence_at_capacity ... ok
+test precompose_can_use_the_last_composition_slot_in_any_active_view ... ok
+test precompose_at_capacity_returns_resource_error_without_mutating_the_model ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests\composition_candidate_oracle.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\composition_candidate_oracle-1fa712c28c5fb18d.exe)
+
+running 3 tests
+test repeated_instances_keep_exactly_the_last_available_slot_without_deduplicating_sources ... ok
+test cached_subtrees_respect_the_remaining_depth_in_every_active_view_and_both_orders ... ok
+test all_four_node_dags_match_an_independent_expansion_in_every_active_view_and_both_orders ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.60s
+
+     Running tests\composition_frame_mapping.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\composition_frame_mapping-70d947d7cc36bbbd.exe)
+
+running 3 tests
+test mixed_rate_offsets_and_fractional_or_negative_times_keep_existing_arithmetic ... ok
+test zero_rates_return_context_instead_of_non_finite_or_collapsed_time ... ok
+test non_finite_inputs_and_overflow_are_errors_with_bounded_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\composition_queries.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\composition_queries-e5dd213742f5a5ae.exe)
+
+running 2 tests
+test lookup_keeps_borrowed_body_identity_and_native_missing_composition_error ... ok
+test query_wire_values_keep_empty_unused_nested_and_repeated_references_after_activation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\dense_color_curves.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\dense_color_curves-1f22ab5230125989.exe)
+
+running 4 tests
+test snapshot_budget_and_malformed_sources_fail_without_mutating_or_weakening_causes ... ok
+test dense_authored_sampling_retains_features_and_values_absent_from_the_preview ... ok
+test temporal_dense_sampling_is_deterministic_and_keeps_endpoint_selection ... ok
+test dense_frozen_data_survives_serialization_editing_and_another_dense_sample ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\dependency_boundaries.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\dependency_boundaries-1352e4cb762b5102.exe)
+
+running 1 test
+test production_dependencies_keep_data_render_and_media_outside_the_editing_runtime ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.04s
+
+     Running tests\depth.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth-19b7e9bbae053270.exe)
+
+running 8 tests
+test exact_source_pts_distinguishes_replacement_and_seek_without_float_rounding ... ok
+test source_crop_rotation_and_mirror_map_continuous_uv_without_edge_clamping ... ok
+test dimensions_units_scale_and_declared_range_are_checked_before_installation ... ok
+test immutable_resource_identity_distinguishes_new_predictions_with_identical_metadata ... ok
+test metric_inverse_and_ray_depth_require_explicit_units_and_axis_conversion ... ok
+test validity_and_confidence_are_independent_and_never_fabricated ... ok
+test relative_depth_preserves_float_values_without_claiming_world_distance ... ok
+test descriptor_roundtrip_requires_semantics_and_bounded_model_identity ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\depth_calibration.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_calibration-c6595d38406e9aa9.exe)
+
+running 10 tests
+test anchor_order_and_declared_near_direction_are_preserved ... ok
+test camera_z_projects_to_independent_orthographic_finite_and_infinite_depth_formulas ... ok
+test calibration_uses_decoded_values_and_keeps_validity_confidence_and_normal_misses ... ok
+test explicit_linear_and_inverse_calibration_have_independent_numeric_references ... ok
+test extrapolation_is_an_explicit_policy_and_never_clamps_or_fabricates_validity ... ok
+test finite_extreme_anchors_keep_exact_endpoints_and_reject_interpolation_overflow ... ok
+test invalid_projection_cameras_units_samples_and_output_budgets_refuse ... ok
+test projected_fields_keep_crop_rotation_mirror_invalidity_and_exact_camera_identity ... ok
+test stale_source_time_model_geometry_or_decoded_units_refuse_even_on_an_invalid_pixel ... ok
+test invalid_anchors_ranges_and_metric_relabeling_are_explicit_errors ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\depth_of_field.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_of_field-b6e7ba269c67b550.exe)
+
+running 1 test
+test saved_camera_aperture_samples_its_own_clock_and_rejects_unbounded_values ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\depth_prepared.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_prepared-8d13c10220276697.exe)
+
+running 1 test
+test prepared_depth_identity_has_fixed_digest_extent_and_oriented_crop_validation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\depth_saved.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_saved-3df7b0d345045c2a.exe)
+
+running 2 tests
+test saved_calibration_rebinds_only_identical_authoring_inputs_without_weakening_live_revision ... ok
+test saved_calibration_deserialization_validates_units_anchors_and_bounded_contracts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\depth_surface.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_surface-753961e8fd7e2ea6.exe)
+
+running 4 tests
+test orthographic_reference_keeps_parallel_rays_and_unit_texture_weights ... ok
+test reference_surface_preserves_source_projection_and_moves_with_layer_transform ... ok
+test oriented_crop_and_invalid_samples_keep_original_flat_unknown_geometry ... ok
+test surface_refuses_over_budget_and_saved_reference_rejects_singular_geometry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests\depth_video_track.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\depth_video_track-30a52eebefc4a39e.exe)
+
+running 4 tests
+test invalid_upserts_and_metadata_refusals_preserve_the_prior_track ... ok
+test intervals_are_half_open_and_gaps_never_interpolate_relative_calibration ... ok
+test deserialization_rejects_overlaps_out_of_order_and_unknown_fields ... ok
+test sample_limit_is_bounded_in_authoring_and_deserialization_and_allows_replacement ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\dimension_conversion_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\dimension_conversion_errors-6e2f110b421b99f0.exe)
+
+running 7 tests
+test existing_scalar_dimensions_are_rejected_instead_of_accepted_as_idempotent ... ok
+test unsorted_keys_are_rejected_before_axis_storage_is_created ... ok
+test malformed_separated_vector_storage_remains_unchanged ... ok
+test unsupported_reconstruction_does_not_create_unsampleable_axes ... ok
+test every_key_must_support_reconstruction_before_any_axis_is_committed ... ok
+test healthy_signed_keys_preserve_axis_metadata_samples_and_idempotence ... ok
+test per_key_component_failure_returns_error_without_partial_conversion ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\dimension_edit_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\dimension_edit_errors-e53d6c0445fd4169.exe)
+
+running 7 tests
+test invalid_derived_components_do_not_create_nonfinite_axis_storage ... ok
+test axis_mut_rejects_invalid_storage_before_exposing_an_editable_axis ... ok
+test invalid_derived_components_do_not_partially_set_a_valid_separated_track ... ok
+test invalid_derived_components_do_not_partially_upsert_a_valid_separated_track ... ok
+test set_at_rejects_nested_storage_without_leaving_the_first_axis_edited ... ok
+test upsert_rejects_nested_storage_without_leaving_the_first_axis_edited ... ok
+test whole_axis_edits_reject_scalar_owners_instead_of_mutating_invalid_storage ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\effect_parameter_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\effect_parameter_errors-67af30d6a05363d8.exe)
+
+running 1 test
+test effect_parameter_writes_reject_out_of_range_and_non_integral_values ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+
+     Running tests\key_collisions.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\key_collisions-aacf0c8f9ba1b130.exe)
+
+running 5 tests
+test vacant_moves_and_copies_remain_sorted_and_value_edits_can_replace ... ok
+test same_frame_is_noop_but_missing_source_is_reported ... ok
+test separated_whole_and_axis_collisions_do_not_mutate_any_axis ... ok
+test occupied_scalar_and_vector_destinations_preserve_values_and_handles ... ok
+test effect_key_collisions_are_atomic_even_without_an_engine_transaction ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+     Running tests\node_resources.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\node_resources-3273b91cea152f68.exe)
+
+running 2 tests
+test node_source_accepts_only_bounded_owned_references_and_current_format ... ok
+test image_pool_count_and_decoded_sum_are_checked_without_reading_payloads ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\observability.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\observability-763ec30a7524ef4b.exe)
+
+running 1 test
+test default_level_observes_real_model_failures_and_preserves_results ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\path_auto_tangents.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\path_auto_tangents-3749989d1d5e1bc3.exe)
+
+running 6 tests
+test duplicates_cusps_empty_and_extreme_coordinates_are_finite ... ok
+test closed_seam_rotation_preserves_geometry_and_order ... ok
+test invalid_geometry_and_topology_are_rejected_before_any_mutation ... ok
+test straight_path_has_one_sided_endpoints_and_exact_thirds ... ok
+test unequal_spacing_is_smooth_and_handles_cannot_exceed_adjacent_thirds ... ok
+test maximum_path_is_bounded_and_reversing_order_swaps_handles ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\path_tangent_sampling.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\path_tangent_sampling-12c13b3a6f8ab180.exe)
+
+running 6 tests
+test sampled_coordinates_use_the_existing_sample_bound_not_the_authored_track_bound ... ok
+test invalid_sampling_retains_path_frame_and_original_cause ... ok
+test seam_rotation_preserves_corresponding_tracks_and_sampling ... ok
+test shape_and_mask_sample_the_same_constraint_at_fractional_frames_without_mutation ... ok
+test manual_mode_restores_authored_handles_and_serialization_retains_automatic_mode ... ok
+test animated_open_and_closed_paths_keep_correspondence_through_key_boundaries ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests\sample_time.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\sample_time-b6a4def50bc6416d.exe)
+
+running 2 tests
+test nan_sampling_with_zero_one_or_many_keys_falls_back_without_underflow ... ok
+test vector_nan_sampling_preserves_component_fallback_values ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\shape_parameter_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\shape_parameter_errors-64dc2817e97303b3.exe)
+
+running 4 tests
+test every_missing_shape_parameter_is_rejected_before_editing_tracks ... ok
+test every_missing_shape_parameter_is_rejected_by_sampling_without_mutating_input ... ok
+test missing_shape_parameters_propagate_through_conversion_and_nested_group_sampling ... ok
+test all_catalog_shapes_keep_default_geometry_after_parameter_edits_and_conversion ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\timeline_errors.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\timeline_errors-b3bff804b8b1252b.exe)
+
+running 9 tests
+test nested_scalar_dimensions_do_not_panic ... ok
+test scalar_dimensions_do_not_panic ... ok
+test mixed_vector_keys_and_nested_scalar_axes_are_rejected_by_static_projection ... ok
+test healthy_separated_timeline_keeps_values_key_metadata_and_signed_offsets ... ok
+test invalid_time_is_rejected_even_for_an_empty_project ... ok
+test missing_audio_asset_does_not_become_a_zero_duration_success ... ok
+test silent_video_is_normal_and_missing_linked_audio_recovers_after_registration ... ok
+test missing_video_asset_does_not_panic ... ok
+test malformed_layer_properties_preserve_object_and_source_identity ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\vector_path_inputs.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\vector_path_inputs-22ef709d6dfe15b0.exe)
+
+running 2 tests
+test empty_and_degenerate_finite_contours_remain_normal_results ... ok
+test nonfinite_anchors_and_tangents_are_rejected_even_on_passthrough_and_empty_ranges ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\working_precision.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\working_precision-94158ad0a293da57.exe)
+
+running 1 test
+test project_precision_is_required_and_preserves_four_distinct_serialized_modes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests motion_model
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

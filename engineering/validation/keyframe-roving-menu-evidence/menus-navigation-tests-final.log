@@ -1,0 +1,10 @@
+
+running 5 tests
+test panels::menus::navigation::tests::layer_menu_delete_dispatches_the_current_playhead ... ok
+test panels::menus::navigation::tests::shared_menu_application_navigation_opens_child_without_executing_and_escape_returns_to_parent ... ok
+test panels::menus::navigation::tests::shared_menu_context_loss_ime_focus_and_cancel_never_dispatch_an_authored_edit ... ok
+test panels::menus::navigation::tests::shared_menu_hints_follow_current_remapping_and_checks_follow_current_state ... ok
+test panels::menus::navigation::tests::shared_menu_main_chrome_keeps_enter_away_from_timeline_rename ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1529 filtered out; finished in 0.66s
+

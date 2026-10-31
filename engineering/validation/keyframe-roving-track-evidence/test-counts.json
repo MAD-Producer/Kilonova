@@ -1,0 +1,151 @@
+{
+  "suites": [
+    {
+      "suite": "animation_presets",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "camera_workflows",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "expressions",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "keyframe_clipboard",
+      "passed": 69,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "layer_anchor_animation",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "merge_dimensions",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "path_clipboard",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "path_conversion",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "project_format_contract",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "separate_dimensions",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "spatial_keyframes",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "animation_sampling_errors",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "automatic_bezier",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "path_tangent_sampling",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "spatial_hot_path",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "spatial_schedule",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "spatial_timing",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "spatial_track",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "suite": "timeline_errors",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "passed": 188,
+  "desktop_suites": [
+    {
+      "suite": "engine::animation_action_tests::",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "output": "desktop-worker-final.log"
+    },
+    {
+      "suite": "panels::animation_menu::",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1,
+      "output": "desktop-menu.log"
+    },
+    {
+      "suite": "panels::timeline_shortcuts_tests::",
+      "passed": 55,
+      "failed": 0,
+      "ignored": 1,
+      "output": "desktop-timeline.log"
+    },
+    {
+      "suite": "plugin_editor::tests::",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "output": "desktop-plugin.log"
+    }
+  ],
+  "final_distinct_passed": 274,
+  "final_distinct_ignored": 2
+}

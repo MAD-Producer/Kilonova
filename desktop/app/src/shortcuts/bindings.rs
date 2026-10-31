@@ -164,7 +164,7 @@ impl TryFrom<RawBindings> for Bindings {
         for entry in catalogue().iter().filter(|entry| matches!(entry.command,
             Command::SelectLayerAbove | Command::SelectLayerBelow | Command::OrderLayersUp
                 | Command::OrderLayersDown | Command::OrderLayersTop | Command::OrderLayersBottom
-                | Command::Redo | Command::Solid)) {
+                | Command::Redo | Command::Solid | Command::ToggleAutomaticBezier | Command::ToggleRoving)) {
             if value.overrides.iter().any(|item| item.scope == entry.scope && item.command == entry.command) {
                 continue;
             }

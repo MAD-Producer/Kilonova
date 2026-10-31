@@ -1,0 +1,93 @@
+{
+  "cases": [
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-main-value",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-main-speed",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-float-value",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "zh-float-speed",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-main-value",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-main-speed",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-float-value",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    },
+    {
+      "delta": 5,
+      "fixedLocalTime": 7.5,
+      "fractionalOrigin": 9.5,
+      "ids": [
+        2
+      ],
+      "tag": "en-float-speed",
+      "undoEntries": 1,
+      "undoRestoredFullProject": true
+    }
+  ],
+  "pid": 41088
+}

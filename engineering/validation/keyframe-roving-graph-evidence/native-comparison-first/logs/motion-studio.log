@@ -1,0 +1,56 @@
+1793413662.258 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::logging: logging initialized level=INFO
+1793413662.265 WARN [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793413662.265 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/spatial-graph/native-comparison-first\project
+1793413662.265 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793413662.268 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/spatial-graph/native-comparison-first\project
+1793413671.528 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793413671.529 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/spatial-graph/native-comparison-first\project 9263ms
+1793413671.529 INFO [motion-engine] motion_studio::engine: start #1 state
+1793413671.606 WARN [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793413671.659 INFO [motion-engine] motion_studio::engine: start #2 plugin
+1793413671.974 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793413671.974 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1a9bbba6a00, name: ?)
+1793413671.974 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793413671.974 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1a9bbba6a00, name: ?)
+1793413672.153 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793413672.428 INFO [motion-engine] motion_studio::engine: start #3 attach
+1793413672.478 INFO [motion-engine] motion_studio::engine: start #4 state
+1793413672.480 INFO [motion-engine] motion_studio::engine: start #5 state
+1793413672.483 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(0) generation=Some(1)
+1793413672.562 INFO [motion-engine] motion_studio::engine: start #6 state
+1793413672.564 INFO [motion-engine] motion_studio::engine: start #7 state
+1793413672.566 INFO [motion-engine] motion_studio::engine: start #8 capture_ui
+1793413672.938 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::logging: panic command=None: panicked at desktop\app\src\panels\key_selection\spatial_native_tests.rs:151:21:
+assertion failed: matches!(commands.as_slice(),
+    [Command::SpatialKeyframes
+    { edit: SpatialKeyEdit::Move { keys, delta }, .. }] if keys == &[2] &&
+    *delta == 5.)
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: BaseThreadInitThunk
+  19: RtlUserThreadStart
+
+1793413672.981 INFO [motion-engine] motion_studio::engine: start #9 shutdown
+1793413672.981 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793413672.981 INFO [motion-engine] motion_studio::engine::shutdown: start #10 shutdown_cleanup session=1
+1793413673.012 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793413673.014 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793413673.014 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

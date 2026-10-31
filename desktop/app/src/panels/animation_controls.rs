@@ -25,7 +25,7 @@ pub struct Controls {
     key_context: Option<(u64, Property, Option<Axis>)>,
     key_explicit: bool,
     track_explicit: bool,
-    track_scope: Option<(String, String)>,
+    track_scope: Option<(String, String, Option<u64>)>,
     row_probe: Option<selection::RowProbe>,
     selection_intent: bool,
     pub(super) clipboard_busy: bool,

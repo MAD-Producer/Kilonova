@@ -380,6 +380,7 @@ fn split_tracks(
         }
         for frame in frames {
             middle.keys.push(motion_core::Keyframe {
+                auto_bezier: false,
                 frame,
                 value: split(a.sample(f64::from(frame))?, b.sample(f64::from(frame))?, t).1,
                 ease: motion_core::Ease::Linear,
@@ -430,6 +431,7 @@ fn automatic_middle(path: &VectorPath, index: usize, next: usize, t: f32, frame:
     if animated {
         for at in frames {
             middle.keys.push(motion_core::Keyframe {
+                auto_bezier: false,
                 frame: at,
                 value: sample(at)?,
                 ease: motion_core::Ease::Linear,

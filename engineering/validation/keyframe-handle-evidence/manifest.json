@@ -1,0 +1,107 @@
+{
+  "baseline": "e4e079a20b81633e28375401463910cf8bd5bbe6",
+  "scope": "时间曲线单端点与效果目标工程代次；#260 部分完成，仍保持打开",
+  "tests": {
+    "core": 69,
+    "history": 1,
+    "graph": 4,
+    "effect": 14,
+    "timeline": 55,
+    "worker": 1,
+    "total_distinct_passed": 144,
+    "ignored": 1
+  },
+  "input_matrix": "32 个生产绘制与合成 Input 组合；未声称 OS 原生输入或 GPU 截图",
+  "executable": {
+    "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-9c5cdc7b4281ddf0.exe",
+    "sha256": "1961c9d1fcd5ef2b79cee24ece490e26ca7c18e3973993d2c742d17f50295ee6",
+    "bytes": 123442176
+  },
+  "files": [
+    {
+      "file": "core-composition.log",
+      "sha256": "9f2d2cd38f2840c6ca92490a03f7bd01008cf6e742251bf67bb4aa8edb5b90be",
+      "bytes": 8550
+    },
+    {
+      "file": "core-final.log",
+      "sha256": "c3ed2541cb2ac4a7af577d3a6b70e500c49fa5219f3a96ef107f7c87e77a4127",
+      "bytes": 8624
+    },
+    {
+      "file": "core-first.log",
+      "sha256": "0bf33fc78da9f38bf0912835bb592fdcd2f47f191893ca2d5e08c3229160e914",
+      "bytes": 2740
+    },
+    {
+      "file": "core-second.log",
+      "sha256": "896a12c8e2e7bf7796b9e0738422d3b252a79af144f4d702b43cac60296dd878",
+      "bytes": 3410
+    },
+    {
+      "file": "desktop-build-second.log",
+      "sha256": "14d92f9bb7103b21e403500336f8cb3b4a672ac9fe9e552b1d202c8ceb17cc29",
+      "bytes": 13295
+    },
+    {
+      "file": "desktop-build-third.log",
+      "sha256": "797b89e57c4662d3a1aea00fc9ce5eaa74cdc302940fb891aaf2e93e373b1d35",
+      "bytes": 13295
+    },
+    {
+      "file": "desktop-build.log",
+      "sha256": "1edd2e8af85544bfea8e44f13bbb7ed73141aed2d3a85dd973b01b1028071684",
+      "bytes": 5174
+    },
+    {
+      "file": "effect-input-final.log",
+      "sha256": "fc6427199a66de67a7c72353d3d84adac734d25395c0a4a5ad35015986b8fffc",
+      "bytes": 4274
+    },
+    {
+      "file": "effect-input-first.log",
+      "sha256": "2066f61da01413381f1d313efea26baa38a56ecebef4782588a403d6d3f6fb41",
+      "bytes": 4802
+    },
+    {
+      "file": "graph-handles.log",
+      "sha256": "3589c7e17639cb62515a09fb27bd890d76c36870e7482b29f2c1f6ed0c304f62",
+      "bytes": 550
+    },
+    {
+      "file": "history-fixed.log",
+      "sha256": "16923d291921e927aca791ddf9378a096351191e5c81af204358ba10b0978459",
+      "bytes": 1392
+    },
+    {
+      "file": "history.log",
+      "sha256": "364a80e519c93718b99a33ac187277ba35423e8f439c2fe25ae0c9764a3c5e14",
+      "bytes": 1423
+    },
+    {
+      "file": "timeline-input.log",
+      "sha256": "4ac71550a1acadb6b359c6d70292eaccee15fc6be7115a36aa9a977daf05d083",
+      "bytes": 7424
+    },
+    {
+      "file": "worker-file.log",
+      "sha256": "f800d4dc18a8bb9020952c8e8a7910d63d8b75112d9bdf3c3336255675489fc2",
+      "bytes": 2230
+    },
+    {
+      "file": "worker-stderr.log",
+      "sha256": "78480ada9d607013f0c6ec1e98e1369e743d5ce94a6d3d3fd25c7456c6965eed",
+      "bytes": 219
+    },
+    {
+      "file": "worker-stdout.log",
+      "sha256": "5cf46392e5a8b673730e5d1f0627f5942bf8db8bfd5c8d340287f01b8145b291",
+      "bytes": 224
+    },
+    {
+      "file": "worker-test.log",
+      "sha256": "184cc2240cb703b85b81fac90ff5ed36e29f57da0749128376b0e2ddc0722782",
+      "bytes": 230
+    }
+  ]
+}

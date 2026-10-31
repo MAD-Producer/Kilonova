@@ -193,6 +193,7 @@ fn animated_tiles_are_identical_after_restore_and_random_seeking() {
         .track
         .keys = vec![
         motion_core::Keyframe {
+            auto_bezier: false,
             frame: 0,
             value: [0.; 4],
             ease: motion_core::Ease::Linear,
@@ -200,6 +201,7 @@ fn animated_tiles_are_identical_after_restore_and_random_seeking() {
             spatial: None,
         },
         motion_core::Keyframe {
+            auto_bezier: false,
             frame: 30,
             value: [360., 0., 0., 0.],
             ease: motion_core::Ease::Linear,

@@ -1,0 +1,49 @@
+{
+  "keys": [
+    {
+      "id": 1,
+      "reference": 0.0,
+      "fixed": 0.0,
+      "value": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spatial": null
+    },
+    {
+      "id": 2,
+      "reference": 3.0,
+      "fixed": null,
+      "value": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "spatial": null
+    },
+    {
+      "id": 3,
+      "reference": 6.0,
+      "fixed": null,
+      "value": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "spatial": null
+    },
+    {
+      "id": 4,
+      "reference": 10.0,
+      "fixed": 10.0,
+      "value": [
+        9.0,
+        0.0,
+        0.0
+      ],
+      "spatial": null
+    }
+  ],
+  "next_id": 5
+}

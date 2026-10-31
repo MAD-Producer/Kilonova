@@ -1,0 +1,21 @@
+1793377061.121 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::logging: logging initialized level=INFO
+1793377061.126 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/track-spatial-integration/worker-final\project
+1793377061.126 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793377061.128 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/track-spatial-integration/worker-final\project
+1793377072.253 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793377072.253 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/track-spatial-integration/worker-final\project 11127ms
+1793377072.254 INFO [motion-engine] motion_studio::engine: start #1 state
+1793377072.256 INFO [motion-engine] motion_studio::engine: start #2 editor_action
+1793377072.258 INFO [motion-engine] motion_studio::engine: start #3 state
+1793377072.260 INFO [motion-engine] motion_studio::engine: start #4 editor_action
+1793377072.260 ERROR [motion-engine] motion_studio::engine: error #4 editor_action 0ms: keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=time key=999 time=1.25: selected spatial key identity is missing
+1793377072.260 INFO [motion-engine] motion_studio::engine: start #5 state
+1793377072.261 INFO [motion-engine] motion_studio::engine: start #6 editor_action
+1793377072.262 INFO [motion-engine] motion_studio::engine: start #7 history
+1793377072.263 INFO [motion-engine] motion_studio::engine: start #8 history
+1793377072.265 INFO [motion-engine] motion_studio::engine: start #9 shutdown
+1793377072.265 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793377072.265 INFO [motion-engine] motion_studio::engine::shutdown: start #10 shutdown_cleanup session=1
+1793377072.265 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793377072.266 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793377072.266 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

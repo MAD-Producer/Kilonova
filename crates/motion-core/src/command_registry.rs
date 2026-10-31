@@ -82,6 +82,18 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
             "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
             "Vec<KeyframeSelection>" => json!({"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["target","frames"],"properties":{"target":{"type":"object","description":"Typed KeyframeTarget channel address"},"frames":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}}}),
+            "SpatialKeyEdit" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
+                    "kind":{"const":"enable"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}},
+                {"type":"object","additionalProperties":false,"required":["kind","keys","enabled"],"properties":{
+                    "kind":{"const":"roving"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"enabled":{"type":"boolean"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","key","time"],"properties":{
+                    "kind":{"const":"time"},"key":{"type":"integer","minimum":1},"time":{"type":"number","description":"Continuous composition-frame time; releases this key's Roving constraint"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","keys","delta"],"properties":{
+                    "kind":{"const":"move"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"delta":{"type":"number","description":"Translate the selected stable IDs atomically from their current solved times"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","key"],"properties":{
+                    "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}}
+            ]}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
@@ -180,6 +192,9 @@ registry! {
     Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
+    Command::KeyframeAutomatic { .. } => "keyframe_automatic" [("selections","Vec<KeyframeSelection>",true),("enabled","bool",true)];
+    Command::SpatialKeyframes { .. } => "spatial_keyframes" [("target","KeyframeTarget",true),("edit","SpatialKeyEdit",true)];
+    Command::KeyframeHandle { .. } => "keyframe_handle" [("target","KeyframeTarget",true),("frame","u32",true),("incoming","bool",true),("control","[f64;2]",true)];
     Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];
     Command::KeyframeTiming { .. } => "keyframe_timing" [("selections","Vec<KeyframeSelection>",true),("settings","TimingSettings",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];

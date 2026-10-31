@@ -88,6 +88,8 @@ impl Transform {
         self.validate_tracks(None)
     }
     fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
+        ensure(self.rotation.spatial_animation.is_none() && self.scale.spatial_animation.is_none(),
+            "Roving requires a position or anchor, not rotation or scale")?;
         if let Some(frames) = frames {
             self.position.validate(frames)?;
             self.rotation.validate(frames)?;
@@ -130,13 +132,20 @@ mod anchor_serde {
         else { value.serialize(s) }
     }
     pub fn deserialize<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Track<[f32; 2]>, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Stored { Static([f32; 2]), Animated(Track<[f32; 2]>) }
-        Ok(match Stored::deserialize(d)? {
-            Stored::Static(value) => Track::constant(value),
-            Stored::Animated(track) => track,
-        })
+        struct AnchorVisitor;
+        impl<'de> serde::de::Visitor<'de> for AnchorVisitor {
+            type Value=Track<[f32;2]>;
+            fn expecting(&self,f:&mut std::fmt::Formatter)->std::fmt::Result {
+                f.write_str("a static anchor pair or an animated anchor track")
+            }
+            fn visit_seq<A:serde::de::SeqAccess<'de>>(self,seq:A)->std::result::Result<Self::Value,A::Error> {
+                <[f32;2]>::deserialize(serde::de::value::SeqAccessDeserializer::new(seq)).map(Track::constant)
+            }
+            fn visit_map<A:serde::de::MapAccess<'de>>(self,map:A)->std::result::Result<Self::Value,A::Error> {
+                Track::deserialize(serde::de::value::MapAccessDeserializer::new(map))
+            }
+        }
+        d.deserialize_any(AnchorVisitor)
     }
 }
 

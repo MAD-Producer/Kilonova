@@ -1,0 +1,63 @@
+1793367850.864 INFO [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] motion_studio::logging: logging initialized level=INFO
+1793367850.869 INFO [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/type-menu/native-reviewed\project
+1793367850.869 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793367850.871 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/type-menu/native-reviewed\project
+1793367856.427 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793367856.427 INFO [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/type-menu/native-reviewed\project 5558ms
+1793367856.627 ERROR [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793367856.627 ERROR [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x29f31d8b2f0, name: ?)
+1793367856.627 ERROR [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793367856.627 ERROR [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x29f31d8b2f0, name: ?)
+1793367856.705 INFO [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793367856.904 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793367856.941 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics start #1 checkpoint path=<disabled>
+1793367856.942 INFO [motion-engine] motion_studio::engine: start #2 seek
+1793367856.988 WARN [panels::animation_menu::type_state::native_tests::native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793367857.029 INFO [motion-engine] motion_studio::engine: start #3 state
+1793367857.032 INFO [motion-engine] motion_studio::engine: start #4 state
+1793367857.081 INFO [motion-engine] motion_studio::engine: start #5 capture_ui
+1793367857.391 INFO [motion-engine] motion_studio::engine: start #6 state
+1793367857.393 INFO [motion-engine] motion_studio::engine: start #7 state
+1793367857.394 INFO [motion-engine] motion_studio::engine: start #8 editor_action
+1793367857.396 INFO [motion-engine] motion_studio::engine: start #9 state
+1793367857.405 INFO [motion-engine] motion_studio::engine: start #10 capture_ui
+1793367857.736 INFO [motion-engine] motion_studio::engine: start #11 state
+1793367857.739 INFO [motion-engine] motion_studio::engine: start #12 state
+1793367857.741 INFO [motion-engine] motion_studio::engine: start #13 state
+1793367857.751 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793367858.073 INFO [motion-engine] motion_studio::engine: start #15 state
+1793367858.076 INFO [motion-engine] motion_studio::engine: start #16 state
+1793367858.078 INFO [motion-engine] motion_studio::engine: start #17 editor_action
+1793367858.080 INFO [motion-engine] motion_studio::engine: start #18 state
+1793367858.090 INFO [motion-engine] motion_studio::engine: start #19 capture_ui
+1793367858.421 INFO [motion-engine] motion_studio::engine: start #20 state
+1793367858.424 INFO [motion-engine] motion_studio::engine: start #21 history
+1793367858.425 INFO [motion-engine] motion_studio::engine: start #22 history
+1793367858.427 INFO [motion-engine] motion_studio::engine: start #23 state
+1793367858.429 INFO [motion-engine] motion_studio::engine: start #24 state
+1793367858.447 INFO [motion-engine] motion_studio::engine: start #25 capture_ui
+1793367858.762 INFO [motion-engine] motion_studio::engine: start #26 state
+1793367858.764 INFO [motion-engine] motion_studio::engine: start #27 state
+1793367858.766 INFO [motion-engine] motion_studio::engine: start #28 editor_action
+1793367858.767 INFO [motion-engine] motion_studio::engine: start #29 state
+1793367858.781 INFO [motion-engine] motion_studio::engine: start #30 capture_ui
+1793367859.091 INFO [motion-engine] motion_studio::engine: start #31 state
+1793367859.093 INFO [motion-engine] motion_studio::engine: start #32 state
+1793367859.096 INFO [motion-engine] motion_studio::engine: start #33 state
+1793367859.111 INFO [motion-engine] motion_studio::engine: start #34 capture_ui
+1793367859.445 INFO [motion-engine] motion_studio::engine: start #35 state
+1793367859.447 INFO [motion-engine] motion_studio::engine: start #36 state
+1793367859.450 INFO [motion-engine] motion_studio::engine: start #37 editor_action
+1793367859.452 INFO [motion-engine] motion_studio::engine: start #38 state
+1793367859.468 INFO [motion-engine] motion_studio::engine: start #39 capture_ui
+1793367859.820 INFO [motion-engine] motion_studio::engine: start #40 state
+1793367859.823 INFO [motion-engine] motion_studio::engine: start #41 history
+1793367859.825 INFO [motion-engine] motion_studio::engine: start #42 history
+1793367859.827 INFO [motion-engine] motion_studio::engine: start #43 shutdown
+1793367859.827 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793367859.828 INFO [motion-engine] motion_studio::engine::shutdown: start #44 shutdown_cleanup session=1
+1793367859.857 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793367859.858 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793367859.858 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

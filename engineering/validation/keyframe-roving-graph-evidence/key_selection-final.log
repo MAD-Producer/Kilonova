@@ -1,0 +1,50 @@
+
+running 45 tests
+test panels::key_selection::tests::add_toggle_and_empty_replace_preserve_explicit_key_ownership ... ok
+test panels::key_selection::tests::authored_delete_and_undo_invalidate_and_restore_keys_without_layer_fallback ... ok
+test panels::key_selection::tests::empty_stale_and_read_only_collections_consume_delete_and_never_copy_or_cut_layers ... ok
+test panels::key_selection::tests::key_delete_and_ease_dispatch_the_entire_collection_with_guarded_document_identity ... ok
+test panels::key_selection::tests::oversized_gesture_is_atomic_and_new_document_add_cannot_resurrect_old_keys ... ok
+test panels::key_selection::tests::primary_property_focus_arbitration_preserves_same_gesture_and_releases_explicit_navigation ... ok
+test panels::key_selection::tests::revision_cache_is_document_scoped_and_missing_revision_never_caches ... ok
+test panels::key_selection::tests::selection_addresses_cross_layers_separated_axes_and_signed_local_offsets ... ok
+test panels::key_selection::tests::sources::malformed_authored_lookup_reaches_default_channels_without_turning_normal_misses_into_faults ... ok
+test panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_camera_offsets_and_stereo_audio ... ok
+test panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels ... ok
+test panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks ... ok
+test panels::key_selection::tests::transforms::authored_nudges_use_one_or_ten_frames_and_one_atomic_history_entry ... ok
+test panels::key_selection::tests::transforms::malformed_drag_occupancy_reports_default_channels_and_recovery_can_nudge_again ... ok
+test panels::key_selection::tests::transforms::nudge_bindings_repeat_but_respect_text_ime_and_other_panel_focus ... ok
+test panels::key_selection::tests::transforms::rejected_nudge_keeps_selection_data_and_history_and_never_seeks_or_moves_layers ... ok
+test panels::key_selection::tests::transforms::remapped_nudge_repeats_through_keyboard_routing_and_disables_its_old_default ... ok
+test panels::key_selection::tests::ui::actual_expanded_keys_batch_f9_delete_save_reopen_and_one_undo ... ok
+test panels::key_selection::tests::ui::actual_graph_pointer_and_marquee_select_authored_keys_without_component_duplicates ... ok
+test panels::key_selection::tests::ui::actual_marquee_cancels_on_escape_focus_or_changed_document_and_view ... ok
+test panels::key_selection::tests::ui::actual_single_key_drag_tracks_selection_and_cancel_restores_identity ... ok
+test panels::key_selection::tests::ui::actual_summary_marquee_works_in_both_directions_and_empty_selection_owns_delete ... ok
+test panels::key_selection::tests::ui::actual_summary_pointer_replace_add_toggle_and_select_all_use_channel_identities ... ok
+test panels::key_selection::tests::ui::actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times ... ok
+test panels::key_selection::tests::ui::actual_ui_capture_failures_preserve_selection_and_default_file_stderr_channels ... ok
+test panels::key_selection::tests::ui::dragging::expanded_row_drag_keeps_other_selected_channels_at_the_same_time ... ok
+test panels::key_selection::tests::ui::dragging::graph_multi_key_body_drag_preserves_spacing_and_constrains_time_or_value ... ok
+test panels::key_selection::tests::ui::dragging::multi_key_pointer_cancel_stale_and_late_release_never_modify_authored_data ... ok
+test panels::key_selection::tests::ui::dragging::multi_key_pointer_drag_previews_then_commits_once_and_copy_keeps_sources ... ok
+test panels::key_selection::tests::ui::dragging::multi_key_pointer_rejects_collision_and_bounds_without_partial_edits ... ok
+test panels::key_selection::tests::ui::dragging::multi_key_snapping_uses_screen_pixels_at_different_timeline_zooms ... ok
+test panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen ... ignored, manual native GPU capture; keeps OS foreground and physical input untouched
+test panels::key_selection::tests::ui::dragging::single_key_snap_keeps_existing_lane_history_and_rejects_stale_input_before_editing ... ok
+test panels::key_selection::tests::ui::select_all_includes_offscreen_keys_and_readonly_pointer_selection_cannot_edit ... ok
+test panels::key_selection::tests::ui::spatial::coincident_spatial_pointer_hits_keep_both_ids_and_select_all_keeps_integer_channels ... ok
+test panels::key_selection::tests::ui::spatial::fractional_spatial_pointer_drag_uses_stable_ids_in_summary_and_expanded_rows ... ok
+test panels::key_selection::tests::ui::spatial::mixed_nudge_is_one_undo_and_unsupported_clipboard_and_easing_do_not_edit_a_subset ... ok
+test panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for spatial comparison graph selection and dragging
+test panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for fractional spatial graph selection and dragging
+test panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves ... ignored, manual native GPU evidence for stable spatial-key timeline gestures
+test panels::key_selection::tests::ui::spatial::spatial_bounds_and_order_rejections_keep_the_entire_mixed_selection_unchanged ... ok
+test panels::key_selection::tests::ui::spatial::spatial_delete_addresses_the_id_and_keeps_layer_and_survivor_identity_through_undo ... ok
+test panels::key_selection::tests::ui::spatial::spatial_drag_cancel_stale_focus_and_copy_never_dispatch_partial_edits_or_late_release ... ok
+test panels::key_selection::tests::ui::spatial::stable_selection_keeps_coincident_identities_and_invalidates_only_deleted_ids_or_scope ... ok
+test panels::key_selection::tests::ui::spatial::zero_duration_preview_rejects_moving_spans_but_accepts_stationary_coincident_keys ... ok
+
+test result: ok. 41 passed; 0 failed; 4 ignored; 0 measured; 1478 filtered out; finished in 7.89s
+

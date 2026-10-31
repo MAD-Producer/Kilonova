@@ -75,6 +75,7 @@ fn whole_axis_edits_reject_scalar_owners_instead_of_mutating_invalid_storage() {
             let scalar = track.axes.as_mut().unwrap().get_mut(axis);
             scalar.keys = [1, 5]
                 .map(|frame| Keyframe {
+                    auto_bezier: false,
                     frame,
                     value: frame as f32,
                     ease: Ease::Linear,

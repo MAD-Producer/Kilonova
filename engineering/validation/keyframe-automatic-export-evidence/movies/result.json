@@ -1,0 +1,58 @@
+{
+  "closedLiveSessionBeforeExports": true,
+  "decodedCenters": [
+    8.0,
+    26.5,
+    40.0,
+    44.0,
+    46.0,
+    48.0
+  ],
+  "differentBytesFromLinearHoldNeighborRemoval": [
+    [
+      0,
+      646,
+      208,
+      548,
+      689,
+      749
+    ],
+    [
+      0,
+      0,
+      0,
+      490,
+      638,
+      609
+    ],
+    [
+      1540,
+      1013,
+      772,
+      827,
+      896,
+      1004
+    ],
+    [
+      1096,
+      631,
+      692,
+      663,
+      765,
+      804
+    ]
+  ],
+  "framesPerMovie": 6,
+  "independentHermiteReferenceCenters": [
+    8.0,
+    26.8,
+    40.0,
+    43.61481481481481,
+    45.80740740740741,
+    48.0
+  ],
+  "manualFreezePixelsEqual": true,
+  "movies": 7,
+  "savedReopenedPixelsEqual": true,
+  "sourceProjectVersion": 31
+}

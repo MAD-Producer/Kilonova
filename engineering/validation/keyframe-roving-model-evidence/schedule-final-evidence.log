@@ -1,0 +1,54 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.37s
+     Running tests\automatic_bezier.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\automatic_bezier-74497b825e2a110b.exe)
+
+running 8 tests
+test automatic_endpoint_has_one_physical_rate_on_unequal_intervals_and_reacts_to_neighbours ... ok
+test legacy_tracks_serialize_without_policy_and_hold_still_has_a_real_jump ... ok
+test moved_and_copied_keys_keep_their_policy_but_rederive_timing_from_new_neighbours ... ok
+test read_only_capability_matches_actual_edits_and_keeps_authored_storage_identical ... ok
+test scalar_extrema_stop_and_dense_sampling_does_not_create_overshoot ... ok
+test switching_off_freezes_both_incident_intervals_and_preserves_other_manual_handles ... ok
+test unsupported_and_malformed_automatic_requests_reject_without_mutating_the_track ... ok
+test vector_automatic_timing_keeps_the_spatial_polyline_and_rejects_manual_spatial_handles ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\spatial_hot_path.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_hot_path-13a9e88f92d1e4b5.exe)
+
+running 1 test
+test prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_real_allocations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\spatial_schedule.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_schedule-28aafead3168f095.exe)
+
+running 11 tests
+test closed_cubic_roving_uses_geometric_arc_distance_and_retains_authored_handles ... ok
+test coincident_effective_times_keep_ids_and_invalid_edits_preserve_primary_cause_and_state ... ok
+test freezing_selected_keys_preserves_samples_and_reference_order_is_independent_of_fixed_times ... ok
+test identity_exhaustion_corrupt_controls_and_two_dimensional_samples_are_explicit ... ok
+test inserting_and_deleting_keys_keeps_survivor_ids_and_never_reuses_a_deleted_identity ... ok
+test rejected_selections_and_malformed_persistence_are_atomic ... ok
+test save_reopen_neighbor_edits_and_frozen_snapshots_share_one_time_definition ... ok
+test stable_ids_and_fractional_times_drive_real_sampling_without_editing_source_geometry ... ok
+test stationary_spans_keep_authored_proportions_and_time_edits_target_stable_id ... ok
+test tiny_continuous_durations_stay_resolved_and_unrepresentable_timing_rejects_atomically ... ok
+test unsupported_imports_do_not_reinterpret_other_temporal_policies_or_nonspatial_values ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\spatial_timing.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_timing-8a17dc348756e9a8.exe)
+
+running 8 tests
+test closed_cubic_uses_arc_length_and_distance_queries_match_independent_integrals ... ok
+test collinear_cubic_with_nonlinear_parameterization_is_not_treated_as_linear_parameter ... ok
+test constant_speed_times_stay_fractional_and_preserve_author_storage_and_prepared_snapshot ... ok
+test local_span_avoids_cancellation_and_tiny_or_large_paths_keep_their_metric ... ok
+test preparation_limits_apply_to_the_whole_path_instead_of_resetting_per_interval ... ok
+test repeated_positions_keep_distinct_entries_and_stationary_paths_keep_authored_time_ratios ... ok
+test resource_limits_invalid_geometry_and_bad_queries_reject_without_changing_authored_values ... ok
+test two_dimensional_tracks_keep_both_coordinates_and_later_fixed_spans ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

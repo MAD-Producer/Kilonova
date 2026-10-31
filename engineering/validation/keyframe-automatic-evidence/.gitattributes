@@ -1,0 +1,2 @@
+# These are captured process bytes. Keep the manifest hashes stable on checkout.
+*.txt -text

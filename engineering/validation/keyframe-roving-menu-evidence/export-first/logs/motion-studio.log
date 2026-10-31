@@ -1,0 +1,134 @@
+1793416738.255 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::logging: logging initialized level=INFO
+1793416738.261 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-first\project
+1793416738.262 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793416738.264 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-first\project
+1793416745.208 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793416745.209 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/roving-menu/export-first\project 6947ms
+1793416745.209 INFO [motion-engine] motion_studio::engine: start #1 seek
+1793416745.211 INFO [motion-engine] motion_studio::engine: start #2 capture
+1793416745.238 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #2 capture phase=freeze_render_publish
+1793416745.371 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416745.371 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258735a9b60, name: ?)
+1793416745.371 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416745.371 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x258735a9b60, name: ?)
+1793416745.459 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416746.006 INFO [motion-engine] motion_studio::engine: start #3 state
+1793416746.011 INFO [motion-engine] motion_studio::engine: start #4 editor_action
+1793416746.013 INFO [motion-engine] motion_studio::engine: start #5 save
+1793416746.018 INFO [motion-engine] motion_studio::engine: start #6 seek
+1793416746.019 INFO [motion-engine] motion_studio::engine: start #7 capture
+1793416746.046 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #7 capture phase=freeze_render_publish
+1793416746.061 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416746.061 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879287190, name: ?)
+1793416746.061 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416746.061 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879287190, name: ?)
+1793416746.081 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416746.554 INFO [motion-engine] motion_studio::engine: start #8 seek
+1793416746.555 INFO [motion-engine] motion_studio::engine: start #9 capture
+1793416746.583 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #9 capture phase=freeze_render_publish
+1793416746.599 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416746.599 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879c75da0, name: ?)
+1793416746.599 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416746.599 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879c75da0, name: ?)
+1793416746.617 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416747.131 INFO [motion-engine] motion_studio::engine: start #10 seek
+1793416747.132 INFO [motion-engine] motion_studio::engine: start #11 capture
+1793416747.159 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #11 capture phase=freeze_render_publish
+1793416747.172 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416747.172 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2587379abc0, name: ?)
+1793416747.172 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416747.172 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2587379abc0, name: ?)
+1793416747.188 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416747.639 INFO [motion-engine] motion_studio::engine: start #12 seek
+1793416747.640 INFO [motion-engine] motion_studio::engine: start #13 capture
+1793416747.665 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #13 capture phase=freeze_render_publish
+1793416747.679 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416747.679 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25872df6500, name: ?)
+1793416747.679 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416747.679 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25872df6500, name: ?)
+1793416747.695 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416748.167 INFO [motion-engine] motion_studio::engine: start #14 seek
+1793416748.168 INFO [motion-engine] motion_studio::engine: start #15 capture
+1793416748.194 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #15 capture phase=freeze_render_publish
+1793416748.207 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416748.207 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879b3afc0, name: ?)
+1793416748.207 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416748.207 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25879b3afc0, name: ?)
+1793416748.223 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416748.682 INFO [motion-engine] motion_studio::engine: start #16 seek
+1793416748.684 INFO [motion-engine] motion_studio::engine: start #17 capture
+1793416748.712 INFO [motion-frame-export] motion_studio::engine::frame_capture: async start #17 capture phase=freeze_render_publish
+1793416748.726 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416748.726 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25878de8ca0, name: ?)
+1793416748.726 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416748.726 ERROR [motion-frame-export] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25878de8ca0, name: ?)
+1793416748.745 INFO [motion-frame-export] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416749.278 INFO [motion-engine] motion_studio::engine: start #18 freeze_movie
+1793416749.306 INFO [motion-freeze-movie] motion_studio::engine::movie_freeze: async start #18 freeze_movie phase=freeze_sources
+1793416749.307 INFO [motion-engine] motion_studio::engine: start #19 history
+1793416749.308 INFO [motion-engine] motion_studio::engine: start #20 shutdown
+1793416749.308 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793416749.308 INFO [motion-engine] motion_studio::engine::shutdown: start #21 shutdown_cleanup session=1
+1793416749.308 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793416749.309 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793416749.309 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped
+1793416749.324 ERROR [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793416749.324 ERROR [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25873796c90, name: ?)
+1793416749.324 ERROR [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793416749.324 ERROR [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x25873796c90, name: ?)
+1793416749.340 INFO [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793416755.147 ERROR [panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing] motion_studio::logging: panic command=None: panicked at desktop\app\src\panels\animation_menu\roving\export_tests.rs:228:5:
+
+running 1 test
+test panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing ... FAILED
+
+failures:
+
+failures:
+    panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1534 filtered out; finished in 5.23s
+
+
+
+thread 'panels::animation_menu::roving::export_tests::roving_png_frozen_movie_and_independent_reopen_match_model_samples_and_reject_legacy_timing' (35420) panicked at desktop\app\src\panels\animation_menu\roving\export_tests.rs:65:9:
+assertion `left == right` failed
+  left: Object {"assets": Array [], "background": Array [Number(0.05000000074505806), Number(0.05999999865889549), Number(0.09000000357627869), Number(1.0)], "camera": Object {"azimuth": Object {"keys": Array [], "value": Number(0.0)}, "created": Bool(false), "elevation": Object {"keys": Array [], "value": Number(0.0)}, "film_width_mm": Number(36.0), "fov": Object {"keys": Array [], "value": Number(45.0)}, "mode": String("position"), "position": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(-77.25482940673828)]}, "radius": Object {"keys": Array [], "value": Number(77.25482940673828)}, "roll": Object {"keys": Array [], "value": Number(0.0)}, "target": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(0.0)]}}, "composition_id": String("comp-main"), "fps": Number(30), "frames": Number(20), "height": Number(64), "layers": Array [Object {"audio_source_channel": String("stereo"), "blend": Object {"mode": String("normal"), "space": String("linear")}, "content": Object {"color": Array [Number(1.0), Number(1.0), Number(1.0), Number(1.0)], "kind": String("solid")}, "effects": Array [], "effects_enabled": Bool(true), "id": Number(7), "locked": Bool(false), "name": String("Roving output"), "rotation_order": String("local_xyz"), "sampling": Object {"continuous_rasterization": Bool(false), "frame_blend": String("hold"), "motion_blur": Null}, "shy": Bool(false), "size": Array [Number(12.0), Number(12.0)], "solo": Bool(false), "three_d": Bool(false), "transform": Object {"anchor": Array [Number(0.5), Number(0.5)], "opacity": Object {"keys": Array [], "value": Number(1.0)}, "position": Object {"spatial_animation": Object {"keys": Array [Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Number(0.0), "id": Number(1), "reference": Number(0.0), "spatial": Null, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Null, "id": Number(2), "reference": Number(10.0), "spatial": Null, "value": Array [Number(32.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(false), "easing": Object {"ease": String("linear")}, "fixed": Number(19.0), "id": Number(3), "reference": Number(19.0), "spatial": Null, "value": Array [Number(112.0), Number(32.0), Number(0.0)]}], "next_id": Number(4)}, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, "rotation": Object {"keys": Array [], "value": Array [Number(0.0), Number(0.0), Number(0.0)]}, "scale": Object {"keys": Array [], "value": Array [Number(100.0), Number(100.0), Number(100.0)]}}, "visible": Bool(true)}], "library": Object {"folders": Array [], "placements": Array []}, "model_assets": Array [], "name": String("空间练习 01"), "plugin_dependencies": Array [], "version": Number(31), "width": Number(128), "work_area": Object {"in_frame": Number(0), "out_frame": Number(20)}, "working_precision": String("unorm8")}
+ right: Object {"assets": Array [], "background": Array [Number(0.05), Number(0.06), Number(0.09), Number(1.0)], "camera": Object {"azimuth": Object {"keys": Array [], "value": Number(0.0)}, "created": Bool(false), "elevation": Object {"keys": Array [], "value": Number(0.0)}, "film_width_mm": Number(36.0), "fov": Object {"keys": Array [], "value": Number(45.0)}, "mode": String("position"), "position": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(-77.25483)]}, "radius": Object {"keys": Array [], "value": Number(77.25483)}, "roll": Object {"keys": Array [], "value": Number(0.0)}, "target": Object {"keys": Array [], "value": Array [Number(64.0), Number(32.0), Number(0.0)]}}, "composition_id": String("comp-main"), "fps": Number(30), "frames": Number(20), "height": Number(64), "layers": Array [Object {"audio_source_channel": String("stereo"), "blend": Object {"mode": String("normal"), "space": String("linear")}, "content": Object {"color": Array [Number(1.0), Number(1.0), Number(1.0), Number(1.0)], "kind": String("solid")}, "effects": Array [], "effects_enabled": Bool(true), "id": Number(7), "locked": Bool(false), "name": String("Roving output"), "rotation_order": String("local_xyz"), "sampling": Object {"continuous_rasterization": Bool(false), "frame_blend": String("hold"), "motion_blur": Null}, "shy": Bool(false), "size": Array [Number(12.0), Number(12.0)], "solo": Bool(false), "three_d": Bool(false), "transform": Object {"anchor": Array [Number(0.5), Number(0.5)], "opacity": Object {"keys": Array [], "value": Number(1.0)}, "position": Object {"spatial_animation": Object {"keys": Array [Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Number(0.0), "id": Number(1), "reference": Number(0.0), "spatial": Null, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(true), "easing": Object {"ease": String("linear")}, "fixed": Null, "id": Number(2), "reference": Number(10.0), "spatial": Null, "value": Array [Number(32.0), Number(32.0), Number(0.0)]}, Object {"arc": Bool(false), "easing": Object {"ease": String("linear")}, "fixed": Number(19.0), "id": Number(3), "reference": Number(19.0), "spatial": Null, "value": Array [Number(112.0), Number(32.0), Number(0.0)]}], "next_id": Number(4)}, "value": Array [Number(16.0), Number(32.0), Number(0.0)]}, "rotation": Object {"keys": Array [], "value": Array [Number(0.0), Number(0.0), Number(0.0)]}, "scale": Object {"keys": Array [], "value": Array [Number(100.0), Number(100.0), Number(100.0)]}}, "visible": Bool(true)}], "library": Object {"folders": Array [], "placements": Array []}, "model_assets": Array [], "name": String("空间练习 01"), "plugin_dependencies": Array [], "version": Number(31), "width": Number(128), "work_area": Object {"in_frame": Number(0), "out_frame": Number(20)}, "working_precision": String("unorm8")}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: BaseThreadInitThunk
+  17: RtlUserThreadStart
+

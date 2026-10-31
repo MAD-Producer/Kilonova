@@ -5,6 +5,7 @@ use motion_core::{
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
+        auto_bezier: false,
         frame,
         value,
         ease: Ease::InOut,
@@ -93,11 +94,13 @@ fn separated_axes_and_curve_shape_survive_retiming() {
     t.keys.clear();
     t.axes = Some(Box::new(AxisTracks {
         x: Track {
+            spatial_animation: None,
             value: 10.,
             keys: vec![key(-10, 1.), key(20, 10.)],
             axes: None,
         },
         y: Track {
+            spatial_animation: None,
             value: 20.,
             keys: vec![key(5, 20.), key(35, 30.)],
             axes: None,

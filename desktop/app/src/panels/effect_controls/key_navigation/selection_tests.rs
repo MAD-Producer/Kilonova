@@ -10,6 +10,7 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
     layer.transform.position.keys = [10, 90]
         .into_iter()
         .map(|frame| motion_core::Keyframe {
+            auto_bezier: false,
             frame,
             value: [frame as f32; 3],
             ease: motion_core::Ease::Linear,
@@ -27,9 +28,11 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
         default: [0.; 4],
         curve: None,
         track: motion_core::Track {
+            spatial_animation: None,
             keys: [20, 80]
                 .into_iter()
                 .map(|frame| motion_core::Keyframe {
+                    auto_bezier: false,
                     frame,
                     value: [frame as f32; 4],
                     ease: motion_core::Ease::Linear,

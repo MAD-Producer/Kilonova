@@ -1,0 +1,40 @@
+
+running 1 test
+
+thread 'panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves' (35204) panicked at desktop\app\src\panels\key_selection\spatial_native_tests.rs:207:5:
+
+running 1 test
+test panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves ... FAILED
+
+failures:
+
+failures:
+    panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1522 filtered out; finished in 10.78s
+
+
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1a9bbba6a00, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1a9bbba6a00, name: ?)
+
+thread 'panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves' (32976) panicked at desktop\app\src\panels\key_selection\spatial_native_tests.rs:151:21:
+assertion failed: matches!(commands.as_slice(),
+    [Command::SpatialKeyframes
+    { edit: SpatialKeyEdit::Move { keys, delta }, .. }] if keys == &[2] &&
+    *delta == 5.)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves ... FAILED
+
+failures:
+
+failures:
+    panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1522 filtered out; finished in 10.93s
+

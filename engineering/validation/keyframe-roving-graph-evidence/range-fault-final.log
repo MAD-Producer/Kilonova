@@ -1,0 +1,20 @@
+
+running 1 test
+
+thread 'panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover' (32968) panicked at desktop\app\src\panels\graph_ranges\tests\faults.rs:529:9:
+
+running 1 test
+test panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover ... 
+
+thread 'panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover' (26604) has overflowed its stack
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover ... FAILED
+
+failures:
+
+failures:
+    panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1522 filtered out; finished in 6.24s
+

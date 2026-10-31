@@ -137,7 +137,7 @@ pub(super) fn speed_value(
     if value < parameter.min || value > parameter.max {
         return Ok(0.);
     }
-    Ok(graph_sampling::velocity(&parameter.track, frame, fps, |v| v[component] as f64) as f32)
+    Ok(graph_sampling::velocity(&parameter.track, frame, fps, |v| v[component] as f64)? as f32)
 }
 fn cubic(easing: Easing) -> Easing {
     if matches!(
@@ -596,20 +596,20 @@ pub(in crate::panels) fn render(
         }
     }
     if !parameter.kind.discrete() {
-        for pair in parameter.track.keys.windows(2) {
+        for (interval, pair) in parameter.track.keys.windows(2).enumerate() {
             let start = pair[0].frame as f64 + layer_offset;
             let end = pair[1].frame as f64 + layer_offset;
             if end <= start
                 || start < 0.
                 || !selected_key.is_some_and(|f| f as f64 == start || f as f64 == end)
-                || pair[0].ease == Ease::Hold
+                || (pair[0].ease == Ease::Hold && pair[0].curve.is_none())
             {
                 continue;
             }
-            let original = Easing {
-                ease: pair[0].ease,
-                curve: pair[0].curve,
-            };
+            let Ok(original) = observe!("effect_timeline.automatic_timing",
+                parameter.track.effective_easing(interval),
+                "object={} effect={} parameter={} interval={interval}", target.object, target.effect, target.param)
+                else { continue; };
             if original.curve.is_some_and(|c| {
                 !matches!(
                     c,
@@ -917,12 +917,26 @@ pub(super) fn update_handle(
             )
             .is_ok()
             {
-                out.push(Action::Edit(drag.target.command(EffectAction::Curve {
-                    effect: drag.target.effect,
-                    param: drag.target.param.clone(),
-                    frame: drag.frame,
-                    easing: drag.easing,
-                })));
+                if let Ok(command) = observe!(
+                    "effect.handle_command",
+                    super::super::graph_handles::handle_command(
+                        motion_core::KeyframeTarget::Effect {
+                            object: drag.target.object,
+                            effect: drag.target.effect,
+                            param: drag.target.param.clone(),
+                        },
+                        drag.frame,
+                        drag.index != 0,
+                        drag.easing,
+                    ),
+                    "object={} effect={} param={} frame={} phase=handle",
+                    drag.target.object,
+                    drag.target.effect,
+                    drag.target.param,
+                    drag.frame
+                ) {
+                    out.push(Action::Edit(command));
+                }
             }
         }
     }

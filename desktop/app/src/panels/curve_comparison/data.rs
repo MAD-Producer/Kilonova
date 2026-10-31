@@ -41,6 +41,7 @@ pub(in crate::panels) struct Data {
     samples: Samples,
     pub dimensions: Vec<usize>,
     pub frames: Vec<u32>,
+    pub spatial_frames: Vec<(u64,f64)>,
     pub unit: Unit,
     pub title: String,
     channel_title: String,
@@ -70,19 +71,11 @@ fn decode<T: Tween + serde::de::DeserializeOwned>(value: &Value) -> Result<Track
     // The address resolver has already selected a coupled channel or one
     // separated axis. Decode that shape directly so an untagged outer enum
     // cannot erase the original key/value failure.
-    #[derive(serde::Deserialize)]
-    #[serde(deny_unknown_fields, bound(deserialize = "T: serde::Deserialize<'de>"))]
-    struct Coupled<T> {
-        value: T,
-        keys: Vec<motion_core::Keyframe<T>>,
-    }
-    let decoded: Coupled<T> = serde_json::from_value(value.clone())
+    let track: Track<T> = serde_json::from_value(value.clone())
         .map_err(|e| Unavailable::Fault(crate::fallback_observation::error_cause(e)))?;
-    let track = Track {
-        value: decoded.value,
-        keys: decoded.keys,
-        axes: None,
-    };
+    if track.axes.is_some() {
+        return Err(Unavailable::Fault("resolved channel is still separated".into()));
+    }
     track
         .validate_local()
         .map_err(|e| Unavailable::Fault(e.to_string()))?;
@@ -102,6 +95,11 @@ fn property_title(property: Property, locale: Locale) -> &'static str {
         Property::Azimuth => T::CameraAzimuth,
         Property::Elevation => T::CameraElevation,
     })
+}
+fn spatial_frames<T:Tween>(track:&Track<T>,offset:i64,state:&Value)->Vec<(u64,f64)> {
+    track.spatial_animation.iter().flat_map(|a|a.prepared().keys())
+        .map(|(id,time)|(id,time+offset as f64))
+        .filter(|(_,time)|*time>=0. && *time<=last_frame(state)).collect()
 }
 pub(in crate::panels) fn load(
     state: &Value,
@@ -127,10 +125,17 @@ pub(in crate::panels) fn load(
         3 => Samples::Vec3(decode(track)?),
         _ => Samples::Vec4(decode(track)?),
     };
+    let spatial_frames=match &samples {
+        Samples::Scalar(t)=>spatial_frames(t,offset,state),
+        Samples::Vec2(t)=>spatial_frames(t,offset,state),
+        Samples::Vec3(t)=>spatial_frames(t,offset,state),
+        Samples::Vec4(t)=>spatial_frames(t,offset,state),
+    };
     let layer = super::super::keyframe_clipboard::layer(state, target.object());
     let layer_name = layer.and_then(|l| l["name"].as_str()).unwrap_or("Camera");
     let mut data = Data {
         samples,
+        spatial_frames,
         dimensions: (0..count).collect(),
         frames: track["keys"]
             .as_array()
@@ -312,6 +317,12 @@ pub(in crate::panels) fn load(
     Ok(data)
 }
 impl Data {
+    pub fn addressed_frames<'a>(&'a self,target:&'a KeyframeTarget)
+        ->impl Iterator<Item=(super::super::key_selection::AddressedKey,f64)>+'a {
+        use super::super::key_selection::{Key,SpatialKey};
+        self.frames.iter().map(move |frame|(Key {target:target.clone(),frame:*frame}.into(),f64::from(*frame)))
+            .chain(self.spatial_frames.iter().map(move |(id,time)|(SpatialKey {target:target.clone(),id:*id}.into(),*time)))
+    }
     fn knots(&self, start: f64, end: f64) -> impl Iterator<Item = f64> + '_ {
         let offset = self.offset as f64;
         let base: Box<dyn Iterator<Item = f64> + '_> = match &self.samples {
@@ -436,15 +447,15 @@ impl Data {
         let (value, velocity) = match &self.samples {
             Samples::Scalar(t) => (
                 t.sample(local)?,
-                graph_sampling::velocity(t, local, fps, |v| v as f64),
+                graph_sampling::velocity(t, local, fps, |v| v as f64)?,
             ),
             Samples::Vec2(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
             Samples::Vec3(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
             Samples::Vec4(t) if self.discrete => {
                 let index = t
@@ -458,7 +469,7 @@ impl Data {
             }
             Samples::Vec4(t) => (
                 t.sample(local)?[component],
-                graph_sampling::velocity(t, local, fps, |v| v[component] as f64),
+                graph_sampling::velocity(t, local, fps, |v| v[component] as f64)?,
             ),
         };
         let value = if speed {
