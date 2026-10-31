@@ -1,0 +1,11 @@
+
+running 6 tests
+test engine::animation_action_tests::animation_actions_keep_default_error_sinks_and_cancel_superseded_document_work_without_editing ... ok
+test engine::animation_action_tests::automatic_keyframe_fault_keeps_state_and_reaches_default_error_channels ... ok
+test engine::animation_action_tests::key_selection_edits_keep_original_failures_on_default_channels_and_recover_atomically ... ok
+test engine::animation_action_tests::keyframe_transforms_keep_default_failure_channels_and_recover_without_partial_history ... ok
+test engine::animation_action_tests::single_handle_fault_is_atomic_and_reaches_default_error_channels ... ok
+test engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1510 filtered out; finished in 36.70s
+

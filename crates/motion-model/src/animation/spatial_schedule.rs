@@ -268,6 +268,25 @@ impl SpatialKeyTimes {
         Ok(())
     }
 
+    /// All selected identities move from the same solved snapshot. Applying
+    /// several individual times in order can temporarily cross an old anchor
+    /// even when the final group translation is valid.
+    pub fn move_keys(&mut self, path: &SpatialPath, ids: &[u64], delta: f64) -> Result<()> {
+        ensure(delta.is_finite(), "spatial key time delta must be finite")?;
+        let indices = self.indices(ids)?;
+        if delta == 0. {
+            return Ok(());
+        }
+        let previous = self.resolve(path.clone())?;
+        let mut next = self.clone();
+        for index in indices {
+            next.keys[index].fixed = Some(previous.times[index] + delta);
+        }
+        next.resolve(path.clone())?;
+        *self = next;
+        Ok(())
+    }
+
     /// Time edits address a stable key ID, and explicitly release that key's
     /// Roving constraint. Crossing another fixed anchor requires a geometry
     /// reorder transaction in the owner, never an implicit value swap here.
@@ -311,6 +330,11 @@ impl PreparedSpatialTiming {
     }
     pub fn keys(&self) -> impl ExactSizeIterator<Item = (u64, f64)> + '_ {
         self.ids.iter().copied().zip(self.times.iter().copied())
+    }
+    /// Read the already prepared metric; editor previews must not tessellate
+    /// geometry again merely to reject a zero-duration moving interval.
+    pub fn interval_length(&self, index: usize) -> Result<f64> {
+        self.path.interval_length(index)
     }
     pub fn effective_time(&self, id: u64) -> Result<f64> {
         self.ids

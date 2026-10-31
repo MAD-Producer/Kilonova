@@ -1,0 +1,6 @@
+
+running 1 test
+test engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1515 filtered out; finished in 5.60s
+

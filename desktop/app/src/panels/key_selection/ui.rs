@@ -21,15 +21,16 @@ struct View {
 struct Batch {
     channels: BTreeMap<String, Channel>,
     bytes: usize,
-    last: Option<Key>,
+    last: Option<AddressedKey>,
     error: Option<Error>,
 }
 impl Batch {
-    fn push(&mut self, key: Key) {
+    fn push(&mut self, key: impl Into<AddressedKey>) {
+        let key = key.into();
         if self.error.is_some() {
             return;
         }
-        let address = match serde_json::to_string(&key.target) {
+        let address = match serde_json::to_string(key.target()) {
             Ok(address) => address,
             Err(error) => {
                 self.error = Some(error.into());
@@ -39,11 +40,13 @@ impl Batch {
         let channel = self.channels.entry(address.clone()).or_default();
         if channel.target.is_none() {
             self.bytes = self.bytes.saturating_add(Channel::bytes(&address, 0));
-            channel.target = Some(key.target.clone());
+            channel.target = Some(key.target().clone());
         }
-        if channel.frames.insert(key.frame) {
-            self.bytes = self.bytes.saturating_add(11);
-        }
+        let old = channel.retained_bytes(&address);
+        channel.insert(&key, false);
+        self.bytes = self
+            .bytes
+            .saturating_add(channel.retained_bytes(&address).saturating_sub(old));
         if self.bytes.saturating_add(2) > MAX_KEYFRAME_CLIPBOARD_BYTES {
             self.error = Some(Error::Invalid(
                 "key selection exceeds metadata limit".into(),
@@ -56,15 +59,10 @@ impl Batch {
     fn empty(&self) -> bool {
         self.channels.is_empty() && self.error.is_none()
     }
-    fn keys(self) -> impl Iterator<Item = Key> {
-        self.channels.into_values().flat_map(|c| {
-            c.frames.into_iter().filter_map(move |frame| {
-                Some(Key {
-                    target: c.target.clone()?,
-                    frame,
-                })
-            })
-        })
+    fn keys(self) -> impl Iterator<Item = AddressedKey> {
+        self.channels
+            .into_values()
+            .flat_map(|c| c.keys().collect::<Vec<_>>())
     }
 }
 struct Frame {
@@ -270,6 +268,22 @@ pub(in crate::panels) fn all_channel(
     source: &Value,
 ) {
     if selecting_all(panels) {
+        if let Some(frame) = &mut panels.key_gestures.frame {
+            for key in source["spatial_keys"].as_array().into_iter().flatten() {
+                if key["frame"].as_f64().is_some_and(|t| {
+                    t.is_finite() && t >= 0. && t <= crate::panels::last_frame(state)
+                }) {
+                    if let Some(id) = key["id"].as_u64().filter(|id| *id > 0) {
+                        frame.incoming.push(SpatialKey {
+                            target: target.clone(),
+                            id,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    if selecting_all(panels) {
         all(
             panels,
             source["keys"]
@@ -282,6 +296,82 @@ pub(in crate::panels) fn all_channel(
                     target: target.clone(),
                     frame: time as u32,
                 }),
+        );
+    }
+}
+
+/// Timeline spatial marks join the same hit/marquee stream as frame keys;
+/// they never arm the legacy frame-addressed single-key controller.
+pub(in crate::panels) fn spatial_channel(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    state: &Value,
+    target: KeyframeTarget,
+    source: &Value,
+    lane: Rect,
+    ppf: f32,
+    offset: f32,
+) {
+    let styles = list.styles();
+    let radius = styles.metric("timeline.key.radius", 4.);
+    let tolerance = styles.metric("timeline.key.hit_radius", 5.);
+    for raw in source["spatial_keys"].as_array().into_iter().flatten() {
+        let parsed = raw["id"]
+            .as_u64()
+            .filter(|id| *id > 0)
+            .zip(raw["frame"].as_f64().filter(|t| t.is_finite()));
+        let Some((id, time)) = observe!(
+            "timeline.spatial_key",
+            parsed.ok_or("invalid spatial key identity or time"),
+            "object={} phase=paint",
+            target.object()
+        )
+        .ok() else {
+            continue;
+        };
+        if time < 0. || time > crate::panels::last_frame(state) {
+            continue;
+        }
+        let point = [
+            lane.min[0] + (time as f32 - offset) * ppf,
+            lane.min[1] + lane.height() * 0.5,
+        ];
+        if point[0] < lane.min[0] + radius || point[0] >= lane.max[0] - radius {
+            continue;
+        }
+        let key = AddressedKey::Spatial(SpatialKey {
+            target: target.clone(),
+            id,
+        });
+        paint::diamond(list, point, radius, styles.color("keyframe"));
+        if panels.key_gestures.current && panels.selected_keys.contains_addressed(&key) {
+            paint::diamond(
+                list,
+                point,
+                radius + styles.metric("border", 1.),
+                styles.color("text"),
+            );
+            paint::diamond(list, point, radius, styles.color("keyframe"));
+        }
+        if let Some(ghost) = drag::ghost_addressed(panels, &key, point, None) {
+            paint::diamond(
+                list,
+                ghost,
+                radius + styles.metric("border", 1.),
+                styles.color("focus"),
+            );
+            paint::diamond(list, ghost, radius, styles.color("keyframe"));
+        }
+        record_addressed(
+            panels,
+            key,
+            point,
+            Rect::new(
+                point[0] - tolerance,
+                lane.min[1],
+                tolerance * 2.,
+                lane.height(),
+            ),
         );
     }
 }
@@ -310,6 +400,9 @@ pub(in crate::panels) fn curve(
     }
 }
 pub(in crate::panels) fn record(panels: &mut Panels, key: Key, point: [f32; 2], hit: Rect) {
+    record_addressed(panels, key.into(), point, hit);
+}
+fn record_addressed(panels: &mut Panels, key: AddressedKey, point: [f32; 2], hit: Rect) {
     let Some(frame) = &mut panels.key_gestures.frame else {
         return;
     };
@@ -548,16 +641,41 @@ fn apply(panels: &mut Panels, state: &Value, batch: Batch, mode: Mode) {
         return;
     }
     let last = batch.last.clone();
-    if !super::choose(panels, state, batch.keys(), mode) {
+    if !super::choose_addressed(panels, state, batch.keys(), mode) {
         return;
     }
     // Iteration order is stable, but the last actually hit key is the primary.
-    if let Some(key) = last.filter(|k| panels.selected_keys.contains(k)) {
-        panels.selected_keys.primary = Some(key);
+    if let Some(key) = last.filter(|k| panels.selected_keys.contains_addressed(k)) {
+        panels.selected_keys.set_primary(Some(key));
     }
     project_primary(panels, state);
 }
 pub(super) fn project_primary(panels: &mut Panels, state: &Value) {
+    if let Some(key) = panels.selected_keys.spatial_primary.clone() {
+        panels.animation_controls.clear_key();
+        panels.path_controls.clear_mask_selection();
+        panels.audio_controls.clear_selection();
+        crate::panels::effect_timeline::clear_projected_key(panels);
+        panels.timeline.graph_box.clear_selection();
+        let object = key.target.object();
+        panels.selected = Some(object);
+        panels.selected_layers.clear();
+        if object != 0 {
+            panels.selected_layers.push(object);
+        }
+        panels.selection_anchor = (object != 0).then_some(object);
+        if let KeyframeTarget::Property {
+            object,
+            property,
+            axis,
+        } = key.target
+        {
+            panels
+                .animation_controls
+                .choose_track_in(state, object, property, axis);
+        }
+        return;
+    }
     let Some(key) = panels.selected_keys.primary().cloned() else {
         panels.animation_controls.clear_key();
         panels.path_controls.clear_mask_selection();
@@ -661,26 +779,21 @@ pub(in crate::panels) fn finish(
         let before = frame.before.take().unwrap_or_default();
         let already_selected = frame.hits.error.is_none()
             && before.status(state) == Status::Current
-            && frame.hits.channels.values().all(|c| {
-                c.frames.iter().all(|time| {
-                    c.target.as_ref().is_some_and(|target| {
-                        before.contains(&Key {
-                            target: target.clone(),
-                            frame: *time,
-                        })
-                    })
-                })
-            });
+            && frame
+                .hits
+                .channels
+                .values()
+                .all(|c| c.keys().all(|key| before.contains_addressed(&key)));
         let primary = frame.hits.last.clone();
         let hit_count = frame
             .hits
             .channels
             .values()
-            .map(|c| c.frames.len())
+            .map(|c| c.frames.len() + c.ids.len())
             .sum::<usize>();
         panels.selected_keys = before.clone();
         if frame.mode == Mode::Replace && already_selected {
-            panels.selected_keys.primary = primary.clone();
+            panels.selected_keys.set_primary(primary.clone());
             panels.selected_keys.intent = true;
             project_primary(panels, state);
         } else {
@@ -691,7 +804,7 @@ pub(in crate::panels) fn finish(
         } else {
             panels.selected_keys.clone()
         };
-        chosen.primary = primary;
+        chosen.set_primary(primary);
         if frame.key_body
             && chosen.writable(state)
             && panels.timeline.graph_drag.is_none()
@@ -704,8 +817,10 @@ pub(in crate::panels) fn finish(
                         s.target.object() == primary.target.object() && s.frames == [primary.frame]
                     })
                 });
-            if !one_summary || input.modifiers.control
-                || panels.timeline.graph_mode && panels.timeline.comparison.enabled {
+            if !one_summary
+                || input.modifiers.control
+                || panels.timeline.graph_mode && panels.timeline.comparison.enabled
+            {
                 drag::arm(
                     panels,
                     state,

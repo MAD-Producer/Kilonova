@@ -89,6 +89,8 @@ fn named_schema(kind: &str) -> (bool, Value) {
                     "kind":{"const":"roving"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"enabled":{"type":"boolean"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key","time"],"properties":{
                     "kind":{"const":"time"},"key":{"type":"integer","minimum":1},"time":{"type":"number","description":"Continuous composition-frame time; releases this key's Roving constraint"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","keys","delta"],"properties":{
+                    "kind":{"const":"move"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"delta":{"type":"number","description":"Translate the selected stable IDs atomically from their current solved times"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key"],"properties":{
                     "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}}
             ]}),

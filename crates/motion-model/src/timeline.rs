@@ -27,14 +27,17 @@ pub struct TimelineTrack<T> {
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineSpatialKey<T> {
-    pub id:u64,
-    pub frame:f64,
-    pub local_frame:f64,
-    pub roving:bool,
-    pub arc:bool,
-    pub easing:crate::Easing,
-    pub value:T,
-    pub spatial:Option<crate::SpatialTangents<T>>,
+    pub id: u64,
+    pub frame: f64,
+    pub local_frame: f64,
+    pub roving: bool,
+    /// Cached incoming arc length in stored property units; zero for the first
+    /// key. A zero-time span is valid only if every enclosed length is zero.
+    pub incoming_length: f64,
+    pub arc: bool,
+    pub easing: crate::Easing,
+    pub value: T,
+    pub spatial: Option<crate::SpatialTangents<T>>,
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineAxes {
@@ -46,11 +49,33 @@ impl<T: Tween> Track<T> {
     pub fn timeline(&self, offset: i32) -> Result<TimelineTrack<T>> {
         Ok(TimelineTrack {
             value: self.static_value()?,
-            spatial_keys:self.spatial_animation.iter().flat_map(|animation|animation.keys().iter().zip(animation.prepared().keys()))
-                .map(|(key,(_,time))|TimelineSpatialKey {
-                    id:key.id,frame:time+f64::from(offset),local_frame:time,roving:key.fixed.is_none(),
-                    arc:key.arc,easing:key.easing,value:key.value,spatial:key.spatial.clone(),
-                }).collect(),
+            spatial_keys: if let Some(animation) = &self.spatial_animation {
+                animation
+                    .keys()
+                    .iter()
+                    .zip(animation.prepared().keys())
+                    .enumerate()
+                    .map(|(index, (key, (_, time)))| {
+                        Ok(TimelineSpatialKey {
+                            id: key.id,
+                            frame: time + f64::from(offset),
+                            local_frame: time,
+                            roving: key.fixed.is_none(),
+                            incoming_length: if index == 0 {
+                                0.
+                            } else {
+                                animation.prepared().interval_length(index - 1)?
+                            },
+                            arc: key.arc,
+                            easing: key.easing,
+                            value: key.value,
+                            spatial: key.spatial.clone(),
+                        })
+                    })
+                    .collect::<Result<_>>()?
+            } else {
+                Vec::new()
+            },
             separated: self.axes.is_some(),
             axes: self
                 .axes

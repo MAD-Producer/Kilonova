@@ -1,0 +1,2 @@
+ERROR motion_studio::engine: error #4 editor_action 1ms: keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=time key=999 time=1.25: selected spatial key identity is missing
+ERROR motion_studio::engine: error #6 editor_action 0ms: keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=move delta=1.25 keys=[2, 999] count=2: selected spatial key identity is missing

@@ -17,6 +17,11 @@ pub enum SpatialKeyEdit {
         key: u64,
         time: f64,
     },
+    /// Composition-time translation; offsets cancel and identities stay stable.
+    Move {
+        keys: Vec<u64>,
+        delta: f64,
+    },
     Delete {
         key: u64,
     },
@@ -61,6 +66,7 @@ fn candidate<T: Tween>(
                 SpatialKeyEdit::Time { key, time } => {
                     animation.set_fixed_time(*key, *time - f64::from(offset))?
                 }
+                SpatialKeyEdit::Move { keys, delta } => animation.move_keys(keys, *delta)?,
                 SpatialKeyEdit::Delete { key } => animation.delete_key(*key)?,
                 SpatialKeyEdit::Enable { .. } => {
                     return Err(Error::Invalid(
@@ -162,6 +168,11 @@ pub fn edit(project: &mut Project, target: &KeyframeTarget, edit: &SpatialKeyEdi
             keys.len()
         ),
         SpatialKeyEdit::Time { key, time } => format!("phase=time key={key} time={time}"),
+        SpatialKeyEdit::Move { keys, delta } => format!(
+            "phase=move delta={delta} keys={:?} count={}",
+            keys.iter().take(8).collect::<Vec<_>>(),
+            keys.len()
+        ),
         SpatialKeyEdit::Delete { key } => format!("phase=delete key={key}"),
     };
     result.map_err(|source| Error::KeyframeEdit {

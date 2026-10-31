@@ -1,0 +1,402 @@
+   Compiling unicode-ident v1.0.26
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.6
+    Checking cfg-if v1.0.5
+   Compiling syn v2.0.119
+    Checking log v0.4.34
+    Checking libm v0.2.16
+    Checking allocator-api2 v0.2.21
+    Checking once_cell v1.21.4
+    Checking num-traits v0.2.19
+    Checking arrayvec v0.7.8
+    Checking serde_core v1.0.229
+   Compiling bytemuck_derive v1.12.1
+    Checking bytemuck v1.25.2
+   Compiling zerocopy-derive v0.8.59
+   Compiling serde_derive v1.0.229
+   Compiling synstructure v0.14.0
+    Checking stable_deref_trait v1.2.1
+    Checking serde v1.0.229
+    Checking zerocopy v0.8.59
+    Checking windows-link v0.2.1
+   Compiling zerofrom-derive v0.1.8
+    Checking foldhash v0.2.0
+    Checking bitflags v2.13.2
+    Checking equivalent v1.0.2
+    Checking zerofrom v0.1.8
+   Compiling yoke-derive v0.8.4
+    Checking yoke v0.8.3
+    Checking smallvec v1.16.2
+    Checking hashbrown v0.17.1
+   Compiling thiserror-impl v2.0.21
+   Compiling zerovec-derive v0.11.6
+    Checking zerovec v0.11.8
+    Checking thiserror v2.0.21
+   Compiling displaydoc v0.2.7
+    Checking unicode-width v0.2.2
+    Checking scopeguard v1.2.0
+    Checking indexmap v2.14.2
+    Checking itoa v1.0.18
+    Checking tinystr v0.8.4
+    Checking litemap v0.8.3
+    Checking writeable v0.6.4
+    Checking memchr v2.8.3
+    Checking icu_locale_core v2.3.0
+    Checking zerotrie v0.2.5
+    Checking potential_utf v0.1.6
+    Checking utf8_iter v1.0.4
+    Checking icu_collections v2.3.0
+    Checking icu_provider v2.3.1
+    Checking rustc-hash v1.1.0
+    Checking percent-encoding v2.3.2
+    Checking naga-types v30.0.1
+    Checking icu_normalizer_data v2.3.0
+    Checking icu_properties_data v2.3.0
+    Checking bitflags v1.3.2
+    Checking lazy_static v1.5.1
+    Checking bit-vec v0.9.1
+    Checking simd-adler32 v0.3.10
+    Checking bit-set v0.10.0
+    Checking symphonia-core v0.5.5
+    Checking icu_properties v2.3.0
+    Checking icu_normalizer v2.3.0
+    Checking codespan-reporting v0.13.1
+    Checking spirv v0.4.0+sdk-1.4.341.0
+    Checking half v2.7.1
+    Checking naga v30.0.1
+    Checking idna_adapter v1.2.2
+    Checking zmij v1.0.23
+    Checking windows-strings v0.5.1
+    Checking windows-result v0.4.1
+   Compiling windows-implement v0.60.2
+   Compiling windows-interface v0.59.3
+    Checking adler2 v2.0.1
+    Checking static_assertions v1.1.0
+    Checking bytes v1.12.1
+    Checking typenum v1.20.1
+    Checking generic-array v0.14.7
+    Checking windows-core v0.62.2
+    Checking serde_json v1.0.151
+    Checking idna v1.1.0
+    Checking ahash v0.8.12
+    Checking crc32fast v1.5.2
+    Checking form_urlencoded v1.2.2
+   Compiling swc_macros_common v1.0.1
+    Checking simdutf8 v0.1.5
+    Checking core_detect v1.0.0
+    Checking encoding_rs v0.8.42
+    Checking url v2.5.8
+    Checking hashbrown v0.14.5
+    Checking miniz_oxide v0.9.1
+    Checking bumpalo v3.20.3
+    Checking raw-window-handle v0.6.2
+   Compiling siphasher v1.0.4
+    Checking zlib-rs v0.6.8
+    Checking rustc-hash v2.1.3
+    Checking flate2 v1.1.10
+   Compiling phf_shared v0.11.3
+    Checking symphonia-metadata v0.5.5
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking aho-corasick v1.1.5
+    Checking windows-threading v0.2.1
+    Checking triomphe v0.1.16
+    Checking tracing-core v0.1.36
+   Compiling tracing-attributes v0.1.31
+    Checking regex-syntax v0.8.11
+    Checking new_debug_unreachable v1.0.6
+    Checking pin-project-lite v0.2.17
+    Checking tracing v0.1.44
+    Checking hstr v4.0.2
+    Checking regex-automata v0.4.18
+    Checking windows-future v0.3.2
+    Checking digest v0.10.7
+   Compiling phf_generator v0.11.3
+    Checking windows-collections v0.3.2
+    Checking windows-numerics v0.3.1
+    Checking miniz_oxide v0.8.9
+    Checking fdeflate v0.3.7
+    Checking libloading v0.8.9
+    Checking num-integer v0.1.47
+    Checking zune-core v0.5.3
+    Checking either v1.18.0
+    Checking cpufeatures v0.2.17
+    Checking pxfm v0.1.30
+    Checking scoped-tls v1.0.1
+    Checking better_scoped_tls v1.0.1
+    Checking moxcms v0.8.1
+    Checking sha2 v0.10.9
+    Checking swc_visit v2.0.2
+    Checking zune-jpeg v0.5.15
+    Checking num-bigint v0.4.8
+    Checking ash v0.38.0+1.3.281
+    Checking png v0.18.1
+    Checking windows v0.62.2
+   Compiling phf_macros v0.11.3
+    Checking regex v1.13.1
+    Checking windows_x86_64_msvc v0.52.6
+    Checking swc_atoms v10.0.0
+    Checking parking_lot_core v0.9.12
+    Checking anyhow v1.0.104
+    Checking wgpu-types v30.0.1
+    Checking zopfli v0.8.3
+   Compiling from_variant v3.0.0
+   Compiling ast_node v7.0.0
+    Checking bytes-str v0.2.9
+    Checking lock_api v0.4.14
+    Checking hashbrown v0.16.1
+    Checking core_maths v0.1.1
+   Compiling swc_eq_ignore_macros v1.0.1
+    Checking typed-path v0.12.4
+    Checking presser v0.3.1
+    Checking byteorder-lite v0.1.0
+    Checking siphasher v0.3.11
+    Checking swc_common v26.0.0
+    Checking image v0.25.10
+   Compiling is-macro v0.3.8
+    Checking gpu-allocator v0.28.0
+    Checking zip v9.0.5
+    Checking ttf-parser v0.25.1
+    Checking parking_lot v0.12.5
+    Checking wgpu-naga-bridge v30.0.1
+    Checking windows-targets v0.52.6
+    Checking phf v0.11.3
+    Checking symphonia-utils-xiph v0.5.5
+   Compiling string_enum v1.0.2
+    Checking ordered-float v4.6.0
+    Checking unicode-id-start v1.5.0
+    Checking renderdoc-sys v1.1.0
+    Checking range-alloc v0.1.5
+    Checking rand_core v0.10.1
+    Checking semver v1.0.28
+    Checking profiling v1.0.18
+    Checking base64 v0.23.1
+    Checking wgpu-hal v30.0.1
+    Checking motion-effects v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-effects)
+    Checking swc_ecma_ast v29.0.2
+   Compiling clang-sys v1.9.1
+    Checking libc v0.2.190
+    Checking windows-sys v0.61.2
+    Checking glam v0.29.3
+    Checking euclid v0.22.14
+   Compiling bindgen v0.72.1
+    Checking lyon_geom v1.0.19
+    Checking getrandom v0.4.3
+    Checking wgpu-core-deps-windows-linux-android v30.0.1
+    Checking castaway v0.2.4
+    Checking zeroize v1.9.1
+   Compiling num_cpus v1.17.0
+    Checking ryu v1.0.23
+    Checking compact_str v0.7.1
+   Compiling ffmpeg-sys-next v9.0.0
+    Checking rustls-pki-types v1.15.1
+    Checking wgpu-core v30.0.1
+    Checking psm v0.1.32
+    Checking rquickjs-sys v0.14.0
+    Checking lyon_path v1.0.19
+    Checking dragonbox_ecma v0.1.12
+    Checking motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Checking swc_ecma_visit v29.0.0
+    Checking par-core v2.0.0
+    Checking getrandom v0.2.17
+    Checking extended v0.1.0
+    Checking float_next_after v1.0.0
+    Checking cpufeatures v0.3.1
+    Checking untrusted v0.9.0
+    Checking ring v0.17.14
+    Checking chacha20 v0.10.2
+    Checking lyon_tessellation v1.0.22
+    Checking swc_ecma_utils v35.0.2
+    Checking symphonia-format-riff v0.5.5
+    Checking rquickjs-core v0.14.0
+    Checking stacker v0.1.25
+    Checking wgpu v30.0.1
+    Checking winapi v0.3.9
+    Checking symphonia-codec-vorbis v0.5.5
+    Checking symphonia-bundle-flac v0.5.5
+    Checking symphonia-format-ogg v0.5.5
+    Checking symphonia-format-isomp4 v0.5.5
+    Checking symphonia-bundle-mp3 v0.5.5
+    Checking swc_allocator v5.0.0
+   Compiling swc_ecma_codegen_macros v2.0.2
+    Checking symphonia-codec-pcm v0.5.5
+    Checking symphonia-codec-alac v0.5.5
+    Checking symphonia-codec-aac v0.5.5
+    Checking uuid v1.24.0
+    Checking deranged v0.5.9
+    Checking ascii v1.1.0
+    Checking powerfmt v0.2.1
+    Checking num-conv v0.2.2
+    Checking time-core v0.1.9
+    Checking time v0.3.55
+    Checking swc_ecma_parser v45.1.6
+    Checking swc_ecma_codegen v32.0.3
+    Checking debugid v0.8.0
+    Checking symphonia v0.5.5
+    Checking fs2 v0.4.3
+    Checking rquickjs v0.14.0
+    Checking httparse v1.10.1
+    Checking rand v0.10.3
+    Checking rustls-webpki v0.103.16
+    Checking motion-scene v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-scene)
+    Checking windows-result v0.1.2
+    Checking fontdue v0.9.4
+    Checking http v1.5.0
+    Checking pollster v0.4.0
+    Checking hex v0.4.3
+    Checking subtle v2.6.1
+    Checking rustls v0.23.46
+   Compiling ffmpeg-next v9.0.0
+    Checking sentry-types v0.49.3
+    Checking motion-render v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-render)
+warning: variant `Preserve` is never constructed
+  --> crates\motion-render\src\effect_plan\scratch_graph.rs:13:5
+   |
+ 9 | pub(crate) enum Load {
+   |                 ---- variant in this enum
+...
+13 |     Preserve,
+   |     ^^^^^^^^
+   |
+   = note: `Load` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `create_owned_texture` is never used
+  --> crates\motion-render\src\resource_ledger.rs:33:8
+   |
+32 | pub(crate) trait DeviceTextureExt {
+   |                  ---------------- method in this trait
+33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `motion-render` (lib) generated 2 warnings
+    Checking ureq-proto v0.6.4
+    Checking motion-media v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-media)
+    Checking windows-core v0.54.0
+    Checking motion-core v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-core)
+    Checking slotmap v1.1.1
+    Checking webpki-roots v1.0.10
+    Checking owned_ttf_parser v0.25.1
+    Checking error-code v3.4.0
+    Checking unicode-segmentation v1.13.3
+    Checking ab_glyph_rasterizer v0.1.10
+    Checking fastrand v2.5.0
+    Checking utf8-zero v0.8.1
+    Checking tinyvec v1.13.3
+    Checking memmap2 v0.9.11
+    Checking fontdb v0.23.0
+    Checking ureq v3.4.2
+    Checking tempfile v3.27.0
+    Checking ab_glyph v0.2.32
+    Checking clipboard-win v5.4.1
+    Checking motion-host v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-host)
+    Checking windows v0.54.0
+    Checking sentry-core v0.49.3
+    Checking windows-sys v0.59.0
+    Checking windows-sys v0.52.0
+    Checking dasp_sample v0.11.0
+    Checking smol_str v0.2.2
+    Checking dpi v0.1.2
+    Checking httpdate v1.0.3
+    Checking cursor-icon v1.2.0
+    Checking winit v0.30.13
+    Checking sentry v0.49.3
+    Checking cpal v0.16.0
+    Checking rfd v0.15.4
+    Checking motion-desktop-media v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-desktop-media)
+    Checking arboard v3.7.0
+    Checking motion-ui v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\desktop\ui)
+    Checking motion-graph v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-graph)
+    Checking motion-desktop v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\desktop\app)
+warning: unnecessary parentheses around pattern
+   --> desktop\app\src\panels\graph_handles.rs:201:21
+    |
+201 |                     (Curve {
+    |                     ^
+...
+204 |                     })
+    |                      ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+201 ~                     Curve {
+202 |                         space: CurveSpace::Progress,
+203 |                         shape: CurveShape::Cubic { .. }
+204 ~                     }
+    |
+
+warning: unused imports: `chrome` and `floating_chrome`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:3:21
+  |
+3 | use crate::panels::{chrome, floating_chrome};
+  |                     ^^^^^^  ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `dock::Node`
+ --> desktop\app\src\panels\keyboard_export_feedback_tests.rs:4:17
+  |
+4 | use motion_ui::{dock::Node, input::Modifiers, paint::PaintList, text::TextAtlas};
+  |                 ^^^^^^^^^^
+
+error[E0608]: cannot index into a value of type `impl ExactSizeIterator + Iterator<Item = (u64, f64)> + '_`
+   --> desktop\app\src\panels\key_selection\spatial_ui_tests.rs:107:75
+    |
+107 |     assert_eq!(track.spatial_animation.as_ref().unwrap().prepared().keys()[1], (2, 3.5));
+    |                                                                           ^^^
+
+error[E0608]: cannot index into a value of type `impl ExactSizeIterator + Iterator<Item = (u64, f64)> + '_`
+   --> desktop\app\src\panels\key_selection\spatial_ui_tests.rs:151:127
+    |
+151 | ...   assert_eq!(engine.project().layers[0].transform.position.spatial_animation.as_ref().unwrap().prepared().keys()[1], (2, 7.5));
+    |                                                                                                                     ^^^
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\viewer_guides\native_tests.rs:447:9
+    |
+447 |     let mut atlas = TextAtlas::from_family(motion_ui::style::default_stylesheet_arc().font_family(), 12., true).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `state`
+   --> desktop\app\src\panels\effect_controls.rs:910:9
+    |
+910 |         state: &Value,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\effect_timeline\tests.rs:445:9
+    |
+445 |     let mut atlas = TextAtlas::from_system(12.).unwrap();
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `atlas`
+   --> desktop\app\src\panels\graph_handles.rs:158:5
+    |
+158 |     atlas: &mut TextAtlas,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_atlas`
+
+warning: unused variable: `slot`
+   --> desktop\app\src\panels\properties.rs:293:9
+    |
+293 |     let slot = styles.metric("icon.slot", 20.);
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_slot`
+
+For more information about this error, try `rustc --explain E0608`.
+warning: `motion-desktop` (bin "motion-studio" test) generated 9 warnings
+error: could not compile `motion-desktop` (bin "motion-studio" test) due to 2 previous errors; 9 warnings emitted

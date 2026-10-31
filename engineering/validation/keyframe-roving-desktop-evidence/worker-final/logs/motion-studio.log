@@ -1,0 +1,24 @@
+1793380784.191 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::logging: logging initialized level=INFO
+1793380784.194 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::engine: worker startup phase=lock root=E:/Dev/aem/artifacts/issue-goal-current/spatial-desktop-selection/worker-final\project
+1793380784.194 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793380784.196 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:/Dev/aem/artifacts/issue-goal-current/spatial-desktop-selection/worker-final\project
+1793380789.756 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793380789.756 INFO [engine::animation_action_tests::spatial::spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_and_state] motion_studio::engine: worker ready: session=1 root=E:/Dev/aem/artifacts/issue-goal-current/spatial-desktop-selection/worker-final\project 5561ms
+1793380789.756 INFO [motion-engine] motion_studio::engine: start #1 state
+1793380789.759 INFO [motion-engine] motion_studio::engine: start #2 editor_action
+1793380789.776 INFO [motion-engine] motion_studio::engine: start #3 state
+1793380789.778 INFO [motion-engine] motion_studio::engine: start #4 editor_action
+1793380789.780 ERROR [motion-engine] motion_studio::engine: error #4 editor_action 1ms: keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=time key=999 time=1.25: selected spatial key identity is missing
+1793380789.780 INFO [motion-engine] motion_studio::engine: start #5 state
+1793380789.781 INFO [motion-engine] motion_studio::engine: start #6 editor_action
+1793380789.781 ERROR [motion-engine] motion_studio::engine: error #6 editor_action 0ms: keyframe edit operation=spatial_keyframes object=7 channel=Property { object: 7, property: Position, axis: None } phase=move delta=1.25 keys=[2, 999] count=2: selected spatial key identity is missing
+1793380789.781 INFO [motion-engine] motion_studio::engine: start #7 state
+1793380789.782 INFO [motion-engine] motion_studio::engine: start #8 editor_action
+1793380789.785 INFO [motion-engine] motion_studio::engine: start #9 history
+1793380789.786 INFO [motion-engine] motion_studio::engine: start #10 history
+1793380789.791 INFO [motion-engine] motion_studio::engine: start #11 shutdown
+1793380789.791 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793380789.791 INFO [motion-engine] motion_studio::engine::shutdown: start #12 shutdown_cleanup session=1
+1793380789.791 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793380789.792 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793380789.792 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

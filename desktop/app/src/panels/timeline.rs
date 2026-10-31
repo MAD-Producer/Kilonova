@@ -281,6 +281,7 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>, state: &Va
                 .as_array()
                 .into_iter()
                 .flatten()
+                .chain(source["spatial_keys"].as_array().into_iter().flatten())
                 .filter_map(|k| k["frame"].as_f64())
                 .collect();
             rows.push(PropertyRow {
@@ -319,7 +320,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             if let Some(t) = t {
                 for property in ["anchor", "position", "rotation", "scale", "opacity", "target", "roll", "fov", "radius", "azimuth", "elevation"] {
                     let track = &t["properties"][property];
-                    for k in track["keys"].as_array().into_iter().flatten() {
+                    for k in track["keys"].as_array().into_iter().flatten()
+                        .chain(track["spatial_keys"].as_array().into_iter().flatten()) {
                         if let Some(f) = k["frame"].as_f64() {
                             keys.push(f);
                         }
@@ -1517,9 +1519,13 @@ pub(super) fn render(
             })
         }).flatten();
         if let Some(frame) = key_hit {
-            super::timeline_key_drag::begin(
+            let spatial_hit = super::animation_data::timeline(state, row.id)
+                .and_then(|t| t["properties"].as_object()).into_iter().flatten()
+                .flat_map(|(_, source)| source["spatial_keys"].as_array().into_iter().flatten())
+                .any(|k| k["frame"].as_f64() == Some(frame));
+            if !spatial_hit { super::timeline_key_drag::begin(
                 panels, state, row, frame as u32, None, ppf, offset, input, out,
-            );
+            ); }
         }
         let left = x_of(row.range[0]).max(track.min[0]);
         let right = x_of(row.range[1]).min(track.max[0]);
@@ -1623,9 +1629,22 @@ pub(super) fn render(
             let radius = styles.metric("timeline.key.radius", 4.);
             if x >= track.min[0] + radius && x < track.max[0] - radius {
                 paint::diamond(list, [x, y + row_height * 0.5], radius, colors.KEYFRAME);
-                if let Some(keys) = summary_keys.as_ref().and_then(|keys|keys.get(&(*f as u32))) {
+                if let Some(keys) = summary_keys.as_ref().filter(|_| f.fract() == 0.).and_then(|keys|keys.get(&(*f as u32))) {
                     let hit = styles.metric("timeline.key.hit_radius", 5.);
                     for key in keys { super::key_selection::ui::mark(list, panels, key.clone(), [x, y + row_height * 0.5], radius, Rect::new(x-hit,y,hit*2.,row_height)); }
+                }
+            }
+        }
+        if !expanded {
+            if let Some(properties) = super::animation_data::timeline(state, row.id).and_then(|t| t["properties"].as_object()) {
+                for (property, name, _, _) in property_descriptors(state["project"]["layers"].as_array().and_then(|layers| layers.iter().find(|l| l["id"] == row.id))) {
+                    if let Some(source) = properties.get(name) {
+                        super::key_selection::ui::all_channel(panels, state,
+                            motion_core::KeyframeTarget::Property { object: row.id, property, axis: None }, source);
+                        super::key_selection::ui::spatial_channel(list, panels, state,
+                            motion_core::KeyframeTarget::Property { object: row.id, property, axis: None }, source,
+                            Rect::new(track.min[0], y, track.width(), row_height), ppf, offset);
+                    }
                 }
             }
         }
@@ -2390,7 +2409,16 @@ pub(super) fn render_layer_properties(
                 );
             }
             }
-            for frame in property.keys.iter().filter(|_| !graph_mode) {
+            let channel = super::animation_data::channel(state, row.id, property.property, axis);
+            if !graph_mode {
+                if let Some(source) = channel.filter(|s| s["spatial_keys"].is_array()) {
+                    let target = motion_core::KeyframeTarget::Property { object: row.id, property: property.property, axis };
+                    super::key_selection::ui::all_channel(panels, state, target.clone(), source);
+                    super::key_selection::ui::spatial_channel(list, panels, state, target, source,
+                        Rect::new(track.min[0], py, track.width(), row_height), ppf, offset);
+                }
+            }
+            for frame in property.keys.iter().filter(|_| !graph_mode && channel.is_none_or(|s| !s["spatial_keys"].is_array())) {
                 let x = x_of(*frame);
                 if x >= track.min[0] + 4. && x < track.max[0] - 4. {
                     let current = (frame - state["frame"].as_f64().unwrap_or(0.)).abs() < 0.0001;

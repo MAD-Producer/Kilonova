@@ -117,6 +117,12 @@ fn real_project_round_trip_and_timeline_preserve_continuous_time_ids_and_local_o
     assert_eq!(keys[1]["roving"], true);
     assert_eq!(keys[1]["local_frame"], 10. / 7.);
     assert_eq!(keys[1]["frame"], 7. + 10. / 7.);
+    assert_eq!(keys[0]["incoming_length"], 0.);
+    let prepared = reopened.layers[0].transform.position.spatial_animation.as_ref().unwrap().prepared();
+    for index in 1..keys.as_array().unwrap().len() {
+        assert_eq!(keys[index]["incoming_length"], prepared.interval_length(index - 1).unwrap());
+    }
+    assert!(prepared.interval_length(keys.as_array().unwrap().len() - 1).is_err());
     assert_eq!(
         timeline[0]["properties"]["position"]["keys"],
         serde_json::json!([])

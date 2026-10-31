@@ -295,6 +295,30 @@ impl<T: Tween> SpatialAnimation<T> {
         })
     }
 
+    pub fn move_keys(&mut self, ids: &[u64], delta: f64) -> Result<()> {
+        let mut times = SpatialKeyTimes::from_parts(
+            self.keys
+                .iter()
+                .map(|key| SpatialKeyTime {
+                    id: key.id,
+                    reference: key.reference,
+                    fixed: key.fixed,
+                })
+                .collect(),
+            self.next_id,
+        )?;
+        times.move_keys(self.prepared.path(), ids, delta)?;
+        if delta == 0. {
+            return Ok(());
+        }
+        let mut keys = self.keys.clone();
+        for (key, time) in keys.iter_mut().zip(times.keys()) {
+            key.fixed = time.fixed;
+        }
+        *self = Self::prepare(keys, self.next_id)?;
+        Ok(())
+    }
+
     pub fn set_roving(&mut self, ids: &[u64], enabled: bool) -> Result<()> {
         let mut times = SpatialKeyTimes::from_parts(
             self.keys

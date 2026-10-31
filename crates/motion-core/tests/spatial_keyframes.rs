@@ -43,6 +43,125 @@ fn enable(engine: &mut Engine) {
 }
 
 #[test]
+fn group_translation_uses_one_source_schedule_and_preserves_ids_and_one_step_history() {
+    let mut engine = fixture();
+    enable(&mut engine);
+    let before = engine.snapshot();
+    let track = &before.layers[0].transform.position;
+    let mut sequential = track.spatial_animation.clone().unwrap();
+    assert!(
+        sequential.set_fixed_time(1, 15.).is_err(),
+        "old neighbour must block a sequential first-key edit"
+    );
+    let input = r#"{"op":"spatial_keyframes","target":{"kind":"property","object":7,"property":"position","axis":null},"edit":{"kind":"move","keys":[1,2,3,4],"delta":15.25}}"#;
+    CommandRegistry::run(&mut engine, parse_commands(input).unwrap()).unwrap();
+    let moved = engine.snapshot();
+    for ((id, a), (actual_id, b)) in track
+        .spatial_animation
+        .as_ref()
+        .unwrap()
+        .prepared()
+        .keys()
+        .zip(
+            moved.layers[0]
+                .transform
+                .position
+                .spatial_animation
+                .as_ref()
+                .unwrap()
+                .prepared()
+                .keys(),
+        )
+    {
+        assert_eq!(id, actual_id);
+        assert_eq!(b, a + 15.25);
+    }
+    assert!(moved.layers[0]
+        .transform
+        .position
+        .spatial_animation
+        .as_ref()
+        .unwrap()
+        .keys()
+        .iter()
+        .all(|key| key.fixed.is_some()));
+    assert_eq!(before.layers[0].timeline, moved.layers[0].timeline);
+    for frame in [0., 1.25, 4., 7.75, 10., 20.] {
+        assert_eq!(
+            track.sample(frame).unwrap(),
+            moved.layers[0]
+                .transform
+                .position
+                .sample(frame + 15.25)
+                .unwrap()
+        );
+    }
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &before);
+    engine.redo().unwrap();
+    assert_eq!(engine.project(), &moved);
+    let tmp = tempfile::tempdir().unwrap();
+    storage::save(tmp.path(), &moved).unwrap();
+    assert_eq!(storage::load(tmp.path()).unwrap(), moved);
+}
+
+#[test]
+fn group_move_failures_preserve_source_history_and_redo_and_zero_delta_keeps_roving() {
+    let mut engine = fixture();
+    enable(&mut engine);
+    engine
+        .apply(command(7, SpatialKeyEdit::Time { key: 2, time: 8.25 }))
+        .unwrap();
+    engine.undo().unwrap();
+    let original = engine.snapshot();
+    let revision = engine.revision();
+    let history = engine.history_diagnostics();
+    for edit in [
+        SpatialKeyEdit::Move {
+            keys: vec![1, 999],
+            delta: 1.,
+        },
+        SpatialKeyEdit::Move {
+            keys: vec![2, 2],
+            delta: 1.,
+        },
+        SpatialKeyEdit::Move {
+            keys: vec![],
+            delta: 1.,
+        },
+        SpatialKeyEdit::Move {
+            keys: vec![2],
+            delta: f64::NAN,
+        },
+        SpatialKeyEdit::Move {
+            keys: vec![2],
+            delta: 40.,
+        },
+    ] {
+        let error = engine.apply(command(7, edit)).unwrap_err().to_string();
+        assert!(
+            error.contains("operation=spatial_keyframes") && error.contains("phase=move"),
+            "{error}"
+        );
+        assert_eq!(engine.project(), &original);
+        assert_eq!(engine.revision(), revision);
+        assert_eq!(engine.history_diagnostics(), history);
+    }
+    engine
+        .apply(command(
+            7,
+            SpatialKeyEdit::Move {
+                keys: vec![2],
+                delta: 0.,
+            },
+        ))
+        .unwrap();
+    assert_eq!(engine.project(), &original);
+    assert_eq!(engine.revision(), revision);
+    assert_eq!(engine.history_diagnostics(), history);
+}
+
+#[test]
 fn registry_conversion_and_id_time_edits_keep_full_undo_redo_and_fractional_offsets() {
     let mut engine = fixture();
     let before = engine.snapshot();

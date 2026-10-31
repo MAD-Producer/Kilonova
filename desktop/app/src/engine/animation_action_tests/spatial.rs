@@ -64,6 +64,14 @@ fn spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_a
         for field in ["project", "revision", "history"] {
             assert_eq!(after[field], after_enable[field], "{field}");
         }
+        let move_error = apply(&after, SpatialKeyEdit::Move { keys: vec![2, 999], delta: 1.25 }).unwrap_err();
+        assert!(move_error.contains("operation=spatial_keyframes")
+            && move_error.contains("phase=move delta=1.25")
+            && move_error.contains("selected spatial key identity is missing"), "{move_error}");
+        let after_failed_move = engine.state().unwrap();
+        for field in ["project", "revision", "history"] {
+            assert_eq!(after_failed_move[field], after_enable[field], "failed group move {field}");
+        }
         let moved = apply(&after, SpatialKeyEdit::Time { key: 2, time: 1.25 }).unwrap();
         assert_eq!(
             moved["project"]["layers"][0]["transform"]["position"]["spatial_animation"]["keys"][1]
@@ -75,7 +83,7 @@ fn spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_a
             after_enable["project"]
         );
         assert_eq!(engine.history(0).unwrap()["project"], original["project"]);
-        std::fs::write(root.join("response.json"),serde_json::to_vec_pretty(&json!({"enabled":enabled["project"],"moved":moved["project"],"rejection":error,"unchanged":after["project"]==after_enable["project"]})).unwrap()).unwrap();
+        std::fs::write(root.join("response.json"),serde_json::to_vec_pretty(&json!({"enabled":enabled["project"],"moved":moved["project"],"rejection":error,"groupMoveRejection":move_error,"unchanged":after["project"]==after_enable["project"],"groupMoveUnchanged":after_failed_move["project"]==after_enable["project"]})).unwrap()).unwrap();
         engine.request_shutdown().unwrap();
         return;
     }
@@ -104,11 +112,14 @@ fn spatial_key_ids_reach_the_worker_and_rejections_keep_default_error_channels_a
     let cause = "operation=spatial_keyframes";
     assert_eq!(
         file.lines()
-            .filter(|line| line.contains(" ERROR ") && line.contains(cause))
+            .filter(|line| line.contains(" ERROR ") && line.contains(cause) && line.contains("phase=time key=999"))
             .count(),
         1
     );
+    assert_eq!(file.lines().filter(|line| line.contains(" ERROR ") && line.contains(cause) && line.contains("phase=move delta=1.25")).count(), 1);
+    assert_eq!(file.lines().filter(|line| line.contains(" ERROR ") && line.contains(cause)).count(), 2);
     assert!(stderr.contains(cause));
+    assert!(stderr.contains("phase=time key=999") && stderr.contains("phase=move delta=1.25"));
     assert!(file.lines().any(|line| line.contains(" INFO ")
         && line.contains("start #")
         && line.ends_with(" editor_action")));

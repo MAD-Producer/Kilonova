@@ -11,6 +11,7 @@ pub(crate) struct MenuScope {
     objects: Vec<u64>,
     focused: Option<Panel>,
     keys: Vec<motion_core::KeyframeSelection>,
+    spatial_keys: Vec<(motion_core::KeyframeTarget, Vec<u64>)>,
 }
 impl MenuScope {
     pub(super) fn of(panels: &Panels, state: &Value) -> Self {
@@ -18,6 +19,7 @@ impl MenuScope {
             source: crate::layer_clipboard::KeyframeSource::of(state),
             objects: panels.selection_ids(),
             focused: panels.focused,
+            spatial_keys: panels.selected_keys.spatial_selections(),
             keys: super::keyframe_clipboard::selection(panels, state)
                 .map_or_else(Vec::new, |s| s.selections),
         }
@@ -102,7 +104,7 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
         }
         Operation::Shortcut(Shortcut::Delete) => {
             if panels.selected_keys.owns_keys() {
-                return matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) && panels.selected_keys.writable(state);
+                return matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) && super::key_selection::delete_available(panels, state);
             }
             matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
                 && (super::effect_timeline::delete_available(panels, state)
