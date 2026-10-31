@@ -2,6 +2,7 @@ use super::*;
 use std::sync::atomic::AtomicBool;
 mod yielding;
 mod disk_cache;
+mod scheduling;
 
 fn session(root: &Path) -> Session {
     let mut p = Project::new(32, 24, 30, 8).unwrap();

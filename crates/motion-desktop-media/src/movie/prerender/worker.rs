@@ -6,6 +6,7 @@ use std::sync::{
     Arc, Mutex,
 };
 use std::thread::{self, JoinHandle};
+mod scheduling;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Profile {
@@ -500,6 +501,7 @@ fn run(
     let mut renderer: Option<NativePrerender> = None;
     let mut disk = disk::Owner::default();
     let mut last_id = 0;
+    let mut scheduling = None;
     while let Ok(Job {
         id,
         control,
@@ -548,6 +550,22 @@ fn run(
         };
         let result: Result<Outcome> = (|| {
             control.check()?;
+            // Optional work must yield CPU scheduling priority as well as the
+            // cooperative render token. Apply only on this dedicated owner,
+            // before preparing sources or constructing the native renderer.
+            // Cache a failure too: never silently run optional work at normal
+            // priority or retry an unavailable policy on every frame.
+            if scheduling.is_none() {
+                if let Ok(mut state) = state.lock() {
+                    if let Some(flight) = &mut state.flight {
+                        flight.phase = "scheduling";
+                    }
+                }
+            }
+            scheduling
+                .get_or_insert_with(scheduling::lower_current_thread)
+                .as_ref()
+                .map_err(Clone::clone)?;
             match work {
                 Work::Prepare(plan) => {
                     let disk_config = plan.disk.clone();
