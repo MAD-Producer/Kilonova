@@ -23,6 +23,33 @@ fn add() -> String {
 }
 
 #[test]
+fn channel_moves_a_compact_item_and_preserves_its_owned_command_reply() {
+    fn item_size<T>(_: &SyncSender<T>) -> usize {
+        std::mem::size_of::<T>()
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let engine = engine(&dir.path().join("project"));
+    let item_bytes = item_size(&engine.sender);
+    assert!(item_bytes <= std::mem::size_of::<usize>(),
+        "the channel must not copy the large editor command on each mpsc stack frame: item_bytes={item_bytes} payload_bytes={}",
+        std::mem::size_of::<QueuedCommand>());
+    let (release, waiting) = blocked(&engine);
+    let state = engine.request(Command::State).unwrap();
+    let depth = engine.queue_depth();
+    release.send(()).unwrap();
+    waiting.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    state.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert_eq!(depth, 1);
+    // Replies leave handle before its diagnostics record and in-flight clear.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while engine.in_flight().is_some() && Instant::now() < deadline {
+        std::thread::yield_now();
+    }
+    assert_eq!(engine.queue_depth(), 0);
+    assert!(engine.in_flight().is_none());
+}
+
+#[test]
 fn idle_shutdown_wakes_the_receiver_and_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     for index in 0..8 {

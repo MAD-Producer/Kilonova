@@ -582,7 +582,7 @@ impl std::ops::Deref for ArcFrame {
 
 /// Handle used by the UI thread to talk to the engine.
 pub struct Engine {
-    sender: SyncSender<QueuedCommand>,
+    sender: SyncSender<Box<QueuedCommand>>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     allocation_budget: motion_render::AllocationBudget,
@@ -726,13 +726,13 @@ impl Engine {
             }
             // Wake an idle worker. A full queue already wakes it; after draining
             // it observes the flag without requiring another free queue slot.
-            let queued = self.sender.try_send(QueuedCommand {
+            let queued = self.sender.try_send(Box::new(QueuedCommand {
                 command: Command::Shutdown,
                 queued: Instant::now(),
                 request: self.diagnostics.next_request(),
                 context,
                 prerender_input: 0,
-            });
+            }));
             if queued.is_ok() { self.queue_depth.fetch_add(1, Ordering::AcqRel); }
             queued
         };
@@ -835,7 +835,9 @@ impl Engine {
         let worker_node_expect = pending_node_expect.clone();
         let prerender_signals = Arc::new(prerender::Signals::default());
         let worker_prerender_signals = prerender_signals.clone();
-        let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
+        // Command includes large editor snapshots. Move one pointer through
+        // mpsc rather than copying that payload through its stack frames.
+        let (sender, receiver) = sync_channel::<Box<QueuedCommand>>(COMMAND_QUEUE_CAPACITY);
         let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget,
             motion_host::session::PipelinePreparationObservation), Error>>();
         let worker = std::thread::Builder::new()
@@ -967,7 +969,7 @@ impl Engine {
                                 optional_poll.then_some(prerender.wait_interval())].into_iter().flatten().min();
                             let received = if let Some(delay) = delay {
                                 match receiver.recv_timeout(delay) {
-                                    Ok(command) => Some((command, true)),
+                                    Ok(command) => Some((*command, true)),
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) if optional_poll => Some((QueuedCommand {
                                         command: Command::PrerenderPoll, queued: Instant::now(),
                                         request: worker_diagnostics.next_request(), context: worker_diagnostics.context(),
@@ -976,7 +978,7 @@ impl Engine {
                                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
                                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
                                 }
-                            } else { receiver.recv().ok().map(|command| (command, true)) };
+                            } else { receiver.recv().ok().map(|command| (*command, true)) };
                             let Some((command, received)) = received else { break; };
                             (command, None, received)
                         };
@@ -1181,9 +1183,14 @@ impl Engine {
         enum Rejected {
             Stopped(Error),
             Finished,
-            Send(TrySendError<QueuedCommand>),
+            Send(TrySendError<Box<QueuedCommand>>),
         }
         let mut failure_poisoned = false;
+        // Allocate before entering the short dispatch gate so its closure
+        // captures only a pointer, including the full/disconnected reply path.
+        let mut command = Box::new(QueuedCommand {
+            command, queued: Instant::now(), request, context, prerender_input,
+        });
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         let queued = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
             // Repeat the running check under the shutdown gate, but defer all
@@ -1199,9 +1206,9 @@ impl Engine {
             if self.worker.as_ref().is_some_and(|worker| worker.is_finished()) {
                 return Err(Rejected::Finished);
             }
-            self.sender.try_send(QueuedCommand {
-                command, queued: Instant::now(), request, context, prerender_input,
-            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
+            command.queued = Instant::now();
+            self.sender.try_send(command)
+                .map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
         });
         if failure_poisoned {
             static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
