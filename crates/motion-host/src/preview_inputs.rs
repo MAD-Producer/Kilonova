@@ -264,9 +264,9 @@ impl PreviewInputReader {
                 match &layer.content {
                     Content::Image { asset } => Some(*asset),
                     Content::Text { raster_asset, .. } => Some(*raster_asset),
-                    Content::Video { video } => {
+                    Content::Video { .. } => {
                         clock.source_time_us =
-                            Some(video.source_time_us(clock.local_frame, snapshot.fps));
+                            Some(layer.video_source_time_us(request.frame, snapshot.fps)?);
                         None
                     }
                     _ => return Err("preview input layer has no supported original pixels".into()),
@@ -307,7 +307,7 @@ impl PreviewInputReader {
                 .find(|asset| asset.id == video.asset)
                 .ok_or("preview video asset missing")?;
             let size = [asset.display_width, asset.display_height];
-            let time = video.picture_time_us(clock.local_frame, snapshot.fps, asset);
+            let time = layer.video_picture_time_us(request.frame, snapshot.fps, asset)?;
             outside |= time < asset.video_start_us as i64 || time >= asset.video_end_us as i64;
             let source = if outside {
                 DesiredSource::Transparent

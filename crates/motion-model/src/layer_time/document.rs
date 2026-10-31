@@ -65,6 +65,54 @@ impl Layer {
         };
         result.map_err(|source| failure(self.id, "source_sample", source))
     }
+    /// Final video timestamp, with reverse half-open quantization applied once.
+    /// Property time and source-remapped time are separate coordinates.
+    pub fn video_source_time_us(&self, composition_frame: f64, fps: u32) -> Result<i64> {
+        let Content::Video { video } = &self.content else {
+            return Err(failure(
+                self.id,
+                "video_source",
+                Error::Invalid("layer is not video".into()),
+            ));
+        };
+        self.source_time_sample(composition_frame)?
+            .video_time_us(video, fps)
+            .map_err(|source| failure(self.id, "video_source", source))
+    }
+    /// The existing leading-picture policy is applied after the source clock;
+    /// negative source time remains outside even when hold_first_frame is set.
+    pub fn video_picture_time_us(
+        &self,
+        composition_frame: f64,
+        fps: u32,
+        asset: &crate::VideoAsset,
+    ) -> Result<i64> {
+        let Content::Video { video } = &self.content else {
+            return Err(failure(
+                self.id,
+                "video_picture",
+                Error::Invalid("layer is not video".into()),
+            ));
+        };
+        if video.asset != asset.id {
+            return Err(failure(
+                self.id,
+                "video_picture",
+                Error::Invalid(format!(
+                    "video asset differs: expected={} actual={}",
+                    video.asset, asset.id
+                )),
+            ));
+        }
+        let time = self.video_source_time_us(composition_frame, fps)?;
+        Ok(
+            if video.hold_first_frame && time >= 0 && time < asset.video_start_us as i64 {
+                asset.video_start_us as i64
+            } else {
+                time
+            },
+        )
+    }
     pub fn edit_frame(&self, frame: u32) -> Result<i32> {
         let offset = self.timeline.map_or(0, |t| t.offset_frame);
         self.time_mapping

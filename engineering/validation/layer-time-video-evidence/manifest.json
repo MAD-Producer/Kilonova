@@ -1,0 +1,175 @@
+{
+  "created_utc": "2026-10-31T11:13:04.636852+00:00",
+  "base_commit": "4679fcc4a93bdab2a49512fe2693cd3449501396",
+  "stage": "根合成视频时钟与实际 CFR/VFR/冻结 PNG；不是整个 #257 的交付或验收",
+  "source_sha256": {
+    "crates/motion-model/src/layer_time/document.rs": {
+      "bytes": 10221,
+      "sha256": "df117cdbb2e1297a62aefd1a36d8ab81b1e893a80e3a219da0d9864969065d88"
+    },
+    "crates/motion-model/src/timeline.rs": {
+      "bytes": 12842,
+      "sha256": "8c1b28b781321cd7bea165f8d4c676074e54e2f56fdb0c2821936f11deb58217"
+    },
+    "crates/motion-host/src/preview_inputs.rs": {
+      "bytes": 19350,
+      "sha256": "5708e676eeb029514cb629917f01de5d28ca77fc34c0bd9a7239d313baf44aed"
+    },
+    "crates/motion-host/src/video_frames.rs": {
+      "bytes": 46784,
+      "sha256": "b7bdc7a82245667f2edd1140ba794129aaef32e6b6409ded7f0e1e44054bddb5"
+    },
+    "crates/motion-render/src/scene.rs": {
+      "bytes": 46200,
+      "sha256": "9938fa50037a016698bb679d8aa5e888addaac735b6412cb626f0e8d0c54ce80"
+    },
+    "crates/motion-model/tests/layer_time_video.rs": {
+      "bytes": 4316,
+      "sha256": "8f32475baa1e4a1335bf001b4554ae5e3236f64af9f39912e3a276e520d49ba6"
+    },
+    "crates/motion-desktop-media/tests/layer_time_video.rs": {
+      "bytes": 12086,
+      "sha256": "f595acf843094e2a132e392df5c97a16d6e820945d3efecd4c6e19516481a7b5"
+    }
+  },
+  "existing_fixture_sha256": {
+    "crates/motion-media/tests/fixtures/video/silent-24fps.mp4": {
+      "bytes": 5902,
+      "sha256": "542160beafcbf10c5334ad5599002531e3442448b92c03f11a38f0bb901afc16"
+    },
+    "crates/motion-media/tests/fixtures/video/variable.mp4": {
+      "bytes": 3011,
+      "sha256": "20a1a9dbe79bb31de947386c5fc3b8707f1eab71a45af3ad08e46e5f2af471cb"
+    },
+    "crates/motion-media/tests/fixtures/video/manifest.json": {
+      "bytes": 78572,
+      "sha256": "2d87cc8e1f18fd46f129a6cca1feb5fb80fc11fc7f01947d60dcfee324991804"
+    }
+  },
+  "executed_new_test_programs": {
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_video-c3457cfedcd7a6b9.exe": {
+      "bytes": 61306368,
+      "sha256": "455ea73ce7a865b390db08b9241de9b4ea111a0aacbae39e77b8cc77612489ad"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_video-b6341bad5be4442f.exe": {
+      "bytes": 1367040,
+      "sha256": "d4f601bbad26ddf438deeed05e28febd2e060f5f34311b19755f2bf4f17e3c42"
+    }
+  },
+  "raw_evidence": {
+    "layer-time-video-before.log": {
+      "bytes": 2447,
+      "sha256": "d8581508ae1fdadfcfd75efce1790b0ec7a91b348dab9e9aec15833dbf228cac"
+    },
+    "layer-time-video-fixed.log": {
+      "bytes": 2878,
+      "sha256": "d01dbd9da7a218fec9e71c7d9e55bbcb0dbe40c4a063730d5523913be4f940b6"
+    },
+    "layer-time-video-native-expanded.log": {
+      "bytes": 2000,
+      "sha256": "950fee46b002f779407aa1eb86fb4a81ac6b56d22bdf106008a223b944433f47"
+    },
+    "layer-time-video-native-final.log": {
+      "bytes": 1490,
+      "sha256": "d9894f9145bf3b54318f6f9a09794555f4b168db6bfb92413d3502bc8a77c22c"
+    },
+    "layer-time-video-model-full.log": {
+      "bytes": 28148,
+      "sha256": "8487565851a871b3f5c87e3d162d6742767658a73fb56d1a93bcb15aa84065b9"
+    },
+    "layer-time-video-host-regression.log": {
+      "bytes": 3633,
+      "sha256": "3ebd8d573b7befb218980f44dbe39b412e75a439ff9abd3420ad3ec89eeed8a2"
+    },
+    "layer-time-video-render-regression.log": {
+      "bytes": 2170,
+      "sha256": "d61ce9f14b00180fb36f343a5fd33de0d678abd8e3dfd54d0195e1d7f6b547e9"
+    },
+    "layer-time-video-workspace-check.log": {
+      "bytes": 20388,
+      "sha256": "44be867bde09eb5aeef1753ddfe02540664ade8a37591aff39241cc501931b17"
+    }
+  },
+  "results": {
+    "layer-time-video-native-final.log": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-video-model-full.log": {
+      "passed": 202,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-video-host-regression.log": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-video-render-regression.log": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_tests_passed": 224,
+  "native_cases": {
+    "sampling_points": 34,
+    "modes": [
+      "unmapped",
+      "150% stretch",
+      "reverse",
+      "nonmonotonic remap with freeze"
+    ],
+    "oracle": "hardcoded source microseconds; fixture manifest PTS; actual libav Decoder whole RGBA",
+    "frozen_png_pairs": 2,
+    "frozen_png_dimensions": [
+      32,
+      32
+    ],
+    "frozen_png_oracle": "unmapped source read after actual reset command; close Session then export both plans; whole image exact equality",
+    "png_retention": "temporary outputs asserted in-process and removed by tempdir; no retained PNG artifact"
+  },
+  "environment": {
+    "shell_setup": "E:/Dev/aem/.tools/msvc-portable/env.ps1",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "WGPU_BACKEND": "vulkan",
+    "FFMPEG_DIR": "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1",
+    "LIBCLANG_PATH": "E:/Dev/aem/.tools/python-libclang/clang/native",
+    "TEMP_TMP": "E:/Dev/aem/artifacts/pr-integration-current/link-tmp",
+    "PATH_prefix_for_ffmpeg": "${FFMPEG_DIR}/bin"
+  },
+  "test_commands": [
+    "cargo test -p motion-desktop-media --features ffmpeg --test layer_time_video --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --nocapture",
+    "cargo test -p motion-host --test preview_inputs --test video_retirement --test layer_time_mapping --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-render --test video_instances --test composition_frame_boundaries --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture"
+  ],
+  "workspace_check": {
+    "command": "cargo check --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "result": "passed; existing warnings retained; compile coverage is not execution"
+  },
+  "failure_dispositions": {
+    "before": "actual old production returned 2250000 rather than fixed expected 2249999 at CFR reverse C=6",
+    "fixed_first": "new short VFR fixture exceeded existing source bounds at 24fps; changed fixture fps to 48 and independently adjusted its numeric oracle, without changing production validation",
+    "expanded": "new test unwrap_err required Debug on DecodedFrame; used explicit match retaining stale-frame refusal assertion",
+    "source_retention": "archive contains final test sources and base production sources; initial draft test source snapshots were not retained"
+  },
+  "observability": {
+    "new_observations": "none; functional clock correction only, typed model cause preserved",
+    "normal_branches": "outside-source/hold-first/freeze/stale requests are not new fault counters",
+    "pending": "actual desktop default Info file, Error stderr, stdout isolation, in-flight blocking and panic paths"
+  },
+  "pending": [
+    "nested incoming derivatives, different fps, directed remap edges, single leaf quantization",
+    "nonmonotonic prefetch coverage; mapped source validation and resize; depth and model animation",
+    "bounded mapped PCM, reverse and freeze silence; unchanged rational fast path actual samples",
+    "continuous ordinary-key editing and complete desktop consumers; audio movie export",
+    "cache and prerender identities; main/floating locales, focus/cancel, screenshots and final CI"
+  ],
+  "archive": {
+    "bytes": 91752,
+    "sha256": "491a7e5d339dec96d6e85c62820cba52d4a8c00b4479ce32b80feb988b6d454c"
+  }
+}

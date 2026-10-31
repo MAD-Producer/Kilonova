@@ -255,7 +255,7 @@ impl Project {
                             )))?;
                         Some(TimelineVideo {
                             asset: a.id,
-                            source_time_us: video.source_time_us(l.local_frame(frame), self.fps),
+                            source_time_us: l.video_source_time_us(frame, self.fps)?,
                             source_offset_us: video.source_offset_us,
                             duration_us: a.duration_us,
                             display_width: a.display_width,

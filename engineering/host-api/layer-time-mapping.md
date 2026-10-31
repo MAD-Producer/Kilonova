@@ -98,3 +98,10 @@ main 的既有基础是图层区间、offset、视频/音频 source_offset 和�
 [工程与事务验证](../validation/layer-time-document.md)。
 第三阶段的实际执行和余项见
 [投影与宿主快照验证](../validation/layer-time-projection.md)。
+
+第四阶段接通根合成视频的 Scene、时间轴、原始来源输入和 VideoFrames，统一使用
+素材时钟与最终微秒量化。真实 CFR/VFR、非单调 remap、冻结画面与失效读取，以及
+编辑活动工程后关闭 Session 的冻结 PNG 均有实际解码/像素对照。
+嵌套方向、深度、映射来源范围、音频和桌面连续编辑仍未完成，不能将此阶段表述为
+整个媒体映射能力已经可用。实际执行、原始失败和剩余范围见
+[根合成视频验证](../validation/layer-time-video.md)。

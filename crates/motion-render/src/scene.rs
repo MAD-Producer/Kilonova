@@ -504,7 +504,7 @@ impl Scene {
                             video.asset, layer.id
                         ))
                     })?;
-                let time = video.picture_time_us(layer.local_frame(frame), project.fps, a);
+                let time = layer.video_picture_time_us(frame, project.fps, a)?;
                 if time < a.video_start_us as i64 || time >= a.video_end_us as i64 {
                     continue;
                 }
