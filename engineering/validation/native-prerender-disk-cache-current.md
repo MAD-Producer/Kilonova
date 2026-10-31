@@ -68,8 +68,9 @@ The partial-write control injects an IO error after a real first payload chunk.
 The actual Linux full-volume component has since passed; see
 [its exact-source CI evidence](native-prerender-full-volume-current.md).
 Windows/macOS full-volume behavior and physical storage durability are not
-qualified. Strict foreground P95, the retained native abnormal exit, final
-combined regression and complete current-head cross-platform CI remain open.
+qualified. Strict foreground P95, the retained native abnormal exit and final
+combined regression remain open. [Exact-head PR CI](native-prerender-ci-head-current.md)
+has passed on `8bb44d4a`; subsequent local source commits are not covered.
 Android is retired and excluded as instructed.
 
 ## Executed results and failures
