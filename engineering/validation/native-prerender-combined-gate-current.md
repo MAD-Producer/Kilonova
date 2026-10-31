@@ -1,114 +1,109 @@
-# Combined native prerender gate: failed
+# Combined native prerender gate: v6 failed
 
 Issue: [82](https://github.com/MAD-Producer/Kilonova/issues/82).
 Draft: [PR 575](https://github.com/MAD-Producer/Kilonova/pull/575).
-Exact tested source: `510484160fde38d18b177ba8c69baf19af1730dc`, rebased onto
-main `49890ce0da7d7701eaec5e521d749b562d3ffd47`.
-Completed: `2026-10-30T17:05:54.199018+00:00`.
+Exact tested source: `cd26ba2964569d765cafb34a89be079ac0506861`.
+Main baseline: `49890ce0da7d7701eaec5e521d749b562d3ffd47`.
+Completed: `2026-10-31T03:57:50.657055+00:00`.
 
-This combined gate failed. The later documentation commits and queued source
-components were not part of the tested source. Passing individual controls or
-the five required PR CI checks does not override the failed local gates.
-Android is retired and excluded by user direction.
+This is a failed combined gate. The three source-watcher/upload components are
+integrated in this source; their focused passes do not override these failures.
+The optional disk-cache draft and subsequent input-phase instrumentation are
+separate, unaccepted sources. Android is retired and excluded by user direction.
+Issue 87 is independently complete; see [its release record](scene3d-main-release-current.md).
 
 ## Actual results
 
-The gate executed the existing scheduler, native producer, Engine input
-priority, source replacement, revision refresh, static-window, playback,
-pressure, blocked-worker, idle and four-precision upload controls. It also ran
-the unchanged independent evidence parsers, the actual 480-sample native input
-study, the actual 240-frame paced playback study, the maintained workspace,
-desktop check/build, shared native-window MCP, provenance and tool inventory.
-Exact commands, source hashes and per-step results are in the attached receipt.
+The 27-step gate completed without source changes. It exercised scheduler,
+native cache/producer, cancellation, input priority, source changes, refresh,
+static/gap/pressure/blocked/idle paths, all four native precisions, actual native
+input and paced playback, full maintained workspace, desktop check/build,
+shared-window MCP, provenance and tool inventory. Exact commands remain in the
+terminal receipt. Three required steps failed:
 
-Both strict performance assessments failed:
-
-| Study | Failing independent pair ratio | Disposition |
+| Gate | Actual result | Disposition |
 | --- | --- | --- |
-| Timeline input, second pair | `1.0165369097005172` | P95 regressed; pooled improvement cannot override it |
-| Paced playback, first pair | `1.0768093078288306` | P95 regressed; 58/59 warm cache hits do not prove latency acceptance |
+| Integrated native cache | Exit `0xc000001d`, no final test summary | Illegal instruction; unresolved |
+| Foreground input P95 | Timeline first pair `1.3568106642791415`, pooled `1.0860751295336788` | Strict no-regression failed |
+| Maintained workspace | Exit 101; 3,988 passed, 2 failed, 61 ignored | Failed; not acceptance |
 
-The maintained workspace command was:
+Property-input pairs were `0.9680153954836667` and `0.7013104698173707`,
+pooled `0.7381782163689057`. Timeline second pair was `0.6718198887465562`.
+An improving pair cannot override another failing pair. The unchanged original
+input parser, not a replacement threshold, determined the failed disposition.
+
+The separate paced 240-frame study passed its strict assessment: pairs
+`0.9938537185003073` and `0.846324771131455`, pooled `0.8398920829844637`.
+The enabled episodes recorded 60 and 59 hits with zero missed-next-deadline
+samples. This Engine-only result does not prove whole-app input latency or a
+universal hardware guarantee and does not repair older failed studies.
+
+The workspace command was:
 
 ```text
 cargo test --workspace --exclude motion-android --features motion-desktop/ffmpeg,motion-host/ai-depth --locked --offline --no-fail-fast -- --test-threads=1
 ```
 
-It exited with code 101 and two failed targets. Completed test summaries report
-3,973 passed, one failed and 60 ignored. In addition, `pointwise_fusion` exited
-abnormally without a final summary. Its unreported tests are not passes. The
-desktop unit target's 1,461 passes and 51 existing ignored tests are a subset of
-the workspace results, not an additional total. Ignored controls retain their
-original selection and are not counted as passes.
+Its 348 actual final summary lines total 3,988 passed, two failed and 61 ignored.
+The desktop target's 1,459 passed, two failed and 51 ignored are a subset,
+not an additional total. The failed tests are:
 
-Desktop check, video-enabled debug build, actual shared-window MCP, provenance
-and tool inventory completed successfully after the workspace failure. The
-controller deliberately collected these independent results without changing
-the overall failed disposition. The current PR head's five required CI checks
-also passed, separately from this local result.
+- `engine::failure::composition_tests::timing_admission::unsupported_timing_is_quiet_and_preserves_default_output_channels`
+- `shell::effect_application::tests::recent_menu::an_actual_worker_rejects_stale_menu_targets_without_partial_additions_or_extra_history`
 
-## Offline metadata failure and environment correction
+The first wrapper captured an explicit child stack-overflow report. The second
+captured a nonzero child exit. Neither wrapper printed the numeric child exit
+code. Two Windows reports identify the exact same desktop PE timestamp but do
+not establish which test generated each report. Original dumps are unavailable.
+The bounded failure excerpts preserve this distinction; no assertion was changed.
 
-`motion-model/tests/dependency_boundaries.rs` failed when its unchanged
-`cargo metadata --locked --offline` child could not find the locked
-`alsa v0.9.1` archive. It exited before evaluating dependency-boundary assertions.
-Successful compilation on Windows did not establish a complete all-target
-metadata cache, even with existing unpacked source directories available.
+Desktop check, FFmpeg/AI-depth build, real shared-window MCP, provenance and tool
+inventory passed after the workspace step. Shared-MCP verification is in its
+nested `mcp-ui-smoke.json`, not its empty top-level stdout. Five required PR CI
+checks also passed on the exact head, including macOS Intel. They are separate
+from the failed local combined gate and do not authorize closing issue 82.
 
-The repair populated 215 absent official `static.crates.io` archives in the
-task-owned E-drive Cargo cache. Every download matched the existing Cargo.lock
-checksum before publication. Independent read-back verified all 576 locked
-registry archive checksums, including those present before repair. No new
-dependency, lock, source, test assertion or C-drive cache was modified. The
-repair started no additional Cargo/GPU validator and extracted no archive.
+## Native evidence and limits
 
-This is an environment correction, not a passing test result. The original
-failed test remains failed in the receipt. Its unchanged assertions must run in
-the final integrated regression using the corrected cache; no unchanged full
-suite was retried for this repair.
+The integrated render EXE/PDB were copied and SHA-256 verified before later
+builds. Windows reports illegal instruction at RVA `0x1f02033`; the original
+runtime exception context/dump is absent. Nearest public symbols and static
+on-disk bytes are insufficient to identify the faulting source or instruction.
+The last printed cache-copy test is not proof of the faulting test or thread.
 
-## Native abnormal exit
+The preserved desktop EXE SHA-256 is
+`73e7ea773102f6f1f0835064c47bff09aadd0e85274286de5e096fdeb5b8821e`;
+render EXE SHA-256 is
+`304f134b4ad5477d0e12f4a6853fc9bc4da88d31b480f57198f83e26bd101895`.
+Private PDB/Windows reports are retained outside this public evidence archive.
 
-Cargo reports `pointwise_fusion-e5d71194cb7bcfc4.exe` exiting with
-`0xc0000005 / STATUS_ACCESS_VIOLATION`. The read-only monitor preserved its
-original EXE and PDB before another build could overwrite them and verified both
-copies. The original Windows report was separately preserved and matched to
-the exact executable path. It identifies `StackHash_b0ae`, exception data `8`,
-and an unknown fault offset. No original dump or exception context was recovered.
+Read-only x64 PE/unwind inspection found large fixed stack allocations in the
+preserved desktop image. This is diagnostic evidence, not a root cause: public
+symbol names may be approximate, and prologue metadata excludes recursion,
+dynamic allocations, call chains and the actual test-thread stack limit. The
+image's 1 MiB initial stack reserve does not establish a Rust test-thread limit.
+No stack-size increase, layer disabling, retry or source change was used to
+turn these failures green. A later debugger pass cannot erase an original crash.
 
-The preserved EXE SHA-256 is
-`2765985fefaf6d28461c3e034409827d65ad60db96c7e129a950018abd8006de`;
-the PDB SHA-256 is
-`5e5c468b70768ec930bb4e5d07704eb21d7a98f307fdb50cf30a7c1e3bac2ab8`.
-The report identifier is `9710971d-2c29-4a85-a0c9-79db6a05dc72`.
-Graphics and overlay module presence does not establish causality, and the last
-printed test name does not establish the faulting thread or phase. Root cause
-remains unresolved. The earlier native abnormal exits and failed performance
-studies also remain failed; they are not silently superseded by later passes.
+## Remaining acceptance
 
-## Remaining work
+- Identify and fix the foreground timeline-input regression from measured phases
+- Resolve/dispose of the retained native crashes and both desktop failures
+- Finish the separately drafted optional disk cache, quota/reopen bounds,
+  corruption/fallback controls and real bounded-full-volume recovery
+- Integrate the corrected sources, align with current main and complete full
+  maintained regression plus exact-head cross-platform CI
 
-Three independent components require their own genuine negative/fixed
-controls: terminal source-watch faults after ordinary changes; avoiding an empty
-OS watcher for procedural sources; and removing foreground installation's
-unconditional Info/flush while batching its native GPU upload. Their nine new
-tests preserve all existing test lines. A scratch-copy application proved only
-textual integration; these changes are not accepted by this source's results.
-
-Final acceptance still requires actual combined-source input/playback P95,
-complete maintained regression, native failure investigation/disposition and
-the remaining original issue requirements, including explicit optional disk
-cache and quota/full/corruption qualification. The current memory-only profile
-does not prove those disk-cache requirements. PR 575 remains a draft and issue
-82 remains open. The independently completed main-source issue87 release gate
-is documented [separately](scene3d-main-release-current.md).
+The earlier v5 failed receipt/archive remains preserved. Its offline metadata
+cache repair is not a product fix; the dependency-boundary control passed in
+this newer workspace. That pass does not erase v5's original failure or crashes.
+PR 575 remains a draft and issue 82 remains open.
 
 ## Evidence
 
-Archive: [failed combined gate](data/native-prerender-combined-v5-failed.zip).
-SHA-256: `92ef9c0a83774b134bdc3984a3370075fd8f35de4bd5d299090907c4a37fdaf3`.
-All 18 members were read back byte for byte. It includes the actual terminal
-receipt, workspace logs, strict assessments, desktop/MCP outputs, locked-cache
-repair/read-back records and a bounded native abnormal-exit disposition.
-The preserved EXE/PDB, raw Windows report and any later diagnostics remain
-private forensic artifacts; they are not included in the public evidence ZIP.
+Archive: [failed combined v6 gate](data/native-prerender-combined-v6-failed.zip).
+SHA-256: `764d8edfc7091c7ba4f9faa91f7a62578613c1026b685988fc9672c18b72d5a4`.
+All 23 members were read back byte for byte. The manifest binds actual
+receipts, stdout/stderr, raw performance samples, original strict assessments,
+MCP evidence and bounded native diagnostic records to their hashes. Private
+executables, symbols, raw Windows reports and later reruns are excluded.
