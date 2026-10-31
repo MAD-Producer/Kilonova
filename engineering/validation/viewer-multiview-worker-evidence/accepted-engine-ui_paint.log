@@ -1,0 +1,7 @@
+
+running 2 tests
+test engine::ui_paint::admission_tests::native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout ... ok
+test engine::ui_paint::tests::real_paint_limit_failure_reaches_reply_file_and_stderr_at_default_level ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1557 filtered out; finished in 8.60s
+

@@ -1,0 +1,6 @@
+
+running 1 test
+test engine::precision_capture_tests::real_worker_ui_and_node_pngs_remain_display_encoded_in_all_four_precisions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1558 filtered out; finished in 7.08s
+

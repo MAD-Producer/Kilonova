@@ -452,7 +452,7 @@ impl Shell {
         );
         let viewer = panels::floating_view_styled(panel, size, &paint.styles());
         let atlas = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),
@@ -658,7 +658,7 @@ impl Shell {
             input,
         );
         let atlas = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),
@@ -1280,7 +1280,7 @@ impl Shell {
             let config = self.atlas.config();
             let examples_path = self.smoke.as_ref().unwrap().with_extension("examples.png");
             self.engine.capture_ui(
-                UiFrame {
+                UiFrame { views: None,
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: self.atlas.pixel_data().to_vec(),

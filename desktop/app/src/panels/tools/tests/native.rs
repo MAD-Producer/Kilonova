@@ -63,7 +63,7 @@ pub(in crate::panels::tools) fn capture(
     let composition =
         Some([view.min[0], view.min[1], view.width(), view.height()].map(|v| v * scale));
     let front = e
-        .present_async(crate::engine::UiFrame {
+        .present_async(crate::engine::UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,
@@ -83,7 +83,7 @@ pub(in crate::panels::tools) fn capture(
     crate::native_test_support::capture_ui(
         events,
         e,
-        crate::engine::UiFrame {
+        crate::engine::UiFrame { views: None,
             paint,
             atlas: Some(crate::engine::AtlasUpload {
                 pixels: a.pixel_data().to_vec(),

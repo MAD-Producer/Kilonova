@@ -76,7 +76,7 @@ impl Shell {
             }
         }
         let config = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),

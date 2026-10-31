@@ -1,0 +1,13 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x23644fca030, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x23644fca030, name: ?)
+ERROR motion_studio::engine: capture failed operation=capture_ui request=14 session=1 window=0 phase=capture.presenter elapsed_ms=11 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpA55PYW\stale.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #14 capture_ui 11ms: multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: capture failed operation=capture_ui request=20 session=1 window=0 phase=capture.presenter elapsed_ms=8 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpA55PYW\foreign.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #20 capture_ui 8ms: multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #22 present 0ms: present window=0 logical_size=[96.0, 96.0]: viewer_camera object=998 composition=comp-main frame=10 phase=resolve: camera layer does not exist
+ERROR motion_studio::engine: error #23 present 0ms: present window=0 logical_size=[96.0, 96.0]: multiview phase=frame: per-cell inspection is not connected yet
+ERROR motion_studio::engine: error #25 present 0ms: floating window is closed

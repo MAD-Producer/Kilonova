@@ -172,30 +172,38 @@ impl State {
 }
 
 impl Session {
-    /// Prepare all views before acquiring the owning window's surface once.
-    /// `false` is normal media/exposure/surface waiting. Poll/task failures use
-    /// the existing worker error channel and are terminal for this content key.
-    /// Input/model validation still rejects each explicit invalid request.
-    /// Panics propagate to the existing worker hook; they are never swallowed.
-    pub fn render_views_with_overlay(
-        &mut self,
+    /// Switching the surface back to the original single-view renderer retires
+    /// this group's outputs before that renderer admits another target pair.
+    /// There is one GPU group per Session, not an unbounded cache per window.
+    pub fn clear_view_group(&mut self) -> Result<()> {
+        self.check_thread()?;
+        if self
+            .graphics
+            .as_ref()
+            .is_some_and(|g| g.views.request.is_some())
+        {
+            self.video_frames.cancel_pending_sampling()?;
+            if let Some(g) = self.graphics.as_mut() {
+                g.views = Default::default();
+            }
+        }
+        Ok(())
+    }
+
+    fn views_key(
+        &self,
         owner: u64,
         frame: f64,
         views: &[View<'_>],
-        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
-    ) -> Result<bool> {
+        surface: Option<[u32; 2]>,
+    ) -> Result<Option<Key>> {
         self.check_thread()?;
         validate_views(views)?;
-        if !frame.is_finite() || frame < 0. || frame >= f64::from(self.engine.project().frames) {
-            return Err("multiview phase=request: invalid frame".into());
-        }
         let Some(g) = &self.graphics else {
-            return Ok(false);
+            return Ok(None);
         };
-        let size = [g.config.width, g.config.height];
+        let size = surface.unwrap_or([g.config.width, g.config.height]);
         validate_surface(views, size)?;
-        self.frame = frame;
-        self.observe_preview_pressure()?;
         let quality = self
             .preview_memory
             .quality(self.preview.mode == PreviewMode::High);
@@ -229,7 +237,7 @@ impl Session {
                 [size.0, size.1]
             })
             .collect();
-        let mut key = Key {
+        Ok(Some(Key {
             document: self.document_generation,
             composition: project.composition_id.clone(),
             revision: self.engine.revision(),
@@ -242,7 +250,144 @@ impl Session {
             quality,
             sizes,
             cameras,
+        }))
+    }
+
+    /// A retained group is usable only by the exact document, owner, cameras,
+    /// geometry and quality that produced it. Frozen presentation may ignore
+    /// the shared clock; it must never rewrite that clock or the sampled scene.
+    pub fn view_group_current(&self, owner: u64, views: &[View<'_>], frozen: bool) -> Result<bool> {
+        let Some(mut key) = self.views_key(owner, self.frame, views, None)? else {
+            return Ok(false);
         };
+        let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
+        let Some(published) = &g.views.published else {
+            return Ok(false);
+        };
+        if frozen {
+            key.frame = published.frame;
+        }
+        Ok(key == *published
+            && g.views
+                .request
+                .as_ref()
+                .is_some_and(|request| request.complete && request.failure.is_none()))
+    }
+
+    pub fn present_retained_views_with_overlay(
+        &mut self,
+        owner: u64,
+        views: &[View<'_>],
+        frozen: bool,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<bool> {
+        self.observe_preview_pressure()?;
+        if !self.view_group_current(owner, views, frozen)? {
+            return Ok(false);
+        }
+        let g = self.graphics.as_mut().ok_or("multiview graphics missing")?;
+        let size = [g.config.width, g.config.height];
+        let Some(output) = acquire_preview_surface(g)? else {
+            return Ok(false);
+        };
+        let target = output.texture.create_view(&Default::default());
+        let mut encoder = g.renderer.allocation_command_encoder_for(
+            motion_render::gpu_commands::CommandStage::CompositionAndPresentation,
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("Motion Studio retained views"),
+            },
+        )?;
+        encode_group(
+            g,
+            &self.scene,
+            views,
+            &mut encoder,
+            &target,
+            g.config.format,
+            size,
+        )?;
+        overlay(&g.renderer, &mut encoder, &target);
+        g.renderer
+            .submit_allocated(encoder.finish(), |ledger| g.views.collect(ledger))?;
+        g.renderer.check_health()?;
+        g.renderer.queue.present(output);
+        self.presented += 1;
+        Ok(true)
+    }
+
+    /// Capture uses the completed group, never an unrelated single-view scratch.
+    /// The caller submits the encoder and includes view_group_resource_ledger.
+    pub fn encode_view_group_capture(
+        &self,
+        owner: u64,
+        views: &[View<'_>],
+        encoder: &mut motion_render::AllocationEncoder,
+        output: &wgpu::TextureView,
+        surface: [u32; 2],
+    ) -> Result<()> {
+        let key = self.views_key(owner, self.frame, views, Some(surface))?;
+        let g = self.graphics.as_ref().ok_or("multiview graphics missing")?;
+        if key.as_ref() != g.views.published.as_ref()
+            || !g
+                .views
+                .request
+                .as_ref()
+                .is_some_and(|request| request.complete && request.failure.is_none())
+        {
+            return Err("multiview phase=capture: completed group is no longer current".into());
+        }
+        let placements = placements(&self.scene, views);
+        ViewFramePresenter::default().encode(
+            &g.renderer,
+            &g.views.targets,
+            encoder,
+            output,
+            output.texture().format(),
+            surface,
+            &placements,
+            self.scene.background,
+        )?;
+        Ok(())
+    }
+
+    pub fn view_group_resource_ledger(&self) -> TextureResourceLedger {
+        let mut ledger = TextureResourceLedger::default();
+        if let Some(g) = &self.graphics {
+            g.views.collect(&mut ledger);
+        }
+        ledger
+    }
+
+    /// Prepare all views before acquiring the owning window's surface once.
+    /// `false` is normal media/exposure/surface waiting. Poll/task failures use
+    /// the existing worker error channel and are terminal for this content key.
+    /// Input/model validation still rejects each explicit invalid request.
+    /// Panics propagate to the existing worker hook; they are never swallowed.
+    pub fn render_views_with_overlay(
+        &mut self,
+        owner: u64,
+        frame: f64,
+        views: &[View<'_>],
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<bool> {
+        self.check_thread()?;
+        validate_views(views)?;
+        if !frame.is_finite() || frame < 0. || frame >= f64::from(self.engine.project().frames) {
+            return Err("multiview phase=request: invalid frame".into());
+        }
+        let Some(g) = &self.graphics else {
+            return Ok(false);
+        };
+        let size = [g.config.width, g.config.height];
+        validate_surface(views, size)?;
+        self.frame = frame;
+        self.observe_preview_pressure()?;
+        let quality = self
+            .preview_memory
+            .quality(self.preview.mode == PreviewMode::High);
+        let mut key = self
+            .views_key(owner, frame, views, None)?
+            .ok_or("multiview graphics missing")?;
         let replace = self.graphics.as_ref().is_some_and(|g| {
             g.views
                 .request
@@ -360,26 +505,14 @@ impl Session {
                 label: Some("Motion Studio independent views"),
             },
         )?;
-        let placements = views
-            .iter()
-            .map(|view| {
-                let mut placement = view.placement;
-                if placement.image.is_none() {
-                    placement.viewport =
-                        preview_viewport(placement.viewport, [self.scene.width, self.scene.height]);
-                }
-                placement
-            })
-            .collect::<Vec<_>>();
-        g.views.presenter.encode(
-            &g.renderer,
-            &g.views.targets,
+        encode_group(
+            g,
+            &self.scene,
+            views,
             &mut encoder,
             &view,
             g.config.format,
             size,
-            &placements,
-            self.scene.background,
         )?;
         overlay(&g.renderer, &mut encoder, &view);
         g.renderer
@@ -395,6 +528,41 @@ impl Session {
         }
         Ok(complete)
     }
+}
+
+fn placements(scene: &Scene, views: &[View<'_>]) -> Vec<ViewPlacement> {
+    views
+        .iter()
+        .map(|view| {
+            let mut placement = view.placement;
+            if placement.image.is_none() {
+                placement.viewport =
+                    preview_viewport(placement.viewport, [scene.width, scene.height]);
+            }
+            placement
+        })
+        .collect::<Vec<_>>()
+}
+fn encode_group(
+    g: &mut Graphics,
+    scene: &Scene,
+    views: &[View<'_>],
+    encoder: &mut motion_render::AllocationEncoder,
+    output: &wgpu::TextureView,
+    format: wgpu::TextureFormat,
+    surface: [u32; 2],
+) -> Result<()> {
+    g.views.presenter.encode(
+        &g.renderer,
+        &g.views.targets,
+        encoder,
+        output,
+        format,
+        surface,
+        &placements(scene, views),
+        scene.background,
+    )?;
+    Ok(())
 }
 
 fn validate_views(views: &[View<'_>]) -> Result<()> {

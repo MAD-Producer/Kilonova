@@ -4,7 +4,7 @@ use motion_effects::image_contract::ChannelPrecision;
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
 
 fn frame() -> UiFrame {
-    UiFrame {
+    UiFrame { views: None,
         paint: Default::default(),
         atlas: Some(AtlasUpload {
             pixels: vec![255; 4],

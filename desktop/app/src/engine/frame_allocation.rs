@@ -131,7 +131,7 @@ mod tests {
             8 << 30,
         )
         .unwrap();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint: motion_ui::PaintList::default(),
             atlas: None,
             logical_size: [64., 64.],

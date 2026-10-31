@@ -136,7 +136,7 @@ impl Shell {
             .unwrap()
             .with_extension("onboarding-examples.png");
         self.engine.capture_ui(
-            UiFrame {
+            UiFrame { views: None,
                 paint,
                 atlas: Some(AtlasUpload {
                     pixels: self.atlas.pixel_data().to_vec(),

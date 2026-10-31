@@ -30,6 +30,7 @@ mod frame_capture;
 mod movie_freeze;
 mod frame_allocation;
 mod viewer_inspection;
+pub(crate) mod viewer_frame;
 mod shutdown;
 #[cfg(test)]
 mod native_test_evidence;
@@ -97,6 +98,7 @@ pub struct ViewerInspectionFrame {
 }
 /// CPU draw commands only. All GPU objects stay with the session worker.
 pub struct UiFrame {
+    pub views: Option<viewer_frame::Plan>,
     pub paint: motion_ui::paint::PaintList,
     pub atlas: Option<AtlasUpload>,
     pub logical_size: [f32; 2],
@@ -1850,6 +1852,7 @@ fn handle(
             let mut capture_phase = "capture.session";
             let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
             let result=motion_host::session::with_session(id, |s| {
+            viewer_frame::validate(&ui)?;
             presentation.inspection.reconcile(s);
             capture_phase = "capture.target";
             #[cfg(test)]
@@ -1871,7 +1874,8 @@ fn handle(
             capture_phase = "capture.presenter";
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
+            let mut presenter = if ui.views.is_none() {
+                let source = if ui.composition.is_some() && ui.inspection.channel != motion_render::ViewChannel::Color {
                 &g.scratch.working_front().ok_or("working preview target missing")?.view
             } else { &g.scratch.view };
             let mut presenter = motion_render::Presenter::new_admitted(&g.renderer, source, wgpu::TextureFormat::Rgba8UnormSrgb)
@@ -1882,11 +1886,15 @@ fn handle(
             }
             presentation.inspection.configure_capture(&ui, &g.renderer, &mut presenter)
                 .map_err(|e| format!("phase=capture.inspection: {e}"))?;
+                Some(presenter)
+            } else { None };
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
-            if let Some([x,y,w,h])=ui.composition {
+            if let Some(plan)=&ui.views {
+                s.encode_view_group_capture(ui.window,&plan.borrow(),&mut encoder,target.view(),[width,height])?;
+            } else if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
-                presenter.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
+                presenter.as_mut().ok_or("single-view capture presenter missing")?.encode_view(&g.renderer.queue, &mut encoder, target.view(), None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
                     .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             } else {clear_target(&mut encoder,target.view());}
@@ -1907,7 +1915,8 @@ fn handle(
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
-                presenter.collect_inspection_resources(ledger);
+                if let Some(presenter)=&presenter { presenter.collect_inspection_resources(ledger); }
+                if ui.views.is_some() { ledger.merge(s.view_group_resource_ledger()); }
             }).map_err(|e|e.to_string())?;
             capture_phase = "capture.readback";
             #[cfg(test)]
@@ -2008,6 +2017,9 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             let result=(|| -> motion_host::Result<bool> {
+                viewer_frame::validate(&ui)?;
+                if ui.views.is_some() { presentation.retained = None; }
+                else if ui.composition.is_some() { s.clear_view_group()?; }
                 presentation.inspection.configure(s, &ui).map_err(motion_host::Error::from)?;
                 if ui.composition.is_some() {
                     if let Some(g) = s.graphics.as_mut() {
@@ -2034,12 +2046,15 @@ fn handle(
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
                     let retained=presentation.retained.clone();
-                    let reuse=retained.as_ref().is_some_and(|previous| {
+                    let batch=ui.views.as_ref().map(viewer_frame::Plan::borrow);
+                    let reuse=if let Some(views)=&batch {
+                        s.view_group_current(ui.window,views,frozen)?
+                    } else {retained.as_ref().is_some_and(|previous| {
                         let mut comparison=stamp.clone();
                         if frozen { comparison.frame=previous.frame; }
                         previous==&comparison
                     })
-                        && !s.preview_memory_held && s.last_error.is_none();
+                        && !s.preview_memory_held && s.last_error.is_none()};
                     let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
                     // The overlay targets the swapchain, not the composition scratch texture.
                     let surface_format=g.config.format;
@@ -2063,7 +2078,15 @@ fn handle(
                     #[cfg(test)]
                     diagnostics.native_test_phase("present.host_render");
 
-                    let result=if reuse {
+                    let result=if let Some(views)=&batch {
+                        if reuse {
+                            presentation.composition_reuses+=1;
+                            s.present_retained_views_with_overlay(ui.window,views,frozen,overlay)
+                        } else {
+                            presentation.composition_renders+=1;
+                            s.render_views_with_overlay(ui.window,frame,views,overlay)
+                        }
+                    } else if reuse {
                         presentation.composition_reuses+=1;
                         s.present_retained_with_view(viewport,ui.composition_image,overlay)
                     }else {
@@ -2084,7 +2107,7 @@ fn handle(
                         (Err(primary),None)=>Err(primary),
                         (Err(primary),Some(error))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(motion_host::Error::from(format!("UI overlay window={}: {error}",ui.window)))}),
                     };
-                    presentation.retained=if result.as_ref().is_ok_and(|v|*v)
+                    presentation.retained=if batch.is_none() && result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
                     // Never relabel the frozen texture with the new clock:

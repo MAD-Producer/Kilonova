@@ -65,7 +65,7 @@ fn author_drag_source_history_save_and_native_rendering() {
                 );
                 paint.append(chrome);
                 let cfg = atlas.config();
-                let frame = UiFrame {
+                let frame = UiFrame { views: None,
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: atlas.pixel_data().to_vec(),

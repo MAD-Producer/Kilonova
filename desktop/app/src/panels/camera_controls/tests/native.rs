@@ -124,7 +124,7 @@ fn native_reset_and_bounds_use_main_and_floating_routes_in_both_languages_at_fou
                     ));
                     let report = engine
                         .capture_ui(
-                            crate::engine::UiFrame {
+                            crate::engine::UiFrame { views: None,
                                 paint,
                                 atlas: Some(crate::engine::AtlasUpload {
                                     pixels: atlas.pixel_data().to_vec(),

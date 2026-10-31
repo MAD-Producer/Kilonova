@@ -443,7 +443,7 @@ impl Shell {
             None
         };
         let view = panels::composition_view_styled(self.workspace.display_root(), size, &paint.styles());
-        UiFrame {
+        UiFrame { views: None,
             paint,
             atlas,
             logical_size: size,
@@ -841,7 +841,7 @@ impl Shell {
         });
         self.rendering.insert(
             key,
-            self.present_ui_async(UiFrame {
+            self.present_ui_async(UiFrame { views: None,
                 paint,
                 atlas,
                 logical_size: size,

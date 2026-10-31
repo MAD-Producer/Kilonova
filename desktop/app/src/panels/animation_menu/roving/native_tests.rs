@@ -176,7 +176,7 @@ fn native_roving_menu_captures_conversion_fixed_and_mixed_states_in_both_languag
             crate::native_test_support::capture_ui(
                 &mut events,
                 &engine,
-                UiFrame {
+                UiFrame { views: None,
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: atlas.pixel_data().to_vec(),

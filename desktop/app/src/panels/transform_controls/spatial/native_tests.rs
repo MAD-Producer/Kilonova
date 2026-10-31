@@ -119,7 +119,7 @@ fn capture(
     };
     let rect = |r: Rect| [r.min[0], r.min[1], r.width(), r.height()];
     let config = atlas.config();
-    let frame = UiFrame {
+    let frame = UiFrame { views: None,
         paint,
         atlas: Some(AtlasUpload {
             pixels: atlas.pixel_data().to_vec(),
@@ -134,7 +134,7 @@ fn capture(
         node_preview: None,
     };
     let presented = engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: SIZE,

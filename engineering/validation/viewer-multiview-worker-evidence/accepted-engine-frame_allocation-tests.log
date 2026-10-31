@@ -1,0 +1,8 @@
+
+running 3 tests
+test engine::frame_allocation::tests::failed_present_publishes_its_actual_request_and_preserves_the_original_error ... ok
+test engine::frame_allocation::tests::readout_does_not_queue_behind_a_blocked_worker ... ok
+test engine::frame_allocation::tests::saturation_escalates_once_and_resets_with_default_file_and_stderr_channels ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1556 filtered out; finished in 6.32s
+

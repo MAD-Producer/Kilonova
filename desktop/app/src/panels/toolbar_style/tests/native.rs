@@ -64,7 +64,7 @@ fn capture(
     // CaptureUi consumes the retained scene. Drive the actual Present path
     // first, while pumping messages on the native window owner thread.
     let front = engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,
@@ -80,7 +80,7 @@ fn capture(
             .unwrap()
             .unwrap()
     );
-    let ui = UiFrame {
+    let ui = UiFrame { views: None,
         paint,
         atlas: Some(AtlasUpload {
             pixels: atlas.pixel_data().to_vec(),
@@ -272,7 +272,7 @@ fn native_toolbar_controls_capture_real_preview_and_cancel_at_float_boundary() {
     crate::native_test_support::capture_ui(
         &mut events,
         &engine,
-        UiFrame {
+        UiFrame { views: None,
             paint: float_paint,
             atlas: Some(AtlasUpload {
                 pixels: atlas.pixel_data().to_vec(),
