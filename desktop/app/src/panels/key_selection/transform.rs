@@ -22,6 +22,9 @@ struct SpatialOccupancy {
 }
 impl Plan {
     pub fn capture(selected: &Set, state: &Value) -> motion_core::Result<Self> {
+        if selected.has_local() {
+            return Err(Error::Invalid("local key timing gestures require a layer-clock transform plan".into()));
+        }
         let total = state["project"]["frames"]
             .as_u64()
             .and_then(|n| u32::try_from(n).ok())
@@ -261,7 +264,7 @@ pub(super) fn nudge(
     ) {
         return false;
     }
-    if !panels.selected_keys.writable(state) {
+    if !panels.selected_keys.writable(state) || panels.selected_keys.has_local() {
         unavailable(panels);
         return true;
     }

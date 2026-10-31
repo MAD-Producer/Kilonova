@@ -10,6 +10,8 @@ mod sources;
 mod ui;
 #[path = "transform_tests.rs"]
 mod transforms;
+#[path = "local_tests.rs"]
+mod local;
 
 fn fixture() -> Engine {
     let mut project = Project::new(640, 360, 30, 120).unwrap();

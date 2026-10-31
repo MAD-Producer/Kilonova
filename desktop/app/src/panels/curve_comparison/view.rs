@@ -574,6 +574,8 @@ pub(in crate::panels) fn render(
                     let hit = styles.metric("graph.handle.hit_radius", 9.);
                     paint::diamond(&mut curves, point, radius, color(&styles, index));
                     match address {
+                    key_selection::AddressedKey::Local(key)=>super::super::key_selection::ui::local_mark(
+                        &mut curves,panels,key,point,radius,Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.)),
                     key_selection::AddressedKey::Spatial(key)=>super::super::key_selection::ui::spatial_mark(
                         &mut curves,panels,key,point,radius,Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.)),
                     key_selection::AddressedKey::Frame(key)=>super::super::key_selection::ui::graph_mark(

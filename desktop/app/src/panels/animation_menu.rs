@@ -13,6 +13,7 @@ pub(crate) struct MenuScope {
     focused: Option<Panel>,
     keys: Vec<motion_core::KeyframeSelection>,
     spatial_keys: Vec<(motion_core::KeyframeTarget, Vec<u64>)>,
+    local_keys: Vec<(motion_core::KeyframeTarget, Vec<i32>)>,
 }
 impl MenuScope {
     pub(super) fn of(panels: &Panels, state: &Value) -> Self {
@@ -20,6 +21,9 @@ impl MenuScope {
             source: crate::layer_clipboard::KeyframeSource::of(state),
             objects: panels.selection_ids(),
             focused: panels.focused,
+            local_keys: if panels.selected_keys.status(state)==super::key_selection::Status::Current {
+                panels.selected_keys.local_selections()
+            } else {vec![]},
             spatial_keys: if panels.selected_keys.status(state)==super::key_selection::Status::Current {
                 panels.selected_keys.spatial_selections()
             } else {vec![]},

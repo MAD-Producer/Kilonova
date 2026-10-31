@@ -21,6 +21,14 @@ pub(crate) struct Key {
     pub frame: u32,
 }
 
+/// Authored integer storage identity, independent of the fractional or reversed
+/// composition-time projection. Never encode this address in `Key::frame`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct LocalKey {
+    pub target: KeyframeTarget,
+    pub frame: i32,
+}
+
 /// Persistent identity never aliases a rounded composition frame. Distinct
 /// spatial keys may legitimately have the same solved time.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,7 +40,13 @@ pub(crate) struct SpatialKey {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum AddressedKey {
     Frame(Key),
+    Local(LocalKey),
     Spatial(SpatialKey),
+}
+impl From<LocalKey> for AddressedKey {
+    fn from(key: LocalKey) -> Self {
+        Self::Local(key)
+    }
 }
 impl From<Key> for AddressedKey {
     fn from(key: Key) -> Self {
@@ -48,6 +62,7 @@ impl AddressedKey {
     fn target(&self) -> &KeyframeTarget {
         match self {
             Self::Frame(k) => &k.target,
+            Self::Local(k) => &k.target,
             Self::Spatial(k) => &k.target,
         }
     }
@@ -91,6 +106,7 @@ impl Scope {
 struct Channel {
     target: Option<KeyframeTarget>,
     frames: BTreeSet<u32>,
+    local_frames: BTreeSet<i32>,
     ids: BTreeSet<u64>,
 }
 impl Channel {
@@ -103,13 +119,20 @@ impl Channel {
             .saturating_add(count.saturating_mul(11))
     }
     fn retained_bytes(&self, address: &str) -> usize {
-        Self::bytes(address, self.frames.len()).saturating_add(self.ids.len().saturating_mul(21))
+        Self::bytes(address, self.frames.len())
+            .saturating_add(self.local_frames.len().saturating_mul(12))
+            .saturating_add(self.ids.len().saturating_mul(21))
     }
     fn insert(&mut self, key: &AddressedKey, toggle: bool) {
         match key {
             AddressedKey::Frame(k) => {
                 if !toggle || !self.frames.remove(&k.frame) {
                     self.frames.insert(k.frame);
+                }
+            }
+            AddressedKey::Local(k) => {
+                if !toggle || !self.local_frames.remove(&k.frame) {
+                    self.local_frames.insert(k.frame);
                 }
             }
             AddressedKey::Spatial(k) => {
@@ -120,7 +143,7 @@ impl Channel {
         }
     }
     fn empty(&self) -> bool {
-        self.frames.is_empty() && self.ids.is_empty()
+        self.frames.is_empty() && self.local_frames.is_empty() && self.ids.is_empty()
     }
     fn keys(&self) -> impl Iterator<Item = AddressedKey> + '_ {
         self.frames
@@ -134,6 +157,15 @@ impl Channel {
                     .into(),
                 )
             })
+            .chain(self.local_frames.iter().filter_map(|frame| {
+                Some(
+                    LocalKey {
+                        target: self.target.clone()?,
+                        frame: *frame,
+                    }
+                    .into(),
+                )
+            }))
             .chain(self.ids.iter().filter_map(|id| {
                 Some(
                     SpatialKey {
@@ -153,6 +185,7 @@ pub(crate) struct Set {
     scope: Option<Scope>,
     channels: BTreeMap<String, Channel>,
     primary: Option<Key>,
+    local_primary: Option<LocalKey>,
     spatial_primary: Option<SpatialKey>,
     // A valid authoritative document revision permits reusing presence checks.
     // Missing revision disables caching; view-only changes do not invalidate it.
@@ -165,6 +198,7 @@ impl Set {
             && self.scope == other.scope
             && self.channels == other.channels
             && self.primary == other.primary
+            && self.local_primary == other.local_primary
             && self.spatial_primary == other.spatial_primary
     }
     pub fn owns_keys(&self) -> bool {
@@ -205,19 +239,34 @@ impl Set {
         self.spatial_primary
             .clone()
             .map(AddressedKey::Spatial)
+            .or_else(|| self.local_primary.clone().map(AddressedKey::Local))
             .or_else(|| self.primary.clone().map(AddressedKey::Frame))
     }
     fn set_primary(&mut self, key: Option<AddressedKey>) {
         self.primary = None;
+        self.local_primary = None;
         self.spatial_primary = None;
         match key {
             Some(AddressedKey::Frame(k)) => self.primary = Some(k),
+            Some(AddressedKey::Local(k)) => self.local_primary = Some(k),
             Some(AddressedKey::Spatial(k)) => self.spatial_primary = Some(k),
             None => {}
         }
     }
     pub fn has_spatial(&self) -> bool {
         self.channels.values().any(|c| !c.ids.is_empty())
+    }
+    pub fn has_local(&self) -> bool {
+        self.channels.values().any(|c| !c.local_frames.is_empty())
+    }
+    pub fn local_selections(&self) -> Vec<(KeyframeTarget, Vec<i32>)> {
+        self.channels
+            .values()
+            .filter_map(|c| {
+                (!c.local_frames.is_empty())
+                    .then(|| Some((c.target.clone()?, c.local_frames.iter().copied().collect())))?
+            })
+            .collect()
     }
     pub fn spatial_selections(&self) -> Vec<(KeyframeTarget, Vec<u64>)> {
         self.channels
@@ -231,6 +280,10 @@ impl Set {
     pub(super) fn contains_addressed(&self, key: &AddressedKey) -> bool {
         match key {
             AddressedKey::Frame(k) => self.contains(k),
+            AddressedKey::Local(k) => self
+                .channels
+                .values()
+                .any(|c| c.target.as_ref() == Some(&k.target) && c.local_frames.contains(&k.frame)),
             AddressedKey::Spatial(k) => self
                 .channels
                 .values()
@@ -245,6 +298,11 @@ impl Set {
     }
 
     fn translated(&self, delta: i32) -> motion_core::Result<Self> {
+        if self.has_local() {
+            return Err(Error::Invalid(
+                "local key selection requires its layer-clock transform plan".into(),
+            ));
+        }
         let shifted = |frame: u32| {
             u32::try_from(i64::from(frame) + i64::from(delta))
                 .map_err(|_| Error::Invalid("key selection time overflow".into()))
@@ -277,6 +335,7 @@ impl Set {
         self.scope = Scope::of(state);
         self.channels.clear();
         self.primary = None;
+        self.local_primary = None;
         self.spatial_primary = None;
         self.validated.set(None);
     }
@@ -333,6 +392,11 @@ impl Set {
             }
             let old = channel.retained_bytes(&address);
             channel.insert(&key, false);
+            if !channel.frames.is_empty() && !channel.local_frames.is_empty() {
+                return Err(Error::Invalid(
+                    "key selection mixes local and composition addresses for one channel".into(),
+                ));
+            }
             bytes = bytes.saturating_add(channel.retained_bytes(&address).saturating_sub(old));
             if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES {
                 return Err(Error::Invalid(
@@ -360,6 +424,11 @@ impl Set {
             for key in channel.keys() {
                 merged.insert(&key, mode == Mode::Toggle);
             }
+            if !merged.frames.is_empty() && !merged.local_frames.is_empty() {
+                return Err(Error::Invalid(
+                    "key selection mixes local and composition addresses for one channel".into(),
+                ));
+            }
             if !merged.empty() {
                 bytes = bytes.saturating_add(merged.retained_bytes(address));
             }
@@ -379,6 +448,7 @@ impl Set {
                 .or_insert_with(|| Channel {
                     target: incoming.target.clone(),
                     frames: BTreeSet::new(),
+                    local_frames: BTreeSet::new(),
                     ids: BTreeSet::new(),
                 });
             for key in incoming.keys() {
@@ -427,6 +497,8 @@ impl Set {
         let current = self.channels.values().all(|channel| {
             channel.target.as_ref().is_some_and(|target| {
                 channel.frames.iter().all(|&frame| present(target, frame))
+                    && (channel.local_frames.is_empty()
+                        || source::contains_local(state, target, &channel.local_frames))
                     && (channel.ids.is_empty()
                         || source::contains_spatial(state, target, &channel.ids))
             })
@@ -489,6 +561,7 @@ pub(super) fn ease_command(
         Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing
     ) || !panels.selected_keys.writable(state)
         || panels.selected_keys.has_spatial()
+        || panels.selected_keys.has_local()
     {
         return None;
     }
@@ -497,6 +570,61 @@ pub(super) fn ease_command(
         incoming: command != Shortcut::EaseOutgoing,
         outgoing: command != Shortcut::EaseIncoming,
     })
+}
+
+pub(super) fn ease_commands(
+    panels: &super::Panels,
+    state: &Value,
+    command: crate::shortcuts::Command,
+) -> Option<Vec<motion_core::Command>> {
+    use crate::shortcuts::Command as Shortcut;
+    if !panels.selected_keys.has_local() {
+        return ease_command(panels, state, command).map(|edit| vec![edit]);
+    }
+    if !matches!(
+        command,
+        Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing
+    ) || !panels.selected_keys.writable(state)
+        || panels.selected_keys.has_spatial()
+    {
+        return None;
+    }
+    let incoming = command != Shortcut::EaseOutgoing;
+    let outgoing = command != Shortcut::EaseIncoming;
+    let mut edits = Vec::new();
+    let selections = panels.selected_keys.selections();
+    if !selections.is_empty() {
+        edits.push(motion_core::Command::EaseKeyframes {
+            selections,
+            incoming,
+            outgoing,
+        });
+    }
+    for (target, frames) in panels.selected_keys.local_selections() {
+        let clock = observe!(
+            "selection.local_ease_clock",
+            source::clock(state, &target),
+            "object={} phase=ease fallback=disable_key_edit",
+            target.object()
+        )
+        .ok()?;
+        // Menu sides follow increasing composition time; storage follows local
+        // time. A reverse clock swaps the two once, including mixed selections.
+        let (incoming, outgoing) = if clock.rate() < 0. {
+            (outgoing, incoming)
+        } else {
+            (incoming, outgoing)
+        };
+        edits.push(motion_core::Command::LocalKeyframes {
+            target,
+            edit: motion_core::LocalKeyEdit::Ease {
+                frames,
+                incoming,
+                outgoing,
+            },
+        });
+    }
+    (!edits.is_empty()).then_some(edits)
 }
 
 pub(super) fn delete_available(panels: &super::Panels, state: &Value) -> bool {
@@ -526,6 +654,16 @@ pub(super) fn delete_commands(
     if !selections.is_empty() {
         commands.push(motion_core::Command::DeleteKeyframes { selections });
     }
+    commands.extend(
+        panels
+            .selected_keys
+            .local_selections()
+            .into_iter()
+            .map(|(target, frames)| motion_core::Command::LocalKeyframes {
+                target,
+                edit: motion_core::LocalKeyEdit::Delete { frames },
+            }),
+    );
     for (target, ids) in panels.selected_keys.spatial_selections() {
         let (track, _) = source::track(state, &target)?;
         let keys = track["spatial_animation"]["keys"].as_array()?;
@@ -631,7 +769,7 @@ pub(super) fn shortcut(
     let commands = if delete {
         delete_commands(panels, state)
     } else {
-        ease_command(panels, state, command).map(|command| vec![command])
+        ease_commands(panels, state, command)
     };
     if let Some(commands) = commands {
         out.push(super::Action::EditorAction {

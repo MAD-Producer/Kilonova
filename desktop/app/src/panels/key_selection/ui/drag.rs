@@ -84,7 +84,7 @@ pub(super) fn arm(
     candidates: &[f64],
     out: &mut Vec<Action>,
 ) {
-    if chosen.has_spatial() && (copy || motion.is_some()) {
+    if chosen.has_local() || chosen.has_spatial() && (copy || motion.is_some()) {
         out.extend(crate::panels::cancel_interaction(panels));
         transform::unavailable(panels);
         return;

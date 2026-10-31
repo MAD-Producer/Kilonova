@@ -491,7 +491,26 @@ pub(in crate::panels) fn spatial_mark(
     radius: f32,
     hit: Rect,
 ) {
-    let key=AddressedKey::Spatial(key);
+    addressed_mark(list, panels, AddressedKey::Spatial(key), point, radius, hit);
+}
+pub(in crate::panels) fn local_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: LocalKey,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+) {
+    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit);
+}
+fn addressed_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: AddressedKey,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+) {
     let styles=list.styles();
     if panels.key_gestures.current && panels.selected_keys.contains_addressed(&key) {
         paint::diamond(list,point,radius+styles.metric("border",1.),styles.color("text"));
@@ -676,13 +695,15 @@ fn apply(panels: &mut Panels, state: &Value, batch: Batch, mode: Mode) {
     project_primary(panels, state);
 }
 pub(super) fn project_primary(panels: &mut Panels, state: &Value) {
-    if let Some(key) = panels.selected_keys.spatial_primary.clone() {
+    let exact_target = panels.selected_keys.local_primary.as_ref().map(|k| k.target.clone())
+        .or_else(|| panels.selected_keys.spatial_primary.as_ref().map(|k| k.target.clone()));
+    if let Some(target) = exact_target {
         panels.animation_controls.clear_key();
         panels.path_controls.clear_mask_selection();
         panels.audio_controls.clear_selection();
         crate::panels::effect_timeline::clear_projected_key(panels);
         panels.timeline.graph_box.clear_selection();
-        let object = key.target.object();
+        let object = target.object();
         panels.selected = Some(object);
         panels.selected_layers.clear();
         if object != 0 {
@@ -693,7 +714,7 @@ pub(super) fn project_primary(panels: &mut Panels, state: &Value) {
             object,
             property,
             axis,
-        } = key.target
+        } = target
         {
             panels
                 .animation_controls
@@ -814,7 +835,7 @@ pub(in crate::panels) fn finish(
             .hits
             .channels
             .values()
-            .map(|c| c.frames.len() + c.ids.len())
+            .map(|c| c.frames.len() + c.local_frames.len() + c.ids.len())
             .sum::<usize>();
         panels.selected_keys = before.clone();
         if frame.mode == Mode::Replace && already_selected {
