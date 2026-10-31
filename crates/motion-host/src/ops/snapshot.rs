@@ -81,6 +81,7 @@ impl Session {
         if let Some(g) = &self.graphics {
             ledger.merge(g.renderer.texture_resource_ledger());
             g.scratch.collect_texture_resources(&mut ledger);
+            g.views.collect(&mut ledger);
         }
         if let Some(renderer) = &self.editor_renderer {
             ledger.merge(renderer.texture_resource_ledger());
@@ -166,7 +167,7 @@ impl Session {
             "resourceLedgerVersion":1,
             "memoryBreakdown":self.graphics.as_ref().map(|g| {
                 let memory=g.renderer.texture_memory_breakdown();
-                let target=g.scratch.texture_bytes();
+                let target=g.scratch.texture_bytes()+g.views.texture_bytes();
                 json!({"version":1,"scope":"logical_texture_capacity",
                     "rendererBytes":memory.total_bytes(),"categories":memory,
                     "legacyTextureBytes":g.renderer.texture_bytes(),
@@ -415,7 +416,7 @@ impl Session {
             "preview":self.preview_info(),
             "graphics":self.graphics.as_ref().map(|g|json!({"width":g.config.width,"height":g.config.height,
                 "renderWidth":g.scratch.width,"renderHeight":g.scratch.height,
-                "renderTargetBytes":g.scratch.texture_bytes(),
+                "renderTargetBytes":g.scratch.texture_bytes()+g.views.texture_bytes(),
                 "imageReadback":g.renderer.image_readback_info(),
                 "timestampReadback":g.timer.as_ref().map(motion_render::GpuTimer::readback_info),
                 "adapter":g.renderer.adapter_info.name,

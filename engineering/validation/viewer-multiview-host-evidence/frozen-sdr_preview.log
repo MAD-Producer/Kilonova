@@ -1,0 +1,11 @@
+
+running 6 tests
+test conversion_is_required_before_commit_and_foreign_preview_owners_or_encoders_refuse ... ok
+test failed_output_uniform_admission_keeps_the_front_and_blocks_unconverted_publication ... ok
+test native_working_front_snapshot_preserves_bytes_across_four_precisions ... ok
+test preview_refusals_preserve_displayed_pixels_and_mode_or_extent_changes_replace_the_working_candidate ... ok
+test retained_sdr_fronts_budget_native_and_output_storage_and_reuse_both_slots ... ok
+test snapshot_display_matches_live_sdr_with_highlights_and_transparency ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.90s
+

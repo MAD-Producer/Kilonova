@@ -51,18 +51,28 @@ impl ViewFrameTargets {
         }
         self.slots.truncate(self.visible);
     }
-    fn prepare(&mut self, renderer: &Renderer, sizes: &[[u32; 2]]) -> Result<(), RenderError> {
+    fn prepare(
+        &mut self,
+        renderer: &Renderer,
+        sizes: &[[u32; 2]],
+        reserved: u64,
+    ) -> Result<(), RenderError> {
         view_count(sizes.len())?;
         renderer.check_health()?;
         // Admit the complete group, including old fronts, old layout slots and
         // placeholder fronts for newly created slots. Individual Sdr targets'
         // per-slot checks cannot enforce this combined allowance.
-        let mut required: u64 = self.slots.iter().map(|slot| slot.retained_bytes()).sum();
+        let mut required: u64 = self
+            .slots
+            .iter()
+            .map(|slot| slot.retained_bytes())
+            .sum::<u64>()
+            .saturating_add(reserved);
         for (index, size) in sizes.iter().enumerate() {
             let bytes = SdrPreviewFrameTargets::estimated_slot_bytes(renderer, *size)?;
-            required += bytes;
+            required = required.saturating_add(bytes);
             if index >= self.slots.len() {
-                required += bytes;
+                required = required.saturating_add(bytes);
             }
         }
         let budget = renderer.memory_policy().preview_target_budget_bytes;
@@ -105,6 +115,22 @@ impl ViewFrameTargets {
         &mut self,
         renderer: &mut Renderer,
         sizes: &[[u32; 2]],
+        encode: impl FnMut(
+            &mut Renderer,
+            usize,
+            &RenderTarget,
+            &mut AllocationEncoder,
+        ) -> Result<bool, RenderError>,
+    ) -> Result<bool, RenderError> {
+        self.update_with_reserved(renderer, sizes, 0, encode)
+    }
+    /// Other preview outputs retained by the same surface owner share this
+    /// allowance. They remain owned by the caller and are never evicted here.
+    pub fn update_with_reserved(
+        &mut self,
+        renderer: &mut Renderer,
+        sizes: &[[u32; 2]],
+        reserved: u64,
         mut encode: impl FnMut(
             &mut Renderer,
             usize,
@@ -113,7 +139,7 @@ impl ViewFrameTargets {
         ) -> Result<bool, RenderError>,
     ) -> Result<bool, RenderError> {
         let result = (|| {
-            self.prepare(renderer, sizes)?;
+            self.prepare(renderer, sizes, reserved)?;
             for index in 0..sizes.len() {
                 let mut encoder =
                     renderer.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {

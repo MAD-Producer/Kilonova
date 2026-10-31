@@ -1,0 +1,28 @@
+1793428450.745 INFO [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] motion_studio::logging: logging initialized level=INFO
+1793428450.774 INFO [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpnpodbO\project
+1793428450.774 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793428450.775 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpnpodbO\project
+1793428455.542 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793428455.542 INFO [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpnpodbO\project 4768ms
+1793428455.697 ERROR [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793428455.697 ERROR [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26c57b04810, name: ?)
+1793428455.697 ERROR [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793428455.697 ERROR [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26c57b04810, name: ?)
+1793428455.787 INFO [engine::multiview_tests::native_worker_group_uses_default_error_channels_and_recovers_without_project_edits] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793428455.983 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793428456.037 INFO [motion-engine] motion_studio::engine: start #2 state
+1793428456.039 INFO [motion-engine] motion_studio::engine: start #3 test_study
+1793428456.066 INFO [motion-engine] motion_studio::engine: start #4 test_study
+1793428456.068 INFO [motion-engine] motion_studio::engine: start #5 test_study
+1793428456.084 INFO [motion-engine] motion_studio::engine: start #6 test_study
+1793428456.084 ERROR [motion-engine] motion_studio::engine: error #6 test_study 0ms: viewer_camera object=998 composition=comp-main frame=0 phase=resolve: camera layer does not exist
+1793428456.085 INFO [motion-engine] motion_studio::engine: start #7 test_study
+1793428456.087 INFO [motion-engine] motion_studio::engine: start #8 state
+1793428456.088 INFO [motion-engine] motion_studio::engine: start #9 shutdown
+1793428456.088 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793428456.088 INFO [motion-engine] motion_studio::engine::shutdown: start #10 shutdown_cleanup session=1
+1793428456.110 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793428456.111 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793428456.111 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

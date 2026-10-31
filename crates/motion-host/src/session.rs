@@ -40,6 +40,7 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+pub mod viewer;
 #[cfg(feature = "ai-depth")]
 mod depth;
 #[cfg(test)]
@@ -85,6 +86,7 @@ pub struct Graphics {
     pub surface: wgpu::Surface<'static>,
     pub renderer: Renderer,
     pub scratch: PreviewFrameTargets,
+    pub(crate) views: viewer::State,
     pub actual_preview_quality: Option<motion_render::preview_memory::PreviewMemoryQuality>,
     last_canvas: [u32; 2],
     last_background: [f32; 4],
@@ -383,7 +385,10 @@ impl Session {
         self.preview_video.clear();
         self.preview_memory = Default::default();
         self.memory_context = None;
-        if let Some(g) = &mut self.graphics { g.scratch.invalidate(); g.actual_preview_quality = None; }
+        if let Some(g) = &mut self.graphics {
+            g.scratch.invalidate(); g.actual_preview_quality = None;
+            g.views = Default::default();
+        }
         self.audio_mixer = None;
         self.root = root;
         self.font_store = None;
@@ -463,6 +468,7 @@ impl Session {
             surface,
             renderer,
             scratch,
+            views: Default::default(),
             actual_preview_quality: None,
             last_canvas: [self.scene.width, self.scene.height],
             last_background: self.scene.background,
@@ -1146,7 +1152,7 @@ pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
         if let Some(g) = &session.graphics {
             graphics += 1;
             assets += g.renderer.texture_bytes();
-            targets += g.scratch.texture_bytes();
+            targets += g.scratch.texture_bytes() + g.views.texture_bytes();
         }
     }
     resource_observation::report(unresolved, first, began);

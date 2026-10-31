@@ -1,0 +1,10 @@
+{
+  "authoredStateUnchanged": true,
+  "limit": 2690811,
+  "oldFactoryRetained": true,
+  "oldFrontPresentedUnderPressure": true,
+  "pixelsEqual": true,
+  "refusal": "GPU validation: buffer size=32 phase=initialize label=Motion Studio canvas navigation: GPU validation: admitted render allocations exceed configured combined budget required_bytes=2690812 budget_bytes=2690811",
+  "replacementRecovered": true,
+  "required": 2690812
+}

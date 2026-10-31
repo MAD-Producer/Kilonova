@@ -76,6 +76,9 @@ pub(crate) struct SamplingPreview {
     request: Option<Request>,
 }
 impl SamplingPreview {
+    pub(super) fn document(&self) -> Option<&ExposureDocument> {
+        self.document.as_ref()
+    }
     pub(crate) fn required(&self) -> bool {
         self.document.is_some()
     }

@@ -79,6 +79,8 @@ mod native_gpu_identity;
 mod memory_lifecycle_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod surface_admission_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod multiview_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit

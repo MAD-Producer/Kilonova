@@ -233,7 +233,7 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 "renderWidth":g.scratch.width,"renderHeight":g.scratch.height,
                 "adapter":g.renderer.adapter_info.name,"driver":g.renderer.adapter_info.driver,
                 "driverInfo":g.renderer.adapter_info.driver_info,"backend":format!("{:?}",g.renderer.adapter_info.backend),
-                "assetTextureBytes":g.renderer.texture_bytes(),"renderTargetBytes":g.scratch.texture_bytes(),
+                "assetTextureBytes":g.renderer.texture_bytes(),"renderTargetBytes":g.scratch.texture_bytes()+g.views.texture_bytes(),
                 "imageReadback":g.renderer.image_readback_info(),
                 "timestampReadback":g.timer.as_ref().map(GpuTimer::readback_info),
                 "gpuCommands":g.renderer.command_observer().map(|observer| observer.snapshot()),

@@ -12,6 +12,57 @@ const COLORS: [[f64; 4]; 4] = [
     [1., 1., 0., 1.],
 ];
 
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn retained_single_view_outputs_share_the_group_budget_without_overflow() {
+    let mut renderer = new_renderer(ChannelPrecision::Unorm8);
+    let mut targets = ViewFrameTargets::default();
+    let mut policy = renderer.memory_policy();
+    let reserved = 123;
+    let required = 2 * 8 * 8 * 4 + reserved;
+    policy.preview_target_budget_bytes = required - 1;
+    renderer.set_memory_policy(policy).unwrap();
+    let error = targets
+        .update_with_reserved(&mut renderer, &[[8, 8]], reserved, |_, _, _, _| {
+            panic!("combined target refusal must precede encoding")
+        })
+        .unwrap_err();
+    assert!(
+        matches!(error.resource_rejection(), Some(motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::PreviewTarget,
+        required_bytes, budget_bytes,
+    }) if *required_bytes == required && *budget_bytes == required - 1)
+    );
+    assert!(targets.is_empty());
+    policy.preview_target_budget_bytes = required;
+    renderer.set_memory_policy(policy).unwrap();
+    assert!(targets
+        .update_with_reserved(
+            &mut renderer,
+            &[[8, 8]],
+            reserved,
+            |_, _, target, encoder| {
+                clear(encoder, target, COLORS[0]);
+                Ok(true)
+            }
+        )
+        .unwrap());
+    let original = bytes(&renderer, targets.output(0).unwrap());
+    let error = targets
+        .update_with_reserved(&mut renderer, &[[8, 8]], u64::MAX, |_, _, _, _| {
+            panic!("overflowed reservation must be refused")
+        })
+        .unwrap_err();
+    assert!(matches!(
+        error.resource_rejection(),
+        Some(motion_render::ResourceRejection::Budget {
+            required_bytes: u64::MAX,
+            ..
+        })
+    ));
+    assert_eq!(bytes(&renderer, targets.output(0).unwrap()), original);
+}
+
 fn new_renderer(precision: ChannelPrecision) -> Renderer {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
