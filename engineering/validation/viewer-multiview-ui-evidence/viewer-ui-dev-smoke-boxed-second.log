@@ -1,0 +1,10 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ae1a9b15e0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1ae1a9b15e0, name: ?)
+ERROR motion_studio::engine: capture failed operation=capture_ui request=53 session=1 window=0 phase=capture.presenter elapsed_ms=12 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-boxed-smoke/report.maximize-3.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #53 capture_ui 12ms: multiview phase=capture: completed group is no longer current
+ERROR motion_studio: desktop failed: 6784ms reason=multiview phase=capture: completed group is no longer current
+Error: "multiview phase=capture: completed group is no longer current"

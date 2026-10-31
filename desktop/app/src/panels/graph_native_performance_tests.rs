@@ -408,7 +408,7 @@ fn configure(shell: &mut Shell, catalogue: &Value, kind: Kind, speed: bool, zoom
             40,
         ),
     }
-    shell.panels = p;
+    shell.panels = Box::new(p);
 }
 
 fn performance(engine: &DesktopEngine) -> Value {

@@ -12,6 +12,18 @@ impl Shell {
         }
     }
     pub(crate) fn finish_close(&mut self) {
+        if let Some((_,before))=self.panels.composition.pan.take(){
+            self.panels.composition.navigation=before;
+            let active=self.panels.viewer_views.settings.active();
+            if let Some(view)=self.panels.viewer_views.settings.view_mut(active){view.navigation=before;}
+        }
+        for i in 0..self.panels.viewer_views.settings.layout().count(){
+            if let Some(view)=self.panels.viewer_views.settings.view_mut(i){self.panels.viewer_views.history[i].cancel(view);}
+        }
+        if self.workspace.viewer_views!=self.panels.viewer_views.settings && self.panels.viewer_views.settings.valid(){
+            self.workspace.viewer_views=self.panels.viewer_views.settings.clone();
+            if let Err(error)=self.workspace.save(&self.layout_path){log::error!("save viewer preferences phase=close path={} reason={error}",self.layout_path.display());}
+        }
         let project_view=&self.panels.project.browser.view;
         if project_view.valid() && self.workspace.project_view!=*project_view {
             self.workspace.project_view=project_view.clone();

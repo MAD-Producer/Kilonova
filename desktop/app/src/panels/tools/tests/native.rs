@@ -12,6 +12,17 @@ pub(in crate::panels::tools) fn draw(
     size: [f32; 2],
     input: Input,
 ) -> (PaintList, Vec<Action>) {
+    // This Engine-only fixture deliberately exercises the legacy host observer
+    // API and renders UiFrame { views: None }. Bind its actual evaluated state
+    // explicitly to cell zero; the product Shell multiview test separately
+    // proves that local gestures do not mutate that global observer.
+    let state=e.state().unwrap();
+    if state["observing"]==true {
+        p.viewer_views.settings.view_mut(0).unwrap().mode=match state["observationView"].as_str(){
+            Some("top")=>crate::viewer_views::Mode::Top,Some("side")=>crate::viewer_views::Mode::Side,_=>crate::viewer_views::Mode::Free,
+        };
+        p.viewer_views.cache=Some((p.viewer_views.key(&state),vec![state.clone()]));
+    }
     let mut list = PaintList::default();
     let out = if window == 0 {
         crate::panels::chrome(

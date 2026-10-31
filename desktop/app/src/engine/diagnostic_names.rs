@@ -70,6 +70,7 @@ impl Command {
             PreviewInfo(_) => "preview_info",
             CurveGraph { .. } => "curve_graph",
             HitCandidates { .. } => "hit_candidates",
+            ViewerDrag { .. } => "viewer_drag",
             ViewerInput { request, .. } => request.operation(),
             Plugin { .. } => "plugin",
             ColorCurveGraph { .. } => "color_curve_graph",

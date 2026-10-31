@@ -256,6 +256,8 @@ impl Shell {
                     };
                     let paint = draw(&mut self.atlas, &mut panels, &mut engine, &input)?;
                     let mut frame = self.ui_frame(paint, window_size, true);
+                    // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                    frame.views = None;
                     frame.composition = None;
                     frame.composition_image = None;
                     frame.node_preview = None;
@@ -265,7 +267,7 @@ impl Shell {
                         if menu { "-menu" } else { "" }
                     );
                     let path = report.with_extension(format!("{name}.png"));
-                    self.engine.capture_ui(frame, path.clone())?;
+                    self.capture_presented_ui(frame, path.clone())?;
                     let pixels = image::open(&path).map_err(|e| e.to_string())?;
                     let width = (size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
                     let height = (size[1] * pixels.height() as f32 / window_size[1]).round() as u32;

@@ -17,6 +17,7 @@ pub(crate) struct Ticket {
     pub effect: u64,
     pub parameter: String,
     pub kind: Kind,
+    pub view: Option<(u64, usize, crate::viewer_views::View)>,
 }
 impl Ticket {
     pub fn new(state: &Value, object: u64, effect: u64, parameter: &str, kind: Kind) -> Self {
@@ -27,6 +28,7 @@ impl Ticket {
             effect,
             parameter: parameter.into(),
             kind,
+            view: None,
         }
     }
     pub fn current(&self, state: &Value) -> bool {
@@ -89,14 +91,39 @@ pub(crate) fn finish(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    let Some(ticket) = panels.effect_pick.ticket.clone() else {
+    let Some(mut ticket) = panels.effect_pick.ticket.clone() else {
         return;
     };
     let styles = list.styles();
-    let viewer = frames
+    let tiles = frames
         .iter()
         .find(|(p, _)| *p == Panel::Composition)
-        .map(|(_, body)| styled_viewer(*body, &styles));
+        .map(|(_, body)| styled_viewer(*body, &styles))
+        .map(|outer| {
+            observe!(
+                "effect_pick.tiles",
+                panels
+                    .viewer_views
+                    .settings
+                    .layout()
+                    .tiles(outer, styles.metric("viewer.multiview.gap", 2.)),
+                "window={} phase=layout",
+                panels.viewer_views.window
+            )
+        })
+        .transpose();
+    let tiles = match tiles {
+        Ok(Some(tiles)) => tiles,
+        Ok(None) => Vec::new(),
+        Err(_) => return,
+    };
+    // An armed pick owns the click, so the composition wrapper does not activate
+    // another cell first. Resolve the clicked cell here and keep its navigation.
+    let index = tiles
+        .iter()
+        .position(|tile| tile.contains(input.mouse))
+        .unwrap_or(panels.viewer_views.settings.active());
+    let viewer = tiles.get(index).copied();
     let pressed = input
         .pressed
         .filter(|(button, _)| *button == MouseButton::Left)
@@ -109,13 +136,63 @@ pub(crate) fn finish(
             state["project"]["width"].as_f64().unwrap_or(0.),
             state["project"]["height"].as_f64().unwrap_or(0.),
         ];
-        let mapping = panels.composition.navigation.mapping(viewer, canvas);
+        let Some(view) = panels.viewer_views.settings.view(index).cloned() else {
+            return;
+        };
+        let navigation = if index == panels.viewer_views.settings.active() {
+            panels.composition.navigation
+        } else {
+            view.navigation
+        };
+        let mapping = navigation.mapping(viewer, canvas);
         if let Some(point) = pressed {
             panels.effect_pick.ticket = None;
             let clip = panels.viewer_guides.canvas(viewer, &styles);
             if let Some(mapping) =
                 mapping.filter(|m| clip.contains(point) && m.image.contains(point))
             {
+                if ticket.kind == Kind::Position
+                    && matches!(
+                        view.mode,
+                        crate::viewer_views::Mode::Free
+                            | crate::viewer_views::Mode::Top
+                            | crate::viewer_views::Mode::Side
+                    )
+                {
+                    panels.message = Some(
+                        if panels.locale == Locale::Zh {
+                            "请在合成或摄影机视图中选择图层位置"
+                        } else {
+                            "Pick a layer position in a composition or camera view"
+                        }
+                        .into(),
+                    );
+                    return;
+                }
+                ticket.view = Some((panels.viewer_views.window, index, view.clone()));
+                let key = panels.viewer_views.key(state);
+                let projected = panels
+                    .viewer_views
+                    .cache
+                    .as_ref()
+                    .filter(|(source, _)| *source == key)
+                    .and_then(|(_, views)| views.get(index));
+                if ticket.kind == Kind::Position
+                    && projected.is_none()
+                    && (view.mode != crate::viewer_views::Mode::Composition
+                        || state["observing"] == true)
+                {
+                    panels.message = Some(
+                        if panels.locale == Locale::Zh {
+                            "视图尚未就绪，请稍后重试"
+                        } else {
+                            "View is not ready; pick again after it finishes"
+                        }
+                        .into(),
+                    );
+                    return;
+                }
+                let state = projected.unwrap_or(state);
                 let picked = match ticket.kind {
                     Kind::Position => {
                         let position = (|| {

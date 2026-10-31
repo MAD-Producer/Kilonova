@@ -253,6 +253,27 @@ impl Settings {
             self.active = 0;
         }
     }
+    pub(crate) fn activate(&mut self, index: usize) -> bool {
+        if index >= self.layout.count() {
+            return false;
+        }
+        self.active = index;
+        true
+    }
+    pub(crate) fn camera(
+        &self,
+        index: usize,
+        canvas: [u32; 2],
+    ) -> Result<crate::engine::viewer_frame::Camera, String> {
+        let view = self.view(index).ok_or("view is unavailable")?;
+        Ok(match view.mode {
+            Mode::Composition => crate::engine::viewer_frame::Camera::Composition,
+            Mode::Camera(id) => crate::engine::viewer_frame::Camera::Camera(id),
+            _ => crate::engine::viewer_frame::Camera::Observer(
+                view.observer(canvas)?.ok_or("observer is unavailable")?,
+            ),
+        })
+    }
 }
 
 /// Opaque, bounded identity supplied by the composition owner. Frame/revision
@@ -358,6 +379,162 @@ impl Views {
         self.settings.views[index].mode = mode;
         true
     }
+}
+
+/// Per-cell observer navigation history. It never enters project undo.
+#[derive(Default)]
+pub(crate) struct CameraHistory {
+    context: Option<(crate::layer_clipboard::KeyframeSource, u64, Mode)>,
+    pending: Option<(u64, View)>,
+    undo: std::collections::VecDeque<View>,
+    redo: std::collections::VecDeque<View>,
+}
+impl CameraHistory {
+    pub(crate) fn enabled(
+        &self,
+        source: crate::layer_clipboard::KeyframeSource,
+        frame: u64,
+        mode: Mode,
+        redo: bool,
+    ) -> bool {
+        self.context.as_ref() == Some(&(source, frame, mode))
+            && self.pending.is_none()
+            && if redo {
+                !self.redo.is_empty()
+            } else {
+                !self.undo.is_empty()
+            }
+    }
+    pub(crate) fn cancel(&mut self, view: &mut View) {
+        if let Some((_, before)) = self.pending.take() {
+            *view = before;
+        }
+    }
+    pub(crate) fn apply(
+        &mut self,
+        view: &mut View,
+        source: crate::layer_clipboard::KeyframeSource,
+        frame: u64,
+        op: motion_host::ops::preview::CameraGesture,
+        canvas: [u32; 2],
+    ) -> Result<(), String> {
+        use motion_host::ops::preview::{CameraGesture as Op, CameraMode};
+        let context = (source, frame, view.mode);
+        if self.context.as_ref() != Some(&context) {
+            self.cancel(view);
+            self.undo.clear();
+            self.redo.clear();
+            self.context = Some(context);
+        }
+        match op {
+            Op::Begin { id } => {
+                self.cancel(view);
+                if view.observer(canvas)?.is_none() {
+                    return Err("camera gestures require an observer view".into());
+                }
+                self.pending = Some((id, view.clone()));
+            }
+            Op::Update {
+                id,
+                mode,
+                delta,
+                viewport,
+            } => {
+                let Some((owner, before)) = self.pending.as_ref() else {
+                    return Ok(());
+                };
+                if *owner != id {
+                    return Err("view camera gesture owner changed".into());
+                }
+                if viewport.contains(&0)
+                    || viewport.iter().any(|v| *v > 65536)
+                    || delta.iter().any(|v| !v.is_finite() || v.abs() > 1_000_000.)
+                {
+                    return Err("invalid view camera gesture coordinates".into());
+                }
+                let mut observer = before.observer(canvas)?.ok_or("observer unavailable")?;
+                match mode {
+                    CameraMode::Orbit => {
+                        if before.mode != Mode::Free {
+                            return Err("orbit requires a free view".into());
+                        }
+                        observer
+                            .orbit(delta[0] * 0.2, delta[1] * 0.2)
+                            .map_err(|e| e.to_string())?;
+                    }
+                    CameraMode::Dolly => observer
+                        .zoom((-delta[1] / 240.).clamp(-20., 20.).exp())
+                        .map_err(|e| e.to_string())?,
+                    CameraMode::Pan => {
+                        let pose = observer
+                            .pose(canvas[0], canvas[1])
+                            .map_err(|e| e.to_string())?;
+                        let point = observer.camera.target.value;
+                        let world = glam::DVec3::new(
+                            point[0] as f64 - canvas[0] as f64 / 2.,
+                            canvas[1] as f64 / 2. - point[1] as f64,
+                            -point[2] as f64,
+                        );
+                        let vp = pose.view_projection.as_dmat4();
+                        let mut clip = vp * world.extend(1.);
+                        if !clip.is_finite() || clip.w <= 1e-8 {
+                            return Err("view pan target is behind camera".into());
+                        }
+                        let scale = (viewport[0] as f64 / canvas[0] as f64)
+                            .min(viewport[1] as f64 / canvas[1] as f64);
+                        clip.x += 2. * delta[0] as f64 / (canvas[0] as f64 * scale) * clip.w;
+                        clip.y -= 2. * delta[1] as f64 / (canvas[1] as f64 * scale) * clip.w;
+                        let moved = vp.inverse() * clip;
+                        if !moved.is_finite() || moved.w.abs() <= 1e-8 {
+                            return Err("invalid view pan projection".into());
+                        }
+                        let offset = moved.truncate() / moved.w - world;
+                        observer.camera.target.value = [
+                            point[0] - offset.x as f32,
+                            point[1] + offset.y as f32,
+                            point[2] + offset.z as f32,
+                        ];
+                    }
+                }
+                let mut next = before.clone();
+                next.orbit = Some(Orbit::capture(&observer));
+                next.observer(canvas)?;
+                *view = next;
+            }
+            Op::End { id, commit } => {
+                if let Some((owner, before)) = self.pending.take() {
+                    if owner != id {
+                        self.pending = Some((owner, before));
+                        return Err("view camera gesture owner changed".into());
+                    }
+                    if !commit {
+                        *view = before;
+                    } else if before != *view {
+                        retain_view(&mut self.undo, before);
+                        self.redo.clear();
+                    }
+                }
+            }
+            Op::Undo | Op::Redo => {
+                self.cancel(view);
+                let (from, to) = if matches!(op, Op::Redo) {
+                    (&mut self.redo, &mut self.undo)
+                } else {
+                    (&mut self.undo, &mut self.redo)
+                };
+                if let Some(before) = from.pop_back() {
+                    retain_view(to, std::mem::replace(view, before));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+fn retain_view(stack: &mut std::collections::VecDeque<View>, view: View) {
+    if stack.len() == 64 {
+        stack.pop_front();
+    }
+    stack.push_back(view);
 }
 
 #[cfg(test)]

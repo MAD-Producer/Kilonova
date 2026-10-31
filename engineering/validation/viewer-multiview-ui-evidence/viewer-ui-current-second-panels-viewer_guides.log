@@ -1,0 +1,28 @@
+
+running 23 tests
+test panels::viewer_guides::native_tests::viewer_channel_native_main_float_locales_pixels_and_export ... ok
+test panels::viewer_guides::native_tests::viewer_guides_native_main_float_dpi_transactions_pixels_and_export ... ok
+test panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs ... ok
+test panels::viewer_guides::snapping::tests::automatic_geometry_keeps_screen_tolerance_and_falls_back_to_integer_pixels ... ok
+test panels::viewer_guides::snapping::tests::explicit_guides_survive_integer_fallback_and_visibility_only_gates_their_own_targets ... ok
+test panels::viewer_guides::snapping::tests::malformed_projected_geometry_is_an_error_but_empty_or_collapsed_geometry_is_normal ... ok
+test panels::viewer_guides::tests::channel_dropdown_focus_loss_cancels_and_keyboard_selection_stays_local ... ok
+test panels::viewer_guides::tests::channel_dropdown_selects_explicitly_and_keeps_window_state_independent ... ok
+test panels::viewer_guides::tests::grid_and_snapping_share_the_origin_and_screen_tolerance_after_navigation ... ok
+test panels::viewer_guides::tests::guide_drag_cancellation_stale_context_and_foreign_input_never_commit ... ok
+test panels::viewer_guides::tests::guide_metadata_and_viewer_overlay_paint_leave_headless_scene_capture_rgba_unchanged ... ok
+test panels::viewer_guides::tests::guide_move_delete_and_capacity_are_single_bounded_edits ... ok
+test panels::viewer_guides::tests::handle_shortcut_respects_locale_window_repeat_ime_and_text_ownership ... ok
+test panels::viewer_guides::tests::malformed_guide_attempts_preserve_causes_at_default_info_without_stdout ... ok
+test panels::viewer_guides::tests::overlay_menu_keeps_native_window_ownership_and_consumes_its_closing_frame ... ok
+test panels::viewer_guides::tests::passive_paints_preserve_preview_and_same_revision_guide_replacement_cancels_it ... ok
+test panels::viewer_guides::tests::ruler_corner_capacity_and_readonly_feedback_do_not_fall_through_or_count_normal_branches_as_faults ... ok
+test panels::viewer_guides::tests::ruler_creation_snaps_to_the_composition_center_within_six_screen_pixels ... ok
+test panels::viewer_guides::tests::ruler_creation_uses_composition_pixels_in_both_locales_windows_and_zoom_levels ... ok
+test panels::viewer_guides::tests::second_press_cancels_lost_release_without_starting_another_edit ... ok
+test panels::viewer_guides::worker_tests::queued_guide_action_cannot_overwrite_a_new_revision_and_individual_source_fields_are_checked ... ok
+test panels::viewer_guides::worker_tests::real_ui_guide_release_commits_once_undoes_redoes_saves_and_reopens_in_both_locales_and_windows ... ok
+test panels::viewer_guides::worker_tests::real_worker_guide_failure_preserves_default_file_error_stderr_and_stdout_and_normal_cancellation ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 1545 filtered out; finished in 61.18s
+

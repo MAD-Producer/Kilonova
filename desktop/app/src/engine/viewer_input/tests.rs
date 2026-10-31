@@ -35,7 +35,8 @@ fn real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_chan
         assert!(file.contains("logging initialized level=INFO"));
         assert!(file.lines().any(|l| l.contains("start #") && l.ends_with(" viewer_states")));
         assert!(file.lines().any(|l| l.contains("start #") && l.ends_with(" viewer_pick")));
-        for marker in ["expected 1, 2, or 4 cameras", "object=999", "invalid hit-test point"] {
+        assert!(file.lines().any(|l| l.contains("start #") && l.ends_with(" viewer_drag")));
+        for marker in ["expected 1, 2, or 4 cameras", "object=999", "invalid hit-test point", "invalid preview drag"] {
             assert!(file.contains(marker),"file missing {marker}");
             assert!(String::from_utf8_lossy(&output.stderr).contains(marker),"stderr missing {marker}");
             assert!(!String::from_utf8_lossy(&output.stdout).contains(marker),"stdout leaked {marker}");
@@ -73,12 +74,21 @@ fn real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_chan
     assert!(count.contains("expected 1, 2, or 4 cameras"));
     let point=run(&engine,request(&before,Query::Pick { camera:Camera::Camera(1),point:[f64::NAN,0.] })).unwrap_err();
     assert!(point.contains("invalid hit-test point"));
+    let drag=|state:&Value,camera,window,size|Drag{source:KeyframeSource::of(state),frame:state["frame"].as_f64().unwrap(),window,camera,object:7,delta:[10.,0.],size};
+    let invalid_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(1),0,[0,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();
+    assert!(invalid_drag.contains("invalid preview drag"));
+    let missing_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),0,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();
+    assert!(missing_drag.contains("object=999"));
+    let closed_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),71,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
+    assert_eq!(closed_drag["viewerDrag"]["reason"],"window_closed");
     let after = engine.state().unwrap();
     for field in ["project","root","document_generation","composition","frame","revision","history",
         "canUndo","canRedo","observing","observationCamera","source_transforms","projectedLayers"] {
         assert_eq!(after[field],before[field],"query changed {field}");
     }
     engine.seek(10.).unwrap();
+    let stale_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),0,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
+    assert_eq!(stale_drag["viewerDrag"]["reason"],"context_changed");
     // Superseded requests cancel before resolving even an invalid camera.
     let old_frame=run(&engine,request(&before,Query::States(vec![Camera::Camera(999)]))).unwrap();
     assert_eq!(old_frame["cancelled"],true);
@@ -97,7 +107,8 @@ fn real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_chan
         "sharedStatePreserved":true,"queries":states["views"].as_array().unwrap().len(),
         "sourceCancellation":true,"frameCancellation":old_frame,"closedWindowCancellation":true,
         "missingCamera":missing,"invalidCount":count,"invalidPoint":point,"recoveredPick":recovered,
-        "scope":"Production worker queries; per-view panel integration is pending."
+        "invalidDrag":invalid_drag,"missingDragCamera":missing_drag,"closedDrag":closed_drag["viewerDrag"],"staleDrag":stale_drag["viewerDrag"],
+        "scope":"Production worker projection/picking and guarded drag failures; native panel integration is tested separately."
     })).unwrap()).unwrap();
     drop(engine);
     crate::logging::flush();

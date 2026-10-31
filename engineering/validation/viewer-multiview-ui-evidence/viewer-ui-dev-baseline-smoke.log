@@ -1,0 +1,7 @@
+
+thread 'motion-engine' (21560) panicked at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\core\src\str\mod.rs:846:21:
+end byte index 3202800740787 is out of bounds for string of length 6334
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ERROR motion_studio::engine: worker startup failed: root=E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/baseline-project 1797ms reason=engine thread stopped during startup
+ERROR motion_studio: desktop failed: 1817ms reason=engine thread stopped during startup
+Error: "engine thread stopped during startup"

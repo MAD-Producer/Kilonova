@@ -90,7 +90,7 @@ impl Shell {
             .as_ref()
             .ok_or("smoke report missing")?
             .with_extension(format!("node-view-{mode}-{suffix}.png"));
-        self.engine.capture_ui(ui, path.clone())?;
+        self.capture_presented_ui(ui, path.clone())?;
         Ok(path)
     }
 

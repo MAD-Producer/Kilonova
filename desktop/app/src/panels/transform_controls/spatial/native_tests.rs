@@ -74,6 +74,23 @@ fn dispatch(events: &mut EventLoop<()>, engine: &Engine, actions: Vec<Action>) {
             Action::Edit(command) => engine
                 .edit_async(serde_json::to_string(&command).unwrap())
                 .unwrap(),
+            Action::ViewerDrag {key,cell,object,delta,size} => {
+                assert_eq!(cell,0,"single-view fixture must keep its view identity");
+                engine.viewer_drag_async(crate::engine::viewer_input::Drag {
+                    window:key.window,source:key.source,frame:f64::from_bits(key.frame),
+                    camera:crate::engine::viewer_frame::Camera::Composition,object,delta,size}).unwrap()
+            },
+            Action::ViewerPick {key,cell,point} => {
+                assert_eq!(cell,0,"single-view fixture must keep its view identity");
+                let reply=engine.viewer_input_async(crate::engine::viewer_input::Request {
+                    window:key.window,source:key.source,frame:f64::from_bits(key.frame),
+                    query:crate::engine::viewer_input::Query::Pick {
+                        camera:crate::engine::viewer_frame::Camera::Composition,point}}).unwrap();
+                let value=crate::native_test_support::receive(events,&reply,Duration::from_secs(30)).unwrap().unwrap();
+                assert_eq!(value["cancelled"],false);
+                assert_eq!(value["pick"]["candidates"][0]["id"],7);
+                continue;
+            },
             Action::PreviewDrag {
                 object,
                 delta,

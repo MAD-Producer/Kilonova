@@ -1,4 +1,121 @@
 use super::*;
+
+#[test]
+fn cell_observer_history_is_bounded_cancellable_and_cannot_edit_its_neighbours() {
+    use motion_host::ops::preview::{CameraGesture as Op, CameraMode};
+    let source = crate::layer_clipboard::KeyframeSource::of(
+        &serde_json::json!({"root":"view-history","composition":"main","document_generation":1,"revision":7}),
+    );
+    let mut settings = Settings::default();
+    settings.set_layout(Layout::Four);
+    let before = settings.clone();
+    let mut history = CameraHistory::default();
+    let view = settings.view_mut(3).unwrap();
+    for id in 1..=70 {
+        history
+            .apply(view, source.clone(), 0, Op::Begin { id }, [640, 360])
+            .unwrap();
+        history
+            .apply(
+                view,
+                source.clone(),
+                0,
+                Op::Update {
+                    id,
+                    mode: CameraMode::Orbit,
+                    delta: [10., -5.],
+                    viewport: [640, 360],
+                },
+                [640, 360],
+            )
+            .unwrap();
+        history
+            .apply(
+                view,
+                source.clone(),
+                0,
+                Op::End { id, commit: true },
+                [640, 360],
+            )
+            .unwrap();
+    }
+    assert_eq!(history.undo.len(), 64);
+    assert!(history.redo.is_empty());
+    let changed = view.clone();
+    history
+        .apply(view, source.clone(), 0, Op::Undo, [640, 360])
+        .unwrap();
+    assert_ne!(*view, changed);
+    history
+        .apply(view, source.clone(), 0, Op::Redo, [640, 360])
+        .unwrap();
+    assert_eq!(*view, changed);
+    history
+        .apply(view, source.clone(), 0, Op::Begin { id: 90 }, [640, 360])
+        .unwrap();
+    history
+        .apply(
+            view,
+            source.clone(),
+            0,
+            Op::Update {
+                id: 90,
+                mode: CameraMode::Pan,
+                delta: [15., 20.],
+                viewport: [640, 360],
+            },
+            [640, 360],
+        )
+        .unwrap();
+    history
+        .apply(
+            view,
+            source.clone(),
+            0,
+            Op::End {
+                id: 90,
+                commit: false,
+            },
+            [640, 360],
+        )
+        .unwrap();
+    assert_eq!(*view, changed);
+    history
+        .apply(view, source.clone(), 0, Op::Begin { id: 91 }, [640, 360])
+        .unwrap();
+    history
+        .apply(
+            view,
+            source.clone(),
+            0,
+            Op::Update {
+                id: 91,
+                mode: CameraMode::Dolly,
+                delta: [0., -45.],
+                viewport: [640, 360],
+            },
+            [640, 360],
+        )
+        .unwrap();
+    assert_ne!(*view, changed);
+    history
+        .apply(
+            view,
+            source,
+            1,
+            Op::End {
+                id: 91,
+                commit: true,
+            },
+            [640, 360],
+        )
+        .unwrap();
+    assert_eq!(*view, changed);
+    assert!(history.undo.is_empty());
+    for i in 0..3 {
+        assert_eq!(settings.view(i), before.view(i));
+    }
+}
 use crate::{i18n::Locale, workspace::Workspace};
 use motion_ui::dock::Panel;
 use serde_json::{json, Value};

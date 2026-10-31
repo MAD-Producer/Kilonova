@@ -459,9 +459,12 @@ impl Shell {
                     )?;
                 }
                 let mut ui = self.ui_frame(paint, window_size, true);
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                ui.views = None;
                 ui.composition = None;
                 ui.node_preview = None;
                 if panel == Panel::Composition {
+                    ui.views = None;
                     ui.composition = Some([
                         8. * self.scale,
                         38. * self.scale,
@@ -470,7 +473,7 @@ impl Shell {
                     ]);
                 }
                 let path = report.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(ui, path.clone())?;
+                self.capture_presented_ui(ui, path.clone())?;
                 let pixels = image::open(&path).map_err(|e| e.to_string())?;
                 let width = (size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
                 let height = (size[1] * pixels.height() as f32 / window_size[1]).round() as u32;
@@ -568,7 +571,7 @@ impl Shell {
                 let mut ui=self.ui_frame(paint,window_size,true);
                 ui.composition=None;
                 ui.node_preview=None;
-                self.engine.capture_ui(ui,path.clone())?;
+                self.capture_presented_ui(ui,path.clone())?;
                 let pixels=image::open(&path).map_err(|e|e.to_string())?;
                 let width=(900.*pixels.width() as f32/window_size[0]).round() as u32;
                 let height=(520.*pixels.height() as f32/window_size[1]).round() as u32;
@@ -602,6 +605,7 @@ impl Shell {
         // CaptureUi composites the retained GPU scene. Present the fixture first,
         // and present the restored project during cleanup to avoid stale pixels.
         let mut ui = self.ui_frame(PaintList::default(), size, true);
+        ui.views = None;
         ui.composition = Some(viewport.map(|v| v * self.scale));
         ui.node_preview = None;
         let presented = self

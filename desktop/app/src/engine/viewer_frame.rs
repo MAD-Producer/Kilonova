@@ -19,11 +19,13 @@ impl Camera {
         }
     }
 }
+#[derive(Clone)]
 pub(crate) struct Cell {
     pub camera: Camera,
     pub placement: ViewPlacement,
     pub inspection: super::ViewerInspectionFrame,
 }
+#[derive(Clone)]
 pub(crate) struct Plan {
     pub cells: Vec<Cell>,
     pub active: usize,

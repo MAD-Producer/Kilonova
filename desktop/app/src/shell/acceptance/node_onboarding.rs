@@ -135,7 +135,7 @@ impl Shell {
             .as_ref()
             .unwrap()
             .with_extension("onboarding-examples.png");
-        self.engine.capture_ui(
+        self.capture_presented_ui(
             UiFrame { views: None,
                 paint,
                 atlas: Some(AtlasUpload {

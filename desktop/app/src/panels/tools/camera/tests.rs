@@ -3,8 +3,12 @@ use super::*;
 fn apply(e: &crate::engine::Engine, out: Vec<Action>) -> Value {
     let mut state = e.state().unwrap();
     for action in out {
-        let Action::CameraGesture(op) = action else {
-            panic!("unexpected document action")
+        let op=match action {
+            Action::CameraGesture(op)=>op,
+            // The Engine-only native fixture explicitly binds the global host
+            // observer to cell zero; production Shell consumes this locally.
+            Action::ViewerCamera{cell:0,action,..}=>action,
+            _=>panic!("unexpected document action"),
         };
         state = e.camera_gesture(op).unwrap();
     }

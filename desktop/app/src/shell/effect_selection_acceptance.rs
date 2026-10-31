@@ -126,12 +126,14 @@ impl Shell {
                     let size = [width, 560.];
                     let paint = draw(&mut self.atlas, &mut panels, panel, size, &Input::default())?;
                     let mut ui = self.ui_frame(paint, window_size, true);
+                    // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                    ui.views = None;
                     ui.composition = None;
                     ui.composition_image = None;
                     ui.node_preview = None;
                     let name = format!("effect-selection-from-{owner}-{suffix}");
                     let path = report.with_extension(format!("{name}.png"));
-                    self.engine.capture_ui(ui, path.clone())?;
+                    self.capture_presented_ui(ui, path.clone())?;
                     let pixels = image::open(&path).map_err(|e| e.to_string())?;
                     let width = (size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
                     let height = (size[1] * pixels.height() as f32 / window_size[1]).round() as u32;

@@ -446,6 +446,70 @@ impl Session {
         ledger
     }
 
+    /// Preview eyedropper source: an exact completed cell, before channel/ROI
+    /// inspection overlays. A superseded frame is a normal unavailable preview.
+    pub fn sample_view_cell(
+        &self,
+        owner: u64,
+        index: usize,
+        camera: ViewCamera<'_>,
+        point: [f64; 2],
+    ) -> Result<Option<[f32; 4]>> {
+        self.check_thread()?;
+        if !point.iter().all(|v| v.is_finite() && *v >= 0. && *v < 1.) {
+            return Err("view color pick is outside the composition".into());
+        }
+        let project = self.engine.project();
+        let camera = match camera {
+            ViewCamera::Composition => CameraKey::Composition,
+            ViewCamera::Camera(id) => CameraKey::Camera(id),
+            ViewCamera::Observer(observer) => CameraKey::Observer(
+                observer
+                    .pose(project.width, project.height)?
+                    .view_projection
+                    .to_cols_array()
+                    .map(f32::to_bits),
+            ),
+        };
+        let Some(g) = self.graphics.as_ref() else {
+            return Ok(None);
+        };
+        let Some(key) = g.views.published.as_ref() else {
+            return Ok(None);
+        };
+        if key.document != self.document_generation
+            || key.composition != project.composition_id
+            || key.revision != self.engine.revision()
+            || key.frame != self.frame.to_bits()
+            || key.owner != owner
+            || key.surface != self.surface_epoch
+            || key.view_revision != self.view_revision
+            || key.preview != (self.preview.mode != PreviewMode::High)
+            || key.quality
+                != self
+                    .preview_memory
+                    .quality(self.preview.mode == PreviewMode::High)
+            || self.preview_memory_held
+            || self.last_error.is_some()
+            || key.cameras.get(index) != Some(&camera)
+            || !g
+                .views
+                .request
+                .as_ref()
+                .is_some_and(|request| request.complete && request.failure.is_none())
+        {
+            return Ok(None);
+        }
+        let Some(source) = g.views.targets.output(index) else {
+            return Ok(None);
+        };
+        let pixel = [
+            (point[0] * source.width as f64).floor() as u32,
+            (point[1] * source.height as f64).floor() as u32,
+        ];
+        Ok(Some(g.renderer.sample_preview_pixel(source, pixel)?))
+    }
+
     /// Prepare all views before acquiring the owning window's surface once.
     /// `false` is normal media/exposure/surface waiting. Poll/task failures use
     /// the existing worker error channel and are terminal for this content key.

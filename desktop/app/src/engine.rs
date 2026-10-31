@@ -435,6 +435,7 @@ pub enum Command {
         y: f64,
         reply: Sender<Result<Value, String>>,
     },
+    ViewerDrag { request: viewer_input::Drag, reply: Sender<Result<Value,String>> },
     ViewerInput {
         request: viewer_input::Request,
         reply: Sender<Result<Value, String>>,
@@ -515,7 +516,7 @@ impl Command {
             | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
-            | HitCandidates { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
+            | HitCandidates { reply, .. } | ViewerDrag { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
             | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
@@ -1277,6 +1278,9 @@ impl Engine {
     pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, String> {
         self.call(|reply| Command::HitCandidates { x, y, reply })
     }
+    pub(crate) fn viewer_drag_async(&self,request:viewer_input::Drag)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
+        self.request(|reply|Command::ViewerDrag{request,reply})
+    }
     pub(crate) fn viewer_input_async(&self, request: viewer_input::Request)
         -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::ViewerInput { request, reply })
@@ -1794,7 +1798,8 @@ fn handle(
                 "diagnostic":motion_core::expression_source_diagnostic(&source)})));
         },
         Command::EffectPick { ticket, point, reply } => {
-            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref()));
+            let closed=ticket.view.as_ref().is_some_and(|(window,_,_)|*window!=0&&!windows.contains_key(window));
+            respond(reply, effect_pick::apply(id, ticket, point, presentation.retained.as_ref(),closed));
             presentation.retained = None;
         },
         Command::EditorAction {source,commands,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
@@ -2288,6 +2293,10 @@ fn handle(
         Command::PreviewInfo(reply) => respond(reply,preview::preview_info(id)),
         Command::CurveGraph { text, reply } => respond(reply,editing::curve_graph(&text)),
         Command::HitCandidates { x, y, reply } => respond(reply,geometry::hit_candidates(id, x, y)),
+        Command::ViewerDrag {request,reply}=>{
+            let closed=request.window!=0&&!windows.contains_key(&request.window);
+            respond(reply,motion_host::session::with_session(id,|s|viewer_input::drag(s,request,closed)));
+        }
         Command::ViewerInput { request, reply } => {
             let closed = request.window != 0 && !windows.contains_key(&request.window);
             respond(reply, motion_host::session::with_session(id, |s| viewer_input::apply(s, request, closed)));

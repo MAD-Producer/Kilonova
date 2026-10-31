@@ -51,7 +51,7 @@ impl Shell {
                     .as_ref()
                     .unwrap()
                     .with_extension(format!("maximize-{}.png", panel.dock().0));
-                self.engine.capture_ui(ui, path.clone())?;
+                self.capture_presented_ui(ui, path.clone())?;
                 screens.push(path);
                 self.input = Input::default();
                 backquote(&mut self.input);
@@ -65,7 +65,7 @@ impl Shell {
                     .as_ref()
                     .unwrap()
                     .with_extension(format!("maximize-{}-restored.png", panel.dock().0));
-                self.engine.capture_ui(restored, path.clone())?;
+                self.capture_presented_ui(restored, path.clone())?;
                 screens.push(path);
             }
             let after = self.engine.state()?;

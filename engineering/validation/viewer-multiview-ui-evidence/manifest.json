@@ -1,0 +1,438 @@
+{
+  "schema": 1,
+  "issue": 221,
+  "branch": "feat/viewer-multiview",
+  "base": "3aca08399fd04433da481b717412cd44447eab48",
+  "status": "native_ui_dev_smoke_and_symbolized_panic_verified_ci_full_suite_pending",
+  "programs": {
+    "desktopTests": {
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-viewer-final.exe",
+      "sha256": "3e870d22c8f59d3fa2025f149b150a2596e76175734b4e1811e76b023ef604ff",
+      "bytes": 130680320
+    },
+    "desktopDev": {
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\motion-studio.exe",
+      "sha256": "fbe370edd5b405d72164abd2e9cb67e9a8d1df2ca4d068e1fe8ebd429b49fa4b",
+      "bytes": 105014272
+    },
+    "previousTests": {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\viewer-ui\\programs\\desktop-regression-ten.exe",
+      "sha256": "55cb0c5f064e85cf1c2c6d74ffa8c93f768b72569d0fd7b701a173c798eb1723",
+      "bytes": 130489856
+    },
+    "symbolizedDesktopTests": {
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-viewer-symbols.exe",
+      "bytes": 133798912,
+      "sha256": "f6fd8b6134a91863a3c578d5de1c10ab38203b97fbf5fdb93008222b4fb726d1"
+    }
+  },
+  "sources": {
+    "desktop/app/src/panels/composition_views.rs": "801fe71ce22b2c2c938b7e55165bfd0cd42b9918ee1935a13ee9149d8bc9e191",
+    "desktop/app/src/shell/viewer_views.rs": "f97a51b5339ca46d56521c4dfa4e8ebfb3c81bdd090d72c97c3e27ca37a20788",
+    "desktop/app/src/shell/viewer_views/native_tests.rs": "cfcda9d98dcccc4e06b02c1df6fcb34844bc775987ec1d11b81277428b096358",
+    "crates/motion-host/src/ops/editing.rs": "904574a74b3e5653cce98bd5711fd3ae447fbe1ad13a238051aa080481c5e03e",
+    "crates/motion-host/src/session/viewer.rs": "41891e40e1e0e7ead40c888e7e9cfac0a6e211df92931f7488c78975b34fcbad",
+    "desktop/app/src/engine.rs": "4b86917b86ebf1cf1ed2122db6eed256495ab54ba190d69578497afc1e2a6f2a",
+    "desktop/app/src/engine/diagnostic_names.rs": "6e7210c94aed0e5d869f72fa1207a87772c0905a1240cf385bcdf2cf3d7fad0d",
+    "desktop/app/src/engine/effect_pick.rs": "ae7b70fc2e63fd95e57cea909f60b491c51d0672756d73a1f82fe5d52b1dbfeb",
+    "desktop/app/src/engine/viewer_frame.rs": "7337e9c16840583f2c2c3b14f232a939b7bed7390c75937577a75833e60d955c",
+    "desktop/app/src/engine/viewer_input.rs": "5e10bb858c05cafcf80df5cfdbbc91c42093deb5009bfd37288774d08a79b23c",
+    "desktop/app/src/engine/viewer_input/tests.rs": "790a44eac920ebdb8fb9d2fb5a177878a3ee1e2d4060c0c875462565bea93a49",
+    "desktop/app/src/main.rs": "4445bd66e1d46e0845abbe5a60c597d8ff56deca37d0eec543172cac1d42b0d5",
+    "desktop/app/src/panels/composition.rs": "716589fcb32ae4be05ba32d07bdbeeb9338ac22d89e0c61930b119990273d2df",
+    "desktop/app/src/panels/composition_tests.rs": "49741cbebfc87f2b59a71692fbcd8559a236ed15026c62be090ae5f338346ac7",
+    "desktop/app/src/panels/effect_pick.rs": "708457489b67ae3491d6dfbe4d0b577d5d69650358b8986fc549cfd3c2ee70e7",
+    "desktop/app/src/panels/graph_native_performance_tests.rs": "ca1502bedf5ddc335bc0c4ccf6d5e57f6ccdcc144de5687f3fae773c405dbc80",
+    "desktop/app/src/panels/mod.rs": "15c9eace4b878cf6e7b92c4ff68b841b2354af3e87b1bdbaca74a94f288c832e",
+    "desktop/app/src/panels/tools.rs": "835291566cba7188d6161269a5d15315f3d17700e8b69cd6c96d23e9524733bc",
+    "desktop/app/src/panels/tools/camera.rs": "215cab6472d758f2d66566c34f62ea69639d96dbf8e86a6ebefd6f4a499cc611",
+    "desktop/app/src/panels/tools/camera/tests.rs": "4e10a016185c6c8d6a14c4229823b80e4b537aa54f039f458b98708f1f19e4dc",
+    "desktop/app/src/panels/tools/tests.rs": "a0e5cedc794a26844e3aa420dc0b3bc0b83bca86a63174ebd8d652ee2a1275c3",
+    "desktop/app/src/panels/tools/tests/native.rs": "2ae7972367894e5f5cc6f9fe33d56c9ba3762ef2e1509352240c9be95ffb104f",
+    "desktop/app/src/panels/transform_controls/spatial/native_tests.rs": "66455c8c8e2ef08f3c03f9fb11d2689259e28f1001ead3277743cf5e08a16bd8",
+    "desktop/app/src/panels/types.rs": "d4170744d95008233238277562beae8ca5f90469c7cc431bcec7da5d5cb6535c",
+    "desktop/app/src/panels/viewer_guides.rs": "4545dc4fd42c2f68b49c696089e62bcd3a9aa9ec0fdff5141c197adb8373f805",
+    "desktop/app/src/panels/viewer_guides/native_tests.rs": "f92fcb0c3cf52a165fc0058b124a52acc9b0a90058c595cbd80e80414ab06ef2",
+    "desktop/app/src/panels/viewer_inspection.rs": "516e4e43853523d8de6bd73c5f259da14f9acca2f78971baa25c859fbd7c630f",
+    "desktop/app/src/shell/acceptance.rs": "aaca716f4e55d5d1ef65077cb760d4fcc856b5b212e1a231f96d291d82791d65",
+    "desktop/app/src/shell/acceptance/node_onboarding.rs": "860879fa41832bfd773900b514169a92724cb10fc79b3668aa3bb423a4019beb",
+    "desktop/app/src/shell/actions.rs": "476fd273524764d2e549b9c1f7df5ffdffb1dbaf4157b22ec4f8641d94e301b3",
+    "desktop/app/src/shell/alignment_acceptance.rs": "678cb2341c4f8347f000f5e5a31a7b01362ead9d8746c9247a14f8969d369e49",
+    "desktop/app/src/shell/curve_comparison_tests.rs": "3622a499d2eba389d0be6809c2427ffecd8dc92b91f2d8e224b8dda584fefa8e",
+    "desktop/app/src/shell/design_acceptance.rs": "d6486ae71cd853df4693efa239a31aa15fddfd9aeafc81e92b124b6bd44414bd",
+    "desktop/app/src/shell/effect_application/tests.rs": "b59f75140a069c58a093a1a3e3c8c30b7c0b4444ddd92f30c58acf44d70f35ba",
+    "desktop/app/src/shell/effect_drag/integration_tests/native.rs": "55a29f10d585a6f5c56c66d7d6a711a7bafb76cbe3d2fd86d3af0e5e8648e65a",
+    "desktop/app/src/shell/effect_selection_acceptance.rs": "b78e65ad593e6faa01ed4e8266e100145be67309bce5283b9a8940cbc6734078",
+    "desktop/app/src/shell/effect_timeline_acceptance.rs": "3de2abffdec01792d0c57b67dfd135c5eb7edc2907338f4ef1206ecd4594d555",
+    "desktop/app/src/shell/interaction_acceptance.rs": "0fc8ec10a4026f85bc3b9ef480b865a3a480d137e286ca8db58bd592e462b460",
+    "desktop/app/src/shell/keyframe_timing/native_tests.rs": "6a80548c092e18c9b8705c31801344705f703f4ead633f0a59de10f1882fc6a1",
+    "desktop/app/src/shell/lifecycle.rs": "edb98868d5c30b5b1647e4c21c50ab8607566681bbb0ecb92e34ed6f33664ea3",
+    "desktop/app/src/shell/mod.rs": "9e56f71d4f278cf9a3ba842cdf35ea059b42e5925ffbd9e77e104cfa1c742375",
+    "desktop/app/src/shell/node_naming_acceptance.rs": "cd1d5f5b62055aa8266ab921ba05348e8503f76ddaba80f5248a7153cf1a84d2",
+    "desktop/app/src/shell/node_view_acceptance.rs": "2aff92e5b6491a92ce758db0827df199b1d7d21df51f3852d645d14c1e393c3a",
+    "desktop/app/src/shell/panel_maximize_acceptance.rs": "50e790e6e251fa62c856334461020353e18d67c5673136fa213983ba76ae3a28",
+    "desktop/app/src/shell/path_selection_acceptance.rs": "8e0db5ddb8d486ea413ccc769020571aa39d82f4bdac39ba08a5cdf505c8c542",
+    "desktop/app/src/shell/preferences_acceptance.rs": "7603ab398878299a4c36a0bab824265053e555854664a02e5aa979d49268d4da",
+    "desktop/app/src/shell/presentation.rs": "0ca74d5163f11ff1b2dacdac103e4d35a64fdc820c45e26fdda70d229261046f",
+    "desktop/app/src/shell/property_acceptance.rs": "71e238017ee9596e2a5a38df40b591017871d0a6a2685b031cef15e6ac5d6e11",
+    "desktop/app/src/shell/property_acceptance/modified.rs": "b7a17c512e1c363c9c9e235a8e6f4051b45642516eb69b241c3e9f8bbee6c187",
+    "desktop/app/src/shell/shape_resize_acceptance.rs": "425eca4d7cd21b13aadee4280cef6f02718bc39408002f50c546b10792ae8cb0",
+    "desktop/app/src/shell/shortcut_acceptance.rs": "8bf214b5c9228c30063cd72316e3a7b8502f5bc237d42dedf021a80b1853d7b8",
+    "desktop/app/src/shell/timeline_key_drag_acceptance.rs": "74927bb48d4cf59529ef39380302c931ca5532f4e968b85a7bf0121cde507528",
+    "desktop/app/src/shell/viewer_inspection.rs": "0737a1e258d2b08a0b795b4fe96227079632250777bc08935d8b64f7c046c144",
+    "desktop/app/src/shell/workspace_acceptance.rs": "8228fa88fe2d3381f98c118eee1228c7799b8e987df2df8a2b75689a5f00c8ae",
+    "desktop/app/src/viewer_views.rs": "1c345f035a72d6bbbd56c25e1f455c094231980314ae51c160db44c4db974a57",
+    "desktop/app/src/viewer_views/tests.rs": "98da2f5da3b8b6d3dfea8e7e3cd59f52731f402fbfdccaa24fe4f8b4518e844a",
+    "desktop/ui/styles/dark.json": "a9aa7d78910a9eef9aef0a5198a3dcf59623ef0fbcda8b45e81b246aa0eae0c6"
+  },
+  "buildWarnings": {
+    "test": 26,
+    "dev": 35
+  },
+  "currentTestLogs": {
+    "viewer-ui-current-second-engine-native_gpu_identity.log": [
+      1,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-engine-viewer_frame-native.log": [
+      2,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-engine-viewer_input-tests.log": [
+      1,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-composition-tests.log": [
+      6,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-composition_views-tests.log": [
+      2,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-effect_pick-tests.log": [
+      4,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-tools.log": [
+      19,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-transform_controls-spatial.log": [
+      10,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-viewer_guides.log": [
+      23,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-panels-viewer_inspection-tests.log": [
+      6,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-shell-native_input_tests.log": [
+      1,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-shell-viewer_views-native_tests.log": [
+      2,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-viewer_navigation-tests.log": [
+      3,
+      0,
+      0
+    ],
+    "viewer-ui-current-second-viewer_views-tests.log": [
+      8,
+      0,
+      0
+    ],
+    "viewer-ui-symbols-waveform.log": [
+      1,
+      0,
+      0
+    ],
+    "viewer-ui-current-shell-all.log": [
+      100,
+      0,
+      6
+    ]
+  },
+  "scope": {
+    "native": "actual GPU surfaces and Shell input; no OS input injection",
+    "devSmoke": "actual executable opens saved four-view workspace then complete smoke workflow",
+    "host": "113 library tests passed",
+    "fullDesktop": "old build eleven stopped after known FrameRecorder failure and symbol-less backtrace failure; both original exact assertions passed on current programs. Complete suite awaits CI.",
+    "remaining": "CI and complete desktop results; multiview per-cell performance attribution not claimed"
+  },
+  "files": {
+    "accepted-dev-smoke.log": {
+      "bytes": 592,
+      "sha256": "744336407f1d097c412f141e90b58a8263c04df93fc5b20c6b54699b0fc04749"
+    },
+    "dev-reopen-receipt.json": {
+      "bytes": 503,
+      "sha256": "70428b0a0dc7f28a112d9e9c5dc685f2cb355c218deb2fa611cd3707e2465afc"
+    },
+    "dev-reopened-workspace.json": {
+      "bytes": 4805,
+      "sha256": "c370a12756b27707b7655a6fee0b65b9127e2eeb8235fddc8cc79f3a2d53ac6f"
+    },
+    "dev-smoke-report.json": {
+      "bytes": 15548,
+      "sha256": "9f1df1c36876bb0a27de5f6293b73c29154124a647b48fb4bf64b3f6d5a7ccb7"
+    },
+    "float-en-150-color-source.png": {
+      "bytes": 102790,
+      "sha256": "949e3d51c64e8029673ebf90f5ad3ef601347ba4536f7649938cd1ecab148a78"
+    },
+    "float-en-150-four.png": {
+      "bytes": 99349,
+      "sha256": "7af52a741a2ec7f982b32cf616f6041f49a44e81af83332da4711292bb094d3f"
+    },
+    "float-en-150-independent.png": {
+      "bytes": 103905,
+      "sha256": "413e88396db13c7649c0c6858076e6a7d06b93255a9680351705dd7c4ad1b7f3"
+    },
+    "float-en-150-layout-menu.png": {
+      "bytes": 108813,
+      "sha256": "339f62104f3f2edbc429307f04ea27d794c65e77a7439e0c487c50ff8bf77b4f"
+    },
+    "float-en-150-single.png": {
+      "bytes": 76869,
+      "sha256": "32d77e9727e3c498d64c5f00f71933bbb571880e70e5a507a856cc694f870e1b"
+    },
+    "float-en-150-two.png": {
+      "bytes": 73455,
+      "sha256": "02f2053d7b87c216f01bf7a51cd37b3e85b3c4d6162ac4aeadf0413dc4d658ad"
+    },
+    "float-en-150-workspace.json": {
+      "bytes": 4801,
+      "sha256": "19228258d46446a1c397d36bf9baadb5e6b11a045059e97695ec82fb1b4aeb3d"
+    },
+    "main-zh-four.png": {
+      "bytes": 192454,
+      "sha256": "00b028791833a687854d68af0649d78a2d94b08669f1ff66d16de7bda6f515d0"
+    },
+    "main-zh-independent.png": {
+      "bytes": 194134,
+      "sha256": "8e73e4760fc3d13c2b578daf040863a5de7d82ab11bbbbd963ed2b49ec1df0fb"
+    },
+    "main-zh-layout-menu.png": {
+      "bytes": 197455,
+      "sha256": "dec008de1d2abbb54ecab3625dc7c3d55463b29f21e30c729746b39382082c67"
+    },
+    "main-zh-single.png": {
+      "bytes": 177668,
+      "sha256": "021324f46d3e10db79f0775f7ea8c7a53fc0a6863b7e6ec0ea3b3f63bb44d99d"
+    },
+    "main-zh-two.png": {
+      "bytes": 181502,
+      "sha256": "5a925b686ad083af32849fe1d4dbe3101fcdb6897c3e6e23a2062b3710d745bf"
+    },
+    "main-zh-workspace.json": {
+      "bytes": 4805,
+      "sha256": "c370a12756b27707b7655a6fee0b65b9127e2eeb8235fddc8cc79f3a2d53ac6f"
+    },
+    "viewer-ui-build-eight.log": {
+      "bytes": 13064,
+      "sha256": "94fb9f5a46ad46cfa9edf8595489f390c7ee62cd79a52711d2bdfb48e06ef973"
+    },
+    "viewer-ui-build-eleven.log": {
+      "bytes": 13064,
+      "sha256": "98448a22079780a926b4c9597124aaf7f934775c117df76456e387cb0de13250"
+    },
+    "viewer-ui-build-final.log": {
+      "bytes": 13064,
+      "sha256": "f5ec6eed1f945debab6e7415cf260c9eeb9bf6030300edc9be8076b9e11fe079"
+    },
+    "viewer-ui-build-five.log": {
+      "bytes": 13147,
+      "sha256": "69723cd8fc77276e55e81ecaa1c8bf16561a9bab31e5164090292cb230813373"
+    },
+    "viewer-ui-build-four.log": {
+      "bytes": 13705,
+      "sha256": "d44603cd845f723c5082979ea4a1331ed6c649a018b70315b79c23f28fee2a99"
+    },
+    "viewer-ui-build-nine.log": {
+      "bytes": 13064,
+      "sha256": "5abd80d613a990bc6756c8952db26415848d26864f278fed029c17478105997a"
+    },
+    "viewer-ui-build-seven.log": {
+      "bytes": 5227,
+      "sha256": "ee25480ee7a37c2448236d9bf09335e6127e5c7815d0c47d14d7957679b4a768"
+    },
+    "viewer-ui-build-six.log": {
+      "bytes": 13064,
+      "sha256": "cf809cf9ecb24c66d703c4e0b23c8a35f4633a1ee09026a6aa8ccbabb08e0643"
+    },
+    "viewer-ui-build-symbols.log": {
+      "bytes": 13064,
+      "sha256": "6144851e5d455dbc36998d60385148fd4db909e47c3e4abdab9ec150ea3de48d"
+    },
+    "viewer-ui-build-ten.log": {
+      "bytes": 13268,
+      "sha256": "5848a3ff2042fc3949c47b72e09aad58dc2137453b0870861056c31e61a56735"
+    },
+    "viewer-ui-build-three.log": {
+      "bytes": 13372,
+      "sha256": "6d6798cb2d36a8544fd9314841369e14c4123b3af11a077b9ef6d4b5e2c8124b"
+    },
+    "viewer-ui-build-two.log": {
+      "bytes": 13064,
+      "sha256": "8c29fd0d885d187e5da496234a1342eebbbc4b2029c4aa6c31230d4b39060286"
+    },
+    "viewer-ui-build.log": {
+      "bytes": 5022,
+      "sha256": "d8c4606a25be2a39230da049261f38e2384f527a0d3735e852e8192b106097dc"
+    },
+    "viewer-ui-current-second-engine-native_gpu_identity.log": {
+      "bytes": 949,
+      "sha256": "27c85916e56700b3c4899b479a4d3041e116b1517d461f295a94b9d873c8de6f"
+    },
+    "viewer-ui-current-second-engine-viewer_frame-native.log": {
+      "bytes": 374,
+      "sha256": "9eff00c87a9da52fda30e2ed466f826951d5928c5e10a5326242121874a2fc68"
+    },
+    "viewer-ui-current-second-engine-viewer_input-tests.log": {
+      "bytes": 244,
+      "sha256": "60a70602f28ed8bb64811fdf31a6fcd128772d58689565c7a38d0c17c89f60c2"
+    },
+    "viewer-ui-current-second-panels-composition-tests.log": {
+      "bytes": 793,
+      "sha256": "0ddda7bce43ae497a6b3b3c32fab159733ecf3db970ad956e899dbf73b2e8055"
+    },
+    "viewer-ui-current-second-panels-composition_views-tests.log": {
+      "bytes": 366,
+      "sha256": "c28c8f1baf5e87d8a5cc41cf2e748aebba4275bfa210545039e560fbd82a77c6"
+    },
+    "viewer-ui-current-second-panels-effect_pick-tests.log": {
+      "bytes": 572,
+      "sha256": "33bbadf8a7dafd43a463973b23756a7850c7143f3f4a6c56e54066a751b0effa"
+    },
+    "viewer-ui-current-second-panels-tools.log": {
+      "bytes": 2191,
+      "sha256": "09910a9e519aa883025ab0dd10de6a979c60f57f23d8e322aa22bac5b562102c"
+    },
+    "viewer-ui-current-second-panels-transform_controls-spatial.log": {
+      "bytes": 1604,
+      "sha256": "857c41bd7a2f4bdbd2fa02694ff2b91ac9faca378415e242c943fb505e774aad"
+    },
+    "viewer-ui-current-second-panels-viewer_guides.log": {
+      "bytes": 2944,
+      "sha256": "d3043e57c2c356a1ba6b45bb822903a28c6026eada0673fc40ac853c54df1a28"
+    },
+    "viewer-ui-current-second-panels-viewer_inspection-tests.log": {
+      "bytes": 790,
+      "sha256": "59f83efe1ca9c31a0ba4fd4af6913a06e78a4b6ebc1cc80c47748c51c7f95611"
+    },
+    "viewer-ui-current-second-shell-native_input_tests.log": {
+      "bytes": 235,
+      "sha256": "8fa09cb328e4f512e7ad6a40c74021a91aeb58ce5df17a52810af9b68d9e385c"
+    },
+    "viewer-ui-current-second-shell-viewer_views-native_tests.log": {
+      "bytes": 945,
+      "sha256": "b735522a10f91fd7f2e5ce75e356f6b592691b857e890caab6b664386cdee3ce"
+    },
+    "viewer-ui-current-second-viewer_navigation-tests.log": {
+      "bytes": 396,
+      "sha256": "f02f5cf84992468a7d7499d064ef0a5034d08b52b5e56ebe4b5956b261990bdb"
+    },
+    "viewer-ui-current-second-viewer_views-tests.log": {
+      "bytes": 1081,
+      "sha256": "946b684e43300104ef4830fc34ff8a81df2fc3d3e116741a42d770e01555b524"
+    },
+    "viewer-ui-current-shell-all.log": {
+      "bytes": 13448,
+      "sha256": "9d47fa9762c8ec660e8f2618735699a15dfbbb046ae9fbdf1952f94bf487ff35"
+    },
+    "viewer-ui-current-shell-viewer_views-native_tests.log": {
+      "bytes": 1490,
+      "sha256": "5b72d32ceadf7a98c2b5bac550e82e279c2a7cb4444bdbccc1e862fb08296ee9"
+    },
+    "viewer-ui-desktop-full-eleven.log": {
+      "bytes": 120191,
+      "sha256": "cef3f13fddcb0bcba370809d90a2c7383f3c57369d0e8ec0d554709d7d3f57b9"
+    },
+    "viewer-ui-dev-baseline-smoke.log": {
+      "bytes": 594,
+      "sha256": "c03f346e3073cf495eb095dc265b130df8f30ef20abef30281f9fda7c8ba8664"
+    },
+    "viewer-ui-dev-build-boxed.log": {
+      "bytes": 15786,
+      "sha256": "70afa5d62edb1afc8235d3e7b99ec20448dd461cd0d65797303950b3cda85d02"
+    },
+    "viewer-ui-dev-build-capture.log": {
+      "bytes": 15786,
+      "sha256": "7a7aa3d231a5e4657de4d17a0af56839e47c54d854d34fb7311e26d555917350"
+    },
+    "viewer-ui-dev-build-final.log": {
+      "bytes": 15786,
+      "sha256": "1db085b3e24af8f290ab016c40af000dae2bbc2210506d7f83e1b7bf69908de2"
+    },
+    "viewer-ui-dev-build-hidden-menu.log": {
+      "bytes": 15786,
+      "sha256": "aa7526b46ad90e0a749098192bdda5348a8720c21490474e8c65c5587a1bde63"
+    },
+    "viewer-ui-dev-build.log": {
+      "bytes": 15990,
+      "sha256": "a2484dbad6e23f42b8b1ce4f29c514ca06a10fdf437edb555afe4f18a2542276"
+    },
+    "viewer-ui-dev-smoke-boxed-second.log": {
+      "bytes": 1192,
+      "sha256": "b01f2888c6a6707a2b5c3d551d37f624f5463adf14e676c85c2a91073c8f4969"
+    },
+    "viewer-ui-dev-smoke-boxed.log": {
+      "bytes": 1520,
+      "sha256": "91a8921f89de9bc1d5637a4ef022f553e2d475bcf3759622c751f39716db3675"
+    },
+    "viewer-ui-dev-smoke-capture.log": {
+      "bytes": 759,
+      "sha256": "8a3d651b590cb0f543c7cd77a18a678a75f547ee5871509002a1d6c7e90363a9"
+    },
+    "viewer-ui-dev-smoke-final.log": {
+      "bytes": 592,
+      "sha256": "744336407f1d097c412f141e90b58a8263c04df93fc5b20c6b54699b0fc04749"
+    },
+    "viewer-ui-dev-smoke-first.log": {
+      "bytes": 75,
+      "sha256": "56d7317d50c7f662c9a47e845bbd5ba5bdb034cddf25603d9c1848b6ddf1e8da"
+    },
+    "viewer-ui-dev-smoke-hidden-menu.log": {
+      "bytes": 592,
+      "sha256": "59f62826483f7aefb59ef2d154f29919c70f1df587abd831dffccc1611d8648e"
+    },
+    "viewer-ui-dev-smoke-second.log": {
+      "bytes": 50,
+      "sha256": "c2488626d5d9d4d4e12778730fbc9326704153b1fa7c4a035cf63c512026bc00"
+    },
+    "viewer-ui-host-full.log": {
+      "bytes": 14737,
+      "sha256": "92e535732511a91cee0cc46f843fe79a7a0bcbb1482d31fb4874c91d2be86323"
+    },
+    "viewer-ui-style.log": {
+      "bytes": 24,
+      "sha256": "0ea42e688b45ee39c6166b19955f8ba49da81c13bb04427053beeb9eef52a4fb"
+    },
+    "viewer-ui-symbols-waveform.log": {
+      "bytes": 249,
+      "sha256": "a389f1e572c816a8e13d13388771196d187aa39c5bb582ed921d968c3133630c"
+    }
+  },
+  "acceptedDistinctDesktopTests": 187,
+  "acceptedHostLibraryTests": 113,
+  "acceptedDistinctTestsIncludingHost": 300
+}

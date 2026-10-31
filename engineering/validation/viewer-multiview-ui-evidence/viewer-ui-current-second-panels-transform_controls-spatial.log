@@ -1,0 +1,15 @@
+
+running 10 tests
+test panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures ... ok
+test panels::transform_controls::spatial::native_tests::snapping::native_transform_snapping_preserves_history_and_exposes_reached_targets ... ok
+test panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction ... ok
+test panels::transform_controls::spatial::tests::end_on_axes_and_edge_on_planes_are_disabled_and_projection_keeps_2d_mapping_identical ... ok
+test panels::transform_controls::spatial::tests::ray_constraints_preserve_parent_axes_and_layer_scale_axes_across_cameras_mirrors_and_anchors ... ok
+test panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal ... ok
+test panels::transform_controls::spatial::worker_tests::actual_worker_constraints_preserve_other_tracks_and_one_undo_restores_the_full_project ... ok
+test panels::transform_controls::spatial::worker_tests::spatial_context_rejects_lock_hierarchy_camera_mode_and_document_changes_without_followup_edits ... ok
+test panels::transform_controls::spatial::worker_tests::spatial_context_tracks_camera_parent_motion_and_shared_or_legacy_camera_ancestors ... ok
+test panels::transform_controls::spatial::worker_tests::spatial_release_focus_cancel_and_persistence_use_the_existing_preview_history ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1558 filtered out; finished in 39.96s
+
