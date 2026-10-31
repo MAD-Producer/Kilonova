@@ -50,6 +50,11 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Exercise actual calibration CLI source-identity failures under normal and optimized Python without requiring optional OpenCV or downloading assets"
     },
+    "tools/test_ci_prerender_full_volume.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Verify actual child failure evidence, bounded stderr excerpts and exact test summaries without mounting or native GPU work"
+    },
     "tools/validate_prerender_full_volume.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",

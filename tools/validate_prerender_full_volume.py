@@ -19,6 +19,41 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def run_native(command, env, out, report, save):
+    report['nativeStartedUtc'] = datetime.now(timezone.utc).isoformat()
+    save()
+    with (out / 'stdout.log').open('wb') as stdout, (out / 'stderr.log').open('wb') as stderr:
+        child = subprocess.Popen(command, env=env, stdout=stdout, stderr=stderr)
+        report['nativePid'] = child.pid
+        save()
+        code = child.wait()
+    report['exitCode'] = code
+    report['nativeCompletedUtc'] = datetime.now(timezone.utc).isoformat()
+    # Persist the real exit before parsing or ordinary mount cleanup.
+    save()
+    output = (out / 'stdout.log').read_text(encoding='utf-8')
+    report['counts'] = re.findall(
+        r'(?m)^test result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored', output)
+    save()
+    if code != 0 or report['counts'] != [('1', '0', '0')]:
+        # PRs intentionally do not upload these artifacts. Surface bounded
+        # original causes in the job log as well as retaining complete files.
+        print(f'native full-volume test failed: exit={code} counts={report["counts"]}', file=sys.stderr)
+        for name in ('stdout.log', 'stderr.log'):
+            path = out / name
+            length = path.stat().st_size
+            with path.open('rb') as stream:
+                head = stream.read(4096)
+                if length > 8192:
+                    stream.seek(-4096, os.SEEK_END)
+                    excerpt = head + b'\n[truncated; complete original file retained]\n' + stream.read(4096)
+                else:
+                    excerpt = head + stream.read(4096)
+            print(f'--- {name} ({length} bytes) ---', file=sys.stderr)
+            print(excerpt.decode('utf-8', errors='replace'), file=sys.stderr)
+        raise ValueError('native test failed; original logs retained')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--artifacts', type=Path, required=True)
@@ -64,12 +99,7 @@ def main():
         env.pop('MOTION_LOG', None)
         env.update(MOTION_PRERENDER_FULL_VOLUME=str(volume),
                    MOTION_PRERENDER_FULL_VOLUME_ARTIFACTS=str(out / 'native'))
-        with (out / 'stdout.log').open('wb') as stdout, (out / 'stderr.log').open('wb') as stderr:
-            code = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
-        report['exitCode'] = code
-        output = (out / 'stdout.log').read_text(encoding='utf-8')
-        report['counts'] = re.findall(r'(\d+) passed; (\d+) failed; (\d+) ignored', output)
-        require(code == 0 and report['counts'] == [('1', '0', '0')], 'native test failed; original logs retained')
+        run_native(command, env, out, report, save)
         evidence = out / 'native/native-full-volume.json'
         native = json.loads(evidence.read_text(encoding='utf-8'))
         require(native['actualOsError'] == 28 and native['actualErrorKind'] == 'StorageFull', 'missing actual ENOSPC')
