@@ -31,7 +31,9 @@ def run_native(command, env, out, report, save):
     report['nativeCompletedUtc'] = datetime.now(timezone.utc).isoformat()
     # Persist the real exit before parsing or ordinary mount cleanup.
     save()
-    output = (out / 'stdout.log').read_text(encoding='utf-8')
+    # Native failures can contain non-UTF8 bytes. Decode only the summary view;
+    # keep the original files and actual exit code as the authoritative evidence.
+    output = (out / 'stdout.log').read_text(encoding='utf-8', errors='replace')
     report['counts'] = re.findall(
         r'(?m)^test result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored', output)
     save()

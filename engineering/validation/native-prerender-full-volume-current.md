@@ -56,3 +56,12 @@ rejection of summary words without a real test summary, and bounded excerpts
 with complete original logs. The test file was renamed with the established
 `test_ci_` prefix and registered in the explicit tool inventory; its test bytes
 remained identical. These are launcher IO controls, not Linux ENOSPC acceptance.
+
+Two further controls exercise actual children writing non-UTF8 bytes: a failed
+child must preserve its exit code and both original causes, and a successful
+child must still supply an anchored Rust final summary. Both controls initially
+failed because strict stdout decoding raised before the failure excerpts. The
+launcher now decodes only its summary view with replacement; complete raw files
+remain unchanged. The identical five-test module then passed, with its SHA-256
+checked against the failing run. No native assertions or acceptance thresholds
+changed. This repairs failure evidence, not any retained native crash cause.

@@ -56,6 +56,35 @@ class NativeFailureEvidence(unittest.TestCase):
         self.assertIn('TAIL_NATIVE_CAUSE', errors)
         self.assertLess(len(errors.encode('utf-8')), 20000)
 
+    def test_native_non_utf8_output_keeps_original_failure_and_raw_bytes(self):
+        out, report, checkpoints, errors = self.run_child(
+            "import os,sys;os.write(1,b'\\xffnative stdout cause\\n');"
+            "os.write(2,b'\\xfenative stderr cause\\n');sys.exit(101)"
+        )
+        self.assertEqual(report['exitCode'], 101)
+        self.assertEqual((out / 'stdout.log').read_bytes(), b'\xffnative stdout cause\n')
+        self.assertEqual((out / 'stderr.log').read_bytes(), b'\xfenative stderr cause\n')
+        self.assertTrue(any(row.get('exitCode') == 101 for row in checkpoints))
+        self.assertIn('native stdout cause', errors)
+        self.assertIn('native stderr cause', errors)
+        self.assertIn('exit=101', errors)
+
+    def test_success_requires_actual_summary_and_preserves_non_utf8_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            report = {}
+            errors = io.StringIO()
+            code = ("import os;os.write(1,b'\\xffnative diagnostic\\n"
+                    "test result: ok. 1 passed; 0 failed; 0 ignored; "
+                    "0 measured; 0 filtered out; finished in 0.01s\\n')")
+            with contextlib.redirect_stderr(errors):
+                launcher.run_native([sys.executable, '-c', code], os.environ.copy(),
+                                    out, report, lambda: None)
+            self.assertEqual(report['exitCode'], 0)
+            self.assertEqual(report['counts'], [('1', '0', '0')])
+            self.assertTrue((out / 'stdout.log').read_bytes().startswith(b'\xff'))
+            self.assertEqual(errors.getvalue(), '')
+
 
 if __name__ == '__main__':
     unittest.main()
