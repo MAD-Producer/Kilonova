@@ -18,6 +18,7 @@ pub mod preview_memory;
 mod preview_targets;
 pub use preview_targets::PreviewFrameTargets;
 pub use preview_targets::SdrPreviewFrameTargets;
+pub mod multiview;
 mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;

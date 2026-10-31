@@ -1,0 +1,11 @@
+
+running 6 tests
+test camera_views_and_independent_canvas_transforms_match_single_cell_oracles ... ok
+test combined_budget_rejects_before_encoding_and_preserves_all_fronts ... ok
+test invalid_layouts_foreign_owners_and_bad_geometry_are_rejected_before_draw ... ok
+test pending_and_failed_later_cells_keep_the_whole_previous_group_and_recover ... ok
+test precision_switches_and_warm_updates_keep_display_pixels_and_bounded_targets ... ok
+test two_and_four_cells_preserve_each_others_pixels_on_one_output ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.79s
+
