@@ -452,7 +452,7 @@ impl Shell {
         );
         let viewer = panels::floating_view_styled(panel, size, &paint.styles());
         let atlas = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),
@@ -483,7 +483,7 @@ impl Shell {
             },
             suffix
         ));
-        self.engine.capture_ui(ui, path.clone())?;
+        self.capture_presented_ui(ui, path.clone())?;
         Ok(path)
     }
     pub(crate) fn prepare_smoke(&mut self) -> Result<(), String> {
@@ -575,7 +575,7 @@ impl Shell {
         let (paint, _) = self.draw_commands(size);
         let ui = self.ui_frame(paint, size, true);
         let screenshot = path.with_extension("png");
-        self.engine.capture_ui(ui, screenshot.clone())?;
+        self.capture_presented_ui(ui, screenshot.clone())?;
         // Exercise actual surface presentation, not a CPU estimate. UI-only
         // repaint must reuse the submitted composition without executing effects.
         let view = panels::composition_view(self.workspace.display_root(), size);
@@ -603,7 +603,7 @@ impl Shell {
             }
             let ui = self.ui_frame(paint, size, true);
             let screenshot = path.with_extension("layer-context-menu.png");
-            self.engine.capture_ui(ui, screenshot.clone())?;
+            self.capture_presented_ui(ui, screenshot.clone())?;
             self.panels.layer_actions.cancel();
             if self.engine.state()?["revision"] != revision {
                 return Err("opening the layer context menu edited the project".into());
@@ -658,7 +658,7 @@ impl Shell {
             input,
         );
         let atlas = self.atlas.config();
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint,
             atlas: Some(AtlasUpload {
                 pixels: self.atlas.pixel_data().to_vec(),
@@ -674,7 +674,7 @@ impl Shell {
                 .node_viewport(panels::floating_node_view(dock::Panel::Nodes, size), scale),
         };
         let path = self.smoke.as_ref().unwrap().with_extension("nodes.png");
-        self.engine.capture_ui(ui, path.clone())?;
+        self.capture_presented_ui(ui, path.clone())?;
         Ok(path)
     }
     fn node_float_input(&mut self, input: Input) -> Result<(), String> {
@@ -757,7 +757,7 @@ impl Shell {
             if ui.composition.is_some() || ui.node_preview.is_some() {
                 return Err("home retained a GPU preview viewport".into());
             }
-            self.engine.capture_ui(ui, path).map(|_| ())
+            self.capture_presented_ui(ui, path).map(|_| ())
         })();
         self.home = previous_home;
         self.input = previous_input;
@@ -1279,8 +1279,8 @@ impl Shell {
             );
             let config = self.atlas.config();
             let examples_path = self.smoke.as_ref().unwrap().with_extension("examples.png");
-            self.engine.capture_ui(
-                UiFrame {
+            self.capture_presented_ui(
+                UiFrame { views: None,
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: self.atlas.pixel_data().to_vec(),
@@ -1436,7 +1436,7 @@ impl Shell {
                 .as_ref()
                 .unwrap()
                 .with_extension("layer-nodes.png");
-            self.engine.capture_ui(ui, path.clone())?;
+            self.capture_presented_ui(ui, path.clone())?;
             self.smoke_node_report["layerWorkspaceScreenshot"] =
                 serde_json::to_value(path).map_err(|e| e.to_string())?;
             self.state = self.engine.history(0)?;
@@ -1591,5 +1591,25 @@ impl Shell {
             self.smoke_stage = 4;
         }
         Ok(())
+    }
+}
+
+impl Shell {
+    /// Capture fixtures may change viewport geometry without a normal redraw.
+    /// Publish that exact group first; CaptureUi itself must continue to reject
+    /// stale groups and must never perform hidden scene rendering or retries.
+    pub(crate) fn capture_presented_ui(&self, ui:UiFrame, path:PathBuf)->Result<Value,String> {
+        if let Some(plan)=&ui.views {
+            let present=UiFrame {
+                views:Some(plan.clone()),paint:PaintList::default(),atlas:None,
+                logical_size:ui.logical_size,composition:ui.composition,
+                composition_image:None,inspection:Default::default(),window:ui.window,node_preview:None,
+            };
+            if !self.engine.present_async(present)?.recv_timeout(Duration::from_secs(10))
+                .map_err(|cause|format!("capture group presentation did not finish: {cause}"))?? {
+                return Err("capture group presentation is not complete".into());
+            }
+        }
+        self.engine.capture_ui(ui,path)
     }
 }

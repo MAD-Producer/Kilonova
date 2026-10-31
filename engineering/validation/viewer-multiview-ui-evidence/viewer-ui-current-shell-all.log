@@ -1,0 +1,111 @@
+
+running 106 tests
+test shell::actions::tests::hit_response_distinguishes_no_hit_from_malformed_data_in_default_logs ... ok
+test shell::actions::tests::seek_coalescing_preserves_edit_save_and_history_boundaries ... ok
+test shell::audio_analysis::tests::cancelled_or_stale_analysis_never_edits_a_changed_clip ... ok
+test shell::audio_analysis::tests::real_waveform_analysis_maps_source_offset_trim_and_clip_origin_and_undoes_once ... ok
+test shell::audio_analysis::worker::tests::default_start_and_unobserved_analysis_failures_keep_request_context ... ok
+test shell::audio_analysis::worker::tests::normal_cancellation_and_success_only_emit_debug_completion ... ok
+test shell::audio_preview_tests::audio_preview_shortcut_routes_once_in_both_owners_and_languages_and_respects_ime ... ok
+test shell::audio_preview_tests::empty_audio_preview_does_not_start_silent_playback_or_change_history ... ok
+test shell::audio_preview_tests::native::native_audio_preview_menu_and_device_clock_preserve_canvas_and_history ... ignored, requires a real GPU, native windows and an audio output device
+test shell::curve_comparison_tests::curve_clipboard_native::curve_clipboard_native_main_and_float_keep_explicit_targets_and_cancel_focus_loss ... ignored, manual native GPU screenshots; injects production Input, not physical OS input
+test shell::curve_comparison_tests::curve_comparison_native_main_and_float_pixels_preserve_authored_project ... ignored, manual native GPU screenshots; does not inject physical OS input
+test shell::effect_application::tests::effect_add_failure_keeps_project_and_original_error_then_recovers ... ok
+test shell::effect_application::tests::effect_application_does_not_report_unrelated_additions_from_a_stale_ui_snapshot ... ok
+test shell::effect_application::tests::effect_search_applies_atomically_reveals_and_roundtrips_in_both_windows_and_languages ... ok
+test shell::effect_application::tests::effect_search_native_pixels_and_default_failure_sinks ... ok
+test shell::effect_application::tests::recent_menu::actual_library_inputs_in_both_windows_feed_the_recent_menu_and_atomic_save_undo ... ok
+test shell::effect_application::tests::recent_menu::an_actual_worker_rejects_stale_menu_targets_without_partial_additions_or_extra_history ... ok
+test shell::effect_drag::integration_tests::effect_drag_real_panel_routes_batch_once_roundtrip_undo_and_preserve_shortcuts ... ok
+test shell::effect_drag::integration_tests::effect_drag_rejects_locked_row_and_cancels_escape_without_history_or_delayed_drop ... ok
+test shell::effect_drag::integration_tests::native::effect_drag_native_windows_capture_targets_and_preserve_release_coordinates ... ok
+test shell::effect_drag::tests::physical_client_projection_handles_negative_monitors_and_mixed_dpi ... ok
+test shell::effect_timeline_acceptance::protocol_tests::native_capture_adapter_rejects_incomplete_and_stale_editor_sources_without_editing ... ok
+test shell::effect_timeline_acceptance::protocol_tests::native_capture_stamp_and_adapter_apply_real_f9_and_undo_in_both_hosts_and_languages ... ok
+test shell::effect_timeline_acceptance::tests::screenshot_write_failure_restores_minimum_surface_and_preserves_project ... ok
+test shell::frame_export::png_shell_shows_export_and_completion_in_both_languages ... ok
+test shell::keyframe_timing::native_tests::timing_dialog_native_pixels_focus_transactions_and_independent_reopen ... ignored, manual native GPU capture; does not inject OS input or monopolize desktop CI
+test shell::layer_clipboard::tests::actual_shell_failures_show_the_original_cause_and_use_default_error_channels ... ok
+test shell::layer_clipboard::tests::cancellation_releases_staged_files_but_acknowledges_an_already_committed_paste ... ok
+test shell::layer_clipboard::tests::cancelled_or_superseded_cut_never_deletes_and_keeps_the_successful_cache ... ok
+test shell::layer_clipboard::tests::empty_clipboard_is_a_normal_miss_that_does_not_pause_playback ... ok
+test shell::layer_clipboard::tests::failed_replacement_preserves_frozen_bytes_across_actual_project_change_and_reopen ... ok
+test shell::layer_clipboard::tests::keyframes::keyframe_shell_paste_keeps_layer_selection_and_cut_uses_one_history_entry ... ok
+test shell::layer_clipboard::tests::keyframes::shell_keyframe_cancel_and_stale_commit_share_existing_action_barrier ... ok
+test shell::layer_clipboard::tests::native::keyframes::native_keyframe_clipboard_menu_keyboard_and_floating_timeline_share_real_transactions ... ok
+test shell::layer_clipboard::tests::native::native_layer_clipboard_keys_and_edit_menu_use_actual_bilingual_surfaces ... ok
+test shell::layer_clipboard::tests::native::paths::native_path_clipboard_selects_authored_nodes_and_shares_menu_keyboard_across_windows ... ok
+test shell::layer_clipboard::tests::native::text::native_text_clipboard_crosses_main_and_floating_fields_and_commits_once ... ok
+test shell::layer_clipboard::tests::pasted_multiselection_preserves_its_primary_and_original_stack_order ... ok
+test shell::layer_clipboard::tests::pending_surface_acknowledgement_is_drained_before_clipboard_commit ... ok
+test shell::layer_clipboard::tests::shell_copy_paste_selects_fresh_layers_and_each_transaction_undoes_once ... ok
+test shell::layer_clipboard::tests::text::text_clipboard_draft_cut_undo_and_layer_cache_remain_independent_in_actual_chrome ... ok
+test shell::layer_clipboard::tests::text::text_clipboard_failures_use_default_file_stderr_without_leaking_user_text ... ok
+test shell::layer_clipboard::tests::text::text_clipboard_survives_a_real_project_replacement_without_document_aliases ... ok
+test shell::layer_clipboard::tests::text_menu::text_menu_clipboard_file_switch_keeps_outside_commit_and_focus_loss_cancels ... ok
+test shell::layer_clipboard::tests::text_menu::text_menu_clipboard_rename_retains_the_draft_and_commits_one_saved_undoable_edit ... ok
+test shell::layer_clipboard::tests::text_menu::text_menu_clipboard_search_and_stale_context_do_not_fall_back_to_document_actions ... ok
+test shell::layer_clipboard::tests::text_search::search_clipboard_cut_paste_and_history_leave_document_and_layer_cache_untouched ... ok
+test shell::layer_clipboard::tests::text_search::search_clipboard_ime_commit_and_focus_loss_preserve_live_query_without_host_edits ... ok
+test shell::media::failure_tests::actual_failed_import_releases_its_slot_and_preserves_the_project ... ok
+test shell::media::failure_tests::failed_status_query_clears_import_slot_instead_of_blocking_future_imports ... ok
+test shell::media::failure_tests::invalid_task_states_are_terminal_protocol_errors ... ok
+test shell::media_assets::tests::asset_relink_shell_preserves_selection_and_releases_success_failure_and_cancel_slots ... ok
+test shell::media_assets::tests::asset_relink_ui_queues_prepare_status_commit_and_cancel_behind_a_blocked_worker ... ok
+test shell::media_assets::tests::asset_replacement_audio_polling_keeps_identity_and_releases_real_cancellation_and_failure ... ok
+test shell::media_assets::tests::asset_replacement_image_reply_keeps_selection_and_failed_or_stale_operations_release_slots ... ok
+test shell::media_assets::tests::file_location_failure_reports_native_cause_in_default_file_and_stderr_without_stdout ... ok
+test shell::model_import_tests::dropped_obj_publishes_an_editable_model_and_native_editor_pixels ... ok
+test shell::model_layer_tests::saved_model_keyframes_render_inside_the_editor ... ok
+test shell::native_input_tests::native_main_and_floating_input_remain_isolated_and_consume_each_event_once ... ok
+test shell::node_image_drop::tests::native_drop_coordinate_failure_preserves_graph_and_default_error_sinks ... ok
+test shell::node_image_drop_tests::native_image_drop_and_mapping_shortcut_work_in_both_window_owners_and_languages ... ignored, requires an interactive Windows desktop for real external OLE file dragging and OS key input
+test shell::nodes::source_wait_tests::blocked_real_worker_delivers_its_late_node_source_failure ... ok
+test shell::nodes::source_wait_tests::disconnected_source_is_a_completed_error ... ok
+test shell::nodes::source_wait_tests::shell_reuses_timed_out_source_and_preserves_save_intent ... ok
+test shell::nodes::source_wait_tests::timeout_reaches_default_log_and_stderr_without_stdout ... ok
+test shell::nodes::source_wait_tests::timeout_retains_receiver_for_late_success_and_failure ... ok
+test shell::panel_maximize::tests::backquote_remains_text_in_an_active_search_field ... ok
+test shell::panel_maximize::tests::editors_popups_ime_repeat_modifiers_and_gestures_keep_keyboard_priority ... ok
+test shell::panel_maximize::tests::focus_loss_keeps_projection_and_panel_visibility_actions_restore_it ... ok
+test shell::panel_maximize::tests::idle_panels_do_not_block_layout_shortcuts_just_because_they_have_search_fields ... ok
+test shell::panel_maximize::tests::pointer_then_visible_focus_select_target_and_restore_without_project_edits ... ok
+test shell::path_selection_acceptance::point_selection_main_and_native_floating_routes_capture_and_restore ... ok
+test shell::preferences::shortcut_tests::actual_shortcut_presets_apply_reopen_cancel_and_failure_channels_preserve_valid_settings ... ok
+test shell::preferences::shortcut_tests::custom_preferences_routes_once_in_every_main_and_floating_context_and_defers_to_input_owners ... ok
+test shell::preferences::tests::actual_preferences_apply_restart_and_failures_preserve_project_and_error_channels ... ok
+test shell::preferences::tests::preferences_shortcut_routes_once_from_main_and_floating_focus_and_respects_ime ... ok
+test shell::preferences::tests::preview_options_persist_restart_and_save_failure_rolls_back ... ok
+test shell::preferences::tests::selected_preview_options_drive_the_real_clock_and_stop_at_the_work_area_end ... ok
+test shell::presentation::curve_playback_tests::acknowledged_layer_drag_cannot_advance_edge_pan_or_starve_a_pending_release ... ok
+test shell::presentation::curve_playback_tests::creating_multiple_cameras_selects_the_new_layer_and_errors_keep_the_previous_state ... ok
+test shell::presentation::curve_playback_tests::graph_ruler_scrubbing_cannot_feed_back_through_acknowledged_frames_or_starve_space ... ok
+test shell::presentation::curve_playback_tests::native_gesture_tests::native_property_gesture_commits_once_across_dpi_and_acknowledged_redraws ... ok
+test shell::presentation::geometry_observation_tests::failed_geometry_persistence_is_bounded_and_success_resets_episode ... ok
+test shell::presentation::interaction_tests::acknowledged_frame_preserves_node_drag_and_pending_release ... ok
+test shell::presentation::interaction_tests::composition_menu_creates_in_the_existing_project_and_cancel_is_read_only ... ok
+test shell::presentation::interaction_tests::home_hides_active_node_preview_and_restores_it_without_project_edits ... ok
+test shell::presentation::interaction_tests::mask_timeline_drag_survives_acknowledgement_and_commits_the_latest_release ... ok
+test shell::presentation::interaction_tests::node_wiring_pan_marquee_and_zoom_survive_acknowledged_frames ... ok
+test shell::presentation::interaction_tests::property_scrub_processes_a_gesture_batch_before_paint_and_commits_the_latest_release ... ok
+test shell::presentation::interaction_tests::shape_content_timeline_drag_survives_acknowledgement_and_commits_the_latest_release ... ok
+test shell::presentation::playback_tests::active_interaction_and_acknowledged_frames_still_block_playback ... ok
+test shell::presentation::playback_tests::incomplete_exposure_waits_for_its_canvas_reply_without_blocking_manual_seek ... ok
+test shell::presentation::playback_tests::repeated_pointer_events_cannot_starve_composition_ticks ... ok
+test shell::presentation_observation::tests::action_deferral_evidence_is_bounded_per_window_and_resets_only_after_submission_or_close ... ok
+test shell::project_import::tests::model_project_drop_registers_only_in_the_captured_folder ... ok
+test shell::project_import::tests::project_drop_registers_in_captured_folder_and_explicit_placement_has_separate_history ... ok
+test shell::project_import::tests::project_import_stale_source_and_failed_media_preserve_document_and_allow_recovery ... ok
+test shell::project_import::tests::project_media_prepare_and_cancel_queue_without_waiting_for_a_blocked_engine ... ok
+test shell::project_precision_tests::project_precision_menu_apply_cancel_history_and_gpu_screens_cover_locales_sizes_and_ratios ... ok
+test shell::property_acceptance::typed_capture_fixtures_paint_clickable_properties_without_media_io ... ok
+test shell::render_queue::tests::render_queue_opens_when_its_main_tab_or_float_becomes_visible_without_paint_actions ... ok
+test shell::retired_effect_tests::retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks ... ok
+test shell::styles::tests::missing_stylesheet_recovers_when_created_and_does_not_clear_unrelated_feedback ... ok
+test shell::styles::tests::override_reloads_every_window_and_invalid_replacement_keeps_previous_sheet ... ok
+test shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen ... ignored, opens real native main/floating surfaces and writes visual acceptance images
+test shell::viewer_views::native_tests::view_camera_and_preferences_failures_keep_default_file_stderr_and_stdout_contracts ... ok
+
+test result: ok. 100 passed; 0 failed; 6 ignored; 0 measured; 1462 filtered out; finished in 333.69s
+

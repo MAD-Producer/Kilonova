@@ -1,0 +1,12 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+
+thread 'engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell' (41128) panicked at desktop\app\src\engine\viewer_frame\native\inspection.rs:139:5:
+assertion `left == right` failed
+  left: Number(21)
+ right: 48
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

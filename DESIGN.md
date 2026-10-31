@@ -37,6 +37,14 @@ bounded by `plugin.author.guide.*`; navigation must preserve the author draft.
 
 ---
 
+The Composition viewer supports one, two, or four independently navigable cells.
+Use `viewer.multiview.gap` for cell spacing, existing `border` / `accent` colors
+for inactive / active outlines, and the existing panel/text tokens for captions.
+The shared footer uses native dropdowns for layout and the active cell camera;
+opening a popup owns input, and hiding the viewer clears its popup hit regions.
+No per-cell footer or property row is introduced. Navigation changes remain
+local to a cell; authored project editing continues to share selection and undo.
+
 ## 0. Scope and highest-priority rules
 
 1. Motion Studio is an existing **Windows-native** Rust motion-graphics editor. It uses the in-house `motion-ui` / `PaintList` drawing system and retains 21 historical panel IDs and five workspace presets. Masks and expressions are now property-owned; 19 panels remain available. This specification targets the **Windows desktop UI only**.

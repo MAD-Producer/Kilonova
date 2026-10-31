@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'session::viewer::interaction_tests::explicit_view_geometry_and_picks_preserve_the_complete_shared_state' (41268) panicked at crates\motion-host\src\session\viewer\interaction_tests.rs:88:5:
+assertion `left == right` failed
+  left: Null
+ right: 7
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test session::viewer::interaction_tests::explicit_view_geometry_and_picks_preserve_the_complete_shared_state ... FAILED
+
+failures:
+
+failures:
+    session::viewer::interaction_tests::explicit_view_geometry_and_picks_preserve_the_complete_shared_state
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 112 filtered out; finished in 5.19s
+

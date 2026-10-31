@@ -46,9 +46,9 @@ pub(super) struct Buffers {
     pub view: Buffer,
 }
 impl Buffers {
-    fn mode(format: wgpu::TextureFormat) -> [u32; 8] {
+    fn mode(format: wgpu::TextureFormat, canvas: bool) -> [u32; 8] {
         [
-            u32::from(format.is_srgb()),
+            u32::from(format.is_srgb()) | (u32::from(canvas) << 1),
             0,
             0,
             0,
@@ -75,8 +75,9 @@ impl Buffers {
         }
     }
     pub fn raw(renderer: &Renderer, format: wgpu::TextureFormat) -> Self {
-        let mode = Self::mode(format);
+        let mode = Self::mode(format, false);
         let contents = bytemuck::cast_slice(&mode);
+        let view_mode = Self::mode(format, true);
         Self {
             color: Buffer::Raw(renderer.device.create_buffer_init(&Self::descriptor(
                 "Motion Studio surface color encoding",
@@ -85,20 +86,19 @@ impl Buffers {
             ))),
             view: Buffer::Raw(renderer.device.create_buffer_init(&Self::descriptor(
                 "Motion Studio canvas navigation",
-                contents,
+                bytemuck::cast_slice(&view_mode),
                 true,
             ))),
         }
     }
     pub fn admitted(renderer: &Renderer, format: wgpu::TextureFormat) -> Result<Self, RenderError> {
-        let mode = Self::mode(format);
-        let contents = bytemuck::cast_slice(&mode);
         let buffer = |label, writable| -> Result<Buffer, RenderError> {
+            let mode = Self::mode(format, writable);
             Ok(Buffer::Admitted {
                 buffer: AllocationBuffer::new_init(
                     &renderer.device,
                     renderer.allocation_budget(),
-                    &Self::descriptor(label, contents, writable),
+                    &Self::descriptor(label, bytemuck::cast_slice(&mode), writable),
                 )?,
                 uploads: renderer.allocation_uploads(),
                 queue: renderer.queue.clone(),

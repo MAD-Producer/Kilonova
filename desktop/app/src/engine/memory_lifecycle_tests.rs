@@ -15,7 +15,7 @@ fn reply<T>(
         .unwrap()
 }
 fn ui(size: u32) -> UiFrame {
-    UiFrame {
+    UiFrame { views: None,
         paint: Default::default(),
         // CaptureUi requires a complete atlas even for a glyph-free frame.
         atlas: Some(AtlasUpload {

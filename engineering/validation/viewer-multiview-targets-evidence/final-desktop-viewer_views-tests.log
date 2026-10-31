@@ -1,0 +1,12 @@
+
+running 7 tests
+test viewer_views::tests::invalid_saved_settings_reject_partial_navigation_unknown_modes_and_invalid_observer_values ... ok
+test viewer_views::tests::invalid_workspace_view_state_preserves_input_and_reports_default_channels_with_recovery_reset ... ok
+test viewer_views::tests::navigation_gestures_only_change_the_captured_tile_and_foreign_owners_cannot_steal_them ... ok
+test viewer_views::tests::observer_views_sample_independent_actual_scene_matrices_without_mutating_the_project ... ok
+test viewer_views::tests::stale_document_frame_revision_layout_and_geometry_roll_back_before_further_input ... ok
+test viewer_views::tests::tile_hit_regions_are_disjoint_bounded_and_exclude_gaps_in_small_and_fractional_windows ... ok
+test viewer_views::tests::workspace_round_trip_keeps_layout_each_view_and_native_panel_ownership_in_both_locales ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 1505 filtered out; finished in 5.42s
+

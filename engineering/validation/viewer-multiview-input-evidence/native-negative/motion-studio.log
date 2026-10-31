@@ -1,0 +1,40 @@
+1793433180.748 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793433180.752 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpZRiTqv\project
+1793433180.752 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793433180.753 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpZRiTqv\project
+1793433185.886 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793433185.887 INFO [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpZRiTqv\project 5135ms
+1793433185.887 INFO [motion-engine] motion_studio::engine: start #1 state
+1793433185.889 INFO [motion-engine] motion_studio::engine: start #2 viewer_states
+1793433185.891 INFO [motion-engine] motion_studio::engine: start #3 viewer_pick
+1793433185.892 ERROR [engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels] motion_studio::logging: panic command=None: panicked at desktop\app\src\engine\viewer_input\tests.rs:67:9:
+assertion `left == right` failed
+  left: Number(8)
+ right: 7
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: BaseThreadInitThunk
+  19: RtlUserThreadStart
+
+1793433185.911 INFO [motion-engine] motion_studio::engine: start #4 shutdown
+1793433185.911 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793433185.911 INFO [motion-engine] motion_studio::engine::shutdown: start #5 shutdown_cleanup session=1
+1793433185.911 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793433185.912 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793433185.912 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

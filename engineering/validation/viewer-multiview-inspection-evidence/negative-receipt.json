@@ -1,0 +1,9 @@
+{
+  "source": "desktop/app/src/engine/viewer_inspection.rs",
+  "originalSha256": "1F7847B46C81079F5EB81FD1D9BF6BB002A795AC81AA9ECE5B607DD50FD62CB2",
+  "positiveProgramSha256": "EE67ADD07127520A8E63FC68A2526A7F6D3B00F7C7D54F14FC483B6CA19AA03B",
+  "mutation": "Bind every comparison to cell zero; keep all test assertions unchanged",
+  "buildExit": 0,
+  "testExit": 101,
+  "restoredSha256": "1F7847B46C81079F5EB81FD1D9BF6BB002A795AC81AA9ECE5B607DD50FD62CB2"
+}

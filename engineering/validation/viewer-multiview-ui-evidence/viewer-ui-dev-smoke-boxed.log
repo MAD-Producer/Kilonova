@@ -1,0 +1,12 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b9a3aff0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x241b9a3aff0, name: ?)
+ERROR motion_studio::engine: capture failed operation=capture_ui request=33 session=1 window=2 phase=capture.save elapsed_ms=18 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-boxed-smoke/report.panel-3-backquote.png cause=系统找不到指定的路径。 (os error 3)
+ERROR motion_studio::engine: error #33 capture_ui 18ms: 系统找不到指定的路径。 (os error 3)
+ERROR motion_studio::engine: capture failed operation=capture_ui request=35 session=1 window=2 phase=capture.save elapsed_ms=13 path=E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-boxed-smoke/report.panel-3-backquote.png cause=系统找不到指定的路径。 (os error 3)
+ERROR motion_studio::engine: error #35 capture_ui 13ms: 系统找不到指定的路径。 (os error 3)
+ERROR motion_studio: desktop failed: 5501ms reason=系统找不到指定的路径。 (os error 3)
+Error: "系统找不到指定的路径。 (os error 3)"

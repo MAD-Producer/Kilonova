@@ -34,7 +34,8 @@ impl Default for Visibility {
 #[derive(Default)]
 pub(crate) struct Controls {
     pub visibility: Visibility,
-    channels: [motion_render::ViewChannel; 2],
+    channels: [motion_render::ViewChannel; 8],
+    cells: [usize;2],
     channel_dropdown: motion_ui::widgets::Dropdown,
     window: Option<Panel>,
     drag: Option<Drag>,
@@ -392,8 +393,13 @@ impl Controls {
             opened: true,
         });
     }
+    pub(crate) fn select_cell(&mut self,floating:bool,cell:usize) {
+        let owner=usize::from(floating);
+        if self.cells[owner]!=cell {self.cancel();self.cells[owner]=cell.min(3);}
+    }
+    pub(crate) fn channel_for(&self,floating:bool,cell:usize)->motion_render::ViewChannel {self.channels[usize::from(floating)*4+cell]}
     pub(crate) fn channel(&self, floating: bool) -> motion_render::ViewChannel {
-        self.channels[usize::from(floating)]
+        self.channel_for(floating,self.cells[usize::from(floating)])
     }
 
     pub(super) fn current_channel(&self) -> motion_render::ViewChannel {
@@ -795,7 +801,7 @@ impl Controls {
         let labels = if zh { ["彩色", "红", "绿", "蓝", "Alpha"] }
             else { ["Color", "Red", "Green", "Blue", "Alpha"] };
         let items: Vec<_> = labels.iter().map(|label| motion_ui::widgets::DropdownItem { label, enabled: true }).collect();
-        let channel_index = usize::from(self.window.is_some());
+        let channel_index = usize::from(self.window.is_some())*4+self.cells[usize::from(self.window.is_some())];
         let channels = [motion_render::ViewChannel::Color, motion_render::ViewChannel::Red,
             motion_render::ViewChannel::Green, motion_render::ViewChannel::Blue, motion_render::ViewChannel::Alpha];
         let selected = channels.iter().position(|channel| *channel == self.channels[channel_index]).unwrap_or(0);

@@ -112,7 +112,7 @@ impl Shell {
                 .ok_or("expanded workspace capture lost the live preview")?.rect;
             let screenshot = self.smoke.as_ref().ok_or("no smoke report path")?
                 .with_extension(format!("workspace-nodes-{index}-expanded.png"));
-            self.engine.capture_ui(ui, screenshot.clone())?;
+            self.capture_presented_ui(ui, screenshot.clone())?;
             Ok((screenshot, viewport))
         })();
         // Restore even when presentation or capture fails; preserve that cause.

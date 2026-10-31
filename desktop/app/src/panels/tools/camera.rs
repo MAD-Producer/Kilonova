@@ -58,6 +58,11 @@ pub(crate) fn history_enabled(p: &Panels, state: &Value, redo: bool) -> bool {
     if owns_history(p) && p.tools.camera.editing() {
         return false;
     }
+    if owns_history(p) {
+        let active=p.viewer_views.settings.active();
+        return p.viewer_views.settings.view(active).is_some_and(|view|p.viewer_views.history[active].enabled(
+            crate::layer_clipboard::KeyframeSource::of(state),state["frame"].as_f64().unwrap_or(0.).to_bits(),view.mode,redo));
+    }
     state[if owns_history(p) {
         if redo {
             "canRedoObservation"

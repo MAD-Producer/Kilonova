@@ -1,0 +1,10 @@
+
+running 5 tests
+test deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolution ... ok
+test nested_effects_and_postorder_bundle_keep_program_and_parent_texture_bindings ... ok
+test nested_gpu_preserves_pixels_at_keys_and_random_seek_and_reuses_outputs ... ok
+test repeated_mixed_rate_shake_reuses_scenes_without_changing_pixels_or_export_plans ... ok
+test switching_contexts_can_reuse_an_id_for_video_and_composition_without_reusing_texture_usage ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.64s
+

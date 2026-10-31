@@ -1,0 +1,86 @@
+[
+  {
+    "path": "Cargo.toml",
+    "sha256": "9059bcf16fa56745ddc375fcfde5ce9002d4f6a907eb9288564fb78b9a7b8f60"
+  },
+  {
+    "path": "Cargo.lock",
+    "sha256": "593e22b267f537ee419b467f82ecb3bb73260364fd4a0cab2d7289c6bd2c3531"
+  },
+  {
+    "path": "crates/motion-host/Cargo.toml",
+    "sha256": "04c58cbc1f9245d21b01915ec961e9824c9c0ded4bf6fd3d99f35bc2386fd0b5"
+  },
+  {
+    "path": "crates/motion-render/Cargo.toml",
+    "sha256": "888231af18cd48f4f6936a8152ec973a029eac829b88fa44d6cd344714c9d04c"
+  },
+  {
+    "path": "desktop/app/Cargo.toml",
+    "sha256": "3a312d88f9134ac2e493dad9f6aaa54130badcd0f9caf5e6197cc149bcc31c51"
+  },
+  {
+    "path": "crates/motion-host/src/session.rs",
+    "sha256": "fb63cb287f4a064d7e7a0b21443ff4f82a897df045ed33b56f0065d0f21b3055"
+  },
+  {
+    "path": "crates/motion-host/src/session/sampling.rs",
+    "sha256": "ffc39edc3f33ee6a629a0491feb8b14b67a282e64aca86eb9af7ffe76211cf80"
+  },
+  {
+    "path": "crates/motion-host/src/session/viewer.rs",
+    "sha256": "602deaee536ccfd44b2ba9dafc2d617522369617b3debb3797bb673e28dc4323"
+  },
+  {
+    "path": "crates/motion-host/src/session/viewer/tests.rs",
+    "sha256": "b3b0ad5449efc38e7756a278abb73c9f9c4bc23571697a70a6fba152f524d127"
+  },
+  {
+    "path": "crates/motion-host/src/session/viewer/tests/video.rs",
+    "sha256": "2556666e5e9e9274ad49aa3442f077d36c6e81354350b7e3801c0344a82a429f"
+  },
+  {
+    "path": "crates/motion-host/src/ops/snapshot.rs",
+    "sha256": "fd73b71632fcc379fcff8c7bafc687cbe9f75f32c613d699673d977ca215ea83"
+  },
+  {
+    "path": "crates/motion-host/src/ops/preview.rs",
+    "sha256": "681f9cec70eeadc6f1373bb608b6d3c6862b719db44ee8af0ab52d6e86935942"
+  },
+  {
+    "path": "crates/motion-render/src/multiview.rs",
+    "sha256": "f7b80acb1778e1582d3c12ad2ed1302dc5add94561ddb6dfabd4ef3a4ccf8570"
+  },
+  {
+    "path": "crates/motion-render/tests/multiview_targets.rs",
+    "sha256": "8c5417394231e2205c2066360141b61a653e01f615e232214868b49312965b2f"
+  },
+  {
+    "path": "desktop/app/src/engine.rs",
+    "sha256": "692f3756d1933475b3e4170a9fe6d411014a57ac2d734ba1c3b69363f915bef8"
+  },
+  {
+    "path": "desktop/app/src/engine/multiview_tests.rs",
+    "sha256": "17646b44224bdd6f422848b4467750cf0803a564a5181f20fb3f1b1c201d8014"
+  },
+  {
+    "path": "crates/motion-render/src/scene.rs",
+    "sha256": "4eb8280a3a90409b6d0d9d3f7dfd111268002fef3ca6de3c2887f3061ae092b5"
+  },
+  {
+    "path": "crates/motion-render/src/scene/view.rs",
+    "sha256": "9d3a2e9e1308025f37697f5d044c78903e4957844fac1493b9bd0c0255ad32de"
+  },
+  {
+    "path": "crates/motion-render/src/exposure_scene.rs",
+    "sha256": "9c15086beff76bf9c0dd4068d84cf0ccc725f088d92c67104aa4eeb90fcf00b5"
+  },
+  {
+    "path": "crates/motion-render/src/preview_targets/sdr.rs",
+    "sha256": "09be76a64577135212b1a5597dd1e30539b72810ce1b74592a230c9dd9eb027f"
+  },
+  {
+    "path": "crates/motion-render/src/presenter.rs",
+    "sha256": "9e0ad891e331a142724896cd9f18887fe9864f163838f5e025aa0f197a4ef196"
+  }
+]

@@ -23,6 +23,7 @@ mod nodes;
 mod node_image_drop;
 mod presentation;
 pub(crate) mod viewer_inspection;
+pub(crate) mod viewer_views;
 #[cfg(test)]
 mod audio_preview_tests;
 pub(crate) mod pointer_position;

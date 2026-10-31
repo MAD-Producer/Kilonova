@@ -59,7 +59,7 @@ fn capture(
 fn present(shell: &Shell, events: &mut EventLoop<()>, size: [f32; 2]) {
     let began = Instant::now();
     loop {
-        let ui = UiFrame {
+        let ui = UiFrame { views: None,
             paint: PaintList::default(),
             atlas: Some(AtlasUpload {
                 pixels: vec![255; 4],

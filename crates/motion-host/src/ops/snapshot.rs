@@ -81,6 +81,7 @@ impl Session {
         if let Some(g) = &self.graphics {
             ledger.merge(g.renderer.texture_resource_ledger());
             g.scratch.collect_texture_resources(&mut ledger);
+            g.views.collect(&mut ledger);
         }
         if let Some(renderer) = &self.editor_renderer {
             ledger.merge(renderer.texture_resource_ledger());
@@ -166,7 +167,7 @@ impl Session {
             "resourceLedgerVersion":1,
             "memoryBreakdown":self.graphics.as_ref().map(|g| {
                 let memory=g.renderer.texture_memory_breakdown();
-                let target=g.scratch.texture_bytes();
+                let target=g.scratch.texture_bytes()+g.views.texture_bytes();
                 json!({"version":1,"scope":"logical_texture_capacity",
                     "rendererBytes":memory.total_bytes(),"categories":memory,
                     "legacyTextureBytes":g.renderer.texture_bytes(),
@@ -221,13 +222,35 @@ impl Session {
     }
 
     pub fn snapshot(&self) -> crate::Result<Value> {
+        self.snapshot_in_scene(&self.scene, self.observing, &self.observer)
+    }
+
+    /// The same host projection used by the ordinary editor, evaluated against
+    /// one explicit view. Never install its camera into the shared session.
+    pub fn snapshot_for_view(&self, view: motion_render::ViewCamera<'_>) -> crate::Result<Value> {
+        self.check_thread()?;
+        let scene = self.scene.fork_view(view)?;
+        let observer = match view {
+            motion_render::ViewCamera::Observer(observer) => Some(observer),
+            _ => None,
+        };
+        let mut snapshot = self.snapshot_in_scene(&scene, observer.is_some(), observer.unwrap_or(&self.observer))?;
+        // View-local navigation history belongs to its desktop owner. Never
+        // advertise the session observer's undo stack for a different camera.
+        snapshot["canUndoObservation"] = false.into();
+        snapshot["canRedoObservation"] = false.into();
+        Ok(snapshot)
+    }
+
+    fn snapshot_in_scene(&self, scene: &motion_render::Scene, observing: bool,
+        observer: &motion_core::Observer) -> crate::Result<Value> {
         let original = self.engine.project();
         let f = self.frame;
         // Project timelines before sampling so structural failures retain their object context.
         let timeline_layers = original.timeline_layers(f)?;
         let timeline_position = original.camera.position.timeline(0)?;
         let timeline_target = original.camera.target.timeline(0)?;
-        let p = self.scene.sampled_project(original);
+        let p = scene.sampled_project(original);
         let camera = json!({"position":p.camera.position_at(f)?,"target":p.camera.target.sample(f)?,
             "fov":p.camera.fov.sample(f)?.clamp(10.0,120.0),"roll":p.camera.roll.sample(f)?,
             "radius":p.camera.radius.sample(f)?.clamp(1.0,10_000_000.0),
@@ -252,17 +275,16 @@ impl Session {
                 Ok(sample)
             })
             .collect::<motion_core::Result<_>>()?;
-        let mut projected: Vec<_> = self
-            .scene
+        let mut projected: Vec<_> = scene
             .layers
             .iter()
             .filter_map(|layer| {
-                let corners = motion_render::selection_geometry::polygon(layer, &self.scene, &self.effects.registry)?;
+                let corners = motion_render::selection_geometry::polygon(layer, scene, &self.effects.registry)?;
                 let anchor = p
                     .layers
                     .iter()
                     .find(|l| l.id == layer.id)
-                    .and_then(|l| self.scene.project_node(l.id));
+                    .and_then(|l| scene.project_node(l.id));
                 Some(json!({"id":layer.id,"anchor":anchor,"corners":corners,"selection_space":"effect_output"}))
             })
             .collect();
@@ -271,7 +293,7 @@ impl Session {
             .iter()
             .filter(|l| matches!(l.content, motion_core::Content::Null) && l.active(f, p.frames))
         {
-            if let Some(point) = self.scene.project_node(layer.id) {
+            if let Some(point) = scene.project_node(layer.id) {
                 let [x, y, _] = point;
                 if x.is_finite() && y.is_finite() {
                     projected.push(json!({"id":layer.id,"anchor":point,"null":true,
@@ -279,7 +301,7 @@ impl Session {
                 }
             }
         }
-        let mask_layers:Vec<_>=self.scene.layers.iter().filter_map(|layer| {
+        let mask_layers:Vec<_>=scene.layers.iter().filter_map(|layer| {
             let stored=p.layers.iter().find(|l|l.id==layer.id)?;
             if stored.masks.is_empty(){return None;}
             Some((|| -> motion_core::Result<_> {
@@ -301,7 +323,7 @@ impl Session {
             Ok(json!({"id":layer.id,"mvp":(layer.view_projection*layer.model).to_cols_array(),"masks":masks}))
             })())
         }).collect::<motion_core::Result<Vec<_>>>()?;
-        let vector_layers: Vec<_> = self.scene.layers.iter().filter_map(|layer| {
+        let vector_layers: Vec<_> = scene.layers.iter().filter_map(|layer| {
             let vector=layer.vector.as_ref()?;
             Some((|| -> motion_core::Result<_> {
             let stored=p.layers.iter().find(|l|l.id==layer.id).and_then(|l|match &l.content {
@@ -338,9 +360,9 @@ impl Session {
         // Hosts use this same evaluated matrix for transform and path gestures.
         let source_transforms: Vec<_> = p.layers.iter().filter_map(|layer| {
             if !layer.active(f,p.frames) || matches!(layer.content,motion_core::Content::Audio{..} | motion_core::Content::Camera { .. }) {return None;}
-            let world=self.scene.world_matrix(layer.id)?;
-            let vp=self.scene.layers.iter().find(|l|l.id==layer.id).map(|l|l.view_projection)
-                .unwrap_or_else(||if layer.three_d {self.scene.camera.view_projection}else{
+            let world=scene.world_matrix(layer.id)?;
+            let vp=scene.layers.iter().find(|l|l.id==layer.id).map(|l|l.view_projection)
+                .unwrap_or_else(||if layer.three_d {scene.camera.view_projection}else{
                     glam::Mat4::orthographic_rh(-(p.width as f32)*0.5,p.width as f32*0.5,
                         -(p.height as f32)*0.5,p.height as f32*0.5,-1.,1.)
                 });
@@ -394,28 +416,28 @@ impl Session {
                 "output_rate":48000,"output_channels":2,"pcm":"f32le_interleaved","waveform_bucket_us":10000,
                 "source_limit_bytes":motion_core::storage::MAX_MEDIA_ASSET,"source_duration_limit_seconds":3600,
                 "pcm_block_limit_frames":motion_media::MAX_BLOCK_FRAMES,"async_import":true,"ui_playback_integrated":true,"mp4_audio_mux_integrated":true}},
-            "canRedo":self.engine.can_redo(),"observing":self.observing,"sampledCamera":camera,
+            "canRedo":self.engine.can_redo(),"observing":observing,"sampledCamera":camera,
             "sampledLayers":layers,"timeline_layers":timeline_layers,
             "timeline_camera":{"position":timeline_position,"target":timeline_target},
             "projectedLayers":projected,"presented":self.presented,"cpuPrepareUs":self.last_cpu_us,
             "renderError":self.last_error,
             "effectErrors":self.graphics.as_ref().map(|g|&g.renderer.effect_diagnostics),
-            "sampledEffects":self.scene.effects.iter().map(|e|json!({"layer":e.layer,"instance":e.instance,
+            "sampledEffects":scene.effects.iter().map(|e|json!({"layer":e.layer,"instance":e.instance,
                 "values":e.param_ids.iter().enumerate().map(|(i,id)|(id.clone(),json!(e.values[i]))).collect::<serde_json::Map<String,Value>>(),
-                "curve_lut":e.lut.map(|i|&self.scene.curve_luts[i][..])})).collect::<Vec<_>>(),
+                "curve_lut":e.lut.map(|i|&scene.curve_luts[i][..])})).collect::<Vec<_>>(),
             "lastPresentedFrame":self.last_presented_frame,
             "lastPresentedRevision":self.last_presented_revision,"viewRevision":self.view_revision,
             "lastPresentedViewRevision":self.last_presented_view_revision,"surfaceEpoch":self.surface_epoch,
             "diagnosticsEnabled":cfg!(feature="diagnostics"),
-            "observationCamera":{"azimuth":self.observer.camera.azimuth.value,"elevation":self.observer.camera.elevation.value,
-                "radius":self.observer.camera.radius.value,"target":self.observer.camera.target.value,
-                "viewProjection":self.observing.then(|| self.scene.camera.view_projection.to_cols_array())},
+            "observationCamera":{"azimuth":observer.camera.azimuth.value,"elevation":observer.camera.elevation.value,
+                "radius":observer.camera.radius.value,"target":observer.camera.target.value,
+                "viewProjection":observing.then(|| scene.camera.view_projection.to_cols_array())},
             "canUndoObservation":self.observer_history.can_undo(self),"canRedoObservation":self.observer_history.can_redo(self),
-            "observationView":match self.observer.view {motion_core::ObservationView::Free=>"free",motion_core::ObservationView::Top=>"top",motion_core::ObservationView::Side=>"side"},
+            "observationView":match observer.view {motion_core::ObservationView::Free=>"free",motion_core::ObservationView::Top=>"top",motion_core::ObservationView::Side=>"side"},
             "preview":self.preview_info(),
             "graphics":self.graphics.as_ref().map(|g|json!({"width":g.config.width,"height":g.config.height,
                 "renderWidth":g.scratch.width,"renderHeight":g.scratch.height,
-                "renderTargetBytes":g.scratch.texture_bytes(),
+                "renderTargetBytes":g.scratch.texture_bytes()+g.views.texture_bytes(),
                 "imageReadback":g.renderer.image_readback_info(),
                 "timestampReadback":g.timer.as_ref().map(motion_render::GpuTimer::readback_info),
                 "adapter":g.renderer.adapter_info.name,

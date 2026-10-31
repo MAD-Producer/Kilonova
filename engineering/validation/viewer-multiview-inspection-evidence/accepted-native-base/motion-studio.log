@@ -1,0 +1,49 @@
+1793431728.331 INFO [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] motion_studio::logging: logging initialized level=INFO
+1793431728.369 INFO [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\project
+1793431728.369 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793431728.370 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\project
+1793431735.022 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793431735.023 INFO [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\project 6654ms
+1793431735.157 ERROR [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793431735.157 ERROR [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26644b530c0, name: ?)
+1793431735.157 ERROR [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793431735.157 ERROR [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26644b530c0, name: ?)
+1793431735.248 INFO [engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793431735.409 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793431735.456 INFO [motion-engine] motion_studio::engine: start #2 preview_mode
+1793431735.456 INFO [motion-engine] motion_studio::engine: start #3 state
+1793431735.476 INFO [motion-engine] motion_studio::engine: start #5 capture_ui
+1793431735.511 INFO [motion-engine] motion_studio::engine: start #6 preview_info
+1793431735.514 INFO [motion-engine] motion_studio::engine: start #8 preview_info
+1793431735.515 INFO [motion-engine] motion_studio::engine: start #9 capture_ui
+1793431735.538 INFO [motion-engine] motion_studio::engine: start #10 seek
+1793431735.542 INFO [motion-engine] motion_studio::engine: start #12 state
+1793431735.544 INFO [motion-engine] motion_studio::engine: start #13 preview_info
+1793431735.545 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793431735.554 ERROR [motion-engine] motion_studio::engine: capture failed operation=capture_ui request=14 session=1 window=0 phase=capture.presenter elapsed_ms=9 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\stale.png cause=multiview phase=capture: completed group is no longer current
+1793431735.554 ERROR [motion-engine] motion_studio::engine: error #14 capture_ui 9ms: multiview phase=capture: completed group is no longer current
+1793431735.559 INFO [motion-engine] motion_studio::engine: start #16 capture_ui
+1793431735.603 INFO [motion-engine] motion_studio::engine: start #17 float_window
+1793431735.610 INFO [motion-engine] motion_studio::engine: start #19 capture_ui
+1793431735.639 INFO [motion-engine] motion_studio::engine: start #20 capture_ui
+1793431735.654 ERROR [motion-engine] motion_studio::engine: capture failed operation=capture_ui request=20 session=1 window=0 phase=capture.presenter elapsed_ms=14 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\foreign.png cause=multiview phase=capture: completed group is no longer current
+1793431735.654 ERROR [motion-engine] motion_studio::engine: error #20 capture_ui 14ms: multiview phase=capture: completed group is no longer current
+1793431735.659 ERROR [motion-engine] motion_studio::engine: error #22 present 0ms: present window=0 logical_size=[96.0, 96.0]: viewer_camera object=998 composition=comp-main frame=10 phase=resolve: camera layer does not exist
+1793431735.661 ERROR [motion-engine] motion_studio::engine: error #23 present 0ms: present window=0 logical_size=[96.0, 96.0]: multiview phase=frame: inspection must be set on each cell
+1793431735.662 INFO [motion-engine] motion_studio::engine: start #24 close_window
+1793431735.664 ERROR [motion-engine] motion_studio::engine: error #25 present 0ms: floating window is closed
+1793431735.669 INFO [motion-engine] motion_studio::engine: start #27 capture_ui
+1793431735.698 INFO [motion-engine] motion_studio::engine: start #29 capture_ui
+1793431735.713 ERROR [motion-engine] motion_studio::engine: capture failed operation=capture_ui request=29 session=1 window=0 phase=capture.presenter elapsed_ms=15 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\retired.png cause=multiview phase=capture: completed group is no longer current
+1793431735.714 ERROR [motion-engine] motion_studio::engine: error #29 capture_ui 15ms: multiview phase=capture: completed group is no longer current
+1793431735.715 INFO [motion-engine] motion_studio::engine: start #30 capture_ui
+1793431735.766 INFO [motion-engine] motion_studio::engine: start #32 capture_ui
+1793431735.807 INFO [motion-engine] motion_studio::engine: start #33 state
+1793431735.810 INFO [motion-engine] motion_studio::engine: start #34 shutdown
+1793431735.810 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793431735.810 INFO [motion-engine] motion_studio::engine::shutdown: start #35 shutdown_cleanup session=1
+1793431735.838 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793431735.839 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793431735.839 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

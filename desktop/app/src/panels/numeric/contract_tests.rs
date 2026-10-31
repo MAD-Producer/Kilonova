@@ -290,7 +290,7 @@ fn native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages() {
             let (paint,actions)=h.frame(Input::default()); assert!(actions.is_empty());
             let config=h.atlas.config();
             let path=root.join(format!("{name}-{suffix}.png"));
-            let frame=crate::engine::UiFrame { inspection: Default::default(), paint,
+            let frame=crate::engine::UiFrame { views: None, inspection: Default::default(), paint,
                 atlas:Some(crate::engine::AtlasUpload { pixels:h.atlas.pixel_data().to_vec(),width:config.width,height:config.height }),
                 logical_size:SIZE,composition:None,composition_image:None,window:u64::from(h.floating),node_preview:None };
             crate::native_test_support::capture_ui(&mut events,&h.engine,frame,path.clone()).unwrap();

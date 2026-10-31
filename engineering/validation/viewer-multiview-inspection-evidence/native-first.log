@@ -1,0 +1,40 @@
+
+running 2 tests
+
+thread 'engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell' (40020) panicked at desktop\app\src\engine\viewer_frame\native\inspection.rs:43:9:
+
+running 1 test
+test engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell ... FAILED
+
+failures:
+
+failures:
+    engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1559 filtered out; finished in 5.97s
+
+
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+
+thread 'engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell' (41128) panicked at desktop\app\src\engine\viewer_frame\native\inspection.rs:139:5:
+assertion `left == right` failed
+  left: Number(21)
+ right: 48
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell ... FAILED
+test engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity ... ok
+
+failures:
+
+failures:
+    engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 1558 filtered out; finished in 13.71s
+

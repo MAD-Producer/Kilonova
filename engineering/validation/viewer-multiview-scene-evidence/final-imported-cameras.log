@@ -1,0 +1,11 @@
+
+running 6 tests
+test imported_cameras::imported_camera_catalog_follows_nested_composition_fps_and_exposure_receiver_clocks ... ok
+test imported_cameras::imported_camera_drives_native_pixels_and_rewinds_without_source_io ... ok
+test imported_cameras::imported_camera_resolves_parent_rig_children_layer_clock_and_observer ... ok
+test imported_cameras::imported_camera_save_reopen_animation_and_missing_resolver_are_explicit ... ok
+test imported_cameras::imported_camera_shutter_matches_independent_native_alpha_average ... ok
+test imported_cameras::imported_camera_viewport_clips_planes_and_meshes_but_preserves_2d_layers ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 9.68s
+

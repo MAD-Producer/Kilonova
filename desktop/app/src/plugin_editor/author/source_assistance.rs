@@ -699,7 +699,7 @@ mod tests {
             let mut paint = PaintList { stylesheet: Some(styles.clone()), ..Default::default() };
             source.draw(&mut draft, &mut paint, &mut atlas, area, &neutral(), zh).unwrap();
             let cfg = atlas.config();
-            crate::native_test_support::capture_ui(&mut events, &engine, UiFrame {
+            crate::native_test_support::capture_ui(&mut events, &engine, UiFrame { views: None,
                 paint, atlas: Some(AtlasUpload { pixels: atlas.pixel_data().to_vec(), width: cfg.width, height: cfg.height }),
                 logical_size: [980., 660.], composition: None, composition_image: None,
                 inspection: Default::default(), window: 0, node_preview: None,

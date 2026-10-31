@@ -92,7 +92,7 @@ fn capture_panel(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32; 2], 
         crate::panels::composition_view_styled(shell.workspace.display_root(), size, &paint.styles())
     } else { crate::panels::floating_view_styled(panel, size, &paint.styles()).unwrap() });
     let config = shell.atlas.config();
-    let ui = UiFrame {
+    let ui = UiFrame { views: None,
         paint,
         atlas: Some(AtlasUpload {
             pixels: shell.atlas.pixel_data().to_vec(),
@@ -108,7 +108,7 @@ fn capture_panel(events: &mut EventLoop<()>, shell: &mut Shell, size: [f32; 2], 
     };
     let front = shell
         .engine
-        .present_async(UiFrame {
+        .present_async(UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,

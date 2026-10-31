@@ -1,0 +1,10 @@
+{
+  "actualDevSmokeExit": 0,
+  "source": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\viewer-ui\\native-current-second\\main-zh-workspace.json",
+  "sourceSha256": "c370a12756b27707b7655a6fee0b65b9127e2eeb8235fddc8cc79f3a2d53ac6f",
+  "reopened": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\viewer-ui\\dev-final-workspace.json",
+  "reopenedSha256": "c370a12756b27707b7655a6fee0b65b9127e2eeb8235fddc8cc79f3a2d53ac6f",
+  "viewerSettingsStrictlyEqual": true,
+  "layout": "four",
+  "active": 3
+}

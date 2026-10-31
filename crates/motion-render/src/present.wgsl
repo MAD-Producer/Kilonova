@@ -21,16 +21,22 @@ fn decode(v:vec3<f32>)->vec3<f32> {
     return select(pow((v+0.055)/1.055,vec3(2.4)),v/12.92,v<=vec3(0.04045));
 }
 @fragment fn fragment_main(input:Out)->@location(0) vec4<f32> {
-    let uv=presentation.uv.xy+input.uv*presentation.uv.zw;
+    // Canvas navigation uses pixel centers relative to this viewport. Interpolated
+    // triangle UVs can round differently after an integer viewport translation,
+    // changing filtered texels in another cell despite identical local geometry.
+    // The ordinary full-surface path keeps its original interpolated UVs.
+    let local=input.position.xy-bitcast<vec2<f32>>(presentation.mode.zw);
+    let uv=select(input.uv,(local+presentation.uv.xy)*presentation.uv.zw,
+        (presentation.mode.x&2u)!=0u);
     let c=textureSample(source,source_sampler,uv);
     if any(uv<vec2(0.0)) || any(uv>vec2(1.0)) { discard; }
     if presentation.mode.y>0u {
         let intensity=vec3(clamp(c[presentation.mode.y-1u],0.0,1.0));
         // sRGB surfaces encode shader RGB on write. Decode an already selected
         // display intensity so all four surface formats show the same raw value.
-        if presentation.mode.x==1u { return vec4(decode(intensity),1.0); }
+        if (presentation.mode.x&1u)!=0u { return vec4(decode(intensity),1.0); }
         return vec4(intensity,1.0);
     }
-    if presentation.mode.x==1u { return c; }
+    if (presentation.mode.x&1u)!=0u { return c; }
     return vec4(encode(c.rgb),c.a);
 }

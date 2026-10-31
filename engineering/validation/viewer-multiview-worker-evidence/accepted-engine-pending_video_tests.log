@@ -1,0 +1,8 @@
+
+running 3 tests
+test engine::pending_video_tests::exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit_seek ... ok
+test engine::pending_video_tests::pending_video_presents_chrome_without_acknowledging_an_unready_composition ... ok
+test engine::pending_video_tests::png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_cancel ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1556 filtered out; finished in 27.86s
+

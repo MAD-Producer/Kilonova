@@ -58,12 +58,14 @@ impl Shell {
                 if !actions.is_empty() { return Err(format!("{name} capture unexpectedly edited data")); }
                 let mut frame = self.ui_frame(paint, window_size, true);
                 frame.node_preview = None;
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                frame.views = None;
                 frame.composition = Some([view.min[0] * self.scale, view.min[1] * self.scale,
                     view.width() * self.scale, view.height() * self.scale]);
                 frame.composition_image = Some([projection.image.min[0] * self.scale, projection.image.min[1] * self.scale,
                     projection.image.width() * self.scale, projection.image.height() * self.scale]);
                 let path = self.smoke.as_ref().ok_or("interaction report missing")?.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(frame, path.clone())?;
+                self.capture_presented_ui(frame, path.clone())?;
                 Self::crop_interaction_capture(&path, size, window_size)?;
                 screens.insert(name.into(), serde_json::json!(path));
             }
@@ -82,7 +84,7 @@ impl Shell {
             if !actions.is_empty() { return Err("translated timeline capture unexpectedly edited data".into()); }
             let frame = self.ui_frame(paint, window_size, true);
             let path = self.smoke.as_ref().ok_or("interaction report missing")?.with_extension("timeline-translated.png");
-            self.engine.capture_ui(frame, path.clone())?;
+            self.capture_presented_ui(frame, path.clone())?;
             Self::crop_interaction_capture(&path, size, window_size)?;
             screens.insert("timeline-translated".into(), serde_json::json!(path));
             // Exercise the real footer control after zooming; both captures use
@@ -118,7 +120,7 @@ impl Shell {
                 }
                 let frame = self.ui_frame(paint, window_size, true);
                 let path = self.smoke.as_ref().ok_or("interaction report missing")?.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(frame, path.clone())?;
+                self.capture_presented_ui(frame, path.clone())?;
                 Self::crop_interaction_capture(&path, size, window_size)?;
                 screens.insert(name.into(), serde_json::json!(path));
                 if name == "timeline-navigation" {

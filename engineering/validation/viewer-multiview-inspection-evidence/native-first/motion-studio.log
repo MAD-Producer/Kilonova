@@ -1,0 +1,49 @@
+1793431263.943 INFO [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] motion_studio::logging: logging initialized level=INFO
+1793431263.985 INFO [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpowht3q\project
+1793431263.986 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793431263.987 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpowht3q\project
+1793431269.106 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793431269.106 INFO [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpowht3q\project 5120ms
+1793431269.327 ERROR [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793431269.327 ERROR [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+1793431269.327 ERROR [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793431269.327 ERROR [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x1dd1688b9a0, name: ?)
+1793431269.463 INFO [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793431269.652 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793431269.753 INFO [motion-engine] motion_studio::engine: start #2 preview_mode
+1793431269.753 INFO [motion-engine] motion_studio::engine: start #3 state
+1793431269.814 INFO [motion-engine] motion_studio::engine: start #5 capture_ui
+1793431269.845 INFO [motion-engine] motion_studio::engine: start #6 capture_viewer_snapshot
+1793431269.855 ERROR [engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell] motion_studio::logging: panic command=None: panicked at desktop\app\src\engine\viewer_frame\native\inspection.rs:139:5:
+assertion `left == right` failed
+  left: Number(21)
+ right: 48
+   0: <unknown>
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: BaseThreadInitThunk
+  19: RtlUserThreadStart
+
+1793431269.875 INFO [motion-engine] motion_studio::engine: start #7 shutdown
+1793431269.875 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793431269.875 INFO [motion-engine] motion_studio::engine::shutdown: start #8 shutdown_cleanup session=1
+1793431269.878 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793431269.905 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793431269.905 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

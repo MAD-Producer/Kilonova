@@ -1,0 +1,15 @@
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26644b530c0, name: ?)
+ERROR wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+ERROR wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x26644b530c0, name: ?)
+ERROR motion_studio::engine: capture failed operation=capture_ui request=14 session=1 window=0 phase=capture.presenter elapsed_ms=9 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\stale.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #14 capture_ui 9ms: multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: capture failed operation=capture_ui request=20 session=1 window=0 phase=capture.presenter elapsed_ms=14 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\foreign.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #20 capture_ui 14ms: multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #22 present 0ms: present window=0 logical_size=[96.0, 96.0]: viewer_camera object=998 composition=comp-main frame=10 phase=resolve: camera layer does not exist
+ERROR motion_studio::engine: error #23 present 0ms: present window=0 logical_size=[96.0, 96.0]: multiview phase=frame: inspection must be set on each cell
+ERROR motion_studio::engine: error #25 present 0ms: floating window is closed
+ERROR motion_studio::engine: capture failed operation=capture_ui request=29 session=1 window=0 phase=capture.presenter elapsed_ms=15 path=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpDoQvvC\retired.png cause=multiview phase=capture: completed group is no longer current
+ERROR motion_studio::engine: error #29 capture_ui 15ms: multiview phase=capture: completed group is no longer current

@@ -312,6 +312,8 @@ impl Shell {
             let mut ui = self.ui_frame(paint, size, true);
             if !screen.ends_with("graph") && !screen.ends_with("menu") && screen != "effect-library"
             {
+                // This isolated capture overrides shell geometry; use the single-view frame protocol.
+                ui.views = None;
                 ui.composition = None;
                 ui.composition_image = None;
                 ui.node_preview = None;
@@ -320,6 +322,7 @@ impl Shell {
                     &workspace::Workspace::design_layout(graph_preset), size,
                     &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc),
                 );
+                ui.views = None;
                 ui.composition = Some([
                     view.min[0] * self.scale,
                     view.min[1] * self.scale,
@@ -330,7 +333,7 @@ impl Shell {
                 ui.node_preview = None;
             }
             let path = report.with_extension(format!("{screen}.png"));
-            self.engine.capture_ui(ui, path.clone())?;
+            self.capture_presented_ui(ui, path.clone())?;
             output.insert(screen.into(), serde_json::json!(path));
         }
         if self.smoke_properties {
@@ -378,7 +381,7 @@ impl Shell {
                 if !actions.is_empty() { return Err("viewer navigation edited the project".into()); }
                 let ui = self.ui_frame(paint, size, true);
                 let path = self.smoke.as_ref().ok_or("viewer report missing")?.with_extension(format!("{name}.png"));
-                self.engine.capture_ui(ui, path.clone())?;
+                self.capture_presented_ui(ui, path.clone())?;
                 screens.insert(name.into(), serde_json::json!(path));
             }
             let after = self.engine.state()?;
@@ -671,9 +674,10 @@ impl Shell {
             // Capture at the window's real pixel ratio, then crop. Changing only
             // logical_size would stretch this panel across the main surface.
             let mut ui = self.ui_frame(paint, window_size, true);
+            ui.views = None;
             ui.composition = None;
             ui.node_preview = None;
-            self.engine.capture_ui(ui, path.to_path_buf())?;
+            self.capture_presented_ui(ui, path.to_path_buf())?;
             let pixels = image::open(path).map_err(|e| e.to_string())?;
             let width = (panel_size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
             let height = (panel_size[1] * pixels.height() as f32 / window_size[1]).round() as u32;

@@ -1,0 +1,6 @@
+
+running 1 test
+test viewer_views::tests::invalid_workspace_view_state_preserves_input_and_reports_default_channels_with_recovery_reset ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1557 filtered out; finished in 0.20s
+

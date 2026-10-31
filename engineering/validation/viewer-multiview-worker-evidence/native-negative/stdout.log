@@ -1,0 +1,11 @@
+
+running 1 test
+test engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity ... FAILED
+
+failures:
+
+failures:
+    engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1558 filtered out; finished in 7.47s
+

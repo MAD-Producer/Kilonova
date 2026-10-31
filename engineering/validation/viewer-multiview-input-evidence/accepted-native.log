@@ -1,0 +1,7 @@
+
+running 2 tests
+test engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell ... ok
+test engine::viewer_frame::native::normal_present_and_capture_route_cameras_freeze_canvas_and_window_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1559 filtered out; finished in 14.30s
+

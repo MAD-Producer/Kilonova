@@ -1,0 +1,20 @@
+
+running 2 tests
+
+thread 'shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen' (40068) panicked at desktop\app\src\shell\viewer_views\native_tests.rs:173:78:
+called `Result::unwrap()` on an `Err` value: "create test preferences directory: 拒绝访问。 (os error 5) at path \"C:\\\\Users\\\\nova\\\\AppData\\\\Local\\\\Temp\\\\.tmplCSFdg\""
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen ... FAILED
+
+thread 'shell::viewer_views::native_tests::view_camera_and_preferences_failures_keep_default_file_stderr_and_stdout_contracts' (36500) panicked at desktop\app\src\shell\viewer_views\native_tests.rs:695:40:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmprijIPY", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+test shell::viewer_views::native_tests::view_camera_and_preferences_failures_keep_default_file_stderr_and_stdout_contracts ... FAILED
+
+failures:
+
+failures:
+    shell::viewer_views::native_tests::native_view_layout_navigation_projection_and_reopen
+    shell::viewer_views::native_tests::view_camera_and_preferences_failures_keep_default_file_stderr_and_stdout_contracts
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 1566 filtered out; finished in 0.02s
+

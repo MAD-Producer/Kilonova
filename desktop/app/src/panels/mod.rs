@@ -41,6 +41,7 @@ pub(crate) mod color_well;
 pub(crate) mod effect_pick;
 mod toolbar_style;
 mod composition;
+pub(crate) mod composition_views;
 mod viewer_guides;
 pub(crate) mod viewer_inspection;
 mod curves;
@@ -377,6 +378,10 @@ pub fn chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    if panels.viewer_views.window==0 {panels.viewer_views.begin_frame();}
+    let view_menu_input=input;
+    let view_menu_neutral=Input::default();
+    let input=if panels.viewer_views.window==0 && panels.viewer_views.popup(){&view_menu_neutral}else{input};
     if let Some(styles) = &panels.styles {
         list.stylesheet = Some(styles.clone());
     }
@@ -1089,6 +1094,7 @@ pub fn chrome(
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     panels.viewer_inspection.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, inspection_input, panels.locale, &mut out);
+    if panels.viewer_views.window==0 {panels.viewer_views.overlay(list,atlas,state,panels.locale,view_menu_input,&mut out);}
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     if pick_owned {
         let clips: Vec<_> = frames(layout, size).into_iter().map(|f| (f.panel, f.content)).collect();
@@ -1122,6 +1128,10 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    if panel==Panel::Composition {panels.viewer_views.begin_frame();}
+    let view_menu_input=input;
+    let view_menu_neutral=Input::default();
+    let input=if panel==Panel::Composition && panels.viewer_views.window!=0 && panels.viewer_views.popup(){&view_menu_neutral}else{input};
     let pick_input = input;
     let pick_owned = panels.effect_pick.prepare(state, input);
     let pick_neutral = Input::default();
@@ -1461,6 +1471,7 @@ pub fn floating_chrome(
     panels.viewer_guides.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, guide_input, panels.locale, handles_busy,
         &panels.shortcut_bindings.hint(crate::shortcuts::Scope::Viewer, crate::shortcuts::Command::ToggleViewerHandles), &mut out);
     panels.viewer_inspection.menu(list, atlas, Rect::new(0., 0., size[0], size[1]), state, inspection_input, panels.locale, &mut out);
+    if panel==Panel::Composition && panels.viewer_views.window!=0 {panels.viewer_views.overlay(list,atlas,state,panels.locale,view_menu_input,&mut out);}
     graph_ranges::overlay(list,atlas,Rect::new(0.,0.,size[0],size[1]),panels,state,graph_range_input);
     apply_marker_selection(panels, state);
     scope_edits(out, state)

@@ -3,6 +3,8 @@ use glam::{Mat4, Vec3};
 use serde::Serialize;
 pub(crate) mod instance_ids;
 mod depth;
+mod view;
+pub use view::ViewCamera;
 // Bounded authored payload per scene; old/new samples may coexist during refresh.
 const MAX_CURVE_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 
@@ -109,6 +111,8 @@ pub struct Scene {
     pub camera: CameraPose,
     pub camera_viewport: [f32; 4],
     camera_sample: Option<motion_model::CameraSample>,
+    composition_camera: Option<motion_model::CameraSample>,
+    legacy_camera_created: bool,
     model_sources: crate::ModelSourceCatalog,
     depth_required: std::collections::HashMap<u64, motion_model::depth::SavedDepthCalibration>,
     depth_surfaces: std::collections::HashMap<u64, depth::BoundSurface>,
@@ -134,7 +138,7 @@ pub struct Scene {
     node_spatial: Vec<bool>,
     source_objects:Vec<(u64,u64)>,
     instance_ids: instance_ids::InstanceIds,
-    evaluated_project: Option<Project>,
+    evaluated_project: Option<std::sync::Arc<Project>>,
     vector_cache: std::collections::HashMap<
         u64,
         (
@@ -150,7 +154,7 @@ pub struct Scene {
 pub struct NestedScene {
     pub layer: u64,
     pub composition: String,
-    pub scene: Box<Scene>,
+    pub scene: std::sync::Arc<Scene>,
 }
 impl Scene {
     /// Install immutable source ownership before sampling, including child scenes.
@@ -233,6 +237,8 @@ impl Scene {
             camera,
             camera_viewport: [0., 0., width as f32, height as f32],
             camera_sample: None,
+            composition_camera: None,
+            legacy_camera_created: false,
             model_sources: Default::default(),
             depth_required: Default::default(),
             depth_surfaces: Default::default(),
@@ -272,38 +278,62 @@ impl Scene {
     ) -> Result<()> {
         self.sample_root(project, project, frame, observer, evaluator)
     }
+    /// Explicit view selection belongs to this scene, never the document or a
+    /// session-global observer. Child compositions retain their own cameras.
+    pub fn sample_view(&mut self, project: &Project, frame: f64,
+        view: ViewCamera<'_>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
+        self.sample_view_root(project, project, frame, view, evaluator)
+    }
     /// A composition sampling view resolves resources and nested references
     /// against its immutable owning document, never as an independent project.
     pub(crate) fn sample_root(&mut self, document: &Project, project: &Project, frame: f64,
         observer: Option<&Observer>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
-        self.sample_inner(document, project, frame, observer, 0, &mut 0, evaluator)?;
-        if self.nested.is_empty() { return Ok(()); }
-        self.instance_ids.prepare_composition(document, project)?;
-        let aliases = &self.instance_ids;
-        let mut path = Vec::with_capacity(motion_model::composition::MAX_COMPOSITION_DEPTH);
-        for node in &mut self.nested {
-            path.push(node.layer);
-            let result = node.scene.assign_instance_ids(aliases, &mut path);
-            path.pop();
-            result?;
-        }
-        Ok(())
+        self.sample_view_root(document, project, frame, ViewCamera::from(observer), evaluator)
+    }
+    fn sample_view_root(&mut self, document: &Project, project: &Project, frame: f64,
+        view: ViewCamera<'_>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
+        let result = (|| {
+            self.sample_inner(document, project, frame, view, 0, &mut 0, evaluator)?;
+            if self.nested.is_empty() { return Ok(()); }
+            self.instance_ids.prepare_composition(document, project)?;
+            let aliases = &self.instance_ids;
+            let mut path = Vec::with_capacity(motion_model::composition::MAX_COMPOSITION_DEPTH);
+            for node in &mut self.nested {
+                path.push(node.layer);
+                let result = std::sync::Arc::make_mut(&mut node.scene).assign_instance_ids(aliases, &mut path);
+                path.pop();
+                result?;
+            }
+            Ok(())
+        })();
+        if result.is_err() { self.composition_camera = None; }
+        result
     }
     pub(crate) fn sample_exposure_instance(&mut self, document:&Project, project:&Project,
-        frame:f64, observer:Option<&Observer>, evaluator:&dyn motion_model::FrameEvaluator,
+        frame:f64, view:ViewCamera<'_>, evaluator:&dyn motion_model::FrameEvaluator,
         registry:&instance_ids::InstanceIds, path:&[u64]) -> Result<()> {
-        self.sample_inner(document,project,frame,observer,0,&mut 0,evaluator)?;
-        let mut path = path.to_vec();
-        if !path.is_empty() { return self.assign_instance_ids(registry,&mut path); }
-        for node in &mut self.nested {
-            path.push(node.layer);
-            let result=node.scene.assign_instance_ids(registry,&mut path);
-            path.pop();
-            result?;
-        }
-        Ok(())
+        let result = (|| {
+            self.sample_inner(document,project,frame,view,0,&mut 0,evaluator)?;
+            let mut path = path.to_vec();
+            if !path.is_empty() { return self.assign_instance_ids(registry,&mut path); }
+            for node in &mut self.nested {
+                path.push(node.layer);
+                let result=std::sync::Arc::make_mut(&mut node.scene).assign_instance_ids(registry,&mut path);
+                path.pop();
+                result?;
+            }
+            Ok(())
+        })();
+        if result.is_err() { self.composition_camera = None; }
+        result
     }
-    fn sample_inner(&mut self, document:&Project, project:&Project, frame:f64, observer:Option<&Observer>, depth:usize, instances:&mut usize, evaluator:&dyn motion_model::FrameEvaluator)->Result<()> {
+    fn sample_inner(&mut self, document:&Project, project:&Project, frame:f64, view:ViewCamera<'_>, depth:usize, instances:&mut usize, evaluator:&dyn motion_model::FrameEvaluator)->Result<()> {
+        self.composition_camera = None;
+        let result = self.sample_inner_ready(document, project, frame, view, depth, instances, evaluator);
+        if result.is_err() { self.composition_camera = None; }
+        result
+    }
+    fn sample_inner_ready(&mut self, document:&Project, project:&Project, frame:f64, view:ViewCamera<'_>, depth:usize, instances:&mut usize, evaluator:&dyn motion_model::FrameEvaluator)->Result<()> {
         ensure(depth<motion_model::composition::MAX_COMPOSITION_DEPTH,"composition nesting too deep")?;
         if *instances >= motion_model::composition::MAX_RENDER_COMPOSITION_INSTANCES {
             return motion_model::composition::fail(&project.composition_id, "render_resource_limit",
@@ -413,29 +443,16 @@ impl Scene {
         self.node_spatial.clear();
         self.node_spatial.extend(project.layers.iter().map(|l| l.three_d));
         self.node_spatial.push(true);
-        let active = project.active_camera_layer(frame).and_then(|layer|
-            project.layers.iter().position(|l| l.id == layer.id)).unwrap_or(project.layers.len());
-        let sample = self.node_cameras[active].ok_or_else(||
-            motion_model::Error::Invalid("selected camera has no resolved sample".into()))?;
-        if let Some(observer) = observer {
-            self.camera = observer.pose(project.width, project.height)?;
-            self.camera_viewport = [0., 0., project.width as f32, project.height as f32];
-            self.camera_sample = None;
-        } else {
-            self.camera = sample.pose;
-            self.camera_viewport = sample.viewport;
-            self.camera_sample = Some(sample);
-            let [x, y, w, h] = sample.viewport;
-            let [width, height] = [project.width as f32, project.height as f32];
-            let fit = Mat4::from_translation(Vec3::new((2. * x + w) / width - 1.,
-                1. - (2. * y + h) / height, 0.))
-                * Mat4::from_scale(Vec3::new(w / width, h / height, 1.));
-            if sample.viewport != [0., 0., width, height] {
-                self.camera.view_projection = fit * self.camera.view_projection;
-            }
-        }
         self.width = project.width;
         self.height = project.height;
+        self.legacy_camera_created = project.camera.created;
+        let active = project.active_camera_layer(frame).and_then(|layer|
+            project.layers.iter().position(|l| l.id == layer.id)).unwrap_or(project.layers.len());
+        self.composition_camera = Some(self.node_cameras.get(active).copied().flatten()
+            .ok_or_else(|| motion_model::Error::Invalid(format!(
+                "viewer_camera object={} composition={} frame={frame} phase=resolve: camera has no resolved sample",
+                project.layers.get(active).map_or(0, |layer| layer.id), project.composition_id)))?);
+        self.select_view(view)?;
         self.background = project.background;
         self.layers.clear();
         self.mask_cache.retain(|id,_| project.layers.iter().any(|l| l.id == *id));
@@ -484,10 +501,11 @@ impl Scene {
                 let mut node = if let Some(index) = previous_nested.iter().position(|n| n.layer == layer.id && n.composition == clip.composition) {
                     previous_nested.swap_remove(index)
                 } else {
-                    NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:Box::new(Scene::new(&child)?)}
+                    NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:std::sync::Arc::new(Scene::new(&child)?)}
                 };
-                node.scene.model_sources = self.model_sources.clone();
-                if let Err(error)=node.scene.sample_inner(document,&child,source,None,depth+1,instances,evaluator){
+                let child_scene = std::sync::Arc::make_mut(&mut node.scene);
+                child_scene.model_sources = self.model_sources.clone();
+                if let Err(error)=child_scene.sample_inner(document,&child,source,ViewCamera::Composition,depth+1,instances,evaluator){
                     if matches!(&error, motion_model::Error::Composition(e) if e.code == "render_resource_limit") { return Err(error); }
                     return motion_model::composition::fail(&clip.composition,"sample_failed",&error.to_string(),serde_json::json!({"frame":source,"parent_composition":project.composition_id,"reference":layer.id}));
                 }
@@ -679,32 +697,24 @@ impl Scene {
                 },
             });
         }
-        // A visible 2D layer is a compositing boundary between spatial groups.
-        let mut start = 0;
-        while start < self.layers.len() {
-            if !self.layers[start].three_d || self.layers[start].screen_overlay {
-                start += 1;
-                continue;
-            }
-            let end = self.layers[start..]
-                .iter()
-                .position(|l| !l.three_d || l.screen_overlay)
-                .map_or(self.layers.len(), |n| start + n);
-            self.layers[start..end]
-                .sort_unstable_by(|a, b| b.depth.total_cmp(&a.depth).then(a.order.cmp(&b.order)));
-            start = end;
-        }
+        self.sort_spatial_layers();
         previous_nested.clear();
         self.depth_surfaces.retain(|id, surface| self.depth_required.get(id) == Some(&surface.calibration));
         self.nested_spare = previous_nested;
         self.evaluated_project = match evaluated {
-            std::borrow::Cow::Owned(p) => Some(p),
+            std::borrow::Cow::Owned(p) => Some(std::sync::Arc::new(p)),
             std::borrow::Cow::Borrowed(p) if std::ptr::eq(p, original) => None,
-            std::borrow::Cow::Borrowed(p) => Some(p.clone()),
+            std::borrow::Cow::Borrowed(p) => Some(std::sync::Arc::new(p.clone())),
         };
         Ok(())
     }
     fn assign_instance_ids(&mut self, registry: &instance_ids::InstanceIds,
+        path: &mut Vec<u64>) -> Result<()> {
+        let result = self.assign_instance_ids_ready(registry, path);
+        if result.is_err() { self.composition_camera = None; }
+        result
+    }
+    fn assign_instance_ids_ready(&mut self, registry: &instance_ids::InstanceIds,
         path: &mut Vec<u64>) -> Result<()> {
         let mapping = registry.mapping(path, &self.composition_id, &self.node_ids)?;
         let alias = |object| instance_ids::alias(&mapping, &self.composition_id, object);
@@ -722,7 +732,7 @@ impl Scene {
         for n in &mut self.nested {
             path.push(n.layer);
             n.layer=alias(n.layer)?;
-            let result=n.scene.assign_instance_ids(registry,path);
+            let result=std::sync::Arc::make_mut(&mut n.scene).assign_instance_ids(registry,path);
             path.pop();
             result?;
         }
@@ -739,7 +749,7 @@ impl Scene {
     }
     /// Computed numeric values for UI snapshots; original project tracks stay intact.
     pub fn sampled_project<'a>(&'a self, original: &'a Project) -> &'a Project {
-        self.evaluated_project.as_ref().unwrap_or(original)
+        self.evaluated_project.as_deref().unwrap_or(original)
     }
     pub fn node_position(&self, id: u64) -> Option<[f32; 3]> {
         self.node_ids.iter().position(|v| *v == id).map(|i| {

@@ -33,6 +33,7 @@ mod plugin_editor;
 mod shell;
 mod shortcuts;
 mod viewer_navigation;
+mod viewer_views;
 mod workflow;
 mod workspace;
 #[cfg(test)]
@@ -295,8 +296,10 @@ struct Shell {
     floating: std::collections::HashMap<WindowId, FloatWindow>,
     plugin_author: plugin_editor::Hosted,
     viewer_pending: Vec<shell::viewer_inspection::Pending>,
+    viewer_projection: shell::viewer_views::Queries,
     next_window: u64,
-    panels: panels::Panels,
+    // Keep the large UI state out of Shell return slots and native callback stacks.
+    panels: Box<panels::Panels>,
     node_tasks: node_tasks::NodeTasks,
     node_standalone: Option<node_editor::NodeEditor>,
     node_save_project: Option<node_editor::EditorSnapshot>,
@@ -439,6 +442,7 @@ impl Shell {
             floating: Default::default(),
             plugin_author: Default::default(),
             viewer_pending: Vec::new(),
+            viewer_projection: Default::default(),
             next_window: 1,
             panels: Default::default(),
             layer_clipboard: Default::default(),
@@ -523,6 +527,7 @@ impl Shell {
         shell.panels.node_editor.view_preferences = shell.workspace.node_view;
         shell.panels.project.browser.view = shell.workspace.project_view.clone();
         shell.panels.project.query = shell.workspace.project_view.query.clone();
+        shell.panels.viewer_views.settings = shell.workspace.viewer_views.clone();
         shell.panels.project.thumbnails.enabled = true;
         shell.panels.node_editor.recent_nodes = shell.workspace.node_recents.clone();
         shell.panels.effect_controls.catalogue =
@@ -841,6 +846,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         self.poll_layer_clipboard();
         self.poll_animation_presets();
         self.poll_viewer_inspection();
+        self.poll_viewer_views();
         if let Err(error) = self.poll_file_location() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -1115,6 +1121,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let busy = self.attaching.is_some()
             || !self.viewer_pending.is_empty()
+            || self.viewer_projection.busy()
             || self.layer_clipboard.busy()
             || self.animation_presets.busy()
             || self.diagnostics_export.is_some()

@@ -283,7 +283,7 @@ fn native_menus_show_redo_and_solid_chords_in_both_languages() {
             let report = native_test_support::capture_ui(
                 &mut events,
                 &engine,
-                UiFrame { inspection: Default::default(),
+                UiFrame { views: None, inspection: Default::default(),
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: atlas.pixel_data().to_vec(),

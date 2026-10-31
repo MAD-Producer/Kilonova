@@ -1,6 +1,6 @@
 use crate::*;
 
-fn selected_candidate(result: &Value) -> Option<u64> {
+pub(super) fn selected_candidate(result: &Value) -> Option<u64> {
     let Some(candidates) = result["candidates"].as_array() else {
         log::warn!("hit selection response invalid reason=candidates_not_array");
         return None;
@@ -720,15 +720,16 @@ impl Shell {
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));
             }
+            Action::ViewerSettings(settings)=>self.save_view_settings(settings)?,
+            Action::ViewerPick{key,cell,point}=>self.pick_view(key,cell,point)?,
+            Action::ViewerCamera{key,cell,action}=>self.camera_view(key,cell,action)?,
+            Action::ViewerDrag{key,cell,object,delta,size}=>self.drag_view(key,cell,object,delta,size)?,
             Action::CameraGesture(action) => {
-                self.editing = Some((Instant::now(), self.engine.camera_gesture_async(action)?));
+                self.camera_view(self.projection_key(),self.panels.viewer_views.settings.active(),action)?;
             }
             Action::ViewZoom { ratio, size } => {
-                self.editing = Some((
-                    Instant::now(),
-                    self.engine
-                        .navigate_async(0., 0., ratio, true, size[0], size[1])?,
-                ));
+                let _=size;
+                self.zoom_view(ratio)?;
             }
             Action::SelectAt(point) => {
                 self.stop();

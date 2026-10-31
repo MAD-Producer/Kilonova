@@ -1,0 +1,42 @@
+1793428467.825 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] motion_studio::logging: logging initialized level=INFO
+1793428467.858 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpmFisZt\project
+1793428467.858 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793428467.860 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpmFisZt\project
+1793428472.617 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793428472.618 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpmFisZt\project 4759ms
+1793428472.760 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793428472.760 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2416113f1f0, name: ?)
+1793428472.760 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793428472.760 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2416113f1f0, name: ?)
+1793428472.892 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793428473.056 INFO [motion-engine] motion_studio::engine: start #1 attach
+1793428473.089 INFO [motion-engine] motion_studio::engine: start #3 capture_ui
+1793428473.102 INFO [motion-engine] motion_studio::engine: start #4 state
+1793428473.118 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793428473.118 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x24161141c10, name: ?)
+1793428473.118 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793428473.118 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x24161141c10, name: ?)
+1793428473.123 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793428473.252 INFO [motion-engine] motion_studio::engine: start #5 attach
+1793428473.289 ERROR [motion-engine] motion_studio::engine: error #5 attach 37ms: GPU validation: buffer size=32 phase=initialize label=Motion Studio canvas navigation: GPU validation: admitted render allocations exceed configured combined budget required_bytes=2690812 budget_bytes=2690811
+1793428473.290 INFO [motion-engine] motion_studio::engine: start #6 state
+1793428473.295 INFO [motion-engine] motion_studio::engine: start #8 capture_ui
+1793428473.323 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793428473.323 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2416113dce0, name: ?)
+1793428473.323 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793428473.323 ERROR [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x2416113dce0, name: ?)
+1793428473.329 INFO [engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793428473.507 INFO [motion-engine] motion_studio::engine: start #9 attach
+1793428473.544 INFO [motion-engine] motion_studio::engine: start #11 state
+1793428473.546 INFO [motion-engine] motion_studio::engine: start #12 shutdown
+1793428473.546 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793428473.546 INFO [motion-engine] motion_studio::engine::shutdown: start #13 shutdown_cleanup session=1
+1793428473.568 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793428473.569 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793428473.569 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

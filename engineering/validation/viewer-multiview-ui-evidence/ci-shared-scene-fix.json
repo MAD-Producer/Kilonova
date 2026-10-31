@@ -1,0 +1,19 @@
+{
+  "failedJob": 124501152798,
+  "failedHead": "4b6982fa9c35d8c5276557a01d9a077a477f8f5e",
+  "originalCompileError": "E0596: cannot borrow data in an Arc as mutable at phase_adjustments.rs:563",
+  "fix": "Arc::make_mut only in fault fixture; original assertions retained",
+  "checks": {
+    "workspaceAllTargets": "passed; --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics",
+    "phaseAdjustments": "9 passed, 0 failed, 0 ignored; actual GPU"
+  },
+  "files": {
+    "viewer-ui-ci-rust-gpu-first.log": "f6f953fe4a10c2a4ac34ae859cff2d4bd9b6f25b97128f91808bdd25d504b54a",
+    "viewer-ui-ci-all-targets.log": "1f4612da0865a674c51f4b229d3afb80628d488bb6704f017b0caf435fb79f8c",
+    "viewer-ui-ci-phase-adjustments.log": "1be1e5c239eb8d50ec1cf8d16d2ff4629c97b52e79ca5ae56158561cc86a5457"
+  },
+  "program": {
+    "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\phase_adjustments-cb3e1a14f21b764b.exe",
+    "sha256": "a0d88fb0fe684ad5a0421cd388d9641612a822049305a66598675f348c381ac7"
+  }
+}

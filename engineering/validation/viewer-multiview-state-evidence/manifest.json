@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "issue": 221,
+  "status": "state_foundation_only_ui_host_render_pending",
+  "base": "203d3e4fd94fdc8e9ae06d4fff55f8cea3615fea",
+  "branch": "feat/viewer-multiview",
+  "tests": {
+    "views": 7,
+    "composition": 5,
+    "navigation": 3,
+    "distinct_total": 34,
+    "workspace": 19
+  },
+  "sources": [
+    {
+      "path": "desktop/app/Cargo.toml",
+      "sha256": "3a312d88f9134ac2e493dad9f6aaa54130badcd0f9caf5e6197cc149bcc31c51"
+    },
+    {
+      "path": "desktop/app/src/main.rs",
+      "sha256": "d1a5dae55ca59efb57761a878d5996c634e8408e1c033ba8e37ed7c8eab533b7"
+    },
+    {
+      "path": "desktop/app/src/viewer_navigation.rs",
+      "sha256": "da8f56d364418af26a86bdb2364e33081c1b023f57b16fffc04a11dad6b51d1e"
+    },
+    {
+      "path": "desktop/app/src/workspace.rs",
+      "sha256": "9991b89a8c300be3b9f496482dce0501c19db5be002b1a4728b4ee071ccfd890"
+    },
+    {
+      "path": "desktop/app/src/viewer_views.rs",
+      "sha256": "703b2de3ed007839ca9a60e5438cfb78e20d2222b4554b6e6d697349fded89d7"
+    },
+    {
+      "path": "desktop/app/src/viewer_views/tests.rs",
+      "sha256": "cde232c52eaae8632bc36e2b4326e91dc0cbaa7a37f37ef6ccfcec85266cb974"
+    }
+  ],
+  "programs": [
+    {
+      "path": "artifacts/issue-goal-current/viewer-multiview-state/program/motion-viewer-tests-final.exe",
+      "sha256": "4cf5c8996784fcf37e19d88a22088357b46b5778532067e9e163b94e56626d6e"
+    },
+    {
+      "path": "artifacts/issue-goal-current/viewer-multiview-state/program/motion-studio.exe",
+      "sha256": "f48cb0375ee94819b30dedd572ad533f57784b0b99c7aa68433455ea345d1be8"
+    }
+  ],
+  "files": [
+    {
+      "sha256": "8dcc09f119efa3a2d00fbc2eded4c56392e4b546144ddd283ce7313582837e4c",
+      "path": ".gitattributes",
+      "bytes": 57
+    },
+    {
+      "sha256": "9d6f174455cca3942a0854b9823c65b50abd04a05ad6e00cf508b84265788f7c",
+      "path": "build-app.log",
+      "bytes": 16618
+    },
+    {
+      "sha256": "646881b941733307cf1cfb5bbf0350289e8c4ec71c736ee794d0974d6dac57ba",
+      "path": "build-first.log",
+      "bytes": 4452
+    },
+    {
+      "sha256": "f6c3a76e820f3961d29f088a3871bdf2c95409f7f47336cd42fcafbad8a40b4e",
+      "path": "build-fixed.log",
+      "bytes": 13064
+    },
+    {
+      "sha256": "6b2b57187593d7575fc11f24942eb3f29684f2965321da88e83706fe5933908a",
+      "path": "build-float-roundtrip.log",
+      "bytes": 14152
+    },
+    {
+      "sha256": "e96494f08d7c085031a09a183e56810c1976b84b549c6548ba78705f72fa5b3e",
+      "path": "build-no-incremental.log",
+      "bytes": 5321
+    },
+    {
+      "sha256": "3503ff90f603022db3e6b53a4e8ea58808796ab61f58b238c398c1a8865c0005",
+      "path": "composition-tests.log",
+      "bytes": 684
+    },
+    {
+      "sha256": "b4319e74eb8dd81bd816b7ebe672235ba18713a58155fb10abab943dcf092a5d",
+      "path": "navigation-tests.log",
+      "bytes": 396
+    },
+    {
+      "sha256": "48f82e32d82169af64e8b43a56319e7dd1a76d3514c1db65e2af9a73de4fb8e1",
+      "path": "views-tests-final.log",
+      "bytes": 971
+    },
+    {
+      "sha256": "31193ba7bf13ec55e104c64169ffad85a02ac557a57f141e3c8c00e5887bd23e",
+      "path": "views-tests-first.log",
+      "bytes": 2697
+    },
+    {
+      "sha256": "7421b5f066243ea26e3913ac4f88912a13c8cc83d5287beefcf8a13ff5625cc6",
+      "path": "views-tests-temp-fixed.log",
+      "bytes": 2677
+    },
+    {
+      "sha256": "f35db1f6166a022b1db093998354457ffd12b88195622d95cca0e0304d88e557",
+      "path": "workspace-tests.log",
+      "bytes": 2469
+    },
+    {
+      "sha256": "22aa2b8cb61d193045a34ca9d87f1dba18aeebd903cb5c672e6ac5cae1afd027",
+      "path": "channels/invalid-workspace.json",
+      "bytes": 4586
+    },
+    {
+      "sha256": "c28cab6b472dc5dfd77e8ffce82a0463304a0d01e1d115781beedb12df924023",
+      "path": "channels/motion-studio.log",
+      "bytes": 1887
+    },
+    {
+      "sha256": "c731476a2a4d2dc58aaca90d0c332728d8b0a5c159b7df7499e9f117f590a62e",
+      "path": "channels/stderr.txt",
+      "bytes": 596
+    },
+    {
+      "sha256": "7fa9a9a0eaabc5a92602a9f35cc8eed95cfd7e2af3a241497d30cc0af8922981",
+      "path": "channels/stdout.txt",
+      "bytes": 242
+    },
+    {
+      "sha256": "5de3d95bb7f4e7e8c1e32cf3591eff7cfd05e3ea2aa0591542ee9758319be958",
+      "path": "channels/workspace.json",
+      "bytes": 4516
+    }
+  ]
+}

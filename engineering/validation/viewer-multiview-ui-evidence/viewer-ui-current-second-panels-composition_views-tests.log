@@ -1,0 +1,7 @@
+
+running 2 tests
+test panels::composition_views::tests::hidden_composition_clears_its_popup_and_cannot_keep_old_footer_hit_regions ... ok
+test panels::composition_views::tests::layout_dropdown_starts_from_the_actual_layout_and_only_commits_that_setting ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1566 filtered out; finished in 0.14s
+

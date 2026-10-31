@@ -20,7 +20,7 @@ fn native_device_identity(device: &wgpu::Device) -> (wgpu::Backend, usize) {
 }
 
 fn frame(size: u32) -> UiFrame {
-    UiFrame {
+    UiFrame { views: None,
         paint: Default::default(),
         atlas: Some(AtlasUpload {
             pixels: vec![255; 4],

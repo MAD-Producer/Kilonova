@@ -14,7 +14,162 @@ pub(super) fn render(
     out: &mut Vec<Action>,
 ) {
     let sheet = list.styles();
-    let v = styled_viewer(area, &sheet);
+    let outer = styled_viewer(area, &sheet);
+    let gap = sheet.metric("viewer.multiview.gap", 2.);
+    let tiles = match observe!(
+        "viewer.tiles",
+        panels.viewer_views.settings.layout().tiles(outer, gap),
+        "window={} phase=layout",
+        panels.viewer_views.window
+    ) {
+        Ok(tiles) => tiles,
+        Err(_) => return,
+    };
+    if tiles.is_empty() {
+        return;
+    }
+    if panels.composition.pan.is_none()
+        && !panels.tools.editing()
+        && !panels.path_controls.editing()
+        && !panels.transform_controls.gesture_active()
+        && !panels.viewer_guides.dragging()
+        && !panels.viewer_inspection.selecting()
+        && !panels.viewer_views.popup()
+    {
+        let point = input
+            .pressed
+            .map(|(_, p)| p)
+            .or_else(|| (input.wheel != [0., 0.]).then_some(input.mouse));
+        if let Some(index) = point.and_then(|p| tiles.iter().position(|tile| tile.contains(p))) {
+            panels.viewer_views.settings.activate(index);
+        }
+    }
+    let active = panels.viewer_views.settings.active();
+    let owner = (active, panels.viewer_views.window);
+    if panels.viewer_views.loaded != Some(owner) {
+        if panels.viewer_views.loaded.is_some() {
+            out.extend(super::cancel_for_focus_loss(panels));
+        }
+        panels.composition.pan = None;
+        panels.composition.zoom = Default::default();
+        panels.composition.zoom_before = None;
+        panels.composition.navigation = panels
+            .viewer_views
+            .settings
+            .view(active)
+            .unwrap()
+            .navigation;
+        panels.viewer_views.loaded = Some(owner);
+    }
+    panels.viewer_inspection.select_cell(owner.1 != 0, active);
+    panels.viewer_guides.select_cell(owner.1 != 0, active);
+    let key = panels.viewer_views.key(state);
+    if let Some((source, tile, navigation)) = &panels.viewer_views.navigation_capture {
+        if !source.same_context(&key) || *tile != tiles[active] {
+            panels.composition.navigation = *navigation;
+            panels.composition.pan = None;
+            panels.viewer_views.navigation_capture = None;
+        }
+    }
+    let projected = panels
+        .viewer_views
+        .cache
+        .as_ref()
+        .filter(|(cached, _)| {
+            *cached == key || panels.tools.camera.editing() && cached.same_context(&key)
+        })
+        .and_then(|(_, views)| views.get(active))
+        .cloned();
+    // Ordinary composition geometry is already the live host state. Independent
+    // cameras must wait for their exact projection rather than use another view.
+    let ordinary = panels.viewer_views.settings.view(active).unwrap().mode
+        == crate::viewer_views::Mode::Composition
+        && state["observing"] != true;
+    let ready = projected.is_some() || ordinary || panels.tools.camera.editing();
+    let displayed = projected.as_ref().unwrap_or(state);
+    let start = out.len();
+    render_active(
+        list,
+        atlas,
+        area,
+        tiles[active],
+        panels,
+        displayed,
+        input,
+        ready,
+        out,
+    );
+    if let Some((_, navigation)) = panels.composition.pan {
+        if panels.viewer_views.navigation_capture.is_none() {
+            panels.viewer_views.navigation_capture = Some((key.clone(), tiles[active], navigation));
+        }
+    } else {
+        panels.viewer_views.navigation_capture = None;
+    }
+    panels
+        .viewer_views
+        .settings
+        .view_mut(active)
+        .unwrap()
+        .navigation = panels.composition.navigation;
+    for action in &mut out[start..] {
+        if let Action::SelectAt(point) = action {
+            *action = Action::ViewerPick {
+                key: key.clone(),
+                cell: active,
+                point: *point,
+            };
+        } else if let Action::CameraGesture(op) = action {
+            *action = Action::ViewerCamera {
+                key: key.clone(),
+                cell: active,
+                action: op.clone(),
+            };
+        } else if let Action::PreviewDrag {
+            object,
+            delta,
+            size,
+        } = action
+        {
+            *action = Action::ViewerDrag {
+                key: key.clone(),
+                cell: active,
+                object: *object,
+                delta: *delta,
+                size: *size,
+            };
+        }
+    }
+    if tiles.len() > 1 {
+        let caption_height = sheet.metric("row.height", 22.);
+        let padding = sheet.metric("padding.panel", 8.);
+        let width = sheet.metric("viewer.view.width", 98.);
+        let modes = super::composition_views::modes(state, panels.locale);
+        for (i, tile) in tiles.iter().enumerate() {
+            paint::stroke(
+                list,
+                *tile,
+                sheet.color(if i == active { "focus" } else { "border" }),
+                sheet.metric("border", 1.),
+            );
+            let rect = Rect::new(tile.min[0] + padding, tile.min[1], width, caption_height);
+            paint::rect(list, rect, sheet.color("header"));
+            let mode = panels.viewer_views.settings.view(i).unwrap().mode;
+            let name = modes
+                .iter()
+                .find(|(value, _)| *value == mode)
+                .map(|(_, name)| name.as_str())
+                .unwrap_or("Camera");
+            label(list, atlas, rect, name, i != active);
+        }
+    }
+}
+
+
+fn render_active(list:&mut PaintList,atlas:&mut TextAtlas,area:Rect,v:Rect,panels:&mut Panels,
+    state:&Value,input:&Input,geometry_ready:bool,out:&mut Vec<Action>) {
+    let sheet = list.styles();
+    let outer = styled_viewer(area, &sheet);
     let inspection_input = panels.viewer_inspection.selection_input(input).clone();
     let surround = list.styles().color("field");
     // Paint the viewer surround, leaving its contents to the shared GPU renderer.
@@ -23,11 +178,11 @@ pub(super) fn render(
             area.min[0],
             area.min[1],
             area.width(),
-            v.min[1] - area.min[1],
+            outer.min[1] - area.min[1],
         ),
-        Rect::new(area.min[0], v.min[1], v.min[0] - area.min[0], v.height()),
-        Rect::new(v.max[0], v.min[1], area.max[0] - v.max[0], v.height()),
-        Rect::new(area.min[0], v.max[1], area.width(), area.max[1] - v.max[1]),
+        Rect::new(area.min[0], outer.min[1], outer.min[0] - area.min[0], outer.height()),
+        Rect::new(outer.max[0], outer.min[1], area.max[0] - outer.max[0], outer.height()),
+        Rect::new(area.min[0], outer.max[1], area.width(), area.max[1] - outer.max[1]),
     ] {
         paint::rect(list, r, surround);
     }
@@ -59,8 +214,10 @@ pub(super) fn render(
         .hash(&mut hasher);
     let context = hasher.finish();
     if panels.composition.context != Some(context) {
+        let restored=panels.composition.context.is_none().then_some(panels.composition.navigation);
         panels.composition = Default::default();
         panels.composition.context = Some(context);
+        if let Some(navigation)=restored{panels.composition.navigation=navigation;}
     }
     if panels.composition.navigation.mapping(v, canvas).is_none() {
         // Empty/minimized views are normal; malformed canvas state is degradation.
@@ -245,17 +402,7 @@ pub(super) fn render(
         panels.viewer_guides.open(overlay_rect.min, state);
     }
     let left_end = if overlay_fits { overlay_rect.max[0] } else { fit_rect.max[0] };
-    let right_width = quality_width + view_width + gap * 2. + overlay_width + gap;
-    let show_count = controls.width()
-        >= padding * 2.
-            + zoom_width
-            + percent_width
-            + fit_width
-            + time_width
-            + right_width
-            + count_width
-            + gap * 4.;
-    let count = if show_count { count_width + gap } else { 0. };
+    let count = count_width + gap;
     let right = controls.max[0] - padding;
     let view_rect = Rect::new(
         right - count - view_width,
@@ -285,60 +432,11 @@ pub(super) fn render(
             Align::Left,
         );
     }
-    let (quality, next) = match state["preview"]["mode"].as_str().unwrap_or("auto") {
-        "high" => (T::Full, 2),
-        "balanced" => (T::Smooth, 3),
-        "economy" => (T::Economy, 0),
-        _ => (T::Auto, 1),
-    };
-    if quality_rect.min[0] > left_end + gap {
-        button(
-            list,
-            atlas,
-            quality_rect,
-            panels.locale.t(quality),
-            input,
-            true,
-            Action::PreviewMode(next),
-            out,
-        );
-    }
-    // View switcher reflects the live observation state and cycles
-    // Composition → Free → Top → Side → Composition.
-    let (view_label, next_view) = if !observing {
-        (T::ViewComposition, 1)
-    } else {
-        match state["observationView"].as_str().unwrap_or("free") {
-            "top" => (T::ViewTop, 3),
-            "side" => (T::ViewSide, 0),
-            _ => (T::ViewFree, 2),
-        }
-    };
-    if view_rect.min[0] > left_end + gap {
-        button(
-            list,
-            atlas,
-            view_rect,
-            panels.locale.t(view_label),
-            input,
-            true,
-            Action::ViewKind(next_view),
-            out,
-        );
-    }
-    if show_count {
-        label(
-            list,
-            atlas,
-            Rect::new(right - count_width, controls.min[1], count_width, height),
-            if panels.locale == Locale::Zh {
-                "1 个视图"
-            } else {
-                "1 view"
-            },
-            true,
-        );
-    }
+    panels.viewer_views.fields(list,atlas,area,
+        Rect::new(right-count_width,controls.min[1]+(height-button_height)*0.5,count_width,button_height),
+        view_rect, quality_rect, state,panels.locale,input);
+    let neutral_geometry=Input::default();
+    let input=if geometry_ready {input} else {&neutral_geometry};
     let canvas_clip = panels.viewer_guides.canvas(v,&sheet);
     if !observing { panels.effect_drag.target(canvas_clip, None); }
     let Some(mapping) = panels.composition.navigation.mapping(v, canvas) else {

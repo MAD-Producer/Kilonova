@@ -33,7 +33,8 @@ struct Drag { window: Option<Panel>, mapping: Mapping, canvas: [f64; 2], start: 
 #[derive(Default)]
 pub(crate) struct Controls {
     identity: Option<Identity>,
-    slots: [Slot; 2],
+    slots: [Slot; 8],
+    cells: [usize; 2],
     window: Option<Panel>,
     menu: Option<Menu>,
     armed: Option<Option<Panel>>,
@@ -42,7 +43,13 @@ pub(crate) struct Controls {
 }
 
 impl Controls {
-    fn slot(&self) -> usize { usize::from(self.window.is_some()) }
+    fn slot(&self) -> usize { self.index(self.window.is_some()) }
+    fn index(&self,floating:bool)->usize {usize::from(floating)*4+self.cells[usize::from(floating)]}
+    pub(crate) fn select_cell(&mut self,floating:bool,cell:usize) {
+        let index=usize::from(floating);
+        if self.cells[index]!=cell {self.cancel();self.cells[index]=cell.min(3);}
+    }
+    pub(crate) fn cell(&self,floating:bool)->usize{self.cells[usize::from(floating)]}
     pub(super) fn selecting(&self) -> bool {
         self.armed == Some(self.window) || self.drag.as_ref().is_some_and(|d| d.window == self.window)
     }
@@ -84,22 +91,29 @@ impl Controls {
         self.menu = Some(Menu { window: floating.then_some(Panel::Composition), point, opened: true, scroll: Default::default() });
     }
     pub(crate) fn frame(&self, floating: bool, channel: motion_render::ViewChannel) -> crate::engine::ViewerInspectionFrame {
-        let slot = &self.slots[usize::from(floating)];
+        return self.frame_for(floating,self.cell(floating),channel);
+    }
+    pub(crate) fn frame_for(&self,floating:bool,cell:usize,channel:motion_render::ViewChannel)->crate::engine::ViewerInspectionFrame {
+        let slot=&self.slots[usize::from(floating)*4+cell];
         crate::engine::ViewerInspectionFrame { channel, region: slot.region,
             comparison_split: (slot.captured && slot.compare).then_some(0.5) }
     }
-    pub(crate) fn set_busy(&mut self, floating: bool, busy: bool) { self.slots[usize::from(floating)].busy = busy; }
+    pub(crate) fn set_busy(&mut self, floating: bool, busy: bool) { self.slots[self.index(floating)].busy = busy; }
+    #[cfg(test)]
     pub(crate) fn capture_done(&mut self, floating: bool, source: &Identity, success: bool) {
+        self.capture_done_for(floating,self.cell(floating),source,success);
+    }
+    pub(crate) fn capture_done_for(&mut self,floating:bool,cell:usize,source:&Identity,success:bool) {
         if self.identity.as_ref() != Some(source) { return; }
-        let slot = &mut self.slots[usize::from(floating)];
+        let slot = &mut self.slots[usize::from(floating)*4+cell];
         slot.busy = false;
         if success { slot.captured = true; }
     }
-    pub(crate) fn save_done(&mut self, floating: bool, source: &Identity) {
-        if self.identity.as_ref() == Some(source) { self.slots[usize::from(floating)].busy = false; }
+    pub(crate) fn save_done_for(&mut self,floating:bool,cell:usize,source:&Identity) {
+        if self.identity.as_ref() == Some(source) { self.slots[usize::from(floating)*4+cell].busy = false; }
     }
     pub(crate) fn close_floating(&mut self) {
-        self.slots[1] = Slot::default();
+        for slot in &mut self.slots[4..] {*slot=Slot::default();}
         if self.menu.as_ref().is_some_and(|menu| menu.window.is_some())
             || self.drag.as_ref().is_some_and(|drag| drag.window.is_some())
             || self.armed.is_some_and(|window| window.is_some()) {
@@ -216,6 +230,20 @@ impl Controls {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn late_capture_completion_updates_its_original_cell_only() {
+        let mut controls=Controls::default();controls.synchronize(&state());
+        let identity=controls.identity.clone().unwrap();
+        controls.select_cell(false,1);controls.set_busy(false,true);
+        controls.select_cell(false,3);
+        controls.capture_done_for(false,1,&identity,true);
+        assert!(controls.slots[1].captured);assert!(!controls.slots[1].busy);
+        assert!(!controls.slots[3].captured);assert!(!controls.slots[7].captured);
+        controls.slots[1].compare=true;
+        assert!(controls.frame_for(false,1,motion_render::ViewChannel::Color).comparison_split.is_some());
+        assert!(controls.frame_for(false,3,motion_render::ViewChannel::Color).comparison_split.is_none());
+        assert!(controls.frame_for(true,1,motion_render::ViewChannel::Color).comparison_split.is_none());
+    }
 
     fn state() -> Value {
         serde_json::json!({"root":"fixture", "document_generation":1, "surfaceEpoch":2,

@@ -1,0 +1,6 @@
+
+running 1 test
+test engine::viewer_frame::native::inspection::per_cell_channels_regions_and_snapshots_stay_with_their_window_and_active_cell ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1559 filtered out; finished in 7.92s
+

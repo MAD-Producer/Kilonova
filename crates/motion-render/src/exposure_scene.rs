@@ -3,7 +3,7 @@
 //! does not replace that time. Local raster capture and phase compositing are
 //! separate GPU operations, so a complete ordinary Scene is never accumulated
 //! here as a substitute for independently sampled layers.
-use crate::{DrawLayer, Scene};
+use crate::{DrawLayer, Scene, ViewCamera};
 use motion_model::{
     composition, render_sampling::ExposureClock, Content, FrameEvaluator, Observer, Project, Result,
 };
@@ -60,12 +60,29 @@ pub enum ExposureSceneStep<'a> {
     Complete,
 }
 
+/// Frozen task-owned view; an observer is copied once at construction, rather
+/// than borrowing mutable UI state across receiver samples or pending polls.
+enum ExposureView {
+    Composition,
+    Camera(u64),
+    Observer(Observer),
+}
+impl ExposureView {
+    fn borrowed(&self) -> ViewCamera<'_> {
+        match self {
+            Self::Composition => ViewCamera::Composition,
+            Self::Camera(id) => ViewCamera::Camera(*id),
+            Self::Observer(observer) => ViewCamera::Observer(observer),
+        }
+    }
+}
+
 pub struct ExposureScenes<E> {
     document: ExposureDocument,
     /// A sampling view only; never validate or save it as a standalone project.
     root: Option<Project>,
     evaluator: Arc<E>,
-    observer: Option<Observer>,
+    view: ExposureView,
     clock: ExposureClock,
     objects: Vec<u64>,
     schedule: Vec<Receiver>,
@@ -117,12 +134,41 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             None,
         )
     }
+    /// Freeze one explicit view for center, receiver and shutter samples. A new
+    /// view requires a new task; it cannot alter another view's in-flight work.
+    pub fn new_for_view(
+        document: ExposureDocument,
+        composition: &str,
+        frame: f64,
+        preview: bool,
+        view: ViewCamera<'_>,
+        evaluator: E,
+    ) -> Result<Self> {
+        let view = match view {
+            ViewCamera::Composition => ExposureView::Composition,
+            ViewCamera::Camera(id) => ExposureView::Camera(id),
+            ViewCamera::Observer(observer) => ExposureView::Observer(observer.clone()),
+        };
+        Self::new_shared_view(document, composition, frame, preview, view, Arc::new(evaluator), None)
+    }
     pub(crate) fn new_shared(
         document: ExposureDocument,
         composition: &str,
         frame: f64,
         preview: bool,
         observer: Option<Observer>,
+        evaluator: Arc<E>,
+        scope: Option<ExposureScope>,
+    ) -> Result<Self> {
+        let view = observer.map_or(ExposureView::Composition, ExposureView::Observer);
+        Self::new_shared_view(document, composition, frame, preview, view, evaluator, scope)
+    }
+    fn new_shared_view(
+        document: ExposureDocument,
+        composition: &str,
+        frame: f64,
+        preview: bool,
+        view: ExposureView,
         evaluator: Arc<E>,
         scope: Option<ExposureScope>,
     ) -> Result<Self> {
@@ -202,7 +248,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             document,
             root,
             evaluator,
-            observer,
+            view,
             clock,
             objects,
             schedule: vec![],
@@ -328,7 +374,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                 &self.document,
                 root,
                 frame,
-                self.observer.as_ref(),
+                self.view.borrowed(),
                 self.evaluator.as_ref(),
                 &self.scope.registry,
                 &self.scope.path,

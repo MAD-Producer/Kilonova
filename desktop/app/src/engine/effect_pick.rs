@@ -6,6 +6,7 @@ pub(super) fn apply(
     ticket: Ticket,
     point: [f64; 2],
     retained: Option<&CompositionStamp>,
+    closed: bool,
 ) -> motion_host::Result<Value> {
     let context = format!(
         "effect pick object={} effect={} parameter={} frame={}",
@@ -18,10 +19,10 @@ pub(super) fn apply(
                 serde_json::json!({"operation":"effect_pick","cancelled":true,"reason":reason});
             Ok(state)
         };
-        if !ticket.source.current(s) || s.frame != ticket.frame {
+        if closed || !ticket.source.current(s) || s.frame != ticket.frame {
             return cancelled(s, "context_changed");
         }
-        if s.observing || !point.iter().all(|v| v.is_finite()) {
+        if s.observing && ticket.view.is_none() || !point.iter().all(|v| v.is_finite()) {
             return Err(
                 "effect pick requires a finite composition point in composition view".into(),
             );
@@ -70,26 +71,56 @@ pub(super) fn apply(
                         && stamp.view == s.view_revision
                         && stamp.surface == s.surface_epoch
                 });
-                let Some(graphics) = s.graphics.as_ref().filter(|g| current && g.scratch.valid())
-                else {
-                    return cancelled(s, "preview_pending");
+                let sampled = if let Some((window, index, view)) = &ticket.view {
+                    let project = s.engine.project();
+                    let observer = view.observer([project.width, project.height])?;
+                    let camera = match (view.mode, observer.as_ref()) {
+                        (crate::viewer_views::Mode::Composition, _) => {
+                            motion_render::ViewCamera::Composition
+                        }
+                        (crate::viewer_views::Mode::Camera(id), _) => {
+                            motion_render::ViewCamera::Camera(id)
+                        }
+                        (_, Some(observer)) => motion_render::ViewCamera::Observer(observer),
+                        _ => return Err("effect color pick observer unavailable".into()),
+                    };
+                    s.sample_view_cell(*window, *index, camera, point)?
+                } else {
+                    None
                 };
-                let pixel = [
-                    (point[0] * graphics.scratch.width as f64).floor() as u32,
-                    (point[1] * graphics.scratch.height as f64).floor() as u32,
-                ];
-                value = graphics
-                    .renderer
-                    .sample_preview_pixel(&graphics.scratch, pixel)
-                    .map_err(|cause| {
-                        motion_host::Error::with_context(
-                            format!(
+                if let Some(sample) = sampled {
+                    value = sample;
+                } else {
+                    // A retained legacy composition is also a valid source for the
+                    // same composition camera. Explicit observer/camera requests
+                    // can never read the legacy global scratch image.
+                    let legacy = ticket.view.as_ref().is_none_or(|(_, _, view)| {
+                        view.mode == crate::viewer_views::Mode::Composition
+                    }) && !s.observing;
+                    let Some(graphics) = s
+                        .graphics
+                        .as_ref()
+                        .filter(|g| legacy && current && g.scratch.valid())
+                    else {
+                        return cancelled(s, "preview_pending");
+                    };
+                    let pixel = [
+                        (point[0] * graphics.scratch.width as f64).floor() as u32,
+                        (point[1] * graphics.scratch.height as f64).floor() as u32,
+                    ];
+                    value = graphics
+                        .renderer
+                        .sample_preview_pixel(&graphics.scratch, pixel)
+                        .map_err(|cause| {
+                            motion_host::Error::with_context(
+                                format!(
                                 "effect color pick object={} effect={} parameter={} phase=readback",
                                 ticket.object, ticket.effect, ticket.parameter
                             ),
-                            cause,
-                        )
-                    })?;
+                                cause,
+                            )
+                        })?;
+                }
             }
         }
         if !parameter

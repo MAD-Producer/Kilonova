@@ -1,0 +1,16 @@
+
+running 11 tests
+test actual_gpu_views_match_explicit_camera_oracles_and_picking_uses_the_same_projection ... ok
+test deleted_non_camera_and_uncreated_legacy_bindings_fail_without_substituting_another_camera ... ok
+test explicit_camera_views_and_observers_are_independent_and_share_unchanged_project_data ... ok
+test explicit_parent_view_keeps_child_camera_selection_and_repeated_ids_local ... ok
+test exposure_freezes_observer_input_and_failed_selection_never_yields_a_fallback_scene ... ok
+test exposure_samples_keep_the_selected_camera_at_each_fractional_receiver_time ... ok
+test imported_named_camera_retains_its_source_clock_projection_and_letterbox ... ok
+test imported_selected_view_matches_native_pixels_offline_and_rejects_wrong_camera_substitution ... ok
+test named_camera_selection_respects_parented_fractional_local_time_and_ignores_edit_locks ... ok
+test opposite_views_reverse_spatial_occlusion_and_picking_but_keep_flat_layers_fixed ... ok
+test selected_camera_exposure_pixels_match_an_independent_legacy_camera_task ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.75s
+

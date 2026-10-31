@@ -37,7 +37,7 @@ fn capture(
     atlas.set_pixel_ratio(scale);
     let paint = draw(e, atlas, size, &Input::default(), language);
     let config = atlas.config();
-    let ui = crate::engine::UiFrame {
+    let ui = crate::engine::UiFrame { views: None,
         paint,
         atlas: Some(crate::engine::AtlasUpload {
             pixels: atlas.pixel_data().to_vec(),
@@ -52,7 +52,7 @@ fn capture(
         node_preview: None,
     };
     let front = engine
-        .present_async(crate::engine::UiFrame {
+        .present_async(crate::engine::UiFrame { views: None,
             paint: PaintList::default(),
             atlas: None,
             logical_size: size,

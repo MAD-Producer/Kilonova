@@ -1,0 +1,8 @@
+
+running 3 tests
+test child_legacy_and_implicit_fallbacks_do_not_replace_the_parent_camera ... ok
+test nested_camera_pixels_match_independent_legacy_views_after_save_and_random_seek ... ok
+test repeated_camera_ids_are_local_to_each_composition_at_fractional_clip_boundaries ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.72s
+

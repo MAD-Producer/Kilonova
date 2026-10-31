@@ -1,0 +1,418 @@
+{
+  "checks": [
+    "create_layer",
+    "animate",
+    "seek",
+    "save",
+    "reopen",
+    "single_surface_preview",
+    "chrome",
+    "floating_properties",
+    "floating_composition",
+    "resize",
+    "redock",
+    "layer_context_menu"
+  ],
+  "designCaptureProjectUntouched": true,
+  "designScreens": {
+    "camera-properties": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.camera-properties.png",
+    "character-panel": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.character-panel.png",
+    "character-panel-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.character-panel-narrow.png",
+    "composition-settings": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.composition-settings.png",
+    "effect-controls": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.effect-controls.png",
+    "effect-controls-bottom": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.effect-controls-bottom.png",
+    "effect-controls-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.effect-controls-narrow.png",
+    "effect-curve-inline": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.effect-curve-inline.png",
+    "effect-library": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.effect-library.png",
+    "expression-inline-disabled": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-disabled.png",
+    "expression-inline-disabled-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-disabled-narrow.png",
+    "expression-inline-enabled": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-enabled.png",
+    "expression-inline-enabled-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-enabled-narrow.png",
+    "expression-inline-locked": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-locked.png",
+    "expression-inline-locked-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.expression-inline-locked-narrow.png",
+    "home": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.home.png",
+    "info-panel": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.info-panel.png",
+    "info-panel-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.info-panel-narrow.png",
+    "layer-anchor-animation": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.layer-anchor-animation.png",
+    "layer-properties-effects": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.layer-properties-effects.png",
+    "layer-properties-tree": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.layer-properties-tree.png",
+    "path-hover-incoming": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.path-hover-incoming.png",
+    "path-hover-locked": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.path-hover-locked.png",
+    "path-hover-outgoing": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.path-hover-outgoing.png",
+    "preview-panel": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.preview-panel.png",
+    "preview-panel-narrow": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.preview-panel-narrow.png",
+    "project-open-error": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.project-open-error.png",
+    "speed-graph": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.speed-graph.png",
+    "timeline-anchor-animation": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-anchor-animation.png",
+    "timeline-anchor-graph": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-anchor-graph.png",
+    "timeline-blend-menu": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-blend-menu.png",
+    "timeline-cameras": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-cameras.png",
+    "timeline-graph": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-graph.png",
+    "timeline-navigation": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-navigation.png",
+    "timeline-navigation-drag": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-navigation-drag.png",
+    "timeline-navigation-end": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-navigation-end.png",
+    "timeline-navigation-graph": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-navigation-graph.png",
+    "timeline-navigation-hover": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-navigation-hover.png",
+    "timeline-parent-menu": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-parent-menu.png",
+    "timeline-properties-tree": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-properties-tree.png",
+    "timeline-translated": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.timeline-translated.png",
+    "value-graph": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.value-graph.png",
+    "viewer-fit": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.viewer-fit.png",
+    "viewer-pan": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.viewer-pan.png",
+    "viewer-zoom": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.viewer-zoom.png",
+    "workspace-manager": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.workspace-manager.png"
+  },
+  "desktop": {
+    "agentToolProtocol": 1,
+    "diagnostics": {
+      "configured": false,
+      "droppedJobs": 0,
+      "droppedRecords": 10,
+      "enabled": false,
+      "localWriteErrors": 0,
+      "queuedUploads": 0
+    },
+    "frameExport": null,
+    "headless": false,
+    "modelImport": {
+      "automaticAnimation": false,
+      "formats": [
+        "gltf",
+        "glb",
+        "obj"
+      ],
+      "owned": true,
+      "pixelsPerMetre": 100,
+      "samples": 1,
+      "supported": true,
+      "tool": "import_model"
+    },
+    "movieFreeze": null,
+    "nodePreview": {
+      "active": [
+        1,
+        0
+      ],
+      "candidatePipelineBuilds": 2,
+      "canonicalCandidatePipelineBuilds": 0,
+      "canonicalRetainedShaderCodeBytes": 0,
+      "frames": 2,
+      "installs": 1,
+      "logicalSize": 64,
+      "perFrameCpuReadbacks": 0,
+      "rasterSize": 512,
+      "retainedShaderCodeBytes": 8699,
+      "shaderRenders": 2
+    },
+    "panelWindows": 1,
+    "sharedGpuDevice": true,
+    "uiPerformance": {
+      "compositionRenders": 15,
+      "compositionReuses": 22,
+      "lastPresentUs": 3010
+    }
+  },
+  "floatingFrames": {
+    "2": 4,
+    "3": 2
+  },
+  "frame": 45.0,
+  "framesPresented": 37,
+  "layerContextMenuScreenshot": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.layer-context-menu.png",
+  "locale": "zh",
+  "nodePreview": null,
+  "ok": true,
+  "panelMaximizeProbe": {
+    "layoutAndProjectUntouched": true,
+    "restored": true,
+    "screenshots": [
+      "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.maximize-3.png",
+      "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.maximize-3-restored.png",
+      "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.maximize-4.png",
+      "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.maximize-4-restored.png"
+    ]
+  },
+  "panels": [],
+  "preview": {
+    "compositingPipelineSetBuilds": 0,
+    "effectPipelineBuilds": 0,
+    "effectPlanBuilds": 0,
+    "effectPlanCacheHits": 0,
+    "effectResolution": "projected_2d",
+    "exposure": null,
+    "exposureRequired": false,
+    "fps": 60,
+    "gpuCommands": null,
+    "gpuTimestampSupported": true,
+    "gpuTimingActive": true,
+    "height": 900,
+    "imageDecodes": 0,
+    "imageIdleBudgetBytes": 33554432,
+    "imageIdleBytes": 0,
+    "imageMemoryCacheHits": 0,
+    "imagePrefetchSeconds": 0.5,
+    "imagePrefetches": 0,
+    "imageProxyCacheHits": 0,
+    "imageResolution": "proxy_max_2048",
+    "imageUploadBytes": 0,
+    "memoryAdaptation": {
+      "actual": {
+        "imageEdge": 2048,
+        "level": 0,
+        "targetDivisor": 1,
+        "videoEdge": null
+      },
+      "actualHeight": null,
+      "actualWidth": null,
+      "failures": 0,
+      "hasLastValidFrame": false,
+      "held": false,
+      "maxLevels": 4,
+      "nativePressure": {
+        "consecutiveHighSamples": 0,
+        "level": 0,
+        "nextQualityChangeInMs": 0,
+        "nextSampleInMs": 488,
+        "recoverySamples": 5,
+        "scope": "adapter_advisory_preview_only",
+        "source": "vulkan_device_local_heaps",
+        "status": "low",
+        "unavailable": null,
+        "worstPool": {
+          "budgetBytes": 7528775680,
+          "index": 0,
+          "usageBytes": 232566784
+        }
+      },
+      "nextProbeInMs": 0,
+      "refusalCount": 0,
+      "rejection": null,
+      "requested": {
+        "imageEdge": 2048,
+        "level": 0,
+        "targetDivisor": 1,
+        "videoEdge": null
+      },
+      "requestedHeight": 900,
+      "requestedWidth": 1600,
+      "status": "normal",
+      "version": 1
+    },
+    "memoryBreakdown": {
+      "categories": {
+        "curveLuts": 0,
+        "effectInputSnapshots": 0,
+        "effectScratch": 0,
+        "layerCompositingScratch": 0,
+        "maskOutputs": 0,
+        "maskScratch": 0,
+        "matteBlendScratch": 0,
+        "modelSources": 0,
+        "nestedCompositions": 0,
+        "pluginResources": 0,
+        "staticImages": 0,
+        "systemTextures": 1032,
+        "vectorGroupScratch": 0,
+        "vectorRasterScratch": 0,
+        "vectorSources": 0,
+        "videoPlanes": 0,
+        "videoRgba": 0
+      },
+      "cpuDecodedCacheBytes": null,
+      "cpuVideoDecodedCacheBytes": 0,
+      "cpuVideoPreviewProxyBytes": 0,
+      "driverResidentBytes": null,
+      "excludes": [
+        "gpu_buffers",
+        "upload_staging",
+        "cpu_decode_caches",
+        "swapchain",
+        "decoder_external_allocations",
+        "ui_and_independent_preview_textures"
+      ],
+      "exposureTargetBytes": 0,
+      "legacyTextureBytes": 4,
+      "previewOwnedTextureBytes": 2807116,
+      "previewTargetBytes": 2806084,
+      "rendererBytes": 1032,
+      "scope": "logical_texture_capacity",
+      "version": 1
+    },
+    "memoryPolicy": {
+      "decodedImageBudgetBytes": 134217728,
+      "previewTargetBudgetBytes": 134217728,
+      "scratchBudgetBytes": 402653184,
+      "sessionAllocationBudgetBytes": 536870912,
+      "sourceTextureBudgetBytes": 134217728
+    },
+    "memoryPolicyVersion": 5,
+    "mode": "auto",
+    "pluginEditorRecovery": {
+      "cancelOperation": "cancel_plugin_gesture",
+      "gesture": false,
+      "last": null,
+      "leaseMillis": 120000,
+      "open": false
+    },
+    "previewVideoProxyBytes": 0,
+    "profiling": false,
+    "readbacks": {
+      "atomicAcrossCounters": false,
+      "completeCoverage": false,
+      "image": {
+        "completedCalls": 53,
+        "countersSaturated": false,
+        "failedCalls": 0,
+        "inFlightCalls": 0,
+        "mappedBufferBytes": 334397440,
+        "requestedCalls": 53,
+        "returnedPayloadBytes": 334297600,
+        "submittedBufferSpanBytes": 334397248,
+        "submittedCalls": 53,
+        "submittedPayloadBytes": 334297600
+      },
+      "scope": "preview_renderer_image_and_timer_lifetime_counters",
+      "timestamp": {
+        "countersSaturated": false,
+        "encodedCopyBytes": 0,
+        "encodedResolveBytes": 0,
+        "encodedResolveCalls": 0,
+        "invalidSamples": 0,
+        "mapFailures": 0,
+        "mapRequests": 0,
+        "mapSuccesses": 0,
+        "mappedBufferBytes": 0,
+        "validSamples": 0
+      },
+      "version": 1
+    },
+    "resourceLedgerVersion": 1,
+    "scratchBudgetBytes": 402653184,
+    "sourceTextureBudgetBytes": 134217728,
+    "surfaceBounded": true,
+    "tier": "high",
+    "video": {
+      "cacheBudgetBytes": 0,
+      "cacheBytes": 0,
+      "cacheFrames": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0,
+      "cancelledFrames": 0,
+      "decodeInFlight": [],
+      "decodeWorkersStopped": 0,
+      "decodedFrames": 0,
+      "decoderSeeks": 0,
+      "encodedConversions": 0,
+      "frameBlendSubmissions": 0,
+      "gpuConversions": 0,
+      "holdMaxCacheBudgetBytes": 150994944,
+      "lastPrepareUs": 0,
+      "lastUploadUs": 0,
+      "lookaheadFrames": 4,
+      "maxCacheBudgetBytes": 283115520,
+      "maxDecoderWorkers": 4,
+      "pendingAttempts": 0,
+      "prefetchFailures": 0,
+      "renderAttempts": 15,
+      "retirementError": null,
+      "retiringStreams": 0,
+      "retiringWorkers": [],
+      "standaloneConversionSubmissions": 0,
+      "streams": 0,
+      "uploadBytes": 0,
+      "uploads": 0
+    },
+    "videoResolution": "decoded_source",
+    "width": 1600
+  },
+  "retainedUiProbe": {
+    "mode": "balanced",
+    "renders": 1,
+    "reuses": 8,
+    "roundTripUs": [
+      8056,
+      7412,
+      6176,
+      7613,
+      6805,
+      6322,
+      6626,
+      7234
+    ],
+    "tier": "balanced"
+  },
+  "root": "\\\\?\\E:\\Dev\\aem\\artifacts\\issue-goal-current\\viewer-ui\\dev-final-project",
+  "screenshot": "E:/Dev/aem/artifacts/issue-goal-current/viewer-ui/dev-final-smoke/report.png",
+  "style": {
+    "dragThreshold": 3.0,
+    "easing": "cubic-out",
+    "focus": [
+      0.3803921639919281,
+      0.658823549747467,
+      0.9607843160629272,
+      1.0
+    ],
+    "header": [
+      0.10980392247438431,
+      0.10980392247438431,
+      0.11764705926179886,
+      1.0
+    ],
+    "overrideActive": false,
+    "panel": [
+      0.13725490868091583,
+      0.13725490868091583,
+      0.13725490868091583,
+      1.0
+    ],
+    "rowHeight": 22.0,
+    "smallFont": 11.0
+  },
+  "workspacePresentationProbe": {
+    "presentations": [
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "default",
+        "roundTripUs": 44545
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": true,
+        "normalNodeOverlay": true,
+        "preset": "nodes",
+        "roundTripUs": 72165
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "drawing",
+        "roundTripUs": 28590
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "all",
+        "roundTripUs": 26188
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "animation",
+        "roundTripUs": 55883
+      },
+      {
+        "expandedPreview": null,
+        "nodeOverlay": false,
+        "normalNodeOverlay": false,
+        "preset": "default",
+        "roundTripUs": 57501
+      }
+    ],
+    "projectUntouched": true
+  }
+}

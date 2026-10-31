@@ -231,61 +231,7 @@ pub fn drag(
             return Err("invalid preview drag".into());
         }
         s.sample()?;
-        let layer = s
-            .engine
-            .project()
-            .layers
-            .iter()
-            .find(|l| l.id == object as u64)
-            .ok_or("drag layer does not exist")?;
-        if !layer.active(s.frame, s.engine.project().frames) {
-            return Err("drag layer is outside its clip".into());
-        }
-        let position = layer.transform.position.sample(layer.local_frame(s.frame))?;
-        let separated = layer.transform.position.axes.is_some();
-        let world_position = s
-            .scene
-            .node_position(object as u64)
-            .ok_or("object transform is unavailable")?;
-        let offset = if layer.three_d {
-            s.scene
-                .screen_translation(
-                    world_position,
-                    [dx as f32, dy as f32],
-                    [width as u32, height as u32],
-                )
-                .map_err(crate::Error::from)?
-        } else {
-            let p = s.engine.project();
-            let scale = (width as f32 / p.width as f32).min(height as f32 / p.height as f32);
-            [dx as f32 / scale, dy as f32 / scale, 0.0]
-        };
-        let offset =
-            motion_core::scene_prefix_delta_with_cameras(s.engine.project(), object as u64, s.frame,
-                offset, &s.scene.model_source_catalog())
-                .map_err(crate::Error::from)?;
-        let frame = s.frame.floor() as u32;
-        let commands = if separated {
-            [motion_core::Axis::X, motion_core::Axis::Y, motion_core::Axis::Z]
-                .into_iter()
-                .enumerate()
-                .filter(|(i, _)| offset[*i].abs() > 1e-6)
-                .map(|(i, axis)| Command::SetComponent {
-                    object: object as u64,
-                    property: motion_core::Property::Position,
-                    axis,
-                    frame,
-                    value: position[i] + offset[i],
-                })
-                .collect()
-        } else {
-            vec![Command::SetVector {
-                object: object as u64,
-                property: motion_core::Property::Position,
-                frame,
-                value: std::array::from_fn(|i| position[i] + offset[i]),
-            }]
-        };
+        let commands=drag_commands(s,&s.scene,object,dx,dy,width,height)?;
         s.engine
             .apply_batch(commands)
             .map_err(crate::Error::from)?;
@@ -399,5 +345,111 @@ mod preparation_failure_tests {
         assert_eq!(renderer.asset_ids(), &[0, 1]);
         assert!(engine.undo().unwrap());
         assert_eq!(engine.snapshot(), before);
+    }
+}
+
+fn drag_commands(
+    s: &crate::session::Session,
+    scene: &motion_render::Scene,
+    object: i64,
+    dx: f64,
+    dy: f64,
+    width: i32,
+    height: i32,
+) -> Result<Vec<Command>> {
+    if width <= 0 || height <= 0 || !dx.is_finite() || !dy.is_finite() {
+        return Err("invalid preview drag".into());
+    }
+    let layer = s
+        .engine
+        .project()
+        .layers
+        .iter()
+        .find(|l| l.id == object as u64)
+        .ok_or("drag layer does not exist")?;
+    if !layer.active(s.frame, s.engine.project().frames) {
+        return Err("drag layer is outside its clip".into());
+    }
+    let position = layer
+        .transform
+        .position
+        .sample(layer.local_frame(s.frame))?;
+    let separated = layer.transform.position.axes.is_some();
+    let world_position = scene
+        .node_position(object as u64)
+        .ok_or("object transform is unavailable")?;
+    let offset = if layer.three_d {
+        scene
+            .screen_translation(
+                world_position,
+                [dx as f32, dy as f32],
+                [width as u32, height as u32],
+            )
+            .map_err(crate::Error::from)?
+    } else {
+        let p = s.engine.project();
+        let scale = (width as f32 / p.width as f32).min(height as f32 / p.height as f32);
+        [dx as f32 / scale, dy as f32 / scale, 0.0]
+    };
+    let offset = motion_core::scene_prefix_delta_with_cameras(
+        s.engine.project(),
+        object as u64,
+        s.frame,
+        offset,
+        &scene.model_source_catalog(),
+    )
+    .map_err(crate::Error::from)?;
+    let frame = s.frame.floor() as u32;
+    let commands = if separated {
+        [
+            motion_core::Axis::X,
+            motion_core::Axis::Y,
+            motion_core::Axis::Z,
+        ]
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| offset[*i].abs() > 1e-6)
+        .map(|(i, axis)| Command::SetComponent {
+            object: object as u64,
+            property: motion_core::Property::Position,
+            axis,
+            frame,
+            value: position[i] + offset[i],
+        })
+        .collect()
+    } else {
+        vec![Command::SetVector {
+            object: object as u64,
+            property: motion_core::Property::Position,
+            frame,
+            value: std::array::from_fn(|i| position[i] + offset[i]),
+        }]
+    };
+    Ok(commands)
+}
+impl crate::session::Session {
+    pub fn drag_for_view(
+        &mut self,
+        view: motion_render::ViewCamera<'_>,
+        object: u64,
+        delta: [f32; 2],
+        size: [i32; 2],
+    ) -> Result<Value> {
+        self.sample()?;
+        let scene = self.scene.fork_view(view)?;
+        let commands = drag_commands(
+            self,
+            &scene,
+            object as i64,
+            delta[0] as f64,
+            delta[1] as f64,
+            size[0],
+            size[1],
+        )?;
+        self.engine
+            .apply_batch(commands)
+            .map_err(crate::Error::from)?;
+        self.sample()?;
+        self.snapshot()
     }
 }

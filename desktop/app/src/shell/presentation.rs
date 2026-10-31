@@ -143,6 +143,7 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        if !self.floating.values().any(|f|f.panel==Panel::Composition){self.panels.viewer_views.prepare(0);}
         self.input.text_clipboard = Some(self.text_clipboard.clone());
         self.panels.clipboard_available = self.layer_clipboard.available();
         self.panels.keyframe_clipboard_available = self.layer_clipboard.keyframes_available();
@@ -443,7 +444,10 @@ impl Shell {
             None
         };
         let view = panels::composition_view_styled(self.workspace.display_root(), size, &paint.styles());
-        UiFrame {
+        let mut views=if self.home.is_none(){self.viewer_plan_for(view,self.scale,&paint.styles(),false)}else{None};
+        let visible=views.is_some();
+        let (inspection,composition_image)=self.single_composition_frame(&mut views);
+        UiFrame { views,
             paint,
             atlas,
             logical_size: size,
@@ -451,9 +455,9 @@ impl Shell {
             node_preview: if self.home.is_none() {
                 self.node_viewport(panels::node_view_bound(self.workspace.display_root(),size,self.panels.node_editor.layer_target.is_some()), self.scale)
             } else { None },
-            inspection: self.panels.viewer_inspection.frame(false, self.panels.viewer_guides.channel(false)),
-            composition_image: self.viewer_image(view, self.scale),
-            composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
+            inspection,
+            composition_image,
+            composition: if visible && self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
                     view.min[1] * self.scale,
@@ -790,6 +794,7 @@ impl Shell {
             || self.node_close_prompt.is_some();
         let navigation = self.panels.timeline.navigation_paint_only;
         self.panels.timeline.navigation_paint_only = acknowledged;
+        if panel == Panel::Composition { self.panels.viewer_views.prepare(key); }
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -831,7 +836,7 @@ impl Shell {
             None
         };
         let viewer = panels::floating_view_styled(panel, size, &paint.styles());
-        let composition = viewer.map(|v| {
+        let mut composition = viewer.map(|v| {
             [
                 v.min[0] * scale,
                 v.min[1] * scale,
@@ -839,15 +844,18 @@ impl Shell {
                 v.height() * scale,
             ]
         });
+        let mut views=viewer.and_then(|view|self.viewer_plan_for(view,scale,&paint.styles(),true));
+        if views.is_none() {composition=None;}
+        let (inspection,composition_image)=self.single_composition_frame(&mut views);
         self.rendering.insert(
             key,
-            self.present_ui_async(UiFrame {
+            self.present_ui_async(UiFrame { views,
                 paint,
                 atlas,
                 logical_size: size,
                 composition,
-                inspection: self.panels.viewer_inspection.frame(true, self.panels.viewer_guides.channel(true)),
-                composition_image: viewer.and_then(|v| self.viewer_image(v, scale)),
+                inspection,
+                composition_image,
                 window: key,
                 node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,

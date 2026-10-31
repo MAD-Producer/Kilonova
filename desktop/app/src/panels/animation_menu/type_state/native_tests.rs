@@ -148,7 +148,7 @@ fn native_type_menu_captures_exact_mixed_and_manual_states_in_both_languages() {
             crate::native_test_support::capture_ui(
                 &mut events,
                 &engine,
-                UiFrame {
+                UiFrame { views: None,
                     paint,
                     atlas: Some(AtlasUpload {
                         pixels: atlas.pixel_data().to_vec(),

@@ -1,0 +1,6 @@
+
+running 1 test
+test panels::viewer_guides::native_tests::viewer_snapshot_native_preserves_pixels_history_windows_and_failure_logs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1560 filtered out; finished in 7.68s
+

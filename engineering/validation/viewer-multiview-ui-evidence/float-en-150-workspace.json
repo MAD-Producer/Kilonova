@@ -1,0 +1,224 @@
+{
+  "locale": "en",
+  "preset": "default",
+  "recent_projects": [],
+  "design_revision": 2,
+  "preset_layouts": {},
+  "legacy_layout": null,
+  "named_layouts": {},
+  "style_path": null,
+  "preview_quality": "auto",
+  "preview_playback": {
+    "scope": "composition",
+    "start": "current",
+    "looping": true,
+    "skip": "none"
+  },
+  "movie_export_scope": "composition",
+  "shortcut_bindings": {
+    "overrides": []
+  },
+  "favorites": [],
+  "send_diagnostics": false,
+  "node_view": {
+    "grid": true,
+    "minimap": false
+  },
+  "node_recents": [],
+  "project_view": {
+    "root": "",
+    "folder": null,
+    "query": "",
+    "search_all": false
+  },
+  "viewer_views": {
+    "layout": "four",
+    "active": 3,
+    "views": [
+      {
+        "mode": {
+          "kind": "composition"
+        },
+        "navigation": {
+          "zoom": null,
+          "center": null
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "top"
+        },
+        "navigation": {
+          "zoom": 0.993565560800058,
+          "center": [
+            239.99999324265303,
+            135.0
+          ]
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "side"
+        },
+        "navigation": {
+          "zoom": null,
+          "center": null
+        },
+        "orbit": null
+      },
+      {
+        "mode": {
+          "kind": "free"
+        },
+        "navigation": {
+          "zoom": null,
+          "center": null
+        },
+        "orbit": {
+          "target": [
+            240.0,
+            135.0,
+            0.0
+          ],
+          "radius": 325.91882,
+          "azimuth": 48.1439,
+          "elevation": -8.464949,
+          "fov": 45.0
+        }
+      }
+    ]
+  },
+  "timeline_column_blend": true,
+  "timeline_column_parent": true,
+  "timeline_column_matte": true,
+  "timeline_sampling_columns": [
+    true,
+    true,
+    true
+  ],
+  "timeline_hide_shy": false,
+  "root": {
+    "Split": {
+      "edge": "Right",
+      "split": 0.2,
+      "first": {
+        "Split": {
+          "edge": "Top",
+          "split": 0.56823266,
+          "first": {
+            "Split": {
+              "edge": "Left",
+              "split": 0.22100313,
+              "first": {
+                "Split": {
+                  "edge": "Top",
+                  "split": 0.52165353,
+                  "first": {
+                    "Dock": {
+                      "id": 1,
+                      "tabs": [
+                        1
+                      ],
+                      "active": 0
+                    }
+                  },
+                  "second": {
+                    "Dock": {
+                      "id": 2,
+                      "tabs": [
+                        2
+                      ],
+                      "active": 0
+                    }
+                  }
+                }
+              },
+              "second": {
+                "Dock": {
+                  "id": 3,
+                  "tabs": [
+                    3
+                  ],
+                  "active": 0
+                }
+              }
+            }
+          },
+          "second": {
+            "Dock": {
+              "id": 4,
+              "tabs": [
+                4,
+                18
+              ],
+              "active": 0
+            }
+          }
+        }
+      },
+      "second": {
+        "Split": {
+          "edge": "Top",
+          "split": 0.30872482,
+          "first": {
+            "Dock": {
+              "id": 11,
+              "tabs": [
+                11
+              ],
+              "active": 0
+            }
+          },
+          "second": {
+            "Split": {
+              "edge": "Top",
+              "split": 0.18300654,
+              "first": {
+                "Dock": {
+                  "id": 13,
+                  "tabs": [
+                    13,
+                    12,
+                    8
+                  ],
+                  "active": 0
+                }
+              },
+              "second": {
+                "Split": {
+                  "edge": "Top",
+                  "split": 0.5708502,
+                  "first": {
+                    "Dock": {
+                      "id": 5,
+                      "tabs": [
+                        5
+                      ],
+                      "active": 0
+                    }
+                  },
+                  "second": {
+                    "Dock": {
+                      "id": 14,
+                      "tabs": [
+                        14,
+                        15,
+                        16
+                      ],
+                      "active": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "floating": [],
+  "hidden": [],
+  "window_geometry": {}
+}

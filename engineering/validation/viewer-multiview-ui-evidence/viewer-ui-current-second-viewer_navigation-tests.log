@@ -1,0 +1,8 @@
+
+running 3 tests
+test viewer_navigation::tests::invalid_navigation_is_atomic_and_empty_views_are_normal ... ok
+test viewer_navigation::tests::pan_resize_and_fit_are_independent_of_project_data ... ok
+test viewer_navigation::tests::zoom_keeps_the_composition_point_under_the_pointer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1565 filtered out; finished in 0.00s
+
