@@ -1,5 +1,9 @@
 # Combined native prerender gate: v6 failed
 
+For the latest requirement-by-requirement status, see the
+[issue 82 acceptance map](native-prerender-issue82-acceptance-current.md).
+This report preserves the older v6 failure and its exact source boundary.
+
 Issue: [82](https://github.com/MAD-Producer/Kilonova/issues/82).
 Draft: [PR 575](https://github.com/MAD-Producer/Kilonova/pull/575).
 Exact tested source: `cd26ba2964569d765cafb34a89be079ac0506861`.
