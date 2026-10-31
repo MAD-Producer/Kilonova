@@ -35,8 +35,10 @@ PR and are not covered by this run. Their local scoped evidence remains separate
 
 Current-source local desktop regression has completed 1,463 passed, zero failed
 and 51 ignored, including the two tests that failed on the older source. The
-rest of that local FFmpeg/AI-depth workspace gate was still running when this
-record was written; it is not reported as accepted. The strict 480-sample input
+full local FFmpeg/AI-depth workspace gate subsequently completed with 4,009
+passed, zero failed and 63 ignored; actual shared-window MCP also passed.
+The [combined gate](native-prerender-combined-gate-current.md) still failed its
+input assessment. The strict 480-sample input
 assessment still fails the second property pair (ratio `1.1349866349866349`).
 Old illegal-instruction, stack-overflow, Naga precondition and child-exit evidence
 remains unresolved. Current CI and changed-source passes do not explain it.

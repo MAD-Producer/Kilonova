@@ -1,113 +1,74 @@
-# Combined native prerender gate: v6 failed
+# Combined native prerender gate: v7 failed input acceptance
 
-For the latest requirement-by-requirement status, see the
-[issue 82 acceptance map](native-prerender-issue82-acceptance-current.md).
-This report preserves the older v6 failure and its exact source boundary.
+Issue [#82](https://github.com/MAD-Producer/Kilonova/issues/82), draft
+[PR #575](https://github.com/MAD-Producer/Kilonova/pull/575).
+Tested source `8bb44d4a81f67f693a20e7bc3c067a987d37cb31`, main baseline
+`49890ce0da7d7701eaec5e521d749b562d3ffd47`.
+Terminal receipt: `2026-10-31T06:14:22.798456+00:00`.
 
-Issue: [82](https://github.com/MAD-Producer/Kilonova/issues/82).
-Draft: [PR 575](https://github.com/MAD-Producer/Kilonova/pull/575).
-Exact tested source: `cd26ba2964569d765cafb34a89be079ac0506861`.
-Main baseline: `49890ce0da7d7701eaec5e521d749b562d3ffd47`.
-Completed: `2026-10-31T03:57:50.657055+00:00`.
-
-This is a failed combined gate. The three source-watcher/upload components are
-integrated in this source; their focused passes do not override these failures.
-The optional disk-cache draft and subsequent input-phase instrumentation are
-separate, unaccepted sources. Android is retired and excluded by user direction.
-Issue 87 is independently complete; see [its release record](scene3d-main-release-current.md).
+The source-frozen 33-step gate completed. **32 steps passed; strict native input
+assessment failed.** This is not combined acceptance. The
+[issue acceptance map](native-prerender-issue82-acceptance-current.md) separates
+implemented features, accepted components and open requirements. Android is
+retired and excluded by user direction.
 
 ## Actual results
 
-The 27-step gate completed without source changes. It exercised scheduler,
-native cache/producer, cancellation, input priority, source changes, refresh,
-static/gap/pressure/blocked/idle paths, all four native precisions, actual native
-input and paced playback, full maintained workspace, desktop check/build,
-shared-window MCP, provenance and tool inventory. Exact commands remain in the
-terminal receipt. Three required steps failed:
-
-| Gate | Actual result | Disposition |
+| Gate | Actual result | Scope |
 | --- | --- | --- |
-| Integrated native cache | Exit `0xc000001d`, no final test summary | Illegal instruction; unresolved |
-| Foreground input P95 | Timeline first pair `1.3568106642791415`, pooled `1.0860751295336788` | Strict no-regression failed |
-| Maintained workspace | Exit 101; 3,988 passed, 2 failed, 61 ignored | Failed; not acceptance |
+| Maintained full workspace, FFmpeg and AI-depth enabled | Exit 0; 4,009 passed, zero failed, 63 ignored across 348 final summary lines | Full command on this source; ignored tests remain excluded |
+| Desktop target within that workspace | 1,463 passed, zero failed, 51 ignored | Subset, not an additional total |
+| Native cache, producer, disk and all four precision layouts | Passed | Exact commands and counts in receipt |
+| Priority, source freshness, refresh, static, gaps, pressure, blocked ownership and idle controls | Passed | Cancellation and admission correctness, not foreground latency |
+| Native input study | 480 verified samples; no drops | Original ABBA order, assertions and strict criteria preserved |
+| Strict input assessment | Exit 2, failed | Second property pair 1.1349866349866349; pooled property 1.0183869406881096 |
+| Paced playback | 240 frames, strict assessment passed | Both enabled episodes: 60 actual hits, zero missed-next-deadline samples |
+| Desktop check/build and actual shared-window MCP | Passed; nested MCP report `ok: true` | Actual application/tool routing and screenshots, not inferred from empty stdout |
+| Provenance and tool inventory | Passed | Source/tool checks |
 
-Property-input pairs were `0.9680153954836667` and `0.7013104698173707`,
-pooled `0.7381782163689057`. Timeline second pair was `0.6718198887465562`.
-An improving pair cannot override another failing pair. The unchanged original
-input parser, not a replacement threshold, determined the failed disposition.
-
-The separate paced 240-frame study passed its strict assessment: pairs
-`0.9938537185003073` and `0.846324771131455`, pooled `0.8398920829844637`.
-The enabled episodes recorded 60 and 59 hits with zero missed-next-deadline
-samples. This Engine-only result does not prove whole-app input latency or a
-universal hardware guarantee and does not repair older failed studies.
-
-The workspace command was:
+Workspace command:
 
 ```text
 cargo test --workspace --exclude motion-android --features motion-desktop/ffmpeg,motion-host/ai-depth --locked --offline --no-fail-fast -- --test-threads=1
 ```
 
-Its 348 actual final summary lines total 3,988 passed, two failed and 61 ignored.
-The desktop target's 1,459 passed, two failed and 51 ignored are a subset,
-not an additional total. The failed tests are:
+The other property pair was `0.9920199361594892`. Timeline pairs were
+`0.6511806341472771` and `0.7933545302298488`, pooled `0.7669862151004129`.
+An improving pair does not override the failed property pair. Paced ratios were
+`0.9729916897506925` and `0.8336580613735997`, pooled `0.8471691131121253`.
+These observations are local evidence, not a universal hardware SLA.
 
-- `engine::failure::composition_tests::timing_admission::unsupported_timing_is_quiet_and_preserves_default_output_channels`
-- `shell::effect_application::tests::recent_menu::an_actual_worker_rejects_stale_menu_targets_without_partial_additions_or_extra_history`
+## Source boundaries and retained failures
 
-The first wrapper captured an explicit child stack-overflow report. The second
-captured a nonzero child exit. Neither wrapper printed the numeric child exit
-code. Two Windows reports identify the exact same desktop PE timestamp but do
-not establish which test generated each report. Original dumps are unavailable.
-The bounded failure excerpts preserve this distinction; no assertion was changed.
+The [older failed v6 gate](native-prerender-combined-v6-failed.md) remains
+preserved with original illegal-instruction, stack-overflow and nonzero-child
+evidence. Current changed-source passes do not establish their causes or fixes.
+No original assertion, sample order or threshold was weakened.
 
-Desktop check, FFmpeg/AI-depth build, real shared-window MCP, provenance and tool
-inventory passed after the workspace step. Shared-MCP verification is in its
-nested `mcp-ui-smoke.json`, not its empty top-level stdout. Five required PR CI
-checks also passed on the exact head, including macOS Intel. They are separate
-from the failed local combined gate and do not authorize closing issue 82.
+After v7, all 73 owned commits were rebased onto main
+`f2e9f0e82f625eb0e1095857bf3e98d917bcfbcf`; actual range-diff found 73 equivalent
+patches and no changed/dropped/added patches. Commit
+`02a19dadbf26b06ebea365775c965e0daa1f0e54` adds three regression tests for
+stable-identity roving and frozen native temporal/spatial cache boundaries.
+Its component gate passed seven test executions (three host static-interval,
+two native spatial-timing and two child wrappers), desktop check, provenance
+and tool inventory, completing `2026-10-31T06:24:30.021404+00:00`.
+This is not a full regression or CI acceptance for the new main baseline.
 
-## Native evidence and limits
-
-The integrated render EXE/PDB were copied and SHA-256 verified before later
-builds. Windows reports illegal instruction at RVA `0x1f02033`; the original
-runtime exception context/dump is absent. Nearest public symbols and static
-on-disk bytes are insufficient to identify the faulting source or instruction.
-The last printed cache-copy test is not proof of the faulting test or thread.
-
-The preserved desktop EXE SHA-256 is
-`73e7ea773102f6f1f0835064c47bff09aadd0e85274286de5e096fdeb5b8821e`;
-render EXE SHA-256 is
-`304f134b4ad5477d0e12f4a6853fc9bc4da88d31b480f57198f83e26bd101895`.
-Private PDB/Windows reports are retained outside this public evidence archive.
-
-Read-only x64 PE/unwind inspection found large fixed stack allocations in the
-preserved desktop image. This is diagnostic evidence, not a root cause: public
-symbol names may be approximate, and prologue metadata excludes recursion,
-dynamic allocations, call chains and the actual test-thread stack limit. The
-image's 1 MiB initial stack reserve does not establish a Rust test-thread limit.
-No stack-size increase, layer disabling, retry or source change was used to
-turn these failures green. A later debugger pass cannot erase an original crash.
-
-## Remaining acceptance
-
-- Identify and fix the foreground timeline-input regression from measured phases
-- Resolve/dispose of the retained native crashes and both desktop failures
-- Finish the separately drafted optional disk cache, quota/reopen bounds,
-  corruption/fallback controls and real bounded-full-volume recovery
-- Integrate the corrected sources, align with current main and complete full
-  maintained regression plus exact-head cross-platform CI
-
-The earlier v5 failed receipt/archive remains preserved. Its offline metadata
-cache repair is not a product fix; the dependency-boundary control passed in
-this newer workspace. That pass does not erase v5's original failure or crashes.
-PR 575 remains a draft and issue 82 remains open.
+Remaining: repair and qualify foreground latency, resolve the retained abnormal
+exit dispositions, integrate subsequent changes and run complete final-source
+regression, actual shared-window MCP and exact-head cross-platform CI. PR #575
+remains a draft and #82 remains open.
 
 ## Evidence
 
-Archive: [failed combined v6 gate](data/native-prerender-combined-v6-failed.zip).
-SHA-256: `764d8edfc7091c7ba4f9faa91f7a62578613c1026b685988fc9672c18b72d5a4`.
-All 23 members were read back byte for byte. The manifest binds actual
-receipts, stdout/stderr, raw performance samples, original strict assessments,
-MCP evidence and bounded native diagnostic records to their hashes. Private
-executables, symbols, raw Windows reports and later reruns are excluded.
+[Original failed v7 receipt, complete raw logs, samples, assessments and MCP artifacts](data/native-prerender-combined-v7-failed.zip):
+183 members, SHA-256
+`995da4e61060c79d9c668e99958cc56c19d58b8d69e02e41a762e8fffe0283ae`.
+
+[Rebased-main boundary component evidence](data/native-prerender-main-boundaries-v1.zip):
+19 members, SHA-256
+`203d232b21700c6fd9db0c8b43b406a02db2743092e5a8075593e9b6c4ae923d`.
+
+Every archived member was read back byte for byte. Manifests retain original
+receipt status, exact source hashes, raw command results and scope limitations.
