@@ -1,0 +1,209 @@
+
+running 30 tests
+test panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides ... FAILED
+test panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets ... FAILED
+test panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal ... FAILED
+test panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once ... FAILED
+test panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio ... FAILED
+test panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture ... FAILED
+test panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style ... FAILED
+test panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target ... FAILED
+test panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target ... FAILED
+test panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset ... FAILED
+test panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides ... FAILED
+test panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo ... FAILED
+test panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently ... FAILED
+test panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint ... FAILED
+test panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview ... FAILED
+test panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture ... FAILED
+test panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion ... FAILED
+test panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction ... FAILED
+test panels::transform_controls::spatial::tests::end_on_axes_and_edge_on_planes_are_disabled_and_projection_keeps_2d_mapping_identical ... ok
+test panels::transform_controls::spatial::tests::ray_constraints_preserve_parent_axes_and_layer_scale_axes_across_cameras_mirrors_and_anchors ... ok
+test panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it ... FAILED
+test panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale ... FAILED
+test panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels ... FAILED
+test panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks ... FAILED
+test panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d ... FAILED
+test panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks ... FAILED
+test panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input ... FAILED
+test panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract ... FAILED
+test panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo ... FAILED
+test panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history ... FAILED
+
+failures:
+
+---- panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides stdout ----
+
+thread 'panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides' (34180) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmphcuhhH", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets stdout ----
+
+thread 'panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets' (38928) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpvywi3q", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal stdout ----
+
+thread 'panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal' (8632) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpKmXDHQ", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once stdout ----
+
+thread 'panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once' (4324) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpZ3JUir", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio stdout ----
+
+thread 'panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio' (41696) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpnSMlVk", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture stdout ----
+
+thread 'panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture' (2904) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpt36NkD", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style stdout ----
+
+thread 'panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style' (7184) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpZK64WX", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target stdout ----
+
+thread 'panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target' (11028) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpSKnfbb", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target stdout ----
+
+thread 'panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target' (6932) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpBrC0Wd", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset stdout ----
+
+thread 'panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset' (5832) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp7TdpcH", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides stdout ----
+
+thread 'panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides' (32392) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpq4RIL7", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo stdout ----
+
+thread 'panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo' (41976) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpArrnNh", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently stdout ----
+
+thread 'panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently' (34880) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpuDxve1", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint stdout ----
+
+thread 'panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint' (28368) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpz70W8T", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview stdout ----
+
+thread 'panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview' (39704) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpmlIsnZ", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture stdout ----
+
+thread 'panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture' (27996) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpKmght4", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion stdout ----
+
+thread 'panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion' (34596) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp2RWbJV", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction stdout ----
+
+thread 'panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction' (10992) panicked at desktop\app\src\panels\transform_controls\spatial\tests.rs:233:17:
+one begin plus one edit batch: []
+
+---- panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it stdout ----
+
+thread 'panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it' (17132) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpvSVRDm", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale stdout ----
+
+thread 'panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale' (23536) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpGIjdsR", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels stdout ----
+
+thread 'panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels' (27028) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpSjMWOG", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks stdout ----
+
+thread 'panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks' (7792) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpubfiUk", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d stdout ----
+
+thread 'panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d' (39796) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpuyAcJt", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks stdout ----
+
+thread 'panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks' (11136) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpUHDKi8", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input stdout ----
+
+thread 'panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input' (15136) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmprwS6Og", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract stdout ----
+
+thread 'panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract' (7040) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmp4rdD3u", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo stdout ----
+
+thread 'panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo' (31688) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpTUHTG2", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+---- panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history stdout ----
+
+thread 'panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history' (41832) panicked at desktop\app\src\panels\transform_controls.rs:699:42:
+called `Result::unwrap()` on an `Err` value: Custom { kind: PermissionDenied, error: PathError { path: "C:\\Users\\nova\\AppData\\Local\\Temp\\.tmpPpN6jd", err: Os { code: 5, kind: PermissionDenied, message: "拒绝访问。" } } }
+
+
+failures:
+    panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides
+    panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets
+    panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal
+    panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once
+    panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio
+    panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture
+    panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style
+    panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target
+    panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target
+    panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset
+    panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides
+    panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo
+    panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently
+    panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint
+    panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview
+    panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture
+    panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion
+    panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction
+    panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it
+    panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale
+    panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels
+    panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks
+    panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d
+    panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks
+    panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input
+    panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract
+    panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo
+    panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history
+
+test result: FAILED. 2 passed; 28 failed; 0 ignored; 0 measured; 1463 filtered out; finished in 0.05s
+

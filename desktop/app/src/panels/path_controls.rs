@@ -59,6 +59,38 @@ pub struct Projection {
     pub image: Rect,
 }
 impl Projection {
+    /// Reuse the renderer's source-to-clip mapping with an affine source basis.
+    /// The basis is expressed in renderer coordinates (Y up, Z away).
+    pub(in crate::panels) fn with_basis(&self, basis: DMat4) -> Option<Self> {
+        let matrix = self.matrix * basis;
+        if !matrix.is_finite() || matrix.determinant().abs() < 1e-15 {
+            return None;
+        }
+        Some(Self { matrix, inverse: matrix.inverse(), image: self.image })
+    }
+    /// Source-space 3D coordinates use the same Y/Z signs as authored positions.
+    pub(in crate::panels) fn screen3(&self, point: glam::DVec3) -> Option<[f32; 2]> {
+        let p = self.matrix * DVec4::new(point.x, -point.y, -point.z, 1.);
+        if !p.is_finite() || p.w <= 1e-8 { return None; }
+        let result = [
+            self.image.min[0] + ((p.x / p.w + 1.) * 0.5) as f32 * self.image.width(),
+            self.image.min[1] + ((1. - p.y / p.w) * 0.5) as f32 * self.image.height(),
+        ];
+        result.into_iter().all(f32::is_finite).then_some(result)
+    }
+    pub(in crate::panels) fn ray3(&self, point: [f32; 2]) -> Option<(glam::DVec3, glam::DVec3)> {
+        let x = 2. * f64::from((point[0] - self.image.min[0]) / self.image.width()) - 1.;
+        let y = 1. - 2. * f64::from((point[1] - self.image.min[1]) / self.image.height());
+        let unproject = |z| {
+            let p = self.inverse * DVec4::new(x, y, z, 1.);
+            if !p.is_finite() || p.w.abs() <= 1e-10 { return None; }
+            let p = p.truncate() / p.w;
+            Some(glam::DVec3::new(p.x, -p.y, -p.z))
+        };
+        let start = unproject(0.)?;
+        let direction = (unproject(1.)? - start).try_normalize()?;
+        Some((start, direction))
+    }
     pub fn new(matrix: [f64; 16], view: Rect, size: [f32; 2]) -> Option<Self> {
         if size.iter().any(|v| !v.is_finite() || *v <= 0.)
             || view.width() <= 0.

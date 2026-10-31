@@ -1,0 +1,412 @@
+{
+  "schema": 1,
+  "issue": 236,
+  "base": "49890ce0da7d7701eaec5e521d749b562d3ffd47",
+  "branch": "feat/spatial-transform-gizmo",
+  "tests": {
+    "transform": 35,
+    "explicit_native": 1,
+    "composition": 5,
+    "tools": 12,
+    "native_input": 1,
+    "distinct_total": 54
+  },
+  "limitations": [
+    "Windows local native routes use explicit events; no physical mouse or OS IME emulation",
+    "Latest PR commit still requires cross-platform CI",
+    "First failures retained, not counted as passes"
+  ],
+  "compiled_inputs": [
+    {
+      "path": "crates/motion-core/src/lib.rs",
+      "bytes": 4543,
+      "sha256": "6cd7ab2bef00710731a66ae1877deb725686afe0bc9b4a4c95245885ae8a0584"
+    },
+    {
+      "path": "desktop/app/src/panels/composition.rs",
+      "bytes": 16938,
+      "sha256": "3fd4e7cea7a2af8f09d7c509dfc3a196f753a6e072ed317c6f5b15ce4f6117b3"
+    },
+    {
+      "path": "desktop/app/src/panels/path_controls.rs",
+      "bytes": 86444,
+      "sha256": "7b15b087ebb148c4f79935c3a467c38669e3dd4c0c46e9c9d7a5e50d38795248"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls.rs",
+      "bytes": 41049,
+      "sha256": "7197abe23f35b54ff77c68a8067f63976bb79c76d5c53bd532638821ae700afa"
+    },
+    {
+      "path": "desktop/ui/styles/dark.json",
+      "bytes": 19869,
+      "sha256": "719979ae82155588be320485316a78fe5c1ea5241307bd6eb282291857f2cfff"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial.rs",
+      "bytes": 23870,
+      "sha256": "60e30d6cb03facb445cac5323038538ecb37a325e06a2b89b57282f4ad85eb28"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/tests.rs",
+      "bytes": 11053,
+      "sha256": "6518db91de2f41790fe55c2a7444d8781c55ffe8692799d41207392659c0ee63"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/worker_tests.rs",
+      "bytes": 19637,
+      "sha256": "d0131cc15afa25fc14f480a0b5688eaa7f41354f17a2e421a06148a2a5bcf877"
+    },
+    {
+      "path": "desktop/app/src/panels/transform_controls/spatial/native_tests.rs",
+      "bytes": 14885,
+      "sha256": "d49b429d5a5756ea871c6d2726f13690bce1b224a0f35e54b73fc156b5d4d643"
+    }
+  ],
+  "test_program": {
+    "path": "program/motion-studio-tests.exe",
+    "bytes": 126020608,
+    "sha256": "7afbf58513165484d79ccf05d8ed3ecae699fa2163705dd78ac1b0fd47e955dd"
+  },
+  "application": {
+    "path": "debug/motion-studio.exe",
+    "bytes": 101641728,
+    "sha256": "9883e4e7db17a2159779af8a793bccb26caf5ed6b7ee6f8b900edb1d4a9d9ef3"
+  },
+  "crops": [
+    {
+      "source": "native-final/0-Move-Zh-before.png",
+      "output": "crops/0-Move-Zh-before.png",
+      "rect": [
+        450,
+        330,
+        660,
+        540
+      ],
+      "resized": false
+    },
+    {
+      "source": "native-final/1-Scale-Zh-drag.png",
+      "output": "crops/1-Scale-Zh-drag.png",
+      "rect": [
+        450,
+        290,
+        670,
+        510
+      ],
+      "resized": false
+    }
+  ],
+  "files": [
+    {
+      "path": "build-acceptance.log",
+      "bytes": 13071,
+      "sha256": "2bbbb6b0babe93c235b89310b9dc49af71954a17f0e9ed3d1d9c00d82f483163"
+    },
+    {
+      "path": "build-application.log",
+      "bytes": 13635,
+      "sha256": "6eab997e74e349f9e4084377220a2935ef8cba34584ffaa6107ea9d1865cbbe9"
+    },
+    {
+      "path": "build-final-tests.log",
+      "bytes": 13071,
+      "sha256": "acdd5c1a63f1a05604556f83c61e7b057f910f608c8c1bafc32080573a5483b4"
+    },
+    {
+      "path": "build-first.log",
+      "bytes": 7923,
+      "sha256": "fd2018a97be245cd9a608a357671d113e527efc6ce4160decef12b0ee3f9311d"
+    },
+    {
+      "path": "build-native.log",
+      "bytes": 13071,
+      "sha256": "3e19021e45823411c0bb35ae6478bd45708d61843d89e6580d6645fe6fa283c5"
+    },
+    {
+      "path": "build-second.log",
+      "bytes": 13304,
+      "sha256": "014e4a7356e643bbe8eeea21dab0152b16b309a48af8f7508152b8e39fb84ae2"
+    },
+    {
+      "path": "build-singular.log",
+      "bytes": 13071,
+      "sha256": "c0c1d9b2f71b73845edfc7b18624f06454a65a6bfb6c0a72b39625ce721d507b"
+    },
+    {
+      "path": "build-worker.log",
+      "bytes": 13071,
+      "sha256": "2a65032bc74fe9424d4f89fbebdcfb78fd805bf88cf3eeedf7bf1bd334a3eb78"
+    },
+    {
+      "path": "composition-final.log",
+      "bytes": 684,
+      "sha256": "14959e37a5f8322734d0a9fdc831e9983f0bf40236f93400fa6fd475ced1e6a5"
+    },
+    {
+      "path": "crops/0-Move-Zh-before.png",
+      "bytes": 7794,
+      "sha256": "235380781aa0e058c7f1005c5856a02135f3fdd1415164057fa93caa3eb774ff"
+    },
+    {
+      "path": "crops/1-Scale-Zh-drag.png",
+      "bytes": 7625,
+      "sha256": "71f5ec03667accbd4fa3a62b62e91ff0ccea2b32297e0b3477a9bb5dd97ce43e"
+    },
+    {
+      "path": "input-final.log",
+      "bytes": 235,
+      "sha256": "6086fe93fa3f7e0b356d2a51fe22baa725d1e2c92f43b228fb25061be9d70170"
+    },
+    {
+      "path": "native-final/0-Move-En-before.png",
+      "bytes": 50218,
+      "sha256": "7d67479aab452778f3df6239b1a3e85049c86b4ca7376bf64a71b9d7c8e7fa99"
+    },
+    {
+      "path": "native-final/0-Move-En-drag.png",
+      "bytes": 50449,
+      "sha256": "7c9257581ae3dadeeb3170bc4b6f7ebc5e9da5de7432fdf8a2f1b04e50c3bed7"
+    },
+    {
+      "path": "native-final/0-Move-Zh-before.png",
+      "bytes": 50897,
+      "sha256": "ce6f84503cca158e5ee3fe36b59019cf371ff7f10ec0043babaa6d67687e700f"
+    },
+    {
+      "path": "native-final/0-Move-Zh-drag.png",
+      "bytes": 51146,
+      "sha256": "12746e8403bb2a1bb0667bf10412da35bd842e7d1d7c8d4a61e4a1652aebaa1d"
+    },
+    {
+      "path": "native-final/0-Scale-En-before.png",
+      "bytes": 50111,
+      "sha256": "a1a795384a30dcd298513a9d6a26dffa2f5c1d236e2ecec2887752597755ef66"
+    },
+    {
+      "path": "native-final/0-Scale-En-drag.png",
+      "bytes": 50218,
+      "sha256": "932bbb170580643c2a4029ffddd8887653c1193d83805031b5bbf37796f61d87"
+    },
+    {
+      "path": "native-final/0-Scale-Zh-before.png",
+      "bytes": 50826,
+      "sha256": "b81b4cf01ae3fb903a284040220bc0c12bcde49481ea2362556a26c572455fc2"
+    },
+    {
+      "path": "native-final/0-Scale-Zh-drag.png",
+      "bytes": 50952,
+      "sha256": "58c653f4cc9585908eec2efb43a5b438c9ff2a3bba919a75a8b48d3e612429b5"
+    },
+    {
+      "path": "native-final/1-Move-En-before.png",
+      "bytes": 34315,
+      "sha256": "31bb75028ee65090583cf6f00b35f18843c0dc79762273fb87ed3dbdedffd84d"
+    },
+    {
+      "path": "native-final/1-Move-En-drag.png",
+      "bytes": 34478,
+      "sha256": "e467af54182e2e0607138fd34776439e87c775ce18a8762302a5ef0a5ee53c32"
+    },
+    {
+      "path": "native-final/1-Move-Zh-before.png",
+      "bytes": 34563,
+      "sha256": "47c5973eefd778f02562dbf50cb14e355a72fbd4b91219c9a990d7fc2f3c8c7f"
+    },
+    {
+      "path": "native-final/1-Move-Zh-drag.png",
+      "bytes": 34726,
+      "sha256": "4d70c2c0c4eb4f4902a225d5ce4d4eabefb500cef6b3fcb599214a1aab69a537"
+    },
+    {
+      "path": "native-final/1-Scale-En-before.png",
+      "bytes": 34401,
+      "sha256": "106b0d6bbcaaa53047062ce42c73bfa34dfcaea1efb0c7cf29c889961dfc2e15"
+    },
+    {
+      "path": "native-final/1-Scale-En-drag.png",
+      "bytes": 34451,
+      "sha256": "10d7ea29d5a5249d79e2c653399c8e6f7086b13d6957538381b29465ebc95487"
+    },
+    {
+      "path": "native-final/1-Scale-Zh-before.png",
+      "bytes": 34649,
+      "sha256": "d41158632eab7d79a3206c7f5891829ade18a725df2a91f60a10596534e586cb"
+    },
+    {
+      "path": "native-final/1-Scale-Zh-drag.png",
+      "bytes": 34699,
+      "sha256": "115e643c5d31e5b019e0d3b17c78283dc8728664d441ce3ddc54061482792d7c"
+    },
+    {
+      "path": "native-final/motion-studio.log",
+      "bytes": 18000,
+      "sha256": "21d36052ed348134a1e26e715ccb03a77100f6c756b9d67e9e77546b872a7861"
+    },
+    {
+      "path": "native-final/report.json",
+      "bytes": 966,
+      "sha256": "9b197e8dc97ed7e8dc910ce1d84422c63cc4252c0a3b4f4859e66bd8583c1ce7"
+    },
+    {
+      "path": "native-final/stderr.txt",
+      "bytes": 781,
+      "sha256": "fdec81f95ad4c6f3679e91a4c698826f9560672aea31400db74bc0a645703c12"
+    },
+    {
+      "path": "native-final/stdout.txt",
+      "bytes": 263,
+      "sha256": "5fc9112d59b1e00c6fa3414dbab00acb403516ddea144e44bdb0a9a987af9aec"
+    },
+    {
+      "path": "native-final.log",
+      "bytes": 269,
+      "sha256": "306f6bd0e167ae488e1ef0a72876c4e930892b79d02721e7d2e1537c9386a8de"
+    },
+    {
+      "path": "native-first/0-Move-En-before.png",
+      "bytes": 50218,
+      "sha256": "7d67479aab452778f3df6239b1a3e85049c86b4ca7376bf64a71b9d7c8e7fa99"
+    },
+    {
+      "path": "native-first/0-Move-En-drag.png",
+      "bytes": 50449,
+      "sha256": "7c9257581ae3dadeeb3170bc4b6f7ebc5e9da5de7432fdf8a2f1b04e50c3bed7"
+    },
+    {
+      "path": "native-first/0-Move-Zh-before.png",
+      "bytes": 50897,
+      "sha256": "ce6f84503cca158e5ee3fe36b59019cf371ff7f10ec0043babaa6d67687e700f"
+    },
+    {
+      "path": "native-first/0-Move-Zh-drag.png",
+      "bytes": 51146,
+      "sha256": "12746e8403bb2a1bb0667bf10412da35bd842e7d1d7c8d4a61e4a1652aebaa1d"
+    },
+    {
+      "path": "native-first/0-Scale-En-before.png",
+      "bytes": 50111,
+      "sha256": "a1a795384a30dcd298513a9d6a26dffa2f5c1d236e2ecec2887752597755ef66"
+    },
+    {
+      "path": "native-first/0-Scale-En-drag.png",
+      "bytes": 50218,
+      "sha256": "932bbb170580643c2a4029ffddd8887653c1193d83805031b5bbf37796f61d87"
+    },
+    {
+      "path": "native-first/0-Scale-Zh-before.png",
+      "bytes": 50826,
+      "sha256": "b81b4cf01ae3fb903a284040220bc0c12bcde49481ea2362556a26c572455fc2"
+    },
+    {
+      "path": "native-first/0-Scale-Zh-drag.png",
+      "bytes": 50952,
+      "sha256": "58c653f4cc9585908eec2efb43a5b438c9ff2a3bba919a75a8b48d3e612429b5"
+    },
+    {
+      "path": "native-first/1-Move-En-before.png",
+      "bytes": 34315,
+      "sha256": "31bb75028ee65090583cf6f00b35f18843c0dc79762273fb87ed3dbdedffd84d"
+    },
+    {
+      "path": "native-first/1-Move-En-drag.png",
+      "bytes": 34478,
+      "sha256": "e467af54182e2e0607138fd34776439e87c775ce18a8762302a5ef0a5ee53c32"
+    },
+    {
+      "path": "native-first/1-Move-Zh-before.png",
+      "bytes": 34563,
+      "sha256": "47c5973eefd778f02562dbf50cb14e355a72fbd4b91219c9a990d7fc2f3c8c7f"
+    },
+    {
+      "path": "native-first/1-Move-Zh-drag.png",
+      "bytes": 34726,
+      "sha256": "4d70c2c0c4eb4f4902a225d5ce4d4eabefb500cef6b3fcb599214a1aab69a537"
+    },
+    {
+      "path": "native-first/1-Scale-En-before.png",
+      "bytes": 34401,
+      "sha256": "106b0d6bbcaaa53047062ce42c73bfa34dfcaea1efb0c7cf29c889961dfc2e15"
+    },
+    {
+      "path": "native-first/1-Scale-En-drag.png",
+      "bytes": 34451,
+      "sha256": "10d7ea29d5a5249d79e2c653399c8e6f7086b13d6957538381b29465ebc95487"
+    },
+    {
+      "path": "native-first/1-Scale-Zh-before.png",
+      "bytes": 34649,
+      "sha256": "d41158632eab7d79a3206c7f5891829ade18a725df2a91f60a10596534e586cb"
+    },
+    {
+      "path": "native-first/1-Scale-Zh-drag.png",
+      "bytes": 34699,
+      "sha256": "115e643c5d31e5b019e0d3b17c78283dc8728664d441ce3ddc54061482792d7c"
+    },
+    {
+      "path": "native-first/motion-studio.log",
+      "bytes": 18000,
+      "sha256": "e4e618b6993900bc6c6285d4b73261763ec8bdd489bece32cae88fbcb50d2a9c"
+    },
+    {
+      "path": "native-first/report.json",
+      "bytes": 966,
+      "sha256": "9b197e8dc97ed7e8dc910ce1d84422c63cc4252c0a3b4f4859e66bd8583c1ce7"
+    },
+    {
+      "path": "native-first/stderr.txt",
+      "bytes": 781,
+      "sha256": "2fbc69910237d85dbeacb009c3378be65e41c6a23b399dbbde4f5ff2fe0eef9e"
+    },
+    {
+      "path": "native-first/stdout.txt",
+      "bytes": 263,
+      "sha256": "1a7c88845051f3bbddeda0da2e17d934654e60f9ce7f58e0a1948e9af18c0879"
+    },
+    {
+      "path": "native-first.log",
+      "bytes": 269,
+      "sha256": "d18cd095014b90f02cc2288353271bd4a65b8b70ebfec474b3370b61b55497b7"
+    },
+    {
+      "path": "tools-final.log",
+      "bytes": 1345,
+      "sha256": "be3ac992194d266847af67855f3c6128c94070cd05def9127d0f2f71c00636a2"
+    },
+    {
+      "path": "transform-final.log",
+      "bytes": 4742,
+      "sha256": "37c2e5bfbe250a408d4f861e3431e5e077fa14b6e1283dd50b0eb874dc8a9c8f"
+    },
+    {
+      "path": "transform-first.log",
+      "bytes": 22287,
+      "sha256": "fb45d1044e1b3f1482beeea2aa2981d353c6844df035b59861f01e0d0cbfe946"
+    },
+    {
+      "path": "transform-native-build.log",
+      "bytes": 5231,
+      "sha256": "edd682747c07e0a4beb01e0f635b171fe5b1364b2ad8a8dad3a1a8cd5a635af2"
+    },
+    {
+      "path": "transform-singular.log",
+      "bytes": 5298,
+      "sha256": "9d105b85b894784433a09d5c980e886404b4616e7cc273a5c0ef445d85206e94"
+    },
+    {
+      "path": "transform-temp-corrected.log",
+      "bytes": 4417,
+      "sha256": "2bb6a2846bdb39bab8eba6222e9b78bd0d22229c2e0425225a5738adf5078862"
+    },
+    {
+      "path": "transform-worker.log",
+      "bytes": 6162,
+      "sha256": "dc782c3438b12cb3064626c70f2d894e7d30d5478031c99115324b02dd715a24"
+    },
+    {
+      "path": "worker-acceptance.log",
+      "bytes": 1438,
+      "sha256": "cf05fd2c26cbece4bf08caa8be9bbe9bc8990e8ee389f3c0072fa83f5d09cb55"
+    }
+  ]
+}

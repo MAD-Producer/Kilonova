@@ -531,6 +531,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 ## 10. Composition viewport, performance feedback, and preview
 
+- Three-dimensional move/scale overlays use the evaluated source projection,
+  retaining the composition image's pan, zoom and camera. Read XYZ colors and
+  all new geometry from `transform.gizmo.*` in `dark.json`. Move axes follow
+  the parent frame; scale axes follow the layer frame. Draw planar handles
+  between the corresponding axis segments, suppressing edge-on planes and
+  end-on axes. Keep existing source-grip tolerances and nearest-hit priority.
+  Locked geometry and its XYZ labels use the existing muted text token.
+  These overlays do not add inspector rows or change numeric field styling.
 - Composition screen-space ↔ composition-space transforms must share **one mapping chain** and round-trip consistently across all pan/zoom combinations. Dragging an item back to its origin must not accumulate position drift. `SelectAt` and numeric property edits must agree on the resulting coordinates.
 - Pure preview dragging uses `PreviewDrag` (`panels/types.rs`); it changes only preview output, **not** project state or undo history.
 - The Info panel already displays `state.desktop.uiPerformance`: composition render count, texture reuse rate, and last presentation time in milliseconds (`panels/auxiliary.rs`). **Verify any redraw optimization against these counters**; do not claim no panel redraw without measurement.

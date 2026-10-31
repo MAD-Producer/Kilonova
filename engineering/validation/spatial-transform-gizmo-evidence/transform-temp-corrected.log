@@ -1,0 +1,47 @@
+
+running 30 tests
+test panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides ... ok
+test panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets ... ok
+test panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal ... ok
+test panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once ... ok
+test panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio ... ok
+test panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture ... ok
+test panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style ... ok
+test panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target ... ok
+test panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target ... ok
+test panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset ... ok
+test panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides ... ok
+test panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo ... ok
+test panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently ... ok
+test panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint ... ok
+test panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview ... ok
+test panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture ... ok
+test panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion ... ok
+test panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction ... FAILED
+test panels::transform_controls::spatial::tests::end_on_axes_and_edge_on_planes_are_disabled_and_projection_keeps_2d_mapping_identical ... ok
+test panels::transform_controls::spatial::tests::ray_constraints_preserve_parent_axes_and_layer_scale_axes_across_cameras_mirrors_and_anchors ... ok
+test panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it ... ok
+test panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale ... ok
+test panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels ... ok
+test panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks ... ok
+test panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d ... ok
+test panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks ... ok
+test panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input ... ok
+test panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract ... ok
+test panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo ... ok
+test panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history ... ok
+
+failures:
+
+---- panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction stdout ----
+
+thread 'panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction' (6284) panicked at desktop\app\src\panels\transform_controls\spatial\tests.rs:233:17:
+one begin plus one edit batch: []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction
+
+test result: FAILED. 29 passed; 1 failed; 0 ignored; 0 measured; 1463 filtered out; finished in 8.52s
+

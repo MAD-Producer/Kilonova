@@ -388,6 +388,10 @@ pub(super) fn render(
     } else {
         consumed
     };
+    if handles_visible && !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
+        panels.transform_controls.paint_spatial_labels(&mut editing, atlas);
+    }
+    if let Some(notice) = panels.transform_controls.take_notice(panels.locale) { panels.message = Some(notice); }
     editing.clip_to(canvas_clip);
     handles.append(editing);
     handles.clip_to(v);

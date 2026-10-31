@@ -1,0 +1,58 @@
+[
+  {
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 0,
+    "release_and_undo": true,
+    "tool": "Move"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 0,
+    "release_and_undo": true,
+    "tool": "Move"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 0,
+    "release_and_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 0,
+    "release_and_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 1,
+    "release_and_undo": true,
+    "tool": "Move"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 1,
+    "release_and_undo": true,
+    "tool": "Move"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "Zh",
+    "owner": 1,
+    "release_and_undo": true,
+    "tool": "Scale"
+  },
+  {
+    "focus_cancel": true,
+    "locale": "En",
+    "owner": 1,
+    "release_and_undo": true,
+    "tool": "Scale"
+  }
+]
