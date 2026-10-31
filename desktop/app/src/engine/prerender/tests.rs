@@ -13,6 +13,7 @@ mod input_completion;
 
 fn frame() -> UiFrame {
     UiFrame {
+        views: None,
         paint: Default::default(),
         atlas: None,
         logical_size: [64.; 2],

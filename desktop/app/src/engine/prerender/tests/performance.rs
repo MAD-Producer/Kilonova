@@ -3,6 +3,7 @@ use super::*;
 
 fn ui() -> UiFrame {
     UiFrame {
+        views: None,
         paint: Default::default(),
         atlas: None,
         logical_size: [640., 360.],
