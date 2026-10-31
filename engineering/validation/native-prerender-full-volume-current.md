@@ -40,3 +40,19 @@ workflow-policy modules passed (15 and 14 tests) after the one-line condition
 repair; no existing test assertion changed. Partial evidence and remaining
 native-fault-sink limits are recorded in
 [the disk-cache report](native-prerender-disk-cache-current.md).
+
+## Failure evidence in PR job logs
+
+The launcher now checkpoints its actual child PID and exit code before parsing
+or mount cleanup. On failure it emits at most the first and last 4 KiB of each
+original stdout/stderr file to stderr, while retaining the complete files. This
+keeps the failure cause visible when PR artifact upload is intentionally disabled.
+Only anchored Rust final test summaries count as executed tests. Neither mount
+behavior, the native test assertions nor the PR upload policy changed.
+
+Three actual Python-child controls first failed, then passed unchanged after
+the launcher repair: original causes from both streams and persisted exit code,
+rejection of summary words without a real test summary, and bounded excerpts
+with complete original logs. The test file was renamed with the established
+`test_ci_` prefix and registered in the explicit tool inventory; its test bytes
+remained identical. These are launcher IO controls, not Linux ENOSPC acceptance.
