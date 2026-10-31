@@ -34,6 +34,7 @@ pub use node_resources::{NodeResource, NodeImageReference};
 pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
+pub mod layer_time;
 pub mod particle_history;
 pub mod masks;
 pub mod compositing;
@@ -92,6 +93,8 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("layer time phase={phase}: {source}")]
+    LayerTime { phase: &'static str, #[source] source: Box<Error> },
     #[error("spatial animation phase={phase} key={key:?}: {source}")]
     SpatialAnimation { phase: &'static str, key: Option<u64>, #[source] source: Box<Error> },
     #[error("path sampling path={path} frame={frame}: {source}")]
