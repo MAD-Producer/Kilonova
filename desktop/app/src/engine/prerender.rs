@@ -230,7 +230,11 @@ impl Runtime {
             return Ok(());
         };
         let eligible = Self::eligible(s)?;
-        let demand = self.demand(s, foreground_pending)?;
+        // Input can preempt before an editor action reaches the command queue.
+        // Reconcile that hold before polling: a completed yield token retains
+        // pixels, but must not admit their optional upload ahead of this input.
+        let input_pending = self.signals.input_pending()?;
+        let demand = self.demand(s, foreground_pending || input_pending)?;
         let pressure = demand.pressure;
         let Some(owner) = &mut self.owner else {
             return Ok(());

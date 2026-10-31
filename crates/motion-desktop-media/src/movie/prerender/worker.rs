@@ -93,6 +93,7 @@ pub enum Outcome {
 pub struct YieldControl {
     control: ExportControl,
     completed: Arc<AtomicBool>,
+    input_preempted: Arc<AtomicBool>,
     claimed: Arc<AtomicBool>,
 }
 impl YieldControl {
@@ -108,6 +109,15 @@ impl YieldControl {
         } else {
             self.control.yield_to_foreground()
         }
+    }
+    /// Input must get its own foreground frame even if native pixels are ready.
+    /// Keep ordinary Present yielding unchanged and preserve the reusable owner.
+    pub fn preempt_for_input(&self) -> bool {
+        self.input_preempted.store(true, Ordering::Release);
+        self.preempt()
+    }
+    pub fn input_preempted(&self) -> bool {
+        self.input_preempted.load(Ordering::Acquire)
     }
     fn claim(&self) -> Result<()> {
         self.claimed

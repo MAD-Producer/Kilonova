@@ -386,6 +386,7 @@ impl Coordinator {
                 epoch,
                 ticket,
                 target,
+                yielding,
                 ..
             } => {
                 let reusable_native =
@@ -394,6 +395,7 @@ impl Coordinator {
                     Outcome::Frame(frame)
                         if epoch == self.epoch
                             && !ticket.canceled()
+                            && yielding.as_ref().is_none_or(|token| !token.input_preempted())
                             && self
                                 .source
                                 .as_ref()

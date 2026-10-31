@@ -9,6 +9,7 @@ mod static_window;
 mod foreground_refresh;
 mod source_freshness;
 mod input_priority;
+mod input_completion;
 
 fn frame() -> UiFrame {
     UiFrame {

@@ -25,6 +25,12 @@ impl Signals {
         let mut state = self.0.lock().map_err(|_| "prerender dispatch gate poisoned")?;
         if state.input.observe(activity)? {
             Self::interrupt_state(&mut state, true)?;
+            // Input may arrive after demand reconciliation but before result
+            // installation. Mark that single-use admission token as well as
+            // preempting unfinished work; no GPU work runs under this lock.
+            if let Some((_, Control::Yield(control))) = &state.active {
+                control.preempt_for_input();
+            }
         }
         Ok(())
     }
