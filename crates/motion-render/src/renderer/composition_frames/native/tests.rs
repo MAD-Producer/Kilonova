@@ -1,6 +1,7 @@
 use super::*;
 use crate::renderer::composition_frames::tests::{context, key, read};
 use motion_effects::image_contract::ChannelPrecision;
+mod deferred;
 
 fn image(precision: ChannelPrecision) -> crate::CapturedImage {
     let pixel: Vec<u8> = match precision {

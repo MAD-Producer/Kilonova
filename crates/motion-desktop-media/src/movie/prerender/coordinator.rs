@@ -374,26 +374,31 @@ impl Coordinator {
                                 .as_ref()
                                 .is_some_and(source_watch::Observation::valid) =>
                     {
+                        let began = Instant::now();
                         let key = frame.key();
                         let context = key.context();
-                        log::info!(
-                            "start #{} prerender_install frame={} document={} device={}",
-                            complete.id,
-                            key.frame(),
-                            context.document_generation,
-                            context.device_generation
-                        );
-                        log::logger().flush();
-                        if frame.key() != target.key() {
+                        let result = if frame.key() != target.key() {
                             Err("prerender completion differs from admitted frame".into())
                         } else {
                             match &mut self.cache {
                                 Some(cache) => cache
-                                    .install_native(renderer, target, frame.image())
+                                    .install_native_for_next_submission(renderer, target, frame.image())
                                     .map_err(|e| e.to_string()),
                                 None => Err("missing prerender cache".into()),
                             }
+                        };
+                        // This may run inside Present. Keep healthy installs
+                        // free of file IO; the Engine publishes its Present
+                        // flight before entry, while the background worker keeps
+                        // its own default-level start signal before real work.
+                        if began.elapsed() >= Duration::from_millis(100) {
+                            log::debug!(
+                                "done #{} prerender_install frame={} document={} device={} elapsed_ms={}",
+                                complete.id, key.frame(), context.document_generation,
+                                context.device_generation, began.elapsed().as_millis()
+                            );
                         }
+                        result
                     }
                     Outcome::Failed(cause) => Err(cause),
                     Outcome::Cancelled | Outcome::Frame(_) => Ok(false),
