@@ -2,10 +2,12 @@
 
 Issue: [#82](https://github.com/MAD-Producer/Kilonova/issues/82)
 
-Status: implemented on `feat/82-prerender-disk-cache`, based on
-`cd26ba2964569d765cafb34a89be079ac0506861`. Quota, storage and native component
-controls have executed; actual full-volume and default desktop fault-sink
-acceptance remain open. This document does not claim completion of #82.
+Status: integrated into draft PR 575 as
+`8bb44d4a81f67f693a20e7bc3c067a987d37cb31`. Quota, storage, native components,
+default desktop fault sinks and the actual Linux bounded-full-volume component
+have passed on this source. Strict input P95, retained native crash causes and
+final combined acceptance remain open. This document does not claim completion
+of #82.
 
 ## Scope
 
@@ -63,9 +65,11 @@ acceptance remain open. This document does not claim completion of #82.
     for 65 real failed directory-open attempts
 
 The partial-write control injects an IO error after a real first payload chunk.
-It is not a physical full-volume qualification. Physical disk-full behavior,
-strict foreground P95, the retained native abnormal exit, final combined
-regression and current-head cross-platform CI remain open acceptance work.
+The actual Linux full-volume component has since passed; see
+[its exact-source CI evidence](native-prerender-full-volume-current.md).
+Windows/macOS full-volume behavior and physical storage durability are not
+qualified. Strict foreground P95, the retained native abnormal exit, final
+combined regression and complete current-head cross-platform CI remain open.
 Android is retired and excluded as instructed.
 
 ## Executed results and failures
@@ -92,8 +96,12 @@ The default desktop fault-sink test failed in native WGSL parsing during
 The original EXE/PDB, hash-verified copies and raw stack are privately preserved.
 A separate CPU-only default-thread parse of the three unchanged utility shaders
 passed once; it neither establishes a cause nor fixes the original failure.
-Default-level disk Error stderr/file/stdout isolation therefore remains
-unaccepted. The failed test was not rerun unchanged to seek green.
+That failure remains unresolved. The failed test was not rerun unchanged to
+seek green. On the subsequent integrated source `8bb44d4a`, the default-sink
+control passed: 65 real failed directory opens produced two file fault records
+(first Warn and Error at occurrence 60), one Error on stderr, and none on
+stdout; the Info start record was visible. This changed-source result accepts
+the sink behavior without explaining or erasing the old Naga abort.
 
 Earlier preparation failures are also retained: crate-prefixed exact child
 selectors selected zero tests; the one-test guard caught them. New native disk
