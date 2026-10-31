@@ -178,7 +178,7 @@ the exact registry checksums are recorded in `Cargo.lock`.
 | --- | --- | --- | --- |
 | base64 | Marshall Pierce and contributors; [rust-base64](https://github.com/marshallpierce/rust-base64), 0.23.1 | MIT OR Apache-2.0 | Unmodified Cargo dependency for data URIs and portable node-image payloads; exact package checksum in Cargo.lock |
 | percent-encoding | rust-url developers; [rust-url](https://github.com/servo/rust-url), 2.3.2 | MIT OR Apache-2.0 | Unmodified Cargo dependency for local URI decoding |
-| sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity |
+| sha2 | RustCrypto developers; [hashes](https://github.com/RustCrypto/hashes), 0.10.9 | MIT OR Apache-2.0 | Unmodified Cargo dependency for source/resource identity and producer build identity in runtime/build scripts |
 
 External validation uses unmodified `Avocado` (Microsoft, public 2017) and
 `BoxVertexColors` (Marco Hutter, public 2023) from
