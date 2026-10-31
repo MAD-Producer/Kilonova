@@ -183,7 +183,8 @@ fn an_actual_worker_rejects_stale_menu_targets_without_partial_additions_or_extr
             .output().unwrap();
         assert!(
             output.status.success(),
-            "{}\n{}",
+            "child test=recent_menu_stale_targets status={}\nstdout:\n{}\nstderr:\n{}",
+            output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );

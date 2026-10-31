@@ -60,7 +60,7 @@ fn check_timing_channels(timestamps: bool, name: &str) {
     let root = tempfile::tempdir().unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", name]).env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
-    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success(), "child test={name} status={}\nstdout:\n{}\nstderr:\n{}", output.status, String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();

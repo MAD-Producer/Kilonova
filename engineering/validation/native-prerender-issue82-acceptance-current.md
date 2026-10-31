@@ -44,6 +44,10 @@ limits must stay visible in the delivered controls and completion record.
   failed. Illegal instruction, stack overflow, Naga precondition and nonzero
   child-exit evidence retain unresolved causes. Later changed-source passes do
   not establish that these failures were fixed
+- [Child failure diagnostics](native-prerender-child-failure-evidence-current.md)
+  now preserve an actual exit status beside the original output. Standalone
+  real-child controls verify the failure messages; they do not diagnose the old
+  crashes or replace the final desktop regression
 - Integrate the local launcher/evidence repairs and any measured performance
   correction, align with current main, then qualify that final source with full
   regression, actual shared-window MCP and exact-head cross-platform CI
