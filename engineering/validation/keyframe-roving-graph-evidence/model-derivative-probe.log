@@ -1,0 +1,20 @@
+   Compiling motion-model v0.1.0 (E:\Dev\aem\.worktrees\keyframe-types\crates\motion-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.69s
+     Running tests\spatial_velocity.rs (E:/Dev/aem/.tools/review-564/target\debug\deps\spatial_velocity-bc42eb7346d9f44b.exe)
+
+running 1 test
+arc derivative probe t=2.99 component=1 exact_local=1.824200274134118 differences=[(0.001, 1.839877142945756), (0.0001, 1.8242002747514974), (1e-5, 1.8242002742141492), (1e-6, 1.8242002743917851)]
+
+thread 'roving_velocity_follows_actual_arc_sampler_and_reopens_identically' (25548) panicked at crates\motion-model\tests\spatial_velocity.rs:60:13:
+t=2.99 derivative=1.8398761749267578 rate=[0.13526898532784395, 1.824200274134118, 0.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test roving_velocity_follows_actual_arc_sampler_and_reopens_identically ... FAILED
+
+failures:
+
+failures:
+    roving_velocity_follows_actual_arc_sampler_and_reopens_identically
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p motion-model --test spatial_velocity`

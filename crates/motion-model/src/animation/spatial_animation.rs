@@ -295,6 +295,45 @@ impl<T: Tween> SpatialAnimation<T> {
         })
     }
 
+    /// Spatial units per local frame, using the same interval and prepared
+    /// inverse metric as `sample`. Interior knots use the outgoing interval;
+    /// the last endpoint uses its incoming interval. Outside is stationary.
+    pub fn velocity(&self, frame: f64) -> Result<[f64; 3]> {
+        ensure(frame.is_finite(), "spatial velocity time must be finite")?;
+        if self.prepared.outside(frame) {return Ok([0.; 3]);}
+        let (index, progress) = self.prepared.locate(frame)?;
+        let duration = self.prepared.interval_duration(index);
+        if duration == 0. {return Ok([0.; 3]);}
+        let a = &self.keys[index];
+        let b = &self.keys[index + 1];
+        if a.arc {
+            let length = self.prepared.interval_length(index)?;
+            return self.prepared.path().velocity_interval_distance(index,
+                length * progress, length / duration);
+        }
+        let easing = a.easing.sample(f64::from(progress as f32));
+        let p = f64::from(easing.progress as f32);
+        let components = |value: T| value.spatial_components().map(|v| v.map(f64::from))
+            .ok_or_else(|| crate::Error::Invalid("spatial velocity components missing".into()));
+        let start = components(a.value)?;
+        let end = components(b.value)?;
+        let outgoing = a.spatial.as_ref().and_then(|s| s.outgoing);
+        let incoming = b.spatial.as_ref().and_then(|s| s.incoming);
+        // Match spatial_mix's f32 control-point construction exactly.
+        let c1 = components(outgoing.map_or_else(|| a.value.mix(b.value, 1. / 3.), |v| a.value.add(v)))?;
+        let c2 = components(incoming.map_or_else(|| a.value.mix(b.value, 2. / 3.), |v| b.value.add(v)))?;
+        let derivative = std::array::from_fn(|i| {
+            let tangent = if outgoing.is_none() && incoming.is_none() {end[i] - start[i]} else {
+                3. * (1. - p).powi(2) * (c1[i] - start[i])
+                    + 6. * (1. - p) * p * (c2[i] - c1[i])
+                    + 3. * p.powi(2) * (end[i] - c2[i])
+            };
+            tangent * easing.velocity / duration
+        });
+        ensure(derivative.iter().all(|v: &f64| v.is_finite()), "spatial velocity is non-finite")?;
+        Ok(derivative)
+    }
+
     pub fn move_keys(&mut self, ids: &[u64], delta: f64) -> Result<()> {
         let mut times = SpatialKeyTimes::from_parts(
             self.keys

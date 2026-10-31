@@ -51,6 +51,9 @@ pub(super) fn channel(
     }
 }
 pub(super) fn track<T: Tween + DeserializeOwned>(source: &Value, offset: i64) -> Option<Track<T>> {
+    observe!("animation.track_store", if source["spatial_keys"].is_array() {
+        Err("spatial timeline view requires an authored-track sampler")
+    } else {Ok(())}, "offset={offset} value_type={}",std::any::type_name::<T>()).ok()?;
     let value = observe!(
         "animation.track_value",
         serde_json::from_value(source["value"].clone()),
@@ -116,16 +119,29 @@ pub(super) fn sample(
     let layer = timeline(state, object)?;
     let offset = layer["offset_frame"].as_i64().unwrap_or(0);
     let source = channel(state, object, property, axis)?;
+    // Called by explicit key-authoring actions, never the graph paint loop.
+    // Spatial timeline summaries omit reference coordinates, so decode the
+    // authoritative store rather than inventing a rounded substitute.
+    fn read<T:Tween+DeserializeOwned>(state:&Value,object:u64,property:Property,axis:Option<Axis>,source:&Value,offset:i64)->Option<Track<T>> {
+        if !source["spatial_keys"].is_array() {return track(source,offset);}
+        let target=motion_core::KeyframeTarget::Property {object,property,axis};
+        let (raw,_)=super::key_selection::authored_track(state,&target)?;
+        let decoded:Track<T>=observe!("animation.authored_track",serde_json::from_value(raw.clone()),
+            "object={object} property={property:?} axis={axis:?}").ok()?;
+        observe!("animation.authored_track_validation",decoded.validate_local(),
+            "object={object} property={property:?} axis={axis:?}").ok()?;
+        Some(decoded)
+    }
     let local = frame - offset as f64;
     if property.is_scalar() || axis.is_some() {
         Some(serde_json::json!(
-            observe!("animation_data.sample", track::<f32>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
+            observe!("animation_data.sample", read::<f32>(state,object,property,axis,source,offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
         ))
     } else if property == Property::Anchor {
-        Some(serde_json::json!(observe!("animation_data.sample", track::<[f32; 2]>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?))
+        Some(serde_json::json!(observe!("animation_data.sample", read::<[f32; 2]>(state,object,property,axis,source,offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?))
     } else {
         Some(serde_json::json!(
-            observe!("animation_data.sample", track::<[f32; 3]>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
+            observe!("animation_data.sample", read::<[f32; 3]>(state,object,property,axis,source,offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
         ))
     }
 }

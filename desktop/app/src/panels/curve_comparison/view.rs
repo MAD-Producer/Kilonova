@@ -31,19 +31,14 @@ fn intervals(
         let Ok(data) = &entry.data else {
             continue;
         };
-        for frame in data.frames.iter().copied() {
-            let time = f64::from(frame);
+        for (key,time) in data.addressed_frames(&entry.channel.target) {
             all = Some(all.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]));
-            let key = key_selection::Key {
-                target: entry.channel.target.clone(),
-                frame,
-            };
             let chosen = match status {
-                key_selection::Status::Current => panels.selected_keys.contains(&key),
-                key_selection::Status::Unowned => {
-                    effect.as_ref() == Some(&key)
+                key_selection::Status::Current => panels.selected_keys.contains_addressed(&key),
+                key_selection::Status::Unowned => match &key {key_selection::AddressedKey::Frame(key)=> {
+                    effect.as_ref() == Some(key)
                         || property.is_some_and(|p| {
-                            p.frame == frame
+                            p.frame == key.frame
                                 && entry.channel.target
                                     == (KeyframeTarget::Property {
                                         object: p.object,
@@ -51,7 +46,7 @@ fn intervals(
                                         axis: p.axis,
                                     })
                         })
-                }
+                },_=>false},
                 _ => false,
             };
             if chosen {
@@ -495,6 +490,10 @@ pub(in crate::panels) fn render(
                 let Ok(data) = &entry.data else {
                     continue;
                 };
+                if super::super::key_selection::ui::selecting_all(panels) {
+                    super::super::key_selection::ui::all_addressed(panels,
+                        data.addressed_frames(&entry.channel.target).map(|(key,_)|key));
+                }
                 if entry.points.is_none() {
                     continue;
                 }
@@ -549,40 +548,38 @@ pub(in crate::panels) fn render(
                         }
                     }
                 }
-                for frame in data
-                    .frames
-                    .iter()
-                    .copied()
-                    .filter(|f| f64::from(*f) >= offset && f64::from(*f) <= end)
-                {
+                for (address,time) in data.addressed_frames(&entry.channel.target)
+                    .filter(|(_,time)|*time>=offset && *time<=end) {
                     let Ok(value) = observe!(
                         "curve.comparison.key_sample",
-                        data.sample(f64::from(frame), entry.channel.component, fps, speed),
-                        "object={} frame={frame} component={}",
+                        data.sample(time, entry.channel.component, fps, speed),
+                        "object={} frame={time} component={}",
                         entry.channel.target.object(),
                         entry.channel.component
                     ) else {
                         continue;
                     };
                     let point = [
-                        plot.min[0] + (f64::from(frame) - offset) as f32 * ppf,
+                        plot.min[0] + (time - offset) as f32 * ppf,
                         y_of(value),
                     ];
                     if !scroll.viewport.contains(point) {
                         continue;
                     }
                     #[cfg(test)]
-                    controls.marks.push((entry.channel.clone(), frame, point));
+                    if let key_selection::AddressedKey::Frame(key)=&address {
+                        controls.marks.push((entry.channel.clone(), key.frame, point));
+                    }
                     let radius = styles.metric("graph.key_radius", 5.);
                     let hit = styles.metric("graph.handle.hit_radius", 9.);
                     paint::diamond(&mut curves, point, radius, color(&styles, index));
-                    super::super::key_selection::ui::graph_mark(
+                    match address {
+                    key_selection::AddressedKey::Spatial(key)=>super::super::key_selection::ui::spatial_mark(
+                        &mut curves,panels,key,point,radius,Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.)),
+                    key_selection::AddressedKey::Frame(key)=>super::super::key_selection::ui::graph_mark(
                         &mut curves,
                         panels,
-                        super::super::key_selection::Key {
-                            target: entry.channel.target.clone(),
-                            frame,
-                        },
+                        key,
                         point,
                         radius,
                         Rect::new(point[0] - hit, point[1] - hit, hit * 2., hit * 2.),
@@ -596,7 +593,8 @@ pub(in crate::panels) fn render(
                                 as f32
                         },
                         data.value_limits(),
-                    );
+                    ),
+                    }
                 }
             }
             curves.clip_to(plot);

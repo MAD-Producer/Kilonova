@@ -343,6 +343,12 @@ impl PreparedSpatialTiming {
             .map(|index| self.times[index])
             .ok_or_else(|| crate::Error::Invalid("spatial key identity is missing".into()))
     }
+    pub(super) fn interval_duration(&self, interval: usize) -> f64 {
+        self.times[interval + 1] - self.times[interval]
+    }
+    pub(super) fn outside(&self, frame: f64) -> bool {
+        frame < self.times[0] || frame > self.times[self.times.len() - 1]
+    }
     /// Bounded binary search and arc lookup; healthy queries allocate nothing.
     pub fn sample(&self, frame: f64) -> Result<SpatialPathSample> {
         let (interval, progress) = self.locate(frame)?;

@@ -245,6 +245,9 @@ pub(in crate::panels) fn selecting_all(panels: &Panels) -> bool {
         .is_some_and(|frame| frame.all)
 }
 pub(in crate::panels) fn all(panels: &mut Panels, keys: impl IntoIterator<Item = Key>) {
+    all_addressed(panels,keys.into_iter().map(AddressedKey::from));
+}
+pub(in crate::panels) fn all_addressed(panels: &mut Panels, keys: impl IntoIterator<Item = AddressedKey>) {
     if let Some(frame) = &mut panels.key_gestures.frame {
         if frame.all {
             for key in keys {
@@ -477,6 +480,28 @@ pub(in crate::panels) fn graph_mark(
         }
     }
     mark_component(list, panels, key, point, radius, hit, Some(component));
+}
+/// The spatial address stays typed in the shared gesture collector. Its
+/// timing drag must not enter the rounded-frame/value legacy controller.
+pub(in crate::panels) fn spatial_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: SpatialKey,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+) {
+    let key=AddressedKey::Spatial(key);
+    let styles=list.styles();
+    if panels.key_gestures.current && panels.selected_keys.contains_addressed(&key) {
+        paint::diamond(list,point,radius+styles.metric("border",1.),styles.color("text"));
+        paint::diamond(list,point,radius,styles.color("keyframe"));
+    }
+    if let Some(ghost)=drag::ghost_addressed(panels,&key,point,None) {
+        paint::diamond(list,ghost,radius+styles.metric("border",1.),styles.color("focus"));
+        paint::diamond(list,ghost,radius,styles.color("keyframe"));
+    }
+    record_addressed(panels,key,point,hit);
 }
 pub(in crate::panels) fn mark_round(
     list: &mut PaintList,

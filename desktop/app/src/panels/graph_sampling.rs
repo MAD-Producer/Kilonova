@@ -24,7 +24,18 @@ pub(super) fn knots<T: Tween>(
     // Retain the established centerline density and augment it by measured
     // screen error; the former fixed grid is no longer the final resolution.
     let baseline=(0..=256).map(move |i|start+(end-start)*f64::from(i)/256.);
-    super::graph_adaptive::merge_knots(baseline,authored)
+    let spatial=track.spatial_animation.iter().flat_map(move |animation| {
+        animation.keys().windows(2).zip(animation.prepared().keys().zip(animation.prepared().keys().skip(1)))
+            .flat_map(move |(pair,((_,a),(_,b)))| {
+                let a=a+layer_offset;let b=b+layer_offset;
+                let sections=if pair[0].easing.curve.is_some_and(|c|matches!(c.shape,motion_core::CurveShape::Elastic {..})) {32} else {4};
+                (0..sections).map(move |i|a+(b-a)*f64::from(i)/f64::from(sections))
+                    .filter(move |t|*t<b.next_down())
+                    // Preserve both Hold jumps and outgoing velocity changes.
+                    .chain((b>a).then_some(b.next_down())).chain(std::iter::once(b))
+            })
+    }).filter(move |frame|*frame>start && *frame<end);
+    super::graph_adaptive::merge_knots(baseline,super::graph_adaptive::merge_knots(authored,spatial))
 }
 pub(super) fn velocity<T: Tween>(
     track: &Track<T>,
@@ -32,6 +43,12 @@ pub(super) fn velocity<T: Tween>(
     fps: f64,
     component: impl Fn(T) -> f64,
 ) -> motion_core::Result<f64> {
+    if let Some(animation)=&track.spatial_animation {
+        let derivative=animation.velocity(frame)?;
+        let value=T::from_spatial_components(derivative.map(|v|v as f32))
+            .ok_or_else(||motion_core::Error::Invalid("spatial graph velocity reconstruction unsupported".into()))?;
+        return Ok(component(value)*fps);
+    }
     if track.keys.len() < 2
         || frame < f64::from(track.keys[0].frame)
         || frame > f64::from(track.keys.last().unwrap().frame)

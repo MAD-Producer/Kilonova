@@ -617,6 +617,7 @@ pub(crate) struct TimelineState {
     pub graph_mode: bool,
     pub(super) graph_ranges: super::graph_ranges::Controls,
     pub(super) comparison: super::curve_comparison::Controls,
+    pub(super) graph_samples: super::timeline_graph::Cache,
     pub(super) clip_view: Option<TimelineViewport>,
     pub(super) curve_view: Option<TimelineViewport>,
     pub speed_graph: bool,

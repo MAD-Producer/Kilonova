@@ -1,0 +1,9 @@
+
+running 4 tests
+test panels::timeline_graph::spatial_tests::cached_graph_reads_fractional_spatial_times_and_real_velocity_without_repreparing ... ok
+test panels::timeline_graph::spatial_tests::graph_cache_invalidates_document_revision_and_channel_with_identical_object_ids ... ok
+test panels::timeline_graph::spatial_tests::malformed_spatial_graph_is_logged_once_per_revision_then_recovers_at_default_level ... ok
+test panels::timeline_graph::spatial_tests::spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1519 filtered out; finished in 0.07s
+

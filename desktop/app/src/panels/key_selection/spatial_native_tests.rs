@@ -5,7 +5,27 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 #[test]
 #[ignore = "manual native GPU evidence for stable spatial-key timeline gestures"]
 fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
-    const NAME: &str = "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves";
+    native_evidence(false,false);
+}
+
+#[test]
+#[ignore = "manual native GPU evidence for fractional spatial graph selection and dragging"]
+fn native_spatial_graph_pixels_and_atomic_worker_moves() {
+    native_evidence(true,false);
+}
+
+#[test]
+#[ignore = "manual native GPU evidence for spatial comparison graph selection and dragging"]
+fn native_spatial_comparison_pixels_and_atomic_worker_moves() {
+    native_evidence(true,true);
+}
+
+fn native_evidence(graph:bool,comparison:bool) {
+    let name=if comparison {
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves"
+    } else if graph {
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves"
+    } else {"panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves"};
     const CHILD: &str = "MOTION_SPATIAL_TIMELINE_GPU_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
         let root = PathBuf::from(root);
@@ -51,6 +71,18 @@ fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
                         ..Default::default()
                     };
                     panels.select_only(Some(7));
+                    if graph {
+                        panels.timeline.set_graph_mode(true);
+                        panels.timeline.speed_graph=expanded;
+                        panels.animation_controls.choose_track(7,motion_core::Property::Position,None);
+                        if comparison {
+                            // Keep this single-key success case unambiguous;
+                            // close keys still retain the unchanged hit radius.
+                            panels.timeline.zoom=2.;
+                            crate::panels::curve_comparison::tests::collect_targets(&mut panels,&state,
+                                &[motion_core::KeyframeTarget::Property {object:7,property:motion_core::Property::Position,axis:None}]);
+                        }
+                    }
                     if expanded {
                         panels.timeline.expanded.insert(7);
                     }
@@ -63,7 +95,7 @@ fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
                     );
                     selection_only(&actions);
                     let start = at_time(&paint, &panels, 9.5);
-                    let ppf = panels.timeline.zoom_track.unwrap().width() / 120.;
+                    let ppf = panels.timeline.zoom_track.unwrap().width() / 120. * panels.timeline.zoom.max(1.);
                     let modifiers = Modifiers {
                         alt: true,
                         ..Default::default()
@@ -93,7 +125,8 @@ fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
                     let tag = format!(
                         "{language}-{}-{}",
                         if floating { "float" } else { "main" },
-                        if expanded { "property" } else { "summary" }
+                        if graph {if expanded {"speed"} else {"value"}}
+                        else if expanded { "property" } else { "summary" }
                     );
                     paint.stylesheet = shell.panels.styles.clone();
                     let mut ui = shell.ui_frame(paint, [1000., 800.], true);
@@ -119,7 +152,8 @@ fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
                     );
                     let commands = atomic(actions);
                     assert!(
-                        matches!(commands.as_slice(), [Command::SpatialKeyframes { edit: SpatialKeyEdit::Move { keys, delta }, .. }] if keys == &[2] && *delta == 5.)
+                        matches!(commands.as_slice(), [Command::SpatialKeyframes { edit: SpatialKeyEdit::Move { keys, delta }, .. }] if keys == &[2] && *delta == 5.),
+                        "{commands:?}"
                     );
                     let after = shell
                         .engine
@@ -156,14 +190,14 @@ fn native_spatial_timeline_pixels_and_atomic_worker_moves() {
         return;
     }
     let temporary = tempfile::tempdir().unwrap();
-    let root = std::env::var_os("MOTION_SPATIAL_TIMELINE_GPU_ARTIFACTS")
+    let root = std::env::var_os(if comparison {"MOTION_SPATIAL_COMPARISON_GPU_ARTIFACTS"} else if graph {"MOTION_SPATIAL_GRAPH_GPU_ARTIFACTS"} else {"MOTION_SPATIAL_TIMELINE_GPU_ARTIFACTS"})
         .map(PathBuf::from)
         .unwrap_or_else(|| temporary.path().into());
     std::fs::create_dir_all(&root).unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            NAME,
+            name,
             "--ignored",
             "--nocapture",
             "--test-threads=1",

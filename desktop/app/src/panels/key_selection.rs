@@ -1,4 +1,4 @@
-//! Authored key identities are channel + composition time, independent of the
+//! Authored keys use a channel plus a frame address or persistent spatial ID,
 //! displayed property, graph component, playhead and primary layer selection.
 use motion_core::{Error, KeyframeSelection, KeyframeTarget, MAX_KEYFRAME_CLIPBOARD_BYTES};
 use serde_json::Value;
@@ -224,7 +224,7 @@ impl Set {
             })
             .collect()
     }
-    fn contains_addressed(&self, key: &AddressedKey) -> bool {
+    pub(super) fn contains_addressed(&self, key: &AddressedKey) -> bool {
         match key {
             AddressedKey::Frame(k) => self.contains(k),
             AddressedKey::Spatial(k) => self
@@ -303,7 +303,7 @@ impl Set {
         self.apply_addressed(state, keys.into_iter().map(AddressedKey::Frame), mode)
     }
 
-    fn apply_addressed(
+    pub(super) fn apply_addressed(
         &mut self,
         state: &Value,
         keys: impl IntoIterator<Item = AddressedKey>,

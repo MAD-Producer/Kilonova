@@ -1,0 +1,94 @@
+[
+  {
+    "path": "AGENTS.md",
+    "sha256": "40ea64b2204d7791e39a56f20b1341c9f766584a8475548ac1d2bfd1793fe5dc"
+  },
+  {
+    "path": "DESIGN.md",
+    "sha256": "51d72951293d62887c7423c4672141333e40e9dfab88f2d085725d7100284172"
+  },
+  {
+    "path": "crates/motion-core/tests/parenting.rs",
+    "sha256": "c645fe51aefa0c62bd67ab200a8b69aee5fd777116d403430314d2527bf2d372"
+  },
+  {
+    "path": "crates/motion-model/src/animation/path_metric.rs",
+    "sha256": "a4ba54c6b2c3daccfb1925be71415264690612649d67a6d733822a641b069f7f"
+  },
+  {
+    "path": "crates/motion-model/src/animation/spatial_animation.rs",
+    "sha256": "20eb5f040e8019ef0399db4073ccbcdc46243bae232b01ac8250c46950d7dfca"
+  },
+  {
+    "path": "crates/motion-model/src/animation/spatial_schedule.rs",
+    "sha256": "225f9f9e4f0819b39da8fbd03de7d52c1ecf78c33071da9e7d70a5e307c5fb63"
+  },
+  {
+    "path": "crates/motion-model/tests/spatial_hot_path.rs",
+    "sha256": "258e7d4321f2c38ebff89b177b5332b81d753d8ad74e7e8cd498f331996e1496"
+  },
+  {
+    "path": "crates/motion-model/tests/spatial_velocity.rs",
+    "sha256": "39e3a040bece8db365e8603e7c68213ca346a8666c2f39f20ddc8d51e12b7b90"
+  },
+  {
+    "path": "desktop/app/src/panels/animation_data.rs",
+    "sha256": "256e032b3357a1589f70111036346efd330b7c91175a02774c8a05def53db4d3"
+  },
+  {
+    "path": "desktop/app/src/panels/curve_comparison.rs",
+    "sha256": "bee13be3f75fef6a0d348e748ea3b644b5bfba755b9f0763aa6a3c333e6c117f"
+  },
+  {
+    "path": "desktop/app/src/panels/curve_comparison/data.rs",
+    "sha256": "e6ff1fe8d630eeee0dcbe55acd3a6462bf39b5f0076aed4ba7bb02a9dc9e4917"
+  },
+  {
+    "path": "desktop/app/src/panels/curve_comparison/tests.rs",
+    "sha256": "74ad20130cf8d4786cf6b160096e21758f9b6c0cac527ad17b638a0dcb83d775"
+  },
+  {
+    "path": "desktop/app/src/panels/curve_comparison/toolbar.rs",
+    "sha256": "485546a661ca485efde72dc0af16e00777d52a8395b546442b1ad97be06c140e"
+  },
+  {
+    "path": "desktop/app/src/panels/curve_comparison/view.rs",
+    "sha256": "7da7e49e5ac8d6e4268c27412255ba1ee0ee89689475b9ec47c01adfc7071880"
+  },
+  {
+    "path": "desktop/app/src/panels/graph_sampling.rs",
+    "sha256": "53f6275adb0925bc23294a9573e2cd7fa21610ccf42a5657d67d685d5d7c8fb0"
+  },
+  {
+    "path": "desktop/app/src/panels/key_selection.rs",
+    "sha256": "da822715ac7dace8ff84232d3195e5bc363243671e74dd5bd0d4239080dc322e"
+  },
+  {
+    "path": "desktop/app/src/panels/key_selection/spatial_native_tests.rs",
+    "sha256": "ec0d814b335915bbb1d9e19395f285ebe07b0ff854c33f5b9d73b45889cd4f77"
+  },
+  {
+    "path": "desktop/app/src/panels/key_selection/spatial_ui_tests.rs",
+    "sha256": "8ea636cf6003f2b0c51d6b0a0146480c36cb79b1a126e7abece24240c2d5ae37"
+  },
+  {
+    "path": "desktop/app/src/panels/key_selection/ui.rs",
+    "sha256": "7614733694b7f55f8ee2debc49b8cae490e2b172a9eb0bc59d73ebb90ea16769"
+  },
+  {
+    "path": "desktop/app/src/panels/timeline_graph.rs",
+    "sha256": "3faac0151e1821711a2bf5212bba6268849c684968c1cbfed53c42c2abe215f6"
+  },
+  {
+    "path": "desktop/app/src/panels/timeline_graph/spatial_tests.rs",
+    "sha256": "b6b9556a719ef27424e63c8f97a9ed0018b3f9bfb6322126e2976c6252269ed9"
+  },
+  {
+    "path": "desktop/app/src/panels/types.rs",
+    "sha256": "0a8f38dd7d1c2258b378cdffa6458045b7ef0a5b2e1def2b56c0c7fe34148d5d"
+  },
+  {
+    "path": "desktop/ui/styles/dark.json",
+    "sha256": "b8320276b2381b30a0b03074263cf821aa187997f4789607a4f37bedfb1f8747"
+  }
+]

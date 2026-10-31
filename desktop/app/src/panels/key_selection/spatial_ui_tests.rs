@@ -39,7 +39,7 @@ fn identities(panels: &Panels) -> Vec<u64> {
 }
 fn at_time(paint: &PaintList, panels: &Panels, time: f64) -> [f32; 2] {
     let track = panels.timeline.zoom_track.unwrap();
-    let x = track.min[0] + time as f32 * track.width() / 120.;
+    let x = track.min[0] + time as f32 * track.width() / 120. * panels.timeline.zoom.max(1.);
     let y = paint
         .shapes
         .iter()

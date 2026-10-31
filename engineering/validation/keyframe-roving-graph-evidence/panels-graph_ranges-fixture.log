@@ -1,0 +1,29 @@
+
+running 24 tests
+test panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files ... ignored, manual native graph-range windows, GPU captures and byte invariance; explicitly retained artifacts
+test panels::graph_ranges::tests::a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_view_is_unlocked ... ok
+test panels::graph_ranges::tests::actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key ... ok
+test panels::graph_ranges::tests::actual_property_graph_menu_fits_composition_time_once_and_owned_empty_does_not_fall_back ... ok
+test panels::graph_ranges::tests::automatic_fit_resets_old_vertical_navigation_and_preserves_a_locked_axis ... ok
+test panels::graph_ranges::tests::comparison::comparison_axis_locks_are_per_unit_and_automatic_preserves_other_unit_and_legacy_y ... ok
+test panels::graph_ranges::tests::comparison::comparison_fit_selection_uses_only_its_unit_group_and_composition_time_without_history ... ok
+test panels::graph_ranges::tests::comparison::comparison_menu_cancels_mode_and_collection_changes_and_consumes_delete_escape ... ok
+test panels::graph_ranges::tests::comparison::comparison_more_button_owns_left_press_without_starting_marquee_or_changing_key_context ... ok
+test panels::graph_ranges::tests::effect::effect_locks_survive_playback_wheel_and_main_float_escape_consumes_the_key ... ok
+test panels::graph_ranges::tests::effect::effect_menu_cancels_projected_key_changes_and_owned_empty_never_uses_the_old_diamond ... ok
+test panels::graph_ranges::tests::effect::effect_range_menu_fits_local_keys_once_and_retains_native_values_and_per_second_speed ... ok
+test panels::graph_ranges::tests::faults::effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve ... ok
+test panels::graph_ranges::tests::keyboard_skips_disabled_rows_and_ime_repeat_and_opening_frame_cannot_activate ... ok
+test panels::graph_ranges::tests::locked_ranges_survive_scrolling_through_more_views_than_the_cache_limit ... ok
+test panels::graph_ranges::tests::menu_consumes_closing_frames_and_cancels_foreign_input_source_selection_and_track_changes ... ok
+test panels::graph_ranges::tests::mini::mini_control_drag_inverts_zoomed_axes_and_escape_cancels_the_existing_transaction ... ok
+test panels::graph_ranges::tests::mini::mini_fit_selection_uses_normalized_interval_without_moving_shared_time_or_history ... ok
+test panels::graph_ranges::tests::mini::mini_hover_uses_actual_composition_frame_and_percent_but_last_key_stays_normalized ... ok
+test panels::graph_ranges::tests::mini::mini_locks_both_local_axes_during_playback_and_modifier_wheel_without_panel_scroll ... ok
+test panels::graph_ranges::tests::mini::mini_menu_owns_ime_and_cancels_changed_key_or_other_window_without_deleting ... ok
+test panels::graph_ranges::tests::mini::mini_modifier_zoom_and_pan_are_pointer_anchored_and_do_not_scroll_or_move_timeline ... ok
+test panels::graph_ranges::tests::native_checkbox_locks_capture_bounds_and_fit_only_the_unlocked_axis_without_edits ... ok
+test panels::graph_ranges::tests::time_lock_blocks_navigation_and_channel_views_are_bounded_and_reset_on_document_change ... ok
+
+test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 1499 filtered out; finished in 6.94s
+

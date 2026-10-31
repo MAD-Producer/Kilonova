@@ -3,6 +3,61 @@ use super::animation_data as data;
 use super::types::ScrubRuler;
 use super::*;
 use motion_core::{Axis, Track};
+use std::sync::Arc;
+#[cfg(test)]
+#[path="timeline_graph/spatial_tests.rs"]
+mod spatial_tests;
+
+/// One channel per timeline owner. Both successes and faults are retained only
+/// for its document/revision/target, so repainting never rebuilds arc geometry.
+#[derive(Clone, Default)]
+pub(super) struct Cache {
+    entry: Option<(crate::layer_clipboard::KeyframeSource, motion_core::KeyframeTarget,
+        Option<Arc<Samples>>)>,
+    // Fault suppression does not authorize sample reuse when identity is absent.
+    // One bounded observation, reset on success or replacement by another source.
+    fault: Option<(crate::layer_clipboard::KeyframeSource, motion_core::KeyframeTarget)>,
+}
+impl Cache {
+    fn load(&mut self,state:&Value,target:&motion_core::KeyframeTarget)->Option<Arc<Samples>> {
+        let stamp=crate::layer_clipboard::KeyframeSource::of(state);
+        let reusable=state["root"].is_string()
+            && state["composition"].as_str().or_else(||state["project"]["composition_id"].as_str()).is_some()
+            && state["document_generation"].as_u64().is_some() && state["revision"].as_u64().is_some();
+        if let Some((source,channel,result))=self.entry.as_ref().filter(|_|reusable) {
+            if *source==stamp && channel==target {return result.clone();}
+        }
+        let began=std::time::Instant::now();
+        let result=(||->Result<Samples,String> {
+            let (raw,_)=super::key_selection::authored_track(state,target)
+                .ok_or_else(||"authored graph channel missing".to_owned())?;
+            fn decode<T: motion_core::Tween+serde::de::DeserializeOwned>(raw:&Value)->Result<Track<T>,String> {
+                let track:Track<T>=serde_json::from_value(raw.clone()).map_err(crate::fallback_observation::error_cause)?;
+                if track.axes.is_some() {return Err("resolved graph channel is still separated".into());}
+                track.validate_local().map_err(|e|e.to_string())?;
+                Ok(track)
+            }
+            let motion_core::KeyframeTarget::Property {property,axis,..}=target else {
+                return Err("timeline property graph received another channel kind".into());
+            };
+            Ok(if property.is_scalar() || axis.is_some() {Samples::Scalar(decode(raw)?)}
+                else if *property==Property::Anchor {Samples::Anchor(decode(raw)?)}
+                else {Samples::Vector(decode(raw)?)})
+        })().map(Arc::new).map_err(|cause| {
+            if self.fault.as_ref().is_some_and(|(source,channel)|*source==stamp && channel==target) {
+                return;
+            }
+            log::error!("timeline graph failed operation=load object={} target={} revision={:?} generation={:?} phase=decode elapsed_ms={} cause={}",
+                target.object(),crate::fallback_observation::short(format_args!("{target:?}")),
+                state["revision"].as_u64(),state["document_generation"].as_u64(),began.elapsed().as_millis(),
+                crate::fallback_observation::error_cause(cause));
+            self.fault=Some((stamp.clone(),target.clone()));
+        }).ok();
+        if result.is_some() {self.fault=None;}
+        self.entry=reusable.then(||(stamp,target.clone(),result.clone()));
+        result
+    }
+}
 
 enum Samples {
     Anchor(Track<[f32; 2]>),
@@ -102,6 +157,15 @@ fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget
             _=>false,
         };
         if chosen {selected=Some(selected.map_or([next,next],|[low,high]|[low.min(next),high.max(next)]));}
+    }
+    for key in source["spatial_keys"].as_array().into_iter().flatten() {
+        let Some((id,time))=key["id"].as_u64().zip(key["frame"].as_f64())
+            .filter(|(_,t)|t.is_finite() && *t>=0. && *t<=last_frame(state)) else {continue;};
+        all=Some(all.map_or([time,time],|[low,high]|[low.min(time),high.max(time)]));
+        if status==super::key_selection::Status::Current && panels.selected_keys.contains_addressed(
+            &super::key_selection::SpatialKey {target:target.clone(),id}.into()) {
+            selected=Some(selected.map_or([time,time],|[low,high]|[low.min(time),high.max(time)]));
+        }
     }
     (all.unwrap_or([0.,last_frame(state)+1.]),selected)
 }
@@ -292,13 +356,8 @@ pub(super) fn render(
         return;
     };
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
-    let samples = if property.is_scalar() || axis.is_some() {
-        data::track::<f32>(source, layer_offset).map(Samples::Scalar)
-    } else if property == Property::Anchor {
-        data::track::<[f32; 2]>(source, layer_offset).map(Samples::Anchor)
-    } else {
-        data::track::<[f32; 3]>(source, layer_offset).map(Samples::Vector)
-    };
+    let target=motion_core::KeyframeTarget::Property {object,property,axis};
+    let samples = panels.timeline.graph_samples.load(state,&target);
     let Some(samples) = samples else {
         label(
             &mut graph,
@@ -480,7 +539,8 @@ pub(super) fn render(
         fps,
         scale,
     };
-    let box_owned = super::graph_box::interact(
+    let spatial=source["spatial_keys"].is_array();
+    let box_owned = !spatial && super::graph_box::interact(
         &styles,
         panels,
         state,
@@ -518,6 +578,19 @@ pub(super) fn render(
             color,
             styles.metric("graph.curve_width", 2.),
         );
+        for key in source["spatial_keys"].as_array().into_iter().flatten() {
+            let Some((id,time))=key["id"].as_u64().zip(key["frame"].as_f64())
+                .filter(|(_,t)|t.is_finite() && *t>=0. && *t>=offset && *t<=end) else {continue;};
+            let Ok(value)=observe!("timeline.graph_spatial_key_sample",sample(time,components[index]),
+                "object={object} property={property:?} id={id} frame={time}") else {continue;};
+            let point=[plot.min[0]+(time-offset) as f32*ppf,y_of(value)];
+            let radius=styles.metric("graph.key_radius",5.);
+            let hit=styles.metric("graph.selection.hit_radius",6.)+styles.metric("motion.drag_threshold",3.);
+            paint::diamond(&mut lines,point,radius,colors.KEYFRAME);
+            super::key_selection::ui::spatial_mark(&mut lines,panels,
+                super::key_selection::SpatialKey {target:target.clone(),id},point,radius,
+                Rect::new(point[0]-hit,point[1]-hit,hit*2.,hit*2.));
+        }
         for key in source["keys"].as_array().into_iter().flatten() {
             let Some(frame) = key["frame"]
                 .as_i64()
@@ -603,7 +676,7 @@ pub(super) fn render(
         out,
     );
     super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
-    let box_selected = if !box_owned && clicked_key.is_none() {
+    let box_selected = if !spatial && !box_owned && clicked_key.is_none() {
         super::graph_box::select_curve(
             &styles,
             panels,

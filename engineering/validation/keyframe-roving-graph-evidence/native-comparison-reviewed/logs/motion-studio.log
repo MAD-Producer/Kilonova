@@ -1,0 +1,81 @@
+1793414878.155 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::logging: logging initialized level=INFO
+1793414878.160 WARN [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio: physical memory probe unavailable: platform=windows fallback_bytes=8589934592 reason=read /proc/meminfo: 系统找不到指定的路径。 (os error 3)
+1793414878.160 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\issue-goal-current\spatial-graph\native-comparison-reviewed\project
+1793414878.160 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793414878.162 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\issue-goal-current\spatial-graph\native-comparison-reviewed\project
+1793414884.234 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793414884.235 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\issue-goal-current\spatial-graph\native-comparison-reviewed\project 6074ms
+1793414884.235 INFO [motion-engine] motion_studio::engine: start #1 state
+1793414884.282 WARN [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793414884.318 INFO [motion-engine] motion_studio::engine: start #2 plugin
+1793414884.593 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793414884.593 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x29f26a7da00, name: ?)
+1793414884.593 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793414884.593 ERROR [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x29f26a7da00, name: ?)
+1793414884.718 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793414884.995 INFO [motion-engine] motion_studio::engine: start #3 attach
+1793414885.052 INFO [motion-engine] motion_studio::engine: start #4 state
+1793414885.054 INFO [motion-engine] motion_studio::engine: start #5 state
+1793414885.056 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(0) generation=Some(1)
+1793414885.127 INFO [motion-engine] motion_studio::engine: start #6 state
+1793414885.129 INFO [motion-engine] motion_studio::engine: start #7 state
+1793414885.133 INFO [motion-engine] motion_studio::engine: start #8 capture_ui
+1793414885.545 INFO [motion-engine] motion_studio::engine: start #9 editor_action
+1793414885.547 INFO [motion-engine] motion_studio::engine: start #10 history
+1793414885.555 INFO [motion-engine] motion_studio::engine: start #11 state
+1793414885.558 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(2) generation=Some(1)
+1793414885.580 INFO [motion-engine] motion_studio::engine: start #12 state
+1793414885.582 INFO [motion-engine] motion_studio::engine: start #13 state
+1793414885.586 INFO [motion-engine] motion_studio::engine: start #14 capture_ui
+1793414885.942 INFO [motion-engine] motion_studio::engine: start #15 editor_action
+1793414885.944 INFO [motion-engine] motion_studio::engine: start #16 history
+1793414885.952 INFO [motion-engine] motion_studio::engine: start #17 state
+1793414885.955 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(4) generation=Some(1)
+1793414885.972 INFO [motion-engine] motion_studio::engine: start #18 state
+1793414885.974 INFO [motion-engine] motion_studio::engine: start #19 state
+1793414885.979 INFO [motion-engine] motion_studio::engine: start #20 capture_ui
+1793414886.371 INFO [motion-engine] motion_studio::engine: start #21 editor_action
+1793414886.374 INFO [motion-engine] motion_studio::engine: start #22 history
+1793414886.381 INFO [motion-engine] motion_studio::engine: start #23 state
+1793414886.384 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(6) generation=Some(1)
+1793414886.403 INFO [motion-engine] motion_studio::engine: start #24 state
+1793414886.406 INFO [motion-engine] motion_studio::engine: start #25 state
+1793414886.410 INFO [motion-engine] motion_studio::engine: start #26 capture_ui
+1793414886.768 INFO [motion-engine] motion_studio::engine: start #27 editor_action
+1793414886.770 INFO [motion-engine] motion_studio::engine: start #28 history
+1793414886.778 INFO [motion-engine] motion_studio::engine: start #29 state
+1793414886.781 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(8) generation=Some(1)
+1793414886.817 INFO [motion-engine] motion_studio::engine: start #30 state
+1793414886.819 INFO [motion-engine] motion_studio::engine: start #31 state
+1793414886.823 INFO [motion-engine] motion_studio::engine: start #32 capture_ui
+1793414887.196 INFO [motion-engine] motion_studio::engine: start #33 editor_action
+1793414887.198 INFO [motion-engine] motion_studio::engine: start #34 history
+1793414887.204 INFO [motion-engine] motion_studio::engine: start #35 state
+1793414887.207 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(10) generation=Some(1)
+1793414887.233 INFO [motion-engine] motion_studio::engine: start #36 state
+1793414887.235 INFO [motion-engine] motion_studio::engine: start #37 state
+1793414887.239 INFO [motion-engine] motion_studio::engine: start #38 capture_ui
+1793414887.596 INFO [motion-engine] motion_studio::engine: start #39 editor_action
+1793414887.599 INFO [motion-engine] motion_studio::engine: start #40 history
+1793414887.607 INFO [motion-engine] motion_studio::engine: start #41 state
+1793414887.610 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(12) generation=Some(1)
+1793414887.631 INFO [motion-engine] motion_studio::engine: start #42 state
+1793414887.633 INFO [motion-engine] motion_studio::engine: start #43 state
+1793414887.637 INFO [motion-engine] motion_studio::engine: start #44 capture_ui
+1793414888.040 INFO [motion-engine] motion_studio::engine: start #45 editor_action
+1793414888.043 INFO [motion-engine] motion_studio::engine: start #46 history
+1793414888.050 INFO [motion-engine] motion_studio::engine: start #47 state
+1793414888.054 INFO [panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves] motion_studio::panels::curve_comparison: curve comparison start operation=add channels=1 first_object=Some(7) revision=Some(14) generation=Some(1)
+1793414888.078 INFO [motion-engine] motion_studio::engine: start #48 state
+1793414888.080 INFO [motion-engine] motion_studio::engine: start #49 state
+1793414888.084 INFO [motion-engine] motion_studio::engine: start #50 capture_ui
+1793414888.436 INFO [motion-engine] motion_studio::engine: start #51 editor_action
+1793414888.439 INFO [motion-engine] motion_studio::engine: start #52 history
+1793414888.446 INFO [motion-engine] motion_studio::engine: start #53 shutdown
+1793414888.446 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793414888.446 INFO [motion-engine] motion_studio::engine::shutdown: start #54 shutdown_cleanup session=1
+1793414888.472 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793414888.474 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793414888.474 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

@@ -1,0 +1,2111 @@
+{
+  "audio_error": null,
+  "canRedo": false,
+  "canRedoObservation": false,
+  "canUndo": true,
+  "canUndoObservation": false,
+  "capabilities": {
+    "adjustment_layers": {
+      "background": "excluded",
+      "command": "add_adjustment",
+      "composite": "lower_layers",
+      "mask": "transformed_rectangle",
+      "supported": true,
+      "three_d": false
+    },
+    "audio": {
+      "async_import": true,
+      "balance": {
+        "action": "balance",
+        "animated": false,
+        "center": 0,
+        "command": "audio_levels",
+        "law": "linear_attenuation",
+        "nested": true,
+        "range": [
+          -1,
+          1
+        ],
+        "supported": true
+      },
+      "channel_separation": {
+        "command": "split_audio_channels",
+        "output": "left_and_right_layers",
+        "preserves_stereo_sum": true,
+        "project_format": 31,
+        "requires": "stereo_single_source",
+        "supported": true
+      },
+      "channels": [
+        1,
+        2
+      ],
+      "device_query": "media_capabilities",
+      "extraction": {
+        "command": "extract_audio",
+        "output": "audio_layer",
+        "reencode": false,
+        "requires": "video_with_audio",
+        "source": "preserved_with_audio_muted",
+        "supported": true
+      },
+      "levels": {
+        "animated": true,
+        "channels": [
+          "left",
+          "right"
+        ],
+        "command": "audio_levels",
+        "conversion": "10^(dB/20)",
+        "curve_overshoot": "clamp_to_range",
+        "expressions": false,
+        "nested": true,
+        "project_format": 31,
+        "range": [
+          -192.0,
+          24.0
+        ],
+        "sampling": "output_sample",
+        "supported": true,
+        "time_coordinates": "layer_local_frames",
+        "unit": "dB"
+      },
+      "mp4_audio_mux_integrated": true,
+      "output_channels": 2,
+      "output_rate": 48000,
+      "pcm": "f32le_interleaved",
+      "pcm_block_limit_frames": 48000,
+      "reference_markers": {
+        "command": "audio_markers",
+        "corrected_references": "retain_analysis_origin",
+        "edit_coordinates": "composition_frames",
+        "generated_replacement": "preserve_manual_and_corrected",
+        "max_count": 4096,
+        "project_format": 31,
+        "storage_coordinates": "layer_local_frames",
+        "supported": true
+      },
+      "sample_rate_range": [
+        8000,
+        192000
+      ],
+      "sample_rates": [
+        8000,
+        11025,
+        12000,
+        16000,
+        22050,
+        24000,
+        32000,
+        44100,
+        48000,
+        88200,
+        96000,
+        176400,
+        192000
+      ],
+      "source_duration_limit_seconds": 3600,
+      "source_limit_bytes": 2147483648,
+      "supported_formats": [
+        "M4A/AAC-LC/ALAC",
+        "MP3",
+        "FLAC",
+        "Ogg/Vorbis/Opus",
+        "ADTS/AAC",
+        "WAV/PCM8/16/24/32/float",
+        "AIFF"
+      ],
+      "ui_playback_integrated": true,
+      "waveform_bucket_us": 10000
+    },
+    "audio_import": true,
+    "camera_layers": {
+      "activation": "topmost_enabled_in_range",
+      "legacy_object": 0,
+      "project_format": 31,
+      "supported": true
+    },
+    "composition": {
+      "fps_presets": [
+        24,
+        25,
+        30,
+        50,
+        60,
+        90,
+        120,
+        144,
+        240
+      ],
+      "fps_range": [
+        1,
+        240
+      ],
+      "fps_type": "integer"
+    },
+    "composition_api": {
+      "collapse_transformations": false,
+      "depth_includes_root": true,
+      "history_scope": "project",
+      "max_compositions": 256,
+      "max_depth": 16,
+      "max_instances": 1024,
+      "max_render_instances": 64,
+      "precompose_3d": false,
+      "precompose_contiguous": true,
+      "precompose_modes": [
+        "move_all_attributes"
+      ],
+      "precompose_range": [
+        "composition"
+      ],
+      "project_format": 31,
+      "reference_3d": true,
+      "version": 1
+    },
+    "effect_image_inputs": {
+      "command": "image_input",
+      "default_stage": "effects",
+      "feedback": false,
+      "gpu_readbacks": 0,
+      "hidden_source": true,
+      "sdk": 6,
+      "sources": [
+        "package",
+        "asset",
+        "layer",
+        "empty"
+      ],
+      "stages": [
+        "source",
+        "effects"
+      ],
+      "supported": true
+    },
+    "font_rasterization": {
+      "formats": [
+        "ttf",
+        "otf",
+        "ttc"
+      ],
+      "glyph_cache_bytes": 16777216,
+      "import": "NativeBridge.importFont",
+      "max_font_bytes": 33554432,
+      "operations": [
+        "font_catalogue",
+        "font_import",
+        "font_atlas",
+        "font_text",
+        "font_edit_text"
+      ],
+      "shaping": "ltr_kerning_wrap",
+      "supported": true,
+      "system_catalogue": "NativeBridge.systemFonts",
+      "text_styles": {
+        "alignment": [
+          "left",
+          "center",
+          "right"
+        ],
+        "atomic_edit": true,
+        "font_size": [
+          4,
+          256
+        ],
+        "indentation": true,
+        "line_height": "auto_or_4_to_1024",
+        "max_characters": 4096,
+        "outline": "outside_square_join_fill_color_0_to_32",
+        "project_format": 31,
+        "tracking": [
+          -256,
+          256
+        ],
+        "units": "source_pixels",
+        "width": [
+          1,
+          8192
+        ]
+      },
+      "variable_axes": false
+    },
+    "layer_3d": {
+      "activation": "explicit",
+      "command": "set_layer_3d",
+      "default": false,
+      "rotation_order": {
+        "animated": false,
+        "camera": false,
+        "changes_pose": true,
+        "command": "set_rotation_order",
+        "default": "fixed_xyz",
+        "fixed_xyz": "apply_x_then_y_then_z_about_parent_axes",
+        "missing_field": "local_xyz",
+        "orders": [
+          "local_xyz",
+          "fixed_xyz"
+        ],
+        "project_format": 31,
+        "supported": true
+      },
+      "supported": true
+    },
+    "layer_clips": true,
+    "layer_compositing": {
+      "background": "excluded",
+      "blend_command": "set_layer_blend",
+      "blend_modes": [
+        "normal",
+        "add",
+        "multiply",
+        "screen",
+        "overlay",
+        "darken",
+        "lighten",
+        "difference",
+        "exclusion",
+        "subtract",
+        "divide",
+        "color_dodge",
+        "color_burn",
+        "hard_light",
+        "soft_light"
+      ],
+      "blend_spaces": [
+        "linear",
+        "srgb"
+      ],
+      "matte_command": "set_track_matte",
+      "matte_modes": [
+        "alpha",
+        "alpha_inverted",
+        "luma",
+        "luma_inverted"
+      ],
+      "max_matte_depth": 8,
+      "project_format": 31,
+      "source_deletion": "reject_while_referenced",
+      "source_scope": "same_composition",
+      "stage": "after_effects_transforms_opacity",
+      "supported": true,
+      "three_d": true,
+      "version": 1
+    },
+    "layer_masks": {
+      "adjustment_masks": false,
+      "animated": [
+        "path",
+        "opacity",
+        "feather",
+        "expansion"
+      ],
+      "max_masks": 16,
+      "max_nodes": 2048,
+      "modes": [
+        "none",
+        "add",
+        "subtract",
+        "intersect",
+        "lighten",
+        "darken",
+        "difference"
+      ],
+      "space": "source_pixels_y_down",
+      "stage": "before_image_effects",
+      "supported": true,
+      "variable_feather": false,
+      "version": 1
+    },
+    "layer_sampling": {
+      "animated": false,
+      "command": "set_layer_sampling",
+      "continuous_rasterization": {
+        "collapse_composition_transforms": false,
+        "density": "projected_source_plane",
+        "over_budget": "error",
+        "sources": [
+          "vector"
+        ],
+        "text": false
+      },
+      "frame_blend": {
+        "clock": "actual_source_pts",
+        "modes": [
+          "hold",
+          "linear"
+        ],
+        "sources": [
+          "video"
+        ],
+        "space": "linear_premultiplied"
+      },
+      "legacy_capture": {
+        "motion_blur": false
+      },
+      "legacy_frame_plans": {
+        "motion_blur": false,
+        "on_unsupported": "error_before_output"
+      },
+      "motion_blur": {
+        "frames_max": 2,
+        "frames_min_exclusive": 0,
+        "frozen_samples": "authored",
+        "nested": "independent_composition_clocks",
+        "outside_interval": "transparent_without_weight_renormalization",
+        "preview_samples_max": 4,
+        "samples_max": 16,
+        "samples_min": 2,
+        "shutter": "centered_midpoints",
+        "sources": [
+          "solid",
+          "image",
+          "text",
+          "vector",
+          "video",
+          "composition"
+        ]
+      },
+      "project_format": 31,
+      "version": 1,
+      "wgpu_preview": true
+    },
+    "layer_switches": {
+      "command": "set_layer_switch",
+      "effects": "bypass_preserves_individual_flags",
+      "locked": "reject",
+      "project_format": 31,
+      "solo": "composition_local_preview_and_export",
+      "supported": true,
+      "video_audio": "independent"
+    },
+    "layer_timeline": {
+      "extended_spans": {
+        "coordinates": "signed_composition_frames",
+        "in_frame_min": -36000,
+        "out_frame_max": 36000,
+        "outside_composition": "retained_not_rendered",
+        "project_format": 31,
+        "supported": true
+      },
+      "subframe_ranges": {
+        "audio_boundaries": "ceil_output_sample",
+        "command": "set_layer_range",
+        "coordinates": "composition_frames",
+        "field": "subframe_range",
+        "in_frame_min": -36000,
+        "interval": "half_open",
+        "offset_precision": "integer_frames",
+        "out_frame_max": 36000,
+        "project_format": 31,
+        "supported": true
+      }
+    },
+    "model_import": false,
+    "multiple_compositions": true,
+    "native_plugin_ui": {
+      "preview": "shared_wgpu_surface",
+      "protocol": 1,
+      "slots": [
+        "preview",
+        "timeline",
+        "parameters",
+        "layer_source",
+        "image_sprite",
+        "seed",
+        "transform",
+        "note"
+      ],
+      "supported": true,
+      "timeline": "shared_composition_clock"
+    },
+    "planar_intersections": {
+      "geometry_api": "sampleGeometryInto",
+      "max_batches": 8192,
+      "max_vertices": 65536,
+      "method": "bsp",
+      "supported": true
+    },
+    "precompose": true,
+    "prerender": false,
+    "project_package": {
+      "async_export": true,
+      "async_import": false,
+      "frozen_export": true,
+      "max_archive_bytes": 4299161600,
+      "max_export_tasks_per_session": 1,
+      "max_export_workers": 2,
+      "max_payload_bytes": 4294967296,
+      "max_source_bytes": 2147483648,
+      "schema_version": 1,
+      "transfer_buffer_bytes": 65536
+    },
+    "property_expressions": {
+      "cross_property_references": false,
+      "engine": "QuickJS-NG",
+      "max_expressions": 256,
+      "opacity_unit": "percent",
+      "profile": "motion-studio-ae-js-1",
+      "source_max_bytes": 8192,
+      "supported": true
+    },
+    "scene_effects": {
+      "max_particles_per_effect": 20000,
+      "max_sprites_per_frame": 65536,
+      "occlusion": "source_alpha_planes",
+      "particle_birth_history": true,
+      "particle_history_expressions": false,
+      "particle_rate_animation": false,
+      "plugin_editor_protocol": 1,
+      "sdk_version": 6,
+      "simulation": "analytic_world_birth_or_legacy_local_space"
+    },
+    "separate_dimensions": {
+      "activation": "explicit",
+      "axes": [
+        "x",
+        "y",
+        "z"
+      ],
+      "camera_properties": [],
+      "layer_properties": [
+        "position",
+        "rotation",
+        "scale"
+      ],
+      "merge": {
+        "already_coupled": "no_change",
+        "command": "merge_dimensions",
+        "expressions": "preserved",
+        "on_mismatch": "error_preserves_axes",
+        "policy": "aligned_keys_shared_interpolation",
+        "project_format_change": false,
+        "resampling": false,
+        "supported": true
+      },
+      "supported": true
+    },
+    "spatial_paths": {
+      "command": "spatial",
+      "coordinates": "property_local",
+      "max_trace_samples": 257,
+      "max_visible_keys": 512,
+      "parameter_scope": true,
+      "query": "position_path",
+      "separated_axes": "trace_only",
+      "supported": true,
+      "temporal_easing": "independent",
+      "version": 1
+    },
+    "vector_drawing": {
+      "command": "vector",
+      "coordinates": "centered_canvas_pixels_y_down",
+      "fill_rules": [
+        "non_zero",
+        "even_odd"
+      ],
+      "groups": {
+        "expressions": false,
+        "isolated_opacity": true,
+        "max_copies": 1024,
+        "max_depth": 8,
+        "max_items": 512,
+        "multiple_repeaters": true,
+        "node_parameters": {
+          "components": 6,
+          "key": "node:<path_id>:<node_id>",
+          "supported": true
+        },
+        "ordered_paints": true,
+        "position_coordinates": "group_local_pixels_y_down",
+        "project_format": 31,
+        "repeater": true,
+        "separated_axes": false,
+        "stroke_dash_parameters": true,
+        "supported": true,
+        "viewport_roi": "2d_without_effects_masks_or_image_consumers"
+      },
+      "max_nodes": 2048,
+      "max_paths": 64,
+      "path_modifiers": {
+        "dash_length_pixels": [
+          0.1,
+          32768
+        ],
+        "dash_offset_pixels": [
+          -32768,
+          32768
+        ],
+        "evaluation_order": [
+          "source",
+          "trim",
+          "dash",
+          "paint"
+        ],
+        "gap_length_pixels": [
+          0,
+          32768
+        ],
+        "groups": false,
+        "max_dash_pairs": 3,
+        "max_output_nodes": 16384,
+        "project_format": 31,
+        "repeater": false,
+        "stroke_dashes": true,
+        "trim_modes": [
+          "simultaneously",
+          "individually"
+        ],
+        "trim_offset_degrees": [
+          -360000,
+          360000
+        ],
+        "trim_paths": true,
+        "trim_range_percent": [
+          0,
+          100
+        ],
+        "zero_length_dots": false
+      },
+      "protocol": 3,
+      "shape_catalog": [
+        {
+          "category": "basic",
+          "english_name": "Rectangle",
+          "id": "rectangle",
+          "name": "矩形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "basic",
+          "english_name": "Rounded Rectangle",
+          "id": "rounded_rectangle",
+          "name": "圆角矩形",
+          "parameters": [
+            {
+              "default": 0.25,
+              "discrete": false,
+              "id": "corner_ratio",
+              "max": 1.0,
+              "min": 0.0,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "basic",
+          "english_name": "Ellipse",
+          "id": "ellipse",
+          "name": "椭圆",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "basic",
+          "english_name": "Circle",
+          "id": "circle",
+          "name": "圆形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Triangle",
+          "id": "triangle",
+          "name": "三角形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Polygon",
+          "id": "polygon",
+          "name": "多边形",
+          "parameters": [
+            {
+              "default": 6.0,
+              "discrete": true,
+              "id": "points",
+              "max": 32.0,
+              "min": 3.0,
+              "unit": "count"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Pentagon",
+          "id": "pentagon",
+          "name": "五边形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Hexagon",
+          "id": "hexagon",
+          "name": "六边形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Octagon",
+          "id": "octagon",
+          "name": "八边形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Star",
+          "id": "star",
+          "name": "星形",
+          "parameters": [
+            {
+              "default": 5.0,
+              "discrete": true,
+              "id": "points",
+              "max": 32.0,
+              "min": 3.0,
+              "unit": "count"
+            },
+            {
+              "default": 0.5,
+              "discrete": false,
+              "id": "inner_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "curves",
+          "english_name": "Ring",
+          "id": "ring",
+          "name": "圆环",
+          "parameters": [
+            {
+              "default": 0.5,
+              "discrete": false,
+              "id": "inner_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "curves",
+          "english_name": "Arc",
+          "id": "arc",
+          "name": "圆弧",
+          "parameters": [
+            {
+              "default": -90.0,
+              "discrete": false,
+              "id": "start_angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            },
+            {
+              "default": 270.0,
+              "discrete": false,
+              "id": "sweep_angle",
+              "max": 360.0,
+              "min": -360.0,
+              "unit": "degrees"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "curves",
+          "english_name": "Sector",
+          "id": "sector",
+          "name": "扇形",
+          "parameters": [
+            {
+              "default": -90.0,
+              "discrete": false,
+              "id": "start_angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            },
+            {
+              "default": 270.0,
+              "discrete": false,
+              "id": "sweep_angle",
+              "max": 360.0,
+              "min": -360.0,
+              "unit": "degrees"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "basic",
+          "english_name": "Line",
+          "id": "line",
+          "name": "线段",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Arrow",
+          "id": "arrow",
+          "name": "箭头",
+          "parameters": [
+            {
+              "default": 0.30000001192092896,
+              "discrete": false,
+              "id": "shaft_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Double Arrow",
+          "id": "double_arrow",
+          "name": "双向箭头",
+          "parameters": [
+            {
+              "default": 0.30000001192092896,
+              "discrete": false,
+              "id": "shaft_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Plus",
+          "id": "plus",
+          "name": "十字",
+          "parameters": [
+            {
+              "default": 0.30000001192092896,
+              "discrete": false,
+              "id": "shaft_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Heart",
+          "id": "heart",
+          "name": "爱心",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "curves",
+          "english_name": "Teardrop",
+          "id": "teardrop",
+          "name": "水滴",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Trapezoid",
+          "id": "trapezoid",
+          "name": "梯形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Parallelogram",
+          "id": "parallelogram",
+          "name": "平行四边形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "polygons",
+          "english_name": "Diamond",
+          "id": "diamond",
+          "name": "菱形",
+          "parameters": [
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Chevron",
+          "id": "chevron",
+          "name": "折箭头",
+          "parameters": [
+            {
+              "default": 0.30000001192092896,
+              "discrete": false,
+              "id": "shaft_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "symbols",
+          "english_name": "Gear",
+          "id": "gear",
+          "name": "齿轮",
+          "parameters": [
+            {
+              "default": 12.0,
+              "discrete": true,
+              "id": "points",
+              "max": 32.0,
+              "min": 3.0,
+              "unit": "count"
+            },
+            {
+              "default": 0.75,
+              "discrete": false,
+              "id": "inner_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        },
+        {
+          "category": "curves",
+          "english_name": "Flower",
+          "id": "flower",
+          "name": "花形",
+          "parameters": [
+            {
+              "default": 5.0,
+              "discrete": true,
+              "id": "points",
+              "max": 32.0,
+              "min": 3.0,
+              "unit": "count"
+            },
+            {
+              "default": 0.5,
+              "discrete": false,
+              "id": "inner_ratio",
+              "max": 0.9900000095367432,
+              "min": 0.009999999776482582,
+              "unit": "ratio"
+            },
+            {
+              "default": 0.0,
+              "discrete": false,
+              "id": "angle",
+              "max": 3600.0,
+              "min": -3600.0,
+              "unit": "degrees"
+            }
+          ]
+        }
+      ],
+      "stroke_caps": [
+        "butt",
+        "round",
+        "square"
+      ],
+      "stroke_joins": [
+        "miter",
+        "round",
+        "bevel"
+      ],
+      "supported": true
+    },
+    "video": {
+      "arbitrary_aspect_ratio": true,
+      "async_frames": true,
+      "codec": "H.264 baseline/main/high, 8-bit 4:2:0 SDR",
+      "codecs": [
+        "H.264",
+        "H.265 Main",
+        "VP8",
+        "VP9 profile 0"
+      ],
+      "container": "MP4",
+      "containers": [
+        "MP4",
+        "MOV",
+        "3GP",
+        "Matroska",
+        "WebM"
+      ],
+      "decoder": "libav",
+      "default_with_audio": true,
+      "device_query": "media_capabilities",
+      "frame_format": "rgba8",
+      "frozen_source_frames": true,
+      "input_is_independent_of_composition": true,
+      "legacy_gles_export_integrated": true,
+      "max_decoders": 4,
+      "max_dimension": 4096,
+      "max_duration_seconds": 3600,
+      "max_fps": 240.0,
+      "max_index_frames": 1000000,
+      "max_pixels": 8847360,
+      "preserves_source_aspect_ratio": true,
+      "profile": "8-bit 4:2:0 SDR",
+      "square_pixels_only": true
+    },
+    "video_import": true,
+    "work_area": {
+      "animated": false,
+      "command": "set_work_area",
+      "coordinates": "composition_frames",
+      "field": "work_area",
+      "history": true,
+      "interval": "half_open",
+      "project_format": 31,
+      "scope": "composition",
+      "supported": true
+    }
+  },
+  "composition": "comp-main",
+  "composition_context": {
+    "frame": 0.0,
+    "path": [
+      "comp-main"
+    ],
+    "selection": [],
+    "timeline": null
+  },
+  "compositions": [
+    {
+      "children": [],
+      "fps": 30,
+      "frames": 120,
+      "height": 360,
+      "id": "comp-main",
+      "main": true,
+      "name": "空间练习 01",
+      "next_layer_id": 10,
+      "references": [],
+      "width": 640
+    }
+  ],
+  "cpuPrepareUs": 0,
+  "diagnosticsEnabled": false,
+  "document_generation": 1,
+  "effectErrors": [],
+  "frame": 0.0,
+  "graphics": {
+    "adapter": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "backend": "Vulkan",
+    "height": 800,
+    "imageReadback": {
+      "completedCalls": 4,
+      "countersSaturated": false,
+      "failedCalls": 0,
+      "inFlightCalls": 0,
+      "mappedBufferBytes": 13107200,
+      "requestedCalls": 4,
+      "returnedPayloadBytes": 12800000,
+      "submittedBufferSpanBytes": 13106816,
+      "submittedCalls": 4,
+      "submittedPayloadBytes": 12800000
+    },
+    "renderHeight": 1,
+    "renderTargetBytes": 4,
+    "renderWidth": 1,
+    "textureBytes": 4,
+    "timestampReadback": {
+      "countersSaturated": false,
+      "encodedCopyBytes": 0,
+      "encodedResolveBytes": 0,
+      "encodedResolveCalls": 0,
+      "invalidSamples": 0,
+      "mapFailures": 0,
+      "mapRequests": 0,
+      "mapSuccesses": 0,
+      "mappedBufferBytes": 0,
+      "validSamples": 0
+    },
+    "width": 1000
+  },
+  "has_audio": false,
+  "history": {
+    "budgetBytes": 33554432,
+    "evictions": 0,
+    "gestureActive": false,
+    "gestureElapsedMs": null,
+    "modelBytes": 2778,
+    "redoEntries": 0,
+    "retainedBytes": 3633,
+    "spatialCacheBytes": 855,
+    "undoEntries": 1
+  },
+  "lastPresentedFrame": null,
+  "lastPresentedRevision": 0,
+  "lastPresentedViewRevision": 0,
+  "main_composition": "comp-main",
+  "mask_layers": [],
+  "observationCamera": {
+    "azimuth": 0.0,
+    "elevation": 0.0,
+    "radius": 434.5584411621094,
+    "target": [
+      320.0,
+      180.0,
+      0.0
+    ],
+    "viewProjection": null
+  },
+  "observationView": "free",
+  "observing": false,
+  "platform": {
+    "graphics": "wgpu",
+    "name": "libav"
+  },
+  "presented": 0,
+  "preview": {
+    "compositingPipelineSetBuilds": 0,
+    "effectPipelineBuilds": 0,
+    "effectPlanBuilds": 0,
+    "effectPlanCacheHits": 0,
+    "effectResolution": "projected_2d",
+    "exposure": null,
+    "exposureRequired": false,
+    "fps": 60,
+    "gpuCommands": null,
+    "gpuTimestampSupported": true,
+    "gpuTimingActive": true,
+    "height": 360,
+    "imageDecodes": 0,
+    "imageIdleBudgetBytes": 33554432,
+    "imageIdleBytes": 0,
+    "imageMemoryCacheHits": 0,
+    "imagePrefetchSeconds": 0.5,
+    "imagePrefetches": 0,
+    "imageProxyCacheHits": 0,
+    "imageResolution": "proxy_max_2048",
+    "imageUploadBytes": 0,
+    "memoryAdaptation": {
+      "actual": null,
+      "actualHeight": null,
+      "actualWidth": null,
+      "failures": 0,
+      "hasLastValidFrame": false,
+      "held": false,
+      "maxLevels": 4,
+      "nativePressure": {
+        "consecutiveHighSamples": 0,
+        "level": 0,
+        "nextQualityChangeInMs": 0,
+        "nextSampleInMs": 0,
+        "recoverySamples": 0,
+        "scope": "adapter_advisory_preview_only",
+        "source": null,
+        "status": "unknown",
+        "unavailable": null,
+        "worstPool": null
+      },
+      "nextProbeInMs": 0,
+      "refusalCount": 0,
+      "rejection": null,
+      "requested": {
+        "imageEdge": 2048,
+        "level": 0,
+        "targetDivisor": 1,
+        "videoEdge": null
+      },
+      "requestedHeight": 360,
+      "requestedWidth": 640,
+      "status": "normal",
+      "version": 1
+    },
+    "memoryBreakdown": {
+      "categories": {
+        "curveLuts": 0,
+        "effectInputSnapshots": 0,
+        "effectScratch": 0,
+        "layerCompositingScratch": 0,
+        "maskOutputs": 0,
+        "maskScratch": 0,
+        "matteBlendScratch": 0,
+        "modelSources": 0,
+        "nestedCompositions": 0,
+        "pluginResources": 0,
+        "staticImages": 0,
+        "systemTextures": 1032,
+        "vectorGroupScratch": 0,
+        "vectorRasterScratch": 0,
+        "vectorSources": 0,
+        "videoPlanes": 0,
+        "videoRgba": 0
+      },
+      "cpuDecodedCacheBytes": null,
+      "cpuVideoDecodedCacheBytes": 0,
+      "cpuVideoPreviewProxyBytes": 0,
+      "driverResidentBytes": null,
+      "excludes": [
+        "gpu_buffers",
+        "upload_staging",
+        "cpu_decode_caches",
+        "swapchain",
+        "decoder_external_allocations",
+        "ui_and_independent_preview_textures"
+      ],
+      "exposureTargetBytes": 0,
+      "legacyTextureBytes": 4,
+      "previewOwnedTextureBytes": 1036,
+      "previewTargetBytes": 4,
+      "rendererBytes": 1032,
+      "scope": "logical_texture_capacity",
+      "version": 1
+    },
+    "memoryPolicy": {
+      "decodedImageBudgetBytes": 134217728,
+      "previewTargetBudgetBytes": 134217728,
+      "scratchBudgetBytes": 402653184,
+      "sessionAllocationBudgetBytes": 536870912,
+      "sourceTextureBudgetBytes": 134217728
+    },
+    "memoryPolicyVersion": 5,
+    "mode": "auto",
+    "pluginEditorRecovery": {
+      "cancelOperation": "cancel_plugin_gesture",
+      "gesture": false,
+      "last": null,
+      "leaseMillis": 120000,
+      "open": false
+    },
+    "previewVideoProxyBytes": 0,
+    "profiling": false,
+    "readbacks": {
+      "atomicAcrossCounters": false,
+      "completeCoverage": false,
+      "image": {
+        "completedCalls": 4,
+        "countersSaturated": false,
+        "failedCalls": 0,
+        "inFlightCalls": 0,
+        "mappedBufferBytes": 13107200,
+        "requestedCalls": 4,
+        "returnedPayloadBytes": 12800000,
+        "submittedBufferSpanBytes": 13106816,
+        "submittedCalls": 4,
+        "submittedPayloadBytes": 12800000
+      },
+      "scope": "preview_renderer_image_and_timer_lifetime_counters",
+      "timestamp": {
+        "countersSaturated": false,
+        "encodedCopyBytes": 0,
+        "encodedResolveBytes": 0,
+        "encodedResolveCalls": 0,
+        "invalidSamples": 0,
+        "mapFailures": 0,
+        "mapRequests": 0,
+        "mapSuccesses": 0,
+        "mappedBufferBytes": 0,
+        "validSamples": 0
+      },
+      "version": 1
+    },
+    "resourceLedgerVersion": 1,
+    "scratchBudgetBytes": 402653184,
+    "sourceTextureBudgetBytes": 134217728,
+    "surfaceBounded": true,
+    "tier": "high",
+    "video": {
+      "cacheBudgetBytes": 0,
+      "cacheBytes": 0,
+      "cacheFrames": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0,
+      "cancelledFrames": 0,
+      "decodeInFlight": [],
+      "decodeWorkersStopped": 0,
+      "decodedFrames": 0,
+      "decoderSeeks": 0,
+      "encodedConversions": 0,
+      "frameBlendSubmissions": 0,
+      "gpuConversions": 0,
+      "holdMaxCacheBudgetBytes": 150994944,
+      "lastPrepareUs": 0,
+      "lastUploadUs": 0,
+      "lookaheadFrames": 4,
+      "maxCacheBudgetBytes": 283115520,
+      "maxDecoderWorkers": 4,
+      "pendingAttempts": 0,
+      "prefetchFailures": 0,
+      "renderAttempts": 0,
+      "retirementError": null,
+      "retiringStreams": 0,
+      "retiringWorkers": [],
+      "standaloneConversionSubmissions": 0,
+      "streams": 0,
+      "uploadBytes": 0,
+      "uploads": 0
+    },
+    "videoResolution": "decoded_source",
+    "width": 640
+  },
+  "project": {
+    "assets": [],
+    "background": [
+      0.05000000074505806,
+      0.05999999865889549,
+      0.09000000357627869,
+      1.0
+    ],
+    "camera": {
+      "azimuth": {
+        "keys": [],
+        "value": 0.0
+      },
+      "created": false,
+      "elevation": {
+        "keys": [],
+        "value": 0.0
+      },
+      "film_width_mm": 36.0,
+      "fov": {
+        "keys": [],
+        "value": 45.0
+      },
+      "mode": "position",
+      "position": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          -434.5584411621094
+        ]
+      },
+      "radius": {
+        "keys": [],
+        "value": 434.5584411621094
+      },
+      "roll": {
+        "keys": [],
+        "value": 0.0
+      },
+      "target": {
+        "keys": [],
+        "value": [
+          320.0,
+          180.0,
+          0.0
+        ]
+      }
+    },
+    "composition_id": "comp-main",
+    "fps": 30,
+    "frames": 120,
+    "height": 360,
+    "layers": [
+      {
+        "audio_source_channel": "stereo",
+        "blend": {
+          "mode": "normal",
+          "space": "linear"
+        },
+        "content": {
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "kind": "solid"
+        },
+        "effects": [],
+        "effects_enabled": true,
+        "id": 7,
+        "locked": false,
+        "name": "Keys",
+        "rotation_order": "local_xyz",
+        "sampling": {
+          "continuous_rasterization": false,
+          "frame_blend": "hold",
+          "motion_blur": null
+        },
+        "shy": false,
+        "size": [
+          64.0,
+          64.0
+        ],
+        "solo": false,
+        "three_d": false,
+        "timeline": {
+          "in_frame": 7,
+          "offset_frame": 7,
+          "out_frame": 110
+        },
+        "transform": {
+          "anchor": [
+            0.5,
+            0.5
+          ],
+          "opacity": {
+            "keys": [],
+            "value": 1.0
+          },
+          "position": {
+            "spatial_animation": {
+              "keys": [
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 0.0,
+                  "id": 1,
+                  "reference": 0.0,
+                  "spatial": null,
+                  "value": [
+                    0.0,
+                    20.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": true,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 7.5,
+                  "id": 2,
+                  "reference": 4.0,
+                  "spatial": null,
+                  "value": [
+                    1.0,
+                    20.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": false,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 10.0,
+                  "id": 3,
+                  "reference": 10.0,
+                  "spatial": null,
+                  "value": [
+                    4.0,
+                    20.0,
+                    0.0
+                  ]
+                },
+                {
+                  "arc": false,
+                  "easing": {
+                    "ease": "linear"
+                  },
+                  "fixed": 20.0,
+                  "id": 4,
+                  "reference": 20.0,
+                  "spatial": null,
+                  "value": [
+                    8.0,
+                    20.0,
+                    0.0
+                  ]
+                }
+              ],
+              "next_id": 5
+            },
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "rotation": {
+            "keys": [],
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "scale": {
+            "keys": [],
+            "value": [
+              100.0,
+              100.0,
+              100.0
+            ]
+          }
+        },
+        "visible": true
+      },
+      {
+        "audio_source_channel": "stereo",
+        "blend": {
+          "mode": "normal",
+          "space": "linear"
+        },
+        "content": {
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "kind": "solid"
+        },
+        "effects": [],
+        "effects_enabled": true,
+        "id": 9,
+        "locked": false,
+        "name": "Keys",
+        "rotation_order": "local_xyz",
+        "sampling": {
+          "continuous_rasterization": false,
+          "frame_blend": "hold",
+          "motion_blur": null
+        },
+        "shy": false,
+        "size": [
+          64.0,
+          64.0
+        ],
+        "solo": false,
+        "three_d": false,
+        "timeline": {
+          "in_frame": 40,
+          "offset_frame": 40,
+          "out_frame": 110
+        },
+        "transform": {
+          "anchor": [
+            0.5,
+            0.5
+          ],
+          "opacity": {
+            "keys": [],
+            "value": 1.0
+          },
+          "position": {
+            "axes": {
+              "x": {
+                "keys": [
+                  {
+                    "ease": "linear",
+                    "frame": 3,
+                    "value": 3.0
+                  },
+                  {
+                    "ease": "linear",
+                    "frame": 13,
+                    "value": 13.0
+                  }
+                ],
+                "value": 0.0
+              },
+              "y": {
+                "keys": [
+                  {
+                    "ease": "linear",
+                    "frame": 3,
+                    "value": 20.0
+                  },
+                  {
+                    "ease": "linear",
+                    "frame": 13,
+                    "value": 20.0
+                  }
+                ],
+                "value": 0.0
+              },
+              "z": {
+                "keys": [
+                  {
+                    "ease": "linear",
+                    "frame": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "ease": "linear",
+                    "frame": 13,
+                    "value": 0.0
+                  }
+                ],
+                "value": 0.0
+              }
+            }
+          },
+          "rotation": {
+            "keys": [],
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "scale": {
+            "keys": [],
+            "value": [
+              100.0,
+              100.0,
+              100.0
+            ]
+          }
+        },
+        "visible": true
+      }
+    ],
+    "library": {
+      "folders": [],
+      "placements": []
+    },
+    "model_assets": [],
+    "name": "空间练习 01",
+    "plugin_dependencies": [],
+    "version": 31,
+    "width": 640,
+    "work_area": {
+      "in_frame": 0,
+      "out_frame": 120
+    },
+    "working_precision": "unorm8"
+  },
+  "projectedLayers": [],
+  "renderError": null,
+  "revision": 7,
+  "root": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\spatial-graph\\native-timeline-reviewed\\project",
+  "sampledCamera": {
+    "azimuth": 0.0,
+    "elevation": 0.0,
+    "fov": 45.0,
+    "position": [
+      320.0,
+      180.0,
+      -434.5584411621094
+    ],
+    "radius": 434.5584411621094,
+    "roll": 0.0,
+    "target": [
+      320.0,
+      180.0,
+      0.0
+    ]
+  },
+  "sampledEffects": [],
+  "sampledLayers": [
+    {
+      "active": false,
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "audio_levels": null,
+      "id": 7,
+      "opacity": 1.0,
+      "position": [
+        0.0,
+        20.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        100.0,
+        100.0,
+        100.0
+      ],
+      "three_d": false
+    },
+    {
+      "active": false,
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "audio_levels": null,
+      "id": 9,
+      "opacity": 1.0,
+      "position": [
+        3.0,
+        20.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        100.0,
+        100.0,
+        100.0
+      ],
+      "three_d": false
+    }
+  ],
+  "source_transforms": [],
+  "surfaceEpoch": 1,
+  "timeline_camera": {
+    "position": {
+      "keys": [],
+      "separated": false,
+      "value": [
+        320.0,
+        180.0,
+        -434.5584411621094
+      ]
+    },
+    "target": {
+      "keys": [],
+      "separated": false,
+      "value": [
+        320.0,
+        180.0,
+        0.0
+      ]
+    }
+  },
+  "timeline_layers": [
+    {
+      "active": false,
+      "blend": {
+        "mode": "normal",
+        "space": "linear"
+      },
+      "in_frame": 7,
+      "masks": [],
+      "object": 7,
+      "offset_frame": 7,
+      "out_frame": 110,
+      "properties": {
+        "anchor": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            0.5,
+            0.5
+          ]
+        },
+        "opacity": {
+          "keys": [],
+          "separated": false,
+          "value": 1.0
+        },
+        "position": {
+          "keys": [],
+          "separated": false,
+          "spatial_keys": [
+            {
+              "arc": true,
+              "easing": {
+                "ease": "linear"
+              },
+              "frame": 7.0,
+              "id": 1,
+              "incoming_length": 0.0,
+              "local_frame": 0.0,
+              "roving": false,
+              "spatial": null,
+              "value": [
+                0.0,
+                20.0,
+                0.0
+              ]
+            },
+            {
+              "arc": true,
+              "easing": {
+                "ease": "linear"
+              },
+              "frame": 14.5,
+              "id": 2,
+              "incoming_length": 1.0,
+              "local_frame": 7.5,
+              "roving": false,
+              "spatial": null,
+              "value": [
+                1.0,
+                20.0,
+                0.0
+              ]
+            },
+            {
+              "arc": false,
+              "easing": {
+                "ease": "linear"
+              },
+              "frame": 17.0,
+              "id": 3,
+              "incoming_length": 3.0,
+              "local_frame": 10.0,
+              "roving": false,
+              "spatial": null,
+              "value": [
+                4.0,
+                20.0,
+                0.0
+              ]
+            },
+            {
+              "arc": false,
+              "easing": {
+                "ease": "linear"
+              },
+              "frame": 27.0,
+              "id": 4,
+              "incoming_length": 4.0,
+              "local_frame": 20.0,
+              "roving": false,
+              "spatial": null,
+              "value": [
+                8.0,
+                20.0,
+                0.0
+              ]
+            }
+          ],
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "rotation": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "scale": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            100.0,
+            100.0,
+            100.0
+          ]
+        }
+      },
+      "three_d": false,
+      "track_matte": null
+    },
+    {
+      "active": false,
+      "blend": {
+        "mode": "normal",
+        "space": "linear"
+      },
+      "in_frame": 40,
+      "masks": [],
+      "object": 9,
+      "offset_frame": 40,
+      "out_frame": 110,
+      "properties": {
+        "anchor": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            0.5,
+            0.5
+          ]
+        },
+        "opacity": {
+          "keys": [],
+          "separated": false,
+          "value": 1.0
+        },
+        "position": {
+          "axes": {
+            "x": {
+              "keys": [
+                {
+                  "ease": "linear",
+                  "frame": 43,
+                  "local_frame": 3,
+                  "value": 3.0
+                },
+                {
+                  "ease": "linear",
+                  "frame": 53,
+                  "local_frame": 13,
+                  "value": 13.0
+                }
+              ],
+              "separated": false,
+              "value": 0.0
+            },
+            "y": {
+              "keys": [
+                {
+                  "ease": "linear",
+                  "frame": 43,
+                  "local_frame": 3,
+                  "value": 20.0
+                },
+                {
+                  "ease": "linear",
+                  "frame": 53,
+                  "local_frame": 13,
+                  "value": 20.0
+                }
+              ],
+              "separated": false,
+              "value": 0.0
+            },
+            "z": {
+              "keys": [
+                {
+                  "ease": "linear",
+                  "frame": 43,
+                  "local_frame": 3,
+                  "value": 0.0
+                },
+                {
+                  "ease": "linear",
+                  "frame": 53,
+                  "local_frame": 13,
+                  "value": 0.0
+                }
+              ],
+              "separated": false,
+              "value": 0.0
+            }
+          },
+          "keys": [],
+          "separated": true,
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "rotation": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "scale": {
+          "keys": [],
+          "separated": false,
+          "value": [
+            100.0,
+            100.0,
+            100.0
+          ]
+        }
+      },
+      "three_d": false,
+      "track_matte": null
+    }
+  ],
+  "vector_layers": [],
+  "viewRevision": 1
+}

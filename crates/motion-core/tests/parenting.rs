@@ -224,7 +224,7 @@ fn removing_animated_parent_preserves_children_and_camera_at_playhead() {
     project.layers.iter_mut().find(|layer| layer.id == 1).unwrap().transform.position.keys = [
         (0, [540., 960., 0.]), (21, [640., 800., 500.]),
     ].into_iter().map(|(frame, value)| motion_core::Keyframe {
-        frame, value, ease: motion_core::Ease::Linear, curve: None, spatial: None,
+        frame, value, ease: motion_core::Ease::Linear, auto_bezier: false, curve: None, spatial: None,
     }).collect();
     let mut e = Engine::new(project).unwrap();
     for child in [0, 2] {

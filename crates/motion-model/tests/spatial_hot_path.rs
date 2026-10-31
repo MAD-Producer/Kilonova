@@ -80,6 +80,7 @@ fn prepared_and_reopened_spatial_queries_allocate_nothing_and_counter_detects_re
         for tick in 0..10_000 {
             let sample = source.sample(f64::from(tick) / 999.9).unwrap();
             std::hint::black_box(sample);
+            std::hint::black_box(source.velocity(f64::from(tick) / 999.9).unwrap());
         }
         drop(measurement);
         assert_eq!(ALLOCATIONS.with(Cell::get), 0, "prepared query allocated");

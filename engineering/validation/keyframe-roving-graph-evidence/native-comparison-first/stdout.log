@@ -1,0 +1,11 @@
+
+running 1 test
+test panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves ... FAILED
+
+failures:
+
+failures:
+    panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1522 filtered out; finished in 10.78s
+

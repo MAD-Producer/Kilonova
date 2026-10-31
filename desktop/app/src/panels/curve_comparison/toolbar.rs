@@ -342,7 +342,7 @@ pub(in crate::panels) fn overlay(
                         if let Err(error) = c.add(
                             state,
                             panels.locale,
-                            selected.as_ref().map_or(&[], |s| s.targets.as_slice()),
+                            selected.as_ref().map_or(&[][..],Vec::as_slice),
                         ) {
                             panels.message = Some(format!(
                                 "{}: {error}",

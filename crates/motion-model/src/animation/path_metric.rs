@@ -456,6 +456,41 @@ impl SpatialPath {
             position: segment.position(parameter),
         })
     }
+    /// Derivative of this exact prepared sampler, including its piecewise
+    /// linear distance-to-parameter map. No resampling across key boundaries.
+    pub(super) fn velocity_interval_distance(
+        &self,
+        interval: usize,
+        distance: f64,
+        rate: f64,
+    ) -> Result<Point> {
+        let segment = self.intervals.get(interval)
+            .ok_or_else(|| crate::Error::Invalid("spatial path interval missing".into()))?;
+        ensure(distance.is_finite() && distance >= 0. && distance <= segment.length
+            && rate.is_finite(), "invalid spatial velocity distance or rate")?;
+        if segment.length == 0. {
+            return Ok([0.; 3]);
+        }
+        let upper = segment.nodes.partition_point(|n| n.distance <= distance)
+            .min(segment.nodes.len() - 1).max(1);
+        let a = segment.nodes[upper - 1];
+        let b = segment.nodes[upper];
+        let span = b.distance - a.distance;
+        ensure(span > 0., "spatial velocity lookup has zero distance span")?;
+        let parameter = segment.parameter(distance);
+        let derivative = std::array::from_fn(|i| {
+            let [p0, p1, p2, p3] = segment.cubic.map(|p| p[i]);
+            let tangent = if segment.linear {p3 - p0} else {
+                3. * (1. - parameter).powi(2) * (p1 - p0)
+                    + 6. * (1. - parameter) * parameter * (p2 - p1)
+                    + 3. * parameter.powi(2) * (p3 - p2)
+            };
+            tangent * (b.parameter - a.parameter) / span * rate
+        });
+        ensure(derivative.iter().all(|v: &f64| v.is_finite()),
+            "spatial velocity is non-finite")?;
+        Ok(derivative)
+    }
     /// Continuous constant-speed candidate times, retaining one entry for each
     /// author key in the requested span. Temporal endpoint easing is a separate
     /// policy; this API does not silently apply it or mutate authored storage.
