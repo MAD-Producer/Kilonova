@@ -4,6 +4,7 @@ impl Command {
         use Command::*;
         match self {
             ConfigurePrerender { .. } => "configure_prerender",
+            ConfigurePrerenderDisk { .. } => "configure_prerender_disk",
             PrerenderPoll => "prerender_poll",
             CurveClipboardRead { .. } => "curve_clipboard_read",
             ClipboardRead { .. } => "clipboard_read",

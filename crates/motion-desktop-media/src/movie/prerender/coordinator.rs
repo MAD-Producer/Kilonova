@@ -60,6 +60,8 @@ pub struct Coordinator {
     epoch: u64,
     retiring: bool,
     demand: Option<schedule::Demand>,
+    disk: Option<disk::Config>,
+    disk_status: disk::Stats,
 }
 impl Coordinator {
     pub fn new(policy: schedule::Policy, cpu_bytes: u64, gpu_bytes: u64) -> Result<Self> {
@@ -77,6 +79,8 @@ impl Coordinator {
             epoch: 0,
             retiring: false,
             demand: None,
+            disk: None,
+            disk_status: disk::Stats::default(),
         })
     }
     pub fn profile(&self) -> Option<Profile> {
@@ -98,6 +102,19 @@ impl Coordinator {
     pub fn cache_info(&self) -> Option<motion_render::CompositionFrameCacheInfo> {
         self.cache.as_ref().map(CompositionFrameCache::info)
     }
+    /// Reconfiguration invalidates current work; actual cache IO is deferred
+    /// until the background worker prepares the next frozen closure.
+    pub fn set_disk_cache(&mut self, config: Option<disk::Config>) -> Result<()> {
+        if self.disk != config {
+            self.invalidate()?;
+            self.disk = config;
+            self.disk_status.enabled = self.disk.is_some();
+            self.disk_status.ready = false;
+            self.disk_status.quota_bytes = self.disk.as_ref().map_or(0, disk::Config::quota_bytes);
+        }
+        Ok(())
+    }
+    pub fn disk_info(&self) -> &disk::Stats { &self.disk_status }
     /// Reduce newly scheduled work without throwing away already warm frames.
     pub fn set_window_limit(&mut self, limit: usize) -> Result<()> {
         self.scheduler
@@ -132,7 +149,7 @@ impl Coordinator {
     ) -> Result<bool> {
         self.prepare_job(plan, Control::Yield(control))
     }
-    fn prepare_job(&mut self, plan: PrerenderPlan, control: Control) -> Result<bool> {
+    fn prepare_job(&mut self, mut plan: PrerenderPlan, control: Control) -> Result<bool> {
         if !self.policy.enabled || self.policy.window == 0 || self.active.is_some() {
             return Ok(false);
         }
@@ -151,6 +168,7 @@ impl Coordinator {
             self.worker = Some(Worker::start(self.cpu_bytes)?);
         }
         let worker = self.worker.as_mut().ok_or("missing prerender owner")?;
+        plan.disk = self.disk.clone();
         let sent = match control {
             Control::Cancel(control) => worker.prepare_with_control(plan, control),
             Control::Yield(control) => worker.prepare_with_yield(plan, control),
@@ -283,6 +301,13 @@ impl Coordinator {
         let Some(complete) = worker.poll()? else {
             return source_failure.map_or(Ok(false), Err);
         };
+        self.disk_status = complete.disk.clone();
+        self.disk_status.ready &= self.disk.is_some() && match &self.active {
+            Some(Active::Prepare { epoch, .. } | Active::Render { epoch, .. }) => *epoch == self.epoch,
+            None => false,
+        };
+        self.disk_status.enabled = self.disk.is_some();
+        self.disk_status.quota_bytes = self.disk.as_ref().map_or(0, disk::Config::quota_bytes);
         let source = worker.source_observation()?;
         if self.active.as_ref().map(Active::id) != Some(complete.id) {
             return Err("prerender coordinator completion ticket mismatch".into());

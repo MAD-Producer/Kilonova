@@ -1,5 +1,6 @@
 //! Public application-policy routing, independent of project editing/history.
 use super::*;
+mod disk_cache;
 
 #[test]
 fn prerender_policy_schema_permissions_and_bounds_preserve_the_authored_project() {

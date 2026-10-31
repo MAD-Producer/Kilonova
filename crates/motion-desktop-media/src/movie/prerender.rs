@@ -13,6 +13,7 @@ use std::{
 };
 
 pub mod coordinator;
+pub mod disk;
 mod key;
 pub mod source_watch;
 mod sources;
@@ -28,6 +29,9 @@ pub enum Phase {
     Video,
     Draw,
     Readback,
+    DiskOpen,
+    DiskRead,
+    DiskWrite,
 }
 impl Phase {
     fn name(self) -> &'static str {
@@ -40,6 +44,9 @@ impl Phase {
             Self::Video => "video",
             Self::Draw => "draw",
             Self::Readback => "readback",
+            Self::DiskOpen => "disk_open",
+            Self::DiskRead => "disk_read",
+            Self::DiskWrite => "disk_write",
         }
     }
 }
@@ -62,8 +69,15 @@ pub struct PrerenderPlan {
     document_generation: u64,
     device_generation: u64,
     max_frame_bytes: u64,
+    disk: Option<disk::Config>,
 }
 impl PrerenderPlan {
+    /// Optional storage for a background Worker. Selecting the policy does no
+    /// IO; standalone snapshot preparation/export does not open a disk cache.
+    pub fn with_disk_cache(mut self, config: Option<disk::Config>) -> Self {
+        self.disk = config;
+        self
+    }
     pub fn capture(
         session: &Session,
         document_generation: u64,
@@ -87,6 +101,7 @@ impl PrerenderPlan {
                 document_generation,
                 device_generation,
                 max_frame_bytes,
+                disk: None,
             })
         })();
         observe_result(request, "capture", began, &result);
