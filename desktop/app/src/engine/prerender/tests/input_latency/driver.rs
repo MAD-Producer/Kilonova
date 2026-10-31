@@ -15,6 +15,7 @@ thread_local! {
     static PHASES: std::cell::RefCell<Option<PhaseTrace>> = const { std::cell::RefCell::new(None) };
 }
 pub(super) fn begin_phases() {
+    crate::shell::draw_evidence::begin();
     // Allocate before the measured interval. No logger, filesystem or growing
     // unbounded trace is introduced into the native input path.
     PHASES.with(|phases| {
@@ -25,7 +26,9 @@ pub(super) fn begin_phases() {
     });
 }
 pub(super) fn finish_phases() -> Value {
-    PHASES.with(|phases| serde_json::to_value(phases.borrow_mut().take().unwrap()).unwrap())
+    let mut result = PHASES.with(|phases| serde_json::to_value(phases.borrow_mut().take().unwrap()).unwrap());
+    result["drawCommands"] = crate::shell::draw_evidence::finish();
+    result
 }
 fn phase(name: &'static str, began: Instant, count: usize) {
     let elapsed_us = began.elapsed().as_micros();
