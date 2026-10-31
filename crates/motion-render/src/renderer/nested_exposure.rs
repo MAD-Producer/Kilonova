@@ -10,7 +10,7 @@ struct Child {
     source_reference: u64,
     composition: String,
     frame: f64,
-    source_rate: f64,
+    source_time: motion_model::layer_time::SourceTimeSample,
     size: [u32; 2],
 }
 struct Image {
@@ -43,7 +43,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                         source_reference: scene.source_object(node.layer),
                         composition: node.composition.clone(),
                         frame: node.scene.frame,
-                        source_rate: node.scene.source_rate,
+                        source_time: node.scene.source_time,
                         size: [w, h],
                     }
                 })
@@ -80,7 +80,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                         preview,
                         None,
                         factory.1.clone(),
-                        Some(factory.2.child(child.source_reference, child.source_rate)),
+                        Some(factory.2.child(child.source_reference, child.source_time)),
                     )
                     .map_err(|error| RenderError::Invalid(error.to_string()))?;
                     self.active = Some(Box::new(ExposureFrame::new(

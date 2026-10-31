@@ -119,6 +119,26 @@ fn nested_reverse_enters_the_child_end_and_quantizes_once_in_decoder_microsecond
 }
 
 #[test]
+fn zero_speed_reverse_ease_enters_the_child_end_but_a_real_freeze_does_not() {
+    let mut p = fixture();
+    p.layers[0].time_mapping = Some(remap(&[(0., 48., Ease::In), (48., 0., Ease::Linear)]));
+    check(&p, &[(0., 96., 1_999_999), (24., 72., 1_499_999)]);
+    p.compositions[0].layers[0].time_mapping = Some(reverse(96.));
+    check(&p, &[(0., 96., 0), (24., 72., 500_000)]);
+    p.layers[0].time_mapping = Some(remap(&[(0., 48., Ease::Linear)]));
+    let before = p.clone();
+    let mut scene = Scene::new(&p).unwrap();
+    scene
+        .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    assert!(
+        scene.nested.is_empty(),
+        "a genuine freeze must keep exact-point membership"
+    );
+    assert_eq!(p, before);
+}
+
+#[test]
 fn nested_nonmonotonic_remap_keeps_its_turn_and_freeze_in_source_time() {
     let mut p = fixture();
     p.layers[0].time_mapping = Some(remap(&[

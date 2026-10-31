@@ -351,20 +351,53 @@ impl From<TimeRemap> for RemapDefinition {
     }
 }
 
-/// A continuous coordinate and derivative. Keep this through nested clocks;
-/// reverse endpoint quantization happens once, in the final media time base.
+/// The side approached after this sample. This is independent of instantaneous
+/// velocity: a moving curve can have zero velocity at an endpoint or extremum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimeTraversal {
+    Earlier,
+    Exact,
+    Later,
+}
+impl TimeTraversal {
+    fn sign(self) -> i8 {
+        match self { Self::Earlier => -1, Self::Exact => 0, Self::Later => 1 }
+    }
+    fn from_sign(sign: i8) -> Self {
+        match sign.cmp(&0) {
+            std::cmp::Ordering::Less => Self::Earlier,
+            std::cmp::Ordering::Equal => Self::Exact,
+            std::cmp::Ordering::Greater => Self::Later,
+        }
+    }
+}
+
+/// A continuous coordinate, derivative and one-sided traversal. Keep these
+/// through nested clocks; quantize only in the final media time base.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SourceTimeSample {
     pub frame: f64,
     pub rate: f64,
+    pub traversal: TimeTraversal,
 }
 impl SourceTimeSample {
     pub fn new(frame: f64, rate: f64) -> Result<Self> {
+        let traversal = if rate < 0. { TimeTraversal::Earlier }
+            else if rate > 0. { TimeTraversal::Later } else { TimeTraversal::Exact };
+        Self::with_traversal(frame, rate, traversal)
+    }
+    /// Preserve an analytically determined side through a stationary point.
+    /// A numerical derivative may be zero or have roundoff near an extremum;
+    /// its sign must not override the side supplied by the clock/curve owner.
+    pub fn with_traversal(frame: f64, rate: f64, traversal: TimeTraversal) -> Result<Self> {
         check_time(frame, "source_output")?;
         if !rate.is_finite() {
             return Err(invalid("source_rate", "source derivative is non-finite"));
         }
-        Ok(Self { frame, rate })
+        Ok(Self { frame, rate, traversal })
+    }
+    pub fn validate(self) -> Result<()> {
+        Self::with_traversal(self.frame, self.rate, self.traversal).map(|_| ())
     }
     /// Apply a child clock to an unquantized parent time. The chain rule also
     /// preserves two reversals as a forward source, including remap turns.
@@ -374,19 +407,21 @@ impl SourceTimeSample {
         offset: i32,
         remap: Option<&TimeRemap>,
     ) -> Result<Self> {
-        Self::new(self.frame, self.rate)?;
+        self.validate()?;
         let local = clock.local_frame(self.frame, offset)?;
         let rate = self.rate * clock.rate();
+        let traversal = TimeTraversal::from_sign(self.traversal.sign()
+            * if clock.rate() < 0. { -1 } else { 1 });
         match remap {
-            Some(remap) => remap.sample_directed(local, rate),
-            None => Self::new(local, rate),
+            Some(remap) => remap.sample_directed(local, rate, traversal),
+            None => Self::with_traversal(local, rate, traversal),
         }
     }
     /// A reversed cursor enters through the exclusive end, without moving the
     /// coordinate by a composition epsilon or quantizing before the media leaf.
     /// A frozen cursor retains ordinary exact-point membership.
     pub fn in_interval(self, start: f64, end: f64) -> bool {
-        start < end && if self.rate < 0. {
+        start < end && if self.traversal == TimeTraversal::Earlier {
             self.frame > start && self.frame <= end
         } else {
             self.frame >= start && self.frame < end
@@ -423,13 +458,13 @@ impl TimeRemap {
         &self.keys
     }
     pub fn sample(&self, local_frame: f64) -> Result<SourceTimeSample> {
-        self.sample_directed(local_frame, 1.)
+        self.sample_directed(local_frame, 1., TimeTraversal::Later)
     }
-    fn sample_directed(&self, local_frame: f64, incoming_rate: f64) -> Result<SourceTimeSample> {
+    fn sample_directed(&self, local_frame: f64, incoming_rate: f64, traversal: TimeTraversal) -> Result<SourceTimeSample> {
         check_time(local_frame, "remap_input")?;
         SourceTimeSample::new(local_frame, incoming_rate)?;
         let upper = self.keys.partition_point(|key| {
-            if incoming_rate < 0. { key.frame < local_frame } else { key.frame <= local_frame }
+            if traversal == TimeTraversal::Earlier { key.frame < local_frame } else { key.frame <= local_frame }
         });
         // Construction makes the first/last element total, even for one key.
         if upper == 0 {
@@ -446,9 +481,12 @@ impl TimeRemap {
             return SourceTimeSample::new(a.source_frame, 0.);
         }
         let duration = b.frame - a.frame;
-        let sample = precise_easing(a.easing, (local_frame - a.frame) / duration);
+        let t = (local_frame - a.frame) / duration;
+        let sample = precise_easing(a.easing, t);
         let delta = b.source_frame - a.source_frame;
-        SourceTimeSample::new(
+        let traversal = TimeTraversal::from_sign(a.easing.value_side(t, traversal.sign())
+            * if delta < 0. { -1 } else { 1 });
+        SourceTimeSample::with_traversal(
             if local_frame == a.frame {
                 a.source_frame
             } else if local_frame == b.frame {
@@ -461,6 +499,7 @@ impl TimeRemap {
             } else {
                 delta / duration * sample.velocity * incoming_rate
             },
+            traversal,
         )
     }
 }

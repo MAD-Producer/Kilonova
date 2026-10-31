@@ -1,5 +1,5 @@
 use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Project, Result};
-use motion_model::layer_time::SourceTimeSample;
+use motion_model::layer_time::{SourceTimeSample, TimeTraversal};
 use glam::{Mat4, Vec3};
 use serde::Serialize;
 pub(crate) mod instance_ids;
@@ -124,7 +124,7 @@ pub struct Scene {
     pub curve_luts: Vec<motion_model::CurveLut>,
     pub(crate) curve_sources: Vec<motion_model::SampledColorCurve>,
     pub frame: f64,
-    pub(crate) source_rate: f64,
+    pub(crate) source_time: SourceTimeSample,
     pub fps: u32,
     pub sprite_assets: std::collections::HashMap<u64, [u32;2]>,
     pub composition_id: String,
@@ -211,7 +211,7 @@ impl Scene {
         context.depth_pending = self.depth_pending.clone();
         context.shared_rasters = self.shared_rasters.clone();
         context.frame = self.frame;
-        context.source_rate = self.source_rate;
+        context.source_time = self.source_time;
         context.layers = layers;
         context
     }
@@ -250,7 +250,7 @@ impl Scene {
             curve_luts: Vec::new(),
             curve_sources: Vec::new(),
             frame: 0.0,
-            source_rate: 1.,
+            source_time: SourceTimeSample { frame: 0., rate: 1., traversal: TimeTraversal::Later },
             fps,
             sprite_assets: Default::default(),
             composition_id,
@@ -280,7 +280,8 @@ impl Scene {
     /// against its immutable owning document, never as an independent project.
     pub(crate) fn sample_root(&mut self, document: &Project, project: &Project, frame: f64,
         observer: Option<&Observer>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
-        self.sample_inner(document, project, frame, 1., observer, 0, &mut 0, evaluator)?;
+        let cursor = SourceTimeSample { frame, rate: 1., traversal: TimeTraversal::Later };
+        self.sample_inner(document, project, cursor, observer, 0, &mut 0, evaluator)?;
         if self.nested.is_empty() { return Ok(()); }
         self.instance_ids.prepare_composition(document, project)?;
         let aliases = &self.instance_ids;
@@ -294,9 +295,9 @@ impl Scene {
         Ok(())
     }
     pub(crate) fn sample_exposure_instance(&mut self, document:&Project, project:&Project,
-        frame:f64, source_rate:f64, observer:Option<&Observer>, evaluator:&dyn motion_model::FrameEvaluator,
+        cursor:SourceTimeSample, observer:Option<&Observer>, evaluator:&dyn motion_model::FrameEvaluator,
         registry:&instance_ids::InstanceIds, path:&[u64]) -> Result<()> {
-        self.sample_inner(document,project,frame,source_rate,observer,0,&mut 0,evaluator)?;
+        self.sample_inner(document,project,cursor,observer,0,&mut 0,evaluator)?;
         let mut path = path.to_vec();
         if !path.is_empty() { return self.assign_instance_ids(registry,&mut path); }
         for node in &mut self.nested {
@@ -307,7 +308,8 @@ impl Scene {
         }
         Ok(())
     }
-    fn sample_inner(&mut self, document:&Project, project:&Project, frame:f64, source_rate:f64, observer:Option<&Observer>, depth:usize, instances:&mut usize, evaluator:&dyn motion_model::FrameEvaluator)->Result<()> {
+    fn sample_inner(&mut self, document:&Project, project:&Project, cursor:SourceTimeSample, observer:Option<&Observer>, depth:usize, instances:&mut usize, evaluator:&dyn motion_model::FrameEvaluator)->Result<()> {
+        let frame = cursor.frame;
         ensure(depth<motion_model::composition::MAX_COMPOSITION_DEPTH,"composition nesting too deep")?;
         if *instances >= motion_model::composition::MAX_RENDER_COMPOSITION_INSTANCES {
             return motion_model::composition::fail(&project.composition_id, "render_resource_limit",
@@ -316,14 +318,13 @@ impl Scene {
                                    "requested_instances":*instances+1,"frame":frame}));
         }
         *instances += 1;
-        let cursor = SourceTimeSample { frame, rate: source_rate };
         ensure(frame.is_finite() && cursor.in_interval(0., f64::from(project.frames)), "invalid sample time")?;
-        SourceTimeSample::new(frame, source_rate)?;
+        cursor.validate()?;
         let original = project;
         let evaluated = evaluator.evaluate(project, frame)?;
         let project = evaluated.as_ref();
         self.frame = frame;
-        self.source_rate = source_rate;
+        self.source_time = cursor;
         self.fps = project.fps;
         self.sprite_assets.clear();
         self.sprite_assets.extend(project.assets.iter().map(|a| (a.id,[a.width,a.height])));
@@ -485,8 +486,8 @@ impl Scene {
                 let local=layer.source_time_sample_from(cursor)?;
                 let source_frame=composition_source_frame(clip,local.frame,project.fps,child.fps,
                     &project.composition_id,layer.id,"scene_sample")?;
-                let source=SourceTimeSample::new(source_frame,
-                    local.rate*f64::from(child.fps)/f64::from(project.fps))?;
+                let source=SourceTimeSample::with_traversal(source_frame,
+                    local.rate*f64::from(child.fps)/f64::from(project.fps),local.traversal)?;
                 if !source.in_interval(0., f64::from(child.frames)) {continue;}
                 let mut node = if let Some(index) = previous_nested.iter().position(|n| n.layer == layer.id && n.composition == clip.composition) {
                     previous_nested.swap_remove(index)
@@ -494,9 +495,9 @@ impl Scene {
                     NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:Box::new(Scene::new(&child)?)}
                 };
                 node.scene.model_sources = self.model_sources.clone();
-                if let Err(error)=node.scene.sample_inner(document,&child,source.frame,source.rate,None,depth+1,instances,evaluator){
+                if let Err(error)=node.scene.sample_inner(document,&child,source,None,depth+1,instances,evaluator){
                     if matches!(&error, motion_model::Error::Composition(e) if e.code == "render_resource_limit") { return Err(error); }
-                    return motion_model::composition::fail(&clip.composition,"sample_failed",&error.to_string(),serde_json::json!({"frame":source.frame,"source_rate":source.rate,"parent_composition":project.composition_id,"reference":layer.id}));
+                    return motion_model::composition::fail(&clip.composition,"sample_failed",&error.to_string(),serde_json::json!({"frame":source.frame,"source_rate":source.rate,"source_traversal":format!("{:?}",source.traversal),"parent_composition":project.composition_id,"reference":layer.id}));
                 }
                 self.nested.push(node);
             }

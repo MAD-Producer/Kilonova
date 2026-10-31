@@ -1,7 +1,7 @@
-//! Quantize only at a leaf. A negative source rate addresses the sample before
+//! Quantize only at a leaf. Earlier traversal addresses the sample before
 //! the mapped boundary: one decoder microsecond or one native PCM sample, never
 //! a whole composition frame. Frozen source time has picture but silent audio.
-use super::{invalid, SourceTimeSample};
+use super::{invalid, SourceTimeSample, TimeTraversal};
 use crate::{CompositionClip, Error, Result, VideoClip, MAX_COMPOSITION_FPS};
 
 fn frame_rate(fps: u32) -> Result<()> {
@@ -27,11 +27,11 @@ impl SourceTimeSample {
     /// Existing forward timestamp rounding stays exactly the same. Asset-range
     /// checks and hold-first-picture behavior remain the decoder owner's job.
     pub fn video_time_us(self, clip: &VideoClip, fps: u32) -> Result<i64> {
-        Self::new(self.frame, self.rate)?;
+        self.validate()?;
         frame_rate(fps)?;
         source_offset(clip.source_offset_us)?;
         let time = clip.source_time_us(self.frame, fps);
-        Ok(if self.rate < 0. { time - 1 } else { time })
+        Ok(if self.traversal == TimeTraversal::Earlier { time - 1 } else { time })
     }
 
     /// Continuous native PCM position for the existing resampler. None is a
@@ -43,7 +43,7 @@ impl SourceTimeSample {
         sample_rate: u32,
         source_offset_us: u64,
     ) -> Result<Option<f64>> {
-        Self::new(self.frame, self.rate)?;
+        self.validate()?;
         frame_rate(fps)?;
         source_offset(source_offset_us)?;
         if !(8_000..=192_000).contains(&sample_rate) {
@@ -52,12 +52,12 @@ impl SourceTimeSample {
                 "native PCM rate must be within 8..192 kHz",
             ));
         }
-        if self.rate == 0. {
+        if self.traversal == TimeTraversal::Exact {
             return Ok(None);
         }
         let position = self.frame * f64::from(sample_rate) / f64::from(fps)
             + source_offset_us as f64 * f64::from(sample_rate) / 1_000_000.;
-        Ok(Some(if self.rate < 0. {
+        Ok(Some(if self.traversal == TimeTraversal::Earlier {
             position - 1.
         } else {
             position
@@ -72,7 +72,7 @@ impl SourceTimeSample {
         parent_fps: u32,
         child_fps: u32,
     ) -> Result<Self> {
-        Self::new(self.frame, self.rate)?;
+        self.validate()?;
         frame_rate(parent_fps)?;
         frame_rate(child_fps)?;
         let frame = clip
@@ -81,9 +81,10 @@ impl SourceTimeSample {
                 phase: "composition_source",
                 source: Box::new(source),
             })?;
-        Self::new(
+        Self::with_traversal(
             frame,
             self.rate * f64::from(child_fps) / f64::from(parent_fps),
+            self.traversal,
         )
     }
 }

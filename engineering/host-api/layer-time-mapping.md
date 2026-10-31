@@ -111,3 +111,10 @@ main 的既有基础是图层区间、offset、视频/音频 source_offset 和�
 子合成。实际 CFR/VFR 冻结 PNG 和单 phase 嵌套曝光已有完整像素对照。
 零导数驻点、多采样 shutter、普通属性/摄影机的反向边缘，以及前述音频和编辑余项
 仍未完成。证据和明确限制见[嵌套视频与曝光验证](../validation/layer-time-nested.md)。
+
+第六阶段将来源方向与瞬时导数分开：零速缓动/Bezier/弹性驻点仍保留之后的单侧
+变化，真正 Hold 和常值映射才视为冻结。fps、嵌套 Scene、局部上下文与曝光任务
+传递同一游标，最终视频/PCM 叶子按方向量化；没有改变普通属性曲线的数值定义。
+真实 CFR/VFR 解码、冻结 PNG 和单 phase 嵌套曝光增加驻点对照。
+本阶段仍不代表声音执行、多采样 shutter、连续编辑或可见入口完成；具体证据与
+余项见[驻点方向与冻结验证](../validation/layer-time-stationary.md)。

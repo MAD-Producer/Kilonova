@@ -146,10 +146,7 @@ fn reverse_and_pivot_changes_preserve_local_keys_and_current_sample() {
                 .unwrap()
                 .through(changed, 10, Some(&frozen))
                 .unwrap(),
-            SourceTimeSample {
-                frame: 70.,
-                rate: 0.
-            }
+            SourceTimeSample::new(70., 0.).unwrap()
         );
     }
 }
@@ -217,10 +214,7 @@ fn remap_is_non_recursive_and_is_only_applied_after_the_property_clock() {
     // E=14-10=4; L=2; S=104. Remapping twice would incorrectly hold at 120.
     assert_eq!(
         input.through(slow, 10, Some(&remap)).unwrap(),
-        SourceTimeSample {
-            frame: 104.,
-            rate: 1.
-        }
+        SourceTimeSample::new(104., 1.).unwrap()
     );
     assert_eq!(slow.local_frame(14., 10).unwrap(), 2.);
     assert_eq!(slow.composition_frame(2., 10).unwrap(), 14.);
@@ -251,7 +245,7 @@ fn non_monotonic_remap_reports_the_actual_signed_rate_of_each_interval() {
     ] {
         assert_eq!(
             remap.sample(input).unwrap(),
-            SourceTimeSample { frame, rate }
+            SourceTimeSample::new(frame, rate).unwrap()
         );
     }
 }
@@ -263,31 +257,19 @@ fn hold_is_right_continuous_and_never_turns_into_a_pcm_dc_rate() {
     let remap = TimeRemap::new(vec![a, key(10., 51.), key(20., 71.)]).unwrap();
     assert_eq!(
         remap.sample(0.).unwrap(),
-        SourceTimeSample {
-            frame: 11.,
-            rate: 0.
-        }
+        SourceTimeSample::new(11., 0.).unwrap()
     );
     assert_eq!(
         remap.sample(9.999).unwrap(),
-        SourceTimeSample {
-            frame: 11.,
-            rate: 0.
-        }
+        SourceTimeSample::new(11., 0.).unwrap()
     );
     assert_eq!(
         remap.sample(10.).unwrap(),
-        SourceTimeSample {
-            frame: 51.,
-            rate: 2.
-        }
+        SourceTimeSample::new(51., 2.).unwrap()
     );
     assert_eq!(
         remap.sample(20.).unwrap(),
-        SourceTimeSample {
-            frame: 71.,
-            rate: 0.
-        }
+        SourceTimeSample::new(71., 0.).unwrap()
     );
     // Tiny intervals are valid freezes; their undefined nominal 0/dt or huge
     // skipped jump slope must not create NaN before the hold branch.
@@ -296,10 +278,7 @@ fn hold_is_right_continuous_and_never_turns_into_a_pcm_dc_rate() {
     let tiny = TimeRemap::new(vec![a, key(f64::from_bits(1), 1.)]).unwrap();
     assert_eq!(
         tiny.sample(0.).unwrap(),
-        SourceTimeSample {
-            frame: 0.,
-            rate: 0.
-        }
+        SourceTimeSample::new(0., 0.).unwrap()
     );
 }
 
@@ -335,24 +314,15 @@ fn nested_clocks_compose_rates_before_any_media_quantization() {
     let child = parent.through(child_clock, 0, None).unwrap();
     assert_eq!(
         child,
-        SourceTimeSample {
-            frame: 90.,
-            rate: -1.
-        }
+        SourceTimeSample::new(90., -1.).unwrap()
     );
     let grandchild_clock =
         LayerClock::new(TimeStretch::default(), TimeDirection::Reverse, 0., 200.).unwrap();
     assert_eq!(
         child.through(grandchild_clock, 0, None).unwrap(),
-        SourceTimeSample {
-            frame: 110.,
-            rate: 1.
-        }
+        SourceTimeSample::new(110., 1.).unwrap()
     );
-    assert!(SourceTimeSample {
-        frame: 0.,
-        rate: f64::MAX
-    }
+    assert!(SourceTimeSample::new(0., f64::MAX).unwrap()
     .through(clock(1, 2, TimeDirection::Forward), 0, None)
     .is_err());
 }
@@ -380,10 +350,7 @@ fn remap_curves_reuse_progress_and_velocity_curve_definitions() {
         }
         assert_eq!(
             remap.sample(20.).unwrap(),
-            SourceTimeSample {
-                frame: 70.,
-                rate: 0.
-            }
+            SourceTimeSample::new(70., 0.).unwrap()
         );
     }
 }
@@ -600,10 +567,7 @@ fn nested_frame_rate_conversion_keeps_seconds_and_quantizes_only_at_the_leaf() {
         .unwrap();
     assert_eq!(
         source,
-        SourceTimeSample {
-            frame: 18.,
-            rate: -0.8
-        }
+        SourceTimeSample::new(18., -0.8).unwrap()
     );
     assert_eq!(source.pcm_position(24, 48_000, 0).unwrap(), Some(35_999.));
     let twice_reversed = source
@@ -611,10 +575,7 @@ fn nested_frame_rate_conversion_keeps_seconds_and_quantizes_only_at_the_leaf() {
         .unwrap();
     assert_eq!(
         twice_reversed,
-        SourceTimeSample {
-            frame: -18.,
-            rate: 0.8
-        }
+        SourceTimeSample::new(-18., 0.8).unwrap()
     );
     assert_eq!(
         twice_reversed.pcm_position(24, 48_000, 0).unwrap(),
@@ -645,10 +606,7 @@ fn media_boundaries_return_typed_errors_for_invalid_rates_offsets_and_coordinate
     let error = source.video_time_us(&clip, 30).unwrap_err();
     assert!(error.to_string().contains("phase=media_offset"));
     assert!(error.source().unwrap().to_string().contains("one hour"));
-    let invalid = SourceTimeSample {
-        frame: f64::NAN,
-        rate: 1.,
-    };
+    let invalid = SourceTimeSample { frame: f64::NAN, rate: 1., traversal: motion_model::layer_time::TimeTraversal::Later };
     assert!(invalid.pcm_position(30, 48_000, 0).is_err());
     assert!(invalid.video_time_us(&VideoClip::new(1), 30).is_err());
     let composition = motion_model::CompositionClip::new("comp-child".into());
