@@ -406,9 +406,19 @@ impl Coordinator {
                             Err("prerender completion differs from admitted frame".into())
                         } else {
                             match &mut self.cache {
-                                Some(cache) => cache
-                                    .install_native_for_next_submission(renderer, target, frame.image())
-                                    .map_err(|e| e.to_string()),
+                                Some(cache) => {
+                                    // Playback can fuse a due upload with its
+                                    // imminent foreground submission. An idle
+                                    // warmup has no such boundary: submit its
+                                    // write now instead of making the next edit
+                                    // carry an obsolete optional transfer.
+                                    let installed = if self.demand.is_some_and(|d| d.playing) {
+                                        cache.install_native_for_next_submission(renderer, target, frame.image())
+                                    } else {
+                                        cache.install_native(renderer, target, frame.image())
+                                    };
+                                    installed.map_err(|e| e.to_string())
+                                },
                                 None => Err("missing prerender cache".into()),
                             }
                         };

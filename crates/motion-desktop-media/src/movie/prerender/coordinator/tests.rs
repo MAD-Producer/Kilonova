@@ -2,6 +2,7 @@ use super::*;
 mod foreground_logging;
 mod source_freshness;
 mod disk_cache;
+mod idle_upload;
 
 fn policy() -> schedule::Policy {
     schedule::Policy {
