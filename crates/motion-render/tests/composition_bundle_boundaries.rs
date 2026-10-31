@@ -375,7 +375,7 @@ fn depth_and_byte_limits_keep_the_existing_text_and_typed_measurements() {
         parent.nested.push(motion_render::NestedScene {
             layer: parent.layers[0].id,
             composition: scene.composition_id.clone(),
-            scene: Box::new(scene),
+            scene: std::sync::Arc::new(scene),
         });
         scene = parent;
     }
