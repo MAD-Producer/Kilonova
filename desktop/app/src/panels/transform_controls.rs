@@ -9,8 +9,10 @@ use motion_ui::{
     Input, Key, MouseButton, Rect,
 };
 use serde_json::Value;
+mod spatial;
+mod snap_feedback;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tool {
     #[default]
     Move,
@@ -27,6 +29,7 @@ enum Handle {
     /// the tool rather than from one of the eight grips.
     Scale(bool, bool, Option<usize>),
     Anchor,
+    Spatial(spatial::Constraint, bool),
 }
 #[derive(Clone)]
 struct Pose {
@@ -35,6 +38,8 @@ struct Pose {
     size: [f32; 2],
     anchor: [f32; 2],
     scale: [f32; 3],
+    position: [f32; 3],
+    rotation_order: motion_core::RotationOrder,
     rotation: [f32; 3],
     three_d: bool,
     locked: bool,
@@ -78,6 +83,9 @@ impl Pose {
         if s["active"] == false {
             return None;
         }
+        if l["three_d"] == true && !spatial::invertible(state, object) {
+            return None;
+        }
         let size = array::<2>(&l["size"])?;
         if size.iter().any(|s| *s <= 0.) {
             return None;
@@ -107,6 +115,12 @@ impl Pose {
             pivot,
             rotate,
             scale: array(&s["scale"])?,
+            position: array(&s["position"])?,
+            rotation_order: match l["rotation_order"].as_str() {
+                None | Some("local_xyz") => motion_core::RotationOrder::LocalXyz,
+                Some("fixed_xyz") => motion_core::RotationOrder::FixedXyz,
+                _ => return None,
+            },
             rotation: array(&s["rotation"])?,
             three_d: l["three_d"] == true,
             locked: l["locked"] == true,
@@ -143,6 +157,11 @@ impl Pose {
             consider(mid(self.corners[i], self.corners[(i + 1) % 4]),
                 edge_radius,
                 Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)));
+        }
+        if let Some((score, handle)) = spatial::Frame::new(self, tool, styles)
+            .and_then(|frame| frame.hit(p, styles).map(|(score, c)| (score, Handle::Spatial(c, tool == Tool::Scale))))
+        {
+            if closest.is_none_or(|(best, _)| score < best) { closest = Some((score, handle)); }
         }
         closest.map(|(_, handle)| handle)
     }
@@ -205,6 +224,7 @@ struct Seed {
     frame: u64,
     root: String,
     composition: String,
+    document_generation: Option<u64>,
     view: Rect,
 }
 impl Seed {
@@ -214,6 +234,7 @@ impl Seed {
             frame: state["frame"].as_f64().unwrap_or(0.).to_bits(),
             root: state["root"].as_str().unwrap_or("").into(),
             composition: state["composition"].as_str().unwrap_or("").into(),
+            document_generation: state["document_generation"].as_u64(),
             view,
         }
     }
@@ -221,6 +242,7 @@ impl Seed {
         self.frame == state["frame"].as_f64().unwrap_or(0.).to_bits()
             && self.root == state["root"].as_str().unwrap_or("")
             && self.composition == state["composition"].as_str().unwrap_or("")
+            && self.document_generation == state["document_generation"].as_u64()
             && self.view == view
     }
 }
@@ -235,14 +257,22 @@ struct Drag {
     local_start: [f32; 2],
     last_angle: f32,
     angle: f32,
+    spatial: Option<Box<spatial::Gesture>>,
+    spatial_context: Option<Value>,
+    notice: Option<spatial::Problem>,
+    snap_feedback: Option<([f32; 2], [Option<f32>; 2])>,
 }
 impl Drag {
     fn new(seed: Seed, pose: Pose, handle: Handle) -> Option<Self> {
-        let local_start = pose.projection.local(seed.point)?;
+        let local_start = if matches!(handle, Handle::Spatial(..)) {
+            pose.pivot_local()
+        } else { pose.projection.local(seed.point)? };
         let pivot = pose.pivot_local();
         let angle = ((local_start[1] - pivot[1]) * pose.scale[1])
             .atan2((local_start[0] - pivot[0]) * pose.scale[0]);
-        let last_value = if matches!(handle, Handle::Rotate) {
+        let last_value = if matches!(handle, Handle::Spatial(_, false)) {
+            pose.position
+        } else if matches!(handle, Handle::Rotate) {
             pose.rotation
         } else {
             pose.scale
@@ -258,6 +288,10 @@ impl Drag {
             last_value,
             last_angle: angle,
             angle: 0.,
+            spatial: None,
+            spatial_context: None,
+            notice: None,
+            snap_feedback: None,
         })
     }
     #[cfg(test)]
@@ -276,6 +310,10 @@ impl Drag {
         if movement < styles.metric("motion.drag_threshold", 3.) && !self.begun {
             return vec![];
         }
+        if matches!(self.handle, Handle::Spatial(..)) {
+            return self.spatial_commands(state, input, styles);
+        }
+        self.snap_feedback = None;
         let mut out = vec![];
         if !self.begun {
             self.begun = true;
@@ -285,7 +323,9 @@ impl Drag {
             Handle::Move => {
                 let pointer = if let Some(snapping) = snapping {
                     let predicted = std::array::from_fn(|i| self.pose.pivot[i] + input.mouse[i] - self.seed.point[i]);
-                    let target = snapping.point(predicted);
+                    let targets = snapping.targets(predicted);
+                    let target = std::array::from_fn(|i| targets[i].unwrap_or(predicted[i]));
+                    if targets.iter().any(Option::is_some) { self.snap_feedback = Some((target, targets)); }
                     std::array::from_fn(|i| input.mouse[i] + target[i] - predicted[i])
                 } else { input.mouse };
                 let delta = [
@@ -308,6 +348,7 @@ impl Drag {
                     self.last_pointer = pointer;
                 }
             }
+            Handle::Spatial(..) => return self.spatial_commands(state, input, styles),
             Handle::Rotate | Handle::Scale(..) | Handle::Anchor => {
                 let Some(local) = observe!(
                     "transform.drag_projection",
@@ -373,7 +414,14 @@ impl Drag {
                             }
                         }
                         if let Some(snapping) = snapping {
-                            value = self.snapped_scale(value, uniform, x, y, snapping).unwrap_or(value);
+                            if let Some(adjusted) = self.snapped_scale(value, uniform, x, y, snapping) {
+                                if let (Some(raw), Some(actual)) = (self.scaled_grip(value), self.scaled_grip(adjusted)) {
+                                    let targets = snapping.targets(raw);
+                                    let reached = std::array::from_fn(|i| targets[i].filter(|target| (actual[i] - target).abs() <= 0.05));
+                                    if reached.iter().any(Option::is_some) { self.snap_feedback = Some((actual, reached)); }
+                                }
+                                value = adjusted;
+                            }
                         }
                         out.extend(self.vector(Property::Scale, value, state));
                     }
@@ -461,10 +509,10 @@ impl Drag {
         if value == self.last_value || value.iter().any(|v| !v.is_finite() || v.abs() > 1e7) {
             return vec![];
         }
-        let key = if property == Property::Scale {
-            "scale"
-        } else {
-            "rotation"
+        let key = match property {
+            Property::Scale => "scale",
+            Property::Position => "position",
+            _ => "rotation",
         };
         let separated = state["timeline_layers"]
             .as_array()
@@ -504,10 +552,15 @@ pub struct Controls {
     drag: Option<Drag>,
     pick: Option<Seed>,
     pub cursor: Option<motion_ui::cursor::Cursor>,
+    notice: Option<spatial::Problem>,
+    spatial_labels: [Option<(usize, [f32; 2])>; 3],
+    spatial_locked: bool,
 }
 impl Controls {
     pub(super) fn handle_hit(&self,state:&Value,selected:Option<u64>,view:Rect,point:[f32;2],styles:&motion_ui::style::StyleSheet) -> bool {
-        selected.and_then(|id|Pose::new(state,id,view)).is_some_and(|pose|pose.handle(point,self.tool,styles).is_some())
+        let pose = selected.and_then(|id| Pose::new(state, id, view));
+        pose.as_ref().is_some_and(|pose|pose.handle(point,self.tool,styles).is_some())
+            || spatial::blocked_hit(pose.as_ref(), state, selected, view, point, self.tool, styles).is_some()
     }
     pub fn gesture_active(&self) -> bool {
         self.drag.is_some() || self.pick.is_some()
@@ -550,6 +603,8 @@ impl Controls {
         &mut self, list: &mut PaintList, clip: Rect, view: Rect, state: &Value,
         selected: Option<u64>, input: &Input, snapping: Option<&super::viewer_guides::Snapping>, out: &mut Vec<Action>,
     ) -> bool {
+        self.spatial_labels = [None; 3];
+        self.spatial_locked = false;
         if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             if self.cancel() {
                 out.push(Action::History(4));
@@ -564,6 +619,11 @@ impl Controls {
             if self.cancel() {
                 out.push(Action::History(4));
             }
+        }
+        if let Some(problem) = self.drag.as_ref().and_then(|drag| drag.spatial_invalid(state)) {
+            if self.cancel() { out.push(Action::History(4)); }
+            self.notice = Some(problem);
+            return true;
         }
         let styles = list.styles();
         let pose = selected.and_then(|id| Pose::new(state, id, view));
@@ -584,7 +644,7 @@ impl Controls {
                         input.mouse[1] - pivot[1],
                     ])
                 }
-                Handle::Rotate | Handle::Anchor => motion_ui::cursor::Cursor::Crosshair,
+                Handle::Rotate | Handle::Anchor | Handle::Spatial(..) => motion_ui::cursor::Cursor::Crosshair,
             });
         if let Some(seed) = self.pick.take() {
             if seed.valid(state, view) {
@@ -610,18 +670,31 @@ impl Controls {
         };
         if let Some(p) = &pose {
             p.paint(list, hovered);
+            if let Some(frame) = spatial::Frame::new(p, self.tool, &styles) {
+                self.spatial_labels = frame.paint(list, hovered, self.tool == Tool::Scale, p.locked);
+                self.spatial_locked = p.locked;
+            }
         }
         let mut consumed = self.drag.is_some();
         if self.drag.is_none() {
             if let Some((MouseButton::Left, point)) =
                 input.pressed.filter(|(_, p)| clip.contains(*p))
             {
+                if let Some(problem) = spatial::blocked_hit(pose.as_ref(), state, selected, view, point, self.tool, &styles) {
+                    self.notice = Some(problem);
+                    return true;
+                }
                 let seed = Seed::new(point, state, view);
                 if let Some((p, handle)) = pose.clone().and_then(|p| {
                     p.handle(point, self.tool, &styles)
                         .map(|h| (p, h))
                 }) {
                     self.drag = Drag::new(seed, p, handle);
+                    if let Some(drag) = &mut self.drag {
+                        if matches!(handle, Handle::Spatial(..)) {
+                            drag.spatial_context = spatial::context(state, drag.pose.object, handle);
+                        }
+                    }
                     consumed = true;
                 } else {
                     // Picking stays with the backend, including overlap/depth ordering.
@@ -631,6 +704,8 @@ impl Controls {
         }
         if let Some(mut d) = self.drag.take() {
             out.extend(d.commands_with_guides(state, input, snapping, &styles));
+            d.paint_snap_feedback(list, clip);
+            if let Some(problem) = d.notice.take() { self.notice = Some(problem); }
             if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
                 if d.begun {
                     out.push(Action::History(3));

@@ -1,0 +1,7 @@
+
+running 2 tests
+test panels::transform_controls::snap_feedback::tests::feedback_uses_window_tokens_and_only_reached_axes ... ok
+test panels::transform_controls::snap_feedback::tests::move_and_scale_snap_to_other_layer_geometry_with_one_undo_and_alt_bypasses_targets ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1502 filtered out; finished in 5.92s
+

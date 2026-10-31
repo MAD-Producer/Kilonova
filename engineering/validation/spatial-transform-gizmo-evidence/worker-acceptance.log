@@ -1,0 +1,21 @@
+
+running 4 tests
+test panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal ... FAILED
+test panels::transform_controls::spatial::worker_tests::actual_worker_constraints_preserve_other_tracks_and_one_undo_restores_the_full_project ... ok
+test panels::transform_controls::spatial::worker_tests::spatial_context_rejects_lock_hierarchy_camera_mode_and_document_changes_without_followup_edits ... ok
+test panels::transform_controls::spatial::worker_tests::spatial_release_focus_cancel_and_persistence_use_the_existing_preview_history ... ok
+
+failures:
+
+---- panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal stdout ----
+
+thread 'panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal' (41980) panicked at desktop\app\src\panels\transform_controls\spatial\worker_tests.rs:472:5:
+assertion failed: Pose::new(&singular, 7, view).is_none()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 1494 filtered out; finished in 6.23s
+

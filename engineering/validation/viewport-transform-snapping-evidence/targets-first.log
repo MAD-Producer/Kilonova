@@ -1,0 +1,17 @@
+
+running 3 tests
+
+thread 'panels::viewer_guides::snapping::tests::automatic_geometry_keeps_screen_tolerance_and_falls_back_to_integer_pixels' (18220) panicked at desktop\app\src\panels\viewer_guides\snapping\tests.rs:48:9:
+self excluded: [800.0, 700.3701171875]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test panels::viewer_guides::snapping::tests::automatic_geometry_keeps_screen_tolerance_and_falls_back_to_integer_pixels ... FAILED
+test panels::viewer_guides::snapping::tests::explicit_guides_survive_integer_fallback_and_visibility_only_gates_their_own_targets ... ok
+test panels::viewer_guides::snapping::tests::malformed_projected_geometry_is_an_error_but_empty_or_collapsed_geometry_is_normal ... ok
+
+failures:
+
+failures:
+    panels::viewer_guides::snapping::tests::automatic_geometry_keeps_screen_tolerance_and_falls_back_to_integer_pixels
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 1501 filtered out; finished in 0.01s
+

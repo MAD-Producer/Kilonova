@@ -1,0 +1,17 @@
+
+running 12 tests
+test panels::tools::tests::activation_and_shape_cycles_never_create_or_edit_a_layer ... ok
+test panels::tools::tests::actual_nudge_failure_reaches_default_sinks_and_repeat_observation_resets ... ok
+test panels::tools::tests::auxiliary_gestures_cancel_at_native_owner_and_project_context_boundaries ... ok
+test panels::tools::tests::existing_main_and_floating_chrome_use_the_same_tool_owner ... ok
+test panels::tools::tests::hand_zoom_and_middle_override_never_modify_project_or_leave_stale_cursor ... ok
+test panels::tools::tests::layer_nudge_uses_real_host_state_respects_lock_and_undoes_once ... ok
+test panels::tools::tests::native::native_tool_activation_drag_and_created_shapes_use_real_surfaces ... ok
+test panels::tools::tests::observation_camera_tool_uses_existing_orbit_commands_and_disables_on_exit ... ok
+test panels::tools::tests::remapped_viewer_tools_keep_text_property_and_global_shortcuts_separate ... ok
+test panels::tools::tests::shape_commit_uses_dragged_source_geometry_and_is_cancelled_before_release ... ok
+test panels::tools::tests::text_ime_focus_menus_and_repeat_keep_tool_activation_owned ... ok
+test panels::tools::tests::text_tool_opens_existing_dialog_only_on_canvas_press ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 1493 filtered out; finished in 18.03s
+

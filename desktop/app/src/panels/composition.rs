@@ -374,7 +374,11 @@ pub(super) fn render(
         out,
     );
     let consumed = if handles_visible && !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
-        let snapping = panels.viewer_guides.snapping(state, mapping, canvas, &sheet);
+        // Build automatic geometry targets only while an input gesture needs
+        // them; idle paints do not traverse other layers for transform snapping.
+        let snapping = if panels.transform_controls.gesture_active() || input.pressed.is_some() {
+            panels.viewer_guides.transform_snapping(state, mapping, canvas, panels.selected, &sheet)
+        } else { None };
         panels.transform_controls.draw_with_guides(
             &mut editing,
             canvas_clip,
@@ -388,6 +392,10 @@ pub(super) fn render(
     } else {
         consumed
     };
+    if handles_visible && !tool_owned && panels.path_controls.tool == super::path_controls::Tool::Select {
+        panels.transform_controls.paint_spatial_labels(&mut editing, atlas);
+    }
+    if let Some(notice) = panels.transform_controls.take_notice(panels.locale) { panels.message = Some(notice); }
     editing.clip_to(canvas_clip);
     handles.append(editing);
     handles.clip_to(v);

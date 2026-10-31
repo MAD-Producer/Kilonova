@@ -1,0 +1,6 @@
+
+running 1 test
+test panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1504 filtered out; finished in 11.67s
+

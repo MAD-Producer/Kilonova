@@ -1,0 +1,188 @@
+1793418968.717 INFO [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] motion_studio::logging: logging initialized level=INFO
+1793418968.717 INFO [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] motion_studio::engine: worker startup phase=lock root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpt7an7u\project
+1793418968.718 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter started
+1793418968.719 INFO [motion-engine] motion_studio::engine: worker startup phase=session root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpt7an7u\project
+1793418973.648 INFO [motion-engine] motion_studio::engine: worker startup phase=memory session=1
+1793418973.649 INFO [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] motion_studio::engine: worker ready: session=1 root=E:\Dev\aem\artifacts\pr-integration-current\link-tmp\.tmpt7an7u\project 4931ms
+1793418973.649 INFO [motion-engine] motion_studio::engine: start #1 edit
+1793418973.651 INFO [motion-engine] motion_studio::engine: start #2 edit
+1793418973.653 INFO [motion-engine] motion_studio::engine: start #3 edit
+1793418973.654 INFO [motion-engine] motion_studio::engine: start #4 edit
+1793418973.847 ERROR [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win32.json
+1793418973.847 ERROR [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x228b67a7130, name: ?)
+1793418973.847 ERROR [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] wgpu_hal::vulkan::instance: GENERAL [Loader Message (0x0)]
+	loader_get_json: Failed to open JSON file C:\Program Files (x86)\Epic Games\Launcher\Portal\Extras\Overlay\EOSOverlayVkLayer-Win64.json
+1793418973.847 ERROR [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] wgpu_hal::vulkan::instance: 	objects: (type: INSTANCE, hndl: 0x228b67a7130, name: ?)
+1793418973.954 INFO [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] wgpu_hal::vulkan::adapter: Found 6 cooperative matrix configurations supported by wgpu
+1793418974.599 INFO [motion-engine] motion_studio::engine: start #5 attach
+1793418974.701 INFO [motion-engine] motion_studio::engine: start #6 float_window
+1793418974.747 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418974.779 INFO [motion-engine] motion_studio::engine: start #7 state
+1793418974.823 INFO [motion-engine] motion_studio::engine: start #9 capture_ui
+1793418975.020 INFO [motion-engine] motion_studio::engine: start #10 state
+1793418975.023 INFO [motion-engine] motion_studio::engine: start #11 state
+1793418975.026 INFO [motion-engine] motion_studio::engine: start #12 history
+1793418975.029 INFO [motion-engine] motion_studio::engine: start #13 edit
+1793418975.031 INFO [motion-engine] motion_studio::engine: start #14 state
+1793418975.032 INFO [motion-engine] motion_studio::engine: start #15 state
+1793418975.040 INFO [motion-engine] motion_studio::engine: start #17 capture_ui
+1793418975.242 INFO [motion-engine] motion_studio::engine: start #18 state
+1793418975.247 INFO [motion-engine] motion_studio::engine: start #19 history
+1793418975.250 INFO [motion-engine] motion_studio::engine: start #20 history
+1793418975.253 INFO [motion-engine] motion_studio::engine: start #21 state
+1793418975.255 INFO [motion-engine] motion_studio::engine: start #22 state
+1793418975.257 INFO [motion-engine] motion_studio::engine: start #23 history
+1793418975.259 INFO [motion-engine] motion_studio::engine: start #24 edit
+1793418975.260 INFO [motion-engine] motion_studio::engine: start #25 state
+1793418975.263 INFO [motion-engine] motion_studio::engine: start #26 history
+1793418975.264 INFO [motion-engine] motion_studio::engine: start #27 state
+1793418975.293 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418975.342 INFO [motion-engine] motion_studio::engine: start #28 state
+1793418975.363 INFO [motion-engine] motion_studio::engine: start #30 capture_ui
+1793418975.609 INFO [motion-engine] motion_studio::engine: start #31 state
+1793418975.613 INFO [motion-engine] motion_studio::engine: start #32 state
+1793418975.617 INFO [motion-engine] motion_studio::engine: start #33 history
+1793418975.620 INFO [motion-engine] motion_studio::engine: start #34 edit
+1793418975.622 INFO [motion-engine] motion_studio::engine: start #35 state
+1793418975.623 INFO [motion-engine] motion_studio::engine: start #36 state
+1793418975.632 INFO [motion-engine] motion_studio::engine: start #38 capture_ui
+1793418975.852 INFO [motion-engine] motion_studio::engine: start #39 state
+1793418975.857 INFO [motion-engine] motion_studio::engine: start #40 history
+1793418975.860 INFO [motion-engine] motion_studio::engine: start #41 history
+1793418975.863 INFO [motion-engine] motion_studio::engine: start #42 state
+1793418975.867 INFO [motion-engine] motion_studio::engine: start #43 state
+1793418975.871 INFO [motion-engine] motion_studio::engine: start #44 history
+1793418975.872 INFO [motion-engine] motion_studio::engine: start #45 edit
+1793418975.875 INFO [motion-engine] motion_studio::engine: start #46 state
+1793418975.878 INFO [motion-engine] motion_studio::engine: start #47 history
+1793418975.881 INFO [motion-engine] motion_studio::engine: start #48 state
+1793418975.914 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418975.945 INFO [motion-engine] motion_studio::engine: start #49 state
+1793418975.964 INFO [motion-engine] motion_studio::engine: start #51 capture_ui
+1793418976.144 INFO [motion-engine] motion_studio::engine: start #52 state
+1793418976.147 INFO [motion-engine] motion_studio::engine: start #53 state
+1793418976.151 INFO [motion-engine] motion_studio::engine: start #54 history
+1793418976.153 INFO [motion-engine] motion_studio::engine: start #55 edit
+1793418976.155 INFO [motion-engine] motion_studio::engine: start #56 state
+1793418976.156 INFO [motion-engine] motion_studio::engine: start #57 state
+1793418976.160 INFO [motion-engine] motion_studio::engine: start #59 capture_ui
+1793418976.380 INFO [motion-engine] motion_studio::engine: start #60 state
+1793418976.383 INFO [motion-engine] motion_studio::engine: start #61 history
+1793418976.387 INFO [motion-engine] motion_studio::engine: start #62 history
+1793418976.389 INFO [motion-engine] motion_studio::engine: start #63 state
+1793418976.393 INFO [motion-engine] motion_studio::engine: start #64 state
+1793418976.395 INFO [motion-engine] motion_studio::engine: start #65 history
+1793418976.397 INFO [motion-engine] motion_studio::engine: start #66 edit
+1793418976.400 INFO [motion-engine] motion_studio::engine: start #67 state
+1793418976.402 INFO [motion-engine] motion_studio::engine: start #68 history
+1793418976.403 INFO [motion-engine] motion_studio::engine: start #69 state
+1793418976.436 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418976.489 INFO [motion-engine] motion_studio::engine: start #70 state
+1793418976.508 INFO [motion-engine] motion_studio::engine: start #72 capture_ui
+1793418976.698 INFO [motion-engine] motion_studio::engine: start #73 state
+1793418976.703 INFO [motion-engine] motion_studio::engine: start #74 state
+1793418976.707 INFO [motion-engine] motion_studio::engine: start #75 history
+1793418976.711 INFO [motion-engine] motion_studio::engine: start #76 edit
+1793418976.714 INFO [motion-engine] motion_studio::engine: start #77 state
+1793418976.715 INFO [motion-engine] motion_studio::engine: start #78 state
+1793418976.722 INFO [motion-engine] motion_studio::engine: start #80 capture_ui
+1793418976.940 INFO [motion-engine] motion_studio::engine: start #81 state
+1793418976.945 INFO [motion-engine] motion_studio::engine: start #82 history
+1793418976.948 INFO [motion-engine] motion_studio::engine: start #83 history
+1793418976.951 INFO [motion-engine] motion_studio::engine: start #84 state
+1793418976.955 INFO [motion-engine] motion_studio::engine: start #85 state
+1793418976.958 INFO [motion-engine] motion_studio::engine: start #86 history
+1793418976.960 INFO [motion-engine] motion_studio::engine: start #87 edit
+1793418976.961 INFO [motion-engine] motion_studio::engine: start #88 state
+1793418976.964 INFO [motion-engine] motion_studio::engine: start #89 history
+1793418976.965 INFO [motion-engine] motion_studio::engine: start #90 state
+1793418976.995 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418977.026 INFO [motion-engine] motion_studio::engine: start #91 state
+1793418977.036 INFO [motion-engine] motion_studio::engine: start #93 capture_ui
+1793418977.234 INFO [motion-engine] motion_studio::engine: start #94 state
+1793418977.237 INFO [motion-engine] motion_studio::engine: start #95 state
+1793418977.240 INFO [motion-engine] motion_studio::engine: start #96 history
+1793418977.241 INFO [motion-engine] motion_studio::engine: start #97 edit
+1793418977.245 INFO [motion-engine] motion_studio::engine: start #98 state
+1793418977.247 INFO [motion-engine] motion_studio::engine: start #99 state
+1793418977.251 INFO [motion-engine] motion_studio::engine: start #101 capture_ui
+1793418977.466 INFO [motion-engine] motion_studio::engine: start #102 state
+1793418977.469 INFO [motion-engine] motion_studio::engine: start #103 history
+1793418977.472 INFO [motion-engine] motion_studio::engine: start #104 history
+1793418977.475 INFO [motion-engine] motion_studio::engine: start #105 state
+1793418977.477 INFO [motion-engine] motion_studio::engine: start #106 state
+1793418977.479 INFO [motion-engine] motion_studio::engine: start #107 history
+1793418977.480 INFO [motion-engine] motion_studio::engine: start #108 edit
+1793418977.482 INFO [motion-engine] motion_studio::engine: start #109 state
+1793418977.484 INFO [motion-engine] motion_studio::engine: start #110 history
+1793418977.486 INFO [motion-engine] motion_studio::engine: start #111 state
+1793418977.518 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418977.552 INFO [motion-engine] motion_studio::engine: start #112 state
+1793418977.565 INFO [motion-engine] motion_studio::engine: start #114 capture_ui
+1793418977.786 INFO [motion-engine] motion_studio::engine: start #115 state
+1793418977.790 INFO [motion-engine] motion_studio::engine: start #116 state
+1793418977.792 INFO [motion-engine] motion_studio::engine: start #117 history
+1793418977.794 INFO [motion-engine] motion_studio::engine: start #118 edit
+1793418977.796 INFO [motion-engine] motion_studio::engine: start #119 state
+1793418977.797 INFO [motion-engine] motion_studio::engine: start #120 state
+1793418977.802 INFO [motion-engine] motion_studio::engine: start #122 capture_ui
+1793418977.966 INFO [motion-engine] motion_studio::engine: start #123 state
+1793418977.969 INFO [motion-engine] motion_studio::engine: start #124 history
+1793418977.971 INFO [motion-engine] motion_studio::engine: start #125 history
+1793418977.973 INFO [motion-engine] motion_studio::engine: start #126 state
+1793418977.975 INFO [motion-engine] motion_studio::engine: start #127 state
+1793418977.977 INFO [motion-engine] motion_studio::engine: start #128 history
+1793418977.979 INFO [motion-engine] motion_studio::engine: start #129 edit
+1793418977.981 INFO [motion-engine] motion_studio::engine: start #130 state
+1793418977.982 INFO [motion-engine] motion_studio::engine: start #131 history
+1793418977.985 INFO [motion-engine] motion_studio::engine: start #132 state
+1793418978.014 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418978.044 INFO [motion-engine] motion_studio::engine: start #133 state
+1793418978.056 INFO [motion-engine] motion_studio::engine: start #135 capture_ui
+1793418978.241 INFO [motion-engine] motion_studio::engine: start #136 state
+1793418978.244 INFO [motion-engine] motion_studio::engine: start #137 state
+1793418978.249 INFO [motion-engine] motion_studio::engine: start #138 history
+1793418978.251 INFO [motion-engine] motion_studio::engine: start #139 edit
+1793418978.254 INFO [motion-engine] motion_studio::engine: start #140 state
+1793418978.255 INFO [motion-engine] motion_studio::engine: start #141 state
+1793418978.259 INFO [motion-engine] motion_studio::engine: start #143 capture_ui
+1793418978.446 INFO [motion-engine] motion_studio::engine: start #144 state
+1793418978.448 INFO [motion-engine] motion_studio::engine: start #145 history
+1793418978.451 INFO [motion-engine] motion_studio::engine: start #146 history
+1793418978.454 INFO [motion-engine] motion_studio::engine: start #147 state
+1793418978.456 INFO [motion-engine] motion_studio::engine: start #148 state
+1793418978.457 INFO [motion-engine] motion_studio::engine: start #149 history
+1793418978.459 INFO [motion-engine] motion_studio::engine: start #150 edit
+1793418978.461 INFO [motion-engine] motion_studio::engine: start #151 state
+1793418978.462 INFO [motion-engine] motion_studio::engine: start #152 history
+1793418978.463 INFO [motion-engine] motion_studio::engine: start #153 state
+1793418978.494 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] fontdb: Failed to load a font face 0 from 'C:\WINDOWS\Fonts\mstmc.ttf' cause malformed font.
+1793418978.537 INFO [motion-engine] motion_studio::engine: start #154 state
+1793418978.550 INFO [motion-engine] motion_studio::engine: start #156 capture_ui
+1793418978.772 INFO [motion-engine] motion_studio::engine: start #157 state
+1793418978.775 INFO [motion-engine] motion_studio::engine: start #158 state
+1793418978.778 INFO [motion-engine] motion_studio::engine: start #159 history
+1793418978.780 INFO [motion-engine] motion_studio::engine: start #160 edit
+1793418978.783 INFO [motion-engine] motion_studio::engine: start #161 state
+1793418978.784 INFO [motion-engine] motion_studio::engine: start #162 state
+1793418978.792 INFO [motion-engine] motion_studio::engine: start #164 capture_ui
+1793418979.001 INFO [motion-engine] motion_studio::engine: start #165 state
+1793418979.003 INFO [motion-engine] motion_studio::engine: start #166 history
+1793418979.005 INFO [motion-engine] motion_studio::engine: start #167 history
+1793418979.007 INFO [motion-engine] motion_studio::engine: start #168 state
+1793418979.010 INFO [motion-engine] motion_studio::engine: start #169 state
+1793418979.012 INFO [motion-engine] motion_studio::engine: start #170 history
+1793418979.014 INFO [motion-engine] motion_studio::engine: start #171 edit
+1793418979.017 INFO [motion-engine] motion_studio::engine: start #172 state
+1793418979.019 INFO [motion-engine] motion_studio::engine: start #173 history
+1793418979.021 INFO [motion-engine] motion_studio::engine: start #174 state
+1793418979.028 WARN [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] motion_studio::panels::observation: panel degradation site=transform.spatial_drag count=1 object=7 phase=constraint handle=Axis(0) reason=transform projection is not invertible
+1793418979.028 ERROR [panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures] motion_studio::panels::observation: persistent panel degradation site=transform.spatial_drag count=60 object=7 phase=constraint handle=Axis(0) reason=transform projection is not invertible
+1793418979.029 INFO [motion-engine] motion_studio::engine: start #175 close_window
+1793418979.033 INFO [motion-engine] motion_studio::engine: start #176 shutdown
+1793418979.034 INFO [motion-engine] motion_studio::engine: worker shutdown requested: session=1
+1793418979.034 INFO [motion-engine] motion_studio::engine::shutdown: start #177 shutdown_cleanup session=1
+1793418979.055 INFO [motion-engine] motion_studio::engine: worker resources released: session=1
+1793418979.056 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopping reason=channel_closed
+1793418979.056 INFO [motion-diagnostics] motion_studio::diagnostics: diagnostics reporter stopped

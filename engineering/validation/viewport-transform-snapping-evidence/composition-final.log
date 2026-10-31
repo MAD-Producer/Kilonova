@@ -1,0 +1,10 @@
+
+running 5 tests
+test panels::composition::tests::collapsed_viewers_never_submit_a_fabricated_pixel_outside_the_window ... ok
+test panels::composition::tests::hidden_handles_leave_pen_creation_available_and_do_not_toggle_during_its_active_draft ... ok
+test panels::composition::tests::malformed_mapping_is_bounded_visible_and_recovers_at_default_log_level ... ok
+test panels::composition::tests::selection_uses_the_same_zoomed_panned_mapping_as_drawing ... ok
+test panels::composition::tests::wheel_pan_cancel_fit_and_project_switch_emit_no_project_or_camera_commands ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1500 filtered out; finished in 4.79s
+
