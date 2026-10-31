@@ -1,4 +1,5 @@
 use super::*;
+mod foreground_logging;
 mod source_freshness;
 
 fn policy() -> schedule::Policy {

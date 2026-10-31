@@ -102,6 +102,29 @@ impl CompositionFrameCache {
         candidate: NativeCompositionCandidate,
         image: &crate::CapturedImage,
     ) -> Result<bool> {
+        self.install_native_inner(renderer, candidate, image, true)
+    }
+
+    /// Install a native result for use by this renderer's next submission.
+    /// Upload bytes are copied into queue-owned staging before return. The
+    /// destination reservation must survive cache eviction until that actual
+    /// submission retires, or until the renderer flushes uploads on shutdown.
+    pub fn install_native_for_next_submission(
+        &mut self,
+        renderer: &Renderer,
+        candidate: NativeCompositionCandidate,
+        image: &crate::CapturedImage,
+    ) -> Result<bool> {
+        self.install_native_inner(renderer, candidate, image, false)
+    }
+
+    fn install_native_inner(
+        &mut self,
+        renderer: &Renderer,
+        candidate: NativeCompositionCandidate,
+        image: &crate::CapturedImage,
+        flush_upload: bool,
+    ) -> Result<bool> {
         if candidate.key.context != self.context
             || !Arc::ptr_eq(&candidate.epoch, &self.epoch)
             || !self.pending.as_ref().is_some_and(|(reservation, _)| {
@@ -135,14 +158,21 @@ impl CompositionFrameCache {
             self.pending = None;
             return Ok(true);
         }
-        // Prepare a valid submission before queue IO. Track the destination
-        // before write; a later submission/health failure must retain its lease.
-        let encoder = renderer.allocation_command_encoder_for(
-            crate::gpu_commands::CommandStage::Composition,
-            &wgpu::CommandEncoderDescriptor {
-                label: Some("Motion Studio native composition upload"),
-            },
-        )?;
+        // Immediate callers keep their original submission boundary. The live
+        // coordinator can batch the transfer with the next foreground command.
+        // Both routes retain the enrolled destination BEFORE irreversible queue
+        // IO; eviction cannot release its lease while the write is unsubmitted.
+        // AllocationUploads also flushes and retires pending writes on drop.
+        let encoder = if flush_upload {
+            Some(renderer.allocation_command_encoder_for(
+                crate::gpu_commands::CommandStage::Composition,
+                &wgpu::CommandEncoderDescriptor {
+                    label: Some("Motion Studio native composition upload"),
+                },
+            )?)
+        } else {
+            None
+        };
         renderer
             .allocation_uploads
             .track(candidate.target.texture.allocation())?;
@@ -165,13 +195,15 @@ impl CompositionFrameCache {
                 depth_or_array_layers: 1,
             },
         );
-        renderer.submit_allocated(encoder.finish(), |ledger| {
-            candidate.target.collect_texture_resources(
-                ledger,
-                "composition/native_upload",
-                crate::TextureState::Retained,
-            );
-        })?;
+        if let Some(encoder) = encoder {
+            renderer.submit_allocated(encoder.finish(), |ledger| {
+                candidate.target.collect_texture_resources(
+                    ledger,
+                    "composition/native_upload",
+                    crate::TextureState::Retained,
+                );
+            })?;
+        }
         renderer.check_health()?;
         self.pending = None;
         self.entries.push_back(Arc::new(CachedCompositionFrame {
