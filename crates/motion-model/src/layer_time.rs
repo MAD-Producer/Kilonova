@@ -225,7 +225,7 @@ impl LayerClock {
     }
     /// Projection metadata is not a sampling request. Retained local keys can
     /// map far outside the clip, without changing their signed storage identity.
-    pub(crate) fn projected_composition_frame(self, local_frame: f64, offset: i32) -> Result<f64> {
+    pub fn projected_composition_frame(self, local_frame: f64, offset: i32) -> Result<f64> {
         if !local_frame.is_finite() || local_frame < f64::from(i32::MIN) || local_frame > f64::from(i32::MAX) {
             return Err(invalid("key_projection_input", "key time is outside the local storage range"));
         }

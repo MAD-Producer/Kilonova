@@ -4,12 +4,14 @@ use super::{
     types::{ScrubRuler, Tool},
 };
 use std::hash::{Hash, Hasher};
+use motion_core::Axis;
 
 mod row_cache;
 #[cfg(test)]
 mod row_cache_tests;
 
 pub(super) struct Row {
+    pub(super) property_clock: Option<motion_core::layer_time::LayerClock>,
     pub(super) effect_expressions: std::collections::HashSet<(u64,String)>,
     pub(super) spatial: bool,
     pub(super) camera: bool,
@@ -424,6 +426,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .filter(|f| *f >= visible_begin.max(0.) && *f < visible_end.min(f64::from(total)))
                 .collect();
             Row {
+                property_clock: observe!("timeline.property_clock", super::key_selection::property_clock(state, id),
+                    "object={id} phase=row_clock fallback=disable_key_edit").ok(),
                 effect_expressions: state["project"]["expressions"].as_array().into_iter().flatten()
                     .filter_map(|expression| {
                         let target = &expression["target"];
@@ -484,6 +488,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
         rows.insert(
             0,
             Row {
+                property_clock: Some(Default::default()),
                 effect_expressions: Default::default(),
                 spatial: false,
                 camera: true,
@@ -1153,6 +1158,13 @@ pub(super) fn render(
         else if panels.key_gestures.dragging() {&selection_neutral} else {snapped_input.as_ref().unwrap_or(input)};
     if !graph_mode && super::key_selection::ui::selecting_all(panels) {
         for row in &rows {
+            if row.property_clock != Some(Default::default()) {
+                if let Err(error)=observe!("timeline.selection_all",super::timeline_key_drag::select_all_local(panels,state,row),
+                    "object={} phase=select_all_local",row.id) {
+                    super::key_selection::ui::failed(panels,error);
+                }
+                continue;
+            }
             match observe!("timeline.selection_all",super::timeline_key_drag::selection_keys(state,row),"object={} phase=select_all",row.id) {
                 Ok(keys)=>super::key_selection::ui::all(panels,keys.into_values().flatten()),
                 Err(error)=>super::key_selection::ui::failed(panels,error),
@@ -1615,9 +1627,10 @@ pub(super) fn render(
                 }
             }
         }
-        let summary_keys = if !expanded && panels.key_gestures.recording() {
+        let legacy_clock = row.property_clock == Some(Default::default());
+        let summary_keys = if !expanded && legacy_clock && panels.key_gestures.recording() {
             observe!("timeline.summary_selection", super::timeline_key_drag::selection_keys(state, row), "object={} phase=capture", row.id).ok()
-        } else if !expanded && panels.selected_keys.owns_keys() {
+        } else if !expanded && legacy_clock && panels.selected_keys.owns_keys() {
             let mut selected = std::collections::BTreeMap::<u32, Vec<super::key_selection::Key>>::new();
             for selection in panels.selected_keys.selections().into_iter().filter(|s|s.target.object()==row.id) {
                 for frame in selection.frames { selected.entry(frame).or_default().push(super::key_selection::Key { target: selection.target.clone(), frame }); }
@@ -1639,8 +1652,19 @@ pub(super) fn render(
             if let Some(properties) = super::animation_data::timeline(state, row.id).and_then(|t| t["properties"].as_object()) {
                 for (property, name, _, _) in property_descriptors(state["project"]["layers"].as_array().and_then(|layers| layers.iter().find(|l| l["id"] == row.id))) {
                     if let Some(source) = properties.get(name) {
-                        super::key_selection::ui::all_channel(panels, state,
-                            motion_core::KeyframeTarget::Property { object: row.id, property, axis: None }, source);
+                        if row.property_clock.is_some_and(|clock| clock != Default::default()) && !source["spatial_keys"].is_array() {
+                            for axis in [None, Some(Axis::X), Some(Axis::Y), Some(Axis::Z)] {
+                                if let Some(channel) = super::animation_data::channel(state, row.id, property, axis) {
+                                    let target = motion_core::KeyframeTarget::Property { object: row.id, property, axis };
+                                    super::key_selection::ui::all_local_channel(panels, state, target.clone(), channel);
+                                    super::key_selection::ui::local_channel(list, panels, state, target, channel,
+                                        Rect::new(track.min[0], y, track.width(), row_height), ppf, offset);
+                                }
+                            }
+                        } else if legacy_clock {
+                            super::key_selection::ui::all_channel(panels, state,
+                                motion_core::KeyframeTarget::Property { object: row.id, property, axis: None }, source);
+                        }
                         super::key_selection::ui::spatial_channel(list, panels, state,
                             motion_core::KeyframeTarget::Property { object: row.id, property, axis: None }, source,
                             Rect::new(track.min[0], y, track.width(), row_height), ppf, offset);
@@ -2410,6 +2434,7 @@ pub(super) fn render_layer_properties(
             }
             }
             let channel = super::animation_data::channel(state, row.id, property.property, axis);
+            let local_clock = row.property_clock.is_some_and(|clock| clock != Default::default());
             if !graph_mode {
                 if let Some(source) = channel.filter(|s| s["spatial_keys"].is_array()) {
                     let target = motion_core::KeyframeTarget::Property { object: row.id, property: property.property, axis };
@@ -2433,16 +2458,29 @@ pub(super) fn render_layer_properties(
                         },
                     );
                     let hit = list.styles().metric("timeline.key.hit_radius", 5.);
+                    if row.property_clock == Some(Default::default()) {
                     super::key_selection::ui::mark(list, panels, super::key_selection::Key {
                         target: motion_core::KeyframeTarget::Property { object: row.id, property: property.property, axis },
                         frame: *frame as u32,
                     }, [x, py + row_height * 0.5], list.styles().metric("timeline.key.radius", 4.),
                         Rect::new(x - hit, py, hit * 2., row_height));
+                    }
                     if clicked(input, Rect::new(x - hit, py, hit * 2., row_height)) {
                         super::timeline_key_drag::begin(
                             panels, state, row, frame.clamp(0., total - 1.) as u32,
                             Some((property.property, axis)), ppf, offset, input, out,
                         );
+                    }
+                }
+            }
+            if !graph_mode && local_clock && channel.is_none_or(|s| !s["spatial_keys"].is_array()) {
+                for channel_axis in [None, Some(Axis::X), Some(Axis::Y), Some(Axis::Z)] {
+                    if axis.is_some() && axis != channel_axis { continue; }
+                    if let Some(source) = super::animation_data::channel(state, row.id, property.property, channel_axis) {
+                        let target = motion_core::KeyframeTarget::Property { object: row.id, property: property.property, axis: channel_axis };
+                        super::key_selection::ui::all_local_channel(panels, state, target.clone(), source);
+                        super::key_selection::ui::local_channel(list, panels, state, target, source,
+                            Rect::new(track.min[0], py, track.width(), row_height), ppf, offset);
                     }
                 }
             }

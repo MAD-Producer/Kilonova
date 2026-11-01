@@ -303,6 +303,50 @@ pub(in crate::panels) fn all_channel(
     }
 }
 
+pub(in crate::panels) fn local_address(target: &KeyframeTarget, raw: &Value) -> motion_core::Result<(LocalKey, f64)> {
+    let frame = raw["local_frame"].as_i64().and_then(|f| i32::try_from(f).ok())
+        .ok_or_else(|| Error::Invalid("projected key local identity is not i32".into()))?;
+    let time = raw["frame"].as_f64().filter(|t| t.is_finite())
+        .ok_or_else(|| Error::Invalid("projected key composition time is not finite".into()))?;
+    Ok((LocalKey { target: target.clone(), frame }, time))
+}
+pub(in crate::panels) fn all_local_channel(panels: &mut Panels, state: &Value, target: KeyframeTarget, source: &Value) {
+    if !selecting_all(panels) { return; }
+    let Some(keys) = source["keys"].as_array() else {
+        failed(panels, Error::Invalid("projected local key array missing".into())); return;
+    };
+    for raw in keys {
+        match local_address(&target, raw) {
+            Ok((key, time)) if time >= 0. && time < state["project"]["frames"].as_f64().unwrap_or(0.) => {
+                all_addressed(panels, [key.into()]);
+            }
+            Ok(_) => {},
+            Err(error) => { failed(panels, error); return; }
+        }
+    }
+}
+/// The ordinary diamond is painted by its existing lane. This adds only the
+/// existing selection ring, drag ghost and hit registration using local IDs.
+pub(in crate::panels) fn local_channel(
+    list: &mut PaintList, panels: &mut Panels, state: &Value, target: KeyframeTarget,
+    source: &Value, lane: Rect, ppf: f32, offset: f32,
+) {
+    if !panels.key_gestures.recording() && !panels.key_gestures.current && !panels.key_gestures.dragging() { return; }
+    let styles = list.styles();
+    let radius = styles.metric("timeline.key.radius", 4.);
+    let hit = styles.metric("timeline.key.hit_radius", 5.);
+    let Ok(keys) = observe!("timeline.local_key_array", source["keys"].as_array().ok_or("projected local key array missing"),
+        "object={} phase=paint fallback=disable_key_edit", target.object()) else { return; };
+    for raw in keys {
+        let Ok((key, time)) = observe!("timeline.local_key", local_address(&target, raw),
+            "object={} phase=paint fallback=disable_key_edit", target.object()) else { continue; };
+        if time < 0. || time >= state["project"]["frames"].as_f64().unwrap_or(0.) { continue; }
+        let point = [lane.min[0] + (time as f32 - offset) * ppf, lane.min[1] + lane.height() * 0.5];
+        if point[0] < lane.min[0] + radius || point[0] >= lane.max[0] - radius { continue; }
+        local_mark(list, panels, key, point, radius, Rect::new(point[0] - hit, lane.min[1], hit * 2., lane.height()));
+    }
+}
+
 /// Timeline spatial marks join the same hit/marquee stream as frame keys;
 /// they never arm the legacy frame-addressed single-key controller.
 pub(in crate::panels) fn spatial_channel(
@@ -491,7 +535,7 @@ pub(in crate::panels) fn spatial_mark(
     radius: f32,
     hit: Rect,
 ) {
-    addressed_mark(list, panels, AddressedKey::Spatial(key), point, radius, hit);
+    addressed_mark(list, panels, AddressedKey::Spatial(key), point, radius, hit, None);
 }
 pub(in crate::panels) fn local_mark(
     list: &mut PaintList,
@@ -501,7 +545,18 @@ pub(in crate::panels) fn local_mark(
     radius: f32,
     hit: Rect,
 ) {
-    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit);
+    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit, None);
+}
+pub(in crate::panels) fn local_graph_mark(
+    list: &mut PaintList, panels: &mut Panels, key: LocalKey, point: [f32; 2],
+    radius: f32, hit: Rect, component: usize, per_pixel: f32, limits: Option<[f32; 2]>,
+) {
+    if let Some(frame) = &mut panels.key_gestures.frame {
+        if frame.press.is_some_and(|p| hit.contains(p)) && per_pixel.is_finite() && per_pixel > 0. {
+            frame.motion = Some(drag::ValueMotion { target: key.target.clone(), component, per_pixel, limits });
+        }
+    }
+    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit, Some(component));
 }
 fn addressed_mark(
     list: &mut PaintList,
@@ -510,13 +565,14 @@ fn addressed_mark(
     point: [f32; 2],
     radius: f32,
     hit: Rect,
+    component: Option<usize>,
 ) {
     let styles=list.styles();
     if panels.key_gestures.current && panels.selected_keys.contains_addressed(&key) {
         paint::diamond(list,point,radius+styles.metric("border",1.),styles.color("text"));
         paint::diamond(list,point,radius,styles.color("keyframe"));
     }
-    if let Some(ghost)=drag::ghost_addressed(panels,&key,point,None) {
+    if let Some(ghost)=drag::ghost_addressed(panels,&key,point,component) {
         paint::diamond(list,ghost,radius+styles.metric("border",1.),styles.color("focus"));
         paint::diamond(list,ghost,radius,styles.color("keyframe"));
     }
@@ -851,6 +907,19 @@ pub(in crate::panels) fn finish(
             panels.selected_keys.clone()
         };
         chosen.set_primary(primary);
+        if let Some(key) = &chosen.local_primary {
+            let project = || -> motion_core::Result<f64> {
+                let (_, offset) = source::track(state, &key.target)
+                    .ok_or_else(|| Error::Invalid("local key selection channel missing".into()))?;
+                let offset = i32::try_from(offset)
+                    .map_err(|_| Error::Invalid("local key selection clip offset exceeds i32".into()))?;
+                source::clock(state, &key.target)?.projected_composition_frame(f64::from(key.frame), offset)
+            };
+            match project() {
+                Ok(time) => out.push(Action::Seek(time)),
+                Err(error) => { transform::failed(panels, state, error); return; }
+            }
+        }
         if frame.key_body
             && chosen.writable(state)
             && panels.timeline.graph_drag.is_none()

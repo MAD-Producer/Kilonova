@@ -7,6 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 mod movement;
 mod source;
 mod transform;
+pub(super) fn property_clock(state: &Value, object: u64) -> motion_core::Result<motion_core::layer_time::LayerClock> {
+    source::clock(state, &KeyframeTarget::Property { object, property: motion_core::Property::Position, axis: None })
+}
 pub(super) fn authored_track<'a>(
     state: &'a Value,
     target: &KeyframeTarget,
@@ -700,6 +703,8 @@ pub(super) fn shortcut(
     {
         if panels.timeline.graph_mode
             && !panels.animation_controls.foreign_track_selected()
+            && panels.selected.is_some_and(|object| property_clock(state, object)
+                .is_ok_and(|clock| clock == motion_core::layer_time::LayerClock::default()))
             && super::graph_box::select_all(panels, state)
         {
             if let Some(object) = panels.selected {

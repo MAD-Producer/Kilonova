@@ -7,7 +7,7 @@ use motion_core::layer_time::{LayerClock, LayerTimeMapping, TimeDirection, TimeS
 use motion_core::LocalKeyEdit;
 use motion_ui::dock::Panel;
 
-fn mapped(reverse: bool) -> Engine {
+pub(super) fn mapped(reverse: bool) -> Engine {
     let mut p = fixture().snapshot();
     let layer = &mut p.layers[0];
     layer.timeline.as_mut().unwrap().offset_frame = 2;
@@ -297,10 +297,10 @@ fn exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer(
         "popup guard includes exact authored identities"
     );
     assert!(panels.selected_keys.translated(1).is_err());
-    assert!(
-        transform::Plan::capture(&panels.selected_keys, &state(&engine)).is_err(),
-        "pending timing integration cannot publish an empty successful transform"
-    );
+    let plan=transform::Plan::capture(&panels.selected_keys, &state(&engine)).unwrap();
+    assert_eq!(plan.delta_frame(1),1.5);
+    assert!(matches!(plan.commands(1,None,false).unwrap().as_slice(),
+        [Command::LocalKeyframes {edit:LocalKeyEdit::Translate {frames,delta_frame:1,..},..}] if frames==&[13]));
     let mut actions = Vec::new();
     assert!(shortcut(
         &mut panels,
