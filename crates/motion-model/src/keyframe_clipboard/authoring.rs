@@ -233,6 +233,39 @@ pub fn edit(
             "property edit exceeds metadata limit",
         )?;
         let object = target.object();
+        if let KeyframeTarget::Audio { channel, .. } = target {
+            let layer = project
+                .layers
+                .iter()
+                .find(|layer| layer.id == object)
+                .ok_or(Error::Missing(object))?;
+            ensure(
+                matches!(
+                    layer.content,
+                    Content::Audio { .. } | Content::Video { .. } | Content::Composition { .. }
+                ),
+                "audio levels require an audio, video or composition layer",
+            )?;
+            // An absent envelope means unity, just as in AudioLevelsAction.
+            // Construct it off-project so invalid edits cannot publish defaults.
+            let mut next = layer.audio_levels.clone().unwrap_or_default();
+            let track = match channel {
+                crate::AudioChannel::Left => &mut next.left,
+                crate::AudioChannel::Right => &mut next.right,
+            };
+            let value = if let TrackEdit::Set {
+                value: TrackValue::Scalar(value),
+            } = edit
+            {
+                Some(*value)
+            } else {
+                None
+            };
+            *track = edit_track(track, &time, edit, value, false)?;
+            next.validate()?;
+            project.layer_mut(object)?.audio_levels = Some(next);
+            return Ok(());
+        }
         // Clipboard channels require animation capability. Static-only effect
         // parameters still accept value edits through this authoring command.
         if let KeyframeTarget::Effect { effect, param, .. } = target {

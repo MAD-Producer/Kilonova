@@ -156,6 +156,32 @@ pub(super) fn at_playhead(state: &Value, command: Command) -> Command {
             property(*object, *name, *axis),
             TrackEdit::Animate { enabled: *enabled },
         ),
+        Command::AudioLevels { object, action } => {
+            let (channel, edit) = match action {
+                motion_core::AudioLevelsAction::Set {
+                    channel,
+                    value,
+                    animated: None,
+                    ..
+                } => (
+                    *channel,
+                    TrackEdit::Set {
+                        value: TrackValue::Scalar(*value),
+                    },
+                ),
+                motion_core::AudioLevelsAction::Animate {
+                    channel, enabled, ..
+                } => (*channel, TrackEdit::Animate { enabled: *enabled }),
+                _ => return command,
+            };
+            (
+                KeyframeTarget::Audio {
+                    object: *object,
+                    channel,
+                },
+                edit,
+            )
+        }
         Command::Effect { object, action } => {
             let (effect, param, edit) = match action {
                 EffectAction::Set {

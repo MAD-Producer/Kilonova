@@ -4,6 +4,8 @@ use motion_core::{
     TrackEdit, TrackValue,
 };
 use serde_json::{json, Value};
+#[path = "track_at/audio.rs"]
+mod audio;
 
 fn fixture(direction: TimeDirection) -> Engine {
     let mut project = Project::new(64, 64, 30, 60).unwrap();

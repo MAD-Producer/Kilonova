@@ -5,6 +5,7 @@ use motion_ui::icons::Icon;
 use motion_ui::widgets::NumberOptions;
 mod waveform;
 pub(crate) mod monitor;
+mod authoring;
 
 const SILENCE_DB: f64 = -192.;
 fn gain_db(gain: f64) -> f64 {
@@ -60,6 +61,7 @@ impl Control {
 }
 struct Field {
     object: u64,
+    time: Option<super::property_authoring::NumericTime>,
     control: Control,
     rect: Rect,
     number: numeric::Field,
@@ -176,8 +178,12 @@ impl Controls {
             if self.cancel() {
                 out.push(Action::History(4));
             }
+            let Ok(time) = observe!("audio.numeric_time_begin",
+                authoring::numeric_time(state, object, control),
+                "object={object} control={} phase=begin", control as u8) else { return; };
             self.field = Some(Field {
                 object,
+                time,
                 control,
                 rect,
                 number: Default::default(),
@@ -214,7 +220,7 @@ impl Controls {
                         muted: None,
                     }
                 } else {
-                    Command::AudioLevels {
+                    super::property_authoring::at_playhead(state, Command::AudioLevels {
                         object,
                         action: AudioLevelsAction::Set {
                             channel: control.channel(),
@@ -222,7 +228,7 @@ impl Controls {
                             value,
                             animated: None,
                         },
-                    }
+                    })
                 }
             });
             if finished || !field.number.editor.interacting() {
@@ -339,7 +345,7 @@ fn track(layer: &Value, control: Control) -> Track<f32> {
 fn observed_track(layer: &Value, control: Control) -> Result<Track<f32>, serde_json::Error> {
     let value = &layer["audio_levels"][control.name()];
     if value.is_null() { return Ok(Track::constant(0.)); }
-    observe!("audio.level_track", serde_json::from_value(value.clone()), "object={} control={} fallback=zero", layer["id"].as_u64().unwrap_or(0), control.name())
+    observe!("audio.level_track", serde_json::from_value(value.clone()), "object={} control={} phase=deserialize", layer["id"].as_u64().unwrap_or(0), control.name())
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
     let context = (
@@ -348,7 +354,13 @@ pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &m
     );
     let controls = &mut panels.audio_controls;
     let context_changed = controls.context.as_ref() != Some(&context);
+    let time_changed = controls.field.as_ref().is_some_and(|field| {
+        !matches!(observe!("audio.numeric_time_continue",
+            authoring::numeric_time(state, field.object, field.control).map(|time| time == field.time),
+            "object={} control={} phase=continue", field.object, field.control as u8), Ok(true))
+    });
     if context_changed
+        || time_changed
         || controls.field.as_ref().is_some_and(|f| {
             panels.selected != Some(f.object)
                 || state["observing"] == true
@@ -426,13 +438,21 @@ pub(super) fn render_rows(
         let fields = row(list.styles().as_ref(), gutter, py, height);
         panels.audio_controls.selection_probe.record(fields.caption, body);
         let gain = control == Control::Gain;
+        let precise = super::property_authoring::precise(state, object);
+        let parameter = if gain { Track::constant(0.) } else {
+            match observed_track(layer, control) {
+                Ok(track) => track,
+                Err(_) if precise => continue,
+                Err(_) => Track::constant(0.),
+            }
+        };
         let value = if gain {
             gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))
         } else {
             let Some(clock)=owner_row.property_clock else {continue;};
             let Ok(local)=observe!("audio.timeline_time",clock.local_frame(state["frame"].as_f64().unwrap_or(0.),owner_row.mask_offset),
                 "object={object} phase=sample") else {continue;};
-            let Ok(value) = observe!("audio.timeline_sample", track(layer, control).sample(local),
+            let Ok(value) = observe!("audio.timeline_sample", parameter.sample(local),
                 "object={object} channel={} frame={local}", control as u8) else { continue; };
             f64::from(value)
         };
@@ -510,11 +530,17 @@ pub(super) fn render_rows(
             }
             continue;
         }
-        let keys = key_times(&track(layer, control), local_offset, frames);
-        let at = state["frame"].as_f64().unwrap_or(0.);
+        let keys = key_times(&parameter, local_offset, frames);
+        let at = state["frame"].as_f64().unwrap_or(f64::NAN);
         let last = last_frame(state);
-        let adjacent = super::key_navigation::neighbours(keys.iter().map(|frame| f64::from(*frame)), at, last);
-        let editable = enabled && supported && super::key_navigation::editable_frame(at, last).is_some();
+        let (projected, local_key) = if precise {
+            let Ok(navigation) = observe!("audio.rail_times", authoring::navigation(state, object, &parameter),
+                "object={object} channel={} phase=project", control as u8) else {continue;};
+            navigation
+        } else {(keys.iter().map(|frame| f64::from(*frame)).collect(), None)};
+        let adjacent = super::key_navigation::neighbours(projected, at, last);
+        let exact = if precise {local_key.is_some()} else {super::key_navigation::editable_frame(at, last).is_some()};
+        let editable = enabled && supported && exact;
         let navigation = super::key_navigation::rail(&list.styles(), Rect::new(gutter.min[0], py, gutter.width(), height));
         if let Some(choice) = super::key_navigation::draw(list, navigation, input, adjacent, editable) {
             panels.select_only(Some(object));
@@ -523,11 +549,22 @@ pub(super) fn render_rows(
             panels.audio_controls.selection_intent = true;
             match choice {
                 super::key_navigation::Choice::Seek(frame) => {
-                    panels.audio_controls.selection = Some(Selection { object, item: Item::Key(control.channel()), frame: frame as u32 });
+                    if precise {
+                        if observe!("audio.rail_select_navigate", authoring::select(panels, state, object, control.channel(), Some(frame)),
+                            "object={object} phase=navigate").is_err() {continue;}
+                    } else {
+                        panels.audio_controls.selection = Some(Selection { object, item: Item::Key(control.channel()), frame: frame as u32 });
+                    }
                     super::key_navigation::follow(&mut panels.timeline, frames as f64, frame);
                     out.push(Action::Seek(frame));
                 }
                 super::key_navigation::Choice::Toggle => {
+                    if precise {
+                        if observe!("audio.rail_select_toggle", authoring::select(panels, state, object, control.channel(), (!adjacent.current).then_some(at)),
+                            "object={object} phase=toggle").is_err() {continue;}
+                        out.push(Action::Edit(Command::TrackAt {target: motion_core::KeyframeTarget::Audio {object,channel:control.channel()},
+                            frame:at,edit:motion_core::TrackEdit::ToggleKey}));
+                    } else {
                     let action = if adjacent.current {
                         AudioLevelsAction::DeleteKey { channel: control.channel(), frame: current }
                     } else {
@@ -535,10 +572,11 @@ pub(super) fn render_rows(
                     };
                     panels.audio_controls.selection = (!adjacent.current).then_some(Selection { object, item: Item::Key(control.channel()), frame: current });
                     out.push(Action::Edit(Command::AudioLevels { object, action }));
+                    }
                 }
             }
         }
-        let animated = !keys.is_empty();
+        let animated = if precise {parameter.is_animated()} else {!keys.is_empty()};
         super::timeline::property_icon(
             list,
             fields.watch,
@@ -551,14 +589,14 @@ pub(super) fn render_rows(
             panels.audio_controls.active_control = Some(control);
             panels.audio_controls.active_object = Some(object);
             panels.audio_controls.selection_intent = true;
-            out.push(Action::Edit(Command::AudioLevels {
+            out.push(Action::Edit(super::property_authoring::at_playhead(state, Command::AudioLevels {
                 object,
                 action: AudioLevelsAction::Animate {
                     channel: control.channel(),
                     frame: current,
                     enabled: !animated,
                 },
-            }));
+            })));
         }
         let styles=list.styles();
         if key_selection::ui::mapped_lane(list,panels,owner_row,
@@ -1113,11 +1151,16 @@ pub(super) fn shortcut(
                 .active_control
                 .is_none_or(|c| c == control)
             {
-                times.extend(key_times(&track(layer, control), offset, frames));
+                if super::property_authoring::precise(state, object) {
+                    let Ok(track) = observed_track(layer, control) else {return true;};
+                    let Ok(projected) = observe!("audio.navigation_time", authoring::times(state, object, &track),
+                        "object={object} channel={} phase=navigate", control as u8) else {return true;};
+                    times.extend(projected);
+                } else {times.extend(key_times(&track(layer, control), offset, frames).into_iter().map(f64::from));}
             }
         }
-        let now = state["frame"].as_f64().unwrap_or(0.);
-        let adjacent = super::key_navigation::neighbours(times.into_iter().map(f64::from), now, (frames.saturating_sub(1)) as f64);
+        let now = state["frame"].as_f64().unwrap_or(f64::NAN);
+        let adjacent = super::key_navigation::neighbours(times, now, (frames.saturating_sub(1)) as f64);
         let next = if command == Shortcut::NextKey { adjacent.next } else { adjacent.previous };
         if let Some(frame) = next {
             super::key_navigation::follow(&mut panels.timeline, frames as f64, frame);
