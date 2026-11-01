@@ -106,6 +106,23 @@ pub struct Pose {
     pub position: [f64; 3],
     pub orientation_xyzw: [f64; 4],
 }
+impl Pose {
+    pub fn validate(self) -> Result<(), Error> {
+        if self
+            .position
+            .iter()
+            .chain(&self.orientation_xyzw)
+            .any(|v| !v.is_finite())
+        {
+            return Err(error(Cause::NonFinite));
+        }
+        let norm: f64 = self.orientation_xyzw.iter().map(|v| v * v).sum();
+        if !norm.is_finite() || (norm - 1.).abs() > 1e-6 {
+            return Err(error(Cause::Quaternion));
+        }
+        Ok(())
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub enum Observation {
     Point([f64; 2]),
@@ -310,18 +327,7 @@ fn validate_sample(
             if calibration.source() != extent {
                 return Err(error(Cause::CalibrationExtent));
             }
-            if pose
-                .position
-                .iter()
-                .chain(&pose.orientation_xyzw)
-                .any(|v| !v.is_finite())
-            {
-                return Err(error(Cause::NonFinite));
-            }
-            let norm: f64 = pose.orientation_xyzw.iter().map(|v| v * v).sum();
-            if !norm.is_finite() || (norm - 1.).abs() > 1e-6 {
-                return Err(error(Cause::Quaternion));
-            }
+            pose.validate()?;
         }
         _ => return Err(error(Cause::ObservationKind)),
     }

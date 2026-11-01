@@ -5,3 +5,4 @@ pub mod asset;
 pub mod decode;
 pub mod encode;
 pub mod plate;
+pub mod pose;
