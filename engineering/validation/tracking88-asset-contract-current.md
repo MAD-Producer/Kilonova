@@ -4,6 +4,8 @@ Issue [#88](https://github.com/MAD-Producer/Kilonova/issues/88) remains open.
 This increment adds `motion_host::tracking::asset`, a typed CPU validation
 boundary alongside the [calibrated plate foundation](tracking88-plate-foundation-current.md).
 It is not yet a JSON/file importer or a project editing operation.
+The later [JSON decoder increment](tracking88-json-decoder-current.md) adds the
+bounded read boundary; this document retains the original typed-only evidence.
 
 ## Validated semantics
 

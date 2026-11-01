@@ -83,6 +83,18 @@ impl Calibration {
     pub fn source(self) -> Extent {
         self.source
     }
+    pub fn focal(self) -> [f64; 2] {
+        self.focal
+    }
+    pub fn principal(self) -> [f64; 2] {
+        self.principal
+    }
+    pub fn radial(self) -> [f64; 3] {
+        self.radial
+    }
+    pub fn tangential(self) -> [f64; 2] {
+        self.tangential
+    }
 
     /// Project a camera-space point. BehindCamera is a visibility disposition,
     /// not evidence of a failed import. Points outside the image stay outside.
