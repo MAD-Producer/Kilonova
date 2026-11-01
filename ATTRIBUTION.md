@@ -1,5 +1,25 @@
 # 第三方归属说明 / Third-party attribution
 
+## Optional external point and planar tracking prototype
+
+- Authors and revisions: OpenCV team/wheel contributors, separately installed
+  `opencv-python-headless` 5.0.0.93; NumPy Developers, NumPy 2.4.6; FFmpeg
+  developers, explicitly selected local FFmpeg/ffprobe executables whose version
+  output and SHA-256 are recorded in each run
+- Sources: [OpenCV Python](https://github.com/opencv/opencv-python),
+  [NumPy](https://github.com/numpy/numpy), [FFmpeg](https://ffmpeg.org/)
+- Licenses: OpenCV Apache-2.0 plus installed wheel third-party notices; NumPy
+  BSD-3-Clause; FFmpeg licensing follows the selected installation (the desktop
+  shared-runtime installation is separately credited below)
+- Scope: optional developer prototype only, no new product or CI dependency,
+  binary redistribution or upstream source modification. Independently authored
+  orchestration uses documented optical-flow/homography APIs and original PTS;
+  synthetic plates and evaluation geometry are authored within this repository.
+  No tutorial code, photographs, icons or UI assets are copied
+- References: [OpenCV optical flow](https://docs.opencv.org/5.0/tutorials/others/optical_flow.html),
+  [homography](https://docs.opencv.org/4.13.0/d9/d0c/group__calib3d.html),
+  [ffprobe](https://ffmpeg.org/ffprobe.html), [FFmpeg](https://ffmpeg.org/ffmpeg.html)
+
 ## External photographed camera calibration acceptance data
 
 - Authors: OpenCV contributors; the sample photographs are distributed in the
