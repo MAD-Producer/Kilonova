@@ -4,6 +4,7 @@
 //! the entire requested image, rather than assuming a sampled grid cannot fold.
 use super::plate::{Calibration, PlateTransform};
 use crate::{ensure, Error, Result};
+mod certificate;
 
 pub const INVERSE_ITERATIONS: usize = 48;
 const MAX_DERIVATIVE: f64 = 0.45;
@@ -15,6 +16,7 @@ pub struct LensWarp {
     plate: PlateTransform,
     zoom: f64,
     radius: f64,
+    inverse_radius: f64,
     derivative_bound: f64,
     bounds: [f64; 4], // min x/y, max x/y in undistorted composition pixels
 }
@@ -115,7 +117,8 @@ impl LensWarp {
                 domain[i + 2] = domain[i + 2].max(q[i]);
             }
         }
-        let radius = 2. * d + 1e-12;
+        let inverse_radius = d.next_up() + 1e-12 * (1. + d);
+        let radius = 2. * inverse_radius;
         ensure(
             radius.is_finite() && radius <= 10_000.,
             "lens inverse domain exceeds numeric range",
@@ -127,17 +130,28 @@ impl LensWarp {
         // Therefore F=I+g is injective and its inverse is 1/(1-B) Lipschitz.
         // H(q)=d-g(q) maps the radius-R disk to itself since |d|<=R/2
         // and B<0.45. Fixed-point iteration has one bounded, unique limit.
-        let bound = 3. * k1.abs() * r2
+        let initial_bound = 3. * k1.abs() * r2
             + 5. * k2.abs() * r2 * r2
             + 7. * k3.abs() * r2 * r2 * r2
             + 8. * (p1.abs() + p2.abs()) * radius;
-        ensure(bound.is_finite() && bound<MAX_DERIVATIVE,
-            &format!("lens inverse cannot certify a unique domain derivative_bound={bound} limit={MAX_DERIVATIVE} radius={radius}"))?;
+        // The inexpensive triangle bound remains the fast path for weak lenses.
+        // Real calibrated coefficients can cancel substantially. A second proof
+        // bounds the signed radial Jacobian and displacement over whole radial
+        // intervals, and searches a bounded number of smaller enclosing disks.
+        // This is not sampling points for folds or reducing fitted distortion.
+        let (radius, bound) = if initial_bound.is_finite() && initial_bound < MAX_DERIVATIVE {
+            (radius, initial_bound)
+        } else {
+            certificate::enclosing_disk(calibration, inverse_radius).ok_or_else(|| {
+                Error::Invalid(format!("lens inverse cannot certify a unique domain derivative_bound={initial_bound} limit={MAX_DERIVATIVE} radius={radius}"))
+            })?
+        };
         let mut result = Self {
             calibration,
             plate,
             zoom,
             radius,
+            inverse_radius,
             derivative_bound: bound,
             bounds: [0., 0., w, h],
         };
@@ -307,7 +321,7 @@ impl LensWarp {
         )?;
         let d = self.normalized(point)?;
         ensure(
-            d[0].hypot(d[1]) <= self.radius * 0.5,
+            d[0].hypot(d[1]) <= self.inverse_radius,
             "lens inverse point outside certified camera domain",
         )?;
         self.ideal_pixel(self.inverse_normalized(d)?)

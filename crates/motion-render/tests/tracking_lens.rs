@@ -7,12 +7,14 @@ use motion_model::tracking::{lens::LensWarp, plate::*};
 use motion_render::{image_formats, ImageCaptureTarget, LensOutputPipeline, Renderer};
 const W: u32 = 67;
 const H: u32 = 49;
+#[path = "tracking_lens/ownership.rs"]
+mod ownership;
+#[path = "tracking_lens/photographed.rs"]
+mod photographed;
 #[path = "tracking_lens/resources.rs"]
 mod resources;
 #[path = "tracking_lens/routing.rs"]
 mod routing;
-#[path = "tracking_lens/ownership.rs"]
-mod ownership;
 fn contract(precision: ChannelPrecision) -> ImageContract {
     ImageContract::new(
         ImageMeaning::Color {
