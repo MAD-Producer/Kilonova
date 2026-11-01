@@ -19,6 +19,8 @@ use std::{
 
 static NONCE: AtomicU64 = AtomicU64::new(1);
 static WORKERS: AtomicUsize = AtomicUsize::new(0);
+mod candidate;
+pub use candidate::VideoReplacementCandidate;
 pub struct VideoProbe {
     pub asset: VideoAsset,
     pub timestamps: Vec<u64>,
@@ -378,21 +380,21 @@ impl VideoJobs {
         Ok(initial)
     }
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<VideoTaskStatus> {
-        self.commit_target(id, engine, ImportTarget::Layer)
+        self.commit_target(id, engine, ImportTarget::Layer, None)
     }
     /// Keep all existing clips and publish a validated replacement as one edit.
     pub fn replace(&self, id: &str, engine: &mut impl EditSink, asset: u64) -> Result<VideoTaskStatus> {
-        self.commit_target(id, engine, ImportTarget::Replace(asset))
+        self.commit_target(id, engine, ImportTarget::Replace(asset), None)
     }
     /// Register video and linked audio together without creating a timeline clip.
     pub fn register(&self, id: &str, engine: &mut impl EditSink, folder: Option<u64>) -> Result<VideoTaskStatus> {
-        self.commit_target(id, engine, ImportTarget::Library(folder))
+        self.commit_target(id, engine, ImportTarget::Library(folder), None)
     }
-    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: ImportTarget) -> Result<VideoTaskStatus> {
+    fn commit_target(&self, id: &str, engine: &mut impl EditSink, target: ImportTarget, candidate: Option<&VideoReplacementCandidate>) -> Result<VideoTaskStatus> {
         let request: String = id.chars().take(128).collect();
         let observation = crate::task_logging::TaskLog::new(&request, "commit_video");
         observation.start();
-        let result = self.commit_inner(id, engine, target);
+        let result = self.commit_inner(id, engine, target, candidate);
         match &result {
             Ok((status, attempted)) => observation.finish(
                 &status.phase,
@@ -403,7 +405,7 @@ impl VideoJobs {
         result.map(|(status, _)| status)
     }
 
-    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, destination: ImportTarget) -> Result<(VideoTaskStatus, bool)> {
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink, destination: ImportTarget, candidate: Option<&VideoReplacementCandidate>) -> Result<(VideoTaskStatus, bool)> {
         let target = destination.replacement();
         let task = self.task(id)?;
         // Declare owned resources before the guard so unwind releases it first.
@@ -416,6 +418,9 @@ impl VideoJobs {
         }
         if t.status.state != "ready" {
             return Err("video import is not ready".into());
+        }
+        if candidate.is_some_and(|c| !c.matches(&task, &t)) {
+            return Err("verified video replacement candidate was superseded".into());
         }
         p = t.prepared.take().ok_or("prepared video missing")?;
         let mut published = Vec::new();
