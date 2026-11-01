@@ -43,8 +43,8 @@ pub(crate) struct Completion {
     pub state: Option<Value>,
 }
 enum Stage {
-    ReadingCurves(Receiver<Result<super::curves::Read, String>>, Vec<motion_core::KeyframeSelection>),
-    CurveIO(super::curves::Job, super::Stamp, Vec<motion_core::KeyframeSelection>),
+    ReadingCurves(Receiver<Result<super::curves::Read, String>>, Vec<motion_core::KeyframeSelection>, Vec<motion_core::LocalKeyframeSelection>),
+    CurveIO(super::curves::Job, super::Stamp, Vec<motion_core::KeyframeSelection>, Vec<motion_core::LocalKeyframeSelection>),
     ReadingPaths(Receiver<Result<super::PathRead, String>>, Option<motion_core::PathDestination>),
     Reading(Receiver<Result<Read, String>>, PathBuf),
     ReadingKeyframes(
@@ -113,17 +113,19 @@ impl Clipboard {
     pub(crate) fn start_curves(
         &mut self, engine: &Engine, intent: Intent, source: super::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
     ) -> Result<bool, String> {
-        if self.busy() || selections.is_empty() || intent == Intent::Cut { return Ok(false); }
-        let selection = if intent == Intent::Copy {
-            if selections.len() != 1 || selections[0].frames.len() != 1 {
+        if self.busy() || (selections.is_empty() && local_selections.is_empty()) || intent == Intent::Cut { return Ok(false); }
+        let (selection, local_selection) = if intent == Intent::Copy {
+            if selections.len() + local_selections.len() != 1
+                || selections.iter().map(|s| s.frames.len()).chain(local_selections.iter().map(|s| s.frames.len())).sum::<usize>() != 1 {
                 return Err("copy easing requires one source interval".into());
             }
-            Some(selections[0].clone())
-        } else { None };
-        let receive = engine.request(|reply| Command::CurveClipboardRead { source, selection, reply })?;
+            (selections.first().cloned(), local_selections.first().cloned())
+        } else { (None, None) };
+        let receive = engine.request(|reply| Command::CurveClipboardRead { source, selection, local_selection, reply })?;
         self.pending = Some(Pending { domain: Domain::Curves, intent,
-            cancel: Arc::new(AtomicBool::new(false)), stage: Stage::ReadingCurves(receive, selections) });
+            cancel: Arc::new(AtomicBool::new(false)), stage: Stage::ReadingCurves(receive, selections, local_selections) });
         Ok(true)
     }
     pub(crate) fn start(
@@ -227,9 +229,9 @@ impl Clipboard {
             }))
         };
         let stage = match pending.stage {
-            Stage::ReadingCurves(receive, selections) => {
+            Stage::ReadingCurves(receive, selections, local_selections) => {
                 let Some(result) = engine.poll_reply(&receive, "curve_clipboard_read") else {
-                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingCurves(receive, selections) });
+                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::ReadingCurves(receive, selections, local_selections) });
                     return None;
                 };
                 let source = match result { Ok(source) => source, Err(cause) => return Some(Err(cause)) };
@@ -245,15 +247,15 @@ impl Clipboard {
                 log::info!("curve clipboard source phase=validated generation={} revision={} composition={} objects={:?} channels={}",
                     source.stamp.generation, source.stamp.revision,
                     source.stamp.composition.chars().take(128).collect::<String>(),
-                    selections.iter().take(8).map(|s| s.target.object()).collect::<Vec<_>>(), selections.len());
+                    selections.iter().map(|s| s.target.object()).chain(local_selections.iter().map(|s| s.target.object())).take(8).collect::<Vec<_>>(), selections.len() + local_selections.len());
                 match self.curves.submit(work, cancel.clone()) {
-                    Ok(job) => Stage::CurveIO(job, source.stamp, selections),
+                    Ok(job) => Stage::CurveIO(job, source.stamp, selections, local_selections),
                     Err(cause) => return Some(Err(cause)),
                 }
             }
-            Stage::CurveIO(job, stamp, selections) => {
+            Stage::CurveIO(job, stamp, selections, local_selections) => {
                 let Some(result) = job.poll() else {
-                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::CurveIO(job, stamp, selections) });
+                    self.pending = Some(Pending { domain, intent, cancel, stage: Stage::CurveIO(job, stamp, selections, local_selections) });
                     return None;
                 };
                 let result = match result { Ok(value) => value, Err(cause) => return Some(Err(cause)) };
@@ -264,7 +266,7 @@ impl Clipboard {
                     super::curves::Output::Cancelled => return done(Status::Cancelled, None),
                     super::curves::Output::Paste(clipboard) => {
                         if cancelled() { return done(Status::Cancelled, None); }
-                        Stage::Ready(Edit::PasteEasing { stamp, clipboard, selections, cancel: cancel.clone() })
+                        Stage::Ready(Edit::PasteEasing { stamp, clipboard, selections, local_selections, cancel: cancel.clone() })
                     }
                 }
             }

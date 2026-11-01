@@ -9,9 +9,10 @@ impl Shell {
     pub(crate) fn request_curve_clipboard(
         &mut self, intent: Intent, source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
     ) -> Result<(), String> {
         if self.project_modal() || self.closing { return Ok(()); }
-        if self.layer_clipboard.start_curves(&self.engine, intent, source, selections)? {
+        if self.layer_clipboard.start_curves(&self.engine, intent, source, selections, local_selections)? {
             if intent != Intent::Copy { self.stop(); }
             self.panels.message = Some(if self.workspace.locale == crate::i18n::Locale::Zh {
                 "正在读取系统曲线剪贴板…"

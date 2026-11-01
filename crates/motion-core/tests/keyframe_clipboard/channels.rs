@@ -373,7 +373,7 @@ fn easing_clipboard_preserves_nested_vector_effect_and_color_curve_payloads() {
         let mut engine = Engine::new(engine.snapshot()).unwrap();
         let before = engine.snapshot();
         let clipboard = motion_core::CurveClipboard::new(motion_core::Easing { ease: Ease::Out, curve: None }).unwrap();
-        engine.apply(Command::PasteEasing { clipboard: Box::new(clipboard), selections: selected.clone() }).unwrap();
+        engine.apply(Command::PasteEasing { local_selections: vec![], clipboard: Box::new(clipboard), selections: selected.clone() }).unwrap();
         let after = engine.snapshot();
         let mut expected = serde_json::to_value(KeyframeClipboard::capture(&before, &selected).unwrap()).unwrap();
         for track in expected["tracks"].as_array_mut().unwrap() {

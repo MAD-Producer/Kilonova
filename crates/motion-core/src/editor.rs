@@ -220,7 +220,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::TrackAt { target, frame, edit } => motion_model::keyframe_clipboard::authoring::edit(project, &target, frame, &edit)?,
         Command::SpatialKeyframes {target,edit} => motion_model::keyframe_clipboard::spatial::edit(project,&target,&edit)?,
         Command::KeyframeHandle { target, frame, incoming, control } => motion_model::keyframe_clipboard::set_handle(project, &target, frame, incoming, control)?,
-        Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,
+        Command::PasteEasing { clipboard, selections, local_selections } => clipboard.paste_all(project, &selections, &local_selections)?,
         Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
         Command::EaseKeyframes { selections, incoming, outgoing } => motion_model::keyframe_clipboard::ease_keys(project, &selections, incoming, outgoing)?,
         Command::DeleteKeyframes { selections } => motion_model::keyframe_clipboard::delete_keys(project, &selections)?,

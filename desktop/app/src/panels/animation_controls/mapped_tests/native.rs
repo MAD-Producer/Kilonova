@@ -1,4 +1,5 @@
 //! Actual chrome input, serial worker, GPU surfaces and separate-process reopen.
+mod clipboard;
 use super::*;
 use crate::panels::{self, Panel, Panels};
 use std::{

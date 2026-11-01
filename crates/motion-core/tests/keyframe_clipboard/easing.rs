@@ -23,6 +23,38 @@ fn three_keys(mut engine: Engine, targets: &[KeyframeTarget]) -> Engine {
     }
     Engine::new(engine.snapshot()).unwrap()
 }
+
+#[test]
+fn local_easing_preserves_typed_effect_vector_and_color_curve_channels_under_reverse_time() {
+    use motion_core::layer_time::{LayerClock, LayerTimeMapping, TimeDirection, TimeStretch};
+    let mut fixtures=vec![vector_fixture(false),vector_fixture(true)];
+    for effect in ["posterize","curves"] {
+        let (engine,target)=effects_fixture(effect);fixtures.push((engine,vec![target]));
+    }
+    for (engine,targets) in fixtures {
+        let engine=three_keys(engine,&targets);
+        let mut project=engine.snapshot();
+        project.layers[0].time_mapping=Some(LayerTimeMapping {
+            clock:LayerClock::new(TimeStretch::new(3,2).unwrap(),TimeDirection::Reverse,40.,0.).unwrap(),remap:None,
+        });
+        let mut engine=Engine::new(project).unwrap();let before=engine.snapshot();
+        let selections:Vec<_>=targets.iter().cloned().map(|target|motion_core::LocalKeyframeSelection {target,frames:vec![3,13,23]}).collect();
+        let source=motion_core::CurveClipboard::new(Easing {ease:Ease::Out,curve:None}).unwrap();
+        engine.apply(Command::PasteEasing {clipboard:Box::new(source.clone()),selections:vec![],local_selections:selections.clone()}).unwrap();
+        for target in &targets {
+            assert_eq!(motion_core::CurveClipboard::capture_local(engine.project(),&motion_core::LocalKeyframeSelection {target:target.clone(),frames:vec![3]}).unwrap(),source);
+        }
+        let raw=|project:&Project|serde_json::to_value(KeyframeClipboard::capture_mixed(project,&[],&selections).unwrap()).unwrap();
+        let mut expected=raw(&before);
+        for track in expected["tracks"].as_array_mut().unwrap() {
+            for key in track["data"]["keys"].as_array_mut().unwrap().iter_mut().take(2) {
+                key["ease"]="out".into();key.as_object_mut().unwrap().remove("curve");
+            }
+        }
+        assert_eq!(raw(engine.project()),expected);
+        assert!(engine.undo().unwrap());assert_eq!(engine.project(),&before);assert!(!engine.can_undo());
+    }
+}
 fn select(targets: &[KeyframeTarget], frames: &[u32]) -> Vec<KeyframeSelection> {
     targets
         .iter()

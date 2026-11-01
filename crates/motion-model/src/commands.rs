@@ -260,7 +260,9 @@ pub enum Command {
     /// selects the second key's incoming handle; otherwise edit the first key's
     /// outgoing handle. Only that control point and its owner's type change.
     KeyframeHandle { target: crate::KeyframeTarget, frame: u32, incoming: bool, control: [f64; 2] },
-    PasteEasing { clipboard: Box<crate::CurveClipboard>, selections: Vec<crate::KeyframeSelection> },
+    PasteEasing { clipboard: Box<crate::CurveClipboard>, selections: Vec<crate::KeyframeSelection>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        local_selections: Vec<crate::LocalKeyframeSelection> },
     KeyframeTiming { selections: Vec<crate::KeyframeSelection>, settings: crate::keyframe_clipboard::timing::TimingSettings },
     EaseKeyframes { selections: Vec<crate::KeyframeSelection>, incoming: bool, outgoing: bool },
     DeleteKeyframes { selections: Vec<crate::KeyframeSelection> },

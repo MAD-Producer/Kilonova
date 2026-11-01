@@ -5,6 +5,7 @@ use motion_core::{
 };
 use serde_json::json;
 mod native;
+mod clipboard;
 
 fn pointer(point: [f32; 2], pressed: bool, released: bool) -> Input {
     Input {

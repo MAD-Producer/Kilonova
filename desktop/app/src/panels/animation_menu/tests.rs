@@ -67,7 +67,8 @@ fn curve_clipboard_menu_captures_same_explicit_interval_in_both_locales_and_reje
             assert!(enabled(&panels, &state, operation));
             let mut out = Vec::new();
             apply(&mut panels, &state, operation, &mut out);
-            let [Action::CurveClipboard { intent, source, selections }] = out.as_slice() else { panic!("curve clipboard did not capture one action"); };
+            let [Action::CurveClipboard { intent, source, selections, local_selections }] = out.as_slice() else { panic!("curve clipboard did not capture one action"); };
+            assert!(local_selections.is_empty());
             assert_eq!(selections.len(), 1);
             assert_eq!(selections[0].frames, vec![22]);
             captured.push((*intent, source.clone(), selections.clone()));

@@ -593,26 +593,28 @@ impl Controls {
         let paste_rect = Rect::new(start + width * 0.75, *y, width / 4., styles.metric("graph.control.height", 24.));
         #[cfg(test)]
         { self.clipboard_hits = Some([copy_rect, paste_rect]); }
-        let clipboard_frame = if timing.mapped {
-            let projected = keys[selected].composition;
-            (projected >= 0. && projected.fract() == 0. && projected <= u32::MAX as f64).then_some(projected as u32)
-        } else { u32::try_from(selected_frame).ok() };
+        let clipboard_frame = if timing.mapped { None } else { u32::try_from(selected_frame).ok() };
+        let clipboard_local = timing.mapped.then_some(selected_frame).and_then(|frame| i32::try_from(frame).ok());
+        let clipboard_selections = || {
+            let target = motion_core::KeyframeTarget::Property { object, property, axis: self.axis };
+            let selections = clipboard_frame.map(|frame| motion_core::KeyframeSelection { target: target.clone(), frames: vec![frame] }).into_iter().collect();
+            let local_selections = clipboard_local.map(|frame| motion_core::LocalKeyframeSelection { target, frames: vec![frame] }).into_iter().collect();
+            (selections, local_selections)
+        };
         if button(
             list,
             atlas,
             input,
             copy_rect,
             locale.t(T::CopyCurve),
-            clipboard_frame.is_some() && selected + 1 < keys.len() && key_valid
+            (clipboard_frame.is_some() || clipboard_local.is_some()) && selected + 1 < keys.len() && key_valid
                 && !self.clipboard_busy && self.dragging.is_none() && !input.focus_lost && !input.composing && !input.ime_consumed,
         ) {
             out.push(Action::CurveClipboard {
                 intent: crate::layer_clipboard::controller::Intent::Copy,
                 source: crate::layer_clipboard::KeyframeSource::of(state),
-                selections: vec![motion_core::KeyframeSelection {
-                    target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
-                    frames: vec![clipboard_frame.expect("enabled exact clipboard frame")],
-                }],
+                selections: clipboard_selections().0,
+                local_selections: clipboard_selections().1,
             });
         }
         if button(
@@ -621,15 +623,13 @@ impl Controls {
             input,
             paste_rect,
             locale.t(T::PasteCurve),
-            editable && clipboard_frame.is_some() && !self.clipboard_busy && self.dragging.is_none() && !input.focus_lost && !input.composing && !input.ime_consumed,
+            editable && (clipboard_frame.is_some() || clipboard_local.is_some()) && !self.clipboard_busy && self.dragging.is_none() && !input.focus_lost && !input.composing && !input.ime_consumed,
         ) {
             out.push(Action::CurveClipboard {
                 intent: crate::layer_clipboard::controller::Intent::Paste { in_place: true },
                 source: crate::layer_clipboard::KeyframeSource::of(state),
-                selections: vec![motion_core::KeyframeSelection {
-                    target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
-                    frames: vec![clipboard_frame.expect("enabled exact clipboard frame")],
-                }],
+                selections: clipboard_selections().0,
+                local_selections: clipboard_selections().1,
             });
         }
         *y += 30.;

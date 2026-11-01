@@ -150,8 +150,11 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
             && roving::plans(panels,state).commands(enabled).is_some(),
         Operation::TypeStatus => false,
         Operation::CopyEasing => !panels.clipboard_busy && super::keyframe_clipboard::selection(panels, state)
-            .is_some_and(|s| s.selections.len() == 1 && s.selections[0].frames.len() == 1),
-        Operation::PasteEasing => !panels.clipboard_busy && interpolation_selection(panels, state).is_some(),
+            .is_some_and(|s| s.selections.len() + s.local_selections.len() == 1
+                && s.selections.iter().map(|s| s.frames.len()).chain(s.local_selections.iter().map(|s| s.frames.len())).sum::<usize>() == 1),
+        Operation::PasteEasing => !panels.clipboard_busy && super::keyframe_clipboard::selection(panels, state).is_some_and(|s| s.writable
+            && (!s.selections.is_empty() || !s.local_selections.is_empty())
+            && s.selections.iter().all(|s| !s.frames.is_empty()) && s.local_selections.iter().all(|s| !s.frames.is_empty())),
         Operation::CompareCurves => true,
         Operation::Sequence => sequence_plan(panels, state).is_some_and(|edits| !edits.is_empty()),
         Operation::ReverseTime | Operation::LayerTimeSettings => crate::dialogs::layer_time::eligible(state,&panels.selection_ids()),
@@ -218,6 +221,7 @@ pub(super) fn apply(
                     } else { crate::layer_clipboard::controller::Intent::Paste { in_place: true } },
                     source: crate::layer_clipboard::KeyframeSource::of(state),
                     selections: selected.selections,
+                    local_selections: selected.local_selections,
                 });
             }
         }
