@@ -793,8 +793,12 @@ pub(super) fn draw_value(
         panels.properties.field.as_mut().unwrap().rect = r;
     }
     if clicked(input, r) && !locked && !active && !panels.properties.consumed_press {
+        let Ok(time) = observe!("properties.numeric_time_begin",
+            super::property_authoring::NumericTime::read(state, object),
+            "object={object} property={property:?} axis={axis} phase=begin") else { return; };
         panels.properties.field = Some(Field {
             object,
+            time,
             property,
             axis,
             text: (value as f32).to_string(),
@@ -883,6 +887,14 @@ pub(super) fn process_field(
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
+    let current = observe!("properties.numeric_time_continue",
+        super::property_authoring::NumericTime::current(&field.time, state, field.object),
+        "object={} property={:?} axis={} phase=continue", field.object, field.property, field.axis);
+    if !matches!(current, Ok(true)) || field.time.is_some() && panels.selected != Some(field.object) {
+        if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
+        panels.properties.consumed_press = input.pressed.is_some();
+        return;
+    }
     if state["observing"] == true || state["project"]["layers"].as_array().into_iter().flatten()
         .any(|layer| layer["id"].as_u64() == Some(field.object) && layer["locked"] == true) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
@@ -1133,6 +1145,7 @@ mod tests {
             properties: types::PropertiesState {
                 field: Some(Field {
                     object: 7,
+                    time: None,
                     property: Property::Position,
                     axis: 0,
                     text: "10.00".into(),

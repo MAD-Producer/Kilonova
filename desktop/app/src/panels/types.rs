@@ -479,6 +479,7 @@ pub struct EffectSearch {
 
 pub(crate) struct Field {
     pub object: u64,
+    pub time: Option<super::property_authoring::NumericTime>,
     pub property: Property,
     pub axis: usize,
     pub text: String,

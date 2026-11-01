@@ -6,6 +6,7 @@ use motion_core::{
     Ease, Engine, KeyframeTarget, Layer, LayerTimeline, Project, Property, TrackEdit, TrackValue,
 };
 use serde_json::json;
+mod numeric_time;
 
 fn fixture(reverse: bool) -> (Engine, Value) {
     let package = motion_effects::builtin::package().unwrap();

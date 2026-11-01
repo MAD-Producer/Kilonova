@@ -2,6 +2,61 @@
 use motion_core::{Command, EffectAction, Error, KeyframeTarget, Property, TrackEdit, TrackValue};
 use serde_json::Value;
 
+/// A numeric draft belongs to the time and document at pointer-down. Revision
+/// deliberately is not included: the draft's own preview changes it.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NumericTime {
+    root: String,
+    composition: String,
+    generation: u64,
+    clock: motion_core::layer_time::LayerClock,
+    offset: i32,
+    playhead: f64,
+}
+impl NumericTime {
+    pub(super) fn read(state: &Value, object: u64) -> motion_core::Result<Option<Self>> {
+        if !precise(state, object) {
+            return Ok(None);
+        }
+        let identity = |value: Option<&str>| {
+            value
+                .map(str::to_owned)
+                .ok_or_else(|| Error::Invalid("invalid numeric authoring document identity".into()))
+        };
+        let root = identity(state["root"].as_str())?;
+        let composition = identity(
+            state["composition"]
+                .as_str()
+                .or_else(|| state["project"]["composition_id"].as_str()),
+        )?;
+        let generation = state["document_generation"].as_u64().ok_or_else(|| {
+            Error::Invalid("invalid numeric authoring document generation".into())
+        })?;
+        let playhead = state["frame"]
+            .as_f64()
+            .filter(|frame| frame.is_finite())
+            .ok_or_else(|| Error::Invalid("invalid numeric authoring playhead".into()))?;
+        let (clock, offset) = clock(state, object)?;
+        // Also reject invalid mapped time before a gesture is begun.
+        clock.key_edit_time(playhead, offset)?;
+        Ok(Some(Self {
+            root,
+            composition,
+            generation,
+            clock,
+            offset,
+            playhead,
+        }))
+    }
+    pub(super) fn current(
+        captured: &Option<Self>,
+        state: &Value,
+        object: u64,
+    ) -> motion_core::Result<bool> {
+        Ok(captured == &Self::read(state, object)?)
+    }
+}
+
 pub(super) fn precise(state: &Value, object: u64) -> bool {
     state["frame"]
         .as_f64()

@@ -129,6 +129,7 @@ struct EffectContextMenu {
 struct Field {
     owner: Option<motion_ui::dock::Panel>,
     object: u64,
+    time: Option<super::property_authoring::NumericTime>,
     effect: u64,
     param: String,
     component: usize,
@@ -274,6 +275,7 @@ impl Controls {
             && f.number.editor.text.active()
             && input.pressed.is_some_and(|(b,p)| b == MouseButton::Left && !f.rect.contains(p))) else { return false; };
         let (object,effect,param,component) = (field.object,field.effect,field.param.clone(),field.component);
+        if self.cancel_stale_numeric(state, out) { return false; }
         let layer = state["project"]["layers"].as_array().into_iter().flatten()
             .find(|l| l["id"].as_u64() == Some(object));
         let parameter = layer.filter(|l| l["locked"] != true && state["observing"] != true)
@@ -303,6 +305,19 @@ impl Controls {
         });
         if finished || !field.number.editor.interacting() { self.field=None; }
         self.field.is_some()
+    }
+    /// A superseded draft is a normal cancellation, not a failed command.
+    fn cancel_stale_numeric(&mut self, state: &Value, out: &mut Vec<Action>) -> bool {
+        let Some(field) = self.field.as_ref() else { return false; };
+        let current = observe!("effects.numeric_time_continue",
+            super::property_authoring::NumericTime::current(&field.time, state, field.object),
+            "object={} effect={} parameter={} component={} phase=continue",
+            field.object, field.effect, field.param, field.component);
+        if matches!(current, Ok(true)) { return false; }
+        if self.field.take().is_some_and(|mut field| field.number.cancel()) {
+            out.push(Action::History(4));
+        }
+        true
     }
     fn report_invalid_effect_id(&mut self, object: u64, index: usize) {
         let previous = self.invalid_effect_ids;
@@ -995,6 +1010,7 @@ impl Controls {
                 if self.cancel() { out.push(Action::History(4)); }
                 return;
             };
+        let input = if self.cancel_stale_numeric(state, out) { &neutral } else { input };
         if self.field.as_ref().is_some_and(|f| {
             f.object != object || locked
                 || !layer["effects"].as_array().into_iter().flatten()
@@ -2309,9 +2325,13 @@ impl Controls {
             if self.field.take().is_some_and(|mut f| f.number.cancel()) {
                 out.push(Action::History(4));
             }
+            let Ok(time) = observe!("effects.numeric_time_begin",
+                super::property_authoring::NumericTime::read(state, object),
+                "object={object} effect={effect} parameter={param} component={component} phase=begin") else { return; };
             self.field = Some(Field {
                 owner: self.context_window,
                 object,
+                time,
                 effect,
                 param: param.into(),
                 component,

@@ -2062,6 +2062,7 @@ mod tests {
                 properties: types::PropertiesState {
                     field: Some(Field {
                         object: 1,
+                        time: None,
                         property: Property::Position,
                         axis: 0,
                         text: "123".into(),
