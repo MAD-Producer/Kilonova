@@ -17,7 +17,7 @@ gpu-tests = []
 # advertises it, so an acceptance build on either platform reports the same key.
 diagnostics = []
 # Optional desktop inference orchestration; no inference engine enters model/render.
-ai-depth = ["dep:motion-model", "dep:tempfile", "dep:sha2"]
+ai-depth = ["dep:motion-model", "dep:tempfile"]
 
 [dependencies]
 thiserror.workspace = true
@@ -29,7 +29,7 @@ motion-media = { path = "../motion-media" }
 motion-scene = { path = "../motion-scene" }
 motion-model = { path = "../motion-model", optional = true }
 tempfile = { version = "3", optional = true }
-sha2 = { version = "0.10", optional = true }
+sha2 = "0.10"
 serde.workspace = true
 # Preserve imported f64 calibration/pose values when the host is built alone.
 serde_json = { workspace = true, features = ["float_roundtrip"] }
@@ -42,7 +42,6 @@ raw-window-handle = "0.6"
 
 [dev-dependencies]
 tempfile = "3"
-sha2 = "0.10"
 
 [target.'cfg(windows)'.dev-dependencies]
 winit = "0.30"

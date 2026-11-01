@@ -48,3 +48,13 @@ manual-correction policies; history/save/reopen/relink/invalidation; rendered
 synthetic and calibrated real-footage/lens-replacement controls; latest-main
 integration, complete regression and exact-head CI. Full 3D solving remains a
 separate later stage. No #82 failed performance result is retried or reclassified.
+
+## Subsequent original-source verification increment
+
+The [original-byte verification boundary](tracking88-original-source-current.md)
+now passes all 66 tracking controls, including the unchanged 56 above. Its later
+full host gate failed: 178 passed and one preview-pressure child-process access
+violation. The original Windows events and exact binary/PDB are retained. Two
+same-binary child diagnostics passed but do not explain the crash. This earlier
+169-test success does not qualify that later source; complete regression remains
+pending. Source verification still needs project import/relink integration.

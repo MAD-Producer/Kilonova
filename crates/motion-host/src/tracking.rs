@@ -7,3 +7,4 @@ pub mod encode;
 pub mod plate;
 pub mod pose;
 pub mod time;
+pub mod source;
