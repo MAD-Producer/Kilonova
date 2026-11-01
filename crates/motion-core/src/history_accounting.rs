@@ -228,6 +228,7 @@ impl ProjectSize {
             ("library", counted(&project.library)),
             ("assets", counted(&project.assets)),
             ("model_assets", counted(&project.model_assets)),
+            ("tracking_assets", counted(&project.tracking_assets)),
             ("fonts", counted(&project.fonts)),
             ("audio_assets", counted(&project.audio_assets)),
             ("video_assets", counted(&project.video_assets)),

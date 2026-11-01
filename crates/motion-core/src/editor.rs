@@ -748,6 +748,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         }
         Command::RegisterAsset { asset } => project.assets.push(asset),
         Command::RegisterModelAsset { asset } => project.model_assets.push(asset),
+        Command::RegisterTrackingAsset { asset } => project.tracking_assets.push(asset),
         Command::RegisterFontAsset { asset } => project.fonts.push(asset),
         Command::Content {
             object,

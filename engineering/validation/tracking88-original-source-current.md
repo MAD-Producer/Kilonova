@@ -77,3 +77,16 @@ conversion provenance; #85/#86 project integration; camera/object/parent/indepen
 pose bindings; gap/manual policies; history/save/reopen/relink/invalidation; rendered
 synthetic and calibrated real-footage/lens-replacement controls remain pending.
 This is not a tracker or a complete 3D camera solver, and does not resolve #82 P95.
+
+## Subsequent managed project attachment increment
+
+The [managed attachment completion record](tracking88-project-attachments-current.md)
+now covers original-document project/history/save/reopen/package integration and
+shared resource-ID admission. Final controls passed 78 tracking tests, 191 host
+unit tests, 99 media unit tests, 23 affected clipboard/preset tests and desktop/
+ai-depth compile checks. Earlier V1 full model/core regression passed 639 tests
+with one original ignore; it is not an exact final-source full-workspace claim.
+The original shared-ID negative failed as intended before the correction. Previous
+native AV and #82 performance failures remain retained and unexplained/unfixed.
+Actual import publication/routing, decoded source identity, pose evaluation,
+relink/invalidation, rendered footage and exact-head CI remain pending for #88.

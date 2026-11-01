@@ -58,3 +58,16 @@ violation. The original Windows events and exact binary/PDB are retained. Two
 same-binary child diagnostics passed but do not explain the crash. This earlier
 169-test success does not qualify that later source; complete regression remains
 pending. Source verification still needs project import/relink integration.
+
+## Subsequent managed project attachment increment
+
+The [managed attachment completion record](tracking88-project-attachments-current.md)
+now covers original-document project/history/save/reopen/package integration and
+shared resource-ID admission. Final controls passed 78 tracking tests, 191 host
+unit tests, 99 media unit tests, 23 affected clipboard/preset tests and desktop/
+ai-depth compile checks. Earlier V1 full model/core regression passed 639 tests
+with one original ignore; it is not an exact final-source full-workspace claim.
+The original shared-ID negative failed as intended before the correction. Previous
+native AV and #82 performance failures remain retained and unexplained/unfixed.
+Actual import publication/routing, decoded source identity, pose evaluation,
+relink/invalidation, rendered footage and exact-head CI remain pending for #88.

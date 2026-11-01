@@ -184,6 +184,9 @@ pub enum Command {
     RegisterModelAsset {
         asset: crate::ModelAsset,
     },
+    RegisterTrackingAsset {
+        asset: crate::TrackingAsset,
+    },
     RegisterFontAsset {
         asset: crate::FontAsset,
     },
@@ -329,6 +332,7 @@ impl Command {
             Self::InComposition { command, .. } => command.changes_resources(),
             Self::RegisterAsset { .. }
             | Self::RegisterModelAsset { .. }
+            | Self::RegisterTrackingAsset { .. }
             | Self::RegisterAudioAsset { .. }
             | Self::RegisterVideoAsset { .. }
             | Self::MediaAsset { .. }

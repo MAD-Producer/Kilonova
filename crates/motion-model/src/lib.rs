@@ -29,6 +29,8 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
+pub mod tracking_assets;
+pub use tracking_assets::{TrackingAsset, TrackingFormat};
 pub mod node_resources;
 pub use node_resources::{NodeResource, NodeImageReference};
 pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
@@ -195,6 +197,13 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("node resource phase={phase} path={path} cause={source}")]
     NodeResourceIo {
+        phase: &'static str,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("tracking resource phase={phase} path={path} cause={source}")]
+    TrackingResourceIo {
         phase: &'static str,
         path: String,
         #[source]

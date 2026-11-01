@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 31;
+pub const CURRENT_PROJECT_VERSION: u32 = 32;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -310,6 +310,8 @@ pub struct Project {
     pub background: [f32; 4],
     pub assets: Vec<Asset>,
     pub model_assets: Vec<crate::ModelAsset>,
+    /// Original solve attachments are shared across compositions and retained for undo.
+    pub tracking_assets: Vec<crate::TrackingAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fonts: Vec<FontAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -343,6 +345,7 @@ impl Project {
             background: [0.05, 0.06, 0.09, 1.0],
             assets: Vec::new(),
             model_assets: Vec::new(),
+            tracking_assets: Vec::new(),
             fonts: Vec::new(),
             audio_assets: Vec::new(),
             video_assets: Vec::new(),
@@ -446,6 +449,14 @@ impl Project {
         for asset in &self.model_assets {
             ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
             asset.validate()?;
+        }
+        ensure(self.tracking_assets.len() <= crate::tracking_assets::MAX_TRACKING_ASSETS,
+            "tracking asset limit exceeded")?;
+        for asset in &self.tracking_assets {
+            asset.validate()?;
+            ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
+            ensure(crate::media_assets::lookup(document, asset.source).is_some(),
+                "tracking source media is missing")?;
         }
         for camera in std::iter::once(&self.camera)
             .chain(self.layers.iter().filter_map(Layer::camera_data)) {
