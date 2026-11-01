@@ -119,6 +119,7 @@ pub struct Scene {
     depth_pending: std::collections::HashSet<u64>,
     pub(crate) shared_rasters: std::collections::HashSet<u64>,
     node_cameras: Vec<Option<motion_model::CameraSample>>,
+    node_camera_errors: Vec<Option<std::sync::Arc<motion_model::Error>>>,
     pub layers: Vec<DrawLayer>,
     pub background: [f32; 4],
     pub width: u32,
@@ -190,7 +191,7 @@ impl Scene {
     /// Create an empty, unsampled context. Imported cameras require a catalog
     /// before `sample`; the initial empty pose is never a source-camera fallback.
     pub fn new(project: &Project) -> motion_model::Result<Self> {
-        let initial = if project.camera.imported.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
+        let initial = if project.camera.imported.is_some() || project.camera.tracking.is_some() { motion_model::Camera::new(project.width, project.height).pose(0., project.width, project.height)? } else { project.camera.pose(0., project.width, project.height)? };
         Ok(Self::empty(initial, project.background,
             project.width, project.height, project.fps, project.composition_id.clone()))
     }
@@ -198,7 +199,7 @@ impl Scene {
     /// Install source ownership and sample before using it for content rendering.
     pub fn for_composition(project: &Project, id: &str) -> motion_model::Result<Self> {
         let view = project.composition_view(id)?;
-        let initial = if view.camera.imported.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
+        let initial = if view.camera.imported.is_some() || view.camera.tracking.is_some() { motion_model::Camera::new(view.width, view.height).pose(0., view.width, view.height)? } else { view.camera.pose(0., view.width, view.height)? };
         Ok(Self::empty(initial, view.background,
             view.width, view.height, view.fps, view.id.to_owned()))
     }
@@ -245,6 +246,7 @@ impl Scene {
             depth_pending: Default::default(),
             shared_rasters: Default::default(),
             node_cameras: Vec::new(),
+            node_camera_errors: Vec::new(),
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
             background,
             width,
@@ -436,8 +438,8 @@ impl Scene {
             }
         }
         self.effects.truncate(effect_index);
-        motion_model::hierarchy::matrices_with_cameras(project, frame, &mut self.node_world,
-            &mut self.node_states, &self.model_sources, &mut self.node_cameras)?;
+        motion_model::hierarchy::matrices_for_scene(project, frame, &mut self.node_world,
+            &mut self.node_states, &self.model_sources, &mut self.node_cameras,&mut self.node_camera_errors)?;
         self.node_ids.clear();
         self.node_ids.extend(project.layers.iter().map(|l| l.id));
         self.node_ids.push(0);
@@ -753,7 +755,7 @@ impl Scene {
         self.evaluated_project.as_deref().unwrap_or(original)
     }
     pub fn node_position(&self, id: u64) -> Option<[f32; 3]> {
-        self.node_ids.iter().position(|v| *v == id).map(|i| {
+        self.node_ids.iter().position(|v| *v == id).filter(|i|self.node_states[*i]==2).map(|i| {
             motion_model::to_project(
                 self.node_world[i].w_axis.truncate(),
                 self.width,
@@ -765,6 +767,7 @@ impl Scene {
         self.node_ids
             .iter()
             .position(|v| *v == id)
+            .filter(|i|self.node_states[*i]==2)
             .map(|i| self.node_world[i])
     }
     pub fn project_point(&self, point: [f32; 3]) -> [f32; 3] {

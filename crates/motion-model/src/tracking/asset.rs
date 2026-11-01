@@ -101,7 +101,8 @@ pub enum Coordinates {
 
 /// Camera-to-world transform, quaternion XYZW; translation uses the asset's
 /// declared world unit. No automatic normalization or keyframe baking occurs.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Pose {
     pub position: [f64; 3],
     pub orientation_xyzw: [f64; 4],

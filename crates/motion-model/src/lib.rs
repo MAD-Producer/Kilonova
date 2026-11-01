@@ -95,6 +95,12 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("viewer_camera object={object} phase=selection: {source}")]
+    CameraResolution { object:u64,#[source] source:std::sync::Arc<Error> },
+    #[error("tracking_camera phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingCameraBinding { object:u64,asset:u64,track:String,#[source] source:Box<Error> },
+    #[error("tracking_camera phase=sample object={object} asset={asset} track={track} local_frame={local_frame}: {source}")]
+    TrackingCamera { object:u64,asset:u64,track:String,local_frame:f64,#[source] source:Box<Error> },
     #[error("tracking_plane phase=binding object={object} asset={asset} track={track}: {source}")]
     TrackingPlaneBinding { object:u64, asset:u64, track:String, #[source] source:Box<Error> },
     #[error("tracking_plane phase=sample object={object} asset={asset} track={track} frame={frame}: {source}")]

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 34;
+pub const CURRENT_PROJECT_VERSION: u32 = 35;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -477,8 +477,13 @@ impl Project {
             };
             ensure(asset.data.source_extent.pixels() == extent, "tracking source extent differs from runtime data")?;
         }
-        for camera in std::iter::once(&self.camera)
-            .chain(self.layers.iter().filter_map(Layer::camera_data)) {
+        for (object,camera) in std::iter::once((0,&self.camera))
+            .chain(self.layers.iter().filter_map(|l|l.camera_data().map(|camera|(l.id,camera)))) {
+            if let Some(binding)=&camera.tracking {
+                binding.validate(self,camera).map_err(|source|crate::Error::TrackingCameraBinding {
+                    object,asset:binding.asset,track:binding.track.chars().filter(|c|!c.is_control()).take(128).collect(),source:Box::new(source),
+                })?;
+            }
             if let Some(imported) = &camera.imported {
                 ensure(self.model_assets.iter().any(|a| a.id == imported.asset),
                     "imported camera model asset missing")?;

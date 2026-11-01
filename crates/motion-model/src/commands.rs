@@ -18,6 +18,10 @@ fn deserialize_plane_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
     -> std::result::Result<Option<crate::tracking::plane::PlaneBinding>, D::Error> {
     Option::<crate::tracking::plane::PlaneBinding>::deserialize(deserializer)
 }
+fn deserialize_tracking_camera_binding<'de,D:serde::Deserializer<'de>>(deserializer:D)
+    -> std::result::Result<Option<crate::tracking::camera::CameraBinding>,D::Error> {
+    Option::<crate::tracking::camera::CameraBinding>::deserialize(deserializer)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -44,6 +48,7 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetTrackingCamera {object:u64,#[serde(deserialize_with="deserialize_tracking_camera_binding")] binding:Option<crate::tracking::camera::CameraBinding>},
     SetTrackingPlane { object:u64, #[serde(deserialize_with="deserialize_plane_binding")] binding:Option<crate::tracking::plane::PlaneBinding> },
     SetTrackingPoint {
         object: u64,

@@ -137,6 +137,27 @@ fn named_schema(kind: &str) -> (bool, Value) {
                     "interpolation":{"type":"string","enum":["hold","linear"]},"max_gap_ticks":{"type":"integer","minimum":0},
                     "minimum_confidence":{"type":"number","minimum":0,"maximum":1},"missing":{"type":"string","enum":["error","authored_only"]}
                 }}),
+            "CameraBinding" => json!({"type":"object","additionalProperties":false,
+                "description":"Original-PTS calibrated camera with canonical right/down/forward source camera axes, explicit source-world basis and world units; authored pose/FOV tracks are independent corrections relative to the saved reference",
+                "required":["asset","track","anchor_local_frame","source_anchor_pts","speed_numerator","speed_denominator","world_basis","target_meters_per_unit","target_origin","correction_reference","crop","rotation","near","far","interpolation","max_gap_ticks","minimum_confidence","missing"],
+                "properties":{
+                    "asset":{"type":"integer","minimum":1},"track":{"type":"string","minLength":1,"maxLength":128},
+                    "anchor_local_frame":{"type":"integer","minimum":-36000,"maximum":36000},"source_anchor_pts":{"type":"integer"},
+                    "speed_numerator":{"type":"integer","minimum":-1000000,"maximum":1000000},"speed_denominator":{"type":"integer","minimum":1,"maximum":1000000},
+                    "world_basis":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"integer","enum":[-3,-2,-1,1,2,3]}},
+                    "target_meters_per_unit":{"type":"number","exclusiveMinimum":0},
+                    "target_origin":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10000000,"maximum":10000000}},
+                    "correction_reference":{"type":"object","additionalProperties":false,"required":["world","vertical_fov_degrees"],"properties":{
+                        "world":{"type":"object","additionalProperties":false,"required":["position","orientation_xyzw"],"properties":{
+                            "position":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10000000,"maximum":10000000}},
+                            "orientation_xyzw":{"type":"array","minItems":4,"maxItems":4,"items":{"type":"number","minimum":-1,"maximum":1}}}},
+                        "vertical_fov_degrees":{"type":"number","minimum":10,"maximum":120}}},
+                    "crop":{"type":"array","minItems":4,"maxItems":4,"items":{"type":"number"}},
+                    "rotation":{"type":"string","enum":["none","clockwise90","half_turn","clockwise270"]},
+                    "near":{"type":"number","minimum":0.000001},"far":{"type":"number","maximum":1000000000},
+                    "interpolation":{"type":"string","enum":["hold","linear"]},"max_gap_ticks":{"type":"integer","minimum":0},
+                    "minimum_confidence":{"type":"number","minimum":0,"maximum":1},"missing":{"type":"string","enum":["error","authored_only"]}
+                }}),
             "ParentMode" => json!({"type":"string","enum":["preserve_world","preserve_local"]}),
             "crate::compositing::BlendMode" => {
                 json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
@@ -178,6 +199,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
         input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
+    Command::SetTrackingCamera { .. } => "set_tracking_camera" [("object","u64",true),("binding","Option<CameraBinding>",true)];
     Command::ApplyAnimationPreset { .. } => "apply_animation_preset" [("preset","AnimationPreset",true),("objects","Vec<u64>",true),("at_frame","u32",true)];
     Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
     Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];

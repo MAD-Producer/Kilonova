@@ -908,6 +908,9 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             if let Some(binding) = &binding { binding.validate()?; }
             project.camera_for_mut(object)?.imported = binding;
         }
+        Command::SetTrackingCamera {object,binding} => {
+            project.camera_for_mut(object)?.tracking=binding;
+        }
         Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
             valid_frame(frame)?;
             let lens = motion_model::lens::Lens::from_focal_length(

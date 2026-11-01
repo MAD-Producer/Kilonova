@@ -101,6 +101,7 @@ impl Changes {
             Command::KeyframeHandle { target, .. } | Command::SpatialKeyframes {target,..} => target.object(),
             Command::DepthCalibration { object, .. } | Command::VideoDepthCalibration { object, .. } => *object,
             Command::CameraMode { object, .. }
+            | Command::SetTrackingCamera {object,..}
             | Command::CameraImported { object, .. }
             | Command::CameraLens { object, .. }
             | Command::Dolly { object, .. }

@@ -9,3 +9,4 @@ pub mod pose;
 pub mod shared;
 pub mod time;
 pub mod plane;
+pub mod camera;
