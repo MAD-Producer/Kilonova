@@ -216,3 +216,60 @@ fn kinds_do_not_coerce_observations_or_ignore_unrelated_reference_fields() {
     a.tracks[0].reference_index = Some(0);
     assert_eq!(cause(&a), Cause::PlaneReference);
 }
+
+#[test]
+fn large_valid_pixel_translations_do_not_look_like_singular_homographies() {
+    let mut a = asset();
+    for shift in [8192., 16384., 32768.] {
+        for scale in [1e-200, 1., 1e200, -1.] {
+            let matrix = [
+                [scale, 0., shift * scale],
+                [0., scale, -shift * scale],
+                [0., 0., scale],
+            ];
+            plane(&mut a, matrix);
+            assert!(
+                a.validate().is_ok(),
+                "valid source-pixel translation must remain importable shift={shift} scale={scale}"
+            );
+            assert!(
+                matches!(a.tracks[0].samples[0].observation,Some(Observation::Plane(value)) if value==matrix)
+            );
+        }
+    }
+}
+#[test]
+fn nearly_collapsed_axes_remain_rejected_under_explicit_condition_bound() {
+    let mut a = asset();
+    for scale in [1e-200, 1., 1e200] {
+        plane(
+            &mut a,
+            [[scale, 0., 0.], [0., scale, 0.], [0., 0., 1e-15 * scale]],
+        );
+        assert_eq!(cause(&a), Cause::PlaneCondition);
+        plane(
+            &mut a,
+            [
+                [scale, scale, 0.],
+                [scale, 1.000000000000001 * scale, 0.],
+                [0., 0., scale],
+            ],
+        );
+        assert_eq!(cause(&a), Cause::PlaneCondition);
+    }
+}
+#[test]
+fn invertible_ordinary_pixel_affine_and_perspective_maps_are_retained() {
+    let mut a = asset();
+    for matrix in [
+        [[0., -1., 16000.], [1., 0., 12000.], [0., 0., 1.]],
+        [[1., 0.25, 16000.], [-0.1, 1., 8000.], [0., 0., 1.]],
+        [[1., 0., 4000.], [0., 1., 2000.], [0.00001, -0.00002, 1.]],
+    ] {
+        plane(&mut a, matrix);
+        assert!(
+            a.validate().is_ok(),
+            "finite ordinary plane mapping must remain importable: {matrix:?}"
+        );
+    }
+}

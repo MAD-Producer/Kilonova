@@ -101,3 +101,13 @@ invalidation remain required. Actual rendered synthetic-camera round-trip,
 calibrated real footage and lens-replacement goldens remain pending. Prerequisite
 #85/#86 integration and exact-head Cargo/full regression/CI remain pending; full
 3D camera solving remains a later stage as specified by the issue.
+
+## Subsequent host qualification
+
+[Fresh host integration](tracking88-host-integration-current.md) now establishes
+actual host check plus all 44 pose-stage tests, all 47 plane-stage tests, all 56
+time-stage tests and all 169 host unit tests. An earlier command reused a stale
+35-test binary and correctly failed its coverage guard; this is retained rather
+than counted as 44-test coverage. Exact source-time lookup is now implemented as
+a helper; project binding, rendered footage, full regression and exact-head CI
+remain pending. This does not complete issue #88.

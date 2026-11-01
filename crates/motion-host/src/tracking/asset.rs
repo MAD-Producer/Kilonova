@@ -313,7 +313,35 @@ fn validate_sample(
             let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
                 - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
                 + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-            if det.abs() <= 1e-12 {
+            // Determinant magnitude alone is not a condition estimate: a
+            // valid 16K-pixel translation makes max-entry-normalized det tiny.
+            // Estimate the infinity-norm condition from the adjugate instead,
+            // preserving arbitrary homogeneous scale and actual matrix bytes.
+            let adjugate = [
+                [
+                    m[1][1] * m[2][2] - m[1][2] * m[2][1],
+                    m[0][2] * m[2][1] - m[0][1] * m[2][2],
+                    m[0][1] * m[1][2] - m[0][2] * m[1][1],
+                ],
+                [
+                    m[1][2] * m[2][0] - m[1][0] * m[2][2],
+                    m[0][0] * m[2][2] - m[0][2] * m[2][0],
+                    m[0][2] * m[1][0] - m[0][0] * m[1][2],
+                ],
+                [
+                    m[1][0] * m[2][1] - m[1][1] * m[2][0],
+                    m[0][1] * m[2][0] - m[0][0] * m[2][1],
+                    m[0][0] * m[1][1] - m[0][1] * m[1][0],
+                ],
+            ];
+            let norm = |matrix: [[f64; 3]; 3]| {
+                matrix
+                    .iter()
+                    .map(|row| row.iter().map(|v| v.abs()).sum::<f64>())
+                    .fold(0f64, f64::max)
+            };
+            let condition = norm(m) * norm(adjugate) / det.abs();
+            if !condition.is_finite() || condition > 1e12 {
                 return Err(error(Cause::PlaneCondition));
             }
         }
