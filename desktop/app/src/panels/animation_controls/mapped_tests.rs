@@ -4,6 +4,7 @@ use motion_core::{
     Engine, Layer, LayerTimeline, LocalKeyEdit, Project,
 };
 use serde_json::json;
+#[cfg(target_os = "windows")]
 mod native;
 mod clipboard;
 
