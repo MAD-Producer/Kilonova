@@ -182,6 +182,81 @@ pub(super) fn at_playhead(state: &Value, command: Command) -> Command {
                 edit,
             )
         }
+        Command::Mask { object, action } => {
+            use motion_core::masks::{MaskAction, MaskProperty};
+            let (mask, property, edit) = match action {
+                MaskAction::Set {
+                    mask,
+                    property,
+                    value,
+                    animated: None,
+                    ..
+                } => {
+                    let value = match (property, value.as_slice()) {
+                        (MaskProperty::Opacity | MaskProperty::Expansion, [value]) => {
+                            TrackValue::Scalar(*value)
+                        }
+                        (MaskProperty::Feather, [x, y]) => TrackValue::Vec2([*x, *y]),
+                        (MaskProperty::Node(_), [x, y, a, b, c, d]) => {
+                            TrackValue::Geometry([*x, *y, *a, *b, *c, *d])
+                        }
+                        _ => return command,
+                    };
+                    (*mask, property.clone(), TrackEdit::Set { value })
+                }
+                MaskAction::Animate {
+                    mask,
+                    property,
+                    enabled,
+                    ..
+                } => (
+                    *mask,
+                    property.clone(),
+                    TrackEdit::Animate { enabled: *enabled },
+                ),
+                _ => return command,
+            };
+            (
+                KeyframeTarget::Mask {
+                    object: *object,
+                    mask,
+                    property,
+                },
+                edit,
+            )
+        }
+        Command::Vector {
+            object,
+            action:
+                motion_core::vector::VectorAction::SetGroupParameter {
+                    item,
+                    parameter,
+                    value,
+                    animated,
+                    ..
+                },
+        } => {
+            use motion_core::vector::groups::ParameterValue;
+            let edit = match animated {
+                Some(enabled) => TrackEdit::Animate { enabled: *enabled },
+                None => TrackEdit::Set {
+                    value: match value {
+                        ParameterValue::Scalar(v) => TrackValue::Scalar(*v),
+                        ParameterValue::Vector(v) => TrackValue::Vec2(*v),
+                        ParameterValue::Color(v) => TrackValue::Vec4(*v),
+                        ParameterValue::Geometry(v) => TrackValue::Geometry(*v),
+                    },
+                },
+            };
+            (
+                KeyframeTarget::Vector {
+                    object: *object,
+                    item: Some(*item),
+                    parameter: parameter.clone(),
+                },
+                edit,
+            )
+        }
         Command::Effect { object, action } => {
             let (effect, param, edit) = match action {
                 EffectAction::Set {

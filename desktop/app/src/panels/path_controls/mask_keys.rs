@@ -420,6 +420,18 @@ impl Controls {
             enabled,
         );
         if enabled && click(input, rect) {
+            if crate::panels::property_authoring::precise(state, owner.object) {
+                let properties = if index == mask_path::CHANNEL {
+                    mask.path.nodes.iter().map(|node| MaskProperty::Node(node.id)).collect()
+                } else {vec![property(index)]};
+                let commands = properties.into_iter().map(|property| motion_core::Command::TrackAt {
+                    target: motion_core::KeyframeTarget::Mask {object: owner.object, mask: mask.id, property},
+                    frame: state["frame"].as_f64().unwrap_or(f64::NAN),
+                    edit: motion_core::TrackEdit::Animate {enabled: !animated(mask, index)},
+                }).collect();
+                out.push(Action::EditBatch(commands));
+                return;
+            }
             emit(
                 out,
                 &Channel {

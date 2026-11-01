@@ -33,6 +33,8 @@ mod pen_tools;
 mod property_focus_tests;
 #[cfg(test)]
 mod clipboard_tests;
+#[cfg(test)]
+mod mapped_authoring_tests;
 pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -285,6 +287,8 @@ pub struct Controls {
     pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
     #[cfg(test)]
     feather_link_rects: std::collections::HashMap<(u64, u64), Rect>,
+    #[cfg(test)]
+    mask_property_rects: std::collections::HashMap<(u32, u64, u64, u8, usize), (Rect, Rect)>,
     add_mask_menu: motion_ui::widgets::Dropdown,
     timeline_add_mask_menu: Option<mask_header::AddMenu>,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
@@ -298,6 +302,7 @@ struct InspectorLayer {
     layer: std::sync::Arc<Layer>,
 }
 struct Parameter {
+    time: Option<super::property_authoring::NumericTime>,
     host: motion_ui::dock::Panel,
     object: u64,
     mask: u64,
@@ -313,6 +318,11 @@ struct Parameter {
     last_value: f32,
     linked: bool,
     range: [f32; 2],
+}
+fn numeric_time_begin(state: &Value, object: u64, mask: u64, property: &MaskProperty) -> motion_core::Result<Option<super::property_authoring::NumericTime>> {
+    observe!("mask.numeric_time_begin",
+        super::property_authoring::NumericTime::read(state, object),
+        "object={object} mask={mask} property={property:?} phase=begin")
 }
 fn label(list: &mut PaintList, atlas: &mut TextAtlas, r: Rect, text: &str, color: Color) {
     ui::text(list, atlas, r, text, color, Align::Left);
@@ -1603,7 +1613,10 @@ impl Controls {
         };
         let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
         let context = self.parameter_context.take();
-        let stale = context.as_ref().is_some_and(|(root, composition, at)| {
+        let time_changed = !matches!(observe!("mask.numeric_time_continue",
+            super::property_authoring::NumericTime::current(&p.time, state, p.object),
+            "object={} mask={} property={:?} phase=continue", p.object, p.mask, p.property), Ok(true));
+        let stale = time_changed || context.as_ref().is_some_and(|(root, composition, at)| {
             root != state["root"].as_str().unwrap_or("")
                 || composition != state["composition"].as_str().unwrap_or("")
                 || *at != frame
@@ -1629,7 +1642,7 @@ impl Controls {
             } else {
                 v[p.axis] = value;
             }
-            Action::Edit(Command::Mask {
+            Action::Edit(super::property_authoring::at_playhead(state, Command::Mask {
                 object: p.object,
                 action: MaskAction::Set {
                     mask: p.mask,
@@ -1638,7 +1651,7 @@ impl Controls {
                     value: v,
                     animated: None,
                 },
-            })
+            }))
         };
         if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             if p.begun {
@@ -1928,6 +1941,7 @@ mod numeric_tests {
                 let before = serde_json::to_vec(engine.project()).unwrap();
                 let mut controls = Controls::default();
                 controls.parameter = Some(Parameter {
+                    time: None,
                     host: motion_ui::dock::Panel::Masks,
                     object: 7,
                     mask: 1,
