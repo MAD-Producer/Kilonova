@@ -100,6 +100,7 @@ fn tracking_import_checks_permissions_context_and_persists_one_history_step() {
     assert!(!root.join("assets/tracking").exists());
     let imported = edit.call("import_tracking", args.clone()).unwrap();
     assert_eq!(imported["trackingImport"]["encodedSourceVerified"], true);
+    assert_eq!(imported["trackingImport"]["decodedSourceVerified"], true);
     assert_eq!(imported["trackingImport"]["decodedTimelineVerified"], false);
     assert_eq!(imported["trackingImport"]["poseApplied"], false);
     let attachment = &imported["project"]["tracking_assets"][0];

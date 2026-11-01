@@ -20,7 +20,7 @@ pub fn import(
     let began = Instant::now();
     log::info!("tracking import start site=host.tracking.import request={request} session={id} source={:?}:{} phase=read_original",source.kind,source.id);
     let result = (|| {
-        let (root, project) = session::with_session(id, |s| {
+        let (root, project, platform) = session::with_session(id, |s| {
             if s.engine.revision() != revision || s.document_generation != generation {
                 return Err(ImportError::Superseded.into());
             }
@@ -30,9 +30,17 @@ pub fn import(
                 )
                 .into());
             }
-            Ok((s.root.clone(), s.engine.snapshot()))
+            Ok((s.root.clone(), s.engine.snapshot(), s.platform().clone()))
         })?;
-        let mut prepared = Prepared::read(&root, &project, revision, document, source, || false)?;
+        let mut prepared = Prepared::read(
+            &root,
+            &project,
+            revision,
+            document,
+            source,
+            Some(platform.as_ref()),
+            || false,
+        )?;
         let result = session::with_session(id, |s| {
             if s.engine.revision() != revision
                 || s.document_generation != generation
@@ -56,7 +64,8 @@ pub fn import(
             state["trackingImport"] = json!({"asset":prepared.descriptor().id,"source":source,
                 "tracks":prepared.track_count(),"observations":prepared.observation_count(),
                 "originalPreserved":true,"encodedSourceVerified":true,
-                "decodedTimelineVerified":false,"poseApplied":false});
+                "decodedSourceVerified":true,"decodedTimelineVerified":source.kind==motion_core::media_assets::AssetKind::Video,
+                "poseApplied":false});
             Ok(state)
         });
         match (result, prepared.cleanup_uncommitted()) {

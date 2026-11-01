@@ -85,6 +85,7 @@ impl Fixture {
             0,
             &self.external.path().join("original.json"),
             Self::source(),
+            None,
             || false,
         )
     }
@@ -305,6 +306,7 @@ fn source_tampering_and_cancellation_never_stage_an_original() {
         0,
         &path,
         Fixture::source(),
+        None,
         || true,
     );
     assert!(matches!(cancelled, Err(Error::Cancelled)));
@@ -347,4 +349,94 @@ fn rollback_failure_preserves_primary_and_secondary_causes() {
         other => panic!("lost rollback causes: {other}"),
     }
     assert!(path.is_dir());
+}
+
+#[test]
+fn decoded_image_dimensions_must_agree_even_when_project_and_solve_metadata_match() {
+    let mut f = Fixture::new();
+    f.project.assets[0].width = 7;
+    let mut solve = decode::from_slice(&f.original).unwrap();
+    solve.source_extent = Extent::new(7, 6).unwrap();
+    fs::write(
+        f.external.path().join("original.json"),
+        encode::to_vec(&solve).unwrap(),
+    )
+    .unwrap();
+    let result = f.read();
+    assert!(
+        result.is_err(),
+        "decoded image mismatch must reject matching but incorrect metadata"
+    );
+    assert!(!f.root.path().join("assets/tracking").exists());
+}
+
+#[test]
+fn decoded_image_payload_must_be_valid_even_when_its_encoded_hash_matches() {
+    let f = Fixture::new();
+    let bytes = b"independently generated invalid image payload";
+    fs::write(f.root.path().join("assets/plate.png"), bytes).unwrap();
+    let hash = storage::resource_sha256(bytes);
+    let mut solve = decode::from_slice(&f.original).unwrap();
+    solve.source_sha256 =
+        std::array::from_fn(|i| u8::from_str_radix(&hash[2 * i..2 * i + 2], 16).unwrap());
+    fs::write(
+        f.external.path().join("original.json"),
+        encode::to_vec(&solve).unwrap(),
+    )
+    .unwrap();
+    let result = f.read();
+    assert!(
+        result.is_err(),
+        "invalid decoded image must reject a matching encoded hash"
+    );
+    assert!(!f.root.path().join("assets/tracking").exists());
+}
+
+#[test]
+fn decoded_image_admission_accepts_sixteen_bit_originals() {
+    let f = Fixture::new();
+    let pixels = image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_pixel(
+        8,
+        6,
+        image::Rgba([257, 32769, 65001, 65535]),
+    );
+    let mut png = Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgba16(pixels)
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let bytes = png.into_inner();
+    assert_eq!(
+        image::load_from_memory(&bytes).unwrap().color(),
+        image::ColorType::Rgba16
+    );
+    fs::write(f.root.path().join("assets/plate.png"), &bytes).unwrap();
+    let digest = storage::resource_sha256(&bytes);
+    let mut solve = decode::from_slice(&f.original).unwrap();
+    solve.source_sha256 =
+        std::array::from_fn(|i| u8::from_str_radix(&digest[2 * i..2 * i + 2], 16).unwrap());
+    fs::write(
+        f.external.path().join("original.json"),
+        encode::to_vec(&solve).unwrap(),
+    )
+    .unwrap();
+    let prepared = f.read().unwrap();
+    let managed = f.root.path().join(&prepared.descriptor().path);
+    drop(prepared);
+    assert!(!managed.exists());
+    assert_eq!(
+        fs::read(f.root.path().join("assets/plate.png")).unwrap(),
+        bytes
+    );
+}
+
+#[test]
+fn decoded_primary_cause_precedes_a_long_path_in_bounded_observation() {
+    let error = Error::Decoded {
+        path: PathBuf::from("p".repeat(4096)),
+        cause: decoded::Error::Invalid("controlled original decoded failure"),
+    };
+    let observed: String = error.to_string().chars().take(1536).collect();
+    assert!(observed.contains("phase=decode_source"));
+    assert!(observed.contains("controlled original decoded failure"));
+    assert!(error.source().is_some());
 }

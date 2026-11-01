@@ -1,6 +1,6 @@
 //! Managed original publication. Own Prepared outside any Session/business guard:
 //! rollback, including its unwind observation, must run after that guard exits.
-use super::{decode, project::Attachment, source};
+use super::{decode, decoded, project::Attachment, source};
 use motion_core::{
     media_assets::{self, AssetKind, AssetRef},
     storage, Engine, Project, TrackingAsset,
@@ -13,6 +13,12 @@ use std::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("tracking import phase=decode_source cause={cause} path={}", .path.display())]
+    Decoded {
+        path: PathBuf,
+        #[source]
+        cause: decoded::Error,
+    },
     #[error(transparent)]
     Attachment(#[from] super::project::Error),
     #[error(transparent)]
@@ -130,6 +136,7 @@ impl Prepared {
         revision: u64,
         document: &Path,
         selected: AssetRef,
+        platform: Option<&dyn crate::platform::Platform>,
         mut check: impl FnMut() -> bool,
     ) -> Result<Self, Error> {
         cancelled(&mut check)?;
@@ -212,6 +219,65 @@ impl Prepared {
                     Error::Attachment(super::project::Error::Source(cause))
                 }
             })?;
+        cancelled(&mut check)?;
+        log::info!(
+            "tracking original source phase=decode source={:?}:{}",
+            selected.kind,
+            selected.id
+        );
+        let decoded_error = |cause| Error::Decoded {
+            path: path.clone(),
+            cause,
+        };
+        match &media {
+            media_assets::MediaAsset::Image(_) => {
+                decoded::image(&mut plate, &solve).map_err(decoded_error)?
+            }
+            media_assets::MediaAsset::Video(video) => {
+                let platform = platform.ok_or_else(|| {
+                    decoded_error(decoded::Error::Invalid(
+                        "video verification requires a native decoder",
+                    ))
+                })?;
+                let check = std::cell::RefCell::new(&mut check);
+                let was_cancelled = std::cell::Cell::new(false);
+                platform
+                    .verify_tracking_video(&path, video, &solve, &|| {
+                        if (*check.borrow_mut())() {
+                            was_cancelled.set(true);
+                            Err("tracking decoded source cancelled".into())
+                        } else {
+                            Ok(())
+                        }
+                    })
+                    .map_err(|cause| {
+                        if was_cancelled.get() {
+                            Error::Cancelled
+                        } else {
+                            decoded_error(decoded::Error::Media {
+                                phase: "decode_video",
+                                cause,
+                            })
+                        }
+                    })?;
+            }
+            media_assets::MediaAsset::Audio(_) => {
+                return Err(Error::Invalid("audio is not a tracking plate"))
+            }
+        }
+        cancelled(&mut check)?;
+        // Reopen and verify the current managed path after native decoding,
+        // whose container API opens its own handle. This is still not a lease
+        // against an arbitrary external A->B->A replacement during acquisition.
+        let mut current =
+            File::open(&path).map_err(|e| io("reopen_source_after_decode", &path, e))?;
+        source::verify(&solve, &mut current, before.len(), &mut check).map_err(|cause| {
+            if matches!(cause, source::Error::Cancelled) {
+                Error::Cancelled
+            } else {
+                Error::Attachment(super::project::Error::Source(cause))
+            }
+        })?;
         let after = plate
             .metadata()
             .map_err(|e| io("source_metadata_after", &path, e))?;

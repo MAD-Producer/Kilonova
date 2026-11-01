@@ -1,5 +1,10 @@
 # Managed original tracking import
 
+Follow-up: [original decoded source admission](tracking88-decoded-source-current.md)
+extends this checkpoint with actual image decoding and exact native video PTS
+verification. The receipts and response fields below describe this earlier
+encoded-source-only checkpoint.
+
 Issue #88 remains open. This increment connects canonical tracking JSON originals
 to the desktop serial worker and the headless MCP boundary. It does not apply a
 camera, plane or point solve to a layer. No panel, layout, visual style, menu,
