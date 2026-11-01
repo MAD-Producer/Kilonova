@@ -1,8 +1,8 @@
 # #88 external point/planar prototype: review boundary
 
 This increment is stacked on PR #581, commit
-`8a1dfb7f57fc1bc65683942427214b18595ac625`. It is a developer prototype,
-with native product integration and real-motion acceptance pending. It does not
+`8a1dfb7f57fc1bc65683942427214b18595ac625`. It is a developer prototype;
+its generated output now has the Windows native qualification below. It does not
 complete #88. Android is excluded. No panels, product dependencies or UI changed.
 
 ## Delivered observations and behavior
@@ -62,14 +62,66 @@ member hashes. Reproduction commands and request schema are in
 `tools/tracking/README.md`. Source hashes identify the tested files independently
 of later documentation/commit metadata.
 
+## Generated-output native qualification
+
+After publication of prototype code `330ffcac945592073a7415b41e1f88028d675398`,
+`tracking88-prototype-native-v4` rebuilt the actual FFmpeg desktop executable
+offline and completed with exit 0. All tracked source files were hashed before
+execution and rechecked afterward. This run uses the frozen synthetic-v2
+original video and the actual prototype output, not a newly authored solve.
+
+- The real native importer verifies encoded source identity, sequential decoded
+  source frames and the original timeline for both tracks / 192 observations.
+  The managed solve remains byte-identical (SHA-256
+  `740a6d7deeb3b618be4f6667171a54c414becabfd2cd60cbb99da5398b37eda5`).
+- Native original-video capture is nonblank. Binding then samples original
+  indices 0, 10, 19, 30, 40, 60 and 95. Point anchors agree with measured
+  observations within 0.001 px; corner-pin values agree within 0.001 px.
+- Independent polygon/marker pixel checks pass on each GPU capture: more than
+  5,000 stable plane interior pixels per image, zero polygon mismatches outside
+  a 2-pixel edge band, a visible point marker and centroid error below 0.75 px.
+  Native checks compare measured geometry; the separate synthetic evaluator
+  above compares those measurements against hidden analytic truth.
+- The project runs at 125 fps while the source nominal rate is 24 fps. Each
+  original millisecond PTS maps exactly to an eighth of a project frame, avoiding
+  floating-point epsilon ambiguity at missing-sample boundaries. Rendering uses
+  the fractional sample time; legacy PNG filename/result metadata floors the
+  frame number, as implemented by the existing capture API.
+- Binding undo removes both bindings and redo restores the identical project.
+  Strict missing policy rejects index 22 with object/asset/track/index/visibility
+  context. Explicit frame-30 manual recovery then samples and renders correctly.
+  The existing Session retains the historical `renderError` string; the test
+  checks that exact retained cause separately from successful current sample and
+  pixels. No error clearing or product return-value changes are introduced.
+- Save and read-only reopen preserve the complete project, raw solve and manual
+  correction/occlusion states after the external input JSON is deleted. A fresh
+  editing session also renders index 40 and passes the same GPU pixel oracle.
+  Default Info import starts, Error file/stderr output and JSON-RPC stdout
+  isolation are checked against the real executable transcripts.
+
+Earlier native attempts remain in the adjacent native closeout archive. V1 used
+an incomplete harness `remove` command; V2 expected an obsolete error phrase
+although the actual structured context correctly refused the missing sample;
+V3 incorrectly expected successful seek to clear the existing error latch. The
+final harness checks the actual error contract and current render independently.
+No existing repository test assertions or measurement tolerances changed.
+
+`tracking88-prototype-native-closeout-v1.zip` and its JSON receipt preserve all
+four controllers, native build/process records, raw protocol transcripts,
+project state, captures and hashes. Duplicate original videos are referenced by
+SHA-256 into the earlier synthetic closeout archive and the references were
+verified. Duplicate exports/local logger copies are omitted in favor of named
+captures and per-process log copies. This evidence qualifies Windows native
+execution, not an interactive retained Surface or all supported platforms.
+
 ## Remaining acceptance
 
-- Native import of this generated output against its original video, binding,
-  actual rendering, undo/redo, save and reopen
 - Photographed motion qualification; authored analytic texture is not real footage
 - Full native regression and exact published-head cross-platform CI
+- Interactive retained Surface/cache behavior for the measured output
 - Product-facing tracker workflow and the other remaining #88 delivery items
 
 The PR remains draft while these gates are pending. Existing #580/#581 tests
-qualify their own importer/replacement changes, not this prototype's generated
-output. No issue closure or complete 3D-route claim follows from this document.
+qualify their own importer/replacement changes; the native qualification above
+covers this prototype's measured output separately. No issue closure or complete
+3D-route claim follows from this document.
