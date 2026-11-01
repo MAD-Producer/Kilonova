@@ -238,7 +238,7 @@ impl Set {
         self.primary.as_ref()
     }
 
-    fn addressed_primary(&self) -> Option<AddressedKey> {
+    pub(super) fn addressed_primary(&self) -> Option<AddressedKey> {
         self.spatial_primary
             .clone()
             .map(AddressedKey::Spatial)

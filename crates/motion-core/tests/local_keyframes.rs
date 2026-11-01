@@ -37,6 +37,9 @@ fn fixture() -> Engine {
     project.layers.push(layer);
     Engine::new(project).unwrap()
 }
+
+#[path = "local_keyframes/handles.rs"]
+mod handles;
 fn target(property: &str) -> Value {
     json!({"kind":"property", "object":7, "property":property, "axis":null})
 }
@@ -529,7 +532,11 @@ fn transport_rejects_fractional_identities_and_unknown_fields_and_catalogue_desc
         .find(|entry| entry["id"] == "local_keyframes")
         .unwrap();
     let schema = &entry["inputSchema"]["properties"]["edit"];
-    assert_eq!(schema["oneOf"].as_array().unwrap().len(), 6);
+    assert_eq!(schema["oneOf"].as_array().unwrap().len(), 7);
+    let handle = &schema["oneOf"][3];
+    assert_eq!(handle["properties"]["kind"]["const"], "handle");
+    assert_eq!(handle["properties"]["frame"]["minimum"], i32::MIN);
+    assert!(handle["properties"].get("frames").is_none());
     assert_eq!(
         schema["oneOf"][0]["properties"]["frames"]["items"]["minimum"],
         i32::MIN
@@ -662,6 +669,18 @@ fn masks_vector_groups_and_effects_use_the_same_exact_local_protocol() {
         let mut engine = Engine::new(project).unwrap();
         for channel in targets {
             let before = engine.snapshot();
+            for incoming in [false, true] {
+                apply(
+                    &mut engine,
+                    command(
+                        channel.clone(),
+                        json!({"kind":"handle","frame":3,"incoming":incoming,"control":[0.4,0.5]}),
+                    ),
+                );
+                assert_ne!(engine.project(), &before);
+                engine.undo().unwrap();
+                assert_eq!(engine.project(), &before);
+            }
             // The two corresponding composition times are 6.5 and 8; neither
             // selecting nor translating depends on composition integer parsing.
             apply(
@@ -835,6 +854,7 @@ fn discrete_effects_keep_hold_and_reject_temporal_curves_without_partial_edits()
             json!({"kind":"curve","frames":[3],"easing":{"ease":"out"}}),
             json!({"kind":"ease","frames":[3],"incoming":true,"outgoing":false}),
             json!({"kind":"automatic","frames":[3],"enabled":true}),
+            json!({"kind":"handle","frame":3,"incoming":false,"control":[0.2,0.1]}),
         ] {
             rejected(
                 &mut engine,

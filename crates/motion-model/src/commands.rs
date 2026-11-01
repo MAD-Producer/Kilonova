@@ -355,7 +355,8 @@ impl Command {
         // A handle repeatedly updates one authored interval inside an existing
         // gesture. Structural local edits still require a separate transaction.
         if let Self::LocalKeyframes { edit, .. } = self {
-            return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. });
+            return !matches!(edit, crate::keyframe_clipboard::local::LocalKeyEdit::Curve { .. }
+                | crate::keyframe_clipboard::local::LocalKeyEdit::Handle { .. });
         }
         if matches!(self, Self::ApplyAnimationPreset { .. } | Self::ProjectLibrary { .. }) { return true; }
         match self { Self::InComposition {command,..} => command.composition_transaction(), Self::MediaAsset {..} | Self::Composition {..} | Self::PasteLayers {..} | Self::RemoveLayers {..} | Self::PasteKeyframes {..} | Self::RemoveKeyframes {..} | Self::KeyframeInterpolation {..} | Self::KeyframeAutomatic {..} | Self::SpatialKeyframes {..} | Self::PasteEasing {..} | Self::KeyframeTiming {..} | Self::EaseKeyframes {..} | Self::DeleteKeyframes {..} | Self::TransformKeyframes {..} | Self::PastePaths {..} | Self::RemovePaths {..} | Self::CopyPathAs {..} => true, _ => false }

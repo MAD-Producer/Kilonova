@@ -29,6 +29,12 @@ pub enum LocalKeyEdit {
         frames: Vec<i32>,
         easing: Easing,
     },
+    /// The frame starts an authored interval; incoming edits its end control.
+    Handle {
+        frame: i32,
+        incoming: bool,
+        control: [f64; 2],
+    },
     /// Sides refer to increasing LOCAL time; reversed views must swap UI sides.
     Ease {
         frames: Vec<i32>,
@@ -46,6 +52,7 @@ pub enum LocalKeyEdit {
 impl LocalKeyEdit {
     fn frames(&self) -> &[i32] {
         match self {
+            Self::Handle { frame, .. } => std::slice::from_ref(frame),
             Self::Translate { frames, .. }
             | Self::Interpolation { frames, .. }
             | Self::Curve { frames, .. }
@@ -56,6 +63,7 @@ impl LocalKeyEdit {
     }
     fn operation(&self) -> &'static str {
         match self {
+            Self::Handle { .. } => "local_handle",
             Self::Translate { .. } => "local_translate",
             Self::Interpolation { .. } => "local_interpolation",
             Self::Curve { .. } => "local_curve",
@@ -265,6 +273,15 @@ fn edit_track<T: Tween + transform::NumericOffset>(
                 next.set_curve(*frame, *easing)?;
             }
         }
+        LocalKeyEdit::Handle {
+            frame,
+            incoming,
+            control,
+        } => {
+            let index = handle::interval(&track.keys, *frame)?;
+            let easing = handle::edited(track.effective_easing(index)?, *incoming, *control)?;
+            next.set_curve_sides(*frame, easing, !incoming, *incoming)?;
+        }
         LocalKeyEdit::Ease {
             frames,
             incoming,
@@ -325,6 +342,16 @@ fn edit_color(
                 next.keys[index].ease = easing.ease;
                 next.keys[index].curve = easing.curve;
             }
+        }
+        LocalKeyEdit::Handle {
+            frame,
+            incoming,
+            control,
+        } => {
+            let index = handle::interval(&track.keys, *frame)?;
+            let easing = handle::edited(track.effective_easing(index)?, *incoming, *control)?;
+            next.keys[index].ease = easing.ease;
+            next.keys[index].curve = easing.curve;
         }
         LocalKeyEdit::Ease {
             frames,

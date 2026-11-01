@@ -232,6 +232,14 @@ pub(in crate::panels) fn plot(panels: &mut Panels, area: Rect, low: f32, high: f
         }
     }
 }
+/// A painted handle owns this press before key/marquee finishing. It must not
+/// seek or replace the selection when its hit area overlaps an endpoint.
+pub(in crate::panels) fn own_handle(panels: &mut Panels) {
+    if let Some(frame)=&mut panels.key_gestures.frame {
+        frame.press=None;
+        frame.background_owned=true;
+    }
+}
 pub(in crate::panels) fn block_background(panels: &mut Panels) {
     if let Some(frame) = &mut panels.key_gestures.frame {
         frame.background_owned = true;

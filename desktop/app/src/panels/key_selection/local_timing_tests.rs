@@ -12,6 +12,8 @@ mod typed;
 mod clipboard;
 #[path = "local_graph_tests.rs"]
 mod graphs;
+#[path = "local_handle_tests.rs"]
+mod handles;
 
 fn local(object: u64, axis: Option<Axis>, frame: i32) -> AddressedKey {
     LocalKey {

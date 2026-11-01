@@ -185,8 +185,11 @@ fn fit_intervals(panels:&Panels,state:&Value,target:&motion_core::KeyframeTarget
     (all.unwrap_or([0.,last_frame(state)+1.]),selected)
 }
 
-fn observe_early_return(panels: &mut Panels, reason: &'static str) {
+fn observe_early_return(panels: &mut Panels, out: &mut Vec<Action>, reason: &'static str) {
     panels.timeline.graph_ranges.no_timeline_plot();
+    // Losing the mapped view is a normal gesture cancellation. Specific bad
+    // snapshots/sampling failures already have their own observed causes.
+    super::graph_handles::cancel_local(panels,out);
     let active = panels
         .timeline
         .graph_drag
@@ -227,6 +230,7 @@ pub(super) fn render(
             panels.timeline.graph_ranges.no_timeline_plot();
             let neutral=Input::default();
             let graph_input=if panels.timeline.comparison.popup_open(){&neutral}else{input};
+            super::graph_handles::cancel_local(panels,out);
             super::curve_comparison::render(list, atlas, content, panels, state, graph_input, offset, ppf, out);
             return;
         }
@@ -235,6 +239,7 @@ pub(super) fn render(
         list, atlas, area, panels, state, input, offset, ppf, out,
     ) {
         panels.timeline.graph_ranges.no_property_plot();
+        super::graph_handles::cancel_local(panels,out);
         return;
     }
     let styles = list.styles();
@@ -286,14 +291,14 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "no_selection");
+        observe_early_return(panels,out, "no_selection");
         return;
     };
     let Some(layer) = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)))
     else {
-        observe_early_return(panels, "missing_layer");
+        observe_early_return(panels,out, "missing_layer");
         return;
     };
     if panels.animation_controls.track_selection(state, Some(object))
@@ -303,7 +308,7 @@ pub(super) fn render(
             if panels.locale == Locale::Zh { "请选择属性" } else { "Select a property" }, true);
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "invalid_property_selection");
+        observe_early_return(panels,out, "invalid_property_selection");
         return;
     }
     let property = panels
@@ -322,11 +327,11 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "property_hidden_or_audio");
+        observe_early_return(panels,out, "property_hidden_or_audio");
         return;
     }
     let Some(timeline) = data::timeline(state, object) else {
-        observe_early_return(panels, "missing_timeline");
+        observe_early_return(panels,out, "missing_timeline");
         return;
     };
     let root = &timeline["properties"][data::name(property)];
@@ -367,7 +372,7 @@ pub(super) fn render(
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
-        observe_early_return(panels, "missing_channel");
+        observe_early_return(panels,out, "missing_channel");
         return;
     };
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
@@ -387,14 +392,15 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "unreadable_track");
+        observe_early_return(panels,out, "unreadable_track");
         return;
     };
     let clock=panels.timeline.graph_samples.clock;
-    let mapped=clock!=LayerClock::default();
+    let mapped=super::property_authoring::precise(state,object);
     if mapped {
         // Clock changes supersede composition-integer gesture ownership.
-        panels.timeline.graph_drag=None;
+        // Local handle drags own a separate clock/selection guard. Legacy key
+        // drags remain incompatible with mapped authored identities.
         panels.timeline.key_drag=None;
         panels.timeline.graph_box=Default::default();
     }
@@ -441,7 +447,7 @@ pub(super) fn render(
         "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end}") else {
         graph.clip_to(area);
         list.append(graph);
-        observe_early_return(panels, "sampling_failed");
+        observe_early_return(panels,out, "sampling_failed");
         return;
     };
     let min = points
@@ -471,7 +477,7 @@ pub(super) fn render(
         .map(|(x,y)|Bounds {x,y});
     let Ok(automatic)=observe!("timeline.graph_view_bounds",automatic.ok_or("unrepresentable graph range"),
         "object={object} property={property:?} axis={axis:?} generation={generation:?} revision={revision:?} phase=display") else {
-        graph.clip_to(area);list.append(graph);observe_early_return(panels,"invalid_view_bounds");return;
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"invalid_view_bounds");return;
     };
     let before_view=panels.timeline.graph_ranges.displayed(state,&identity,automatic);
     if area.contains(input.mouse)
@@ -523,7 +529,7 @@ pub(super) fn render(
     )).collect::<Result<Vec<_>,_>>();
     let Ok(points)=observe!("timeline.graph_adaptive",adaptive,
         "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision") else {
-        graph.clip_to(area);list.append(graph);observe_early_return(panels,"adaptive_sampling_failed");return;
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"adaptive_sampling_failed");return;
     };
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
     for i in 0..5 {
@@ -562,7 +568,7 @@ pub(super) fn render(
     let spatial=source["spatial_keys"].is_array();
     if mapped && !spatial && observe!("timeline.local_key_array",source["keys"].as_array()
         .ok_or("projected local key array missing"),"object={object} phase=graph fallback=disable_key_edit").is_err() {
-        graph.clip_to(area);list.append(graph);observe_early_return(panels,"missing_projected_keys");return;
+        graph.clip_to(area);list.append(graph);observe_early_return(panels,out,"missing_projected_keys");return;
     }
     let box_owned = !mapped && !spatial && super::graph_box::interact(
         &styles,
@@ -694,11 +700,12 @@ pub(super) fn render(
             }
         }
     }
-    if !mapped {super::graph_handles::draw(
+    super::graph_handles::draw(
         &mut lines,
         atlas,
         panels,
         source,
+        state,
         object,
         property,
         axis,
@@ -717,7 +724,7 @@ pub(super) fn render(
         layer["locked"] == true || state["observing"] == true,
         out,
     );
-    super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);}
+    if !mapped {super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);}
     let box_selected = if !mapped && !spatial && !box_owned && clicked_key.is_none() {
         super::graph_box::select_curve(
             &styles,
