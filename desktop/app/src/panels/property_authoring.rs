@@ -58,11 +58,26 @@ impl NumericTime {
 }
 
 pub(super) fn precise(state: &Value, object: u64) -> bool {
+    // Continuous spatial keys carry stable identities at fractional times even
+    // under the identity clock. Presence also covers malformed storage: it must
+    // reach validation rather than silently selecting the rounded legacy path.
+    let continuous = |source: &Value, properties: &[&str]| {
+        properties.iter().any(|property| {
+            source[*property]
+                .get("spatial_animation")
+                .is_some_and(|value| !value.is_null())
+        })
+    };
+    let layer = super::keyframe_clipboard::layer(state, object);
     state["frame"]
         .as_f64()
         .is_none_or(|frame| !frame.is_finite())
-        || super::keyframe_clipboard::layer(state, object)
-            .is_some_and(|layer| !layer["time_mapping"].is_null())
+        || layer.is_some_and(|layer| {
+            !layer["time_mapping"].is_null()
+                || continuous(&layer["transform"], &["position", "anchor"])
+                || continuous(&layer["content"]["camera"], &["position", "target"])
+        })
+        || (object == 0 && continuous(&state["project"]["camera"], &["position", "target"]))
 }
 
 pub(super) fn clock(
@@ -313,3 +328,6 @@ pub(super) fn at_playhead(state: &Value, command: Command) -> Command {
         edit,
     }
 }
+
+#[cfg(test)]
+mod spatial_tests;
