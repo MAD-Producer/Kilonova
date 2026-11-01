@@ -3,4 +3,5 @@
 //! are continuous pixels from the upper-left image edge (first pixel center .5).
 pub mod asset;
 pub mod decode;
+pub mod encode;
 pub mod plate;

@@ -31,7 +31,8 @@ motion-model = { path = "../motion-model", optional = true }
 tempfile = { version = "3", optional = true }
 sha2 = { version = "0.10", optional = true }
 serde.workspace = true
-serde_json.workspace = true
+# Preserve imported f64 calibration/pose values when the host is built alone.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 pollster.workspace = true
 wgpu.workspace = true
 image.workspace = true

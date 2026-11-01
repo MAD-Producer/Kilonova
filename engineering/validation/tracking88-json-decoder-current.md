@@ -5,6 +5,8 @@ This increment adds `motion_host::tracking::decode::{from_slice, from_reader}`
 on top of the [typed asset contract](tracking88-asset-contract-current.md).
 It returns a validated independent asset. It does not modify a project, source,
 camera, layer or animation track, and is not an advertised tracking feature.
+The later [round-trip increment](tracking88-json-roundtrip-current.md) adds bounded
+serialization; this document retains the original decoder-only evidence.
 
 ## Wire contract
 
