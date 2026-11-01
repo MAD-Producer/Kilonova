@@ -431,6 +431,7 @@ impl Scene {
                         self.curve_sources.push(source);
                     }
                 }
+                layer.apply_tracking_plane(project, frame, sampled)?;
                 effect_index += 1;
             }
         }

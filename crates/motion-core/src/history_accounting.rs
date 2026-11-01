@@ -66,6 +66,7 @@ impl Changes {
             }
             Command::SetVector { object, .. }
             | Command::SetTrackingPoint { object, .. }
+            | Command::SetTrackingPlane { object, .. }
             | Command::SetScalar { object, .. }
             | Command::SetComponent { object, .. }
             | Command::SeparateDimensions { object, .. }

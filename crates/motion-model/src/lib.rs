@@ -95,6 +95,10 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("tracking_plane phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingPlaneBinding { object:u64, asset:u64, track:String, #[source] source:Box<Error> },
+    #[error("tracking_plane phase=sample object={object} asset={asset} track={track} frame={frame}: {source}")]
+    TrackingPlane { object:u64, asset:u64, track:String, frame:f64, #[source] source:Box<Error> },
     #[error("tracking_point phase=binding object={object} asset={asset} track={track}: {source}")]
     TrackingBinding { object: u64, asset: u64, track: String, #[source] source: Box<Error> },
     #[error("tracking_point object={object} asset={asset} track={track} frame={frame}: {source}")]

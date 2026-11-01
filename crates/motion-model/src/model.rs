@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 33;
+pub const CURRENT_PROJECT_VERSION: u32 = 34;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -160,6 +160,8 @@ pub struct Layer {
     /// Independent raw-source displacement; ordinary position is a manual correction.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tracking_point: Option<crate::tracking::point::PointBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_plane: Option<crate::tracking::plane::PlaneBinding>,
     pub visible: bool,
     pub locked: bool,
     /// Output isolation within this composition, shared by preview and export.
@@ -207,6 +209,7 @@ impl Layer {
             size,
             transform: Transform::new(position),
             tracking_point: None,
+            tracking_plane: None,
             visible: true,
             locked: false,
             solo: false,
@@ -593,6 +596,11 @@ impl Project {
                 ensure(range.covers(layer.clip(self.frames)),"integer clip bounds do not cover precise interval")?;
             }
             layer.transform.validate_local()?;
+            if let Some(binding) = &layer.tracking_plane {
+                binding.validate(self,layer).map_err(|source| crate::Error::TrackingPlaneBinding {
+                    object:layer.id,asset:binding.asset,track:binding.track.chars().filter(|c|!c.is_control()).take(128).collect(),source:Box::new(source),
+                })?;
+            }
             if let Some(binding) = &layer.tracking_point {
                 (|| {
                     ensure(!matches!(layer.content, Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment),

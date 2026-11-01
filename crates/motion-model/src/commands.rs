@@ -14,6 +14,11 @@ fn deserialize_point_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
     Option::<crate::tracking::point::PointBinding>::deserialize(deserializer)
 }
 
+fn deserialize_plane_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::tracking::plane::PlaneBinding>, D::Error> {
+    Option::<crate::tracking::plane::PlaneBinding>::deserialize(deserializer)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Property {
@@ -39,6 +44,7 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetTrackingPlane { object:u64, #[serde(deserialize_with="deserialize_plane_binding")] binding:Option<crate::tracking::plane::PlaneBinding> },
     SetTrackingPoint {
         object: u64,
         #[serde(deserialize_with = "deserialize_point_binding")]
