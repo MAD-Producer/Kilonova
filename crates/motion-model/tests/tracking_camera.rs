@@ -212,7 +212,42 @@ fn unavailable_observations_follow_explicit_policy_but_distortion_never_silently
     }
     p.tracking_assets[0].data = SharedData::new(data).unwrap();
     p.camera.tracking.as_mut().unwrap().missing = Missing::AuthoredOnly;
-    let err = p
+    let sampled = p
+        .camera
+        .tracking
+        .as_ref()
+        .unwrap()
+        .sample(&p, &p.camera, 0, 0., Mat4::IDENTITY)
+        .unwrap();
+    let lens = sampled
+        .lens
+        .expect("nonzero distortion retains a separate output stage");
+    assert_eq!(lens.calibration().radial(), [0.01, 0., 0.]);
+    assert_eq!(lens.plate().output().pixels(), [p.width, p.height]);
+    assert!(
+        calibrated_projection(lens.calibration(), lens.plate(), lens.zoom(), 0.5, 100000.)
+            .unwrap_err()
+            .to_string()
+            .contains("distortion requires explicit output stage")
+    );
+    // AuthoredOnly applies to missing observations, never to an invalid lens.
+    let mut data = (*p.tracking_assets[0].data).clone();
+    if let Some(Observation::Camera {
+        ref mut calibration,
+        ..
+    }) = data.tracks[0].samples[0].observation
+    {
+        *calibration = Calibration::new(
+            data.source_extent,
+            [210., 180.],
+            [142., 130.],
+            [-1., 0., 0.],
+            [0.; 2],
+        )
+        .unwrap();
+    }
+    p.tracking_assets[0].data = SharedData::new(data).unwrap();
+    let error = p
         .camera
         .tracking
         .as_ref()
@@ -220,10 +255,7 @@ fn unavailable_observations_follow_explicit_policy_but_distortion_never_silently
         .sample(&p, &p.camera, 0, 0., Mat4::IDENTITY)
         .unwrap_err()
         .to_string();
-    assert!(
-        err.contains("distortion requires explicit output stage") && err.contains("radial=[0.01"),
-        "{err}"
-    );
+    assert!(error.contains("cannot certify a unique domain"), "{error}");
 }
 #[test]
 fn bad_selection_units_basis_and_correction_reference_are_refused() {

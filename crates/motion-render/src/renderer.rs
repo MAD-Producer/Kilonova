@@ -2051,7 +2051,11 @@ impl Renderer {
                 *c = srgb_to_linear(*c);
             }
             let uniform = DrawUniform {
-                mvp: layer.view_projection.to_cols_array_2d(),
+                // Model/shared rasters already contain the camera projection.
+                // Match the compositor's full-composition overlay geometry;
+                // applying the spatial camera again clips an off-axis raster.
+                mvp: crate::scene::plane_projection(scene, layer, layer.screen_overlay)
+                    .to_cols_array_2d(),
                 color,
                 extent_opacity: [layer.size[0], layer.size[1], layer.opacity, 0.0],
                 uv_scale: [1.0, 1.0, 0.0, 0.0],

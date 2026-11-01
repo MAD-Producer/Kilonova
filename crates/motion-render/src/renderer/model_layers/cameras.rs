@@ -104,6 +104,7 @@ impl CameraSampler for ModelSourceCatalog {
             )
             .map_err(|error| context(error.to_string()))?;
         Ok(CameraSample {
+            lens: None,
             depth_of_field,
             pose: motion_model::CameraPose {
                 eye: camera.eye,

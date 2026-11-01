@@ -133,6 +133,7 @@ impl LensOutputPipeline {
     ) -> Result<(), RenderError> {
         source.check_owner(renderer)?;
         destination.check_owner(renderer)?;
+        encoder.check_owner(&self.owner)?;
         self.encode_checked(
             renderer,
             encoder,
@@ -153,6 +154,7 @@ impl LensOutputPipeline {
     ) -> Result<(), RenderError> {
         source.check_owner(renderer)?;
         destination.check_owner(renderer)?;
+        encoder.check_owner(&self.owner)?;
         let meaning = ImageMeaning::Color {
             space: WorkingSpace::Linear,
             alpha: AlphaMode::Premultiplied,
@@ -171,17 +173,38 @@ impl LensOutputPipeline {
             destination.view(),
         )
     }
+    /// Internal composition passes already receive the renderer's admitted
+    /// parent encoder. Public entry points retain the encoder ownership guard.
+    pub(crate) fn encode_spatial(
+        &self,
+        renderer: &Renderer,
+        encoder: &mut wgpu::CommandEncoder,
+        lens: LensWarp,
+        raster: LensRaster,
+        source: &RenderTarget,
+        destination: &RenderTarget,
+    ) -> Result<(), RenderError> {
+        source.check_owner(renderer)?;
+        destination.check_owner(renderer)?;
+        self.encode_checked(
+            renderer,
+            encoder,
+            lens,
+            raster,
+            source.texture(),
+            &destination.view,
+        )
+    }
     fn encode_checked(
         &self,
         renderer: &Renderer,
-        encoder: &mut AllocationEncoder,
+        encoder: &mut wgpu::CommandEncoder,
         lens: LensWarp,
         raster: LensRaster,
         source: &OwnedTexture,
         destination: &wgpu::TextureView,
     ) -> Result<(), RenderError> {
         renderer.check_health()?;
-        encoder.check_owner(&self.owner)?;
         if !Arc::ptr_eq(&self.owner, &renderer.allocation_owner) {
             return Err(RenderError::Invalid(
                 "lens pipeline belongs to another renderer".into(),

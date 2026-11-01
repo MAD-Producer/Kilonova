@@ -33,6 +33,9 @@ pub struct CameraSample {
     pub world: Mat4,
     /// Composition pixels; retained separately from projection to preserve aspect.
     pub viewport: [f32; 4],
+    /// Nonlinear output of this camera's spatial contributors only. A projective
+    /// matrix cannot encode this mapping; flat authored layers do not use it.
+    pub lens: Option<crate::tracking::lens::LensWarp>,
 }
 
 pub trait CameraSampler {
@@ -85,6 +88,7 @@ pub(crate) fn authored_sample(
     let (pose, world) = camera.authored_pose_and_world(frame, width, height, prefix)?;
     Ok(CameraSample {
         pose,
+        lens: None,
         depth_of_field: camera
             .depth_of_field
             .as_ref()

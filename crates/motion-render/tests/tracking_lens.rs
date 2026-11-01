@@ -1,4 +1,4 @@
-//! Actual GPU primitive controls. This is not yet composition-camera routing.
+//! Actual GPU lens primitives and composition-camera routing controls.
 use motion_effects::{
     image_contract::{ChannelPrecision, ImageContract, ImageMeaning},
     AlphaMode, WorkingSpace,
@@ -9,6 +9,10 @@ const W: u32 = 67;
 const H: u32 = 49;
 #[path = "tracking_lens/resources.rs"]
 mod resources;
+#[path = "tracking_lens/routing.rs"]
+mod routing;
+#[path = "tracking_lens/ownership.rs"]
+mod ownership;
 fn contract(precision: ChannelPrecision) -> ImageContract {
     ImageContract::new(
         ImageMeaning::Color {
@@ -102,7 +106,7 @@ fn pattern(rect: [f64; 4], size: [u32; 2]) -> String {
 fn oracle(lens: LensWarp, pixel: [f64; 2]) -> [f64; 2] {
     let c = lens.calibration();
     let source = lens.plate().inverse(pixel).unwrap();
-    let f = c.focal();
+    let f = c.focal().map(|v| v * lens.zoom());
     let centre = c.principal();
     let d = [
         (source[0] - centre[0]) / f[0],

@@ -183,8 +183,8 @@ fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
     let mut scene = Scene::new(&before).unwrap();
     scene.sample(&before, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let measure = |s: &Scene, z: f32| {
-        let a = s.project_point([490.0, 960.0, z]);
-        let b = s.project_point([590.0, 960.0, z]);
+        let a = s.project_point([490.0, 960.0, z]).unwrap();
+        let b = s.project_point([590.0, 960.0, z]).unwrap();
         b[0] - a[0]
     };
     let near_before = measure(&scene, -500.0);
@@ -208,8 +208,8 @@ fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
     let mut scene = Scene::new(&original).unwrap();
     scene.sample(&original, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let direction_before = (scene.camera.target - scene.camera.eye).normalize();
-    let near = scene.project_point([540.0, 960.0, -500.0])[0];
-    let far = scene.project_point([540.0, 960.0, 500.0])[0];
+    let near = scene.project_point([540.0, 960.0, -500.0]).unwrap()[0];
+    let far = scene.project_point([540.0, 960.0, 500.0]).unwrap()[0];
     e.apply(Command::Pan {
         object: 0,
         frame: 0,
@@ -222,8 +222,8 @@ fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
         (direction_before - (scene.camera.target - scene.camera.eye).normalize()).length() < 1e-5
     );
     assert!(
-        (scene.project_point([540.0, 960.0, -500.0])[0] - near).abs()
-            > (scene.project_point([540.0, 960.0, 500.0])[0] - far).abs()
+        (scene.project_point([540.0, 960.0, -500.0]).unwrap()[0] - near).abs()
+            > (scene.project_point([540.0, 960.0, 500.0]).unwrap()[0] - far).abs()
     );
     assert_eq!(e.project().layers, original.layers);
 }

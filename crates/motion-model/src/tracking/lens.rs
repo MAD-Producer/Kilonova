@@ -297,6 +297,21 @@ impl LensWarp {
         )?;
         self.ideal_pixel(self.inverse_normalized(self.normalized(point)?)?)
     }
+    /// View-plane manipulation can cross the image rectangle while remaining
+    /// inside the same proven contraction disk. This does not extend the raster
+    /// footprint or permit inversion outside the certified normalized domain.
+    pub fn inverse_in_certified_domain(self, point: [f64; 2]) -> Result<[f64; 2]> {
+        ensure(
+            point.iter().all(|v| v.is_finite()),
+            "lens inverse point is not finite",
+        )?;
+        let d = self.normalized(point)?;
+        ensure(
+            d[0].hypot(d[1]) <= self.radius * 0.5,
+            "lens inverse point outside certified camera domain",
+        )?;
+        self.ideal_pixel(self.inverse_normalized(d)?)
+    }
     fn inverse_normalized(self, d: [f64; 2]) -> Result<[f64; 2]> {
         let mut q = d;
         for _ in 0..INVERSE_ITERATIONS {

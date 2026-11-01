@@ -157,6 +157,12 @@ impl Renderer {
         let Some(layer) = scene.layers.iter().find(|layer| layer.id == receiver) else {
             return Ok(None);
         };
+        if scene.native_lens().is_some() && layer.three_d
+            && (!layer.screen_overlay || layer.model_source.is_some())
+        {
+            return Err(RenderError::Invalid(format!(
+                "camera lens composition={} frame={} object={receiver} phase=retained_lens: spatial receiver images require an explicit nonlinear temporal composition path", scene.composition_id, scene.frame)));
+        }
         if layer.adjustment {
             return Err(RenderError::Invalid(format!(
                 "exposure object={receiver} phase=local_materialize: adjustment requires the phase backdrop")));
@@ -463,6 +469,14 @@ impl Renderer {
         self.check_health()?;
         let started = Instant::now();
         self.check_raster_extent(context, width, height)?;
+        if context.native_lens().is_some() {
+            if let Some(raster) = rasters.iter().find(|raster| raster.plane.three_d
+                && (!raster.plane.screen_overlay || raster.plane.model_source.is_some()))
+            {
+                return Err(RenderError::Invalid(format!(
+                    "camera lens composition={} frame={} object={} phase=retained_lens: retained spatial images cannot bypass nonlinear output after camera replacement", context.composition_id, context.frame, raster.plane.id)));
+            }
+        }
         let output = view.texture();
         if output.width() != width
             || output.height() != height

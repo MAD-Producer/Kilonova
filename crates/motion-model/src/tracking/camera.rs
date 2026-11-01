@@ -325,7 +325,22 @@ impl CameraBinding {
             Extent::new(project.width, project.height).map_err(invalid)?,
         )
         .map_err(invalid)?;
-        let projection = calibrated_projection(calibration, plate, zoom, self.near, self.far)?;
+        let lens = if calibration.radial() == [0.; 3] && calibration.tangential() == [0.; 2] {
+            None
+        } else {
+            Some(super::lens::LensWarp::new(calibration, plate, zoom)?)
+        };
+        // Retain the complete distortion separately from its ideal pinhole.
+        // Matrix-only consumers still use calibrated_projection's strict guard.
+        let pinhole = Calibration::new(
+            calibration.source(),
+            calibration.focal(),
+            calibration.principal(),
+            [0.; 3],
+            [0.; 2],
+        )
+        .map_err(invalid)?;
+        let projection = calibrated_projection(pinhole, plate, zoom, self.near, self.far)?;
         let view_projection = (projection.as_dmat4() * world.inverse()).as_mat4();
         let eye = world.w_axis.truncate().as_vec3();
         let target = world.transform_point3(-DVec3::Z).as_vec3();
@@ -338,6 +353,7 @@ impl CameraBinding {
             "tracking camera projection exceeds finite range",
         )?;
         Ok(CameraSample {
+            lens,
             pose: CameraPose {
                 eye,
                 target,
