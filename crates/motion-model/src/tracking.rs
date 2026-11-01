@@ -10,3 +10,4 @@ pub mod shared;
 pub mod time;
 pub mod plane;
 pub mod camera;
+pub mod lens;
