@@ -907,16 +907,12 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             project.camera_for_mut(object)?.imported = binding;
         }
         Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
-            valid_frame(frame)?;
             let lens = motion_model::lens::Lens::from_focal_length(
                 f64::from(film_width_mm), f64::from(focal_length_mm), project.width, project.height)?;
-            let local = if object == 0 { frame as i32 } else {
-                let frames = project.frames;
-                project.layer_mut(object)?.clip(frames).edit_frame(frame)?
-            };
-            let camera = project.camera_for_mut(object)?;
-            camera.fov.set_at(local, lens.vertical_fov_degrees as f32)?;
-            camera.film_width_mm = film_width_mm;
+            motion_model::keyframe_clipboard::authoring::edit(project,
+                &crate::KeyframeTarget::Property { object, property: Property::Fov, axis: None },
+                frame, &crate::TrackEdit::Set { value: crate::TrackValue::Scalar(lens.vertical_fov_degrees as f32) })?;
+            project.camera_for_mut(object)?.film_width_mm = film_width_mm;
         }
         Command::CameraMode { object, mode } => {
             let (start, end) = if object == 0 { (0, project.frames as i32) } else {

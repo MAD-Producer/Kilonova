@@ -300,7 +300,8 @@ pub enum Command {
     CameraLens {
         #[serde(default)]
         object: u64,
-        frame: u32,
+        /// Exact composition time; FOV keys use the layer's property clock.
+        frame: f64,
         film_width_mm: f32,
         focal_length_mm: f32,
     },
