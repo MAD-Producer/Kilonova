@@ -18,9 +18,18 @@ pub(super) struct Plan {
 struct SpatialOccupancy {
     target: KeyframeTarget,
     ids: Vec<u64>,
-    // Authored order, effective composition time and ownership. Prepared only
+    clock: motion_core::layer_time::LayerClock,
+    offset: i32,
+    // Authored order, effective local/composition time and ownership. Prepared only
     // once per gesture; pointer movement never rebuilds spatial geometry.
-    keys: Vec<(u64, f64, bool, f64)>,
+    keys: Vec<SolvedKey>,
+}
+struct SolvedKey {
+    id: u64,
+    local: f64,
+    composition: f64,
+    fixed: bool,
+    incoming: f64,
 }
 impl Plan {
     pub fn capture(selected: &Set, state: &Value) -> motion_core::Result<Self> {
@@ -60,9 +69,7 @@ impl Plan {
         }
         let mut spatial = Vec::new();
         for (target, ids) in selected.spatial_selections() {
-            if source::clock(state, &target)? != motion_core::layer_time::LayerClock::default() {
-                return Err(Error::Invalid("mapped spatial timing requires its clock-aware persistent identity transform".into()));
-            }
+            let clock = source::clock(state, &target)?;
             let KeyframeTarget::Property {
                 object,
                 property,
@@ -76,6 +83,8 @@ impl Plan {
             let (authored, offset) = source::track(state, &target).ok_or_else(|| {
                 Error::Invalid("spatial transform authored channel missing".into())
             })?;
+            let offset = i32::try_from(offset)
+                .map_err(|_| Error::Invalid("spatial transform clip offset exceeds i32".into()))?;
             let author_keys = authored["spatial_animation"]["keys"]
                 .as_array()
                 .ok_or_else(|| Error::Invalid("spatial transform authored keys missing".into()))?;
@@ -86,12 +95,7 @@ impl Plan {
             let view_keys = view["spatial_keys"]
                 .as_array()
                 .ok_or_else(|| Error::Invalid("spatial transform solved keys missing".into()))?;
-            bytes = bytes.saturating_add(author_keys.len().saturating_mul(std::mem::size_of::<(
-                u64,
-                f64,
-                bool,
-                f64,
-            )>()));
+            bytes = bytes.saturating_add(author_keys.len().saturating_mul(std::mem::size_of::<SolvedKey>()));
             if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES || author_keys.len() > 16_385 {
                 return Err(Error::Invalid(
                     "spatial transform occupancy exceeds metadata limit".into(),
@@ -117,9 +121,12 @@ impl Plan {
                 let fixed = author.get("fixed").ok_or_else(|| {
                     Error::Invalid("spatial transform time ownership missing".into())
                 })?;
+                let local = view["local_frame"].as_f64().filter(|t| t.is_finite())
+                    .ok_or_else(|| Error::Invalid("spatial transform solved local time missing".into()))?;
                 if !seen.insert(id)
                     || view["id"].as_u64() != Some(id)
-                    || !fixed.is_null() && fixed.as_f64().is_none_or(|t| t + offset as f64 != time)
+                    || !fixed.is_null() && fixed.as_f64() != Some(local)
+                    || clock.projected_composition_frame(local, offset)? != time
                     || view["roving"].as_bool() != Some(fixed.is_null())
                 {
                     return Err(Error::Invalid(
@@ -132,14 +139,14 @@ impl Plan {
                     .ok_or_else(|| {
                         Error::Invalid("spatial transform incoming metric missing".into())
                     })?;
-                keys.push((id, time, !fixed.is_null(), incoming));
+                keys.push(SolvedKey { id, local, composition: time, fixed: !fixed.is_null(), incoming });
             }
             if ids.iter().any(|id| !seen.contains(id)) {
                 return Err(Error::Invalid(
                     "spatial transform selected identity missing".into(),
                 ));
             }
-            spatial.push(SpatialOccupancy { target, ids, keys });
+            spatial.push(SpatialOccupancy { target, ids, clock, offset, keys });
         }
         let local = local::Local::capture(selected, state, &mut bytes)?;
         Ok(Self {
@@ -159,14 +166,15 @@ impl Plan {
         self.local.allows(delta, self.total, copy) && self.spatial.iter().all(|c| {
             let mut previous = None;
             let mut moving = false;
-            c.keys.iter().all(|(id, time, fixed, incoming)| {
-                moving |= *incoming > 0.;
-                let chosen = c.ids.binary_search(id).is_ok();
-                let next = *time + if chosen { composition_delta } else { 0. };
-                if chosen && !(next >= 0. && next < f64::from(self.total)) {
+            c.keys.iter().all(|key| {
+                moving |= key.incoming > 0.;
+                let chosen = c.ids.binary_search(&key.id).is_ok();
+                let next = key.local + if chosen { composition_delta * c.clock.rate() } else { 0. };
+                if chosen && !c.clock.projected_composition_frame(next, c.offset)
+                    .is_ok_and(|time| time >= 0. && time < f64::from(self.total)) {
                     return false;
                 }
-                if chosen || *fixed {
+                if chosen || key.fixed {
                     if previous.is_some_and(|p| p > next || p == next && moving) {
                         return false;
                     }
@@ -226,6 +234,8 @@ impl Plan {
             .iter()
             .flat_map(|c| c.selected.iter().copied().map(f64::from))
             .chain(self.local.times())
+            .chain(self.spatial.iter().flat_map(|c| c.keys.iter()
+                .filter(|key| c.ids.binary_search(&key.id).is_ok()).map(|key| key.composition)))
     }
     pub fn delta_frame(&self, steps: i32) -> f64 {
         f64::from(steps) * self.local.grid.scale()
