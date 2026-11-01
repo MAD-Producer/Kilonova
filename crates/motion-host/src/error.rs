@@ -6,6 +6,8 @@ use motion_core::composition::CompositionError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    TrackingImport(#[from] crate::tracking::import::Error),
     #[cfg(feature = "ai-depth")]
     #[error(transparent)]
     Depth(#[from] crate::depth::Error),

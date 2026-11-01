@@ -333,6 +333,13 @@ pub enum Command {
         source: Option<crate::layer_clipboard::KeyframeSource>,
         reply: Sender<Result<Value, String>>,
     },
+    ImportTracking {
+        file: PathBuf,
+        source: motion_core::media_assets::AssetRef,
+        revision: u64,
+        generation: u64,
+        reply: Sender<Result<Value, String>>,
+    },
     ReplaceImage {
         file: PathBuf,
         asset: u64,
@@ -511,7 +518,7 @@ impl Command {
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
-            | ImportImage { reply, .. } | ImportModel { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
+            | ImportImage { reply, .. } | ImportModel { reply, .. } | ImportTracking { reply, .. } | ReplaceImage { reply, .. } | CreateText { reply, .. } | TextLayout {reply,..} | RenderPreview { reply, .. }
             | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. } | SeekAudioPreview { reply, .. }
             | EffectPick { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
@@ -1337,6 +1344,10 @@ impl Engine {
     }
     pub fn import_model(&self, file: PathBuf, expected_revision: u64) -> Result<Value, String> {
         self.call(|reply| Command::ImportModel { file, expected_revision: Some(expected_revision), source: None, reply })
+    }
+    pub fn import_tracking(&self, file: PathBuf, source: motion_core::media_assets::AssetRef,
+        revision: u64, generation: u64) -> Result<Value, String> {
+        self.call(|reply| Command::ImportTracking { file, source, revision, generation, reply })
     }
     pub fn create_text(
         &self,
@@ -2207,6 +2218,18 @@ fn handle(
         })()),
         Command::ImportProject { file, reply } => respond(reply,guard.changed(project::import_project(id, &file))),
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
+        Command::ImportTracking { file, source, revision, generation, reply } => {
+            let result = motion_host::ops::tracking::import(
+                id, current_command().map_or(0, |c| c.0), &file, source, revision, generation);
+            if matches!(&result, Err(motion_host::Error::TrackingImport(
+                motion_host::tracking::import::Error::Cancelled | motion_host::tracking::import::Error::Superseded))) {
+                // Keep the rejection on the wire, without classifying expected
+                // cancellation as a fault. Replies retain best-effort semantics.
+                let _ = reply.send(result.map_err(String::from));
+            } else {
+                respond(reply, result);
+            }
+        },
         Command::ImportModel {file,expected_revision,source,reply} => respond(reply,motion_host::session::with_session(id,|s|{
             if source.as_ref().is_some_and(|source| !source.current(s)) {
                 let mut state = s.snapshot()?;

@@ -71,3 +71,17 @@ The original shared-ID negative failed as intended before the correction. Previo
 native AV and #82 performance failures remain retained and unexplained/unfixed.
 Actual import publication/routing, decoded source identity, pose evaluation,
 relink/invalidation, rendered footage and exact-head CI remain pending for #88.
+
+## Subsequent managed import increment
+
+The [managed original import record](tracking88-managed-import-current.md) now
+connects actual file acquisition/publication to an undoable saved edit and the
+desktop/MCP `import_tracking` command. It checks explicit source, revision and
+document generation, keeps rollback outside the session guard and preserves
+post-publication acknowledgement failures. Ninety tracking and 203 host unit
+tests passed; final desktop coverage includes all nine MCP tests and actual
+default-level native import/save/reopen/history/read-only/protocol controls.
+Expected supersession keeps its rejection without Error misclassification.
+These controls do not establish decoded PTS/proxy agreement, applied poses,
+rendered tracking, cross-platform qualification or complete #88 closure. The
+original native AV and #82 strict P95 failures remain unresolved.

@@ -33,6 +33,7 @@ impl ToolRouter<'_> {
             "command_batch" => &["commands", "expectedRevision"],
             "render_preview" => &["frame"],
             "import_model" => &["path", "expectedRevision"],
+            "import_tracking" => &["path", "source", "expectedRevision", "expectedDocumentGeneration"],
             _ => return Err("unknown editor tool".into()),
         };
         if args.keys().any(|key| !fields.contains(&key.as_str())) {
@@ -48,11 +49,32 @@ impl ToolRouter<'_> {
                 | "command_batch"
                 | "render_preview"
                 | "import_model"
+                | "import_tracking"
         );
         if write && matches!(self.access, Access::ReadOnly) {
             return Err("editor writes are disabled for this agent".into());
         }
         match name {
+            "import_tracking" => {
+                let path = args.get("path").and_then(Value::as_str)
+                    .filter(|s| !s.is_empty() && s.len() <= 4096).ok_or("path must be a bounded nonempty string")?;
+                let source = args.get("source").and_then(Value::as_object).ok_or("source must be an object")?;
+                if source.len() != 2 || !source.contains_key("kind") || !source.contains_key("id") {
+                    return Err("source requires only kind and id".into());
+                }
+                let kind = match source.get("kind").and_then(Value::as_str) {
+                    Some("image") => motion_core::media_assets::AssetKind::Image,
+                    Some("video") => motion_core::media_assets::AssetKind::Video,
+                    _ => return Err("source kind must be image or video".into()),
+                };
+                let id = source.get("id").and_then(Value::as_u64).filter(|id| *id != 0)
+                    .ok_or("source id must be a positive integer")?;
+                let revision = args.get("expectedRevision").and_then(Value::as_u64)
+                    .ok_or("expectedRevision must be a nonnegative integer")?;
+                let generation = args.get("expectedDocumentGeneration").and_then(Value::as_u64)
+                    .ok_or("expectedDocumentGeneration must be a nonnegative integer")?;
+                self.engine.import_tracking(path.into(), motion_core::media_assets::AssetRef { kind, id }, revision, generation)
+            }
             "import_model" => {
                 let path = args.get("path").and_then(Value::as_str)
                     .filter(|s| !s.is_empty() && s.len() <= 4096).ok_or("path must be a bounded nonempty string")?;
@@ -137,6 +159,11 @@ pub fn tools() -> Value {
         tool("motion_history","Undo or redo the most recent committed operation.",schema(json!({"operation":{"type":"string","enum":["undo","redo"]}}),&["operation"]),false),
         tool("motion_save","Atomically save the current project and validate its assets.",schema(json!({}),&[]),false),
         tool("import_model","Import a local glTF, GLB or OBJ plus bounded dependencies into an owned model layer with one undo step. Rest pose, 100 pixels per metre, no automatic animation. Fetch the current revision first.",schema(json!({"path":{"type":"string","minLength":1,"maxLength":4096},"expectedRevision":{"type":"integer","minimum":0}}),&["path","expectedRevision"]),false),
+        tool("import_tracking","Preserve a canonical tracking JSON original as a managed project attachment with one undo step. Verifies encoded source bytes; does not apply poses or verify decoded video timing. Fetch revision and document_generation first.",schema(json!({
+            "path":{"type":"string","minLength":1,"maxLength":4096},
+            "source":{"type":"object","properties":{"kind":{"type":"string","enum":["image","video"]},"id":{"type":"integer","minimum":1}},"required":["kind","id"],"additionalProperties":false},
+            "expectedRevision":{"type":"integer","minimum":0},"expectedDocumentGeneration":{"type":"integer","minimum":0}
+        }),&["path","source","expectedRevision","expectedDocumentGeneration"]),false),
         tool("command_list","List registered editing commands and their JSON schemas.",schema(json!({}),&[]),true),
         tool("command_run","Execute one registered core command with a revision check and one undo boundary.",schema(json!({"command":command_schema,"expectedRevision":{"type":"integer","minimum":0}}),&["command","expectedRevision"]),false),
         tool("command_batch","Execute an atomic batch of registered editing commands with one undo boundary.",schema(json!({"commands":{"type":"array","minItems":1,"items":command_schema},"expectedRevision":{"type":"integer","minimum":0}}),&["commands","expectedRevision"]),false),
@@ -319,6 +346,10 @@ pub fn serve(
         &mut io::stdout().lock(),
     )
 }
+
+#[cfg(test)]
+#[path = "mcp/tracking_tests.rs"]
+mod tracking_tests;
 
 #[cfg(test)]
 mod tests {

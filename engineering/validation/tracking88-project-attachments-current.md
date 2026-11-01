@@ -1,5 +1,9 @@
 # Managed original tracking attachments
 
+Follow-up: [managed original import](tracking88-managed-import-current.md) now adds
+actual publication and desktop/MCP routing. This document records the earlier
+attachment snapshot; its remaining-work statements describe that snapshot.
+
 Issue #88 remains open. This backend increment adds byte-exact original tracking
 documents to project resources, history, composition views and portable project
 archives. Final validation ended at `2026-11-01T04:36:56.837754+00:00` on parent
