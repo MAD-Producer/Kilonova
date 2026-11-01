@@ -1,5 +1,7 @@
 use super::*;
 use crate::panels::effect_pick::{Kind, Ticket};
+#[cfg(test)]
+mod tests;
 
 pub(super) fn apply(
     id: i64,
@@ -129,16 +131,33 @@ pub(super) fn apply(
         {
             return cancelled(s, "out_of_range");
         }
-        let frame = s.frame.floor() as u32;
-        s.apply_command_batch(vec![motion_core::Command::Effect {
-            object: ticket.object,
-            action: motion_core::EffectAction::Set {
-                effect: ticket.effect,
-                param: ticket.parameter,
-                frame,
-                value,
-            },
-        }])
+        // The pick belongs to the captured composition instant. A mapped
+        // integer track may address it only through its exact local projection;
+        // flooring here can write a different key, or reject a valid pick.
+        let command = if layer.time_mapping.is_some() {
+            motion_core::Command::TrackAt {
+                target: motion_core::KeyframeTarget::Effect {
+                    object: ticket.object,
+                    effect: ticket.effect,
+                    param: ticket.parameter,
+                },
+                frame: ticket.frame,
+                edit: motion_core::TrackEdit::Set {
+                    value: motion_core::TrackValue::Vec4(value),
+                },
+            }
+        } else {
+            motion_core::Command::Effect {
+                object: ticket.object,
+                action: motion_core::EffectAction::Set {
+                    effect: ticket.effect,
+                    param: ticket.parameter,
+                    frame: s.frame.floor() as u32,
+                    value,
+                },
+            }
+        };
+        s.apply_command_batch(vec![command])
     })
     .map_err(|cause| motion_host::Error::with_context(context, cause))
 }
