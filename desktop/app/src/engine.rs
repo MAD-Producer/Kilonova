@@ -1810,6 +1810,8 @@ fn handle(
                 state["editorAction"] = serde_json::json!({"cancelled":true,"reason":"context_changed"});
                 if commands.iter().any(|command|matches!(command,motion_core::Command::KeyframeTiming{..})) {
                     state["editorAction"]["operation"]="keyframe_timing".into();
+                } else if commands.iter().any(|command|matches!(command,motion_core::Command::LayerTime{..})) {
+                    state["editorAction"]["operation"]="layer_time".into();
                 }
                 return Ok(state);
             }

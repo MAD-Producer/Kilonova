@@ -103,6 +103,10 @@ pub enum Action {
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
     },
+    LayerTimeSettings {
+        source: crate::layer_clipboard::KeyframeSource,
+        objects: Vec<u64>,
+    },
     Preferences,
     NewComposition,
     CompositionPreset(u32, u32),

@@ -52,6 +52,8 @@ pub(super) enum Operation {
     CompareCurves,
     Sequence,
     ReverseTime,
+    LayerTimeSettings,
+    ResetLayerTime,
 }
 
 fn edit_scope(panels: &Panels, state: &Value) -> bool {
@@ -152,7 +154,10 @@ pub(super) fn enabled(panels: &Panels, state: &Value, operation: Operation) -> b
         Operation::PasteEasing => !panels.clipboard_busy && interpolation_selection(panels, state).is_some(),
         Operation::CompareCurves => true,
         Operation::Sequence => sequence_plan(panels, state).is_some_and(|edits| !edits.is_empty()),
-        Operation::ReverseTime | Operation::Shortcut(_) => false,
+        Operation::ReverseTime | Operation::LayerTimeSettings => crate::dialogs::layer_time::eligible(state,&panels.selection_ids()),
+        Operation::ResetLayerTime => crate::dialogs::layer_time::eligible(state,&panels.selection_ids())
+            && panels.selection_ids().iter().any(|id|super::keyframe_clipboard::layer(state,*id).is_some_and(|l|!l["time_mapping"].is_null())),
+        Operation::Shortcut(_) => false,
     }
 }
 
@@ -222,7 +227,16 @@ pub(super) fn apply(
                 pending.push(Action::EditBatch(edits));
             }
         }
-        Operation::ReverseTime => {}
+        Operation::ReverseTime | Operation::ResetLayerTime => {
+            for object in panels.selection_ids() {
+                let action=if matches!(operation,Operation::ReverseTime) {motion_core::layer_time::LayerTimeAction::Reverse {}}
+                    else {motion_core::layer_time::LayerTimeAction::Reset {}};
+                pending.push(Action::Edit(Command::LayerTime {object,action}));
+            }
+        }
+        Operation::LayerTimeSettings => out.push(Action::LayerTimeSettings {
+            source:crate::layer_clipboard::KeyframeSource::of(state),objects:panels.selection_ids(),
+        }),
     }
     let mut commands = Vec::new();
     for action in pending {
@@ -331,17 +345,21 @@ pub(super) fn entries(panels: &Panels, state: &Value) -> Vec<(String, Operation,
     ));
     rows.push((
         (if zh {
-            "图层时间反向 · 尚无时间重映射支持"
+            "图层时间反向"
         } else {
-            "Reverse layer time · requires time remapping"
+            "Reverse layer time"
         })
         .into(),
         Operation::ReverseTime,
     ));
+    rows.push((word_for_time(zh,"图层时间设置…","Layer time settings…"),Operation::LayerTimeSettings));
+    rows.push((word_for_time(zh,"重置图层时间","Reset layer time"),Operation::ResetLayerTime));
     rows.into_iter()
         .map(|(label, op)| (label, op, enabled(panels, state, op)))
         .collect()
 }
+
+fn word_for_time(zh:bool,cn:&str,en:&str)->String {if zh{cn}else{en}.into()}
 
 pub(super) fn checked(panels: &Panels, state: &Value, operation: Operation) -> bool {
     if matches!(operation,Operation::Roving(true)) {return roving::plans(panels,state).all_roving();}

@@ -261,6 +261,9 @@ impl Shell {
             Action::KeyframeTimingSettings { source, selections } => {
                 self.open_keyframe_timing(source, selections)?;
             }
+            Action::LayerTimeSettings { source, objects } => {
+                self.open_layer_time(source, objects)?;
+            }
             Action::ExportMovie => {
                 if self.render_queue.preparing() {
                     return Err("render queue is preparing a task".into());

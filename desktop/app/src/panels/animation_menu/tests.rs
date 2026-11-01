@@ -274,7 +274,7 @@ fn sequence_follows_visible_stack_and_preserves_sources_and_one_step_history() {
 }
 
 #[test]
-fn invalid_readonly_and_stale_contexts_disable_edits_and_reverse_time_is_explicitly_unavailable() {
+fn invalid_readonly_and_stale_contexts_disable_edits_and_layer_time_requires_document_identity() {
     let (_, state) = fixture();
     for locale in [Locale::En, Locale::Zh] {
         for fault in ["locked", "readonly", "foreign", "stale"] {
@@ -298,12 +298,14 @@ fn invalid_readonly_and_stale_contexts_disable_edits_and_reverse_time_is_explici
             }
         }
         let panels = context(&state, locale);
-        assert!(!enabled(&panels, &state, Operation::ReverseTime));
+        assert!(enabled(&panels, &state, Operation::ReverseTime));
         assert!(entries(&panels, &state)
             .iter()
             .any(|(text, op, enabled)| matches!(op, Operation::ReverseTime)
-                && !enabled
+                && *enabled
                 && !text.is_empty()));
+        let mut unavailable=state.clone();unavailable["document_generation"]=Value::Null;
+        assert!(!enabled(&panels,&unavailable,Operation::ReverseTime));
     }
 }
 
@@ -434,7 +436,7 @@ fn disabled_menu_entry_focus_loss_and_outside_click_never_edit() {
                 .min[0];
             let disabled = entries(&panels, &state)
                 .iter()
-                .position(|(_, operation, _)| matches!(operation, Operation::ReverseTime))
+                .position(|(_, operation, _)| matches!(operation, Operation::ResetLayerTime))
                 .unwrap();
             let point = [
                 origin + 12.,
@@ -480,6 +482,50 @@ fn disabled_menu_entry_focus_loss_and_outside_click_never_edit() {
             );
             assert_eq!(panels.menu, None);
             assert!(actions.is_empty());
+        }
+    }
+}
+
+#[test]
+fn layer_time_menu_reverse_and_reset_are_guarded_atomic_multi_selection_transactions() {
+    for locale in [Locale::Zh, Locale::En] {
+        let (mut engine, state) = fixture();
+        let mut panels = context(&state, locale);
+        panels.select_only(Some(7));
+        panels.toggle_selection(8);
+        let before = engine.snapshot();
+        assert!(enabled(&panels, &state, Operation::ReverseTime));
+        assert!(!enabled(&panels, &state, Operation::ResetLayerTime));
+        let mut actions = vec![];
+        apply(&mut panels, &state, Operation::ReverseTime, &mut actions);
+        assert_eq!(actions.len(), 1);
+        let batch = commands(actions);
+        assert_eq!(batch.len(), 2);
+        engine.apply_batch(batch).unwrap();
+        for layer in &engine.project().layers[..2] {
+            assert_eq!(layer.time_mapping.as_ref().unwrap().clock.direction(), motion_core::layer_time::TimeDirection::Reverse);
+        }
+        let reversed = engine.snapshot();
+        let state = snapshot(&engine);
+        assert!(enabled(&panels, &state, Operation::ResetLayerTime));
+        let mut actions = vec![];
+        apply(&mut panels, &state, Operation::ResetLayerTime, &mut actions);
+        engine.apply_batch(commands(actions)).unwrap();
+        assert_eq!(engine.project(), &before);
+        assert!(engine.undo().unwrap());
+        assert_eq!(engine.project(), &reversed);
+        assert!(engine.undo().unwrap());
+        assert_eq!(engine.project(), &before);
+        for fault in ["locked", "generation", "readonly"] {
+            let mut bad = snapshot(&engine);
+            match fault {
+                "locked" => bad["project"]["layers"][1]["locked"] = true.into(),
+                "generation" => bad["document_generation"] = Value::Null,
+                _ => bad["observing"] = true.into(),
+            }
+            let mut actions = vec![];
+            apply(&mut panels, &bad, Operation::ReverseTime, &mut actions);
+            assert!(actions.is_empty(), "{fault}");
         }
     }
 }
