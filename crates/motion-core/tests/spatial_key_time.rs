@@ -113,6 +113,147 @@ fn composition_conversion_finds_signed_local_keys_in_both_directions() {
 }
 
 #[test]
+fn signed_local_conversion_keeps_fractional_display_keys_and_roundtrips_full_project() {
+    for reverse in [false, true] {
+        let mut engine = fixture(reverse);
+        let before = engine.snapshot();
+        assert_eq!(
+            clock(&before)
+                .projected_composition_frame(-9., 2)
+                .unwrap()
+                .fract(),
+            0.5
+        );
+        let edit = command(SpatialKeyEdit::EnableLocal {
+            frames: vec![-9, -6],
+        });
+        assert_eq!(
+            serde_json::to_value(
+                serde_json::from_value::<Command>(serde_json::to_value(&edit).unwrap()).unwrap()
+            )
+            .unwrap(),
+            serde_json::to_value(&edit).unwrap()
+        );
+        engine.apply(edit).unwrap();
+        let mut expected = before.clone();
+        expected.layers[0]
+            .transform
+            .position
+            .enable_roving(&[-9, -6])
+            .unwrap();
+        assert_eq!(engine.project(), &expected);
+        assert!(expected.layers[0].transform.position.keys.is_empty());
+        let keys = expected.layers[0]
+            .transform
+            .position
+            .spatial_animation
+            .as_ref()
+            .unwrap()
+            .keys();
+        assert_eq!(
+            keys.iter().map(|k| (k.id, k.reference)).collect::<Vec<_>>(),
+            vec![(1, -12.), (2, -9.), (3, -6.), (4, 0.)]
+        );
+        engine.undo().unwrap();
+        assert_eq!(engine.project(), &before);
+        engine.redo().unwrap();
+        assert_eq!(engine.project(), &expected);
+        roundtrip(&expected);
+    }
+}
+
+#[test]
+fn invalid_local_conversion_preserves_project_and_transaction_redo() {
+    for reverse in [false, true] {
+        let mut engine = fixture(reverse);
+        engine
+            .apply(command(SpatialKeyEdit::EnableLocal { frames: vec![-9] }))
+            .unwrap();
+        let redo = engine.snapshot();
+        engine.undo().unwrap();
+        let before = engine.snapshot();
+        let revision = engine.revision();
+        let history = engine.history_diagnostics();
+        for frames in [
+            vec![],
+            vec![-9, -9],
+            vec![-6, -9],
+            vec![-8],
+            vec![-12],
+            vec![0],
+            vec![-9; 16_386],
+        ] {
+            let error = engine
+                .apply(command(SpatialKeyEdit::EnableLocal { frames }))
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("operation=spatial_keyframes")
+                    && error.contains("object=7")
+                    && error.contains("phase=enable_local"),
+                "{error}"
+            );
+            assert!(error.len() < 1024, "bounded selection context");
+            assert_eq!(engine.project(), &before);
+            assert_eq!(engine.revision(), revision);
+            assert_eq!(engine.history_diagnostics(), history);
+        }
+        engine.redo().unwrap();
+        assert_eq!(engine.project(), &redo);
+        let before = engine.snapshot();
+        assert!(engine
+            .apply(command(SpatialKeyEdit::EnableLocal { frames: vec![-9] }))
+            .is_err());
+        assert_eq!(
+            engine.project(),
+            &before,
+            "already spatial must not reconvert"
+        );
+    }
+}
+
+#[test]
+fn registry_exposes_signed_local_conversion_and_executes_its_typed_payload() {
+    let catalogue = motion_core::CommandRegistry::catalogue();
+    let descriptor = catalogue["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["id"] == "spatial_keyframes")
+        .unwrap();
+    let variants = descriptor["inputSchema"]["properties"]["edit"]["oneOf"]
+        .as_array()
+        .unwrap();
+    let local = variants
+        .iter()
+        .find(|v| v["properties"]["kind"]["const"] == "enable_local")
+        .unwrap();
+    assert_eq!(local["properties"]["frames"]["items"]["minimum"], i32::MIN);
+    assert_eq!(local["properties"]["frames"]["items"]["maximum"], i32::MAX);
+    let payload = serde_json::json!({"op":"spatial_keyframes","target":{"kind":"property","object":7,"property":"position","axis":null},"edit":{"kind":"enable_local","frames":[-9]}});
+    let commands = motion_core::CommandRegistry::parse(&payload.to_string()).unwrap();
+    let mut engine = fixture(true);
+    let mut expected = engine.snapshot();
+    expected.layers[0]
+        .transform
+        .position
+        .enable_roving(&[-9])
+        .unwrap();
+    motion_core::CommandRegistry::run(&mut engine, commands).unwrap();
+    assert_eq!(engine.project(), &expected);
+    for frames in [
+        serde_json::json!([-9.5]),
+        serde_json::json!([-2147483649_i64]),
+        serde_json::json!([2147483648_i64]),
+    ] {
+        let mut bad = payload.clone();
+        bad["edit"]["frames"] = frames;
+        assert!(motion_core::CommandRegistry::parse(&bad.to_string()).is_err());
+        assert_eq!(engine.project(), &expected);
+    }
+}
+
+#[test]
 fn continuous_time_edits_use_property_clock_and_preserve_complete_history() {
     for reverse in [false, true] {
         let mut e = spatial_engine(reverse);

@@ -111,6 +111,8 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "SpatialKeyEdit" => json!({"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
                     "kind":{"const":"enable"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}},
+                {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
+                    "kind":{"const":"enable_local"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"description":"Strictly increasing authored signed-local key identities; never rounded composition frames","items":{"type":"integer","minimum":-2147483648_i64,"maximum":2147483647_i64}}}},
                 {"type":"object","additionalProperties":false,"required":["kind","keys","enabled"],"properties":{
                     "kind":{"const":"roving"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"enabled":{"type":"boolean"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key","time"],"properties":{

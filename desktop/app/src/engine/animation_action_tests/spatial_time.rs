@@ -1,6 +1,9 @@
 use super::*;
 use motion_core::{layer_time::*, LayerTimeline, SpatialKeyEdit};
 
+#[path = "spatial_enable.rs"]
+mod enable;
+
 fn project(reverse: bool) -> Project {
     let mut p = Project::new(64, 64, 30, 120).unwrap();
     let mut layer = Layer::solid(

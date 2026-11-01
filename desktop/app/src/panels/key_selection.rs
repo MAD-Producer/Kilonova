@@ -530,7 +530,7 @@ pub(super) fn choose(
         mode,
     )
 }
-fn choose_addressed(
+pub(super) fn choose_addressed(
     panels: &mut super::Panels,
     state: &Value,
     keys: impl IntoIterator<Item = AddressedKey>,

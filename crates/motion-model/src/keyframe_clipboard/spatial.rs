@@ -9,6 +9,10 @@ pub enum SpatialKeyEdit {
     Enable {
         frames: Vec<u32>,
     },
+    /// Authored signed-local identities, independent of their display projection.
+    EnableLocal {
+        frames: Vec<i32>,
+    },
     Roving {
         keys: Vec<u64>,
         enabled: bool,
@@ -59,6 +63,17 @@ fn candidate<T: Tween>(
             selected.sort_unstable();
             track.enable_roving(&selected)?;
         }
+        SpatialKeyEdit::EnableLocal { frames: selected } => {
+            ensure(
+                !selected.is_empty() && selected.len() <= 16_385,
+                "invalid Roving selection count",
+            )?;
+            ensure(
+                selected.windows(2).all(|keys| keys[0] < keys[1]),
+                "Roving source frames must be unique and sorted",
+            )?;
+            track.enable_roving(selected)?;
+        }
         _ => {
             let animation = track
                 .spatial_animation
@@ -84,7 +99,7 @@ fn candidate<T: Tween>(
                     animation.move_keys(keys, *delta * clock.rate())?
                 }
                 SpatialKeyEdit::Delete { key } => animation.delete_key(*key)?,
-                SpatialKeyEdit::Enable { .. } => {
+                SpatialKeyEdit::Enable { .. } | SpatialKeyEdit::EnableLocal { .. } => {
                     return Err(Error::Invalid(
                         "spatial conversion dispatch mismatch".into(),
                     ))
@@ -189,6 +204,11 @@ pub fn edit(project: &mut Project, target: &KeyframeTarget, edit: &SpatialKeyEdi
     let context = match edit {
         SpatialKeyEdit::Enable { frames } => format!(
             "phase=enable frames={:?} count={}",
+            frames.iter().take(8).collect::<Vec<_>>(),
+            frames.len()
+        ),
+        SpatialKeyEdit::EnableLocal { frames } => format!(
+            "phase=enable_local frames={:?} count={}",
             frames.iter().take(8).collect::<Vec<_>>(),
             frames.len()
         ),
