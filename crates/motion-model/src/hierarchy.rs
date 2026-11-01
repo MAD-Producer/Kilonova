@@ -160,7 +160,7 @@ fn node(
         } else {
             crate::geometry::flat_matrix(prefix)
         };
-        prefix * crate::geometry::pivot_matrix(layer, frame, p.width, p.height)?
+        prefix * crate::geometry::pivot_matrix(layer, frame, p)?
     };
     ensure(value.is_finite(), "invalid parent transform")?;
     world[index] = value;

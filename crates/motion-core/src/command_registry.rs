@@ -107,6 +107,20 @@ fn named_schema(kind: &str) -> (bool, Value) {
                         "required":["clip","offset_seconds","speed"],"properties":{"clip":{"type":"integer","minimum":0},
                             "offset_seconds":{"type":"number"},"speed":{"type":"number"}}}]}}}),
             "ChannelPrecision" => json!({"type":"string","enum":["unorm8","unorm16","float16","float32"]}),
+            "PointBinding" => json!({"type":"object","additionalProperties":false,
+                "description":"Original-PTS point displacement in target-local pixel axes, added after authored position corrections; no keyframe baking",
+                "required":["asset","track","anchor_local_frame","source_anchor_pts","speed_numerator","speed_denominator","reference_pixels","crop","rotation","interpolation","max_gap_ticks","minimum_confidence","missing"],
+                "properties":{
+                    "asset":{"type":"integer","minimum":1},"track":{"type":"string","minLength":1,"maxLength":128},
+                    "anchor_local_frame":{"type":"integer","minimum":-36000,"maximum":36000},"source_anchor_pts":{"type":"integer"},
+                    "speed_numerator":{"type":"integer","minimum":-1000000,"maximum":1000000},
+                    "speed_denominator":{"type":"integer","minimum":1,"maximum":1000000},
+                    "reference_pixels":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number"}},
+                    "crop":{"type":"array","minItems":4,"maxItems":4,"items":{"type":"number"}},
+                    "rotation":{"type":"string","enum":["none","clockwise90","half_turn","clockwise270"]},
+                    "interpolation":{"type":"string","enum":["hold","linear"]},"max_gap_ticks":{"type":"integer","minimum":0},
+                    "minimum_confidence":{"type":"number","minimum":0,"maximum":1},"missing":{"type":"string","enum":["error","authored_only"]}
+                }}),
             "ParentMode" => json!({"type":"string","enum":["preserve_world","preserve_local"]}),
             "crate::compositing::BlendMode" => {
                 json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
@@ -208,6 +222,7 @@ registry! {
     Command::VideoDepthCalibration { .. } => "video_depth_calibration" [("object","u64",true), ("sample","VideoDepthSample",true)];
     Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterTrackingAsset { .. } => "register_tracking_asset" [("asset","TrackingAsset",true)];
+    Command::SetTrackingPoint { .. } => "set_tracking_point" [("object","u64",true),("binding","Option<PointBinding>",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
     Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
     Command::SetVector { .. } => "set_vector" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value",[f32; 3],true)];

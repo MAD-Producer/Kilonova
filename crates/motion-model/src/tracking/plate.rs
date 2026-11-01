@@ -46,7 +46,7 @@ impl Extent {
 /// Pinhole intrinsics with Brown-Conrady radial (k1,k2,k3) and tangential
 /// (p1,p2) distortion in normalized camera coordinates. This is a named model,
 /// not a generic vector accepting arbitrary external lens coefficients.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Calibration {
     source: Extent,
     focal: [f64; 2],
@@ -132,7 +132,8 @@ impl Calibration {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Rotation {
     None,
     Clockwise90,
@@ -142,7 +143,7 @@ pub enum Rotation {
 
 /// Crop in original source edge coordinates, then rotate clockwise, then resize.
 /// This is independent of camera axes, lens distortion, source PTS and project fps.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PlateTransform {
     source: Extent,
     crop: [f64; 4],

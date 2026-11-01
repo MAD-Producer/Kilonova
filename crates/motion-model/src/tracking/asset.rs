@@ -101,7 +101,7 @@ pub enum Coordinates {
 
 /// Camera-to-world transform, quaternion XYZW; translation uses the asset's
 /// declared world unit. No automatic normalization or keyframe baking occurs.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
     pub position: [f64; 3],
     pub orientation_xyzw: [f64; 4],
@@ -123,7 +123,7 @@ impl Pose {
         Ok(())
     }
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Observation {
     Point([f64; 2]),
     /// Reference-image pixels to current source-image pixels, homogeneous 3x3.
@@ -136,7 +136,7 @@ pub enum Observation {
         calibration: Calibration,
     },
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sample {
     pub source_index: u32,
     pub visibility: Visibility,
@@ -144,14 +144,14 @@ pub struct Sample {
     pub observation: Option<Observation>,
     pub manual_correction: bool,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Track {
     pub id: String,
     pub kind: Kind,
     pub reference_index: Option<u32>,
     pub samples: Vec<Sample>,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Asset {
     pub version: u32,
     pub source_id: String,

@@ -9,6 +9,10 @@ fn deserialize_depth_calibration<'de, D: serde::Deserializer<'de>>(deserializer:
     -> std::result::Result<Option<crate::depth::SavedDepthCalibration>, D::Error> {
     Option::<crate::depth::SavedDepthCalibration>::deserialize(deserializer)
 }
+fn deserialize_point_binding<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> std::result::Result<Option<crate::tracking::point::PointBinding>, D::Error> {
+    Option::<crate::tracking::point::PointBinding>::deserialize(deserializer)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +39,11 @@ impl Property {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetTrackingPoint {
+        object: u64,
+        #[serde(deserialize_with = "deserialize_point_binding")]
+        binding: Option<crate::tracking::point::PointBinding>,
+    },
     ApplyAnimationPreset { preset: Box<crate::AnimationPreset>, objects: Vec<u64>, at_frame: u32 },
     SetWorkingPrecision { precision: motion_effects::image_contract::ChannelPrecision },
     DepthCalibration {

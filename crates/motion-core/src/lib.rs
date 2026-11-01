@@ -33,7 +33,7 @@ pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track,
 pub use motion_model::hierarchy::ParentMode;
 pub use motion_model::{AudioAsset, AudioClip};
 pub use motion_model::{ModelAnimation, ModelAsset, ModelClip, model_assets};
-pub use motion_model::{TrackingAsset, TrackingFormat, tracking_assets};
+pub use motion_model::{TrackingAsset, TrackingFormat, tracking_assets, tracking};
 pub use motion_model::ClipRange;
 pub use motion_model::{FrameScope, WorkArea};
 pub use motion_model::{guides, Guide, GuideAxis, MAX_GUIDES, MAX_GUIDE_POSITION};

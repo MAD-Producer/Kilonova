@@ -7,6 +7,224 @@ use crate::tracking::{
 use motion_core::{media_assets::AssetKind, storage, Engine};
 use std::{error::Error as _, fs, io::Cursor};
 
+fn frozen_point_binding() -> motion_core::tracking::point::PointBinding {
+    use motion_core::tracking::{plate::Rotation, point::*};
+    PointBinding {
+        asset: 2,
+        track: "manually corrected point".into(),
+        anchor_local_frame: 0,
+        source_anchor_pts: -3003,
+        speed_numerator: 0,
+        speed_denominator: 1,
+        reference_pixels: [1., 1.],
+        crop: [0., 0., 8., 6.],
+        rotation: Rotation::None,
+        interpolation: Interpolation::Linear,
+        max_gap_ticks: 0,
+        minimum_confidence: 0.8,
+        missing: Missing::Error,
+    }
+}
+
+#[test]
+fn point_binding_is_a_real_undoable_command_and_survives_save_package_and_reopen() {
+    let f = Fixture::new();
+    let (mut engine, _) = f.attached();
+    let mut layer =
+        motion_core::Layer::solid(7, "Tracked object", [4.; 2], [30., 25., 0.], [1.; 4]);
+    layer.content = motion_core::Content::Null;
+    engine.apply(motion_core::Command::Add { layer }).unwrap();
+    let before = engine.project().clone();
+    let command = motion_core::Command::SetTrackingPoint {
+        object: 7,
+        binding: Some(frozen_point_binding()),
+    };
+    let wire = serde_json::to_string(&command).unwrap();
+    assert!(wire.contains("set_tracking_point"));
+    assert!(!serde_json::from_str::<motion_core::Command>(&wire)
+        .unwrap()
+        .changes_resources());
+    engine.apply(command).unwrap();
+    let attached = engine.project().clone();
+    let position = attached.layers[0].sampled_position(&attached, 0.).unwrap();
+    assert!((position[0] - 22.).abs() < 1e-5);
+    assert!((position[1] - (25. + 2.125 * 64. / 6.)).abs() < 1e-5);
+    assert!(attached.layers[0].transform.position.keys.is_empty());
+    assert!(before.tracking_assets[0]
+        .data
+        .shares_storage(&attached.tracking_assets[0].data));
+    assert!(engine.undo().unwrap());
+    assert_eq!(engine.project(), &before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(engine.project(), &attached);
+    storage::save(f.root.path(), &attached).unwrap();
+    assert_eq!(storage::load(f.root.path()).unwrap(), attached);
+    let package = f.root.path().join("tracked.msproj");
+    storage::export_package(f.root.path(), &attached, &package).unwrap();
+    let reopened = tempfile::tempdir().unwrap();
+    let destination = reopened.path().join("unpacked");
+    storage::import_package(&package, &destination).unwrap();
+    let restored = storage::load(&destination).unwrap();
+    assert_eq!(
+        restored.layers[0].sampled_position(&restored, 0.).unwrap(),
+        position
+    );
+    assert_eq!(
+        fs::read(destination.join(&attached.tracking_assets[0].path)).unwrap(),
+        f.original
+    );
+}
+
+#[test]
+fn point_binding_command_rejects_invalid_or_locked_targets_atomically_and_detaches_explicitly() {
+    let f = Fixture::new();
+    let (mut engine, _) = f.attached();
+    engine
+        .apply(motion_core::Command::Add {
+            layer: motion_core::Layer::solid(7, "Object", [4.; 2], [0.; 3], [1.; 4]),
+        })
+        .unwrap();
+    let before = engine.project().clone();
+    let mut bad = frozen_point_binding();
+    bad.track = "absent".into();
+    assert!(engine
+        .apply(motion_core::Command::SetTrackingPoint {
+            object: 7,
+            binding: Some(bad)
+        })
+        .is_err());
+    assert_eq!(engine.project(), &before);
+    assert!(serde_json::from_str::<motion_core::Command>(
+        r#"{"op":"set_tracking_point","object":7}"#
+    )
+    .is_err());
+    engine
+        .apply(motion_core::Command::SetTrackingPoint {
+            object: 7,
+            binding: Some(frozen_point_binding()),
+        })
+        .unwrap();
+    engine
+        .apply(motion_core::Command::SetTrackingPoint {
+            object: 7,
+            binding: None,
+        })
+        .unwrap();
+    assert_eq!(engine.project(), &before);
+    let mut locked = before;
+    locked.layers[0].locked = true;
+    let mut engine = Engine::new(locked.clone()).unwrap();
+    assert!(matches!(
+        engine.apply(motion_core::Command::SetTrackingPoint {
+            object: 7,
+            binding: Some(frozen_point_binding())
+        }),
+        Err(motion_core::Error::Locked(7))
+    ));
+    assert_eq!(engine.project(), &locked);
+}
+
+#[test]
+fn edited_runtime_copy_cannot_replace_the_managed_original_during_save_load_or_packaging() {
+    let f = Fixture::new();
+    let (engine, _) = f.attached();
+    storage::save(f.root.path(), engine.project()).unwrap();
+    let saved = fs::read(f.root.path().join("project.json")).unwrap();
+    let mut forged = engine.project().clone();
+    let mut data = (*forged.tracking_assets[0].data).clone();
+    data.tracks[0].samples[0].observation = Some(Observation::Point([1., 1.]));
+    forged.tracking_assets[0].data = motion_core::tracking::shared::SharedData::new(data).unwrap();
+    forged.validate().unwrap(); // Typed shape is valid; original equivalence is an IO boundary.
+    assert!(storage::save(f.root.path(), &forged)
+        .unwrap_err()
+        .to_string()
+        .contains("differs from original"));
+    assert_eq!(fs::read(f.root.path().join("project.json")).unwrap(), saved);
+    assert!(storage::PackageSnapshot::new(f.root.path(), &forged).is_err());
+    fs::write(
+        f.root.path().join("project.json"),
+        serde_json::to_vec(&forged).unwrap(),
+    )
+    .unwrap();
+    assert!(storage::load(f.root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("differs from original"));
+}
+
+#[test]
+fn actual_expression_references_and_scene_hierarchy_include_source_displacement_exactly_once() {
+    use motion_core::{
+        Axis, Command, Content, ExpressionTarget, Layer, ProjectExpressions, Property,
+        PropertyExpression,
+    };
+    let f = Fixture::new();
+    let (mut engine, _) = f.attached();
+    let mut tracked = Layer::solid(7, "Tracked null", [1.; 2], [30., 25., 0.], [0.; 4]);
+    tracked.content = Content::Null;
+    engine.apply(Command::Add { layer: tracked }).unwrap();
+    engine
+        .apply(Command::Add {
+            layer: Layer::solid(8, "Reference", [4.; 2], [32., 32., 0.], [1.; 4]),
+        })
+        .unwrap();
+    engine
+        .apply(Command::SetTrackingPoint {
+            object: 7,
+            binding: Some(frozen_point_binding()),
+        })
+        .unwrap();
+    let target = |object, axis| ExpressionTarget::Property {
+        object,
+        property: Property::Position,
+        axis,
+    };
+    let reference = motion_core::expression_reference_source(&target(7, None)).unwrap();
+    let mut p = engine.project().clone();
+    p.expressions.push(PropertyExpression {
+        target: target(7, None),
+        source: "value + [2,3,0]".into(),
+        enabled: true,
+        seed: 0,
+        profile: motion_core::EXPRESSION_PROFILE.into(),
+    });
+    p.expressions.push(PropertyExpression {
+        target: target(8, None),
+        source: reference,
+        enabled: true,
+        seed: 0,
+        profile: motion_core::EXPRESSION_PROFILE.into(),
+    });
+    p.validate().unwrap();
+    let evaluated = p.evaluated_at(1.).unwrap();
+    let a = evaluated.layers[0]
+        .sampled_position(&evaluated, 1.)
+        .unwrap();
+    let b = evaluated.layers[1]
+        .sampled_position(&evaluated, 1.)
+        .unwrap();
+    assert_eq!(a, b);
+    assert!((a[0] - 24.).abs() < 1e-5);
+    // Axis reference also sees the complete position, while its expression remains a correction.
+    p.expressions[1].target = target(8, Some(Axis::X));
+    p.expressions[1].source =
+        motion_core::expression_reference_source(&target(7, Some(Axis::X))).unwrap();
+    let evaluated = p.evaluated_at(1.).unwrap();
+    assert!(
+        (evaluated.layers[1]
+            .sampled_position(&evaluated, 1.)
+            .unwrap()[0]
+            - 24.)
+            .abs()
+            < 1e-5
+    );
+    let mut scene = motion_render::Scene::new(&p).unwrap();
+    scene
+        .sample(&p, 1., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    assert!((scene.world_matrix(7).unwrap().w_axis.x - (24. - 32.)).abs() < 1e-5);
+}
+
 struct Fixture {
     root: tempfile::TempDir,
     project: Project,

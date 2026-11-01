@@ -62,6 +62,13 @@ impl std::error::Error for Error {
         }
     }
 }
+impl<'de> Deserialize<'de> for Asset {
+    fn deserialize<D: de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        WireAsset::deserialize(deserializer)?
+            .into_asset()
+            .map_err(de::Error::custom)
+    }
+}
 pub fn from_slice(bytes: &[u8]) -> Result<Asset, Error> {
     if bytes.len() > MAX_JSON_BYTES {
         return Err(Error::InputLimit);

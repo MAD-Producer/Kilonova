@@ -115,6 +115,29 @@ impl Time {
             i128::from(n),
         ))
     }
+    /// Exact binary value of a renderer's fractional frame, without rounding to
+    /// microseconds, nominal source fps, or an integer frame. Extreme values
+    /// outside checked i128 rational arithmetic fail explicitly.
+    pub fn fractional_frame(value: f64, frames_per_second: Rate) -> Result<Self, Error> {
+        if !value.is_finite() { return Err(Error::NumericRange); }
+        if value == 0. { return Ok(Self::frame(0, frames_per_second)); }
+        let bits = value.to_bits();
+        let exponent = ((bits >> 52) & 0x7ff) as i32;
+        let mut mantissa = (bits & ((1u64 << 52) - 1)) | if exponent == 0 { 0 } else { 1u64 << 52 };
+        let mut shift = if exponent == 0 { -1074 } else { exponent - 1023 - 52 };
+        let trailing = mantissa.trailing_zeros();
+        mantissa >>= trailing;
+        shift += trailing as i32;
+        let (n, d) = if shift >= 0 {
+            let factor = 1i128.checked_shl(shift as u32).filter(|v| *v > 0).ok_or(Error::NumericRange)?;
+            (i128::from(mantissa).checked_mul(factor).ok_or(Error::NumericRange)?, 1)
+        } else {
+            (i128::from(mantissa), 1i128.checked_shl((-shift) as u32).filter(|v| *v > 0).ok_or(Error::NumericRange)?)
+        };
+        let [rate_n, rate_d] = frames_per_second.ratio();
+        let fraction = Fraction::new(if bits >> 63 == 0 { n } else { -n }, d);
+        Ok(Self(fraction.multiply(i128::from(rate_d), i128::from(rate_n))?))
+    }
 }
 
 /// Signed source-seconds per project-second. Zero explicitly freezes time.
@@ -184,6 +207,11 @@ impl<'a> Timeline<'a> {
     pub fn new(asset: &'a Asset, mapping: Mapping) -> Result<Self, Error> {
         asset.validate().map_err(Error::Asset)?;
         Ok(Self { asset, mapping })
+    }
+    /// SharedData admission already validated immutable PTS and observations.
+    /// Runtime lookup must not rescan a million observations on each frame.
+    pub fn from_shared(asset: &'a super::shared::SharedData, mapping: Mapping) -> Self {
+        Self { asset, mapping }
     }
     pub fn locate(&self, time: Time) -> Result<Location, Error> {
         let q = self

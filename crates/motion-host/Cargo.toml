@@ -32,7 +32,7 @@ tempfile = { version = "3", optional = true }
 sha2 = "0.10"
 serde.workspace = true
 # Preserve imported f64 calibration/pose values when the host is built alone.
-serde_json = { workspace = true, features = ["float_roundtrip"] }
+serde_json.workspace = true
 pollster.workspace = true
 wgpu.workspace = true
 image.workspace = true

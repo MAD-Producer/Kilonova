@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 32;
+pub const CURRENT_PROJECT_VERSION: u32 = 33;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -157,6 +157,9 @@ pub struct Layer {
     pub content: Content,
     pub size: [f32; 2],
     pub transform: Transform,
+    /// Independent raw-source displacement; ordinary position is a manual correction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_point: Option<crate::tracking::point::PointBinding>,
     pub visible: bool,
     pub locked: bool,
     /// Output isolation within this composition, shared by preview and export.
@@ -203,6 +206,7 @@ impl Layer {
             content: Content::Solid { color },
             size,
             transform: Transform::new(position),
+            tracking_point: None,
             visible: true,
             locked: false,
             solo: false,
@@ -457,6 +461,18 @@ impl Project {
             ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
             ensure(crate::media_assets::lookup(document, asset.source).is_some(),
                 "tracking source media is missing")?;
+            let extent = match crate::media_assets::lookup(document, asset.source) {
+                Some(crate::media_assets::MediaAsset::Image(a)) => {
+                    ensure(asset.data.source_pts.len() == 1, "one image requires one tracking timestamp")?;
+                    [a.width, a.height]
+                }
+                Some(crate::media_assets::MediaAsset::Video(a)) => {
+                    ensure(asset.data.source_pts.len() == a.frame_count as usize, "tracking timestamp count differs from video")?;
+                    [a.width, a.height]
+                }
+                _ => return Err(crate::Error::Invalid("tracking source media is missing".into())),
+            };
+            ensure(asset.data.source_extent.pixels() == extent, "tracking source extent differs from runtime data")?;
         }
         for camera in std::iter::once(&self.camera)
             .chain(self.layers.iter().filter_map(Layer::camera_data)) {
@@ -577,6 +593,15 @@ impl Project {
                 ensure(range.covers(layer.clip(self.frames)),"integer clip bounds do not cover precise interval")?;
             }
             layer.transform.validate_local()?;
+            if let Some(binding) = &layer.tracking_point {
+                (|| {
+                    ensure(!matches!(layer.content, Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment),
+                        "point tracking requires a spatial visual layer or null")?;
+                    binding.validate(self)
+                })().map_err(|source| crate::Error::TrackingBinding {
+                    object: layer.id, asset: binding.asset, track: binding.track.chars().take(128).collect(), source: Box::new(source),
+                })?;
+            }
             ensure(
                 layer.effects.len() <= motion_effects::MAX_EFFECTS_PER_LAYER,
                 "too many layer effects",

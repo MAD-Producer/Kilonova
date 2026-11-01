@@ -16,7 +16,7 @@ pub enum TrackingFormat {
     MotionTrackingJsonV1,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TrackingAsset {
     pub id: u64,
@@ -29,6 +29,9 @@ pub struct TrackingAsset {
     pub source: AssetRef,
     /// Original encoded source bytes, independent of the solve document digest.
     pub source_sha256: String,
+    /// Immutable normalized runtime data, verified against the managed original
+    /// at storage boundaries. Project/history clones share its allocation.
+    pub data: crate::tracking::shared::SharedData,
 }
 impl TrackingAsset {
     pub fn validate(&self) -> Result<()> {
@@ -59,5 +62,19 @@ impl TrackingAsset {
             )?;
         }
         Ok(())
+    }
+    /// Shape validation alone is not source admission. Enforce this identity
+    /// before a runtime binding or a managed resource is consumed.
+    pub fn validate_source_digest(&self) -> Result<()> {
+        let digest: String = self
+            .data
+            .source_sha256
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        ensure(
+            digest == self.source_sha256,
+            "tracking runtime source digest differs",
+        )
     }
 }

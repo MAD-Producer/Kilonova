@@ -29,6 +29,7 @@ mod model;
 pub mod layer_switches;
 pub use layer_switches::LayerSwitch;
 pub mod model_assets;
+pub mod tracking;
 pub mod tracking_assets;
 pub use tracking_assets::{TrackingAsset, TrackingFormat};
 pub mod node_resources;
@@ -94,6 +95,10 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("tracking_point phase=binding object={object} asset={asset} track={track}: {source}")]
+    TrackingBinding { object: u64, asset: u64, track: String, #[source] source: Box<Error> },
+    #[error("tracking_point object={object} asset={asset} track={track} frame={frame}: {source}")]
+    TrackingPoint { object: u64, asset: u64, track: String, frame: f64, #[source] source: Box<Error> },
     #[error("spatial animation phase={phase} key={key:?}: {source}")]
     SpatialAnimation { phase: &'static str, key: Option<u64>, #[source] source: Box<Error> },
     #[error("path sampling path={path} frame={frame}: {source}")]

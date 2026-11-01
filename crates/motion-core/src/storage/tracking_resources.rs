@@ -1,4 +1,4 @@
-//! Complete original-document identity; tracking parsing stays in the host.
+//! Verify byte-exact original identity and normalized runtime equivalence.
 use crate::{ensure, Error, Result, TrackingAsset};
 use sha2::{Digest, Sha256};
 use std::{
@@ -18,6 +18,7 @@ fn io(phase: &'static str, asset: &TrackingAsset, source: std::io::Error) -> Err
 /// Verify and rewind a bounded managed document, without a payload-sized buffer.
 pub fn open_tracking_resource(root: &Path, asset: &TrackingAsset) -> Result<File> {
     asset.validate()?;
+    asset.validate_source_digest()?;
     let base = root.canonicalize().map_err(|e| io("root", asset, e))?;
     let path = base
         .join(&asset.path)
@@ -65,6 +66,11 @@ pub fn open_tracking_resource(root: &Path, asset: &TrackingAsset) -> Result<File
     )?;
     file.seek(SeekFrom::Start(0))
         .map_err(|e| io("rewind", asset, e))?;
+    let decoded = crate::tracking::decode::from_reader(&mut file)
+        .map_err(|cause| Error::Invalid(format!("tracking resource decode: {cause}")))?;
+    ensure(decoded == *asset.data,
+        &format!("tracking runtime data differs from original: {}", asset.path))?;
+    file.seek(SeekFrom::Start(0)).map_err(|e| io("rewind_decoded", asset, e))?;
     Ok(file)
 }
 

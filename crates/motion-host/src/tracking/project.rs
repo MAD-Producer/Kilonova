@@ -11,6 +11,7 @@ use std::{fmt, io::Read, path::Path};
 pub enum Error {
     Project(motion_core::Error),
     Decode(decode::Error),
+    Runtime(super::encode::Error),
     Source(source::Error),
     Binding(&'static str),
 }
@@ -19,6 +20,7 @@ impl fmt::Display for Error {
         match self {
             Self::Project(cause) => write!(f, "tracking project attachment: {cause}"),
             Self::Decode(cause) => write!(f, "tracking original document: {cause}"),
+            Self::Runtime(cause) => write!(f, "tracking runtime admission: {cause}"),
             Self::Source(cause) => write!(f, "tracking bound source: {cause}"),
             Self::Binding(cause) => write!(f, "tracking binding: {cause}"),
         }
@@ -29,6 +31,7 @@ impl std::error::Error for Error {
         match self {
             Self::Project(cause) => Some(cause),
             Self::Decode(cause) => Some(cause),
+            Self::Runtime(cause) => Some(cause),
             Self::Source(cause) => Some(cause),
             Self::Binding(_) => None,
         }
@@ -75,7 +78,6 @@ fn check_source(
 pub struct Attachment {
     descriptor: TrackingAsset,
     original: Vec<u8>,
-    solve: Asset,
 }
 impl Attachment {
     /// Caller must obtain a fresh verification from the selected original source.
@@ -108,6 +110,7 @@ impl Attachment {
                 .iter()
                 .map(|b| format!("{b:02x}"))
                 .collect(),
+            data: motion_core::tracking::shared::SharedData::new(solve).map_err(Error::Runtime)?,
         };
         let mut candidate = project.clone();
         candidate.tracking_assets.push(descriptor.clone());
@@ -115,7 +118,6 @@ impl Attachment {
         Ok(Self {
             descriptor,
             original: original.to_vec(),
-            solve,
         })
     }
     pub fn descriptor(&self) -> &TrackingAsset {
@@ -125,7 +127,7 @@ impl Attachment {
         &self.original
     }
     pub fn solve(&self) -> &Asset {
-        &self.solve
+        &self.descriptor.data
     }
     pub fn registration(&self) -> motion_core::Command {
         motion_core::Command::RegisterTrackingAsset {
@@ -152,6 +154,11 @@ pub fn load_original(
         .iter()
         .find(|a| a.id == id)
         .ok_or(Error::Binding("tracking attachment is missing"))?;
+    if descriptor.validate_source_digest().is_err() {
+        return Err(Error::Binding(
+            "document and descriptor source digests differ",
+        ));
+    }
     let original =
         motion_core::storage::read_tracking_resource(root, descriptor).map_err(Error::Project)?;
     let solve = decode::from_slice(&original).map_err(Error::Decode)?;

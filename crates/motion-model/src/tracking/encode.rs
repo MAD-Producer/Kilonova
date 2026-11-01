@@ -42,25 +42,31 @@ impl std::error::Error for Error {
 /// error, never truncation or silent loss of observations.
 pub fn to_vec(asset: &Asset) -> Result<Vec<u8>, Error> {
     asset.validate().map_err(Error::InvalidAsset)?;
-    let mut digest = String::with_capacity(64);
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    for byte in asset.source_sha256 {
-        digest.push(HEX[(byte >> 4) as usize] as char);
-        digest.push(HEX[(byte & 15) as usize] as char);
+    bounded_json(asset, MAX_JSON_BYTES)
+}
+impl Serialize for Asset {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let asset = self;
+        let mut digest = String::with_capacity(64);
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        for byte in asset.source_sha256 {
+            digest.push(HEX[(byte >> 4) as usize] as char);
+            digest.push(HEX[(byte & 15) as usize] as char);
+        }
+        let wire = Source {
+            version: asset.version,
+            source_id: &asset.source_id,
+            source_sha256: &digest,
+            source_extent: asset.source_extent.pixels(),
+            coordinates: "right_down_forward",
+            ticks_per_second: asset.ticks_per_second,
+            nominal_rate: asset.nominal_rate.ratio(),
+            source_pts: &asset.source_pts,
+            meters_per_world_unit: asset.meters_per_world_unit,
+            tracks: Tracks(&asset.tracks),
+        };
+        wire.serialize(serializer)
     }
-    let wire = Source {
-        version: asset.version,
-        source_id: &asset.source_id,
-        source_sha256: &digest,
-        source_extent: asset.source_extent.pixels(),
-        coordinates: "right_down_forward",
-        ticks_per_second: asset.ticks_per_second,
-        nominal_rate: asset.nominal_rate.ratio(),
-        source_pts: &asset.source_pts,
-        meters_per_world_unit: asset.meters_per_world_unit,
-        tracks: Tracks(&asset.tracks),
-    };
-    bounded_json(&wire, MAX_JSON_BYTES)
 }
 struct Output {
     bytes: Vec<u8>,
