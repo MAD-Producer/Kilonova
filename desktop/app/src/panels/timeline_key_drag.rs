@@ -91,7 +91,7 @@ fn channels(
         Property::Radius,
         Property::Azimuth,
         Property::Elevation,
-    ] {
+    ].into_iter().filter(|_| row.spatial) {
         for axis in [None, Some(Axis::X), Some(Axis::Y), Some(Axis::Z)] {
             if let Some(source) =
                 animation_data::channel(state, row.id, property, axis).filter(|s| !s.is_null())
@@ -149,7 +149,7 @@ fn channels(
         offset: i64,
         record: &mut impl FnMut(Target, &mut dyn Iterator<Item = i64>),
     ) {
-        for p in node.parameters {
+        for p in node.parameters.into_iter().filter(|p| !p.static_value) {
             record(
                 Target::Shape(node.id, p.id),
                 &mut p.keys.iter().map(|(f, _)| i64::from(*f) + offset),
@@ -160,11 +160,18 @@ fn channels(
         }
     }
     if let Some(vector) = &row.vector {
-        shape(
-            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En)?,
-            offset,
-            &mut record,
-        );
+        let mut tree =
+            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En)?;
+        if !matches!(&vector.source, motion_core::vector::VectorSource::Group { .. }) {
+            // Flat content has a synthetic group and constant geometry dimensions
+            // in its display tree. Only wrapped groups author these tracks.
+            tree.parameters.clear();
+            tree.children.retain(|child| child.tag != 1);
+            for geometry in &mut tree.children {
+                geometry.parameters.retain(|p| !matches!(p.id.as_str(), "size" | "position"));
+            }
+        }
+        shape(tree, offset, &mut record);
     }
     let json_frames = |source: &Value| -> motion_core::Result<Vec<i64>> {
         source["keys"]
@@ -282,12 +289,27 @@ pub(super) fn selection_keys(
 /// Select from the authored store, including offscreen/fractionally projected
 /// keys. The legacy collector above deliberately owns composition integers.
 /// Reuse its target discovery for every channel kind, never its shifted times.
-pub(super) fn select_all_local(panels: &mut Panels, state: &Value, row: &timeline::Row)
-    -> motion_core::Result<()> {
+pub(super) fn local_keys(state: &Value, row: &timeline::Row)
+    -> motion_core::Result<Vec<(super::key_selection::AddressedKey,f64)>> {
     use super::key_selection::{LocalKey, SpatialKey};
     let clock=super::key_selection::property_clock(state,row.id)?;
     let total=state["project"]["frames"].as_u64()
         .ok_or_else(||motion_core::Error::Invalid("composition duration missing".into()))? as f64;
+    let mut result=Vec::new();
+    let mut bytes=0usize;
+    let mut push=|key:super::key_selection::AddressedKey,time:f64|->motion_core::Result<()> {
+        let name=match key.target() {
+            motion_core::KeyframeTarget::Effect {param,..}=>param.len(),
+            motion_core::KeyframeTarget::Vector {parameter,..}=>parameter.len(),
+            _=>0,
+        };
+        bytes=bytes.saturating_add(std::mem::size_of::<(super::key_selection::AddressedKey,f64)>()).saturating_add(name);
+        if bytes>motion_core::MAX_KEYFRAME_CLIPBOARD_BYTES {
+            return Err(motion_core::Error::Invalid("projected row keys exceed metadata limit".into()));
+        }
+        result.push((key,time));
+        Ok(())
+    };
     let mut targets:Vec<_>=channels(state,row)?.into_keys().map(|t|target_key(row,&t)).collect();
     targets.sort_by_key(|target|format!("{target:?}"));
     for target in targets {
@@ -323,7 +345,7 @@ pub(super) fn select_all_local(panels: &mut Panels, state: &Value, row: &timelin
                     .zip(key["frame"].as_f64().filter(|t|t.is_finite()))
                     .ok_or_else(||motion_core::Error::Invalid("spatial select-all identity or time missing".into()))?;
                 if time>=0. && time<total {
-                    super::key_selection::ui::all_addressed(panels,[SpatialKey {target:target.clone(),id}.into()]);
+                    push(SpatialKey {target:target.clone(),id}.into(),time)?;
                 }
             }
             continue;
@@ -340,10 +362,17 @@ pub(super) fn select_all_local(panels: &mut Panels, state: &Value, row: &timelin
             previous=Some(frame);
             let time=clock.projected_composition_frame(f64::from(frame),offset)?;
             if time>=0. && time<total {
-                super::key_selection::ui::all_addressed(panels,[LocalKey {target:target.clone(),frame}.into()]);
+                push(LocalKey {target:target.clone(),frame}.into(),time)?;
             }
         }
     }
+    Ok(result)
+}
+
+pub(super) fn select_all_local(panels: &mut Panels, _state: &Value, row: &timeline::Row)
+    -> motion_core::Result<()> {
+    let keys=row.mapped_keys.as_ref().ok_or_else(||motion_core::Error::Invalid("mapped row key cache unavailable".into()))?;
+    super::key_selection::ui::all_addressed(panels,keys.iter().map(|(key,_)|key.clone()));
     Ok(())
 }
 

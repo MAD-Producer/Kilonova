@@ -12,6 +12,7 @@ mod row_cache_tests;
 
 pub(super) struct Row {
     pub(super) property_clock: Option<motion_core::layer_time::LayerClock>,
+    pub(super) mapped_keys: Option<Vec<(super::key_selection::AddressedKey,f64)>>,
     pub(super) effect_expressions: std::collections::HashSet<(u64,String)>,
     pub(super) spatial: bool,
     pub(super) camera: bool,
@@ -425,9 +426,10 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .filter_map(|m| m["frame"].as_i64().map(|f| (f + offset) as f64))
                 .filter(|f| *f >= visible_begin.max(0.) && *f < visible_end.min(f64::from(total)))
                 .collect();
-            Row {
+            let mut row=Row {
                 property_clock: observe!("timeline.property_clock", super::key_selection::property_clock(state, id),
                     "object={id} phase=row_clock fallback=disable_key_edit").ok(),
+                mapped_keys: None,
                 effect_expressions: state["project"]["expressions"].as_array().into_iter().flatten()
                     .filter_map(|expression| {
                         let target = &expression["target"];
@@ -478,7 +480,20 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 keys,
                 references,
                 properties,
-            }
+            };
+            if row.property_clock.is_some_and(|clock|clock!=Default::default()) {
+                match observe!("timeline.mapped_keys",super::timeline_key_drag::local_keys(state,&row),
+                    "object={id} phase=row_cache fallback=disable_key_edit") {
+                    Ok(keys)=>{
+                        row.keys=keys.iter().map(|(_,time)|*time).collect();
+                        row.keys.sort_by(f64::total_cmp);
+                        row.keys.dedup();
+                        row.mapped_keys=Some(keys);
+                    }
+                    Err(_)=>row.keys.clear(),
+                }
+            } else if row.property_clock.is_none() {row.keys.clear();}
+            row
         })
         .collect();
     if state["project"]["camera"]["created"]
@@ -489,6 +504,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 property_clock: Some(Default::default()),
+                mapped_keys: None,
                 effect_expressions: Default::default(),
                 spatial: false,
                 camera: true,
@@ -537,7 +553,7 @@ pub(super) fn reorder_storage_index(len: usize, from_row: usize, slot: usize) ->
 mod scroll_signature;
 
 fn scroll_extent_signature(
-    rows_key: &(String, String, u64),
+    rows_key: &(String, String, u64, Option<u64>),
     timeline: &types::TimelineState,
     query: &str,
     body_height: f32,
@@ -1649,6 +1665,25 @@ pub(super) fn render(
             }
         }
         if !expanded {
+            if let Some(keys)=&row.mapped_keys {
+                for (key,time) in keys {
+                    let x=x_of(*time);
+                    let radius=styles.metric("timeline.key.radius",4.);
+                    let hit=styles.metric("timeline.key.hit_radius",5.);
+                    if x<track.min[0]+radius || x>=track.max[0]-radius {continue;}
+                    let point=[x,y+row_height*0.5];
+                    let rect=Rect::new(x-hit,y,hit*2.,row_height);
+                    match key {
+                        super::key_selection::AddressedKey::Local(key)=>super::key_selection::ui::local_mark(list,panels,key.clone(),point,radius,rect),
+                        super::key_selection::AddressedKey::Spatial(key)=>super::key_selection::ui::spatial_mark(list,panels,key.clone(),point,radius,rect),
+                        super::key_selection::AddressedKey::Frame(_)=>{
+                            let _=observe!("timeline.mapped_key_address",Err::<(),_>("mapped row contains a composition-integer address"),
+                                "object={} phase=summary fallback=disable_key_edit",row.id);
+                        }
+                    }
+                }
+            }
+            if legacy_clock {
             if let Some(properties) = super::animation_data::timeline(state, row.id).and_then(|t| t["properties"].as_object()) {
                 for (property, name, _, _) in property_descriptors(state["project"]["layers"].as_array().and_then(|layers| layers.iter().find(|l| l["id"] == row.id))) {
                     if let Some(source) = properties.get(name) {
@@ -1670,6 +1705,7 @@ pub(super) fn render(
                             Rect::new(track.min[0], y, track.width(), row_height), ppf, offset);
                     }
                 }
+            }
             }
         }
     }
@@ -2522,7 +2558,7 @@ pub(super) fn render_layer_properties(
                 row_height,
                 ppf,
                 offset,
-                row.id,
+                row,
                 panels,
                 state,
                 input,

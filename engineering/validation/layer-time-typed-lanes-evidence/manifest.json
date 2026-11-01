@@ -1,0 +1,2638 @@
+{
+  "base": "ecd56ea66ac6ca817eefc90ec77fa92ec5e402f4",
+  "branch": "feat/layer-time-mapping",
+  "issue": 257,
+  "issue_complete": false,
+  "results": {
+    "quick": {
+      "program": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "sha256_before": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "suites": {
+        "typed": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::key_selection::tests::ui::local_timing::typed::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 7.219,
+          "passed": [
+            "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+            "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+            "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+            "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1592 filtered out; finished in 6.31s"
+          ]
+        }
+      },
+      "sha256_after": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "distinct_passed": [
+        "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+        "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+        "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+        "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages"
+      ],
+      "distinct_ignored": []
+    },
+    "all": {
+      "program": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "sha256_before": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "suites": {
+        "selection": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::key_selection::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 17.656,
+          "passed": [
+            "panels::key_selection::tests::add_toggle_and_empty_replace_preserve_explicit_key_ownership",
+            "panels::key_selection::tests::authored_delete_and_undo_invalidate_and_restore_keys_without_layer_fallback",
+            "panels::key_selection::tests::empty_stale_and_read_only_collections_consume_delete_and_never_copy_or_cut_layers",
+            "panels::key_selection::tests::key_delete_and_ease_dispatch_the_entire_collection_with_guarded_document_identity",
+            "panels::key_selection::tests::local::exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer",
+            "panels::key_selection::tests::local::local_presence_rechecks_authored_keys_and_document_identity_but_lock_only_disables_writes",
+            "panels::key_selection::tests::local::malformed_local_source_is_visible_at_default_level_and_normal_absence_is_quiet",
+            "panels::key_selection::tests::local::mixed_coordinate_envelopes_are_rejected_atomically_and_budget_counts_signed_addresses",
+            "panels::key_selection::tests::local::mixed_delete_runs_as_one_real_transaction_and_saves_without_touching_mapping_or_other_axes",
+            "panels::key_selection::tests::local::signed_local_selection_survives_fractional_projection_and_trim_without_integer_aliases",
+            "panels::key_selection::tests::local::visible_incoming_ease_swaps_local_sides_once_for_reverse_and_keeps_unmapped_channels",
+            "panels::key_selection::tests::oversized_gesture_is_atomic_and_new_document_add_cannot_resurrect_old_keys",
+            "panels::key_selection::tests::primary_property_focus_arbitration_preserves_same_gesture_and_releases_explicit_navigation",
+            "panels::key_selection::tests::revision_cache_is_document_scoped_and_missing_revision_never_caches",
+            "panels::key_selection::tests::selection_addresses_cross_layers_separated_axes_and_signed_local_offsets",
+            "panels::key_selection::tests::sources::malformed_authored_lookup_reaches_default_channels_without_turning_normal_misses_into_faults",
+            "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_camera_offsets_and_stereo_audio",
+            "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels",
+            "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks",
+            "panels::key_selection::tests::transforms::authored_nudges_use_one_or_ten_frames_and_one_atomic_history_entry",
+            "panels::key_selection::tests::transforms::malformed_drag_occupancy_reports_default_channels_and_recovery_can_nudge_again",
+            "panels::key_selection::tests::transforms::nudge_bindings_repeat_but_respect_text_ime_and_other_panel_focus",
+            "panels::key_selection::tests::transforms::rejected_nudge_keeps_selection_data_and_history_and_never_seeks_or_moves_layers",
+            "panels::key_selection::tests::transforms::remapped_nudge_repeats_through_keyboard_routing_and_disables_its_old_default",
+            "panels::key_selection::tests::ui::actual_expanded_keys_batch_f9_delete_save_reopen_and_one_undo",
+            "panels::key_selection::tests::ui::actual_graph_pointer_and_marquee_select_authored_keys_without_component_duplicates",
+            "panels::key_selection::tests::ui::actual_marquee_cancels_on_escape_focus_or_changed_document_and_view",
+            "panels::key_selection::tests::ui::actual_single_key_drag_tracks_selection_and_cancel_restores_identity",
+            "panels::key_selection::tests::ui::actual_summary_marquee_works_in_both_directions_and_empty_selection_owns_delete",
+            "panels::key_selection::tests::ui::actual_summary_pointer_replace_add_toggle_and_select_all_use_channel_identities",
+            "panels::key_selection::tests::ui::actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times",
+            "panels::key_selection::tests::ui::actual_ui_capture_failures_preserve_selection_and_default_file_stderr_channels",
+            "panels::key_selection::tests::ui::dragging::expanded_row_drag_keeps_other_selected_channels_at_the_same_time",
+            "panels::key_selection::tests::ui::dragging::graph_multi_key_body_drag_preserves_spacing_and_constrains_time_or_value",
+            "panels::key_selection::tests::ui::dragging::multi_key_pointer_cancel_stale_and_late_release_never_modify_authored_data",
+            "panels::key_selection::tests::ui::dragging::multi_key_pointer_drag_previews_then_commits_once_and_copy_keeps_sources",
+            "panels::key_selection::tests::ui::dragging::multi_key_pointer_rejects_collision_and_bounds_without_partial_edits",
+            "panels::key_selection::tests::ui::dragging::multi_key_snapping_uses_screen_pixels_at_different_timeline_zooms",
+            "panels::key_selection::tests::ui::dragging::single_key_snap_keeps_existing_lane_history_and_rejects_stale_input_before_editing",
+            "panels::key_selection::tests::ui::local_timing::clicking_a_local_member_keeps_the_mixed_collection_and_moves_on_its_common_grid",
+            "panels::key_selection::tests::ui::local_timing::common_grid_moves_mixed_clocks_together_and_value_offsets_only_the_target",
+            "panels::key_selection::tests::ui::local_timing::common_grid_with_legacy_keys_collision_and_copy_are_checked_before_commands",
+            "panels::key_selection::tests::ui::local_timing::fractional_pointer_drag_uses_release_position_in_both_owners_languages_and_lanes",
+            "panels::key_selection::tests::ui::local_timing::graph_local_drag_and_select_all_retain_storage_identity",
+            "panels::key_selection::tests::ui::local_timing::keyboard_nudge_is_exact_composition_time_and_never_rounds_each_layer",
+            "panels::key_selection::tests::ui::local_timing::local_drag_cancels_on_escape_focus_loss_revision_and_rejects_occupied_destination",
+            "panels::key_selection::tests::ui::local_timing::malformed_projection_and_row_clocks_are_bounded_visible_and_stdout_isolated",
+            "panels::key_selection::tests::ui::local_timing::mapped_graph_value_drag_uses_local_target_and_preserves_opacity_limits",
+            "panels::key_selection::tests::ui::local_timing::ordinary_select_all_uses_local_identity_for_integer_and_fractional_times_offscreen",
+            "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+            "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+            "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+            "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages",
+            "panels::key_selection::tests::ui::select_all_includes_offscreen_keys_and_readonly_pointer_selection_cannot_edit",
+            "panels::key_selection::tests::ui::spatial::coincident_spatial_pointer_hits_keep_both_ids_and_select_all_keeps_integer_channels",
+            "panels::key_selection::tests::ui::spatial::fractional_spatial_pointer_drag_uses_stable_ids_in_summary_and_expanded_rows",
+            "panels::key_selection::tests::ui::spatial::mixed_nudge_is_one_undo_and_unsupported_clipboard_and_easing_do_not_edit_a_subset",
+            "panels::key_selection::tests::ui::spatial::spatial_bounds_and_order_rejections_keep_the_entire_mixed_selection_unchanged",
+            "panels::key_selection::tests::ui::spatial::spatial_delete_addresses_the_id_and_keeps_layer_and_survivor_identity_through_undo",
+            "panels::key_selection::tests::ui::spatial::spatial_drag_cancel_stale_focus_and_copy_never_dispatch_partial_edits_or_late_release",
+            "panels::key_selection::tests::ui::spatial::stable_selection_keeps_coincident_identities_and_invalidates_only_deleted_ids_or_scope",
+            "panels::key_selection::tests::ui::spatial::zero_duration_preview_rejects_moving_spans_but_accepts_stationary_coincident_keys"
+          ],
+          "ignored": [
+            "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+            "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+            "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen",
+            "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves",
+            "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves",
+            "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves"
+          ],
+          "failed": [],
+          "summary": [
+            "test result: ok. 62 passed; 0 failed; 6 ignored; 0 measured; 1528 filtered out; finished in 17.61s"
+          ]
+        },
+        "rows": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::timeline::row_cache_tests::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 0.359,
+          "passed": [
+            "panels::timeline::row_cache_tests::warm_and_rebuilt_rows_paint_identically_and_identity_changes_refresh_names"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1595 filtered out; finished in 0.32s"
+          ]
+        },
+        "scroll": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::timeline::scroll_signature_tests::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 0.031,
+          "passed": [
+            "panels::timeline::scroll_signature_tests::all_row_groups_and_viewport_identity_inputs_invalidate_the_signature",
+            "panels::timeline::scroll_signature_tests::group_lengths_separate_equal_flat_id_streams"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1594 filtered out; finished in 0.00s"
+          ]
+        },
+        "effects": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::effect_timeline::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 27.532,
+          "passed": [
+            "panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing",
+            "panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom",
+            "panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges",
+            "panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key",
+            "panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo",
+            "panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform",
+            "panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history",
+            "panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler",
+            "panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages",
+            "panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout",
+            "panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent",
+            "panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts",
+            "panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache",
+            "panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership",
+            "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing",
+            "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits",
+            "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 1579 filtered out; finished in 27.51s"
+          ]
+        },
+        "audio": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::audio::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 30.89,
+          "passed": [
+            "panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands",
+            "panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history",
+            "panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit",
+            "panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable",
+            "panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts",
+            "panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist",
+            "panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route",
+            "panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen",
+            "panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id",
+            "panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership",
+            "panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback",
+            "panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync",
+            "panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages",
+            "panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history",
+            "panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text",
+            "panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers",
+            "panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows",
+            "panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo",
+            "panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item",
+            "panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once",
+            "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics",
+            "panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply",
+            "panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs",
+            "panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity"
+          ],
+          "ignored": [
+            "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales"
+          ],
+          "failed": [],
+          "summary": [
+            "test result: ok. 24 passed; 0 failed; 1 ignored; 0 measured; 1571 filtered out; finished in 30.85s"
+          ]
+        },
+        "paths": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::path_controls::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 55.391,
+          "passed": [
+            "panels::path_controls::clipboard_tests::mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_single_undo",
+            "panels::path_controls::context_menu::tests::context_changes_focus_escape_and_foreign_input_cancel_without_dispatch_or_repaint_loss",
+            "panels::path_controls::context_menu::tests::context_menu_retains_source_labels_closedness_lock_and_single_choice_semantics",
+            "panels::path_controls::context_menu::tests::short_context_menu_scrolls_to_paste_without_clipped_invisible_hit_regions",
+            "panels::path_controls::context_menu::tests::tangent_menu_dispatches_explicit_mode_with_frozen_source_in_both_languages",
+            "panels::path_controls::drag_lifecycle_tests::delayed_release_uses_release_position_and_never_follows_later_motion",
+            "panels::path_controls::drag_lifecycle_tests::lost_button_or_focus_finishes_capture_without_reusing_it_for_another_press",
+            "panels::path_controls::drag_lifecycle_tests::new_pen_handle_placement_stops_at_release_even_when_motion_is_coalesced",
+            "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence",
+            "panels::path_controls::groups::parameters::modified_tests::shared_tree_keeps_authored_operators_and_only_changed_or_keyed_values",
+            "panels::path_controls::groups::tests::add_repeater_from_ui_preserves_original_geometry_and_style_and_roundtrips",
+            "panels::path_controls::groups::tests::nested_shape_navigation_keeps_complete_watch_slots_clear_of_values",
+            "panels::path_controls::groups::tests::removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step",
+            "panels::path_controls::groups::tests::repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_consume_it",
+            "panels::path_controls::groups::tests::repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_with_one_undo",
+            "panels::path_controls::groups::tests::shape_content_animated_filter_reveals_real_tracks_and_counts_match_rendered_tree",
+            "panels::path_controls::groups::tests::shape_content_dropdown_blocks_obscured_fields_and_opens_only_in_its_owner_host",
+            "panels::path_controls::groups::tests::shape_content_geometry_tree_and_fields_stay_inside_narrow_and_wide_panels",
+            "panels::path_controls::groups::tests::shape_content_key_popup_samples_clicked_time_and_changes_easing",
+            "panels::path_controls::groups::tests::shape_content_key_selection_cannot_delete_from_a_different_project",
+            "panels::path_controls::groups::tests::shape_content_number_drag_in_main_and_floating_timeline_selects_owner_and_commits",
+            "panels::path_controls::groups::tests::shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_hosts",
+            "panels::path_controls::groups::tests::shape_content_source_cache_reuses_authored_revision_but_never_caches_sampled_time",
+            "panels::path_controls::groups::tests::shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo",
+            "panels::path_controls::groups::tests::shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and_undo",
+            "panels::path_controls::handle_visibility_tests::mask_handles_remain_visible_but_only_the_selected_node_can_be_dragged",
+            "panels::path_controls::hidden_handles_tests::hidden_authored_handles_do_not_capture_clicks_and_pen_and_mask_can_commit_new_geometry_and_undo",
+            "panels::path_controls::hover_tests::hover_reaches_handles_only_where_paint_draws_them",
+            "panels::path_controls::hover_tests::hover_reports_only_the_nearest_grip_within_tolerance",
+            "panels::path_controls::mask_boundaries::tests::feather_link_checkbox_stays_inline_and_dispatches_only_for_an_unlocked_owner",
+            "panels::path_controls::mask_boundaries::tests::linked_feather_preserves_ratio_or_zero_axis_delta_with_a_shared_limit",
+            "panels::path_controls::mask_boundaries::tests::linked_numeric_gesture_updates_both_axes_and_cancels_the_complete_track_on_context_loss",
+            "panels::path_controls::mask_boundaries::viewer::tests::a_coalesced_release_can_commit_a_drag_and_an_empty_section_can_recover",
+            "panels::path_controls::mask_boundaries::viewer::tests::boundary_capture_cancels_complete_tracks_on_stale_context_and_never_resumes_after_release",
+            "panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
+            "panels::path_controls::mask_boundaries::viewer::tests::transformed_feather_and_expansion_grips_share_numeric_history_and_release_coordinates",
+            "panels::path_controls::mask_inspector::tests::compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap",
+            "panels::path_controls::mask_keys::navigation_tests::navigation_buttons_preserve_mask_channels_and_local_path_poses_with_one_undo",
+            "panels::path_controls::mask_keys::path_tests::canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_static",
+            "panels::path_controls::mask_keys::path_tests::control_drag_copies_path_pose_once_then_moves_only_the_copy",
+            "panels::path_controls::mask_keys::path_tests::mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target",
+            "panels::path_controls::mask_keys::path_tests::mask_path_commands_preserve_parameter_updates_between_snapshot_and_apply",
+            "panels::path_controls::mask_keys::path_tests::path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape",
+            "panels::path_controls::mask_keys::path_tests::path_stopwatch_viewport_pose_and_key_gestures_use_one_undo_and_local_time",
+            "panels::path_controls::mask_keys::path_tests::rejected_mask_path_command_retains_object_mask_and_cause_in_the_log",
+            "panels::path_controls::mask_keys::path_tests::sparse_legacy_node_keys_are_sorted_and_edited_without_losing_other_tracks",
+            "panels::path_controls::mask_keys::tests::animated_feather_numeric_drag_preserves_y_and_cancels_when_its_context_changes",
+            "panels::path_controls::mask_keys::tests::delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows",
+            "panels::path_controls::mask_keys::tests::layer_properties_owns_mask_creation_menus_and_numeric_gestures_in_main_and_floating_windows",
+            "panels::path_controls::mask_keys::tests::mask_key_context_menu_changes_interpolation_and_delete_is_undoable",
+            "panels::path_controls::mask_keys::tests::mask_key_drag_preserves_other_keys_and_easing_and_commits_or_cancels_once",
+            "panels::path_controls::mask_keys::tests::mask_ui_animates_all_channels_at_local_time_and_key_toggle_undoes",
+            "panels::path_controls::numeric_tests::mask_scrub_obeys_shared_threshold_and_commit_or_cancel_restores_engine_bytes",
+            "panels::path_controls::pen_tests::pen_placement_alt_handles_commit_cancel_and_save_roundtrip",
+            "panels::path_controls::pen_tools::tests::automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks",
+            "panels::path_controls::pen_tools::tests::conversion_preserves_anchor_lengths_and_other_keyframes_and_delete_opens_small_paths",
+            "panels::path_controls::pen_tools::tests::existing_parametric_conversion_is_required_then_pen_edits_preserve_paint_and_undo",
+            "panels::path_controls::pen_tools::tests::grouped_topology_targets_authored_item_and_keeps_siblings_transforms_and_repeaters",
+            "panels::path_controls::pen_tools::tests::independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing",
+            "panels::path_controls::pen_tools::tests::independent_clock_union_obeys_key_budget_without_partial_mutation",
+            "panels::path_controls::pen_tools::tests::rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_and_reset",
+            "panels::path_controls::pen_tools::tests::release_commits_once_and_cancel_or_stale_context_never_edits",
+            "panels::path_controls::pen_tools::tests::segment_picking_uses_zoomed_cubic_geometry_and_ignores_open_closing_edge",
+            "panels::path_controls::pen_tools::tests::stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data",
+            "panels::path_controls::pen_tools::tests::subdivide_preserves_curves_open_and_closed_edges_and_unrelated_tracks",
+            "panels::path_controls::pen_tools::tests::subdivision_preserves_matching_temporal_curves_at_fractional_frames",
+            "panels::path_controls::pen_tools::tests::tool_dropdown_owns_its_clicks_and_escape_leaves_the_path_unchanged",
+            "panels::path_controls::point_selection::nudge_tests::authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points",
+            "panels::path_controls::point_selection::tests::animated_masks_with_identical_node_ids_move_together_without_pose_overwrite",
+            "panels::path_controls::point_selection::tests::animated_vector_batch_keeps_existing_keys_and_failed_second_command_rolls_back",
+            "panels::path_controls::point_selection::tests::automatic_grips_show_sampled_curve_but_anchor_drag_preserves_manual_handles",
+            "panels::path_controls::point_selection::tests::composing_text_never_deletes_selected_points_or_layer",
+            "panels::path_controls::point_selection::tests::context_changes_and_unavailable_projection_cancel_without_reusing_selection",
+            "panels::path_controls::point_selection::tests::document_replacement_with_identical_ids_clears_authored_point_selection",
+            "panels::path_controls::point_selection::tests::failed_translation_is_visible_at_default_level_and_resets_after_recovery",
+            "panels::path_controls::point_selection::tests::grouped_selection_uses_authored_owners_and_world_translation_before_repeaters",
+            "panels::path_controls::point_selection::tests::invalid_batch_is_reported_without_partial_edits_and_recovery_is_possible",
+            "panels::path_controls::point_selection::tests::marquee_replace_add_toggle_cancel_delete_and_save_reopen",
+            "panels::path_controls::point_selection::tests::moving_selection_cancels_on_escape_focus_loss_time_change_and_lock",
+            "panels::path_controls::point_selection::tests::path_clipboard_uses_authored_selection_and_owns_shortcuts_and_menu_without_layer_fallback",
+            "panels::path_controls::point_selection::tests::point_add_toggle_group_drag_release_and_one_undo_at_multiple_zooms",
+            "panels::path_controls::point_selection::tests::segment_moves_endpoints_and_handles_only_and_closed_edge_is_pickable",
+            "panels::path_controls::property_focus_tests::clipboard_mask_and_nested_shape_channels_keep_typed_targets_and_authored_times",
+            "panels::path_controls::property_focus_tests::clipboard_mask_path_copies_whole_vertex_poses_and_rejects_partial_authored_pose",
+            "panels::path_controls::property_focus_tests::latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners",
+            "panels::path_controls::property_focus_tests::old_graph_box_cannot_delete_keys_after_another_property_takes_ownership",
+            "panels::path_controls::property_focus_tests::property_navigation_follows_the_chosen_channel_across_panel_focus_and_defers_to_ime",
+            "panels::path_controls::property_focus_tests::stale_typed_owners_consume_repeated_keys_before_and_after_their_prepare_pass",
+            "panels::path_controls::resize_tests::grouped_path_grips_keep_owner_identity_before_repeaters_and_trim",
+            "panels::path_controls::resize_tests::invalid_authored_geometry_reports_default_level_file_and_stderr_and_recovers",
+            "panels::path_controls::resize_tests::nested_geometry_uses_its_transform_owner_and_animated_local_time",
+            "panels::path_controls::resize_tests::rejected_second_dimension_command_cannot_publish_a_partial_resize",
+            "panels::path_controls::resize_tests::shape_corners_resize_width_height_keep_opposite_corner_and_preserve_parameters",
+            "panels::path_controls::review327_regressions::review327_locked_path_does_not_advertise_hover",
+            "panels::path_controls::review327_regressions::review327_only_the_hovered_bezier_handle_is_highlighted",
+            "panels::path_controls::timeline::tests::mask_path_only_animation_is_visible_in_animated_filter_and_collapsed_layer_keys"
+          ],
+          "ignored": [
+            "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+            "panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions",
+            "panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss"
+          ],
+          "failed": [],
+          "summary": [
+            "test result: ok. 96 passed; 0 failed; 3 ignored; 0 measured; 1497 filtered out; finished in 55.34s"
+          ]
+        },
+        "shortcuts": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::timeline_shortcuts",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 7.547,
+          "passed": [
+            "panels::timeline_shortcuts_tests::a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts",
+            "panels::timeline_shortcuts_tests::active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph",
+            "panels::timeline_shortcuts_tests::bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits",
+            "panels::timeline_shortcuts_tests::clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer",
+            "panels::timeline_shortcuts_tests::curve_selection_box_delete_owns_keys_only_in_the_focused_timeline",
+            "panels::timeline_shortcuts_tests::curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss",
+            "panels::timeline_shortcuts_tests::curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes",
+            "panels::timeline_shortcuts_tests::custom_animated_property_chords_preserve_double_press_and_input_ownership",
+            "panels::timeline_shortcuts_tests::custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority",
+            "panels::timeline_shortcuts_tests::custom_select_all_routes_the_graph_selection_and_disables_its_old_chord",
+            "panels::timeline_shortcuts_tests::ease_does_not_edit_without_explicit_selection_or_a_locked_or_foreign_layer",
+            "panels::timeline_shortcuts_tests::easy_ease_changes_the_selected_keys_two_sides_as_one_undoable_edit",
+            "panels::timeline_shortcuts_tests::f4_toggles_composite_columns_and_shift_f4_toggles_parent",
+            "panels::timeline_shortcuts_tests::fields_search_ime_and_drag_own_animation_shortcuts",
+            "panels::timeline_shortcuts_tests::graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key",
+            "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_faults_use_bounded_default_file_and_error_stderr_without_stdout",
+            "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_rejects_noninteger_composition_frames_before_history_and_recovers",
+            "panels::timeline_shortcuts_tests::graph_drag_return_to_origin_then_cancel_restores_engine_bytes",
+            "panels::timeline_shortcuts_tests::graph_property_tree_selects_y_without_separating_or_editing_the_track",
+            "panels::timeline_shortcuts_tests::graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history",
+            "panels::timeline_shortcuts_tests::graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid",
+            "panels::timeline_shortcuts_tests::group_reveal_tests::effect_and_mask_keys_reveal_filtered_collapsed_items_and_toggle_in_both_hosts_and_locales",
+            "panels::timeline_shortcuts_tests::group_reveal_tests::group_keys_defer_to_text_ime_lost_focus_repeat_menus_and_active_gestures",
+            "panels::timeline_shortcuts_tests::group_reveal_tests::group_shortcuts_can_be_remapped_persisted_and_suppressed_without_stealing_other_chords",
+            "panels::timeline_shortcuts_tests::group_reveal_tests::mixed_selections_only_reveal_real_groups_without_changing_keys_or_document_history",
+            "panels::timeline_shortcuts_tests::group_reveal_tests::supported_content::supported_content_plans_keep_real_channels_and_exclude_unimplemented_properties",
+            "panels::timeline_shortcuts_tests::in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers",
+            "panels::timeline_shortcuts_tests::in_out_shortcuts_seek_to_the_selected_clip_without_editing",
+            "panels::timeline_shortcuts_tests::linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection",
+            "panels::timeline_shortcuts_tests::navigation_uses_visible_property_times_and_accumulates_repeated_keys",
+            "panels::timeline_shortcuts_tests::one_sided_easing_preserves_the_opposite_bezier_handle",
+            "panels::timeline_shortcuts_tests::property_context_tests::changed_project_composition_target_or_dimensions_blocks_stale_navigation",
+            "panels::timeline_shortcuts_tests::property_context_tests::explicit_property_navigation_uses_one_channel_in_normal_and_graph_hosts",
+            "panels::timeline_shortcuts_tests::property_context_tests::invalid_scope_cancels_an_active_graph_transaction_exactly_once_and_restores_authored_data",
+            "panels::timeline_shortcuts_tests::property_context_tests::legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_displayed_key",
+            "panels::timeline_shortcuts_tests::property_context_tests::projection_keeps_unselected_layer_navigation_and_cannot_rebind_explicit_selection",
+            "panels::timeline_shortcuts_tests::property_context_tests::property_reveal_selects_an_available_separated_axis_including_2d_rotation_z",
+            "panels::timeline_shortcuts_tests::property_context_tests::stale_key_owns_delete_without_editing_reused_objects_or_falling_through_to_layer_delete",
+            "panels::timeline_shortcuts_tests::property_keys_filter_and_append_without_editing_and_u_omits_static_channels",
+            "panels::timeline_shortcuts_tests::repeated_p_can_be_reopened_manually_in_both_property_views",
+            "panels::timeline_shortcuts_tests::reveal_axis_tests::property_inspector_reveal_retains_the_selected_axis_and_key",
+            "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_does_not_reuse_a_stale_scope_or_another_property_axis",
+            "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_retains_selected_axis_and_key_for_ease_delete_and_undo",
+            "panels::timeline_shortcuts_tests::reveal_axis_tests::scale_and_rotation_reveal_keep_each_valid_selected_axis",
+            "panels::timeline_shortcuts_tests::separated_axis_easing_and_value_sampling_use_composition_offsets",
+            "panels::timeline_shortcuts_tests::shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling",
+            "panels::timeline_shortcuts_tests::stale_feedback_tests::ime_text_and_repeat_ownership_keep_existing_feedback",
+            "panels::timeline_shortcuts_tests::stale_feedback_tests::notice_lifetime_follows_reselection_clear_and_restored_keys_without_erasing_other_messages",
+            "panels::timeline_shortcuts_tests::stale_feedback_tests::reselecting_an_available_key_allows_real_easing_delete_and_single_undo",
+            "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_edits_are_explained_without_clearing_ownership_or_editing_the_project",
+            "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_notice_is_painted_in_both_window_hosts_and_locales",
+            "panels::timeline_shortcuts_tests::three_dimensional_layer_anchor_graph_has_only_two_pixel_components",
+            "panels::timeline_shortcuts_tests::timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded",
+            "panels::timeline_shortcuts_tests::toggle_and_delete_keys_preserve_other_frames_and_do_not_disable_the_track",
+            "panels::timeline_shortcuts_tests::visible_bezier_handles_edit_the_curve_without_moving_keyframes"
+          ],
+          "ignored": [
+            "panels::timeline_shortcuts_tests::group_reveal_tests::native::native_group_shortcuts_capture_both_owners_and_locales_without_document_edits"
+          ],
+          "failed": [],
+          "summary": [
+            "test result: ok. 55 passed; 0 failed; 1 ignored; 0 measured; 1540 filtered out; finished in 7.50s"
+          ]
+        },
+        "graph": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::timeline_graph::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 0.125,
+          "passed": [
+            "panels::timeline_graph::spatial_tests::cached_graph_reads_fractional_spatial_times_and_real_velocity_without_repreparing",
+            "panels::timeline_graph::spatial_tests::graph_cache_invalidates_document_revision_and_channel_with_identical_object_ids",
+            "panels::timeline_graph::spatial_tests::malformed_spatial_graph_is_logged_once_per_revision_then_recovers_at_default_level",
+            "panels::timeline_graph::spatial_tests::spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities",
+            "panels::timeline_graph::time_tests::malformed_clock_uses_existing_bounded_graph_fault_and_recovers_at_default_level",
+            "panels::timeline_graph::time_tests::reversed_hold_knots_keep_order_and_match_the_existing_model_on_both_sides",
+            "panels::timeline_graph::time_tests::value_and_physical_speed_use_the_same_clock_and_fit_keeps_fractional_identity"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 1589 filtered out; finished in 0.10s"
+          ]
+        },
+        "worker": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "engine::keyframe_timing_tests::",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 16.047,
+          "passed": [
+            "engine::keyframe_timing_tests::local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history",
+            "engine::keyframe_timing_tests::timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1594 filtered out; finished in 16.02s"
+          ]
+        }
+      },
+      "sha256_after": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "distinct_passed": [
+        "engine::keyframe_timing_tests::local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history",
+        "engine::keyframe_timing_tests::timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover",
+        "panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands",
+        "panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history",
+        "panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit",
+        "panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable",
+        "panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts",
+        "panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist",
+        "panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route",
+        "panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen",
+        "panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id",
+        "panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership",
+        "panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback",
+        "panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text",
+        "panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers",
+        "panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows",
+        "panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo",
+        "panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item",
+        "panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once",
+        "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics",
+        "panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply",
+        "panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs",
+        "panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity",
+        "panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing",
+        "panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom",
+        "panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges",
+        "panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key",
+        "panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo",
+        "panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform",
+        "panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history",
+        "panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler",
+        "panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages",
+        "panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout",
+        "panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent",
+        "panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts",
+        "panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache",
+        "panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership",
+        "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing",
+        "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits",
+        "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries",
+        "panels::key_selection::tests::add_toggle_and_empty_replace_preserve_explicit_key_ownership",
+        "panels::key_selection::tests::authored_delete_and_undo_invalidate_and_restore_keys_without_layer_fallback",
+        "panels::key_selection::tests::empty_stale_and_read_only_collections_consume_delete_and_never_copy_or_cut_layers",
+        "panels::key_selection::tests::key_delete_and_ease_dispatch_the_entire_collection_with_guarded_document_identity",
+        "panels::key_selection::tests::local::exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer",
+        "panels::key_selection::tests::local::local_presence_rechecks_authored_keys_and_document_identity_but_lock_only_disables_writes",
+        "panels::key_selection::tests::local::malformed_local_source_is_visible_at_default_level_and_normal_absence_is_quiet",
+        "panels::key_selection::tests::local::mixed_coordinate_envelopes_are_rejected_atomically_and_budget_counts_signed_addresses",
+        "panels::key_selection::tests::local::mixed_delete_runs_as_one_real_transaction_and_saves_without_touching_mapping_or_other_axes",
+        "panels::key_selection::tests::local::signed_local_selection_survives_fractional_projection_and_trim_without_integer_aliases",
+        "panels::key_selection::tests::local::visible_incoming_ease_swaps_local_sides_once_for_reverse_and_keeps_unmapped_channels",
+        "panels::key_selection::tests::oversized_gesture_is_atomic_and_new_document_add_cannot_resurrect_old_keys",
+        "panels::key_selection::tests::primary_property_focus_arbitration_preserves_same_gesture_and_releases_explicit_navigation",
+        "panels::key_selection::tests::revision_cache_is_document_scoped_and_missing_revision_never_caches",
+        "panels::key_selection::tests::selection_addresses_cross_layers_separated_axes_and_signed_local_offsets",
+        "panels::key_selection::tests::sources::malformed_authored_lookup_reaches_default_channels_without_turning_normal_misses_into_faults",
+        "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_camera_offsets_and_stereo_audio",
+        "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels",
+        "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks",
+        "panels::key_selection::tests::transforms::authored_nudges_use_one_or_ten_frames_and_one_atomic_history_entry",
+        "panels::key_selection::tests::transforms::malformed_drag_occupancy_reports_default_channels_and_recovery_can_nudge_again",
+        "panels::key_selection::tests::transforms::nudge_bindings_repeat_but_respect_text_ime_and_other_panel_focus",
+        "panels::key_selection::tests::transforms::rejected_nudge_keeps_selection_data_and_history_and_never_seeks_or_moves_layers",
+        "panels::key_selection::tests::transforms::remapped_nudge_repeats_through_keyboard_routing_and_disables_its_old_default",
+        "panels::key_selection::tests::ui::actual_expanded_keys_batch_f9_delete_save_reopen_and_one_undo",
+        "panels::key_selection::tests::ui::actual_graph_pointer_and_marquee_select_authored_keys_without_component_duplicates",
+        "panels::key_selection::tests::ui::actual_marquee_cancels_on_escape_focus_or_changed_document_and_view",
+        "panels::key_selection::tests::ui::actual_single_key_drag_tracks_selection_and_cancel_restores_identity",
+        "panels::key_selection::tests::ui::actual_summary_marquee_works_in_both_directions_and_empty_selection_owns_delete",
+        "panels::key_selection::tests::ui::actual_summary_pointer_replace_add_toggle_and_select_all_use_channel_identities",
+        "panels::key_selection::tests::ui::actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times",
+        "panels::key_selection::tests::ui::actual_ui_capture_failures_preserve_selection_and_default_file_stderr_channels",
+        "panels::key_selection::tests::ui::dragging::expanded_row_drag_keeps_other_selected_channels_at_the_same_time",
+        "panels::key_selection::tests::ui::dragging::graph_multi_key_body_drag_preserves_spacing_and_constrains_time_or_value",
+        "panels::key_selection::tests::ui::dragging::multi_key_pointer_cancel_stale_and_late_release_never_modify_authored_data",
+        "panels::key_selection::tests::ui::dragging::multi_key_pointer_drag_previews_then_commits_once_and_copy_keeps_sources",
+        "panels::key_selection::tests::ui::dragging::multi_key_pointer_rejects_collision_and_bounds_without_partial_edits",
+        "panels::key_selection::tests::ui::dragging::multi_key_snapping_uses_screen_pixels_at_different_timeline_zooms",
+        "panels::key_selection::tests::ui::dragging::single_key_snap_keeps_existing_lane_history_and_rejects_stale_input_before_editing",
+        "panels::key_selection::tests::ui::local_timing::clicking_a_local_member_keeps_the_mixed_collection_and_moves_on_its_common_grid",
+        "panels::key_selection::tests::ui::local_timing::common_grid_moves_mixed_clocks_together_and_value_offsets_only_the_target",
+        "panels::key_selection::tests::ui::local_timing::common_grid_with_legacy_keys_collision_and_copy_are_checked_before_commands",
+        "panels::key_selection::tests::ui::local_timing::fractional_pointer_drag_uses_release_position_in_both_owners_languages_and_lanes",
+        "panels::key_selection::tests::ui::local_timing::graph_local_drag_and_select_all_retain_storage_identity",
+        "panels::key_selection::tests::ui::local_timing::keyboard_nudge_is_exact_composition_time_and_never_rounds_each_layer",
+        "panels::key_selection::tests::ui::local_timing::local_drag_cancels_on_escape_focus_loss_revision_and_rejects_occupied_destination",
+        "panels::key_selection::tests::ui::local_timing::malformed_projection_and_row_clocks_are_bounded_visible_and_stdout_isolated",
+        "panels::key_selection::tests::ui::local_timing::mapped_graph_value_drag_uses_local_target_and_preserves_opacity_limits",
+        "panels::key_selection::tests::ui::local_timing::ordinary_select_all_uses_local_identity_for_integer_and_fractional_times_offscreen",
+        "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+        "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+        "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+        "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages",
+        "panels::key_selection::tests::ui::select_all_includes_offscreen_keys_and_readonly_pointer_selection_cannot_edit",
+        "panels::key_selection::tests::ui::spatial::coincident_spatial_pointer_hits_keep_both_ids_and_select_all_keeps_integer_channels",
+        "panels::key_selection::tests::ui::spatial::fractional_spatial_pointer_drag_uses_stable_ids_in_summary_and_expanded_rows",
+        "panels::key_selection::tests::ui::spatial::mixed_nudge_is_one_undo_and_unsupported_clipboard_and_easing_do_not_edit_a_subset",
+        "panels::key_selection::tests::ui::spatial::spatial_bounds_and_order_rejections_keep_the_entire_mixed_selection_unchanged",
+        "panels::key_selection::tests::ui::spatial::spatial_delete_addresses_the_id_and_keeps_layer_and_survivor_identity_through_undo",
+        "panels::key_selection::tests::ui::spatial::spatial_drag_cancel_stale_focus_and_copy_never_dispatch_partial_edits_or_late_release",
+        "panels::key_selection::tests::ui::spatial::stable_selection_keeps_coincident_identities_and_invalidates_only_deleted_ids_or_scope",
+        "panels::key_selection::tests::ui::spatial::zero_duration_preview_rejects_moving_spans_but_accepts_stationary_coincident_keys",
+        "panels::path_controls::clipboard_tests::mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_single_undo",
+        "panels::path_controls::context_menu::tests::context_changes_focus_escape_and_foreign_input_cancel_without_dispatch_or_repaint_loss",
+        "panels::path_controls::context_menu::tests::context_menu_retains_source_labels_closedness_lock_and_single_choice_semantics",
+        "panels::path_controls::context_menu::tests::short_context_menu_scrolls_to_paste_without_clipped_invisible_hit_regions",
+        "panels::path_controls::context_menu::tests::tangent_menu_dispatches_explicit_mode_with_frozen_source_in_both_languages",
+        "panels::path_controls::drag_lifecycle_tests::delayed_release_uses_release_position_and_never_follows_later_motion",
+        "panels::path_controls::drag_lifecycle_tests::lost_button_or_focus_finishes_capture_without_reusing_it_for_another_press",
+        "panels::path_controls::drag_lifecycle_tests::new_pen_handle_placement_stops_at_release_even_when_motion_is_coalesced",
+        "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence",
+        "panels::path_controls::groups::parameters::modified_tests::shared_tree_keeps_authored_operators_and_only_changed_or_keyed_values",
+        "panels::path_controls::groups::tests::add_repeater_from_ui_preserves_original_geometry_and_style_and_roundtrips",
+        "panels::path_controls::groups::tests::nested_shape_navigation_keeps_complete_watch_slots_clear_of_values",
+        "panels::path_controls::groups::tests::removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step",
+        "panels::path_controls::groups::tests::repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_consume_it",
+        "panels::path_controls::groups::tests::repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_with_one_undo",
+        "panels::path_controls::groups::tests::shape_content_animated_filter_reveals_real_tracks_and_counts_match_rendered_tree",
+        "panels::path_controls::groups::tests::shape_content_dropdown_blocks_obscured_fields_and_opens_only_in_its_owner_host",
+        "panels::path_controls::groups::tests::shape_content_geometry_tree_and_fields_stay_inside_narrow_and_wide_panels",
+        "panels::path_controls::groups::tests::shape_content_key_popup_samples_clicked_time_and_changes_easing",
+        "panels::path_controls::groups::tests::shape_content_key_selection_cannot_delete_from_a_different_project",
+        "panels::path_controls::groups::tests::shape_content_number_drag_in_main_and_floating_timeline_selects_owner_and_commits",
+        "panels::path_controls::groups::tests::shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_hosts",
+        "panels::path_controls::groups::tests::shape_content_source_cache_reuses_authored_revision_but_never_caches_sampled_time",
+        "panels::path_controls::groups::tests::shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo",
+        "panels::path_controls::groups::tests::shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and_undo",
+        "panels::path_controls::handle_visibility_tests::mask_handles_remain_visible_but_only_the_selected_node_can_be_dragged",
+        "panels::path_controls::hidden_handles_tests::hidden_authored_handles_do_not_capture_clicks_and_pen_and_mask_can_commit_new_geometry_and_undo",
+        "panels::path_controls::hover_tests::hover_reaches_handles_only_where_paint_draws_them",
+        "panels::path_controls::hover_tests::hover_reports_only_the_nearest_grip_within_tolerance",
+        "panels::path_controls::mask_boundaries::tests::feather_link_checkbox_stays_inline_and_dispatches_only_for_an_unlocked_owner",
+        "panels::path_controls::mask_boundaries::tests::linked_feather_preserves_ratio_or_zero_axis_delta_with_a_shared_limit",
+        "panels::path_controls::mask_boundaries::tests::linked_numeric_gesture_updates_both_axes_and_cancels_the_complete_track_on_context_loss",
+        "panels::path_controls::mask_boundaries::viewer::tests::a_coalesced_release_can_commit_a_drag_and_an_empty_section_can_recover",
+        "panels::path_controls::mask_boundaries::viewer::tests::boundary_capture_cancels_complete_tracks_on_stale_context_and_never_resumes_after_release",
+        "panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
+        "panels::path_controls::mask_boundaries::viewer::tests::transformed_feather_and_expansion_grips_share_numeric_history_and_release_coordinates",
+        "panels::path_controls::mask_inspector::tests::compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap",
+        "panels::path_controls::mask_keys::navigation_tests::navigation_buttons_preserve_mask_channels_and_local_path_poses_with_one_undo",
+        "panels::path_controls::mask_keys::path_tests::canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_static",
+        "panels::path_controls::mask_keys::path_tests::control_drag_copies_path_pose_once_then_moves_only_the_copy",
+        "panels::path_controls::mask_keys::path_tests::mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target",
+        "panels::path_controls::mask_keys::path_tests::mask_path_commands_preserve_parameter_updates_between_snapshot_and_apply",
+        "panels::path_controls::mask_keys::path_tests::path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape",
+        "panels::path_controls::mask_keys::path_tests::path_stopwatch_viewport_pose_and_key_gestures_use_one_undo_and_local_time",
+        "panels::path_controls::mask_keys::path_tests::rejected_mask_path_command_retains_object_mask_and_cause_in_the_log",
+        "panels::path_controls::mask_keys::path_tests::sparse_legacy_node_keys_are_sorted_and_edited_without_losing_other_tracks",
+        "panels::path_controls::mask_keys::tests::animated_feather_numeric_drag_preserves_y_and_cancels_when_its_context_changes",
+        "panels::path_controls::mask_keys::tests::delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows",
+        "panels::path_controls::mask_keys::tests::layer_properties_owns_mask_creation_menus_and_numeric_gestures_in_main_and_floating_windows",
+        "panels::path_controls::mask_keys::tests::mask_key_context_menu_changes_interpolation_and_delete_is_undoable",
+        "panels::path_controls::mask_keys::tests::mask_key_drag_preserves_other_keys_and_easing_and_commits_or_cancels_once",
+        "panels::path_controls::mask_keys::tests::mask_ui_animates_all_channels_at_local_time_and_key_toggle_undoes",
+        "panels::path_controls::numeric_tests::mask_scrub_obeys_shared_threshold_and_commit_or_cancel_restores_engine_bytes",
+        "panels::path_controls::pen_tests::pen_placement_alt_handles_commit_cancel_and_save_roundtrip",
+        "panels::path_controls::pen_tools::tests::automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks",
+        "panels::path_controls::pen_tools::tests::conversion_preserves_anchor_lengths_and_other_keyframes_and_delete_opens_small_paths",
+        "panels::path_controls::pen_tools::tests::existing_parametric_conversion_is_required_then_pen_edits_preserve_paint_and_undo",
+        "panels::path_controls::pen_tools::tests::grouped_topology_targets_authored_item_and_keeps_siblings_transforms_and_repeaters",
+        "panels::path_controls::pen_tools::tests::independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing",
+        "panels::path_controls::pen_tools::tests::independent_clock_union_obeys_key_budget_without_partial_mutation",
+        "panels::path_controls::pen_tools::tests::rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_and_reset",
+        "panels::path_controls::pen_tools::tests::release_commits_once_and_cancel_or_stale_context_never_edits",
+        "panels::path_controls::pen_tools::tests::segment_picking_uses_zoomed_cubic_geometry_and_ignores_open_closing_edge",
+        "panels::path_controls::pen_tools::tests::stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data",
+        "panels::path_controls::pen_tools::tests::subdivide_preserves_curves_open_and_closed_edges_and_unrelated_tracks",
+        "panels::path_controls::pen_tools::tests::subdivision_preserves_matching_temporal_curves_at_fractional_frames",
+        "panels::path_controls::pen_tools::tests::tool_dropdown_owns_its_clicks_and_escape_leaves_the_path_unchanged",
+        "panels::path_controls::point_selection::nudge_tests::authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points",
+        "panels::path_controls::point_selection::tests::animated_masks_with_identical_node_ids_move_together_without_pose_overwrite",
+        "panels::path_controls::point_selection::tests::animated_vector_batch_keeps_existing_keys_and_failed_second_command_rolls_back",
+        "panels::path_controls::point_selection::tests::automatic_grips_show_sampled_curve_but_anchor_drag_preserves_manual_handles",
+        "panels::path_controls::point_selection::tests::composing_text_never_deletes_selected_points_or_layer",
+        "panels::path_controls::point_selection::tests::context_changes_and_unavailable_projection_cancel_without_reusing_selection",
+        "panels::path_controls::point_selection::tests::document_replacement_with_identical_ids_clears_authored_point_selection",
+        "panels::path_controls::point_selection::tests::failed_translation_is_visible_at_default_level_and_resets_after_recovery",
+        "panels::path_controls::point_selection::tests::grouped_selection_uses_authored_owners_and_world_translation_before_repeaters",
+        "panels::path_controls::point_selection::tests::invalid_batch_is_reported_without_partial_edits_and_recovery_is_possible",
+        "panels::path_controls::point_selection::tests::marquee_replace_add_toggle_cancel_delete_and_save_reopen",
+        "panels::path_controls::point_selection::tests::moving_selection_cancels_on_escape_focus_loss_time_change_and_lock",
+        "panels::path_controls::point_selection::tests::path_clipboard_uses_authored_selection_and_owns_shortcuts_and_menu_without_layer_fallback",
+        "panels::path_controls::point_selection::tests::point_add_toggle_group_drag_release_and_one_undo_at_multiple_zooms",
+        "panels::path_controls::point_selection::tests::segment_moves_endpoints_and_handles_only_and_closed_edge_is_pickable",
+        "panels::path_controls::property_focus_tests::clipboard_mask_and_nested_shape_channels_keep_typed_targets_and_authored_times",
+        "panels::path_controls::property_focus_tests::clipboard_mask_path_copies_whole_vertex_poses_and_rejects_partial_authored_pose",
+        "panels::path_controls::property_focus_tests::latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners",
+        "panels::path_controls::property_focus_tests::old_graph_box_cannot_delete_keys_after_another_property_takes_ownership",
+        "panels::path_controls::property_focus_tests::property_navigation_follows_the_chosen_channel_across_panel_focus_and_defers_to_ime",
+        "panels::path_controls::property_focus_tests::stale_typed_owners_consume_repeated_keys_before_and_after_their_prepare_pass",
+        "panels::path_controls::resize_tests::grouped_path_grips_keep_owner_identity_before_repeaters_and_trim",
+        "panels::path_controls::resize_tests::invalid_authored_geometry_reports_default_level_file_and_stderr_and_recovers",
+        "panels::path_controls::resize_tests::nested_geometry_uses_its_transform_owner_and_animated_local_time",
+        "panels::path_controls::resize_tests::rejected_second_dimension_command_cannot_publish_a_partial_resize",
+        "panels::path_controls::resize_tests::shape_corners_resize_width_height_keep_opposite_corner_and_preserve_parameters",
+        "panels::path_controls::review327_regressions::review327_locked_path_does_not_advertise_hover",
+        "panels::path_controls::review327_regressions::review327_only_the_hovered_bezier_handle_is_highlighted",
+        "panels::path_controls::timeline::tests::mask_path_only_animation_is_visible_in_animated_filter_and_collapsed_layer_keys",
+        "panels::timeline::row_cache_tests::warm_and_rebuilt_rows_paint_identically_and_identity_changes_refresh_names",
+        "panels::timeline::scroll_signature_tests::all_row_groups_and_viewport_identity_inputs_invalidate_the_signature",
+        "panels::timeline::scroll_signature_tests::group_lengths_separate_equal_flat_id_streams",
+        "panels::timeline_graph::spatial_tests::cached_graph_reads_fractional_spatial_times_and_real_velocity_without_repreparing",
+        "panels::timeline_graph::spatial_tests::graph_cache_invalidates_document_revision_and_channel_with_identical_object_ids",
+        "panels::timeline_graph::spatial_tests::malformed_spatial_graph_is_logged_once_per_revision_then_recovers_at_default_level",
+        "panels::timeline_graph::spatial_tests::spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities",
+        "panels::timeline_graph::time_tests::malformed_clock_uses_existing_bounded_graph_fault_and_recovers_at_default_level",
+        "panels::timeline_graph::time_tests::reversed_hold_knots_keep_order_and_match_the_existing_model_on_both_sides",
+        "panels::timeline_graph::time_tests::value_and_physical_speed_use_the_same_clock_and_fit_keeps_fractional_identity",
+        "panels::timeline_shortcuts_tests::a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts",
+        "panels::timeline_shortcuts_tests::active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph",
+        "panels::timeline_shortcuts_tests::bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits",
+        "panels::timeline_shortcuts_tests::clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer",
+        "panels::timeline_shortcuts_tests::curve_selection_box_delete_owns_keys_only_in_the_focused_timeline",
+        "panels::timeline_shortcuts_tests::curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss",
+        "panels::timeline_shortcuts_tests::curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes",
+        "panels::timeline_shortcuts_tests::custom_animated_property_chords_preserve_double_press_and_input_ownership",
+        "panels::timeline_shortcuts_tests::custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority",
+        "panels::timeline_shortcuts_tests::custom_select_all_routes_the_graph_selection_and_disables_its_old_chord",
+        "panels::timeline_shortcuts_tests::ease_does_not_edit_without_explicit_selection_or_a_locked_or_foreign_layer",
+        "panels::timeline_shortcuts_tests::easy_ease_changes_the_selected_keys_two_sides_as_one_undoable_edit",
+        "panels::timeline_shortcuts_tests::f4_toggles_composite_columns_and_shift_f4_toggles_parent",
+        "panels::timeline_shortcuts_tests::fields_search_ime_and_drag_own_animation_shortcuts",
+        "panels::timeline_shortcuts_tests::graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key",
+        "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_faults_use_bounded_default_file_and_error_stderr_without_stdout",
+        "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_rejects_noninteger_composition_frames_before_history_and_recovers",
+        "panels::timeline_shortcuts_tests::graph_drag_return_to_origin_then_cancel_restores_engine_bytes",
+        "panels::timeline_shortcuts_tests::graph_property_tree_selects_y_without_separating_or_editing_the_track",
+        "panels::timeline_shortcuts_tests::graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history",
+        "panels::timeline_shortcuts_tests::graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::effect_and_mask_keys_reveal_filtered_collapsed_items_and_toggle_in_both_hosts_and_locales",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::group_keys_defer_to_text_ime_lost_focus_repeat_menus_and_active_gestures",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::group_shortcuts_can_be_remapped_persisted_and_suppressed_without_stealing_other_chords",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::mixed_selections_only_reveal_real_groups_without_changing_keys_or_document_history",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::supported_content::supported_content_plans_keep_real_channels_and_exclude_unimplemented_properties",
+        "panels::timeline_shortcuts_tests::in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers",
+        "panels::timeline_shortcuts_tests::in_out_shortcuts_seek_to_the_selected_clip_without_editing",
+        "panels::timeline_shortcuts_tests::linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection",
+        "panels::timeline_shortcuts_tests::navigation_uses_visible_property_times_and_accumulates_repeated_keys",
+        "panels::timeline_shortcuts_tests::one_sided_easing_preserves_the_opposite_bezier_handle",
+        "panels::timeline_shortcuts_tests::property_context_tests::changed_project_composition_target_or_dimensions_blocks_stale_navigation",
+        "panels::timeline_shortcuts_tests::property_context_tests::explicit_property_navigation_uses_one_channel_in_normal_and_graph_hosts",
+        "panels::timeline_shortcuts_tests::property_context_tests::invalid_scope_cancels_an_active_graph_transaction_exactly_once_and_restores_authored_data",
+        "panels::timeline_shortcuts_tests::property_context_tests::legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_displayed_key",
+        "panels::timeline_shortcuts_tests::property_context_tests::projection_keeps_unselected_layer_navigation_and_cannot_rebind_explicit_selection",
+        "panels::timeline_shortcuts_tests::property_context_tests::property_reveal_selects_an_available_separated_axis_including_2d_rotation_z",
+        "panels::timeline_shortcuts_tests::property_context_tests::stale_key_owns_delete_without_editing_reused_objects_or_falling_through_to_layer_delete",
+        "panels::timeline_shortcuts_tests::property_keys_filter_and_append_without_editing_and_u_omits_static_channels",
+        "panels::timeline_shortcuts_tests::repeated_p_can_be_reopened_manually_in_both_property_views",
+        "panels::timeline_shortcuts_tests::reveal_axis_tests::property_inspector_reveal_retains_the_selected_axis_and_key",
+        "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_does_not_reuse_a_stale_scope_or_another_property_axis",
+        "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_retains_selected_axis_and_key_for_ease_delete_and_undo",
+        "panels::timeline_shortcuts_tests::reveal_axis_tests::scale_and_rotation_reveal_keep_each_valid_selected_axis",
+        "panels::timeline_shortcuts_tests::separated_axis_easing_and_value_sampling_use_composition_offsets",
+        "panels::timeline_shortcuts_tests::shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling",
+        "panels::timeline_shortcuts_tests::stale_feedback_tests::ime_text_and_repeat_ownership_keep_existing_feedback",
+        "panels::timeline_shortcuts_tests::stale_feedback_tests::notice_lifetime_follows_reselection_clear_and_restored_keys_without_erasing_other_messages",
+        "panels::timeline_shortcuts_tests::stale_feedback_tests::reselecting_an_available_key_allows_real_easing_delete_and_single_undo",
+        "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_edits_are_explained_without_clearing_ownership_or_editing_the_project",
+        "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_notice_is_painted_in_both_window_hosts_and_locales",
+        "panels::timeline_shortcuts_tests::three_dimensional_layer_anchor_graph_has_only_two_pixel_components",
+        "panels::timeline_shortcuts_tests::timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded",
+        "panels::timeline_shortcuts_tests::toggle_and_delete_keys_preserve_other_frames_and_do_not_disable_the_track",
+        "panels::timeline_shortcuts_tests::visible_bezier_handles_edit_the_curve_without_moving_keyframes"
+      ],
+      "distinct_ignored": [
+        "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+        "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+        "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+        "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves",
+        "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves",
+        "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+        "panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions",
+        "panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss",
+        "panels::timeline_shortcuts_tests::group_reveal_tests::native::native_group_shortcuts_capture_both_owners_and_locales_without_document_edits"
+      ]
+    },
+    "native": {
+      "program": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "sha256_before": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "suites": {
+        "typed_native": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen",
+            "--test-threads=1",
+            "--nocapture",
+            "--exact",
+            "--ignored"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 100.796,
+          "passed": [
+            "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1595 filtered out; finished in 100.75s"
+          ]
+        },
+        "property_native": {
+          "command": [
+            "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+            "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+            "--test-threads=1",
+            "--nocapture",
+            "--exact",
+            "--ignored"
+          ],
+          "exit_code": 0,
+          "elapsed_s": 20.282,
+          "passed": [
+            "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen"
+          ],
+          "ignored": [],
+          "failed": [],
+          "summary": [
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1595 filtered out; finished in 20.25s"
+          ]
+        }
+      },
+      "sha256_after": "ee24784bd403aeacee133fdca14b08c502684d605ac43dde93fb171e611b3bb1",
+      "distinct_passed": [
+        "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+        "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen"
+      ],
+      "distinct_ignored": []
+    }
+  },
+  "checks": {
+    "rustfmt": 0,
+    "diff": 0,
+    "style_consumers": 0,
+    "workspace_all_targets": 0
+  },
+  "passed": [
+    "engine::keyframe_timing_tests::local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history",
+    "engine::keyframe_timing_tests::timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover",
+    "panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands",
+    "panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history",
+    "panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit",
+    "panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable",
+    "panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts",
+    "panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist",
+    "panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route",
+    "panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen",
+    "panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id",
+    "panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership",
+    "panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback",
+    "panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync",
+    "panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages",
+    "panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history",
+    "panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text",
+    "panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers",
+    "panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows",
+    "panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo",
+    "panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item",
+    "panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once",
+    "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics",
+    "panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply",
+    "panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs",
+    "panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity",
+    "panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing",
+    "panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom",
+    "panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges",
+    "panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key",
+    "panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo",
+    "panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform",
+    "panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history",
+    "panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler",
+    "panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages",
+    "panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout",
+    "panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent",
+    "panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts",
+    "panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache",
+    "panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits",
+    "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries",
+    "panels::key_selection::tests::add_toggle_and_empty_replace_preserve_explicit_key_ownership",
+    "panels::key_selection::tests::authored_delete_and_undo_invalidate_and_restore_keys_without_layer_fallback",
+    "panels::key_selection::tests::empty_stale_and_read_only_collections_consume_delete_and_never_copy_or_cut_layers",
+    "panels::key_selection::tests::key_delete_and_ease_dispatch_the_entire_collection_with_guarded_document_identity",
+    "panels::key_selection::tests::local::exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer",
+    "panels::key_selection::tests::local::local_presence_rechecks_authored_keys_and_document_identity_but_lock_only_disables_writes",
+    "panels::key_selection::tests::local::malformed_local_source_is_visible_at_default_level_and_normal_absence_is_quiet",
+    "panels::key_selection::tests::local::mixed_coordinate_envelopes_are_rejected_atomically_and_budget_counts_signed_addresses",
+    "panels::key_selection::tests::local::mixed_delete_runs_as_one_real_transaction_and_saves_without_touching_mapping_or_other_axes",
+    "panels::key_selection::tests::local::signed_local_selection_survives_fractional_projection_and_trim_without_integer_aliases",
+    "panels::key_selection::tests::local::visible_incoming_ease_swaps_local_sides_once_for_reverse_and_keeps_unmapped_channels",
+    "panels::key_selection::tests::oversized_gesture_is_atomic_and_new_document_add_cannot_resurrect_old_keys",
+    "panels::key_selection::tests::primary_property_focus_arbitration_preserves_same_gesture_and_releases_explicit_navigation",
+    "panels::key_selection::tests::revision_cache_is_document_scoped_and_missing_revision_never_caches",
+    "panels::key_selection::tests::selection_addresses_cross_layers_separated_axes_and_signed_local_offsets",
+    "panels::key_selection::tests::sources::malformed_authored_lookup_reaches_default_channels_without_turning_normal_misses_into_faults",
+    "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_camera_offsets_and_stereo_audio",
+    "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels",
+    "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks",
+    "panels::key_selection::tests::transforms::authored_nudges_use_one_or_ten_frames_and_one_atomic_history_entry",
+    "panels::key_selection::tests::transforms::malformed_drag_occupancy_reports_default_channels_and_recovery_can_nudge_again",
+    "panels::key_selection::tests::transforms::nudge_bindings_repeat_but_respect_text_ime_and_other_panel_focus",
+    "panels::key_selection::tests::transforms::rejected_nudge_keeps_selection_data_and_history_and_never_seeks_or_moves_layers",
+    "panels::key_selection::tests::transforms::remapped_nudge_repeats_through_keyboard_routing_and_disables_its_old_default",
+    "panels::key_selection::tests::ui::actual_expanded_keys_batch_f9_delete_save_reopen_and_one_undo",
+    "panels::key_selection::tests::ui::actual_graph_pointer_and_marquee_select_authored_keys_without_component_duplicates",
+    "panels::key_selection::tests::ui::actual_marquee_cancels_on_escape_focus_or_changed_document_and_view",
+    "panels::key_selection::tests::ui::actual_single_key_drag_tracks_selection_and_cancel_restores_identity",
+    "panels::key_selection::tests::ui::actual_summary_marquee_works_in_both_directions_and_empty_selection_owns_delete",
+    "panels::key_selection::tests::ui::actual_summary_pointer_replace_add_toggle_and_select_all_use_channel_identities",
+    "panels::key_selection::tests::ui::actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times",
+    "panels::key_selection::tests::ui::actual_ui_capture_failures_preserve_selection_and_default_file_stderr_channels",
+    "panels::key_selection::tests::ui::dragging::expanded_row_drag_keeps_other_selected_channels_at_the_same_time",
+    "panels::key_selection::tests::ui::dragging::graph_multi_key_body_drag_preserves_spacing_and_constrains_time_or_value",
+    "panels::key_selection::tests::ui::dragging::multi_key_pointer_cancel_stale_and_late_release_never_modify_authored_data",
+    "panels::key_selection::tests::ui::dragging::multi_key_pointer_drag_previews_then_commits_once_and_copy_keeps_sources",
+    "panels::key_selection::tests::ui::dragging::multi_key_pointer_rejects_collision_and_bounds_without_partial_edits",
+    "panels::key_selection::tests::ui::dragging::multi_key_snapping_uses_screen_pixels_at_different_timeline_zooms",
+    "panels::key_selection::tests::ui::dragging::single_key_snap_keeps_existing_lane_history_and_rejects_stale_input_before_editing",
+    "panels::key_selection::tests::ui::local_timing::clicking_a_local_member_keeps_the_mixed_collection_and_moves_on_its_common_grid",
+    "panels::key_selection::tests::ui::local_timing::common_grid_moves_mixed_clocks_together_and_value_offsets_only_the_target",
+    "panels::key_selection::tests::ui::local_timing::common_grid_with_legacy_keys_collision_and_copy_are_checked_before_commands",
+    "panels::key_selection::tests::ui::local_timing::fractional_pointer_drag_uses_release_position_in_both_owners_languages_and_lanes",
+    "panels::key_selection::tests::ui::local_timing::graph_local_drag_and_select_all_retain_storage_identity",
+    "panels::key_selection::tests::ui::local_timing::keyboard_nudge_is_exact_composition_time_and_never_rounds_each_layer",
+    "panels::key_selection::tests::ui::local_timing::local_drag_cancels_on_escape_focus_loss_revision_and_rejects_occupied_destination",
+    "panels::key_selection::tests::ui::local_timing::malformed_projection_and_row_clocks_are_bounded_visible_and_stdout_isolated",
+    "panels::key_selection::tests::ui::local_timing::mapped_graph_value_drag_uses_local_target_and_preserves_opacity_limits",
+    "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen",
+    "panels::key_selection::tests::ui::local_timing::ordinary_select_all_uses_local_identity_for_integer_and_fractional_times_offscreen",
+    "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+    "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+    "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+    "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages",
+    "panels::key_selection::tests::ui::select_all_includes_offscreen_keys_and_readonly_pointer_selection_cannot_edit",
+    "panels::key_selection::tests::ui::spatial::coincident_spatial_pointer_hits_keep_both_ids_and_select_all_keeps_integer_channels",
+    "panels::key_selection::tests::ui::spatial::fractional_spatial_pointer_drag_uses_stable_ids_in_summary_and_expanded_rows",
+    "panels::key_selection::tests::ui::spatial::mixed_nudge_is_one_undo_and_unsupported_clipboard_and_easing_do_not_edit_a_subset",
+    "panels::key_selection::tests::ui::spatial::spatial_bounds_and_order_rejections_keep_the_entire_mixed_selection_unchanged",
+    "panels::key_selection::tests::ui::spatial::spatial_delete_addresses_the_id_and_keeps_layer_and_survivor_identity_through_undo",
+    "panels::key_selection::tests::ui::spatial::spatial_drag_cancel_stale_focus_and_copy_never_dispatch_partial_edits_or_late_release",
+    "panels::key_selection::tests::ui::spatial::stable_selection_keeps_coincident_identities_and_invalidates_only_deleted_ids_or_scope",
+    "panels::key_selection::tests::ui::spatial::zero_duration_preview_rejects_moving_spans_but_accepts_stationary_coincident_keys",
+    "panels::path_controls::clipboard_tests::mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_single_undo",
+    "panels::path_controls::context_menu::tests::context_changes_focus_escape_and_foreign_input_cancel_without_dispatch_or_repaint_loss",
+    "panels::path_controls::context_menu::tests::context_menu_retains_source_labels_closedness_lock_and_single_choice_semantics",
+    "panels::path_controls::context_menu::tests::short_context_menu_scrolls_to_paste_without_clipped_invisible_hit_regions",
+    "panels::path_controls::context_menu::tests::tangent_menu_dispatches_explicit_mode_with_frozen_source_in_both_languages",
+    "panels::path_controls::drag_lifecycle_tests::delayed_release_uses_release_position_and_never_follows_later_motion",
+    "panels::path_controls::drag_lifecycle_tests::lost_button_or_focus_finishes_capture_without_reusing_it_for_another_press",
+    "panels::path_controls::drag_lifecycle_tests::new_pen_handle_placement_stops_at_release_even_when_motion_is_coalesced",
+    "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence",
+    "panels::path_controls::groups::parameters::modified_tests::shared_tree_keeps_authored_operators_and_only_changed_or_keyed_values",
+    "panels::path_controls::groups::tests::add_repeater_from_ui_preserves_original_geometry_and_style_and_roundtrips",
+    "panels::path_controls::groups::tests::nested_shape_navigation_keeps_complete_watch_slots_clear_of_values",
+    "panels::path_controls::groups::tests::removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step",
+    "panels::path_controls::groups::tests::repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_consume_it",
+    "panels::path_controls::groups::tests::repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_with_one_undo",
+    "panels::path_controls::groups::tests::shape_content_animated_filter_reveals_real_tracks_and_counts_match_rendered_tree",
+    "panels::path_controls::groups::tests::shape_content_dropdown_blocks_obscured_fields_and_opens_only_in_its_owner_host",
+    "panels::path_controls::groups::tests::shape_content_geometry_tree_and_fields_stay_inside_narrow_and_wide_panels",
+    "panels::path_controls::groups::tests::shape_content_key_popup_samples_clicked_time_and_changes_easing",
+    "panels::path_controls::groups::tests::shape_content_key_selection_cannot_delete_from_a_different_project",
+    "panels::path_controls::groups::tests::shape_content_number_drag_in_main_and_floating_timeline_selects_owner_and_commits",
+    "panels::path_controls::groups::tests::shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_hosts",
+    "panels::path_controls::groups::tests::shape_content_source_cache_reuses_authored_revision_but_never_caches_sampled_time",
+    "panels::path_controls::groups::tests::shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo",
+    "panels::path_controls::groups::tests::shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and_undo",
+    "panels::path_controls::handle_visibility_tests::mask_handles_remain_visible_but_only_the_selected_node_can_be_dragged",
+    "panels::path_controls::hidden_handles_tests::hidden_authored_handles_do_not_capture_clicks_and_pen_and_mask_can_commit_new_geometry_and_undo",
+    "panels::path_controls::hover_tests::hover_reaches_handles_only_where_paint_draws_them",
+    "panels::path_controls::hover_tests::hover_reports_only_the_nearest_grip_within_tolerance",
+    "panels::path_controls::mask_boundaries::tests::feather_link_checkbox_stays_inline_and_dispatches_only_for_an_unlocked_owner",
+    "panels::path_controls::mask_boundaries::tests::linked_feather_preserves_ratio_or_zero_axis_delta_with_a_shared_limit",
+    "panels::path_controls::mask_boundaries::tests::linked_numeric_gesture_updates_both_axes_and_cancels_the_complete_track_on_context_loss",
+    "panels::path_controls::mask_boundaries::viewer::tests::a_coalesced_release_can_commit_a_drag_and_an_empty_section_can_recover",
+    "panels::path_controls::mask_boundaries::viewer::tests::boundary_capture_cancels_complete_tracks_on_stale_context_and_never_resumes_after_release",
+    "panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
+    "panels::path_controls::mask_boundaries::viewer::tests::transformed_feather_and_expansion_grips_share_numeric_history_and_release_coordinates",
+    "panels::path_controls::mask_inspector::tests::compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap",
+    "panels::path_controls::mask_keys::navigation_tests::navigation_buttons_preserve_mask_channels_and_local_path_poses_with_one_undo",
+    "panels::path_controls::mask_keys::path_tests::canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_static",
+    "panels::path_controls::mask_keys::path_tests::control_drag_copies_path_pose_once_then_moves_only_the_copy",
+    "panels::path_controls::mask_keys::path_tests::mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target",
+    "panels::path_controls::mask_keys::path_tests::mask_path_commands_preserve_parameter_updates_between_snapshot_and_apply",
+    "panels::path_controls::mask_keys::path_tests::path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape",
+    "panels::path_controls::mask_keys::path_tests::path_stopwatch_viewport_pose_and_key_gestures_use_one_undo_and_local_time",
+    "panels::path_controls::mask_keys::path_tests::rejected_mask_path_command_retains_object_mask_and_cause_in_the_log",
+    "panels::path_controls::mask_keys::path_tests::sparse_legacy_node_keys_are_sorted_and_edited_without_losing_other_tracks",
+    "panels::path_controls::mask_keys::tests::animated_feather_numeric_drag_preserves_y_and_cancels_when_its_context_changes",
+    "panels::path_controls::mask_keys::tests::delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows",
+    "panels::path_controls::mask_keys::tests::layer_properties_owns_mask_creation_menus_and_numeric_gestures_in_main_and_floating_windows",
+    "panels::path_controls::mask_keys::tests::mask_key_context_menu_changes_interpolation_and_delete_is_undoable",
+    "panels::path_controls::mask_keys::tests::mask_key_drag_preserves_other_keys_and_easing_and_commits_or_cancels_once",
+    "panels::path_controls::mask_keys::tests::mask_ui_animates_all_channels_at_local_time_and_key_toggle_undoes",
+    "panels::path_controls::numeric_tests::mask_scrub_obeys_shared_threshold_and_commit_or_cancel_restores_engine_bytes",
+    "panels::path_controls::pen_tests::pen_placement_alt_handles_commit_cancel_and_save_roundtrip",
+    "panels::path_controls::pen_tools::tests::automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks",
+    "panels::path_controls::pen_tools::tests::conversion_preserves_anchor_lengths_and_other_keyframes_and_delete_opens_small_paths",
+    "panels::path_controls::pen_tools::tests::existing_parametric_conversion_is_required_then_pen_edits_preserve_paint_and_undo",
+    "panels::path_controls::pen_tools::tests::grouped_topology_targets_authored_item_and_keeps_siblings_transforms_and_repeaters",
+    "panels::path_controls::pen_tools::tests::independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing",
+    "panels::path_controls::pen_tools::tests::independent_clock_union_obeys_key_budget_without_partial_mutation",
+    "panels::path_controls::pen_tools::tests::rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_and_reset",
+    "panels::path_controls::pen_tools::tests::release_commits_once_and_cancel_or_stale_context_never_edits",
+    "panels::path_controls::pen_tools::tests::segment_picking_uses_zoomed_cubic_geometry_and_ignores_open_closing_edge",
+    "panels::path_controls::pen_tools::tests::stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data",
+    "panels::path_controls::pen_tools::tests::subdivide_preserves_curves_open_and_closed_edges_and_unrelated_tracks",
+    "panels::path_controls::pen_tools::tests::subdivision_preserves_matching_temporal_curves_at_fractional_frames",
+    "panels::path_controls::pen_tools::tests::tool_dropdown_owns_its_clicks_and_escape_leaves_the_path_unchanged",
+    "panels::path_controls::point_selection::nudge_tests::authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points",
+    "panels::path_controls::point_selection::tests::animated_masks_with_identical_node_ids_move_together_without_pose_overwrite",
+    "panels::path_controls::point_selection::tests::animated_vector_batch_keeps_existing_keys_and_failed_second_command_rolls_back",
+    "panels::path_controls::point_selection::tests::automatic_grips_show_sampled_curve_but_anchor_drag_preserves_manual_handles",
+    "panels::path_controls::point_selection::tests::composing_text_never_deletes_selected_points_or_layer",
+    "panels::path_controls::point_selection::tests::context_changes_and_unavailable_projection_cancel_without_reusing_selection",
+    "panels::path_controls::point_selection::tests::document_replacement_with_identical_ids_clears_authored_point_selection",
+    "panels::path_controls::point_selection::tests::failed_translation_is_visible_at_default_level_and_resets_after_recovery",
+    "panels::path_controls::point_selection::tests::grouped_selection_uses_authored_owners_and_world_translation_before_repeaters",
+    "panels::path_controls::point_selection::tests::invalid_batch_is_reported_without_partial_edits_and_recovery_is_possible",
+    "panels::path_controls::point_selection::tests::marquee_replace_add_toggle_cancel_delete_and_save_reopen",
+    "panels::path_controls::point_selection::tests::moving_selection_cancels_on_escape_focus_loss_time_change_and_lock",
+    "panels::path_controls::point_selection::tests::path_clipboard_uses_authored_selection_and_owns_shortcuts_and_menu_without_layer_fallback",
+    "panels::path_controls::point_selection::tests::point_add_toggle_group_drag_release_and_one_undo_at_multiple_zooms",
+    "panels::path_controls::point_selection::tests::segment_moves_endpoints_and_handles_only_and_closed_edge_is_pickable",
+    "panels::path_controls::property_focus_tests::clipboard_mask_and_nested_shape_channels_keep_typed_targets_and_authored_times",
+    "panels::path_controls::property_focus_tests::clipboard_mask_path_copies_whole_vertex_poses_and_rejects_partial_authored_pose",
+    "panels::path_controls::property_focus_tests::latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners",
+    "panels::path_controls::property_focus_tests::old_graph_box_cannot_delete_keys_after_another_property_takes_ownership",
+    "panels::path_controls::property_focus_tests::property_navigation_follows_the_chosen_channel_across_panel_focus_and_defers_to_ime",
+    "panels::path_controls::property_focus_tests::stale_typed_owners_consume_repeated_keys_before_and_after_their_prepare_pass",
+    "panels::path_controls::resize_tests::grouped_path_grips_keep_owner_identity_before_repeaters_and_trim",
+    "panels::path_controls::resize_tests::invalid_authored_geometry_reports_default_level_file_and_stderr_and_recovers",
+    "panels::path_controls::resize_tests::nested_geometry_uses_its_transform_owner_and_animated_local_time",
+    "panels::path_controls::resize_tests::rejected_second_dimension_command_cannot_publish_a_partial_resize",
+    "panels::path_controls::resize_tests::shape_corners_resize_width_height_keep_opposite_corner_and_preserve_parameters",
+    "panels::path_controls::review327_regressions::review327_locked_path_does_not_advertise_hover",
+    "panels::path_controls::review327_regressions::review327_only_the_hovered_bezier_handle_is_highlighted",
+    "panels::path_controls::timeline::tests::mask_path_only_animation_is_visible_in_animated_filter_and_collapsed_layer_keys",
+    "panels::timeline::row_cache_tests::warm_and_rebuilt_rows_paint_identically_and_identity_changes_refresh_names",
+    "panels::timeline::scroll_signature_tests::all_row_groups_and_viewport_identity_inputs_invalidate_the_signature",
+    "panels::timeline::scroll_signature_tests::group_lengths_separate_equal_flat_id_streams",
+    "panels::timeline_graph::spatial_tests::cached_graph_reads_fractional_spatial_times_and_real_velocity_without_repreparing",
+    "panels::timeline_graph::spatial_tests::graph_cache_invalidates_document_revision_and_channel_with_identical_object_ids",
+    "panels::timeline_graph::spatial_tests::malformed_spatial_graph_is_logged_once_per_revision_then_recovers_at_default_level",
+    "panels::timeline_graph::spatial_tests::spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities",
+    "panels::timeline_graph::time_tests::malformed_clock_uses_existing_bounded_graph_fault_and_recovers_at_default_level",
+    "panels::timeline_graph::time_tests::reversed_hold_knots_keep_order_and_match_the_existing_model_on_both_sides",
+    "panels::timeline_graph::time_tests::value_and_physical_speed_use_the_same_clock_and_fit_keeps_fractional_identity",
+    "panels::timeline_shortcuts_tests::a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts",
+    "panels::timeline_shortcuts_tests::active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph",
+    "panels::timeline_shortcuts_tests::bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits",
+    "panels::timeline_shortcuts_tests::clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer",
+    "panels::timeline_shortcuts_tests::curve_selection_box_delete_owns_keys_only_in_the_focused_timeline",
+    "panels::timeline_shortcuts_tests::curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss",
+    "panels::timeline_shortcuts_tests::curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes",
+    "panels::timeline_shortcuts_tests::custom_animated_property_chords_preserve_double_press_and_input_ownership",
+    "panels::timeline_shortcuts_tests::custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority",
+    "panels::timeline_shortcuts_tests::custom_select_all_routes_the_graph_selection_and_disables_its_old_chord",
+    "panels::timeline_shortcuts_tests::ease_does_not_edit_without_explicit_selection_or_a_locked_or_foreign_layer",
+    "panels::timeline_shortcuts_tests::easy_ease_changes_the_selected_keys_two_sides_as_one_undoable_edit",
+    "panels::timeline_shortcuts_tests::f4_toggles_composite_columns_and_shift_f4_toggles_parent",
+    "panels::timeline_shortcuts_tests::fields_search_ime_and_drag_own_animation_shortcuts",
+    "panels::timeline_shortcuts_tests::graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key",
+    "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_faults_use_bounded_default_file_and_error_stderr_without_stdout",
+    "panels::timeline_shortcuts_tests::graph_box_snapshot_tests::curve_box_snapshot_rejects_noninteger_composition_frames_before_history_and_recovers",
+    "panels::timeline_shortcuts_tests::graph_drag_return_to_origin_then_cancel_restores_engine_bytes",
+    "panels::timeline_shortcuts_tests::graph_property_tree_selects_y_without_separating_or_editing_the_track",
+    "panels::timeline_shortcuts_tests::graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history",
+    "panels::timeline_shortcuts_tests::graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::effect_and_mask_keys_reveal_filtered_collapsed_items_and_toggle_in_both_hosts_and_locales",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::group_keys_defer_to_text_ime_lost_focus_repeat_menus_and_active_gestures",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::group_shortcuts_can_be_remapped_persisted_and_suppressed_without_stealing_other_chords",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::mixed_selections_only_reveal_real_groups_without_changing_keys_or_document_history",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::supported_content::supported_content_plans_keep_real_channels_and_exclude_unimplemented_properties",
+    "panels::timeline_shortcuts_tests::in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers",
+    "panels::timeline_shortcuts_tests::in_out_shortcuts_seek_to_the_selected_clip_without_editing",
+    "panels::timeline_shortcuts_tests::linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection",
+    "panels::timeline_shortcuts_tests::navigation_uses_visible_property_times_and_accumulates_repeated_keys",
+    "panels::timeline_shortcuts_tests::one_sided_easing_preserves_the_opposite_bezier_handle",
+    "panels::timeline_shortcuts_tests::property_context_tests::changed_project_composition_target_or_dimensions_blocks_stale_navigation",
+    "panels::timeline_shortcuts_tests::property_context_tests::explicit_property_navigation_uses_one_channel_in_normal_and_graph_hosts",
+    "panels::timeline_shortcuts_tests::property_context_tests::invalid_scope_cancels_an_active_graph_transaction_exactly_once_and_restores_authored_data",
+    "panels::timeline_shortcuts_tests::property_context_tests::legacy_curve_projection_is_passive_and_explicit_curve_input_binds_the_displayed_key",
+    "panels::timeline_shortcuts_tests::property_context_tests::projection_keeps_unselected_layer_navigation_and_cannot_rebind_explicit_selection",
+    "panels::timeline_shortcuts_tests::property_context_tests::property_reveal_selects_an_available_separated_axis_including_2d_rotation_z",
+    "panels::timeline_shortcuts_tests::property_context_tests::stale_key_owns_delete_without_editing_reused_objects_or_falling_through_to_layer_delete",
+    "panels::timeline_shortcuts_tests::property_keys_filter_and_append_without_editing_and_u_omits_static_channels",
+    "panels::timeline_shortcuts_tests::repeated_p_can_be_reopened_manually_in_both_property_views",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::property_inspector_reveal_retains_the_selected_axis_and_key",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_does_not_reuse_a_stale_scope_or_another_property_axis",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::reveal_retains_selected_axis_and_key_for_ease_delete_and_undo",
+    "panels::timeline_shortcuts_tests::reveal_axis_tests::scale_and_rotation_reveal_keep_each_valid_selected_axis",
+    "panels::timeline_shortcuts_tests::separated_axis_easing_and_value_sampling_use_composition_offsets",
+    "panels::timeline_shortcuts_tests::shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::ime_text_and_repeat_ownership_keep_existing_feedback",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::notice_lifetime_follows_reselection_clear_and_restored_keys_without_erasing_other_messages",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::reselecting_an_available_key_allows_real_easing_delete_and_single_undo",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_edits_are_explained_without_clearing_ownership_or_editing_the_project",
+    "panels::timeline_shortcuts_tests::stale_feedback_tests::stale_notice_is_painted_in_both_window_hosts_and_locales",
+    "panels::timeline_shortcuts_tests::three_dimensional_layer_anchor_graph_has_only_two_pixel_components",
+    "panels::timeline_shortcuts_tests::timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded",
+    "panels::timeline_shortcuts_tests::toggle_and_delete_keys_preserve_other_frames_and_do_not_disable_the_track",
+    "panels::timeline_shortcuts_tests::visible_bezier_handles_edit_the_curve_without_moving_keyframes"
+  ],
+  "remaining_ignored": [
+    "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+    "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+    "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves",
+    "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves",
+    "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves",
+    "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+    "panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions",
+    "panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss",
+    "panels::timeline_shortcuts_tests::group_reveal_tests::native::native_group_shortcuts_capture_both_owners_and_locales_without_document_edits"
+  ],
+  "native_processes": {
+    "layer-time-typed-lanes-native\\case-0": {
+      "capture": {
+        "pid": 41280
+      },
+      "reopen": {
+        "pid": 40304
+      }
+    },
+    "layer-time-typed-lanes-native\\case-1": {
+      "capture": {
+        "pid": 27600
+      },
+      "reopen": {
+        "pid": 41928
+      }
+    },
+    "layer-time-typed-lanes-native\\case-2": {
+      "capture": {
+        "pid": 10060
+      },
+      "reopen": {
+        "pid": 42600
+      }
+    },
+    "layer-time-typed-lanes-native\\case-3": {
+      "capture": {
+        "pid": 41076
+      },
+      "reopen": {
+        "pid": 28328
+      }
+    },
+    "layer-time-typed-lanes-native\\case-4": {
+      "capture": {
+        "pid": 31848
+      },
+      "reopen": {
+        "pid": 5372
+      }
+    },
+    "layer-time-typed-lanes-property-native": {
+      "capture": {
+        "pid": 34004
+      },
+      "reopen": {
+        "pid": 28464
+      }
+    }
+  },
+  "images": [
+    {
+      "path": "layer-time-typed-lanes-native\\case-0\\en-after.png",
+      "sha256": "335905025f6110093455d6aebd656592ff49960c3d9d19e0c9a3c69d11c81f61",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-0\\en-preview.png",
+      "sha256": "f3eca6f202c22cc51fddf42305e8d5e8ba6202178e037dbce1784e596509f037",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-0\\zh-after.png",
+      "sha256": "d5262bccec74aeee54645f7c10830e82979b0d066b3777d04e67730c2858e370",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-0\\zh-preview.png",
+      "sha256": "eda297149df7ad11274c1f8066a477c4c57aad04a45d361346cf542a789a1e40",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-1\\en-after.png",
+      "sha256": "83dc256bb74fe4b9818f4533a48849973727a246f0e2c22f8d10be28d65f8ad8",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-1\\en-preview.png",
+      "sha256": "f4334eb964bbbe3fd3ad7593532e2545e413ca248ab7382f4365eb5f0e9be1af",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-1\\zh-after.png",
+      "sha256": "f2c1aad7b1717cfc81cfa9cbbfd280468c76e52e75b2775466e5cbb3d18b5c0e",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-1\\zh-preview.png",
+      "sha256": "8bdc013e7797b6fb98e9a942da4b41f00b5d714c4b5ccdbf6d9e571f5af491c6",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-2\\en-after.png",
+      "sha256": "4a3734b170716ac315f5d4e7730ab7113f101374937999ca085a16e02b4684f5",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-2\\en-preview.png",
+      "sha256": "50f353ea10fc2267d64615b33d7674fe689b3859d31ce6f769faf39dcb5ee80c",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-2\\zh-after.png",
+      "sha256": "6226ce96719ed318de5357e6a74e8d854561863cf95530c853a8662e3bc18980",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-2\\zh-preview.png",
+      "sha256": "cd9609c8714f6e4d2e79ed2bd433396760487d0b7c8c12c1f2c4c24f20c3f7eb",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-3\\en-after.png",
+      "sha256": "ea4b63a3aac4449cace0a01d8e6ee675351597068e89b90363d46c1b9ac88de9",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-3\\en-preview.png",
+      "sha256": "54c6d600cec835e03eb53105e50fc68f21e0c9226923affe17d0c50efb6fdb12",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-3\\zh-after.png",
+      "sha256": "b64bd0a2d147771a2627e8ecdf649d4d6e0e0f0af6d3127d859b775605e6daff",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-3\\zh-preview.png",
+      "sha256": "049a683c8427ab7497b1128964f04f0a412e04f6d3c4fdb7a544ab284c335750",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-4\\en-after.png",
+      "sha256": "d7ebe905f97a89273a3ddaab59a85212ded1b642a9e95682a0077e25a8879a87",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-4\\en-preview.png",
+      "sha256": "e03684f0e2f4803bc113cf1dcdf478dd210eb79d0c075ce98e6d87758281874b",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-4\\zh-after.png",
+      "sha256": "2d5e597bd3b6d75ad00105b5449559a3a4b591b74656f16a4e507d399dd77801",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-native\\case-4\\zh-preview.png",
+      "sha256": "f7fe6551f5b3a909f4cab0aaa695cc3faa5bc9253538e86c787c02179b47b922",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-float-graph-after.png",
+      "sha256": "9f54b6a38501c97bb1c91beb3c77d87928a6cd967110ae0d31897ad6601235f5",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-float-graph-preview.png",
+      "sha256": "0064e32516e6f0b1ebd97f0eb30b9f7d401feed8fd3849563b7bc11525286fe8",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-float-timeline-after.png",
+      "sha256": "379077b9cb92bc1954497f4bbd9b91d633965aa50db59e6d91f77adacd9a9758",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-float-timeline-preview.png",
+      "sha256": "3710b260b5c990a8b63f1104e46065844996ca62be43c76187aaad61d8aed56e",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-main-graph-after.png",
+      "sha256": "24a8f0f59bc87f752d2665b942875a4c30ee2eb69cddadad0cbbdca8ae2dda5b",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-main-graph-preview.png",
+      "sha256": "91a780aa6c3ebbe8b41aa59c3bbf2396d608872bd1a6247f98b3a7af7b9ae36e",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-main-timeline-after.png",
+      "sha256": "7cdc11938adc3ee86179aae5eeeb429a8d93d1e39cab309685bddb016c9320cb",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\en-main-timeline-preview.png",
+      "sha256": "a4bbe989d679345abcf89cc1865079ef9e789aeecfc48f2b9218da48c483ce36",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-float-graph-after.png",
+      "sha256": "36f33a9de61428d94cb0e4edf7490d3723ae497f640a0b161df05f66332b13fe",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-float-graph-preview.png",
+      "sha256": "0e5dbb87484fee5be2b3d126e161261a8d92c67bb419ad16ddb4fb8cde331792",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-float-timeline-after.png",
+      "sha256": "0153b40c8a8b89ea2bf29532b2e7d54d4a7700f58dc89e11a715a87689dee94b",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-float-timeline-preview.png",
+      "sha256": "7eec6e2e75734ab879688af703bb47c194dfc058d9c5b7c0a92f1ff3911cc5b0",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-main-graph-after.png",
+      "sha256": "5b7a1c3cdbb2bfa74b1802ed69338f11e94c7c4fc05ab4a903ba58a92096421f",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-main-graph-preview.png",
+      "sha256": "f2c0698052da6be82a7a30be667ce51f62bded0f63c77ccb2e54e6d535162346",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-main-timeline-after.png",
+      "sha256": "b0acfc77cecb6ed8b805658f72eb98c1f3301c123bf214fa2696165150bcaa06",
+      "size": [
+        1000,
+        800
+      ]
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native\\zh-main-timeline-preview.png",
+      "sha256": "b97dd7fbadcaa50cff51020f8471cf9f9ef9f1ab6b6c2f201c64ffd879a46e3d",
+      "size": [
+        1000,
+        800
+      ]
+    }
+  ],
+  "source_sha256": {
+    "desktop/app/src/panels/audio.rs": "865ea7f6f8e076d9cba9b7fb75fa44f7080792f19cb4d0b5e44c1df6ffd8ba72",
+    "desktop/app/src/panels/effect_timeline.rs": "5b738f1e89016fb5abe2fe46145f3b7b0d6db4a4fe83a6d8255540518dadc444",
+    "desktop/app/src/panels/key_selection.rs": "bad60456861403ff947e07050e145d1c614a6829c48626d844d7097ed4d9f622",
+    "desktop/app/src/panels/key_selection/local_timing_native_tests.rs": "9761df0abca9dab1617921b5c7e5404b050f0fa83b6aaf6e85a995f40dcefc12",
+    "desktop/app/src/panels/key_selection/local_timing_tests.rs": "28d53208800dd512cc2ad4afada20f7df330ea15d82230d1c658ba06c8f0dd8e",
+    "desktop/app/src/panels/key_selection/local_typed_tests.rs": "d306dc64565c8bcc1550aa716ff01180f01faf1400e90b07ed952829e10f185d",
+    "desktop/app/src/panels/key_selection/ui.rs": "3f2b010c228f71927924f70015b808c84bff11bd9c3c143403ded41e77008b7b",
+    "desktop/app/src/panels/path_controls/groups/timeline.rs": "33a90e6de5ead5378cd384abba07547c454a92df666d20ae0958b0fb27f0c017",
+    "desktop/app/src/panels/path_controls/timeline.rs": "bb4b6ec2186adbfc933ba48d8f32a243eb0b5f7934a75fda27a1d9d8c86e4fb9",
+    "desktop/app/src/panels/timeline.rs": "0b75080e85340704efe9c4fefed5bffdbf18b7ba2263ce4d235b30d29f2e6a27",
+    "desktop/app/src/panels/timeline/row_cache.rs": "85bb1777e69b2f8829c3423a57204fc81331254167ba69e49bcfc7af75b3ef2f",
+    "desktop/app/src/panels/timeline/scroll_signature_tests.rs": "c14db5397e28a107a380c8b25fb341aa3de2f585758e7ea01b252f3e47e859b5",
+    "desktop/app/src/panels/timeline_key_drag.rs": "0c2e202c2da7c05d8a7b4272025f63f3c55bb14af35aff3c2f0e299ab768f3da",
+    "desktop/app/src/panels/types.rs": "2448a64f126cc8678de1409e8b0cdf068063c9d3c616cc9ab13ffe465ab92b26",
+    "engineering/validation/layer-time-typed-lanes.md": "72eb24f02da8df5f0607d03d935f1ef2095a30dfe5dc447dc380e6752dcdf166"
+  },
+  "archive_sha256": "92a04e81b3caf311a461c06c6b48c07b2d4213ec863bce4a9f8f593f03151280",
+  "archive_entries": [
+    {
+      "path": "finalize-layer-time-typed-lanes.py",
+      "bytes": 5350,
+      "sha256": "3db0dcdaff348ba4d1d6765530bb0a05b9c180f60fa0372e4e0ce60359a29613"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-key_timing_error/logs/motion-studio.log",
+      "bytes": 10094,
+      "sha256": "395b21ef4c9124cfaf9ade1f1008601c76159c5cb325a9d353a37d496dfdf6ef"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-key_timing_error/open-project/project.json",
+      "bytes": 3281,
+      "sha256": "45cf2e3cf572ed65cb51d421e15c6b679ae8a8160a2a2c7bedff094bb9ab997e"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-key_timing_error/project/project.json",
+      "bytes": 3281,
+      "sha256": "45cf2e3cf572ed65cb51d421e15c6b679ae8a8160a2a2c7bedff094bb9ab997e"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-key_timing_error/stderr.log",
+      "bytes": 3681,
+      "sha256": "98e8b5e727dbd63ceb5c7b015c1ee27858ffe86df510f1b12749bd3b120b87ae"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-key_timing_error/stdout.log",
+      "bytes": 241,
+      "sha256": "2e495d7284619e062bc0324ef3c5cf4b35f91a42d27036d41dcb6f1bda1791ec"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_keys_error/logs/motion-studio.log",
+      "bytes": 3019,
+      "sha256": "62b3461cc6348b4d16009c810d96ca590412b3200de4b720c760fb996ef0eadd"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_keys_error/project/project.json",
+      "bytes": 3274,
+      "sha256": "0a5fabd12a3ac28c69a4d16196d983445b5f9fdd603c439445d3d43058f1b738"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_keys_error/stderr.log",
+      "bytes": 467,
+      "sha256": "bda575a47d6b59f9c476ee0da90b0ac1e712900c2983a9f900b2659fe8b1ca4b"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_keys_error/stdout.log",
+      "bytes": 252,
+      "sha256": "bb89fad159448fe03313e0336e46b32d632843d6cc36d2e08e5c654295a10a9a"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_selection_log/motion-studio.log",
+      "bytes": 1667,
+      "sha256": "1a8461991f885a872caec9ffa05986fad77654d5f875867cd61a465529188f79"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_selection_log/stderr.log",
+      "bytes": 484,
+      "sha256": "76ea00a3e417fc942909335afcc6b40d09c581b8670cc839a05b764d638e8da8"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_selection_log/stdout.log",
+      "bytes": 243,
+      "sha256": "fea012db3fff0c1b37328a30fd03cc3217433b6246ee312205aa01ee3a96f84c"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_timing_log/motion-studio.log",
+      "bytes": 57385,
+      "sha256": "19275eda9c7dd5695c912d4fbd5aa501eaa81e5ee6d64df76dc654e43d1b1c54"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_timing_log/stderr.log",
+      "bytes": 17642,
+      "sha256": "b53ed6aa67f48af0b880c8237d0b78dc351221840f129c313f84ccf54eceb4d1"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-local_timing_log/stdout.log",
+      "bytes": 251,
+      "sha256": "93bbf0ba7a946b311d3f43a4c408a0e14a6b5f2a795946009bba30ac36aa5f43"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-spatial_graph_error/motion-studio.log",
+      "bytes": 1721,
+      "sha256": "21d9c8b9fe0a39a65a760f1089e1dfc8404e3f86d3cd0458f0406a8438e4f81b"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-spatial_graph_error/stderr.log",
+      "bytes": 966,
+      "sha256": "f8e6250fdae799286cb74a80c69b887dc47ad3577717a287cb48396fe5492aa6"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-spatial_graph_error/stdout.log",
+      "bytes": 249,
+      "sha256": "dccbbbd318583c11729da221230c6cae1eeb55142e5ff4670df2558cb62afc0b"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-timed_graph_log/motion-studio.log",
+      "bytes": 1103,
+      "sha256": "87b4b8541dc51b1f94ae486da46e4fa3f22842053a06f95b97b88a9f41e31bd4"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-timed_graph_log/stderr.log",
+      "bytes": 644,
+      "sha256": "1f46b990fd699be204af6d5ee920d1fddb812553b527267a7e758eab48af7aa7"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-timed_graph_log/stdout.log",
+      "bytes": 243,
+      "sha256": "211b57edc8157c4fd35246b9d87d28ade32e7b6cc21d27c810e885adcdfb9305"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "ed612af91014c7b830d22d5f7727f0242ff5297484b67cf8cf7f62b56e95256a"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-attempt4-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "d73c3eccbb060cd7e65dce50f4bd8bc27ee18cf17ca97a37987c40733ad0739e"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-audio-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-audio-stdout.log",
+      "bytes": 3166,
+      "sha256": "787b3b5705270abfb43e7edcb4a9056d2ea1163a0c43e0ecd7ca48aeb57471af"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-effects-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-effects-stdout.log",
+      "bytes": 4650,
+      "sha256": "6eab7c8a17faec85783faf92dc8466f0af5dcedc8a7b516191aa3691506c08fb"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-graph-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-graph-stdout.log",
+      "bytes": 1015,
+      "sha256": "a4c9c0020120621ef21a8f6d65d7fad7be752e247768a2f6fb4dd9d806b3abff"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-paths-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-paths-stdout.log",
+      "bytes": 13196,
+      "sha256": "1b83bcc2238c379de596fa597616454ecc634496debaa53d6c8992b817fc4805"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-results.json",
+      "bytes": 74810,
+      "sha256": "360ac3db310f277362ea08261c519fda9cb6f13a5cab70498519221ecd2edbd7"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-rows-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-rows-stdout.log",
+      "bytes": 237,
+      "sha256": "845dd0b13d3c87c8b8dd9245c14f17354ea18f899e1fcfa1b489ead1b63129de"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-scroll-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-scroll-stdout.log",
+      "bytes": 338,
+      "sha256": "710c05323c19c327fd376d7affc5187226ebd0a6832702d1b2498300b8a9e6cb"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-selection-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-selection-stdout.log",
+      "bytes": 9356,
+      "sha256": "5dbe74e5ad02ff4f3a4a4de3ef56ee46640d3b0b3f1787670e315747db00845f"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-shortcuts-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-shortcuts-stdout.log",
+      "bytes": 7363,
+      "sha256": "df07e707b96375f8c44ababf33ee9fa4be9b2ddc3c902f9923cf4f3c7a9ac127"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-worker-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-all-worker-stdout.log",
+      "bytes": 380,
+      "sha256": "9a9c2919922c774e8f58c40013156077c1e876ff4565f7b65c5fd444ae31e3ca"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-fifth.log",
+      "bytes": 13213,
+      "sha256": "8bcdd283d5671a98c5047b7df5f430a299ecf9d2faf67278e943a3a609154e09"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-first.log",
+      "bytes": 4829,
+      "sha256": "9f9122c3236b5d3a493d096bfa7729e064a040e69f01c4922bc229225b62360a"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-fourth.log",
+      "bytes": 13213,
+      "sha256": "8bcdd283d5671a98c5047b7df5f430a299ecf9d2faf67278e943a3a609154e09"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-second.log",
+      "bytes": 5807,
+      "sha256": "7b6b8b8188baeb32f46075e4b6f6855bea0ea010eccbfca9012813d8d70807c9"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-sixth.log",
+      "bytes": 13213,
+      "sha256": "4e2c23eb96ad1f1fd912abe9ff147a0976a7b7f2ecfe8dc444606d4344068983"
+    },
+    {
+      "path": "layer-time-typed-lanes-build-third.log",
+      "bytes": 13213,
+      "sha256": "bfa70be1120324e9bb68f27109a7e62955793b2c7e0e0262896078dd8bee9100"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic/motion-studio.log",
+      "bytes": 6380,
+      "sha256": "d0223f2ecdb1342611196894b3e636607d18998f6a6ceb6fc227b52eb4ff7ba0"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic-second/motion-studio.log",
+      "bytes": 6380,
+      "sha256": "8dbf2370338eb5f4d7b5b16a43563834b9f3d7577d5b71c2c5574cc3cd41f987"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic-second.log",
+      "bytes": 905,
+      "sha256": "1ed0d10b1070c5da8c640dcc0dc6bf1972526e99af272cab0728da2459de808c"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic-third/motion-studio.log",
+      "bytes": 6380,
+      "sha256": "7aaa39c932233fd876d29b17d022fe118c08ace672628bb5e282fe8d257ac8e8"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic-third.log",
+      "bytes": 906,
+      "sha256": "5901c356700ab71512c49f098ad1432d6f50b19848fb63017a7c042a41cf737c"
+    },
+    {
+      "path": "layer-time-typed-lanes-cache-diagnostic.log",
+      "bytes": 905,
+      "sha256": "efc5b6a05623a2bbf3d3ad0ce1116f03515caafec7b43654ed13eca22281f4ad"
+    },
+    {
+      "path": "layer-time-typed-lanes-checks.json",
+      "bytes": 90,
+      "sha256": "314e0874b5093d2051ca0198264a32a12d8215edc7ba71ac1a9c433bd665e317"
+    },
+    {
+      "path": "layer-time-typed-lanes-first-failure/layer-time-typed-lanes-quick-results.json",
+      "bytes": 1384,
+      "sha256": "91fab6cee59c000abb62ab36ba7dd69b2507ee358cfa0fdc14a2ecf58b6ba777"
+    },
+    {
+      "path": "layer-time-typed-lanes-first-failure/layer-time-typed-lanes-quick-typed-stderr.log",
+      "bytes": 602,
+      "sha256": "056135cfa03e3994b47a688d96c361e5397bfea756962b797bb4bf935aec5e05"
+    },
+    {
+      "path": "layer-time-typed-lanes-first-failure/layer-time-typed-lanes-quick-typed-stdout.log",
+      "bytes": 1023,
+      "sha256": "9ec991c46d687061ced04e9f2dbed18a8742a27d412ca3cbb61a745dc0c06dc7"
+    },
+    {
+      "path": "layer-time-typed-lanes-format-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/baseline.json",
+      "bytes": 53534,
+      "sha256": "e91eb395697e30943838ffbf782f6d7745f1df4573cccd351a901a22e8982767"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/capture-process.json",
+      "bytes": 18,
+      "sha256": "888a800a19118eb13e32bcef436379759f10857bd1fbece59e2a9d4016b8f733"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "3daff64a13516defe06086d1fd7f1739e2468ec597cb57dac350dbb5fbc58632"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/capture-stdout.log",
+      "bytes": 226,
+      "sha256": "89140b839487f16758805845e62e93a8e8a668921ba5e93d93f09475e4a56e69"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/en-after.json",
+      "bytes": 52258,
+      "sha256": "ae48d965e58f6d75838e9407616e28b1b71522627c6c0c533dba6ecad1b027d9"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/en-after.png",
+      "bytes": 53070,
+      "sha256": "335905025f6110093455d6aebd656592ff49960c3d9d19e0c9a3c69d11c81f61"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/en-preview.png",
+      "bytes": 54652,
+      "sha256": "f3eca6f202c22cc51fddf42305e8d5e8ba6202178e037dbce1784e596509f037"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/en-undo.json",
+      "bytes": 52263,
+      "sha256": "b60f6e3b35771b1f4e2ca1047af830fd07cc372049640d0d31671997cd7dee97"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/logs/motion-studio.log",
+      "bytes": 1738,
+      "sha256": "aae55ccc40e66f8631cafab9ea2e6ca2b07d09eaf5452fb04f65f81e86a0409f"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/project/project.json",
+      "bytes": 7395,
+      "sha256": "0e192bff11f896d80ff41c52ec56cfa6b8e9bc0f895c668390396eb572e3efc4"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/reopen-process.json",
+      "bytes": 18,
+      "sha256": "961fdc38e20c2683d5bc049c945167def9a5312df5004c174d660b7dd03dc88a"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/reopen-stdout.log",
+      "bytes": 225,
+      "sha256": "6b9ede09b3496e977af429caeebba633b49f3e492c6c228cc62bdc4131b90b5b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/reopened.json",
+      "bytes": 50755,
+      "sha256": "5d039b96c7cb142e492261f7b14e8770991fb8eb891a397ece5d4ee059b6fdc7"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/saved.json",
+      "bytes": 52266,
+      "sha256": "b44a4d8c1a9a48f72ab53f3a11eab92b869d0dd2d9bad1c1545c2439eed4a26b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/zh-after.json",
+      "bytes": 52258,
+      "sha256": "245f1a1d9dae7ccb6b9340025b9ae9a20919172e8eb44f64ec17f4a1bcfcdaa7"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/zh-after.png",
+      "bytes": 69930,
+      "sha256": "d5262bccec74aeee54645f7c10830e82979b0d066b3777d04e67730c2858e370"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/zh-preview.png",
+      "bytes": 72150,
+      "sha256": "eda297149df7ad11274c1f8066a477c4c57aad04a45d361346cf542a789a1e40"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-0/zh-undo.json",
+      "bytes": 52255,
+      "sha256": "a1a626924f885f654bc89124f627a05a1458ce41bc25171fabe1a6f688fd6be3"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/baseline.json",
+      "bytes": 44862,
+      "sha256": "da09e0ec7ae78929c8229935ad0f337eab131aed59f87aefbe2330477830e3b0"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/capture-process.json",
+      "bytes": 18,
+      "sha256": "f3385b52456ae5d79e5d7843322e99ecc3c84ced354677a69091648f238cb7ec"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "be237f662a81d47958f31e6b70d372b7acfc267b3069acfb121cbb93d2542770"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/capture-stdout.log",
+      "bytes": 226,
+      "sha256": "737225d487a9343e6c8649a760c1fc52a01973f589203fbc4206cc66e2bc6767"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/en-after.json",
+      "bytes": 43583,
+      "sha256": "a79d5dd9a7b655ec5f922c87318441907be7dce5710abefd91d41954e7a19773"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/en-after.png",
+      "bytes": 47876,
+      "sha256": "83dc256bb74fe4b9818f4533a48849973727a246f0e2c22f8d10be28d65f8ad8"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/en-preview.png",
+      "bytes": 49461,
+      "sha256": "f4334eb964bbbe3fd3ad7593532e2545e413ca248ab7382f4365eb5f0e9be1af"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/en-undo.json",
+      "bytes": 43591,
+      "sha256": "38346c640b99bb0b2cda016d84f9b93b5c19c11a6e5da9ebeea3302d8a6ad8dc"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/logs/motion-studio.log",
+      "bytes": 1738,
+      "sha256": "0ad8884fffd612610e2758570689fbf0cc9f8aa5bb4d2346d692b2bec8f5f635"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/project/project.json",
+      "bytes": 3885,
+      "sha256": "ceb9da242a118bd29e6f860c3a50f37374d2baa7155efef717187aa957ad1539"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/reopen-process.json",
+      "bytes": 18,
+      "sha256": "898111f5208ca46dba63940948bbc9f48beb7fa4215fca651049628b624e6e8b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/reopen-stdout.log",
+      "bytes": 225,
+      "sha256": "ebb315677cc32b74ed3748043e3f2c821a63b67d9683a891485c8f13674c4d97"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/reopened.json",
+      "bytes": 42080,
+      "sha256": "8de407912e7db399482a1324d8622cfbb7edb5e7c01d137305b21dde16d14801"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/saved.json",
+      "bytes": 43591,
+      "sha256": "ae695b98bd9e5c4d255ce8ea350ccf44aeff972804512b5bd8428bfec91b70db"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/zh-after.json",
+      "bytes": 43583,
+      "sha256": "f521541c0379206897df00199e370c65429c2c6ad0a2defd524f348dc6bd7120"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/zh-after.png",
+      "bytes": 64081,
+      "sha256": "f2c1aad7b1717cfc81cfa9cbbfd280468c76e52e75b2775466e5cbb3d18b5c0e"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/zh-preview.png",
+      "bytes": 66326,
+      "sha256": "8bdc013e7797b6fb98e9a942da4b41f00b5d714c4b5ccdbf6d9e571f5af491c6"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-1/zh-undo.json",
+      "bytes": 43583,
+      "sha256": "073a3937a6b6a51acdaf76e235101faaeabeae4efd0ee7028bebfc8945d4066f"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/baseline.json",
+      "bytes": 47919,
+      "sha256": "15375dae52d064aec85c7f6c871907ef378e1a4761dd1218020a467a07ca5d38"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/capture-process.json",
+      "bytes": 18,
+      "sha256": "98a355cd11fb69f1f88881fad71bdedf842313e5f7d77812ad158db7dbfd98b9"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "501bae1defcf83753f5bc3264f181d38b27abeaf1621be478a4c0a87ea310e17"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/capture-stdout.log",
+      "bytes": 225,
+      "sha256": "438f1b9aad3e29eb3a69c1e4c2530f8b46eae102251149463a4d99878fd03f7f"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/en-after.json",
+      "bytes": 46640,
+      "sha256": "570bae051cb3f7add36abda507029b851f8c541655296c463fc348bd09e8e812"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/en-after.png",
+      "bytes": 52170,
+      "sha256": "4a3734b170716ac315f5d4e7730ab7113f101374937999ca085a16e02b4684f5"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/en-preview.png",
+      "bytes": 53766,
+      "sha256": "50f353ea10fc2267d64615b33d7674fe689b3859d31ce6f769faf39dcb5ee80c"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/en-undo.json",
+      "bytes": 46648,
+      "sha256": "4abdbe414b39ef766593f33b80064329274bb329d692e72a5bc9d4e33e7e5dbf"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/logs/motion-studio.log",
+      "bytes": 1738,
+      "sha256": "5b6b350bb781e6b05e63a293a91b81af50b8482e314468543201ceffd90ba603"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/project/project.json",
+      "bytes": 6764,
+      "sha256": "d8706b448da1b5842f19205056ee6c6b533261f6b57aa3b3e066172d02c97d7b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/reopen-process.json",
+      "bytes": 18,
+      "sha256": "24443d2c7596cbb5da8fdb2a4d4085b9c7c8a8d6f312efefc8b1d3bfa2025537"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/reopen-stdout.log",
+      "bytes": 225,
+      "sha256": "c443b012adc1853e73c8e8b2a47bb71740330a5bac4ad50693770d427379facd"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/reopened.json",
+      "bytes": 45137,
+      "sha256": "ab3fad0b7eeb76ee8d2c66ad76dfb4422707be16589e0304ad8e42a95a27c780"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/saved.json",
+      "bytes": 46648,
+      "sha256": "dc6659c578d1b6cfb3d5fceeb8732251f490a266b41cfbdc3e87ada9beb10b59"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/zh-after.json",
+      "bytes": 46640,
+      "sha256": "23a85e1a46e7b2ee615147f31cc34a2732db62f93143e9ba71eb544e01583247"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/zh-after.png",
+      "bytes": 67959,
+      "sha256": "6226ce96719ed318de5357e6a74e8d854561863cf95530c853a8662e3bc18980"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/zh-preview.png",
+      "bytes": 70303,
+      "sha256": "cd9609c8714f6e4d2e79ed2bd433396760487d0b7c8c12c1f2c4c24f20c3f7eb"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-2/zh-undo.json",
+      "bytes": 46640,
+      "sha256": "271e36153125eaf97faf119ff089148523d3a09e31eaa30faf87e3705e2245fa"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/baseline.json",
+      "bytes": 90589,
+      "sha256": "150da22411c3faf485117ad22d8f76d3bb875897b2e7f4deeaf05dbb36e2c53c"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/capture-process.json",
+      "bytes": 18,
+      "sha256": "9771566c9478a9c0359b05e2eab250992dd4f25df6335d372baa2c92aa63897d"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "f730c4ad1bcf575c3cf5610d35ce8692aa5a77745aa2cc4f469f1d39eea45458"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/capture-stdout.log",
+      "bytes": 226,
+      "sha256": "7fdf4b31804ee1833151b916864a8ff5b19b399ad81db62315db3d98e0495975"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/en-after.json",
+      "bytes": 89310,
+      "sha256": "3000e7e3010d135818d0145a7a5e2b8bac4a1d366c62b2d4eb6db15c427de009"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/en-after.png",
+      "bytes": 47746,
+      "sha256": "ea4b63a3aac4449cace0a01d8e6ee675351597068e89b90363d46c1b9ac88de9"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/en-preview.png",
+      "bytes": 49339,
+      "sha256": "54c6d600cec835e03eb53105e50fc68f21e0c9226923affe17d0c50efb6fdb12"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/en-undo.json",
+      "bytes": 89318,
+      "sha256": "61c19f313ce3a489c6b7403c97b96b6e0094343bc10b80cfcec74a1f183b1f96"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/logs/motion-studio.log",
+      "bytes": 1738,
+      "sha256": "47c8ae95447e8b7a7a63b59ec213646b91e44cbfbcc1acec83a603203bdbd779"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/project/project.json",
+      "bytes": 12374,
+      "sha256": "ee3060337f04014e87ed324e6345810ce060df994a26942964070093345cbc3a"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/reopen-process.json",
+      "bytes": 18,
+      "sha256": "d341d70128ce940385c12d1cd8a502c1f573c6bb64872de74972ff2cc8e55dbc"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/reopen-stdout.log",
+      "bytes": 225,
+      "sha256": "d836cef5983b7107f10fab1acfa0382a165e6091ebb421f6234799bd80f3b81e"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/reopened.json",
+      "bytes": 87807,
+      "sha256": "1b1707550301ecbf844aedee941a326c081a68ea6eda97ade7a4e046bbc15250"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/saved.json",
+      "bytes": 89318,
+      "sha256": "b1bb2b277ec1d92ab48654c1a49d18138142a04a3f704e87d1581a0bded1d70d"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/zh-after.json",
+      "bytes": 89310,
+      "sha256": "e735a803e93b10e05725d690bec64ff30d9048382435b128e05c1c5e1ad5bdfa"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/zh-after.png",
+      "bytes": 65185,
+      "sha256": "b64bd0a2d147771a2627e8ecdf649d4d6e0e0f0af6d3127d859b775605e6daff"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/zh-preview.png",
+      "bytes": 67508,
+      "sha256": "049a683c8427ab7497b1128964f04f0a412e04f6d3c4fdb7a544ab284c335750"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-3/zh-undo.json",
+      "bytes": 89310,
+      "sha256": "487a7b8a9d5f3269d2074f25c9e4f5e705f57349c64db71dd00a1f882168702c"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/baseline.json",
+      "bytes": 44958,
+      "sha256": "d6e0d8a1e2b3a5c243614a481a491e643fbcb253570d682c4e375bb2738a4588"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/capture-process.json",
+      "bytes": 18,
+      "sha256": "0c7c4d3d0247bd4d3884eb3ebc8cbd5f9e2cc56c00755aee46a48c3ad76fb668"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "880e16cbe30b296c994b0c36b6ec4775872f03d064616fe3c94df65de9493864"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/capture-stdout.log",
+      "bytes": 226,
+      "sha256": "54b34c57c5d69a6da0cc9a33357d1d93872e08e1a52d72792b43e4a6e581a4e3"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/en-after.json",
+      "bytes": 43679,
+      "sha256": "0ab3f1538e930efa299718d2ff9f38c852a25937aa3462e75e506f91b27c4e73"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/en-after.png",
+      "bytes": 43677,
+      "sha256": "d7ebe905f97a89273a3ddaab59a85212ded1b642a9e95682a0077e25a8879a87"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/en-preview.png",
+      "bytes": 45261,
+      "sha256": "e03684f0e2f4803bc113cf1dcdf478dd210eb79d0c075ce98e6d87758281874b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/en-undo.json",
+      "bytes": 43687,
+      "sha256": "8031d864e3180bc3a41d239e9b28f05b07b1a4ee7ff96f6838c9ad90454c1f0c"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/logs/motion-studio.log",
+      "bytes": 1738,
+      "sha256": "2d50aa632fee6bbe284d786a2eefdf2d637e56fcec1afdb0cdc32038c9201ee0"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/project/project.json",
+      "bytes": 3684,
+      "sha256": "8ec96ba641798280dc7a959fdee70e21f7e6b97cdccad6bb16daf5877e543e8b"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/reopen-process.json",
+      "bytes": 17,
+      "sha256": "945171c5da168cf0b95ca60a98d0675f91b0510c14003a17a9e9857caee200fb"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/reopen-stdout.log",
+      "bytes": 225,
+      "sha256": "a93cbc7d67e154e9ce7cf2c7e0514f595675e30670feea505ea1b9b665f6a204"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/reopened.json",
+      "bytes": 42176,
+      "sha256": "24afb067bdef1163c1abca4be33b91fca2f4a3b4647985568b26864c272c60c1"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/saved.json",
+      "bytes": 43687,
+      "sha256": "0d3c2197d8ce439ed1232981c0bc4cfbcd562947758def60fb579810d0cd492d"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/zh-after.json",
+      "bytes": 43679,
+      "sha256": "dc93629a9c3c21650c956b75333f6119b7bdef8899d0c4c196f02ff6ebbcf373"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/zh-after.png",
+      "bytes": 60055,
+      "sha256": "2d5e597bd3b6d75ad00105b5449559a3a4b591b74656f16a4e507d399dd77801"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/zh-preview.png",
+      "bytes": 62370,
+      "sha256": "f7fe6551f5b3a909f4cab0aaa695cc3faa5bc9253538e86c787c02179b47b922"
+    },
+    {
+      "path": "layer-time-typed-lanes-native/case-4/zh-undo.json",
+      "bytes": 43679,
+      "sha256": "c2a79849cdaefbc8cda735426702649fc0d54e9df5b8950081d0885ada6151b9"
+    },
+    {
+      "path": "layer-time-typed-lanes-native-property_native-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native-property_native-stdout.log",
+      "bytes": 235,
+      "sha256": "578e3713b42ea7630a30f9eec4f5e40b6669c31a6ca6506af8aea0c4e2be6eb6"
+    },
+    {
+      "path": "layer-time-typed-lanes-native-results.json",
+      "bytes": 2121,
+      "sha256": "e4a763e32b2a2fb3a9cc0e774cf5cc2e7da7c895f7da1c623cb0999ce2626688"
+    },
+    {
+      "path": "layer-time-typed-lanes-native-typed_native-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-native-typed_native-stdout.log",
+      "bytes": 227,
+      "sha256": "5405ed52f090191fe50ed7132774ae93dd02fbd38e657854956fd0efac28fb5b"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/baseline.json",
+      "bytes": 50492,
+      "sha256": "a9c996bd9d7fe129015acff120bf69e64697b8a6849b1cc9768c94a86204302a"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/capture-process.json",
+      "bytes": 18,
+      "sha256": "e66e992254df6d44d22e6d46f8e77e09180e5558660805e62fa4a3f975c23877"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/capture-stderr.log",
+      "bytes": 586,
+      "sha256": "52d1fa98549b05149e61bb879edf5b7fb2057af23c8517faf4582aa6c5892afd"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/capture-stdout.log",
+      "bytes": 235,
+      "sha256": "a4aa17bfbbd019ae0e78abcc12f5d15c06ad2b8e8f44f59341bea4280be3a298"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-graph-after.json",
+      "bytes": 49229,
+      "sha256": "74ee821fc1c765a3c654c3b0de3fedc93a94da928237f4db1b35a421835968d4"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-graph-after.png",
+      "bytes": 57407,
+      "sha256": "9f54b6a38501c97bb1c91beb3c77d87928a6cd967110ae0d31897ad6601235f5"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-graph-preview.png",
+      "bytes": 58995,
+      "sha256": "0064e32516e6f0b1ebd97f0eb30b9f7d401feed8fd3849563b7bc11525286fe8"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-graph-undo.json",
+      "bytes": 49228,
+      "sha256": "be3db7a8f6191d591c9205fef452b3380382296efbec95f2c7691f24b4a404a8"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-timeline-after.json",
+      "bytes": 49229,
+      "sha256": "4ebe02e4fc8600b8f81b2265e25ce016d1b6d2b332ebfb62047b2c20b18acaf4"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-timeline-after.png",
+      "bytes": 41457,
+      "sha256": "379077b9cb92bc1954497f4bbd9b91d633965aa50db59e6d91f77adacd9a9758"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-timeline-preview.png",
+      "bytes": 43008,
+      "sha256": "3710b260b5c990a8b63f1104e46065844996ca62be43c76187aaad61d8aed56e"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-float-timeline-undo.json",
+      "bytes": 49228,
+      "sha256": "1e601aacdafcba5c69e1759d8acfbe4a5ffa90ec8166b5ad95a4cf2dfe52a4a8"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-graph-after.json",
+      "bytes": 49229,
+      "sha256": "7e50ee821435ca8a8ce481f38205f17173747071e799c89e815f5ba7e8e78d42"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-graph-after.png",
+      "bytes": 73055,
+      "sha256": "24a8f0f59bc87f752d2665b942875a4c30ee2eb69cddadad0cbbdca8ae2dda5b"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-graph-preview.png",
+      "bytes": 75325,
+      "sha256": "91a780aa6c3ebbe8b41aa59c3bbf2396d608872bd1a6247f98b3a7af7b9ae36e"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-graph-undo.json",
+      "bytes": 49228,
+      "sha256": "511603c26ea8bbcb053b91c1a34330633bc4c64529af8cd9206080f5b76fa5f1"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-timeline-after.json",
+      "bytes": 49222,
+      "sha256": "eeffc6cbaab29d4429490486befe4a6136a4e9c4da3927bd9122deb1cdb82c95"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-timeline-after.png",
+      "bytes": 57633,
+      "sha256": "7cdc11938adc3ee86179aae5eeeb429a8d93d1e39cab309685bddb016c9320cb"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-timeline-preview.png",
+      "bytes": 59860,
+      "sha256": "a4bbe989d679345abcf89cc1865079ef9e789aeecfc48f2b9218da48c483ce36"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/en-main-timeline-undo.json",
+      "bytes": 49228,
+      "sha256": "ed538efde6d7245489f34dae9b1bf7c1d84798d6b2aa00b10b7c23c08febf414"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/logs/motion-studio.log",
+      "bytes": 1771,
+      "sha256": "5968eeb4909c2acce61dedf35685306e22594988f5f714f83839c0e557f6b04c"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/project/project.json",
+      "bytes": 5701,
+      "sha256": "95bfaf6c0f072671f3078a7052143241d00b8cdc58dc342e0710c259c367498e"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/reopen-process.json",
+      "bytes": 18,
+      "sha256": "f3527fdcd3305001f6e007854277bc88e3ffafa5097e80fc15c49caca054ba16"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/reopen-stdout.log",
+      "bytes": 234,
+      "sha256": "d62b74f3fd39751962ef88fb2cd5e03b01acd1f5d5541df5a6f957f7c5f7febb"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/reopened.json",
+      "bytes": 47711,
+      "sha256": "631f0b65b6cba4ff97a41f7ea1890c1f7eeab5360e191a2f5b307459368ce708"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/saved.json",
+      "bytes": 49229,
+      "sha256": "7e4321c26dcc9f2e8a1b86fc78364919f2861443985b549d18df7c404a64c880"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-graph-after.json",
+      "bytes": 49222,
+      "sha256": "89f1f1947b3442767419867b55e3984b352b6eb390fb9e4ffcea52665ebf3e8e"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-graph-after.png",
+      "bytes": 56754,
+      "sha256": "36f33a9de61428d94cb0e4edf7490d3723ae497f640a0b161df05f66332b13fe"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-graph-preview.png",
+      "bytes": 58389,
+      "sha256": "0e5dbb87484fee5be2b3d126e161261a8d92c67bb419ad16ddb4fb8cde331792"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-graph-undo.json",
+      "bytes": 49221,
+      "sha256": "bad55aee3f9cde5ed939cba7c8d5926117b0960f80913aae6a064aef52421404"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-timeline-after.json",
+      "bytes": 49222,
+      "sha256": "a954aadcd6580b92243002235a276ee76428d5f077287c80db41a4cbca86ec15"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-timeline-after.png",
+      "bytes": 40968,
+      "sha256": "0153b40c8a8b89ea2bf29532b2e7d54d4a7700f58dc89e11a715a87689dee94b"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-timeline-preview.png",
+      "bytes": 42587,
+      "sha256": "7eec6e2e75734ab879688af703bb47c194dfc058d9c5b7c0a92f1ff3911cc5b0"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-float-timeline-undo.json",
+      "bytes": 49221,
+      "sha256": "6a9f64e4f84f479f121bf5582f614681d1c8a233ccce47a24f923b09505e50de"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-graph-after.json",
+      "bytes": 49214,
+      "sha256": "70049b1f7d91a8d5614f5f4b7ef3f426f9a27c7ee68a4e7da3e03e109fc5f674"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-graph-after.png",
+      "bytes": 72874,
+      "sha256": "5b7a1c3cdbb2bfa74b1802ed69338f11e94c7c4fc05ab4a903ba58a92096421f"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-graph-preview.png",
+      "bytes": 75221,
+      "sha256": "f2c0698052da6be82a7a30be667ce51f62bded0f63c77ccb2e54e6d535162346"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-graph-undo.json",
+      "bytes": 49221,
+      "sha256": "cbdaa15f88289011984947fcb6117783f8d730c224779b4691c35b5433363578"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-timeline-after.json",
+      "bytes": 49214,
+      "sha256": "3aa0df99cd44691c6258a2745f169f6d194114bcba1f81797a184b5276e68a62"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-timeline-after.png",
+      "bytes": 57601,
+      "sha256": "b0acfc77cecb6ed8b805658f72eb98c1f3301c123bf214fa2696165150bcaa06"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-timeline-preview.png",
+      "bytes": 59928,
+      "sha256": "b97dd7fbadcaa50cff51020f8471cf9f9ef9f1ab6b6c2f201c64ffd879a46e3d"
+    },
+    {
+      "path": "layer-time-typed-lanes-property-native/zh-main-timeline-undo.json",
+      "bytes": 49213,
+      "sha256": "f6070af9e769ca169987b85a721127174a264dc804aed7e6de6c2a8ce485350b"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt2-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "69e3a3159578037faf0b14ea24a92115ac6106362c53cd025c3383d3adb7517d"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt2-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt2-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "7ccf605a6ec87a899666f1c4457a07962aeaccf009ad2f4d58cff8792f91e49c"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt3-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "542bb907ddb15a38c7f40522c7f77d25cfebb115def604bf02f17f6f598896ff"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt3-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt3-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "ca30ac26191f0d947a645cb895b106daab707e3c4913ad4bb056d3e831f023aa"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt4-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "db1308dbb24f67dae552e309011e77527ecda694a478dd4e9fcac550cfd86a09"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt4-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-attempt4-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "1f12de43a09888e5048689094f02da6c999c748e7071137ecb27c829be65cb32"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-results.json",
+      "bytes": 2089,
+      "sha256": "c41b2afdcbdd3503ecef5fe7cbecb1739b5b0a25321f25c82a65dd567dc8466f"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-typed-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-typed-stdout.log",
+      "bytes": 707,
+      "sha256": "cab278b96986366066d48e611e5deea3c9e7dd490be10e1c9ca8537558d61cdd"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "23a48e7a786fab9592ad42b5fcb8989a59b62de32065e4741a61b5b3a326a5a1"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-typed-lanes-quick-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "1ea1d854f65086bb15ea6824b1cb487a6c6386baa384cd8951303105ed8a5182"
+    },
+    {
+      "path": "layer-time-typed-lanes-second-failure/layer-time-typed-lanes-quick-results.json",
+      "bytes": 1384,
+      "sha256": "600fb5819e776b2199909688a4e0785902f28f779402b5986616b14d15e8609e"
+    },
+    {
+      "path": "layer-time-typed-lanes-second-failure/layer-time-typed-lanes-quick-typed-stderr.log",
+      "bytes": 602,
+      "sha256": "0e0ef5068c76c61d63bec11605240d47338bf2906cc611da71572fb133b11f08"
+    },
+    {
+      "path": "layer-time-typed-lanes-second-failure/layer-time-typed-lanes-quick-typed-stdout.log",
+      "bytes": 1023,
+      "sha256": "e5e53a2a824dedae816f0a187086bf69a4512195ab8320d54fa78e8b0220bedd"
+    },
+    {
+      "path": "layer-time-typed-lanes-style-final.log",
+      "bytes": 24,
+      "sha256": "0ea42e688b45ee39c6166b19955f8ba49da81c13bb04427053beeb9eef52a4fb"
+    },
+    {
+      "path": "layer-time-typed-lanes-third-failure/layer-time-typed-lanes-quick-results.json",
+      "bytes": 1383,
+      "sha256": "c19362a29548cae9d19a4c3719574310119ebd58a5237c9e7507149315d95d70"
+    },
+    {
+      "path": "layer-time-typed-lanes-third-failure/layer-time-typed-lanes-quick-typed-stderr.log",
+      "bytes": 597,
+      "sha256": "ac35d4d76fdafdb54d62648983deb2dba5e9aa0cb7b8e5d157c0a4f1c32af1c6"
+    },
+    {
+      "path": "layer-time-typed-lanes-third-failure/layer-time-typed-lanes-quick-typed-stdout.log",
+      "bytes": 1023,
+      "sha256": "53ed7e1591c89bcf9ef93130b002edb461453b83bd932874f34faf49f318d6be"
+    },
+    {
+      "path": "layer-time-typed-lanes-workspace-check-final.log",
+      "bytes": 21906,
+      "sha256": "1fad28bb5c3e94246ecac908682baae39a2c76a6dcce8cfff5ac86a2df00bf1d"
+    },
+    {
+      "path": "layer-time-typed-lanes-workspace-check.log",
+      "bytes": 21932,
+      "sha256": "ad71b6b7bb37e3f8b0bb624e866d44fc8810a72d7c76380ad82b9dec855a73e5"
+    },
+    {
+      "path": "run-layer-time-typed-lanes.py",
+      "bytes": 3785,
+      "sha256": "038a87d94f671d40f285ec7b955df85708a041fe964cdfaee5aaf294cadb6e0a"
+    }
+  ],
+  "limits": [
+    "visible time editing controls and other mapped edit paths incomplete",
+    "physical OS input and other platforms not executed",
+    "Track f32 Hold semantics unchanged",
+    "numeric time fault sites and impossible address guards not independently fault-injected"
+  ],
+  "source_sha256_scope": "Raw workspace bytes at verification; source_git_sha256 records normalized committed bytes for clone verification.",
+  "source_git_sha256": {
+    "desktop/app/src/panels/audio.rs": "865ea7f6f8e076d9cba9b7fb75fa44f7080792f19cb4d0b5e44c1df6ffd8ba72",
+    "desktop/app/src/panels/effect_timeline.rs": "5b738f1e89016fb5abe2fe46145f3b7b0d6db4a4fe83a6d8255540518dadc444",
+    "desktop/app/src/panels/key_selection.rs": "bad60456861403ff947e07050e145d1c614a6829c48626d844d7097ed4d9f622",
+    "desktop/app/src/panels/key_selection/local_timing_native_tests.rs": "9761df0abca9dab1617921b5c7e5404b050f0fa83b6aaf6e85a995f40dcefc12",
+    "desktop/app/src/panels/key_selection/local_timing_tests.rs": "28d53208800dd512cc2ad4afada20f7df330ea15d82230d1c658ba06c8f0dd8e",
+    "desktop/app/src/panels/key_selection/local_typed_tests.rs": "d306dc64565c8bcc1550aa716ff01180f01faf1400e90b07ed952829e10f185d",
+    "desktop/app/src/panels/key_selection/ui.rs": "3f2b010c228f71927924f70015b808c84bff11bd9c3c143403ded41e77008b7b",
+    "desktop/app/src/panels/path_controls/groups/timeline.rs": "33a90e6de5ead5378cd384abba07547c454a92df666d20ae0958b0fb27f0c017",
+    "desktop/app/src/panels/path_controls/timeline.rs": "bb4b6ec2186adbfc933ba48d8f32a243eb0b5f7934a75fda27a1d9d8c86e4fb9",
+    "desktop/app/src/panels/timeline.rs": "0b75080e85340704efe9c4fefed5bffdbf18b7ba2263ce4d235b30d29f2e6a27",
+    "desktop/app/src/panels/timeline/row_cache.rs": "85bb1777e69b2f8829c3423a57204fc81331254167ba69e49bcfc7af75b3ef2f",
+    "desktop/app/src/panels/timeline/scroll_signature_tests.rs": "c14db5397e28a107a380c8b25fb341aa3de2f585758e7ea01b252f3e47e859b5",
+    "desktop/app/src/panels/timeline_key_drag.rs": "0c2e202c2da7c05d8a7b4272025f63f3c55bb14af35aff3c2f0e299ab768f3da",
+    "desktop/app/src/panels/types.rs": "2448a64f126cc8678de1409e8b0cdf068063c9d3c616cc9ab13ffe465ab92b26",
+    "engineering/validation/layer-time-typed-lanes.md": "6f77e2b000afe7cabf85470c0d8e857bcd3fdc28b2f932b60f1fc0d893bfe2eb"
+  }
+}

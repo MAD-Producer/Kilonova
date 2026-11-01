@@ -6,6 +6,8 @@ use motion_core::{LocalKeyEdit, LocalValueOffset};
 #[cfg(target_os = "windows")]
 #[path = "local_timing_native_tests.rs"]
 mod native;
+#[path = "local_typed_tests.rs"]
+mod typed;
 
 fn local(object: u64, axis: Option<Axis>, frame: i32) -> AddressedKey {
     LocalKey {

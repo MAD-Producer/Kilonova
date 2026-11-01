@@ -608,7 +608,7 @@ pub(crate) struct TimelineState {
     pub(crate) column_visibility: ColumnVisibility,
     pub(crate) graph_box: super::graph_box::Controls,
     pub rows_cache: Option<(
-        (String, String, u64),
+        (String, String, u64, Option<u64>),
         std::sync::Arc<Vec<super::timeline::Row>>,
     )>,
     pub expanded: std::collections::HashSet<u64>,

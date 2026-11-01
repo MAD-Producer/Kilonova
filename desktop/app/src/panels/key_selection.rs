@@ -62,7 +62,7 @@ impl From<SpatialKey> for AddressedKey {
     }
 }
 impl AddressedKey {
-    fn target(&self) -> &KeyframeTarget {
+    pub(super) fn target(&self) -> &KeyframeTarget {
         match self {
             Self::Frame(k) => &k.target,
             Self::Local(k) => &k.target,

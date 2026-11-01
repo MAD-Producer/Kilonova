@@ -676,6 +676,34 @@ pub(in crate::panels) fn mask_lane(
         }
     }
 }
+/// A mapped row owns its complete authored projection in the existing row
+/// cache. Never let a failed cache fall through to integer-addressed listeners.
+pub(in crate::panels) fn mapped_lane(
+    list: &mut PaintList, panels: &mut Panels, row: &crate::panels::timeline::Row,
+    target: KeyframeTarget, lane: Rect, ppf: f32, view_offset: f32,
+    radius: f32, tolerance: f32, round_hit: bool,
+) -> bool {
+    if row.property_clock == Some(Default::default()) {return false;}
+    let Some(keys)=&row.mapped_keys else {return true;};
+    let styles=list.styles();
+    for (key,time) in keys.iter().filter(|(key,_)|key.target()==&target) {
+        let point=[lane.min[0]+(*time as f32-view_offset)*ppf,lane.min[1]+lane.height()*0.5];
+        if !lane.contains(point) {continue;}
+        paint::diamond(list,point,radius,styles.color("keyframe"));
+        let rect=if round_hit {
+            Rect::new(point[0]-tolerance,point[1]-tolerance,tolerance*2.,tolerance*2.)
+        } else {Rect::new(point[0]-tolerance,lane.min[1],tolerance*2.,lane.height())};
+        match key {
+            AddressedKey::Local(key)=>local_mark(list,panels,key.clone(),point,radius,rect),
+            AddressedKey::Spatial(key)=>spatial_mark(list,panels,key.clone(),point,radius,rect),
+            AddressedKey::Frame(_)=>{
+                let _=observe!("timeline.mapped_key_address",Err::<(),_>("mapped row contains a composition-integer address"),
+                    "object={} phase=paint fallback=disable_key_edit",row.id);
+            }
+        }
+    }
+    true
+}
 pub(in crate::panels) fn vector_lane(
     list: &mut PaintList,
     panels: &mut Panels,

@@ -389,12 +389,13 @@ pub(super) fn render_rows(
     height: f32,
     ppf: f32,
     offset: f32,
-    object: u64,
+    owner_row: &super::timeline::Row,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    let object=owner_row.id;
     let Some(layer) = state["project"]["layers"]
         .as_array()
         .into_iter()
@@ -421,7 +422,9 @@ pub(super) fn render_rows(
         let value = if gain {
             gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))
         } else {
-            let local = state["frame"].as_f64().unwrap_or(0.) - local_offset as f64;
+            let Some(clock)=owner_row.property_clock else {continue;};
+            let Ok(local)=observe!("audio.timeline_time",clock.local_frame(state["frame"].as_f64().unwrap_or(0.),owner_row.mask_offset),
+                "object={object} phase=sample") else {continue;};
             let Ok(value) = observe!("audio.timeline_sample", track(layer, control).sample(local),
                 "object={object} channel={} frame={local}", control as u8) else { continue; };
             f64::from(value)
@@ -550,6 +553,11 @@ pub(super) fn render_rows(
                 },
             }));
         }
+        let styles=list.styles();
+        if key_selection::ui::mapped_lane(list,panels,owner_row,
+            motion_core::KeyframeTarget::Audio {object,channel:control.channel()},
+            Rect::new(track_area.min[0],py,track_area.width(),height),ppf,offset,
+            styles.metric("timeline.key.radius",4.),styles.metric("graph.selection.hit_radius",6.),false) {continue;}
         for frame in keys {
             draw_reference(
                 list,
