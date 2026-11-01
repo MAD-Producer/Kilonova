@@ -7,6 +7,8 @@ use serde_json::json;
 use std::{fs, path::Path, time::Instant};
 #[path = "../../../../crates/motion-model/tests/support/tracking_camera.rs"]
 mod authored;
+#[path = "tracking_video_pair_tests.rs"]
+mod paired;
 
 fn media(engine: &Engine, request: Value) -> Result<Value, String> {
     engine.media(request.to_string())

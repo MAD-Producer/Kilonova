@@ -98,6 +98,23 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
             }
             "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
+            "TrackedVideoReplacement" => {
+                let binding_updates:Vec<Value>=[("point","PointBinding"),("plane","PlaneBinding"),("camera","CameraBinding")]
+                    .into_iter().map(|(kind,binding)|json!({"type":"object","additionalProperties":false,
+                        "required":["kind","composition","object","binding"],"properties":{
+                            "kind":{"const":kind},"composition":{"type":"string","minLength":1,"maxLength":128},
+                            "object":{"type":"integer","minimum":0},
+                            "binding":{"anyOf":[{"type":"null"},named_schema(binding).1]}}})).collect();
+                json!({"type":"object","additionalProperties":false,
+                    "description":"Host-verified video and complete original-solve replacement; preserves identities and publishes bindings in one transaction",
+                    "required":["video","audio","tracking","bindings"],"properties":{
+                        "video":{"type":"object","description":"Typed VideoAsset metadata"},
+                        "audio":{"anyOf":[{"type":"null"},{"type":"object","description":"Typed AudioAsset metadata"}]},
+                        "tracking":{"type":"array","minItems":1,"maxItems":crate::tracking_assets::MAX_TRACKING_ASSETS,
+                            "items":{"type":"object","description":"Host-verified immutable original TrackingAsset"}},
+                        "bindings":{"type":"array","maxItems":crate::tracking_assets::replacement::MAX_BINDING_UPDATES,
+                            "items":{"oneOf":binding_updates}}}})
+            },
             "ImportedCamera" => json!({"type":"object","additionalProperties":false,
                 "required":["asset","scene","node","pixels_per_metre","pivot","animation"],
                 "properties":{"asset":{"type":"integer","minimum":1},"scene":{"type":"integer","minimum":0},
@@ -260,6 +277,7 @@ registry! {
     Command::VideoDepthCalibration { .. } => "video_depth_calibration" [("object","u64",true), ("sample","VideoDepthSample",true)];
     Command::RegisterModelAsset { .. } => "register_model_asset" [("asset","ModelAsset",true)];
     Command::RegisterTrackingAsset { .. } => "register_tracking_asset" [("asset","TrackingAsset",true)];
+    Command::ReplaceTrackedVideo { .. } => "replace_tracked_video" [("replacement","TrackedVideoReplacement",true)];
     Command::SetTrackingPlane { .. } => "set_tracking_plane" [("object","u64",true),("binding","Option<PlaneBinding>",true)];
     Command::SetTrackingPoint { .. } => "set_tracking_point" [("object","u64",true),("binding","Option<PointBinding>",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
