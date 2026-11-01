@@ -10,6 +10,7 @@ use serde_json::json;
 mod faults;
 #[cfg(target_os = "windows")]
 mod native;
+mod navigation;
 
 fn project(reverse: bool) -> Project {
     let mut p = Project::new(640, 360, 30, 120).unwrap();
@@ -121,10 +122,12 @@ struct Harness {
 }
 impl Harness {
     fn new(host: Panel, floating: bool, locale: Locale, reverse: bool) -> Self {
+        Self::with_project(host, floating, locale, project(reverse))
+    }
+    fn with_project(host: Panel, floating: bool, locale: Locale, p: Project) -> Self {
         let folder = tempfile::tempdir().unwrap();
         let root = folder.path().join("project");
         std::fs::create_dir_all(&root).unwrap();
-        let p = project(reverse);
         motion_core::storage::save(&root, &p).unwrap();
         let engine = Engine::start(root, motion_desktop_media::platform(), 8 << 30).unwrap();
         let state = engine.seek(6.5).unwrap();
@@ -187,6 +190,14 @@ impl Harness {
                 Action::EditBatch(c) => self.engine.edit(serde_json::to_string(&c).unwrap()),
                 Action::Seek(f) => self.engine.seek(f),
                 Action::History(op) => self.engine.history(op),
+                Action::EditorAction { source, commands } => {
+                    self.engine
+                        .call(|reply| crate::engine::Command::EditorAction {
+                            source,
+                            commands,
+                            reply,
+                        })
+                }
                 _ => panic!("unexpected path action {action:?}"),
             };
             match result {

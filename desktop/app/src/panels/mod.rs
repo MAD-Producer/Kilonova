@@ -2300,6 +2300,7 @@ fn render_panel(
         Panel::Expression => properties::render(list, atlas, area, panels, state, input, out),
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
+    path_controls::key_time::apply_selection(panels, state);
     property_focus::settle(panels);
     #[cfg(all(test, target_os = "windows"))]
     if let Some(timer) = panel_timer { timer.finish(list); }

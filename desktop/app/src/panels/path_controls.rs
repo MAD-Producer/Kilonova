@@ -23,6 +23,7 @@ pub(in crate::panels) mod mask_header;
 mod mask_inspector;
 mod mask_boundaries;
 mod mask_keys;
+pub(in crate::panels) mod key_time;
 mod mask_path;
 mod source_geometry;
 mod point_selection;

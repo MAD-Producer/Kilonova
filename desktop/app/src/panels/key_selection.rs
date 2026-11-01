@@ -753,7 +753,7 @@ pub(super) fn shortcut(
         return true;
     }
     let delete = command == Shortcut::Delete
-        && matches!(panels.focused, Some(Panel::Timeline | Panel::Curves));
+        && matches!(panels.focused, Some(Panel::Timeline | Panel::Curves | Panel::Masks | Panel::Vector | Panel::Properties));
     if !delete
         && !matches!(
             command,
