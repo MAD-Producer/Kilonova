@@ -1,5 +1,6 @@
 //! Spatial keys use persistent IDs after their initial frame-key conversion.
 use super::*;
+use crate::layer_time::LayerClock;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -17,7 +18,7 @@ pub enum SpatialKeyEdit {
         key: u64,
         time: f64,
     },
-    /// Composition-time translation; offsets cancel and identities stay stable.
+    /// Composition-time translation; the property clock scales and reverses it.
     Move {
         keys: Vec<u64>,
         delta: f64,
@@ -30,6 +31,7 @@ pub enum SpatialKeyEdit {
 fn candidate<T: Tween>(
     source: &Track<T>,
     edit: &SpatialKeyEdit,
+    clock: LayerClock,
     offset: i32,
     frames: u32,
     global: bool,
@@ -46,14 +48,15 @@ fn candidate<T: Tween>(
                 selected.windows(2).all(|keys| keys[0] < keys[1]),
                 "Roving source frames must be unique and sorted",
             )?;
-            let selected = selected
+            let mut selected = selected
                 .iter()
                 .map(|frame| {
                     ensure(*frame < frames, "Roving source frame outside composition")?;
-                    i32::try_from(i64::from(*frame) - i64::from(offset))
-                        .map_err(|_| Error::Invalid("Roving source local time overflow".into()))
+                    clock.integer_key_frame(f64::from(*frame), offset)
                 })
                 .collect::<Result<Vec<_>>>()?;
+            // A reverse clock reverses display order, never authored geometry.
+            selected.sort_unstable();
             track.enable_roving(&selected)?;
         }
         _ => {
@@ -64,9 +67,22 @@ fn candidate<T: Tween>(
             match edit {
                 SpatialKeyEdit::Roving { keys, enabled } => animation.set_roving(keys, *enabled)?,
                 SpatialKeyEdit::Time { key, time } => {
-                    animation.set_fixed_time(*key, *time - f64::from(offset))?
+                    let mut local = clock.local_frame(*time, offset)?;
+                    // Inverting a projected continuous key can lose an ULP.
+                    // Recover only this explicit ID's exact projection, never
+                    // a neighbouring key, epsilon match or rounded frame.
+                    if let Some((_, existing)) =
+                        animation.prepared().keys().find(|(id, _)| id == key)
+                    {
+                        if clock.projected_composition_frame(existing, offset)? == *time {
+                            local = existing;
+                        }
+                    }
+                    animation.set_fixed_time(*key, local)?
                 }
-                SpatialKeyEdit::Move { keys, delta } => animation.move_keys(keys, *delta)?,
+                SpatialKeyEdit::Move { keys, delta } => {
+                    animation.move_keys(keys, *delta * clock.rate())?
+                }
                 SpatialKeyEdit::Delete { key } => animation.delete_key(*key)?,
                 SpatialKeyEdit::Enable { .. } => {
                     return Err(Error::Invalid(
@@ -105,22 +121,35 @@ pub fn edit(project: &mut Project, target: &KeyframeTarget, edit: &SpatialKeyEdi
             ),
             "Roving requires a position, anchor or camera target",
         )?;
-        let offset = if *object == 0 {
-            0
+        let (clock, offset) = if *object == 0 {
+            (LayerClock::default(), 0)
         } else {
-            project
+            let layer = project
                 .layers
                 .iter()
                 .find(|layer| layer.id == *object)
-                .ok_or(Error::Missing(*object))?
-                .timeline
-                .map_or(0, |timeline| timeline.offset_frame)
+                .ok_or(Error::Missing(*object))?;
+            (
+                layer
+                    .time_mapping
+                    .as_ref()
+                    .map_or_else(LayerClock::default, |mapping| mapping.clock),
+                layer.timeline.map_or(0, |timeline| timeline.offset_frame),
+            )
         };
         // Solve and validate before borrowing the write channel. Rejections
         // preserve model callers as well as the core's transaction snapshot.
         match read(project, target)? {
             ReadChannel::Vec2(track) => {
-                let next = candidate(track, edit, offset, project.frames, *object == 0, 1000.)?;
+                let next = candidate(
+                    track,
+                    edit,
+                    clock,
+                    offset,
+                    project.frames,
+                    *object == 0,
+                    1000.,
+                )?;
                 match write(project, target)? {
                     WriteChannel::Vec2(track) => *track = next,
                     _ => {
@@ -134,6 +163,7 @@ pub fn edit(project: &mut Project, target: &KeyframeTarget, edit: &SpatialKeyEdi
                 let next = candidate(
                     track,
                     edit,
+                    clock,
                     offset,
                     project.frames,
                     *object == 0,
