@@ -815,6 +815,11 @@ pub(super) fn draw_value(
 }
 
 fn numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
+    legacy_numeric_command(field, value, state)
+        .map(|command| super::property_authoring::at_playhead(state, command))
+}
+
+fn legacy_numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
     let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
     if matches!(field.property, Property::Roll | Property::Fov | Property::Radius | Property::Azimuth | Property::Elevation) {
         return Some(Command::SetScalar { object: field.object, property: field.property, frame, value });

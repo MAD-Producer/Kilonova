@@ -217,6 +217,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
         Command::KeyframeAutomatic { selections, enabled } => motion_model::keyframe_clipboard::set_automatic(project, &selections, enabled)?,
         Command::LocalKeyframes { target, edit } => motion_model::keyframe_clipboard::local::edit(project, &target, &edit)?,
+        Command::TrackAt { target, frame, edit } => motion_model::keyframe_clipboard::authoring::edit(project, &target, frame, &edit)?,
         Command::SpatialKeyframes {target,edit} => motion_model::keyframe_clipboard::spatial::edit(project,&target,&edit)?,
         Command::KeyframeHandle { target, frame, incoming, control } => motion_model::keyframe_clipboard::set_handle(project, &target, frame, incoming, control)?,
         Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,

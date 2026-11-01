@@ -14,6 +14,7 @@ pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, Keyfr
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::spatial::SpatialKeyEdit;
 pub use motion_model::keyframe_clipboard::local::{LocalKeyEdit, LocalValueOffset};
+pub use motion_model::keyframe_clipboard::authoring::{TrackEdit, TrackValue};
 pub use motion_model::keyframe_clipboard::timing;
 pub use motion_model::keyframe_clipboard::MAX_KEYFRAME_CLIPBOARD_BYTES;
 pub use motion_model::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};

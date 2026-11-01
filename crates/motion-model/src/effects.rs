@@ -220,7 +220,7 @@ impl EffectParam {
         }
         Ok(value)
     }
-    fn validate(&self, frames: u32) -> Result<()> {
+    pub(crate) fn validate(&self, frames: u32) -> Result<()> {
         ensure(
             self.min.is_finite() && self.max.is_finite() && self.min <= self.max,
             "invalid effect parameter range",

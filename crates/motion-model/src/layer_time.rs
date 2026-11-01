@@ -244,11 +244,28 @@ impl LayerClock {
         };
         elapsed + f64::from(offset)
     }
+    /// Authoring may recover an integer identity only through its exact forward
+    /// projection. This leaves sampling/source-time algebra unchanged.
+    pub fn key_edit_time(self, composition_frame: f64, offset: i32) -> Result<f64> {
+        let local = self.local_frame(composition_frame, offset)?;
+        if local.fract() != 0. {
+            // The exact projection of an integer identity can invert one ULP
+            // away from that integer. A candidate is accepted only if projecting
+            // it reproduces the requested composition instant EXACTLY. Nearby
+            // instants still fail; no epsilon or lossy frame rounding is used.
+            let candidate = local.round();
+            if self.projected_composition_frame(candidate, offset)? == composition_frame {
+                return Ok(candidate);
+            }
+        }
+        Ok(local)
+    }
     /// Existing integer-track commands must explicitly refuse an unrepresentable
     /// local instant. Rounding would edit a different key or merge two keys.
     pub fn integer_key_frame(self, composition_frame: f64, offset: i32) -> Result<i32> {
-        let local = self.local_frame(composition_frame, offset)?;
-        if local.fract() != 0. {
+        let local = self.key_edit_time(composition_frame, offset)?;
+        if local.fract() != 0.
+            || self.projected_composition_frame(local, offset)? != composition_frame {
             return Err(invalid(
                 "integer_key",
                 "local time requires continuous key addressing",

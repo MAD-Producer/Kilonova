@@ -252,6 +252,8 @@ pub enum Command {
     KeyframeAutomatic { selections: Vec<crate::KeyframeSelection>, enabled: bool },
     /// Signed authored-frame identities; no rounding through composition time.
     LocalKeyframes { target: crate::KeyframeTarget, edit: crate::keyframe_clipboard::local::LocalKeyEdit },
+    /// Author at an exact composition instant, resolving property time once.
+    TrackAt { target: crate::KeyframeTarget, frame: f64, edit: crate::keyframe_clipboard::authoring::TrackEdit },
     /// Continuous spatial edits address a property and persistent key IDs.
     SpatialKeyframes { target:crate::KeyframeTarget, edit:crate::keyframe_clipboard::spatial::SpatialKeyEdit },
     /// `frame` addresses the interval's first key in composition time. Incoming
@@ -345,6 +347,9 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
+        if let Self::TrackAt { edit, .. } = self {
+            return !matches!(edit, crate::keyframe_clipboard::authoring::TrackEdit::Set { .. });
+        }
         // A handle repeatedly updates one authored interval inside an existing
         // gesture. Structural local edits still require a separate transaction.
         if let Self::LocalKeyframes { edit, .. } = self {

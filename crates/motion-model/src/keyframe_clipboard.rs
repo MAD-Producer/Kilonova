@@ -17,6 +17,7 @@ pub use transfer_time::{KeyframeTimeSpace, LocalKeyframeSelection};
 pub mod timing;
 pub mod spatial;
 pub mod local;
+pub mod authoring;
 pub use easing::{delete_keys, ease_keys};
 pub use transform::{transform_keys, KeyframeValueOffset};
 pub use interpolation::set_interpolation;

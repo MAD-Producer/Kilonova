@@ -114,21 +114,12 @@ pub(super) struct Channel {
     context: (String, String),
 }
 
-fn times(parameter: &EffectParam, offset: f64) -> Vec<f64> {
-    if let Some(curve) = &parameter.curve {
-        curve
-            .keys
-            .iter()
-            .map(|key| f64::from(key.frame) + offset)
-            .collect()
-    } else {
-        parameter
-            .track
-            .keys
-            .iter()
-            .map(|key| f64::from(key.frame) + offset)
-            .collect()
-    }
+fn times(state: &Value, object: u64, parameter: &EffectParam) -> motion_core::Result<Vec<f64>> {
+    let (clock, offset) = crate::panels::property_authoring::clock(state, object)?;
+    let frames: Vec<_> = if let Some(curve) = &parameter.curve {
+        curve.keys.iter().map(|key| key.frame).collect()
+    } else { parameter.track.keys.iter().map(|key| key.frame).collect() };
+    frames.into_iter().map(|frame| clock.projected_composition_frame(f64::from(frame), offset)).collect()
 }
 
 impl Controls {
@@ -204,7 +195,7 @@ impl Controls {
                 .and_then(|effect| effect["params"].get(&channel.parameter))
                 .map(|parameter| (layer, parameter))
         });
-        let Some((layer, parameter)) =
+        let Some((_layer, parameter)) =
             source.filter(|_| selected == Some(channel.object) && context == channel.context)
         else {
             self.clear_key_channel();
@@ -221,10 +212,8 @@ impl Controls {
         .ok() else {
             return false;
         };
-        let times = times(
-            &parameter,
-            layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.),
-        );
+        let Ok(times) = observe!("effects.navigation_times", times(state, channel.object, &parameter),
+            "object={} effect={} param={}", channel.object, channel.effect, channel.parameter) else { return false; };
         let mut at = state["frame"].as_f64().unwrap_or(0.);
         let last = crate::panels::last_frame(state);
         let mut used = false;
@@ -287,13 +276,31 @@ pub(super) fn parameter_navigation_in_rail(
 ) -> bool {
     let at = state["frame"].as_f64().unwrap_or(0.);
     let last = crate::panels::last_frame(state);
-    let adjacent = navigation::neighbours(times(parameter, at - local), at, last);
+    let mapped = crate::panels::keyframe_clipboard::layer(state, object)
+        .is_some_and(|layer| !layer["time_mapping"].is_null());
+    let projected = if mapped {
+        let Ok(times) = observe!("effects.rail_times", times(state, object, parameter),
+            "object={object} effect={effect} param={param}") else { return false; };
+        times
+    } else if let Some(curve) = &parameter.curve {
+        curve.keys.iter().map(|key| f64::from(key.frame) + (at - local)).collect()
+    } else {
+        parameter.track.keys.iter().map(|key| f64::from(key.frame) + (at - local)).collect()
+    };
+    let adjacent = navigation::neighbours(projected, at, last);
+    let precise = crate::panels::property_authoring::precise(state, object);
     let frame = navigation::editable_frame(at, last);
+    let exact = if precise {
+        observe!("effects.rail_clock", crate::panels::property_authoring::clock(state, object),
+            "object={object} effect={effect} param={param}").ok()
+            .is_some_and(|(clock, offset)| clock.integer_key_frame(at, offset).is_ok())
+            && at.is_finite() && (0. ..=last).contains(&at)
+    } else { frame.is_some() };
     let editable = !locked
         && state["observing"] != true
         && parameter.animatable
         && parameter.implemented
-        && frame.is_some();
+        && exact;
     let choice = navigation::draw(list, rail, input, adjacent, editable);
     let picked = input.pressed.is_some_and(|(button, point)|
         button == MouseButton::Left && row.contains(point));
@@ -311,6 +318,13 @@ pub(super) fn parameter_navigation_in_rail(
     match choice {
         Choice::Seek(frame) => out.push(Action::Seek(frame)),
         Choice::Toggle => {
+            if precise && editable {
+                out.push(Action::Edit(Command::TrackAt {
+                    target: motion_core::KeyframeTarget::Effect { object, effect, param: param.into() },
+                    frame: at, edit: motion_core::TrackEdit::ToggleKey,
+                }));
+                return true;
+            }
             let Some(frame) = frame.filter(|_| editable) else {
                 return true;
             };

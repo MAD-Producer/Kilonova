@@ -33,6 +33,7 @@ mod input_routes;
 mod frame_cache_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
+mod property_authoring;
 mod audio;
 mod work_area;
 pub(crate) mod auxiliary;

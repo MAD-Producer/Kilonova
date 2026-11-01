@@ -75,6 +75,16 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "bool" => json!({"type":"boolean"}),
             "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
+            "TrackEdit" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{
+                    "kind":{"const":"set"},"value":{"oneOf":[{"type":"number"},
+                        {"type":"array","items":{"type":"number"},"minItems":2,"maxItems":4},
+                        {"type":"array","items":{"type":"number"},"minItems":6,"maxItems":6},
+                        {"type":"object","description":"Validated CurveObject color-transfer function"}]}}},
+                {"type":"object","additionalProperties":false,"required":["kind","enabled"],"properties":{
+                    "kind":{"const":"animate"},"enabled":{"type":"boolean"}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"toggle_key"}}}
+            ]}),
             "LayerSwitch" => json!({"type":"string","enum":["solo","effects","video","audio"]}),
             "LayerTimeAction" => json!({"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["kind","stretch","anchor_frame","resize_clip"],"properties":{
@@ -241,6 +251,7 @@ registry! {
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::KeyframeAutomatic { .. } => "keyframe_automatic" [("selections","Vec<KeyframeSelection>",true),("enabled","bool",true)];
     Command::LocalKeyframes { .. } => "local_keyframes" [("target","KeyframeTarget",true),("edit","LocalKeyEdit",true)];
+    Command::TrackAt { .. } => "track_at" [("target","KeyframeTarget",true),("frame","f64",true),("edit","TrackEdit",true)];
     Command::SpatialKeyframes { .. } => "spatial_keyframes" [("target","KeyframeTarget",true),("edit","SpatialKeyEdit",true)];
     Command::KeyframeHandle { .. } => "keyframe_handle" [("target","KeyframeTarget",true),("frame","u32",true),("incoming","bool",true),("control","[f64;2]",true)];
     Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];

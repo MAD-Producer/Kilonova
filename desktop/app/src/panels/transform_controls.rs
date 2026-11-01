@@ -543,7 +543,8 @@ impl Drag {
             }]
         };
         self.last_value = value;
-        vec![Action::EditBatch(commands)]
+        vec![Action::EditBatch(commands.into_iter()
+            .map(|command| super::property_authoring::at_playhead(state, command)).collect())]
     }
 }
 #[derive(Default)]
