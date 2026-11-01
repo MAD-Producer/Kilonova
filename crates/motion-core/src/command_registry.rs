@@ -293,7 +293,7 @@ registry! {
     Command::SetGuides { .. } => "set_guides" [("guides","Vec<Guide>",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
-    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
+    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","f64",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
     Command::CameraImported { .. } => "camera_imported" [("object","u64",false), ("binding","Option<ImportedCamera>",true)];
     Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];

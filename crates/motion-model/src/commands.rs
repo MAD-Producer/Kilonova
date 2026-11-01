@@ -296,7 +296,7 @@ pub enum Command {
         anchor: [f32; 2],
     },
     /// Move the sampled anchor with position compensation at composition time.
-    AnchorAt { object: u64, frame: u32, anchor: [f32; 2] },
+    AnchorAt { object: u64, frame: f64, anchor: [f32; 2] },
     CameraLens {
         #[serde(default)]
         object: u64,

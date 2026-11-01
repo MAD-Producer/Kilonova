@@ -1048,20 +1048,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             layer.transform.anchor = Track::constant(anchor);
         }
         Command::AnchorAt { object, frame, anchor } => {
-            let local = project.edit_frame(object, frame)?;
-            ensure(anchor.iter().all(|v|v.is_finite() && v.abs()<=1000.), "invalid anchor")?;
-            let layer = project.layer_mut(object)?;
-            ensure(layer.camera_data().is_none() && !matches!(layer.content, Content::Audio { .. }), "object has no layer anchor")?;
-            if layer.locked { return Err(Error::Locked(object)); }
-            let previous = layer.transform.anchor.sample(f64::from(local))?;
-            let mut rotation = layer.transform.rotation.sample(f64::from(local))?;
-            if !layer.three_d { rotation[0]=0.; rotation[1]=0.; }
-            let delta = motion_model::geometry::rotation_quaternion(rotation,layer.rotation_order)
-                * (Vec3::from_array(layer.transform.scale.sample(f64::from(local))?)/100.
-                    * Vec3::new((anchor[0]-previous[0])*layer.size[0],(previous[1]-anchor[1])*layer.size[1],0.));
-            let position = layer.transform.position.sample(f64::from(local))?;
-            layer.transform.position.set_at(local,[position[0]+delta.x,position[1]-delta.y,position[2]-delta.z])?;
-            layer.transform.anchor.set_at(local,anchor)?;
+            motion_model::keyframe_clipboard::authoring::compensate_anchor(project, object, frame, anchor)?;
         }
     }
     project.rebuild_plugin_dependencies();

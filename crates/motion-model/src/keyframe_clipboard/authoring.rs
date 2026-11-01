@@ -2,6 +2,8 @@
 //! LOCAL key time; static values and continuous spatial keys do not need rounding.
 use super::*;
 use crate::{layer_time::LayerClock, CurveObject, CurveTrack, Ease};
+mod anchor;
+pub use anchor::compensate_anchor;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -29,6 +31,34 @@ struct EditTime {
     offset: i32,
 }
 impl EditTime {
+    fn read(project: &Project, object: u64, frame: f64) -> Result<Self> {
+        ensure(
+            frame.is_finite() && (0. ..f64::from(project.frames)).contains(&frame),
+            "edit frame outside the composition",
+        )?;
+        let (clock, offset) = if object == 0 {
+            (LayerClock::default(), 0)
+        } else {
+            let layer = project
+                .layers
+                .iter()
+                .find(|layer| layer.id == object)
+                .ok_or(Error::Missing(object))?;
+            (
+                layer
+                    .time_mapping
+                    .as_ref()
+                    .map_or_else(LayerClock::default, |mapping| mapping.clock),
+                layer.clip(project.frames).offset_frame,
+            )
+        };
+        Ok(Self {
+            composition: frame,
+            local: clock.key_edit_time(frame, offset)?,
+            clock,
+            offset,
+        })
+    }
     fn integer(&self) -> Result<i32> {
         self.clock.integer_key_frame(self.composition, self.offset)
     }
@@ -70,7 +100,13 @@ fn edit_track<T: Tween>(
             if let Some(spatial) = &mut next.spatial_animation {
                 spatial.set_at_time(local, value)?;
             } else if !next.is_animated() {
-                next.value = value;
+                if next.axes.is_some() {
+                    // Static separated channels own their scalar values. Frame
+                    // zero only reaches the existing setter; it creates no keys.
+                    next.set_at(0, value)?;
+                } else {
+                    next.value = value;
+                }
             } else {
                 next.set_at(time.integer()?, value)?;
             }
@@ -191,37 +227,12 @@ pub fn edit(
     let result = (|| {
         target.editable(project)?;
         target.address()?;
-        ensure(
-            frame.is_finite() && (0. ..f64::from(project.frames)).contains(&frame),
-            "edit frame outside the composition",
-        )?;
+        let time = EditTime::read(project, target.object(), frame)?;
         ensure(
             crate::serialized_bytes(edit) <= MAX_KEYFRAME_CLIPBOARD_BYTES,
             "property edit exceeds metadata limit",
         )?;
         let object = target.object();
-        let (clock, offset) = if object == 0 {
-            (LayerClock::default(), 0)
-        } else {
-            let layer = project
-                .layers
-                .iter()
-                .find(|layer| layer.id == object)
-                .ok_or(Error::Missing(object))?;
-            (
-                layer
-                    .time_mapping
-                    .as_ref()
-                    .map_or_else(LayerClock::default, |mapping| mapping.clock),
-                layer.clip(project.frames).offset_frame,
-            )
-        };
-        let time = EditTime {
-            composition: frame,
-            local: clock.key_edit_time(frame, offset)?,
-            clock,
-            offset,
-        };
         // Clipboard channels require animation capability. Static-only effect
         // parameters still accept value edits through this authoring command.
         if let KeyframeTarget::Effect { effect, param, .. } = target {

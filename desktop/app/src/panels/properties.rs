@@ -6,16 +6,31 @@ pub(crate) struct AnchorControls {
 }
 struct AnchorField {
     object: u64,
+    time: Option<super::property_authoring::NumericTime>,
     axis: usize,
     rect: Rect,
     number: super::numeric::Field,
 }
-pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
-    let animated = state["project"]["layers"].as_array().into_iter().flatten()
+fn anchor_animated(state: &Value, object: u64) -> bool {
+    state["project"]["layers"].as_array().into_iter().flatten()
         .find(|l|l["id"].as_u64()==Some(object))
-        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty()));
-    if animated {
-        Command::AnchorAt { object, anchor, frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32 }
+        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty())
+            || l["transform"]["anchor"]["spatial_animation"].is_object())
+}
+fn anchor_time(state: &Value, object: u64) -> motion_core::Result<Option<super::property_authoring::NumericTime>> {
+    // Static, unmapped Anchor is a global operation and needs no playhead.
+    // Legacy partial views legitimately contain only the project for this path.
+    let mapped = super::keyframe_clipboard::layer(state, object)
+        .is_some_and(|layer| !layer["time_mapping"].is_null());
+    if !mapped && !anchor_animated(state, object) { return Ok(None); }
+    super::property_authoring::NumericTime::read(state, object)
+}
+pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
+    if anchor_animated(state, object) {
+        let frame = if super::property_authoring::precise(state, object) {
+            state["frame"].as_f64().unwrap_or(f64::NAN)
+        } else { state["frame"].as_f64().unwrap_or(0.).floor() };
+        Command::AnchorAt { object, anchor, frame }
     } else { Command::Anchor { object, anchor } }
 }
 impl AnchorControls {
@@ -119,6 +134,13 @@ impl AnchorControls {
         let Some(mut field) = self.field.take() else {
             return;
         };
+        let current = observe!("properties.anchor_time_continue",
+            anchor_time(state, field.object).map(|time| time == field.time),
+            "object={} axis={} phase=continue", field.object, field.axis);
+        if !matches!(current, Ok(true)) {
+            if field.number.cancel() { out.push(Action::History(4)); }
+            return;
+        }
         let (anchor, size) = Self::values_at(state,layer);
         field.number.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = field.number.editor.update(
@@ -174,8 +196,12 @@ impl AnchorControls {
                 if self.cancel() {
                     out.push(Action::History(4));
                 }
+                let Ok(time) = observe!("properties.anchor_time_begin",
+                    anchor_time(state, object),
+                    "object={object} axis={axis} phase=begin") else { continue; };
                 self.field = Some(AnchorField {
                     object,
+                    time,
                     axis,
                     rect,
                     number: Default::default(),
@@ -1377,3 +1403,5 @@ mod tests {
 
 #[cfg(test)]
 mod tree_tests;
+#[cfg(test)]
+pub(super) mod mapped_anchor_tests;
