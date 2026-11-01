@@ -43,6 +43,8 @@ automatic results only and cannot compensate for poor coverage.
 | Reference checks, no edits | Plane | 10 | 2,289 | 6.4448 | 11 |
 | Reference checks, corrections every 200 frames | Point | 943 | 1,345 | 7.9124 | 58 |
 | Reference checks, corrections every 200 frames | Plane | 434 | 1,854 | 57.0703 | 11 |
+| Projective reference, no edits | Plane | 68 | 2,231 | 6.8199 | 69 |
+| Projective reference, corrections every 200 frames | Plane | 915 | 1,373 | 56.6400 | 69 |
 
 The periodic run has 11 explicit corrections per track. At index 1,200 the
 annotated plane transform violates the prototype's existing area budget. That
@@ -51,7 +53,7 @@ geometry guard. The first attempt instead passed this unsupported correction
 and correctly failed admission during execution. Ordinary automatic frames are
 not relabeled as manual corrections or excluded from error counts.
 
-## Implemented constraint and controls
+## Previous reference constraint and controls
 
 New point/plane reference-image cycles constrain accumulated local drift. Only
 an explicit edit resets the reference. Plane fit and holdout sets remain
@@ -79,6 +81,66 @@ brightness gate discarded valid motion; coarse reference pyramids rejected a
 known two-pixel synthetic motion. The final implementation retains the original
 holdout/RMS/maximum budgets and has a specific small-motion regression control.
 No existing repository assertions or acceptance tolerances were changed.
+
+## Projective reference increment
+
+The current plane implementation first predicts a homography using only the
+fitting partition's adjacent-frame correspondences. It rectifies the current
+image into the initial/explicitly corrected reference image, then measures
+reference residual flow with the original brightness and cycle checks. This
+compensates patch shape changes that a translation-only reference comparison
+cannot represent. Manual reseeding retains its original-source coordinate map.
+The existing adjacent appearance, reference agreement, RANSAC and held-out
+RMS/maximum limits are unchanged. Missing output remains missing until an
+explicit correction; no automatic target reacquisition was added.
+
+Windows with source padding are rejected, including interpolation neighbours.
+An independently fitted held-out homography must also agree with the fitting
+homography at all four requested ROI corners, within a new 3-pixel maximum.
+Low residuals over a narrow strip cannot alone establish edge extrapolation.
+This check cannot detect common model error or promise accurate extrapolation
+outside the requested ROI. The benchmark corner oracle deliberately retains
+those outside-ROI measurements and all missing frames.
+
+The full 2,300-frame photographed v6 measurement uses the same source, seed,
+ROI, ground truth convention and 11 explicit corrections per track. Point
+results are unchanged. Plane automatic coverage increases from 434 to 915
+frames in the corrected run, while 1,373 automatic frames are still lost.
+Its maximum error remains about 56.6 pixels; 21 visible automatic frames exceed
+15 pixels. This is still **failed real-motion acceptance**. Independent held-out
+agreement and higher coverage are not proof that the result is usable.
+
+Eight optional real-CV controls now pass, including the earlier five controls,
+a 60-frame known perspective sequence with independent five-probe error below
+0.1 pixels (both original and manual-reference seeds), narrow-strip residuals
+that fail edge extrapolation, and refusal under severe clipping. Ordinary tools
+regression again discovers 118 tests: 117 pass, one existing native effect-loader
+test skips without `MOTION_EFFECT_VALIDATOR`. Existing assertions were unchanged.
+
+Synthetic v5 retains the original 96 frames, 84 automatic frames per track,
+occlusion/manual recovery and default-level Error file/stderr suppression gates.
+Point maximum/RMS remain 0.164875/0.078385 pixels; plane maximum/RMS are now
+0.021854/0.009265 pixels, within the unchanged 0.75/1-pixel budgets.
+
+Native v6 consumes that exact new original and measured output through the
+actual FFmpeg desktop executable. Native source/timeline admission, point and
+plane bindings, undo/redo, all nine GPU pixel oracles, strict missing-sample
+refusal, historical error preservation, save/reopen, default Info starts,
+Error file/stderr and JSON-RPC isolation pass. Original SHA-256 is
+`b5309a8e584f3d0547940608111dd8231bf58734f9a9c505de0d9b440e84519a`;
+solve SHA-256 is
+`88cc9e7843a1bdf50b03d05b69bbdc0b8b0ef8b1a8d1e710ed5da550e7d17d9b`.
+This is Windows native synthetic qualification; interactive retained Surface,
+the photographed codec and complete cross-platform regression remain separate.
+
+`tracking88-projective-closeout-v1.zip` and its JSON receipt preserve the exact
+measured source snapshots, all five serial validation phases, native protocol
+transcripts/project/captures, authored synthetic media and aggregate real
+measurements. The source base is `3f246093`, with explicitly recorded dirty source
+hashes and normalized-LF hashes linking these changes to the subsequent commit.
+The two earlier projective candidates are frozen separately, including the
+coverage/error tradeoff before independent extrapolation checks. Third-party
+benchmark media, annotations, images and per-frame payloads remain excluded.
 
 ## Native and remaining scope
 

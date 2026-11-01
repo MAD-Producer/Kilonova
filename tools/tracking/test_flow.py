@@ -72,6 +72,60 @@ class FlowControls(unittest.TestCase):
             self.assertLess(np.linalg.norm(np.array(observation['pixels'])-expected),.75)
             previous=current
 
+    def test_plane_reference_compensates_perspective_without_accumulated_patch_bias(self):
+        rng=np.random.default_rng(8891)
+        image=flow.prepare(rng.integers(20,236,(192,256),np.uint8))
+        seed=dict(kind='plane',roi=[48.,40.,160.,112.])
+        probes=[[48.,40.],[208.,40.],[208.,152.],[48.,152.],[128.,96.]]
+        center=np.array([[1.,0.,-128.],[0.,1.,-96.],[0.,0.,1.]])
+
+        def matrix(index):
+            angle=.003*index
+            scale=1.+.002*index
+            local=np.array([[scale*np.cos(angle),-scale*np.sin(angle),.08*index],
+                [scale*np.sin(angle),scale*np.cos(angle),.03*index],
+                [.000005*index,-.000002*index,1.]])
+            return np.linalg.inv(center)@local@center
+
+        # Both an original seed and a later explicit correction must retain
+        # the original coordinate domain. No truth is given after that edit.
+        for start in (0,20):
+            with self.subTest(manual_reference=start):
+                previous=flow.cv2.warpPerspective(image,matrix(start),(256,192))
+                tracker=flow.Tracker(seed,image)
+                if start:
+                    tracker.correct(previous,dict(visibility='visible',
+                        observation=dict(kind='plane',matrix=matrix(start).tolist())))
+                for index in range(start+1,61):
+                    current=flow.cv2.warpPerspective(image,matrix(index),(256,192))
+                    observation,_=tracker.observe(previous,current)
+                    self.assertIsNotNone(observation,tracker.reason)
+                    errors=np.linalg.norm(flow.transform(np.array(observation['matrix']),probes)
+                        -flow.transform(matrix(index),probes),axis=1)
+                    self.assertLess(float(errors.max()),.1)
+                    previous=current
+
+    def test_small_heldout_residual_does_not_prove_plane_edge_extrapolation(self):
+        reference=np.array([[x,y] for x in (40.,80.,120.,160.,200.) for y in (78.,80.,82.)])
+        center=np.array([[1.,0.,-120.],[0.,1.,-80.],[0.,0.,1.]])
+        independent=np.linalg.inv(center)@np.array([[1.,0.,0.],[0.,1.,0.],[0.,.001,1.]])@center
+        points=flow.transform(independent,reference)
+        residual=np.linalg.norm(reference-points,axis=1)
+        self.assertLess(float(residual.max()),flow.LIMITS['heldOutMaxPixels'])
+        self.assertLess(float(np.sqrt(np.mean(residual**2))),flow.LIMITS['heldOutRmsPixels'])
+        with self.assertRaisesRegex(ValueError,'independent extrapolation disagreement'):
+            flow.check_plane_extrapolation(np.eye(3),reference,points,[24.,24.,184.,128.])
+        flow.check_plane_extrapolation(independent,reference,points,[24.,24.,184.,128.])
+
+    def test_plane_reference_requires_real_pixels_across_the_entire_lk_window(self):
+        seed=dict(kind='plane',roi=[24.,24.,128.,104.])
+        tracker=flow.Tracker(seed,self.texture)
+        # Severe clipping cannot be made visible by the zero padding introduced
+        # while rectifying the current image back into reference coordinates.
+        clipped=flow.cv2.warpAffine(self.texture,np.array([[1.,0.,170.],[0.,1.,0.]]),(192,160))
+        self.assertIsNone(tracker.observe(self.texture,clipped)[0])
+        self.assertFalse(tracker.active)
+
 
 if __name__=='__main__':
     unittest.main()

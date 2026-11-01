@@ -13,7 +13,7 @@ LIMITS = dict(forwardBackwardPixels=1.0, photometricError=12.0,
               planeFitPixels=1.5, heldOutRmsPixels=1.5, heldOutMaxPixels=3.0,
               minimumFeatures=16, minimumFitInliers=12, minimumInlierRatio=0.7,
               maximumFeatures=200, prefilterSigmaPixels=1.0, prefilterKernel=5,
-              referenceAgreementPixels=1.0)
+              referenceAgreementPixels=1.0, planeConsensusMaxPixels=3.0)
 
 
 def prepare(gray):
@@ -84,6 +84,20 @@ def flow(previous, current, points, initial=None, check_appearance=True):
     return moved, valid, score
 
 
+def check_plane_extrapolation(matrix, reference, points, roi):
+    # Small feature residuals do not bound error at the ROI edges when the
+    # remaining features occupy a narrow strip. An independently estimated
+    # held-out transform must also agree over the requested plane extent.
+    independent, _ = cv2.findHomography(reference, points, 0)
+    require(independent is not None, 'plane independent extrapolation fit failed')
+    independent = plane_matrix(independent, roi)
+    x, y, w, h = roi
+    probes = [[x,y], [x+w,y], [x+w,y+h], [x,y+h]]
+    disagreement = np.linalg.norm(transform(matrix,probes)-transform(independent,probes),axis=1)
+    require(float(disagreement.max()) <= LIMITS['planeConsensusMaxPixels'],
+            'plane independent extrapolation disagreement exceeds limit')
+
+
 class Tracker:
     def __init__(self, seed, gray):
         self.seed = seed
@@ -117,6 +131,7 @@ class Tracker:
         self.points, self.reference = points[inside], reference[inside]
         require(len(self.points) >= LIMITS['minimumFeatures'], 'plane has too few reference features')
         self.reference_gray,self.image_reference = gray,self.points.copy()
+        self.reference_matrix = matrix.copy()
         self.holdout = np.arange(len(self.points)) % 4 == 0
 
     def observe(self, previous, current):
@@ -137,11 +152,40 @@ class Tracker:
                 return None,0.
             self.points = anchored
             return dict(kind='point', pixels=anchored[0].astype(float).tolist()), float(min(scores[0],quality[0]))
-        # Independent holdouts cannot expose drift shared by every accumulated
-        # correspondence. Check their original-image cycles before using them
-        # for fitting OR validation. Only an explicit correction reseeds them.
-        anchored,checked,_ = flow(self.reference_gray,current,self.image_reference,
-            initial=moved,check_appearance=False)
+        # Fit only the fitting partition to predict a perspective warp. The
+        # independent holdouts do not contribute to that initialization.
+        fit_valid = valid & ~self.holdout
+        if np.count_nonzero(fit_valid) < LIMITS['minimumFitInliers']:
+            self.active,self.reason=False,'plane lost prediction features'
+            return None,0.
+        predicted,_ = cv2.findHomography(self.reference[fit_valid],moved[fit_valid],
+            cv2.RANSAC,LIMITS['planeFitPixels'],maxIters=2000,confidence=.995)
+        if predicted is None:
+            self.active,self.reason=False,'plane prediction RANSAC failed'
+            return None,0.
+        try:
+            plane_matrix(predicted,self.seed['roi'])
+            warp=predicted @ np.linalg.inv(self.reference_matrix)
+            extent=(self.reference_gray.shape[1],self.reference_gray.shape[0])
+            aligned=cv2.warpPerspective(current,warp,extent,
+                flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+            support=cv2.warpPerspective(np.full(current.shape,255,np.uint8),warp,extent,
+                flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+            # Include the 21-pixel LK window and its interpolation neighbours.
+            support=cv2.erode(support,np.ones((23,23),np.uint8),borderType=cv2.BORDER_CONSTANT,borderValue=0)
+            residual,checked,_=flow(self.reference_gray,aligned,self.image_reference,
+                initial=self.image_reference)
+            # Invalid flow coordinates must not enter integer conversion or a
+            # projective division. They remain rejected by the original mask.
+            residual=np.where(checked[:,None],residual,self.image_reference)
+            nearest=np.rint(residual).astype(np.int32)
+            nearest[:,0]=np.clip(nearest[:,0],0,extent[0]-1)
+            nearest[:,1]=np.clip(nearest[:,1],0,extent[1]-1)
+            checked &= support[nearest[:,1],nearest[:,0]]==255
+            anchored=transform(warp,residual)
+        except ValueError as cause:
+            self.active,self.reason=False,str(cause)
+            return None,0.
         valid &= checked & (np.linalg.norm(anchored-moved,axis=1)<=LIMITS['referenceAgreementPixels'])
         self.points,self.reference,self.holdout,self.image_reference = (
             anchored[valid],self.reference[valid],self.holdout[valid],self.image_reference[valid])
@@ -161,6 +205,7 @@ class Tracker:
             rms = float(np.sqrt(np.mean(errors**2)))
             require(int(np.sum(inliers)) >= LIMITS['minimumFitInliers'] and ratio >= LIMITS['minimumInlierRatio'], 'plane fit has too few inliers')
             require(rms <= LIMITS['heldOutRmsPixels'] and float(errors.max()) <= LIMITS['heldOutMaxPixels'], 'plane held-out residual exceeds limit')
+            check_plane_extrapolation(matrix,self.reference[self.holdout],self.points[self.holdout],self.seed['roi'])
         except ValueError as cause:
             self.active, self.reason = False, str(cause)
             return None, 0.

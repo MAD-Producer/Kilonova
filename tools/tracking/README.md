@@ -43,7 +43,14 @@ geometric cycle against the initial/explicitly corrected image. This catches
 shared accumulated drift that independent fit/holdout points alone cannot
 expose. Reference refinement uses the predicted location at full resolution;
 adjacent flow retains its original pyramid and photometric error gate.
-Reference images are shared immutable arrays, replaced only by explicit edits;
+For planes, fit points first predict a projective warp into the reference image;
+reference flow then measures residual motion in that rectified image, with the
+same photometric and cycle gates. Holdouts do not initialize the warp. Padded
+pixels cannot support an LK window, and independent fit/holdout transforms must
+agree within 3 pixels at all four requested ROI corners. This bounds one form
+of extrapolation instability, not arbitrary points outside the ROI or common
+model errors shared by both partitions. Reference images are shared immutable
+arrays, replaced only by explicit edits;
 at most one reference per admitted track is retained. These conservative checks
 can mark large scale/perspective changes lost earlier. The photographed benchmark
 is still **not accepted**; see `engineering/validation/tracking88-photographed-prototype-current.md`.
