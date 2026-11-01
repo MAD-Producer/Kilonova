@@ -82,9 +82,24 @@ No existing repository assertions or acceptance tolerances were changed.
 
 ## Native and remaining scope
 
-The existing native proof in `tracking88-prototype-current.md` qualifies the
-previous measured output. Native proof of the newly constrained output must be
-recorded separately before it is claimed. The photographed source itself uses
+`tracking88-prototype-native-v5` completed with exit 0 against committed code
+`3f9a3cfe` and the newly constrained synthetic-v4 output. It rebuilds the actual
+FFmpeg desktop executable and checks native original-source/timeline admission,
+both bindings, seven source-time GPU captures, undo/redo, strict missing-sample
+refusal, manual recovery with the historical error preserved, save/read-only
+reopen, and a fresh-session capture. All nine pixel-oracle captures pass.
+The new original SHA-256 is
+`3d83869cf562e3708faac68567a85cb1c429c538286805139927c9b26b04fc06`,
+and managed solve SHA-256 is
+`bf02b43596c206cef0d9451e08a98409076ede774a8257a87141a260ad05cf55`.
+`tracking88-reference-native-closeout-v1.zip` and its JSON receipt preserve
+the controller, code hashes, process records, raw protocol/log channels, project
+and captures. Original authored video bytes are referenced by verified SHA-256
+into `tracking88-reference-closeout-v1.zip`, not duplicated. This qualifies
+Windows native execution for that synthetic output, not real footage or a
+retained interactive Surface.
+
+The photographed source itself uses
 MPEG-4 Part 2, outside the current native VideoAsset codec set. No transcode is
 silently substituted for original native admission; a future explicit derived
 plate must retain its relationship to this source and verify its own identity.
@@ -95,7 +110,12 @@ They exclude original third-party video/annotations, photographs, derived image
 captures, generated per-frame tracking/annotation payloads and copied permission
 HTML. Numeric acquisition records and source URLs allow deliberate reproduction.
 
-Remaining: useful photographed-motion accuracy and coverage, the new output's
-native qualification, retained interactive Surface/cache behavior, atomic new
+Some abandoned intermediate experiments retain source hashes and numerical logs
+without complete source snapshots; the final source and the failed coarse-level
+synthetic source are preserved. These intermediate measurements are diagnostics,
+not claims of fully reproducible final acceptance.
+
+Remaining: useful photographed-motion accuracy and coverage,
+retained interactive Surface/cache behavior, atomic new
 plate/solve replacement, full maintained regression and exact-head cross-platform
 CI. Neither this measurement nor conservative missing output closes #88.

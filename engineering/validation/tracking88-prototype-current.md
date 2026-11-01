@@ -116,7 +116,9 @@ execution, not an interactive retained Surface or all supported platforms.
 
 ## Remaining acceptance
 
-- Photographed motion qualification; authored analytic texture is not real footage
+- Photographed motion acceptance: full-sequence measurement has now failed;
+  see `tracking88-photographed-prototype-current.md` for coverage, visible errors,
+  the reference-constraint change and its separate new native qualification
 - Full native regression and exact published-head cross-platform CI
 - Interactive retained Surface/cache behavior for the measured output
 - Product-facing tracker workflow and the other remaining #88 delivery items
