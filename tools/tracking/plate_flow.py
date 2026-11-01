@@ -12,7 +12,8 @@ from plate_contract import require
 LIMITS = dict(forwardBackwardPixels=1.0, photometricError=12.0,
               planeFitPixels=1.5, heldOutRmsPixels=1.5, heldOutMaxPixels=3.0,
               minimumFeatures=16, minimumFitInliers=12, minimumInlierRatio=0.7,
-              maximumFeatures=200, prefilterSigmaPixels=1.0, prefilterKernel=5)
+              maximumFeatures=200, prefilterSigmaPixels=1.0, prefilterKernel=5,
+              referenceAgreementPixels=1.0)
 
 
 def prepare(gray):
@@ -46,20 +47,26 @@ def plane_matrix(value, roi):
     return matrix
 
 
-def flow(previous, current, points):
+def flow(previous, current, points, initial=None, check_appearance=True):
     points = np.asarray(points, np.float32).reshape(-1, 1, 2)
     if len(points) == 0:
         return np.empty((0,2)), np.zeros(0, bool), np.zeros(0)
-    options = dict(winSize=(21,21), maxLevel=3,
+    # A supplied correspondence already comes from adjacent-frame pyramidal LK.
+    # Reference refinement stays at the full-resolution level: a coarse
+    # pyramid can select an unrelated basin even for a two-pixel true motion.
+    options = dict(winSize=(21,21), maxLevel=3 if initial is None else 0,
                    criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, .01),
                    minEigThreshold=1e-4)
-    moved, status, error = cv2.calcOpticalFlowPyrLK(previous, current, points, None, **options)
+    guess = None if initial is None else np.asarray(initial,np.float32).reshape(-1,1,2).copy()
+    flags = 0 if guess is None else cv2.OPTFLOW_USE_INITIAL_FLOW
+    moved, status, error = cv2.calcOpticalFlowPyrLK(previous, current, points, guess, flags=flags, **options)
     if moved is None:
         return np.zeros((len(points),2)), np.zeros(len(points),bool), np.zeros(len(points))
     finite = np.isfinite(moved).all(axis=(1,2))
     safe = moved.copy()
     safe[~finite] = 0
-    returned, backward, _ = cv2.calcOpticalFlowPyrLK(current, previous, safe, None, **options)
+    returned, backward, _ = cv2.calcOpticalFlowPyrLK(current, previous, safe,
+        points.copy() if initial is not None else None, flags=flags, **options)
     if returned is None:
         return moved.reshape(-1,2), np.zeros(len(points),bool), np.zeros(len(points))
     distance = np.linalg.norm(returned.reshape(-1,2)-points.reshape(-1,2),axis=1)
@@ -69,11 +76,11 @@ def flow(previous, current, points):
     valid = ((status.reshape(-1) != 0) & (backward.reshape(-1) != 0) & finite
              & np.isfinite(distance) & np.isfinite(error)
              & (distance <= LIMITS['forwardBackwardPixels'])
-             & (error <= LIMITS['photometricError'])
+             & ((error <= LIMITS['photometricError']) if check_appearance else True)
              & (moved[:,0] >= 0) & (moved[:,0] < width)
              & (moved[:,1] >= 0) & (moved[:,1] < height))
     score = np.zeros(len(points))
-    score[valid] = np.exp(-distance[valid]**2)*np.exp(-error[valid]/12.)
+    score[valid] = np.exp(-distance[valid]**2)*(np.exp(-error[valid]/12.) if check_appearance else 1.)
     return moved, valid, score
 
 
@@ -85,6 +92,9 @@ class Tracker:
         self.reference = self.points = self.holdout = None
         if seed['kind'] == 'point':
             self.points = np.array([seed['position']], np.float32)
+            # Share immutable image storage rather than copying it for every
+            # point. Only explicit manual corrections reset this reference.
+            self.reference_gray,self.reference_points = gray,self.points.copy()
             self.initial = dict(kind='point', pixels=list(seed['position']))
         else:
             self.initial = dict(kind='plane', matrix=np.eye(3).tolist())
@@ -106,6 +116,7 @@ class Tracker:
                   & (reference[:,1] >= y) & (reference[:,1] <= y+h))
         self.points, self.reference = points[inside], reference[inside]
         require(len(self.points) >= LIMITS['minimumFeatures'], 'plane has too few reference features')
+        self.reference_gray,self.image_reference = gray,self.points.copy()
         self.holdout = np.arange(len(self.points)) % 4 == 0
 
     def observe(self, previous, current):
@@ -116,9 +127,24 @@ class Tracker:
             if not valid[0]:
                 self.active, self.reason = False, 'point forward/backward or appearance check failed'
                 return None, 0.
-            self.points = moved
-            return dict(kind='point', pixels=moved[0].astype(float).tolist()), float(scores[0])
-        self.points, self.reference, self.holdout = moved[valid], self.reference[valid], self.holdout[valid]
+            # The existing adjacent-frame photometric check remains mandatory.
+            # A long-baseline reference tests geometric consistency: its raw
+            # unwarped patch brightness is not invariant to scale/perspective.
+            anchored,checked,quality = flow(self.reference_gray,current,self.reference_points,
+                initial=moved,check_appearance=False)
+            if not checked[0] or np.linalg.norm(anchored[0]-moved[0])>LIMITS['referenceAgreementPixels']:
+                self.active,self.reason = False,'point explicit-reference cycle or agreement check failed'
+                return None,0.
+            self.points = anchored
+            return dict(kind='point', pixels=anchored[0].astype(float).tolist()), float(min(scores[0],quality[0]))
+        # Independent holdouts cannot expose drift shared by every accumulated
+        # correspondence. Check their original-image cycles before using them
+        # for fitting OR validation. Only an explicit correction reseeds them.
+        anchored,checked,_ = flow(self.reference_gray,current,self.image_reference,
+            initial=moved,check_appearance=False)
+        valid &= checked & (np.linalg.norm(anchored-moved,axis=1)<=LIMITS['referenceAgreementPixels'])
+        self.points,self.reference,self.holdout,self.image_reference = (
+            anchored[valid],self.reference[valid],self.holdout[valid],self.image_reference[valid])
         fit = ~self.holdout
         if np.count_nonzero(fit) < LIMITS['minimumFitInliers'] or np.count_nonzero(self.holdout) < 4:
             self.active, self.reason = False, 'plane lost fit or held-out features'
@@ -147,6 +173,7 @@ class Tracker:
             observation = edit['observation']
             if self.seed['kind'] == 'point':
                 self.points = np.asarray([observation['pixels']], np.float32)
+                self.reference_gray,self.reference_points = gray,self.points.copy()
             else:
                 matrix = plane_matrix(observation['matrix'], self.seed['roi'])
                 try:

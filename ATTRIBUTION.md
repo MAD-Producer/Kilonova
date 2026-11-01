@@ -1,5 +1,26 @@
 # 第三方归属说明 / Third-party attribution
 
+## External photographed planar-tracking qualification data
+
+- Authors: Karel Zimmermann, Jiri Matas and Tomas Svoboda; the source page
+  credits collection of ground truth and support code to Karel Zimmermann
+- Source: [Ground truth data for tracking of (almost) planar objects](https://cmp.felk.cvut.cz/cmp/demos/Tracking/linTrack/data/index.html),
+  phone/mouse-pad original 100 fps videos and corresponding ground-truth ZIPs
+- Revision: source page last-change stamp 2009-03-02; retrieved 2026-11-01.
+  Exact URLs, byte lengths and SHA-256 identities are retained per local run
+- Permission statement: the authors describe the provided data as entirely
+  public and request citation of the publication below. No standard SPDX license
+  is specified. This is recorded as the source's custom public-use statement,
+  not represented as Apache/MIT/Creative Commons permission
+- Citation: K. Zimmermann, J. Matas, T. Svoboda, "Tracking by an Optimal Sequence
+  of Linear Predictors", IEEE TPAMI 31(4), 2009
+- Scope: external local validation only. Original videos/annotations and copied
+  source-page permission evidence stay outside version control and product/CI
+  packages. No upstream MATLAB implementation is copied or executed. Independently
+  authored code reads the four manually annotated corners and compares them to
+  automatic observations. Any coordinate/index convention and derived artifacts
+  must be documented separately before claiming an accepted measurement
+
 ## Optional external point and planar tracking prototype
 
 - Authors and revisions: OpenCV team/wheel contributors, separately installed

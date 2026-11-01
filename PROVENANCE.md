@@ -1,5 +1,12 @@
 # Motion Studio 来源说明 / Provenance
 
+External photographed planar-tracking qualification uses the Zimmermann/Matas/
+Svoboda benchmark's original videos and independent corner annotations under its
+documented custom public-use statement. These materials remain local validation
+inputs, not repository/product assets. No upstream MATLAB implementation is
+copied or executed. Source revisions, permission limits and citation are recorded
+in ATTRIBUTION.md; each acquisition retains exact URLs and SHA-256 identities.
+
 The optional #88 point/planar tracking prototype interoperates with explicitly
 selected local FFmpeg tools and separately installed OpenCV/NumPy. It copies no
 upstream tutorial implementation or assets, adds no product dependency and

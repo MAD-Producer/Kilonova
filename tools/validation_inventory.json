@@ -424,6 +424,12 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
     },
+    "tools/tracking/test_flow.py": {
+      "mode": "manual",
+      "command": "python tools/tracking/test_flow.py -v",
+      "requires": ["External opencv-python-headless 5.0.0.93 and NumPy 2.4.6"],
+      "reason": "Actual optical-flow translation, explicit-reference contradiction, loss/manual recovery and preservation of adjacent-frame appearance rejection; CV remains an optional developer dependency"
+    },
     "tools/tracking/track_plate.py": {
       "mode": "manual",
       "command": "python tools/tracking/track_plate.py --source <original-video> --request <bounded-request.json> --output <new-directory> --ffmpeg <local-ffmpeg> --ffprobe <local-ffprobe>",

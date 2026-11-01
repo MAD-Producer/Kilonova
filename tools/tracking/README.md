@@ -38,7 +38,17 @@ oversized source instead of silently truncating it.
 
 Automatic observations use forward/backward optical flow. Planes additionally
 require RANSAC inliers and independent held-out correspondences. A lost track
-stays lost until an explicit correction. Each correction has `track`,
+stays lost until an explicit correction. Adjacent-frame flow also requires a
+geometric cycle against the initial/explicitly corrected image. This catches
+shared accumulated drift that independent fit/holdout points alone cannot
+expose. Reference refinement uses the predicted location at full resolution;
+adjacent flow retains its original pyramid and photometric error gate.
+Reference images are shared immutable arrays, replaced only by explicit edits;
+at most one reference per admitted track is retained. These conservative checks
+can mark large scale/perspective changes lost earlier. The photographed benchmark
+is still **not accepted**; see `engineering/validation/tracking88-photographed-prototype-current.md`.
+
+Each correction has `track`,
 `source_index`, `visibility`, and `observation`. A visible observation is
 `{"kind":"point","pixels":[x,y]}` or
 `{"kind":"plane","matrix":[[a,b,c],[d,e,f],[g,h,i]]}`. Plane matrices map
@@ -70,3 +80,9 @@ The evaluator hides analytic motion from automatic tracking, checks independent
 geometry, loss/manual recovery, and default-level Error suppression. It records
 the actual encoded file identity; container bytes can differ across encodes.
 Ordinary CI admission tests need neither OpenCV nor FFmpeg.
+
+Run optional real-CV reference-cycle controls in the same credited environment:
+
+```text
+python tools/tracking/test_flow.py -v
+```
