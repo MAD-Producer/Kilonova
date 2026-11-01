@@ -41,7 +41,9 @@ pub(in crate::panels) struct Data {
     samples: Samples,
     pub dimensions: Vec<usize>,
     pub frames: Vec<u32>,
-    pub spatial_frames: Vec<(u64,f64)>,
+    pub spatial_frames: Vec<(u64, f64)>,
+    pub local_frames: Vec<(i32, f64)>,
+    clock: motion_core::layer_time::LayerClock,
     pub unit: Unit,
     pub title: String,
     channel_title: String,
@@ -74,7 +76,9 @@ fn decode<T: Tween + serde::de::DeserializeOwned>(value: &Value) -> Result<Track
     let track: Track<T> = serde_json::from_value(value.clone())
         .map_err(|e| Unavailable::Fault(crate::fallback_observation::error_cause(e)))?;
     if track.axes.is_some() {
-        return Err(Unavailable::Fault("resolved channel is still separated".into()));
+        return Err(Unavailable::Fault(
+            "resolved channel is still separated".into(),
+        ));
     }
     track
         .validate_local()
@@ -96,10 +100,28 @@ fn property_title(property: Property, locale: Locale) -> &'static str {
         Property::Elevation => T::CameraElevation,
     })
 }
-fn spatial_frames<T:Tween>(track:&Track<T>,offset:i64,state:&Value)->Vec<(u64,f64)> {
-    track.spatial_animation.iter().flat_map(|a|a.prepared().keys())
-        .map(|(id,time)|(id,time+offset as f64))
-        .filter(|(_,time)|*time>=0. && *time<=last_frame(state)).collect()
+fn spatial_frames<T: Tween>(
+    track: &Track<T>,
+    offset: i32,
+    clock: motion_core::layer_time::LayerClock,
+    state: &Value,
+) -> Result<Vec<(u64, f64)>, Unavailable> {
+    track
+        .spatial_animation
+        .iter()
+        .flat_map(|a| a.prepared().keys())
+        .map(|(id, time)| {
+            clock
+                .projected_composition_frame(time, offset)
+                .map(|time| (id, time))
+                .map_err(|e| Unavailable::Fault(e.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(|keys| {
+            keys.into_iter()
+                .filter(|(_, t)| *t >= 0. && *t <= last_frame(state))
+                .collect()
+        })
 }
 pub(in crate::panels) fn load(
     state: &Value,
@@ -108,6 +130,10 @@ pub(in crate::panels) fn load(
 ) -> Result<Data, Unavailable> {
     let (track, offset) =
         super::super::key_selection::authored_track(state, target).ok_or(Unavailable::Missing)?;
+    let offset = i32::try_from(offset)
+        .map_err(|_| Unavailable::Fault("comparison clip offset out of range".into()))?;
+    let clock = super::super::key_selection::property_clock(state, target.object())
+        .map_err(|e| Unavailable::Fault(e.to_string()))?;
     let value = &track["value"];
     let count = if value.is_number() {
         1
@@ -125,37 +151,47 @@ pub(in crate::panels) fn load(
         3 => Samples::Vec3(decode(track)?),
         _ => Samples::Vec4(decode(track)?),
     };
-    let spatial_frames=match &samples {
-        Samples::Scalar(t)=>spatial_frames(t,offset,state),
-        Samples::Vec2(t)=>spatial_frames(t,offset,state),
-        Samples::Vec3(t)=>spatial_frames(t,offset,state),
-        Samples::Vec4(t)=>spatial_frames(t,offset,state),
+    let spatial_frames = match &samples {
+        Samples::Scalar(t) => spatial_frames(t, offset, clock, state)?,
+        Samples::Vec2(t) => spatial_frames(t, offset, clock, state)?,
+        Samples::Vec3(t) => spatial_frames(t, offset, clock, state)?,
+        Samples::Vec4(t) => spatial_frames(t, offset, clock, state)?,
     };
     let layer = super::super::keyframe_clipboard::layer(state, target.object());
     let layer_name = layer.and_then(|l| l["name"].as_str()).unwrap_or("Camera");
+    let mapped = clock != motion_core::layer_time::LayerClock::default();
+    let mut frames = vec![];
+    let mut local_frames = vec![];
+    for key in track["keys"].as_array().into_iter().flatten() {
+        let frame = key["frame"]
+            .as_i64()
+            .and_then(|f| i32::try_from(f).ok())
+            .ok_or_else(|| Unavailable::Fault("comparison authored key time invalid".into()))?;
+        let time = clock
+            .projected_composition_frame(f64::from(frame), offset)
+            .map_err(|e| Unavailable::Fault(e.to_string()))?;
+        if time >= 0. && time <= last_frame(state) {
+            if mapped {
+                local_frames.push((frame, time));
+            } else {
+                frames.push(time as u32);
+            }
+        }
+    }
     let mut data = Data {
         samples,
         spatial_frames,
+        local_frames,
+        clock,
         dimensions: (0..count).collect(),
-        frames: track["keys"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|k| {
-                k["frame"]
-                    .as_i64()?
-                    .checked_add(offset)
-                    .and_then(|f| u32::try_from(f).ok())
-                    .filter(|f| f64::from(*f) <= last_frame(state))
-            })
-            .collect(),
+        frames,
         unit: Unit::Native {
             identity: "value".into(),
             label: "value".into(),
         },
         title: layer_name.into(),
         channel_title: String::new(),
-        offset,
+        offset: i64::from(offset),
         scales: [1.; 4],
         limits: None,
         discrete: false,
@@ -317,29 +353,72 @@ pub(in crate::panels) fn load(
     Ok(data)
 }
 impl Data {
-    pub fn addressed_frames<'a>(&'a self,target:&'a KeyframeTarget)
-        ->impl Iterator<Item=(super::super::key_selection::AddressedKey,f64)>+'a {
-        use super::super::key_selection::{Key,SpatialKey};
-        self.frames.iter().map(move |frame|(Key {target:target.clone(),frame:*frame}.into(),f64::from(*frame)))
-            .chain(self.spatial_frames.iter().map(move |(id,time)|(SpatialKey {target:target.clone(),id:*id}.into(),*time)))
+    pub fn addressed_frames<'a>(
+        &'a self,
+        target: &'a KeyframeTarget,
+    ) -> impl Iterator<Item = (super::super::key_selection::AddressedKey, f64)> + 'a {
+        use super::super::key_selection::{Key, LocalKey, SpatialKey};
+        self.frames
+            .iter()
+            .map(move |frame| {
+                (
+                    Key {
+                        target: target.clone(),
+                        frame: *frame,
+                    }
+                    .into(),
+                    f64::from(*frame),
+                )
+            })
+            .chain(self.local_frames.iter().map(move |(frame, time)| {
+                (
+                    LocalKey {
+                        target: target.clone(),
+                        frame: *frame,
+                    }
+                    .into(),
+                    *time,
+                )
+            }))
+            .chain(self.spatial_frames.iter().map(move |(id, time)| {
+                (
+                    SpatialKey {
+                        target: target.clone(),
+                        id: *id,
+                    }
+                    .into(),
+                    *time,
+                )
+            }))
     }
-    fn knots(&self, start: f64, end: f64) -> impl Iterator<Item = f64> + '_ {
+    fn knots(
+        &self,
+        start: f64,
+        end: f64,
+    ) -> Result<
+        impl Iterator<Item = f64> + '_,
+        super::super::graph_adaptive::Failure<motion_core::Error>,
+    > {
         let offset = self.offset as f64;
-        let base: Box<dyn Iterator<Item = f64> + '_> = match &self.samples {
-            Samples::Scalar(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
-            Samples::Vec2(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
-            Samples::Vec3(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
-            Samples::Vec4(track) => Box::new(graph_sampling::knots(track, start, end, offset)),
+        let base = match &self.samples {
+            Samples::Scalar(t) => graph_sampling::mapped_knots(t, start, end, offset, self.clock)?,
+            Samples::Vec2(t) => graph_sampling::mapped_knots(t, start, end, offset, self.clock)?,
+            Samples::Vec3(t) => graph_sampling::mapped_knots(t, start, end, offset, self.clock)?,
+            Samples::Vec4(t) => graph_sampling::mapped_knots(t, start, end, offset, self.clock)?,
         };
         let steps = self
             .frames
             .iter()
-            .flat_map(|frame| {
-                let frame = f64::from(*frame);
-                [frame.next_down(), frame]
+            .map(|f| f64::from(*f))
+            .chain(self.local_frames.iter().map(|(_, t)| *t))
+            .flat_map(|t| {
+                [t.next_down(), t].into_iter().chain(
+                    (self.clock != motion_core::layer_time::LayerClock::default())
+                        .then_some(t.next_up()),
+                )
             })
-            .filter(move |frame| self.discrete && *frame >= start && *frame <= end);
-        super::super::graph_adaptive::merge_knots(base, steps)
+            .filter(move |t| self.discrete && *t >= start && *t <= end);
+        Ok(super::super::graph_adaptive::merge_knots(base, steps))
     }
     pub fn adaptive(
         &self,
@@ -351,7 +430,7 @@ impl Data {
         tolerance: f64,
     ) -> Result<Vec<(f64, f32)>, super::super::graph_adaptive::Failure<motion_core::Error>> {
         super::super::graph_adaptive::sample(
-            self.knots(interval[0], interval[1]),
+            self.knots(interval[0], interval[1])?,
             scale,
             tolerance,
             |frame| self.sample(frame, component, fps, speed).map(f64::from),
@@ -382,7 +461,7 @@ impl Data {
         };
         let [start, end] = interval;
         let x = Range::fitted(start, end, 0.05, 1.).ok_or(Failure::InvalidGeometry)?;
-        let [low, high] = graph_adaptive::extrema(self.knots(start, end), |frame| {
+        let [low, high] = graph_adaptive::extrema(self.knots(start, end)?, |frame| {
             self.sample(frame, component, fps, speed).map(f64::from)
         })?
         .ok_or(Failure::InvalidGeometry)?;
@@ -413,10 +492,10 @@ impl Data {
         self.limits
     }
     pub fn title(&self, component: usize) -> String {
-        self.component_title(&self.title,component)
+        self.component_title(&self.title, component)
     }
     pub fn readout_title(&self, component: usize) -> String {
-        self.component_title(&self.channel_title,component)
+        self.component_title(&self.channel_title, component)
     }
     fn component_title(&self, title: &str, component: usize) -> String {
         if self.dimensions.len() > 1 {
@@ -443,7 +522,11 @@ impl Data {
         fps: f64,
         speed: bool,
     ) -> motion_core::Result<f32> {
-        let local = frame - self.offset as f64;
+        let local = if self.clock == motion_core::layer_time::LayerClock::default() {
+            frame - self.offset as f64
+        } else {
+            self.clock.local_frame(frame, self.offset as i32)?
+        };
         let (value, velocity) = match &self.samples {
             Samples::Scalar(t) => (
                 t.sample(local)?,
@@ -480,7 +563,7 @@ impl Data {
             {
                 0.
             } else {
-                velocity as f32
+                (velocity * self.clock.rate()) as f32
             }
         } else {
             self.limits

@@ -50,6 +50,117 @@ fn apply(engine: &mut Engine, value: Value) {
 }
 
 #[test]
+fn local_curve_updates_share_one_gesture_preserve_failed_updates_and_roundtrip_history() {
+    use motion_core::{
+        Command, Curve, CurveShape, CurveSpace, Easing, Error, KeyframeTarget, LocalKeyEdit,
+        Property,
+    };
+    for wrapped in [false, true] {
+        for commit in [false, true] {
+            let mut engine = fixture();
+            let before = engine.snapshot();
+            let make = |frame, x| {
+                let command = Command::LocalKeyframes {
+                    target: KeyframeTarget::Property {
+                        object: 7,
+                        property: Property::Position,
+                        axis: None,
+                    },
+                    edit: LocalKeyEdit::Curve {
+                        frames: vec![frame],
+                        easing: Easing {
+                            ease: Ease::Linear,
+                            curve: Some(Curve {
+                                space: CurveSpace::Progress,
+                                shape: CurveShape::Cubic {
+                                    control1: [x, 0.],
+                                    control2: [0.8, 1.],
+                                    start: 0.,
+                                    end: 1.,
+                                },
+                            }),
+                        },
+                    },
+                };
+                if wrapped {
+                    Command::InComposition {
+                        composition: before.composition_id.clone(),
+                        command: Box::new(command),
+                    }
+                } else {
+                    command
+                }
+            };
+            engine.begin_gesture().unwrap();
+            for x in [0.2, 0.4] {
+                let command = make(3, x);
+                assert!(!command.composition_transaction());
+                engine.apply(command).unwrap();
+                assert!(!engine.can_undo());
+            }
+            let preview = engine.snapshot();
+            let revision = engine.revision();
+            let cause = engine
+                .apply_batch(vec![make(3, 0.6), make(4, 0.2)])
+                .unwrap_err();
+            assert!(
+                cause
+                    .to_string()
+                    .contains("selected keyframe does not exist")
+                    && cause.to_string().contains("phase=local_curve object=7"),
+                "{cause}"
+            );
+            assert_eq!(
+                engine.project(),
+                &preview,
+                "a failed update cannot erase the prior preview"
+            );
+            assert_eq!(engine.revision(), revision);
+            for edit in [
+                LocalKeyEdit::Delete { frames: vec![3] },
+                LocalKeyEdit::Translate {
+                    frames: vec![3],
+                    delta_frame: 1,
+                    copy: false,
+                    value_offset: None,
+                },
+                LocalKeyEdit::Automatic {
+                    frames: vec![3],
+                    enabled: true,
+                },
+            ] {
+                let command = Command::LocalKeyframes {
+                    target: KeyframeTarget::Property {
+                        object: 7,
+                        property: Property::Position,
+                        axis: None,
+                    },
+                    edit,
+                };
+                assert!(command.composition_transaction());
+                assert!(matches!(engine.apply(command), Err(Error::Gesture)));
+                assert_eq!(engine.project(), &preview);
+            }
+            engine.end_gesture(commit).unwrap();
+            if commit {
+                assert_eq!(engine.project(), &preview);
+                let root = tempfile::tempdir().unwrap();
+                motion_core::storage::save(root.path(), engine.project()).unwrap();
+                assert_eq!(motion_core::storage::load(root.path()).unwrap(), preview);
+                assert!(engine.undo().unwrap());
+                assert_eq!(engine.project(), &before);
+                assert!(!engine.can_undo());
+                assert!(engine.redo().unwrap());
+                assert_eq!(engine.project(), &preview);
+            } else {
+                assert_eq!(engine.project(), &before);
+                assert!(!engine.can_undo());
+            }
+        }
+    }
+}
+
+#[test]
 fn fractional_projection_moves_by_local_identity_and_preserves_undo_and_save() {
     let mut engine = fixture();
     let before = engine.snapshot();

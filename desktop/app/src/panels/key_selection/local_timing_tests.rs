@@ -10,6 +10,8 @@ mod native;
 mod typed;
 #[path = "local_clipboard_tests.rs"]
 mod clipboard;
+#[path = "local_graph_tests.rs"]
+mod graphs;
 
 fn local(object: u64, axis: Option<Axis>, frame: i32) -> AddressedKey {
     LocalKey {

@@ -136,6 +136,7 @@ struct KeyDrag {
     bounds: Option<[f32; 2]>,
 }
 struct HandleDrag {
+    local: Option<(i32, motion_core::layer_time::LayerClock,i32)>,
     target: Target,
     frame: u32,
     index: usize,
