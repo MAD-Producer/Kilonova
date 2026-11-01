@@ -143,7 +143,7 @@ fn automatic(
     Ok(bounds)
 }
 
-fn selection(
+pub(super) fn selection(
     state: &Value,
     target: &KeyframeTarget,
     start: i64,
@@ -153,8 +153,16 @@ fn selection(
     easing: Easing,
     automatic: Bounds,
 ) -> Option<Bounds> {
-    let end = end.filter(|end| start >= 0 && *end > start)?;
+    let mapped = super::time::mapped(state, target);
+    let end = end.filter(|end| (mapped || start >= 0) && *end > start)?;
     let selected = |frame: i64| {
+        if mapped {
+            let frame = i32::try_from(frame).ok()?;
+            return Some(context.selection.status(state) == Status::Current
+                && context.selection.contains_addressed(&key_selection::AddressedKey::Local(key_selection::LocalKey {
+                    target: target.clone(), frame,
+                })));
+        }
         let frame = u32::try_from(frame).ok()?;
         Some(match context.selection.status(state) {
             Status::Current => context.selection.contains(&key_selection::Key {
@@ -488,7 +496,7 @@ impl View {
         (graph, bounds)
     }
 
-    fn actual_readout(
+    pub(super) fn actual_readout(
         &mut self,
         state: &Value,
         locale: Locale,
@@ -500,8 +508,22 @@ impl View {
         mut title: String,
         mut lines: Vec<String>,
     ) -> (String, Vec<String>) {
-        let Some(frame) = interval_frame(start, end, time) else {
-            return (title, lines);
+        let frame = if super::time::mapped(state, target) {
+            let Some(end) = end.filter(|end| *end > start) else { return (title, lines); };
+            if !time.is_finite() || !(0. ..=1.).contains(&time) { return (title, lines); }
+            let local = start as f64 + (end - start) as f64 * time;
+            let projected = super::super::property_authoring::clock(state, target.object())
+                .and_then(|(clock, offset)| clock.projected_composition_frame(local, offset));
+            let Some(frame) = observe!("curve.mini.readout_clock", projected,
+                "phase=project target={target:?} local={local} generation={:?} revision={:?}",
+                state["document_generation"].as_u64(), state["revision"].as_u64()).ok() else {
+                lines.push(if locale == Locale::Zh { "实际读数不可用" } else { "Actual readout unavailable" }.into());
+                return (title, lines);
+            };
+            frame
+        } else {
+            let Some(frame) = interval_frame(start, end, time) else { return (title, lines); };
+            frame
         };
         let source = crate::layer_clipboard::KeyframeSource::of(state);
         if self

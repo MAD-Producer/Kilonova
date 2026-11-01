@@ -133,6 +133,7 @@ impl Controls {
         self.choose_track_in(state, object, property, axis);
         self.selected_key = Some(frame);
         self.key_explicit = true;
+        self.key_local = false;
     }
 
     /// A default graph projection must not replace an explicit or stale selection.

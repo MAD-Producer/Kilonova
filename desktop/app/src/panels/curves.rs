@@ -67,5 +67,11 @@ pub(super) fn render(
                 focused: panels.focused,
             }),
         );
+        if let Some(key) = panels.animation_controls.take_local_selection() {
+            let _ = observe!("curve.controls.selection",
+                panels.selected_keys.apply_addressed(state, key.map(super::key_selection::AddressedKey::Local),
+                    super::key_selection::Mode::Replace),
+                "object={object:?} phase=local_selection");
+        }
     }
 }
