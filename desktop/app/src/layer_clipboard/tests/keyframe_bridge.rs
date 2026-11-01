@@ -40,6 +40,7 @@ fn read_keys(engine: &Engine, frames: Vec<u32>) -> KeyframeRead {
     let source = KeyframeSource::of(&engine.state().unwrap());
     engine
         .call(|reply| Request::KeyframeClipboardRead {
+            local_selections: vec![],
             source,
             selections: selection(frames),
             reply,
@@ -80,7 +81,7 @@ fn begin(
             engine,
             intent,
             KeyframeSource::of(&engine.state().unwrap()),
-            selection(frames),
+            selection(frames), vec![],
             targets
         )
         .unwrap());
@@ -101,7 +102,7 @@ fn typed_transport_pastes_payload_larger_than_json_limit_and_undoes_once() {
     let command = motion_core::Command::PasteKeyframes {
         clipboard: Box::new((*clipboard).clone()),
         targets: vec![target(9)],
-        at_frame: Some(6000),
+        at_frame: Some(6000.),
     };
     let json = serde_json::to_string(&command).unwrap();
     assert!(
@@ -120,7 +121,7 @@ fn typed_transport_pastes_payload_larger_than_json_limit_and_undoes_once() {
                 stamp: read.stamp,
                 clipboard,
                 targets: vec![target(9)],
-                at_frame: Some(6000),
+                at_frame: Some(6000.),
                 cancel: Arc::new(AtomicBool::new(false)),
             },
             reply,
@@ -158,7 +159,7 @@ fn separate_caches_survive_failed_copy_and_share_one_pending_slot() {
             &engine,
             Intent::Paste { in_place: true },
             KeyframeSource::of(&engine.state().unwrap()),
-            vec![],
+            vec![], vec![],
             vec![target(9)]
         )
         .unwrap());
@@ -167,7 +168,7 @@ fn separate_caches_survive_failed_copy_and_share_one_pending_slot() {
             &engine,
             Intent::Copy,
             KeyframeSource::of(&engine.state().unwrap()),
-            vec![],
+            vec![], vec![],
             vec![]
         )
         .unwrap());
@@ -179,7 +180,7 @@ fn separate_caches_survive_failed_copy_and_share_one_pending_slot() {
             &engine,
             Intent::Copy,
             KeyframeSource::of(&engine.state().unwrap()),
-            selection(vec![0]),
+            selection(vec![0]), vec![],
             vec![]
         )
         .unwrap());
@@ -322,7 +323,7 @@ fn cancellation_waits_for_reply_and_queued_commit_is_a_noop() {
         .unwrap();
     ready_wait.recv_timeout(Duration::from_secs(10)).unwrap();
     assert!(clipboard
-        .start_keyframes(&engine, Intent::Cut, source, selection(vec![0, 1]), vec![])
+        .start_keyframes(&engine, Intent::Cut, source, selection(vec![0, 1]), vec![], vec![])
         .unwrap());
     clipboard.cancel();
     assert!(clipboard.poll(&engine, true).is_none());
@@ -427,15 +428,14 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
             vec![KeyframeSelection {
                 target: target(404),
                 frames: vec![0],
-            }],
-        )
+            }], vec![])
         .unwrap();
         assert!(
             rejected.superseded && rejected.clipboard.is_none(),
             "{field}"
         );
     }
-    let read = read_keyframes(&session, source.clone(), selection(vec![0, 1])).unwrap();
+    let read = read_keyframes(&session, source.clone(), selection(vec![0, 1]), vec![]).unwrap();
     let clipboard = read.clipboard.unwrap();
     session
         .replace_project(
@@ -445,7 +445,7 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
         .unwrap();
     assert_eq!(read.stamp.revision, session.engine.revision());
     assert_ne!(read.stamp.generation, session.document_generation);
-    let rejected_read = read_keyframes(&session, source, selection(vec![0, 1])).unwrap();
+    let rejected_read = read_keyframes(&session, source, selection(vec![0, 1]), vec![]).unwrap();
     assert!(rejected_read.superseded && rejected_read.clipboard.is_none());
     for edit in [
         Edit::CutKeyframes {
@@ -457,7 +457,7 @@ fn document_generation_rejects_cut_and_paste_even_when_root_and_revision_are_reu
             stamp: read.stamp.clone(),
             clipboard,
             targets: vec![target(9)],
-            at_frame: Some(30),
+            at_frame: Some(30.),
             cancel: Arc::new(AtomicBool::new(false)),
         },
     ] {
@@ -537,7 +537,7 @@ fn queued_source_is_bound_before_composition_switch_and_never_replaces_the_cache
             &engine,
             Intent::Copy,
             source.clone(),
-            selection(vec![0, 1]),
+            selection(vec![0, 1]), vec![],
             vec![]
         )
         .unwrap());
@@ -556,7 +556,7 @@ fn queued_source_is_bound_before_composition_switch_and_never_replaces_the_cache
                 &engine,
                 intent,
                 source.clone(),
-                selection(vec![0, 1]),
+                selection(vec![0, 1]), vec![],
                 vec![target(9)]
             )
             .unwrap());
@@ -603,6 +603,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         stale["revision"] = (stale["revision"].as_u64().unwrap() + 1).into();
         let superseded = engine
             .call(|reply| Request::KeyframeClipboardRead {
+                local_selections: vec![],
                 source: KeyframeSource::of(&stale),
                 selections: vec![KeyframeSelection {
                     target: target(404),
@@ -620,6 +621,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         );
         let source = KeyframeSource::of(&engine.state().unwrap());
         let failure = engine.call(|reply| Request::KeyframeClipboardRead {
+            local_selections: vec![],
             source,
             selections: vec![KeyframeSelection {
                 target: target(404),
@@ -640,7 +642,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
                     stamp,
                     clipboard: clipboard.clone(),
                     targets: vec![target(9)],
-                    at_frame: Some(30),
+                    at_frame: Some(30.),
                     cancel: Arc::new(AtomicBool::new(false)),
                 },
                 reply,
@@ -650,6 +652,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
         let source = KeyframeSource::of(&engine.state().unwrap());
         let read = engine
             .call(|reply| Request::KeyframeClipboardRead {
+                local_selections: vec![],
                 source,
                 selections: vec![],
                 reply,
@@ -688,6 +691,7 @@ fn typed_failures_and_queued_panic_reply_reach_default_error_outputs() {
             .unwrap();
         let queued = engine
             .request(|reply| Request::KeyframeClipboardRead {
+                local_selections: vec![],
                 source,
                 selections: selection(vec![0]),
                 reply,

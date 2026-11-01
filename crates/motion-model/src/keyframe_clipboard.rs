@@ -13,6 +13,7 @@ mod handle;
 mod easing;
 pub mod curve_clipboard;
 mod transform;
+pub use transfer_time::{KeyframeTimeSpace, LocalKeyframeSelection};
 pub mod timing;
 pub mod spatial;
 pub mod local;
@@ -206,6 +207,7 @@ pub enum KeyframeData {
 pub struct KeyframeClipTrack {
     pub source: KeyframeTarget,
     pub signature: String,
+    pub time_space: KeyframeTimeSpace,
     pub data: KeyframeData,
 }
 
@@ -227,6 +229,8 @@ macro_rules! key_data {
         }
     };
 }
+
+mod transfer_time;
 
 fn capture<T: Clone>(
     keys: &[Keyframe<T>],
@@ -265,6 +269,12 @@ fn capture<T: Clone>(
 impl KeyframeClipboard {
     pub fn capture(project: &Project, selection: &[KeyframeSelection]) -> Result<Self> {
         ensure(!selection.is_empty(), "invalid clipboard track count")?;
+        if selection.iter().any(|s|project.layers.iter().any(|l|l.id==s.target.object() && l.time_mapping.is_some())) {
+            let local=selection.iter().map(|s|Ok(LocalKeyframeSelection {
+                target:s.target.clone(),frames:s.frames.iter().map(|frame|project.edit_frame(s.target.object(),*frame)).collect::<Result<Vec<_>>>()?,
+            })).collect::<Result<Vec<_>>>()?;
+            return Self::capture_mixed(project,&[],&local);
+        }
         let mut seen = BTreeSet::new();
         let mut tracks = vec![];
         let mut bytes = 0usize;
@@ -291,6 +301,7 @@ impl KeyframeClipboard {
                 Ok(KeyframeClipTrack {
                     source: selected.target.clone(),
                     signature,
+                    time_space: KeyframeTimeSpace::Composition,
                     data,
                 })
             })()
@@ -330,12 +341,14 @@ impl KeyframeClipboard {
             ensure(
                 !frames.is_empty()
                     && frames.len() <= crate::MAX_FRAMES as usize
-                    && frames
-                        .iter()
-                        .all(|f| *f >= 0 && (*f as u32) < crate::MAX_FRAMES)
                     && frames.windows(2).all(|w| w[0] < w[1]),
                 "clipboard keys must have unique sorted composition times",
             )?;
+            for frame in frames {
+                let composition = track.time_space.composition(frame)?;
+                ensure((0. ..f64::from(crate::MAX_FRAMES)).contains(&composition),
+                    "clipboard keys must have unique sorted composition times")?;
+            }
             fn validate_keys<T: Tween>(keys: &[Keyframe<T>]) -> Result<()> {
                 Track {
                     spatial_animation: None,
@@ -377,7 +390,7 @@ impl KeyframeClipboard {
         &self,
         project: &mut Project,
         targets: &[KeyframeTarget],
-        at_frame: Option<u32>,
+        at_frame: Option<f64>,
     ) -> Result<()> {
         self.validate()?;
         ensure(
@@ -387,10 +400,11 @@ impl KeyframeClipboard {
         let earliest = self
             .tracks
             .iter()
-            .map(|t| key_data!(&t.data, k => k[0].frame))
-            .min()
-            .unwrap_or(0);
-        let delta = at_frame.map_or(0, |frame| i64::from(frame) - i64::from(earliest));
+            .map(|t| key_data!(&t.data, k => k.iter().map(|k|t.time_space.composition(k.frame)).collect::<Result<Vec<_>>>()))
+            .collect::<Result<Vec<_>>>()?.into_iter().flatten()
+            .min_by(f64::total_cmp)
+            .ok_or_else(||Error::Invalid("clipboard contains no keys".into()))?;
+        if let Some(frame)=at_frame {ensure(frame.is_finite(),"clipboard playhead time is non-finite")?;}
         let mut seen = BTreeSet::new();
         for (source, target) in self.tracks.iter().zip(targets) {
             (|| -> Result<()> {
@@ -403,33 +417,12 @@ impl KeyframeClipboard {
                     source.signature == target.signature(project)?,
                     "clipboard source and destination properties differ",
                 )?;
-                let offset = if target.object() == 0 {
-                    0
-                } else {
-                    project
-                        .layers
-                        .iter()
-                        .find(|l| l.id == target.object())
-                        .ok_or(Error::Missing(target.object()))?
-                        .clip(project.frames)
-                        .offset_frame
-                };
+                let destination = transfer_time::destination(project, target)?;
                 let frames = project.frames;
                 macro_rules! insert {
                     ($keys:expr, $data:expr) => {{
-                        let mut moved = $data.clone();
-                        for key in &mut moved {
-                            let composition = i64::from(key.frame) + delta;
-                            ensure(
-                                (0..i64::from(frames)).contains(&composition),
-                                "clipboard destination key outside composition",
-                            )?;
-                            key.frame =
-                                i32::try_from(composition - i64::from(offset)).map_err(|_| {
-                                    Error::Invalid(
-                                        "clipboard destination local time overflow".into(),
-                                    )
-                                })?;
+                        let moved = transfer_time::move_keys($data,source.time_space,destination,earliest,at_frame,frames)?;
+                        for key in &moved {
                             crate::animation::vacant_key_index($keys, key.frame)?;
                         }
                         $keys.extend(moved);
@@ -474,30 +467,11 @@ impl KeyframeClipboard {
 /// Stale requests cannot delete a key that another edit has changed.
 pub fn remove(project: &mut Project, clipboard: &KeyframeClipboard) -> Result<()> {
     clipboard.validate()?;
-    let selections = clipboard
-        .tracks
-        .iter()
-        .map(|track| KeyframeSelection {
-            target: track.source.clone(),
-            frames: key_data!(&track.data, k => k.iter().map(|k| k.frame as u32).collect()),
-        })
-        .collect::<Vec<_>>();
-    let current = KeyframeClipboard::capture(project, &selections)?;
-    for (old, current) in clipboard.tracks.iter().zip(&current.tracks) {
-        if old != current {
-            return Err(old
-                .source
-                .failure("cut", Error::Invalid("clipboard cut source changed".into())));
-        }
-    }
+    let selections = transfer_time::cut_selections(project,clipboard)?;
     for selected in selections {
         (|| -> Result<()> {
             selected.target.editable(project)?;
-            let local = selected
-                .frames
-                .iter()
-                .map(|frame| project.edit_frame(selected.target.object(), *frame))
-                .collect::<Result<Vec<_>>>()?;
+            let local = selected.frames;
             macro_rules! delete {
                 ($track:expr) => {{
                     ensure(

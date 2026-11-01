@@ -246,7 +246,7 @@ pub enum Command {
         keep_external_references: bool,
     },
     RemoveLayers { objects: Vec<u64>, frame: u32 },
-    PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<u32> },
+    PasteKeyframes { clipboard: Box<crate::KeyframeClipboard>, targets: Vec<crate::KeyframeTarget>, at_frame: Option<f64> },
     RemoveKeyframes { clipboard: Box<crate::KeyframeClipboard> },
     KeyframeInterpolation { selections: Vec<crate::KeyframeSelection>, ease: Ease },
     KeyframeAutomatic { selections: Vec<crate::KeyframeSelection>, enabled: bool },

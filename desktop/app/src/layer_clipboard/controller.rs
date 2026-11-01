@@ -164,11 +164,12 @@ impl Clipboard {
         intent: Intent,
         source: super::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     ) -> Result<bool, String> {
         if self.busy()
             || match intent {
-                Intent::Copy | Intent::Cut => selections.is_empty(),
+                Intent::Copy | Intent::Cut => selections.is_empty() && local_selections.is_empty(),
                 Intent::Paste { .. } => !self.keyframes_available() || targets.is_empty(),
             }
         {
@@ -179,8 +180,9 @@ impl Clipboard {
         } else {
             selections
         };
+        let local_selections=if matches!(intent,Intent::Paste {..}) {vec![]} else {local_selections};
         let receive =
-            engine.request(|reply| Command::KeyframeClipboardRead { source, selections, reply })?;
+            engine.request(|reply| Command::KeyframeClipboardRead { source, selections, local_selections, reply })?;
         self.pending = Some(Pending {
             domain: Domain::Keyframes,
             intent,

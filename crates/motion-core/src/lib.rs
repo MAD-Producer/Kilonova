@@ -10,7 +10,7 @@ pub use motion_model::{serialized_bytes, LayerClipboard};
 pub use motion_model::{animation_presets, AnimationPreset, PresetProperty};
 pub use motion_model::{node_resources, NodeResource, NodeImageReference};
 pub use motion_model::{TextAlign, TextStyle};
-pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget, LocalKeyframeSelection};
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::spatial::SpatialKeyEdit;
 pub use motion_model::keyframe_clipboard::local::{LocalKeyEdit, LocalValueOffset};

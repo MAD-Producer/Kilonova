@@ -106,7 +106,7 @@ pub(crate) enum Edit {
         stamp: Stamp,
         clipboard: Arc<motion_core::KeyframeClipboard>,
         targets: Vec<motion_core::KeyframeTarget>,
-        at_frame: Option<u32>,
+        at_frame: Option<f64>,
         cancel: Arc<AtomicBool>,
     },
     Cut {

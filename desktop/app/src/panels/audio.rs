@@ -96,6 +96,13 @@ impl Controls {
         let channel = match self.active_control? { Control::Left => AudioChannel::Left, Control::Right => AudioChannel::Right, Control::Gain => return None };
         let layer = clipboard::layer(state, object).filter(|l| is_audio(l))?;
         let name = if channel == AudioChannel::Left { "left" } else { "right" };
+        if !layer["time_mapping"].is_null() {
+            let selected=if let Some(selected)=self.selection {
+                if selected.object!=object || selected.item!=Item::Key(channel) {return None;}
+                Some(selected.frame)
+            }else{None};
+            return clipboard::Selection::mapped(state,vec![motion_core::KeyframeTarget::Audio {object,channel}],selected,false,layer["locked"]!=true);
+        }
         // An absent optional envelope is a valid static audio channel. Missing
         // fields inside a present envelope are malformed and observed normally.
         let mut frames = if layer["audio_levels"].is_null() { vec![] }

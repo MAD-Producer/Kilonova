@@ -369,7 +369,7 @@ fn easing_clipboard_preserves_nested_vector_effect_and_color_curve_payloads() {
     for (mut engine, targets) in fixtures {
         let selected: Vec<_> = targets.iter().cloned().map(|t| selection(t, &[10])).collect();
         let source = KeyframeClipboard::capture(engine.project(), &selected).unwrap();
-        engine.apply(Command::PasteKeyframes { clipboard: Box::new(source), targets: targets.clone(), at_frame: Some(20) }).unwrap();
+        engine.apply(Command::PasteKeyframes { clipboard: Box::new(source), targets: targets.clone(), at_frame: Some(20.) }).unwrap();
         let mut engine = Engine::new(engine.snapshot()).unwrap();
         let before = engine.snapshot();
         let clipboard = motion_core::CurveClipboard::new(motion_core::Easing { ease: Ease::Out, curve: None }).unwrap();

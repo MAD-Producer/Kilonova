@@ -87,7 +87,7 @@ fn paste(
     Command::PasteKeyframes {
         clipboard: Box::new(clipboard),
         targets,
-        at_frame: frame,
+        at_frame: frame.map(f64::from),
     }
 }
 fn destinations() -> Vec<KeyframeTarget> {

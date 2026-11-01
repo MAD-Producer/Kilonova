@@ -53,7 +53,7 @@ pub mod vector;
 pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePublication};
 pub use commands::{Command, EditResult, Property};
 pub use layer_clipboard::LayerClipboard;
-pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget, LocalKeyframeSelection};
 pub use keyframe_clipboard::KeyframeValueOffset;
 pub use keyframe_clipboard::curve_clipboard::CurveClipboard;
 pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};

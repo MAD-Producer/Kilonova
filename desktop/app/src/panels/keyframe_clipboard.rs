@@ -8,6 +8,7 @@ use serde_json::Value;
 pub(crate) struct Selection {
     scope: crate::layer_clipboard::KeyframeSource,
     pub selections: Vec<KeyframeSelection>,
+    pub local_selections: Vec<motion_core::LocalKeyframeSelection>,
     pub targets: Vec<KeyframeTarget>,
     pub writable: bool,
 }
@@ -59,6 +60,103 @@ pub(super) fn offset(layer: &Value) -> i64 {
     layer["timeline"]["offset_frame"].as_i64().unwrap_or(0)
 }
 impl Selection {
+    pub(in crate::panels) fn mapped(
+        state: &Value,
+        targets: Vec<KeyframeTarget>,
+        selected: Option<u32>,
+        pose: bool,
+        writable: bool,
+    ) -> Option<Self> {
+        let mut local_selections = vec![];
+        for target in &targets {
+            let layer = layer(state, target.object())?;
+            let Some((track, _)) = super::key_selection::authored_track(state, target) else {
+                if matches!(target, KeyframeTarget::Audio { .. }) && layer["audio_levels"].is_null()
+                {
+                    local_selections.push(motion_core::LocalKeyframeSelection {
+                        target: target.clone(),
+                        frames: vec![],
+                    });
+                    continue;
+                }
+                return Some(Self::new(state, vec![], vec![], false));
+            };
+            if track["spatial_animation"].is_object() {
+                return Some(Self::new(state, vec![], vec![], false));
+            }
+            let frames = (|| -> motion_core::Result<Vec<i32>> {
+                let clock = super::key_selection::property_clock(state, target.object())?;
+                let offset = i32::try_from(offset(layer)).map_err(|_| {
+                    motion_core::Error::Invalid("clipboard offset out of range".into())
+                })?;
+                let keys = track["keys"].as_array().ok_or_else(|| {
+                    motion_core::Error::Invalid("clipboard authored key array missing".into())
+                })?;
+                if keys.len() > motion_core::MAX_FRAMES as usize {
+                    return Err(motion_core::Error::Invalid(
+                        "clipboard key count exceeds limit".into(),
+                    ));
+                }
+                let mut all = vec![];
+                let mut visible = vec![];
+                for key in keys {
+                    let frame = key["frame"]
+                        .as_i64()
+                        .and_then(|f| i32::try_from(f).ok())
+                        .ok_or_else(|| {
+                            motion_core::Error::Invalid(
+                                "clipboard authored key frame invalid".into(),
+                            )
+                        })?;
+                    if all.last().is_some_and(|previous| *previous >= frame) {
+                        return Err(motion_core::Error::Invalid(
+                            "clipboard authored keys not strictly sorted".into(),
+                        ));
+                    }
+                    all.push(frame);
+                    let composition =
+                        clock.projected_composition_frame(f64::from(frame), offset)?;
+                    if composition >= 0.
+                        && composition <= super::last_frame(state)
+                        && selected.is_none_or(|selected| composition == f64::from(selected))
+                    {
+                        visible.push(frame);
+                    }
+                }
+                Ok(visible)
+            })();
+            let frames = observe!(
+                "clipboard.mapped_keys",
+                frames,
+                "object={} phase=select fallback=disable_property_clipboard",
+                target.object()
+            )
+            .ok()?;
+            local_selections.push(motion_core::LocalKeyframeSelection {
+                target: target.clone(),
+                frames,
+            });
+        }
+        if pose {
+            let union = local_selections
+                .iter()
+                .flat_map(|s| s.frames.iter().copied())
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+            for selection in &mut local_selections {
+                selection.frames = union.clone();
+            }
+        }
+        local_selections.retain(|s| !s.frames.is_empty());
+        Some(Self {
+            scope: scope(state),
+            selections: vec![],
+            local_selections,
+            targets,
+            writable,
+        })
+    }
     pub(super) fn new(
         state: &Value,
         targets: Vec<KeyframeTarget>,
@@ -75,6 +173,7 @@ impl Selection {
         Self {
             scope: scope(state),
             selections,
+            local_selections: vec![],
             targets,
             writable,
         }
@@ -95,14 +194,15 @@ impl Selection {
             intent,
             source: self.scope.clone(),
             selections: self.selections.clone(),
+            local_selections: self.local_selections.clone(),
             targets: self.targets.clone(),
         }
     }
     pub(super) fn enabled(&self, state: &Value, intent: Intent, available: bool) -> bool {
         self.current(state)
             && match intent {
-                Intent::Copy => !self.selections.is_empty(),
-                Intent::Cut => self.writable && !self.selections.is_empty(),
+                Intent::Copy => !self.selections.is_empty() || !self.local_selections.is_empty(),
+                Intent::Cut => self.writable && (!self.selections.is_empty() || !self.local_selections.is_empty()),
                 Intent::Paste { .. } => self.writable && available && !self.targets.is_empty(),
             }
     }
@@ -115,13 +215,14 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
         return None;
     }
     if panels.selected_keys.owns_keys() {
-        // The integer clipboard cannot represent local addresses or spatial IDs. Keep
-        // ownership and disable the whole mixed set, never copy only a subset
-        // or fall through to copying layers.
-        if panels.selected_keys.has_spatial() || panels.selected_keys.has_local() {
+        // Stable spatial IDs still require a separate transfer representation.
+        // Keep ownership and disable the entire mixed set; never copy a subset
+        // or reinterpret the request as copying whole layers.
+        if panels.selected_keys.has_spatial() {
             return Some(Selection::new(state, vec![], vec![], false));
         }
         let selections = panels.selected_keys.selections();
+        let local=panels.selected_keys.local_selections().into_iter().map(|(target,frames)|motion_core::LocalKeyframeSelection {target,frames}).collect::<Vec<_>>();
         let status = panels.selected_keys.status(state);
         let mut selected = Selection::new(state,
             selections.iter().map(|s| s.target.clone()).collect(),
@@ -129,7 +230,9 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
             panels.selected_keys.writable(state));
         // Even an empty or invalid owned set returns Some: clipboard shortcuts
         // must never reinterpret it as a request to copy/cut whole layers.
-        if status == super::key_selection::Status::Stale { selected.selections.clear(); }
+        selected.targets.extend(local.iter().map(|s|s.target.clone()));
+        selected.local_selections=local;
+        if status == super::key_selection::Status::Stale { selected.selections.clear();selected.local_selections.clear(); }
         return Some(selected);
     }
     let object = panels.selected?;
@@ -156,6 +259,11 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
             .get(param)?;
         if parameter["animatable"] != true || parameter["implemented"] != true {
             return None;
+        }
+        if !layer["time_mapping"].is_null() {
+            let selected=panels.effect_timeline.clipboard_frame(state,owner,effect,param)
+                .filter(|_|matches!(panels.focused,Some(motion_ui::dock::Panel::Timeline|motion_ui::dock::Panel::Curves)));
+            return Selection::mapped(state,vec![KeyframeTarget::Effect {object:owner,effect,param:param.into()}],selected,false,layer["locked"]!=true);
         }
         let track = if parameter["curve"].is_object() {
             &parameter["curve"]
@@ -192,6 +300,11 @@ pub(super) fn selection(panels: &Panels, state: &Value) -> Option<Selection> {
     else {
         return None;
     };
+    if layer(state,track.object).is_some_and(|l|!l["time_mapping"].is_null()) {
+        return Selection::mapped(state,vec![KeyframeTarget::Property {object:track.object,property:track.property,axis:track.axis}],
+            panels.animation_controls.user_key().map(|k|k.frame),false,
+            layer(state,track.object).is_some_and(|l|l["locked"]!=true));
+    }
     let source = super::animation_data::channel(state, track.object, track.property, track.axis)?;
     let mut frames = json_frames(state, source, 0, track.object)?;
     if let Some(key) = panels.animation_controls.user_key() {

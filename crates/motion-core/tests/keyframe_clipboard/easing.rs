@@ -17,7 +17,7 @@ fn three_keys(mut engine: Engine, targets: &[KeyframeTarget]) -> Engine {
             .apply(Command::PasteKeyframes {
                 clipboard: Box::new(source.clone()),
                 targets: targets.to_vec(),
-                at_frame: Some(frame),
+                at_frame: Some(f64::from(frame)),
             })
             .unwrap();
     }

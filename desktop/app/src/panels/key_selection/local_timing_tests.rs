@@ -8,6 +8,8 @@ use motion_core::{LocalKeyEdit, LocalValueOffset};
 mod native;
 #[path = "local_typed_tests.rs"]
 mod typed;
+#[path = "local_clipboard_tests.rs"]
+mod clipboard;
 
 fn local(object: u64, axis: Option<Axis>, frame: i32) -> AddressedKey {
     LocalKey {

@@ -62,6 +62,7 @@ pub enum Action {
         intent: crate::layer_clipboard::controller::Intent,
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     },
     PathClipboard {

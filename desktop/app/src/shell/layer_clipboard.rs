@@ -39,6 +39,7 @@ impl Shell {
         intent: Intent,
         source: crate::layer_clipboard::KeyframeSource,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
         targets: Vec<motion_core::KeyframeTarget>,
     ) -> Result<(), String> {
         if self.project_modal() || self.closing {
@@ -46,7 +47,7 @@ impl Shell {
         }
         if self
             .layer_clipboard
-            .start_keyframes(&self.engine, intent, source, selections, targets)?
+            .start_keyframes(&self.engine, intent, source, selections, local_selections, targets)?
         {
             if intent != Intent::Copy {
                 self.stop();

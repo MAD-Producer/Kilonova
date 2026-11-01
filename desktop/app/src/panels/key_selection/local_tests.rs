@@ -284,7 +284,9 @@ fn exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer(
     assert_eq!(panels.selected_layers, [7]);
     assert!(panels.animation_controls.user_key().is_none());
     let selected = crate::panels::keyframe_clipboard::selection(&panels, &state(&engine)).unwrap();
-    assert!(selected.selections.is_empty() && !selected.writable);
+    assert!(selected.selections.is_empty() && selected.writable);
+    assert_eq!(selected.local_selections,[motion_core::LocalKeyframeSelection {target:key(7,None,0).target,frames:vec![3]}]);
+    KeyframeClipboard::capture_mixed(engine.project(),&selected.selections,&selected.local_selections).unwrap();
     assert!(panels.selected_keys.owns_keys());
     let before = crate::panels::animation_menu::MenuScope::of(&panels, &state(&engine));
     panels

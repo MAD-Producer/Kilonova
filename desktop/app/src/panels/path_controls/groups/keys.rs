@@ -111,6 +111,10 @@ impl Controls {
         if !self.selected_in(state, object, c.item, &c.parameter) { return None; }
         let (layer, parameter) = snapshot(state, c, 0, &self.cache)?;
         if parameter.static_value { return None; }
+        if layer.time_mapping.is_some() {
+            let selected=if let Some((selected,frame))=&self.selected {if selected!=c{return None;}Some(*frame)}else{None};
+            return clipboard::Selection::mapped(state,vec![motion_core::KeyframeTarget::Vector {object,item:Some(c.item),parameter:c.parameter.clone()}],selected,false,!layer.locked);
+        }
         let mut frames = clipboard::frames(state, parameter.keys.iter().map(|(f, _)| i64::from(*f)), i64::from(layer.timeline.map_or(0, |t| t.offset_frame)));
         if let Some((selected, frame)) = &self.selected {
             if selected != c { return None; }

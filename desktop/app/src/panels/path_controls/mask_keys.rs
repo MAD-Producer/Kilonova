@@ -186,6 +186,13 @@ impl Controls {
         let layer = clipboard::layer(state, object)?;
         let mask = layer["masks"].as_array()?.iter().find(|m| m["id"] == c.mask)?;
         let track = |property| motion_core::KeyframeTarget::Mask { object, mask: c.mask, property };
+        if !layer["time_mapping"].is_null() {
+            let pose=c.property==mask_path::CHANNEL;
+            let targets=if pose {mask["path"]["nodes"].as_array()?.iter().map(|node|Some(track(MaskProperty::Node(node["id"].as_u64()?)))).collect::<Option<Vec<_>>>()?}
+                else{vec![track(property(c.property))]};
+            let selected=if let Some((selected,frame))=&self.selected {if selected!=c {return None;} Some(*frame)}else{None};
+            return clipboard::Selection::mapped(state,targets,selected,pose,layer["locked"]!=true);
+        }
         let (targets, mut frames): (Vec<_>, Vec<_>) = if c.property == mask_path::CHANNEL {
             mask["path"]["nodes"].as_array()?.iter().map(|node| Some((track(MaskProperty::Node(node["id"].as_u64()?)), clipboard::json_frames(state, &node["geometry"], clipboard::offset(layer), object)?)))
                 .collect::<Option<Vec<_>>>()?.into_iter().unzip()
