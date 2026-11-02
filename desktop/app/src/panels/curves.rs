@@ -79,10 +79,12 @@ pub(super) fn render(
             }),
         );
         if let Some(key) = panels.animation_controls.take_spatial_selection() {
+            let context = key.as_ref().map(|key|
+                format!("object={} key={}", key.target.object(), key.id));
             let _ = observe!("curve.controls.spatial_selection",
                 panels.selected_keys.apply_addressed(state, key.map(super::key_selection::AddressedKey::Spatial),
                     super::key_selection::Mode::Replace),
-                "object={object:?} phase=spatial_selection");
+                "{} phase=spatial_selection", context.as_deref().unwrap_or("selection=empty"));
         }
         if let Some(key) = panels.animation_controls.take_local_selection() {
             let _ = observe!("curve.controls.selection",

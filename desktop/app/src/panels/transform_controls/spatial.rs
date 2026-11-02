@@ -644,3 +644,5 @@ mod native_tests;
 mod tests;
 #[cfg(test)]
 mod worker_tests;
+#[cfg(test)]
+mod continuous_position_tests;

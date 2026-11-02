@@ -249,6 +249,7 @@ impl Seed {
 struct Drag {
     seed: Seed,
     time: Option<super::property_authoring::NumericTime>,
+    position_key: Option<super::property_authoring::SpatialDraft>,
     pose: Pose,
     handle: Handle,
     begun: bool,
@@ -268,8 +269,14 @@ impl Drag {
         let time = observe!("transform.numeric_time_begin",
             super::property_authoring::NumericTime::read(state, pose.object),
             "object={} phase=begin", pose.object).ok()?;
+        let position_key = if matches!(handle, Handle::Spatial(_, false)) {
+            observe!("transform.spatial_key_begin",
+                super::property_authoring::SpatialDraft::read(state, pose.object, Property::Position, None),
+                "object={} phase=begin handle={handle:?}", pose.object).ok()?
+        } else { None };
         let mut drag = Self::new(seed, pose, handle)?;
         drag.time = time;
+        drag.position_key = position_key;
         Some(drag)
     }
     fn new(seed: Seed, pose: Pose, handle: Handle) -> Option<Self> {
@@ -288,6 +295,7 @@ impl Drag {
         };
         Some(Self {
             time: None,
+            position_key: None,
             last_pointer: seed.point,
             last_anchor: pose.anchor,
             seed,
@@ -552,9 +560,15 @@ impl Drag {
                 value,
             }]
         };
+        let commands = commands.into_iter().map(|command| {
+            if property == Property::Position {
+                super::property_authoring::SpatialDraft::command(&self.position_key,state,command)
+            } else { Ok(super::property_authoring::at_playhead(state,command)) }
+        }).collect::<motion_core::Result<Vec<_>>>();
+        let Ok(commands) = observe!("transform.spatial_key_command",commands,
+            "object={} property={property:?} phase=command",self.pose.object) else { return vec![]; };
         self.last_value = value;
-        vec![Action::EditBatch(commands.into_iter()
-            .map(|command| super::property_authoring::at_playhead(state, command)).collect())]
+        vec![Action::EditBatch(commands)]
     }
 }
 #[derive(Default)]
@@ -640,6 +654,14 @@ impl Controls {
             !matches!(observe!("transform.numeric_time_continue",
                 super::property_authoring::NumericTime::current(&drag.time, state, drag.pose.object),
                 "object={} phase=continue", drag.pose.object), Ok(true))
+        }) {
+            if self.cancel() { out.push(Action::History(4)); }
+            return true;
+        }
+        if self.drag.as_ref().is_some_and(|drag| {
+            !matches!(observe!("transform.spatial_key_continue",
+                super::property_authoring::SpatialDraft::current(&drag.position_key,state),
+                "object={} phase=continue",drag.pose.object),Ok(true))
         }) {
             if self.cancel() { out.push(Action::History(4)); }
             return true;

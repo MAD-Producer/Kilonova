@@ -217,3 +217,52 @@ fn malformed_mini_spatial_keys_and_easing_use_bounded_default_error_channels_and
             assert!(matches!(actions.as_slice(),[Action::Edit(Command::SpatialKeyframes {edit:SpatialKeyEdit::Curve {key:2,..},..})]));
         });
 }
+
+#[test]
+fn missing_document_identity_at_mini_spatial_selection_uses_default_error_channels_and_recovers() {
+    crate::panels::property_authoring::spatial_tests::faults::verify(
+        "panels::animation_controls::spatial_tests::worker::missing_document_identity_at_mini_spatial_selection_uses_default_error_channels_and_recovers",
+        "spatial-mini-selection", &["curve.controls.spatial_selection"], || {
+            let mut core = fixture("forward", false);
+            core.apply(Command::SpatialKeyframes {target:target(),edit:SpatialKeyEdit::Curve {
+                key:2,easing:quadratic(),
+            }}).unwrap();
+            let healthy=state(&core,projected(&core,4.125));
+            let before=healthy["project"].clone();
+            let mut bad=healthy.clone();
+            bad.as_object_mut().unwrap().remove("document_generation");
+            let mut atlas=TextAtlas::from_system(12.).unwrap();
+            for turn in 0..180 {
+                let floating=turn%2==0;
+                let mut p=Panels {locale:if floating {Locale::Zh}else{Locale::En},focused:Some(Panel::Curves),..Default::default()};
+                p.select_only(Some(7));
+                p.animation_controls=ready(&bad);
+                assert!(render(&mut p,&bad,&mut atlas,floating,Input::default()).1.is_empty());
+                let handle=point(&p.animation_controls,0.5,0.25);
+                let actions=render(&mut p,&bad,&mut atlas,floating,pointer(handle,true,false)).1;
+                assert!(matches!(actions.first(),Some(Action::History(2))),"{actions:?}");
+                assert!(actions[1..].iter().all(|a| matches!(a,Action::Edit(Command::SpatialKeyframes {
+                    target:KeyframeTarget::Property {object:7,property:Property::Position,axis:None},
+                    edit:SpatialKeyEdit::Curve {key:2,..}
+                }))),"{actions:?}");
+                assert_eq!(p.selected_keys.status(&bad),panels::key_selection::Status::Stale);
+                assert!(p.selected_keys.addressed_primary().is_none());
+                assert_eq!(bad["project"],before);
+
+                // Independent healthy renderings must not erase the observer's
+                // documented process-lifetime count between malformed providers.
+                let mut recovered=Panels {locale:p.locale,focused:Some(Panel::Curves),..Default::default()};
+                recovered.select_only(Some(7));
+                recovered.animation_controls=ready(&healthy);
+                assert!(render(&mut recovered,&healthy,&mut atlas,floating,Input::default()).1.is_empty());
+                let handle=point(&recovered.animation_controls,0.5,0.25);
+                let healthy_actions=render(&mut recovered,&healthy,&mut atlas,floating,pointer(handle,true,false)).1;
+                // A fractional graph-to-pointer round trip can emit a tiny first
+                // preview. Compare all actions with the healthy provider.
+                assert_eq!(format!("{actions:?}"),format!("{healthy_actions:?}"));
+                assert_eq!(recovered.selected_keys.status(&healthy),panels::key_selection::Status::Current);
+                assert_eq!(recovered.selected_keys.addressed_primary(),Some(panels::key_selection::AddressedKey::Spatial(panels::key_selection::SpatialKey {target:target(),id:2})));
+                assert_eq!(healthy["project"],before);
+            }
+        });
+}

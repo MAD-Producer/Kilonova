@@ -184,6 +184,7 @@ fn pointer(point: [f32; 2]) -> Input {
 }
 
 mod snapping;
+mod continuous_position;
 
 #[test]
 #[ignore = "explicit native GPU, main/floating routes, screenshots and default error-channel acceptance"]
