@@ -145,11 +145,17 @@ fn group_staging_deduplicates_targets_and_recovery_never_reuses_failed_membershi
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
-    let refs: Vec<_> = meshes.iter().collect();
     let before = budget.info().unwrap().admitted_bytes;
     budget.set_limit(before).unwrap();
     let failure = gpu
-        .stage_targets(&renderer.device, &image, &sampler, &scene, &refs, &budget)
+        .stage_targets(
+            &renderer.device,
+            &image,
+            &sampler,
+            &scene,
+            meshes.iter(),
+            &budget,
+        )
         .err()
         .unwrap();
     assert!(failure.resource_rejection().is_some(), "{failure}");
@@ -163,7 +169,14 @@ fn group_staging_deduplicates_targets_and_recovery_never_reuses_failed_membershi
         .set_limit(crate::DEFAULT_RENDER_ALLOCATION_BUDGET)
         .unwrap();
     let staged = gpu
-        .stage_targets(&renderer.device, &image, &sampler, &scene, &refs, &budget)
+        .stage_targets(
+            &renderer.device,
+            &image,
+            &sampler,
+            &scene,
+            meshes.iter(),
+            &budget,
+        )
         .unwrap();
     gpu.commit_targets(staged);
     assert_eq!(gpu.bytes(), gpu.required_bytes(&meshes));
@@ -172,7 +185,14 @@ fn group_staging_deduplicates_targets_and_recovery_never_reuses_failed_membershi
     let allocations = test_allocations::count(|| {
         for _ in 0..120 {
             let staged = gpu
-                .stage_targets(&renderer.device, &image, &sampler, &scene, &refs, &budget)
+                .stage_targets(
+                    &renderer.device,
+                    &image,
+                    &sampler,
+                    &scene,
+                    meshes.iter(),
+                    &budget,
+                )
                 .unwrap();
             assert!(staged.0.is_empty());
         }

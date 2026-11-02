@@ -68,13 +68,13 @@ impl GroupGpu {
     pub fn required_bytes(&mut self,meshes:&[VectorMesh]) -> u64 {self.collect_needed(meshes);self.needed_scratch.iter()
         .map(|(w,h,_)|u64::from(*w)*u64::from(*h)*self.raster_pixel_bytes*5).sum()}
     pub(super) fn upload_info(&self) -> (u64,u64) { (self.opacity_buffer.bytes(),self.opacity_buffer.created) }
-    pub(super) fn stage_targets(&mut self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
-        sampler: &wgpu::Sampler, scene: &crate::Scene, meshes: &[&VectorMesh],
+    pub(super) fn stage_targets<'a>(&mut self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
+        sampler: &wgpu::Sampler, scene: &crate::Scene, meshes: impl IntoIterator<Item = &'a VectorMesh>,
         budget: &crate::AllocationBudget) -> Result<StagedTargets, RenderError> {
         let mut staged = Vec::new();
         self.staged_scratch.clear();
         // Mesh order and ascending depth keep refusal context deterministic.
-        for mesh in meshes.iter().filter(|m| Self::grouped(m)) {
+        for mesh in meshes.into_iter().filter(|m| Self::grouped(m)) {
             let layer = scene.layers[mesh.layer].id;
             for depth in 0..=mesh.scope_depth() {
                 let key = (mesh.width, mesh.height, depth);

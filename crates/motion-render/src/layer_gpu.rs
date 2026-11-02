@@ -298,15 +298,16 @@ impl LayerGpu {
             return Err(RenderError::budget(crate::ResourceBudgetScope::VectorWorkingSet,
                 required, source_budget, "vector sources and MSAA raster resources exceed configured source texture budget"));
         }
+        let fingerprints = &self.fingerprints;
         let dirty = meshes.iter().filter(|mesh| {
             let id = scene.layers[mesh.layer].id;
-            self.fingerprints.get(&id) != Some(&mesh.fingerprint)
+            fingerprints.get(&id) != Some(&mesh.fingerprint)
                 || images.get(&TextureKey::Vector(id)).is_none_or(|i| i.size != (mesh.width, mesh.height))
-        }).collect::<Vec<_>>();
+        });
         let mut sources = Vec::new();
         let mut multisamples = HashMap::new();
         let mut resolves = HashMap::new();
-        for mesh in &dirty {
+        for mesh in dirty.clone() {
             let id = scene.layers[mesh.layer].id;
             let key = TextureKey::Vector(id);
             let size = (mesh.width, mesh.height);
@@ -339,7 +340,7 @@ impl LayerGpu {
                 resolves.insert(size, target);
             }
         }
-        let group_targets = self.groups.stage_targets(device, image, sampler, scene, &dirty, &self.allocation_budget)?;
+        let group_targets = self.groups.stage_targets(device, image, sampler, scene, dirty, &self.allocation_budget)?;
         // No fallible allocation follows within this texture transaction.
         let changed = !stale.is_empty() || !sources.is_empty();
         for key in stale {
