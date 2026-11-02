@@ -217,3 +217,13 @@ and ambiguous manual reference resets with independent appearance evidence,
 while retaining this full-sequence quality gate. No ROI, truth, timeline,
 correction schedule, threshold or existing assertion was changed. No third-party
 video, annotations, diagnostic captures or per-frame payloads are redistributed.
+
+## Follow-up: independent identity candidates rejected
+
+The [complete identity experiment record](tracking88-identity-experiments-current.md)
+tests persistent manual descriptor references and manual photometric feature
+support separately, with independent analytic controls and all original frames.
+Both retain all 21 severe errors while reducing automatic coverage, so neither
+is adopted. Their frozen sources, actual logs and aggregate measurements are
+archived; successful experiment execution does not change this failed quality
+disposition or qualify a new native/full-regression gate.
