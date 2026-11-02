@@ -10,7 +10,7 @@ fn payload() -> CurveClipboard {
     .unwrap()
 }
 fn command(clipboard: CurveClipboard, selections: Vec<KeyframeSelection>) -> Command {
-    Command::PasteEasing {
+    Command::PasteEasing { local_selections: vec![],
         clipboard: Box::new(clipboard),
         selections,
     }

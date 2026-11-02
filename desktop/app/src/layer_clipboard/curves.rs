@@ -20,15 +20,19 @@ pub(crate) fn read(
     session: &Session,
     source: KeyframeSource,
     selection: Option<KeyframeSelection>,
+    local_selection: Option<motion_core::LocalKeyframeSelection>,
 ) -> motion_host::Result<Read> {
     let stamp = Stamp::of(session);
     let superseded = !source.current(session);
     let clipboard = if superseded {
         None
     } else {
-        selection
-            .map(|selected| CurveClipboard::capture(session.engine.project(), &selected))
-            .transpose()?
+        match (selection, local_selection) {
+            (Some(selected), None) => Some(CurveClipboard::capture(session.engine.project(), &selected)?),
+            (None, Some(selected)) => Some(CurveClipboard::capture_local(session.engine.project(), &selected)?),
+            (None, None) => None,
+            (Some(_), Some(_)) => return Err("copy easing requires one source address space".into()),
+        }
     };
     Ok(Read {
         stamp,

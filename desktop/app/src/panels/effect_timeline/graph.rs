@@ -1,6 +1,7 @@
 //! The value/speed graph reads real effect tracks and writes EffectAction.
 use super::super::{graph_adaptive, graph_ranges, graph_view::Range};
 use super::*;
+use motion_core::layer_time::LayerClock;
 use motion_core::{Curve, CurveShape, CurveSpace};
 
 #[cfg(test)]
@@ -11,20 +12,35 @@ fn knots(
     start: f64,
     end: f64,
     offset: f64,
-) -> impl Iterator<Item = f64> + '_ {
-    let steps = parameter
-        .track
-        .keys
-        .iter()
-        .flat_map(move |key| {
-            let frame = f64::from(key.frame) + offset;
-            [frame.next_down(), frame]
-        })
-        .filter(move |frame| parameter.kind.discrete() && *frame >= start && *frame <= end);
-    graph_adaptive::merge_knots(
-        graph_sampling::knots(&parameter.track, start, end, offset),
-        steps,
-    )
+    clock: LayerClock,
+) -> Result<impl Iterator<Item = f64> + '_, graph_adaptive::Failure<motion_core::Error>> {
+    let base = graph_sampling::mapped_knots(&parameter.track, start, end, offset, clock)?;
+    let mut steps = vec![];
+    if parameter.kind.discrete() {
+        for key in &parameter.track.keys {
+            if steps.len() >= 65_536 {
+                return Err(graph_adaptive::Failure::Budget {
+                    evaluations: steps.len(),
+                    points: 0,
+                });
+            }
+            steps.push(
+                clock
+                    .projected_composition_frame(f64::from(key.frame), offset as i32)
+                    .map_err(|cause| graph_adaptive::Failure::Sample {
+                        frame: start,
+                        cause,
+                    })?,
+            );
+        }
+    }
+    Ok(graph_adaptive::merge_knots(
+        base,
+        steps
+            .into_iter()
+            .flat_map(|t| [t.next_down(), t])
+            .filter(move |t| parameter.kind.discrete() && *t >= start && *t <= end),
+    ))
 }
 
 fn sample_value(
@@ -34,12 +50,18 @@ fn sample_value(
     speed: bool,
     fps: f64,
     component: usize,
+    clock: LayerClock,
 ) -> motion_core::Result<f64> {
-    Ok(f64::from(if speed {
-        speed_value(parameter, frame - offset, fps, component)?
+    let local = if clock == LayerClock::default() {
+        frame - offset
     } else {
-        parameter.sample(frame - offset)?[component]
-    }))
+        clock.local_frame(frame, offset as i32)?
+    };
+    Ok(if speed {
+        f64::from(speed_value(parameter, local, fps, component)?) * clock.rate()
+    } else {
+        f64::from(parameter.sample(local)?[component])
+    })
 }
 
 fn fitted(
@@ -51,16 +73,17 @@ fn fitted(
     speed: bool,
     fps: f64,
     component: usize,
+    clock: LayerClock,
 ) -> Result<graph_ranges::Bounds, graph_adaptive::Failure<motion_core::Error>> {
     use graph_adaptive::Failure;
     let [start, end] = interval;
     let x = Range::fitted(start, end, 0.05, 1.).ok_or(Failure::InvalidGeometry)?;
-    let value = |frame| sample_value(parameter, frame, offset, speed, fps, component);
-    let [low, high] = graph_adaptive::extrema(knots(parameter, start, end, offset), value)?
+    let value = |frame| sample_value(parameter, frame, offset, speed, fps, component, clock);
+    let [low, high] = graph_adaptive::extrema(knots(parameter, start, end, offset, clock)?, value)?
         .ok_or(Failure::InvalidGeometry)?;
     let provisional = Range::fitted(low, high, 0.1, 1.).ok_or(Failure::InvalidGeometry)?;
     let points = graph_adaptive::sample(
-        knots(parameter, start, end, offset),
+        knots(parameter, start, end, offset, clock)?,
         [
             f64::from(size[0]) / x.span(),
             f64::from(size[1]) / provisional.span(),
@@ -80,7 +103,10 @@ fn intervals(
     target: &Target,
     parameter: &EffectParam,
     offset: f64,
+    clock: LayerClock,
 ) -> ([f64; 2], Option<[f64; 2]>) {
+    let generation = state["document_generation"].as_u64();
+    let revision = state["revision"].as_u64();
     let mut all: Option<[f64; 2]> = None;
     let mut selection: Option<[f64; 2]> = None;
     let key_target = motion_core::KeyframeTarget::Effect {
@@ -90,21 +116,30 @@ fn intervals(
     };
     let status = panels.selected_keys.status(state);
     for key in &parameter.track.keys {
-        let time = f64::from(key.frame) + offset;
-        let Some(frame) = composition_frame(time, state) else {
+        let Ok(time) = observe!(
+            "effect.graph_key_time",
+            clock.projected_composition_frame(f64::from(key.frame), offset as i32),
+            "object={} effect={} param={} local_frame={} phase=fit generation={generation:?} revision={revision:?}",
+            target.object,
+            target.effect,
+            target.param,
+            key.frame
+        ) else {
             continue;
         };
+        if time < 0. || time > last_frame(state) {
+            continue;
+        }
+        let address = key_address(&key_target, key.frame, time, clock);
+        let frame = composition_frame(time, state);
         all = Some(all.map_or([time, time], |[low, high]| [low.min(time), high.max(time)]));
         let selected = match status {
-            key_selection::Status::Current => panels.selected_keys.contains(&key_selection::Key {
-                target: key_target.clone(),
-                frame,
-            }),
+            key_selection::Status::Current => panels.selected_keys.contains_addressed(&address),
             key_selection::Status::Unowned => panels
                 .effect_timeline
                 .key
                 .as_ref()
-                .is_some_and(|(before, f)| before == target && *f == frame),
+                .is_some_and(|(before, f)| before == target && Some(*f) == frame),
             _ => false,
         };
         if selected {
@@ -113,6 +148,27 @@ fn intervals(
         }
     }
     (all.unwrap_or([0., last_frame(state) + 1.]), selection)
+}
+
+fn key_address(
+    target: &motion_core::KeyframeTarget,
+    frame: i32,
+    time: f64,
+    clock: LayerClock,
+) -> key_selection::AddressedKey {
+    if clock != LayerClock::default() {
+        key_selection::LocalKey {
+            target: target.clone(),
+            frame,
+        }
+        .into()
+    } else {
+        key_selection::Key {
+            target: target.clone(),
+            frame: time as u32,
+        }
+        .into()
+    }
 }
 
 fn dimensions(parameter: &EffectParam) -> usize {
@@ -327,13 +383,87 @@ pub(in crate::panels) fn render(
         panels.timeline.graph_ranges.no_timeline_plot();
         return true;
     };
-    let layer_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0) as f64;
-    let value = |frame: f64| -> motion_core::Result<f32> {
-        if speed {
-            speed_value(&parameter, frame - layer_offset, fps, component)
+    let mapped_source = (|| -> motion_core::Result<_> {
+        let clock = super::super::key_selection::property_clock(state, target.object)?;
+        let offset = if layer["timeline"].is_null() {
+            0
         } else {
-            Ok(parameter.sample(frame - layer_offset)?[component])
+            layer["timeline"]["offset_frame"]
+                .as_i64()
+                .and_then(|v| i32::try_from(v).ok())
+                .ok_or_else(|| {
+                    motion_core::Error::Invalid("effect graph clip offset invalid".into())
+                })?
+        };
+        Ok((clock, offset))
+    })();
+    let Some((clock, layer_offset)) = observe!(
+        "effect.graph_clock",
+        mapped_source,
+        "object={} effect={} param={} phase=clock generation={generation:?} revision={revision:?}",
+        target.object,
+        target.effect,
+        target.param
+    )
+    .ok() else {
+        if panels
+            .effect_timeline
+            .handle
+            .take()
+            .is_some_and(|drag| drag.begun)
+        {
+            out.push(Action::History(4));
         }
+        if panels
+            .effect_timeline
+            .drag
+            .take()
+            .is_some_and(|drag| drag.begun)
+        {
+            out.push(Action::History(4));
+        }
+        panels.timeline.graph_ranges.no_timeline_plot();
+        graph.clip_to(area);
+        list.append(graph);
+        return true;
+    };
+    let layer_offset = f64::from(layer_offset);
+    let mapped = clock != LayerClock::default();
+    if mapped {
+        if panels
+            .effect_timeline
+            .drag
+            .take()
+            .is_some_and(|drag| drag.begun)
+        {
+            out.push(Action::History(4));
+        }
+        if panels
+            .effect_timeline
+            .handle
+            .as_ref()
+            .is_some_and(|d| d.local.is_none())
+            && panels
+                .effect_timeline
+                .handle
+                .take()
+                .is_some_and(|d| d.begun)
+        {
+            out.push(Action::History(4));
+        }
+    }
+
+    let value = |frame: f64| {
+        sample_value(
+            &parameter,
+            frame,
+            layer_offset,
+            speed,
+            fps,
+            component,
+            clock,
+        )
+        .map(|v| v as f32)
     };
     let end = (offset + plot.width() as f64 / ppf as f64).min(last_frame(state));
     let points = (0..=256)
@@ -438,15 +568,27 @@ pub(in crate::panels) fn render(
         .or_else(|| panels.effect_timeline.drag.as_ref().and_then(|d| d.bounds))
         .or_else(|| panels.key_gestures.drag_bounds())
         .unwrap_or([displayed.y.low as f32, displayed.y.high as f32]);
-    let points = graph_adaptive::sample(
-        knots(&parameter, offset, end, layer_offset),
-        [
-            f64::from(ppf),
-            f64::from(plot.height()) / f64::from(bounds[1] - bounds[0]),
-        ],
-        f64::from(styles.metric("graph.sample.error", 0.35)),
-        |frame| sample_value(&parameter, frame, layer_offset, speed, fps, component),
-    );
+    let points = knots(&parameter, offset, end, layer_offset, clock).and_then(|seeds| {
+        graph_adaptive::sample(
+            seeds,
+            [
+                f64::from(ppf),
+                f64::from(plot.height()) / f64::from(bounds[1] - bounds[0]),
+            ],
+            f64::from(styles.metric("graph.sample.error", 0.35)),
+            |frame| {
+                sample_value(
+                    &parameter,
+                    frame,
+                    layer_offset,
+                    speed,
+                    fps,
+                    component,
+                    clock,
+                )
+            },
+        )
+    });
     let Ok(points)=observe!("effect.graph_adaptive",points,
         "object={} effect={} param={} component={component} frame_start={offset} frame_end={end} generation={generation:?} revision={revision:?} phase=screen_subdivision",target.object,target.effect,target.param) else {
         graph.clip_to(area);list.append(graph);panels.timeline.graph_ranges.no_timeline_plot();return true;
@@ -495,23 +637,55 @@ pub(in crate::panels) fn render(
     let mut hit_key = false;
     key_selection::ui::plot(panels, plot, bounds[0], bounds[1]);
     if key_selection::ui::selecting_all(panels) {
-        key_selection::ui::all(
-            panels,
-            parameter.track.keys.iter().filter_map(|key| {
-                let time = f64::from(key.frame) + layer_offset;
-                (time >= 0. && time <= last_frame(state)).then(|| key_selection::Key {
-                    target: motion_core::KeyframeTarget::Effect {
+        let addresses = parameter
+            .track
+            .keys
+            .iter()
+            .map(|key| {
+                clock
+                    .projected_composition_frame(f64::from(key.frame), layer_offset as i32)
+                    .map(|time| (key.frame, time))
+            })
+            .collect::<motion_core::Result<Vec<_>>>();
+        match observe!(
+            "effect.graph_select_times",
+            addresses,
+            "object={} effect={} param={} phase=select_all generation={generation:?} revision={revision:?}",
+            target.object,
+            target.effect,
+            target.param
+        ) {
+            Ok(keys) => key_selection::ui::all_addressed(
+                panels,
+                keys.into_iter()
+                    .filter(|(_, t)| *t >= 0. && *t <= last_frame(state)).map(|(frame, time)| {
+                        key_address(
+                            &motion_core::KeyframeTarget::Effect {
                         object: target.object,
                         effect: target.effect,
                         param: target.param.clone(),
                     },
-                    frame: time as u32,
-                })
+                    frame,
+                            time,
+                            clock,
+                        )
             }),
-        );
+        ),
+            Err(cause) => key_selection::ui::failed(panels, cause),
+        }
     }
     for key in &parameter.track.keys {
-        let time = key.frame as f64 + layer_offset;
+        let Ok(time) = observe!(
+            "effect.graph_key_time",
+            clock.projected_composition_frame(f64::from(key.frame), layer_offset as i32),
+            "object={} effect={} param={} local_frame={} phase=mark generation={generation:?} revision={revision:?}",
+            target.object,
+            target.effect,
+            target.param,
+            key.frame
+        ) else {
+            continue;
+        };
         if time < offset || time > end {
             continue;
         }
@@ -526,7 +700,21 @@ pub(in crate::panels) fn render(
             continue;
         };
         let point = [x_of(time), y_of(sampled)];
-        let selected = selected_key.is_some_and(|f| f as f64 == time);
+        let target_key = motion_core::KeyframeTarget::Effect {
+            object: target.object,
+            effect: target.effect,
+            param: target.param.clone(),
+        };
+        let selected = if mapped {
+            panels.selected_keys.contains_addressed(&key_address(
+                &target_key,
+                key.frame,
+                time,
+                clock,
+            ))
+        } else {
+            selected_key.is_some_and(|f| f as f64 == time)
+        };
         paint::diamond(
             &mut lines,
             point,
@@ -535,7 +723,26 @@ pub(in crate::panels) fn render(
         );
         let hit = styles.metric("timeline.key.hit_radius", 5.);
         let rect = Rect::new(point[0] - hit, point[1] - hit, hit * 2., hit * 2.);
-        if let Some(frame) = composition_frame(time, state) {
+        if mapped {
+            key_selection::ui::local_graph_mark(
+                &mut lines,
+                panels,
+                key_selection::LocalKey {
+                    target: target_key,
+                    frame: key.frame,
+                },
+                point,
+                styles.metric("graph.handle_radius", 4.),
+                rect,
+                component,
+                if speed || parameter.kind.discrete() {
+                    0.
+                } else {
+                    (bounds[1] - bounds[0]) / plot.height()
+                },
+                Some([parameter.min, parameter.max]),
+            );
+        } else if let Some(frame) = composition_frame(time, state) {
             key_selection::ui::graph_mark(
                 &mut lines,
                 panels,
@@ -564,7 +771,7 @@ pub(in crate::panels) fn render(
             .effect_timeline
             .rects
             .insert((target.effect, target.param.clone(), time as i32), rect);
-        if clicked(input, rect) && plot.contains(input.mouse) {
+        if !mapped && clicked(input, rect) && plot.contains(input.mouse) {
             if let Some(frame) = composition_frame(time, state) {
                 begin_key(
                     panels,
@@ -589,7 +796,7 @@ pub(in crate::panels) fn render(
                 hit_key = true;
             }
         }
-        if right_clicked(input, rect) && plot.contains(input.mouse) {
+        if !mapped && right_clicked(input, rect) && plot.contains(input.mouse) {
             if let Some(frame) = composition_frame(time, state) {
                 open_menu(panels, state, target.clone(), frame, input.mouse);
             }
@@ -597,19 +804,62 @@ pub(in crate::panels) fn render(
     }
     if !parameter.kind.discrete() {
         for (interval, pair) in parameter.track.keys.windows(2).enumerate() {
-            let start = pair[0].frame as f64 + layer_offset;
-            let end = pair[1].frame as f64 + layer_offset;
-            if end <= start
+            let times = (|| -> motion_core::Result<(f64, f64)> {
+                Ok((
+                    clock.projected_composition_frame(
+                        f64::from(pair[0].frame),
+                        layer_offset as i32,
+                    )?,
+                    clock.projected_composition_frame(
+                        f64::from(pair[1].frame),
+                        layer_offset as i32,
+                    )?,
+                ))
+            })();
+            let Ok((start, end)) = observe!(
+                "effect.graph_interval_time",
+                times,
+                "object={} effect={} param={} phase=handles generation={generation:?} revision={revision:?}",
+                target.object,
+                target.effect,
+                target.param
+            ) else {
+                continue;
+            };
+            let selected_interval = if mapped {
+                [pair[0].frame, pair[1].frame].into_iter().any(|frame| {
+                    panels.selected_keys.contains_addressed(
+                        &key_selection::LocalKey {
+                            target: motion_core::KeyframeTarget::Effect {
+                                object: target.object,
+                                effect: target.effect,
+                                param: target.param.clone(),
+                            },
+                            frame,
+                        }
+                        .into(),
+                    )
+                })
+            } else {
+                selected_key.is_some_and(|f| f as f64 == start || f as f64 == end)
+            };
+            if end == start
                 || start < 0.
-                || !selected_key.is_some_and(|f| f as f64 == start || f as f64 == end)
+                || !selected_interval
                 || (pair[0].ease == Ease::Hold && pair[0].curve.is_none())
             {
                 continue;
             }
-            let Ok(original) = observe!("effect_timeline.automatic_timing",
+            let Ok(original) = observe!(
+                "effect_timeline.automatic_timing",
                 parameter.track.effective_easing(interval),
-                "object={} effect={} parameter={} interval={interval}", target.object, target.effect, target.param)
-                else { continue; };
+                "object={} effect={} parameter={} interval={interval}",
+                target.object,
+                target.effect,
+                target.param
+            ) else {
+                continue;
+            };
             if original.curve.is_some_and(|c| {
                 !matches!(
                     c,
@@ -691,6 +941,7 @@ pub(in crate::panels) fn render(
                     panels.effect_timeline.handle = Some(HandleDrag {
                         target: target.clone(),
                         frame: start as u32,
+                        local: mapped.then_some((pair[0].frame, clock, layer_offset as i32)),
                         index,
                         easing,
                         start,
@@ -724,7 +975,7 @@ pub(in crate::panels) fn render(
         let frame = offset + f64::from(input.mouse[0] - plot.min[0]) / f64::from(ppf);
         if let Ok(value) = observe!(
             "effect.graph_readout",
-            sample_value(&parameter, frame, layer_offset, speed, fps, component).and_then(|value| {
+            sample_value(&parameter, frame, layer_offset, speed, fps, component,clock).and_then(|value| {
                 if value.is_finite() {
                     Ok(value)
                 } else {
@@ -767,8 +1018,12 @@ pub(in crate::panels) fn render(
         || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing;
     #[cfg(test)]
-    panels.timeline.graph_ranges.record_probe(identity.clone(),
-        Rect::new(area.min[0],area.min[1],area.width(),row),plot,displayed);
+    panels.timeline.graph_ranges.record_probe(
+        identity.clone(),
+        Rect::new(area.min[0], area.min[1], area.width(), row),
+        plot,
+        displayed,
+    );
     if let Some(point) = graph_ranges::launch(
         &mut graph,
         atlas,
@@ -778,15 +1033,15 @@ pub(in crate::panels) fn render(
         panels.timeline.graph_ranges.ready() && !busy,
     ) {
         let (all_interval, selection_interval) =
-            intervals(panels, state, &target, &parameter, layer_offset);
+            intervals(panels, state, &target, &parameter, layer_offset, clock);
         let tolerance = f64::from(styles.metric("graph.sample.error", 0.35));
         let started = std::time::Instant::now();
-        let all=observe!("effect.graph_fit_all",fitted(&parameter,all_interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
+        let all=observe!("effect.graph_fit_all",fitted(&parameter,all_interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component,clock),
             "object={} effect={} param={} component={component} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_all",
             target.object,target.effect,target.param,all_interval[0],all_interval[1],started.elapsed().as_millis()).ok();
         let selection=selection_interval.and_then(|interval| {
             let started=std::time::Instant::now();
-            observe!("effect.graph_fit_selection",fitted(&parameter,interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component),
+            observe!("effect.graph_fit_selection",fitted(&parameter,interval,layer_offset,[plot.width(),plot.height()],tolerance,speed,fps,component,clock),
                 "object={} effect={} param={} component={component} frame_start={} frame_end={} generation={generation:?} revision={revision:?} elapsed_ms={} phase=fit_selection",
                 target.object,target.effect,target.param,interval[0],interval[1],started.elapsed().as_millis()).ok()
         });
@@ -817,11 +1072,11 @@ pub(in crate::panels) fn render(
             row,
         ),
         panels.locale,
-        parameter
-            .track
-            .keys
-            .iter()
-            .any(|k| k.frame as f64 + layer_offset < 0.),
+        parameter.track.keys.iter().any(|k| {
+            clock
+                .projected_composition_frame(f64::from(k.frame), layer_offset as i32)
+                .is_ok_and(|time| time < 0.)
+        }),
     );
     graph.clip_to(area);
     list.append(graph);
@@ -840,7 +1095,29 @@ pub(super) fn update_handle(
     let Some(mut drag) = panels.effect_timeline.handle.take() else {
         return;
     };
-    if !drag.target.editable(state)
+    let generation = state["document_generation"].as_u64();
+    let revision = state["revision"].as_u64();
+    let source_changed = drag.local.is_some_and(|(_, clock, offset)| {
+        let current = super::super::key_selection::property_clock(state, drag.target.object);
+        match observe!(
+            "effect.graph_drag_clock",
+            current,
+            "object={} effect={} param={} phase=handle_guard generation={generation:?} revision={revision:?}",
+            drag.target.object,
+            drag.target.effect,
+            drag.target.param
+        ) {
+            Ok(current) => {
+                current != clock
+                    || drag.target.source(state).is_none_or(|(l, _)| {
+                        l["timeline"]["offset_frame"].as_i64().unwrap_or(0) != i64::from(offset)
+                    })
+            }
+            Err(_) => true,
+        }
+    });
+    if source_changed
+        || !drag.target.editable(state)
         || selected(panels, state).as_ref() != Some(&drag.target)
         || drag.ppf != ppf
         || drag.offset != offset
@@ -909,31 +1186,47 @@ pub(super) fn update_handle(
             if observe!(
                 "timeline.effect_curve",
                 drag.easing.validate(),
-                "object={} effect={} parameter={} frame={}",
+                "object={} effect={} parameter={} frame={} local_frame={:?}",
                 drag.target.object,
                 drag.target.effect,
                 drag.target.param,
-                drag.frame
+                drag.start,
+                drag.local.map(|(frame, _, _)| frame)
             )
             .is_ok()
             {
                 if let Ok(command) = observe!(
                     "effect.handle_command",
-                    super::super::graph_handles::handle_command(
-                        motion_core::KeyframeTarget::Effect {
-                            object: drag.target.object,
-                            effect: drag.target.effect,
-                            param: drag.target.param.clone(),
-                        },
-                        drag.frame,
-                        drag.index != 0,
-                        drag.easing,
-                    ),
-                    "object={} effect={} param={} frame={} phase=handle",
+                    if let Some((frame, _, _)) = drag.local {
+                        Ok(Command::LocalKeyframes {
+                            target: motion_core::KeyframeTarget::Effect {
+                                object: drag.target.object,
+                                effect: drag.target.effect,
+                                param: drag.target.param.clone(),
+                            },
+                            edit: motion_core::LocalKeyEdit::Curve {
+                                frames: vec![frame],
+                                easing: drag.easing,
+                            },
+                        })
+                    } else {
+                        super::super::graph_handles::handle_command(
+                            motion_core::KeyframeTarget::Effect {
+                                object: drag.target.object,
+                                effect: drag.target.effect,
+                                param: drag.target.param.clone(),
+                            },
+                            drag.frame,
+                            drag.index != 0,
+                            drag.easing,
+                        )
+                    },
+                    "object={} effect={} param={} frame={} local_frame={:?} phase=handle",
                     drag.target.object,
                     drag.target.effect,
                     drag.target.param,
-                    drag.frame
+                    drag.start,
+                    drag.local.map(|(frame, _, _)| frame)
                 ) {
                     out.push(Action::Edit(command));
                 }

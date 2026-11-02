@@ -295,6 +295,7 @@ fn route_inner(
     {
         // Consume this navigation's intent before a later property click can
         // publish a newer owner. Otherwise the old path can win that draw.
+        super::path_controls::key_time::apply_selection(panels, state);
         super::property_focus::settle(panels);
         return true;
     }

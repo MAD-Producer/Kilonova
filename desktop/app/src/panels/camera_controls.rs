@@ -11,8 +11,11 @@ use motion_ui::{
 };
 use serde_json::Value;
 mod lens;
+mod authoring;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod mapped_tests;
 mod values;
 use values::{bounds, feedback, text};
 
@@ -20,6 +23,7 @@ use values::{bounds, feedback, text};
 pub struct Controls {
     pub(crate) filter: super::types::PropertyFilter,
     context: Option<(String, String, u64, u64, bool)>,
+    time: Option<super::property_authoring::NumericTime>,
     field: Option<Field>,
     mode: motion_ui::widgets::Dropdown,
     lens: lens::Controls,
@@ -34,6 +38,7 @@ pub struct Controls {
 struct Field {
     property: Property,
     axis: usize,
+    spatial: Option<super::property_authoring::SpatialDraft>,
     number: super::numeric::Field,
     rect: Rect,
 }
@@ -124,7 +129,16 @@ impl Controls {
                 .flatten()
                 .any(|l| l["id"].as_u64() == Some(object) && l["locked"] == true);
         let frame = state["frame"].as_f64().unwrap_or(f64::NAN);
-        let editable_frame = super::key_navigation::editable_frame(frame, super::last_frame(state));
+        let legacy_frame = super::key_navigation::editable_frame(frame, super::last_frame(state));
+        let mapped = super::property_authoring::precise(state, object);
+        let (time, valid_time, integer_time) = match observe!("camera.numeric_time",
+            authoring::availability(state, object),
+            "object={object} frame={frame} phase=prepare") {
+            Ok((time, integer)) => (time, true, integer),
+            Err(_) => (None, false, false),
+        };
+        let editable_time = valid_time && (legacy_frame.is_some()
+            || mapped && frame.is_finite() && (0. ..=super::last_frame(state)).contains(&frame));
         let c = camera(state, object);
         let orbit = c["mode"] == "orbit";
         let context = (
@@ -134,7 +148,12 @@ impl Controls {
             frame.to_bits(),
             orbit,
         );
-        let changed_context = self.context.as_ref() != Some(&context);
+        let spatial_current = self.field.as_ref().is_none_or(|field| {
+            observe!("camera.spatial_numeric_continue",
+                super::property_authoring::SpatialDraft::current(&field.spatial, state),
+                "object={object} property={:?} phase=continue", field.property).unwrap_or(false)
+        });
+        let changed_context = self.context.as_ref() != Some(&context) || self.time != time || !spatial_current;
         let changed_camera = self
             .context
             .as_ref()
@@ -146,12 +165,12 @@ impl Controls {
             state,
             object,
             input,
-            locked || editable_frame.is_none(),
+            locked || !editable_time,
             out,
         );
         if changed_context
             || locked
-            || editable_frame.is_none()
+            || !editable_time
             || !c.is_object()
             || input.focus_lost
             || input
@@ -167,8 +186,9 @@ impl Controls {
             }
         }
         self.context = Some(context);
+        self.time = time;
         let sampled = sample(state, object);
-        let editable = !locked && editable_frame.is_some() && c.is_object();
+        let editable = !locked && editable_time && c.is_object();
         let caption = layout_at(*y, 0, 1);
         ui::text(
             list,
@@ -349,16 +369,17 @@ impl Controls {
                 layout.watch,
                 motion_ui::icons::Icon::Stopwatch,
                 animated,
-                editable,
+                editable && (animated || integer_time),
             );
-            if clicked(input, layout.watch) && editable {
-                out.push(Action::Edit(Command::Animate {
+            if clicked(input, layout.watch) && editable && (animated || integer_time) {
+                out.push(Action::Edit(super::property_authoring::at_playhead(state, Command::Animate {
                     object,
                     property,
                     axis,
-                    frame: editable_frame.unwrap(),
+                    // The precise adapter replaces this legacy integer address.
+                    frame: legacy_frame.unwrap_or(0),
                     enabled: !animated,
-                }));
+                })));
             }
             let title = if property == Property::Fov {
                 if locale == Locale::Zh {
@@ -382,6 +403,7 @@ impl Controls {
                 Align::Left,
             );
             for (component, axis) in axes.into_iter().enumerate() {
+                let editable = editable && authoring::can_set(source, integer_time);
                 let rect = layout_at(*y, component, dimensions).number;
                 #[cfg(test)]
                 self.rects.push((property, axis, rect));
@@ -430,7 +452,7 @@ impl Controls {
                 if rect.contains(input.mouse) {
                     self.drag_readout = Some((
                         input.mouse,
-                        if editable_frame.is_none() {
+                        if !editable_time {
                             text(
                                 locale,
                                 "请定位到整帧后编辑；子帧仍可浏览",
@@ -450,9 +472,13 @@ impl Controls {
                     if self.cancel() {
                         out.push(Action::History(4));
                     }
+                    let Ok(spatial) = observe!("camera.spatial_numeric_begin",
+                        super::property_authoring::SpatialDraft::read(state, object, property, Some(axis)),
+                        "object={object} property={property:?} axis={axis} phase=begin") else { continue; };
                     self.field = Some(Field {
                         property,
                         axis,
+                        spatial,
                         number: Default::default(),
                         rect,
                     });
@@ -474,9 +500,28 @@ impl Controls {
                     if field.number.editor.text.error.is_some() {
                         self.drag_readout = Some((input.mouse, feedback(property, locale, true)));
                     }
-                    if super::numeric::apply(events, out, |v| {
+                    let mut pending = Vec::new();
+                    let finished = super::numeric::apply(events, &mut pending, |v| {
                         camera_command(state, object, property, axis, v)
-                    }) {
+                    });
+                    let starts_gesture = pending.iter().any(|action| matches!(action, Action::History(2)));
+                    let adapted = pending.into_iter().map(|action| match action {
+                        Action::Edit(command) => super::property_authoring::SpatialDraft::command(&field.spatial, state, command).map(Action::Edit),
+                        action => Ok(action),
+                    }).collect::<motion_core::Result<Vec<_>>>();
+                    match observe!("camera.spatial_numeric_command", adapted,
+                        "object={object} property={property:?} axis={axis} phase=value") {
+                        Ok(actions) => out.extend(actions),
+                        Err(_) => {
+                            field.number.cancel();
+                            // A release may already have closed the field while
+                            // its pending commit has not reached the worker.
+                            if !starts_gesture { out.push(Action::History(4)); }
+                            self.field = None;
+                            continue;
+                        }
+                    }
+                    if finished {
                         self.field = None;
                     }
                 } else {
@@ -495,7 +540,7 @@ impl Controls {
             object,
             lens_input,
             locale,
-            !editable,
+            !editable || !authoring::can_set(&c["fov"], integer_time),
             selection,
             graph_component,
             out,
@@ -580,9 +625,10 @@ fn camera_command(
     axis: usize,
     value: f32,
 ) -> Command {
-    // Callers require editable_frame; use its nearest-integer convention.
+    // Unmapped fields retain their legacy nearest-integer convention; the
+    // precise adapter below replaces that address for mapped layers.
     let frame = state["frame"].as_f64().unwrap_or(0.).round() as u32;
-    if matches!(property, Property::Position | Property::Target) {
+    let command = if matches!(property, Property::Position | Property::Target) {
         let key = if property == Property::Position {
             "position"
         } else {
@@ -615,5 +661,6 @@ fn camera_command(
             frame,
             value,
         }
-    }
+    };
+    super::property_authoring::at_playhead(state, command)
 }

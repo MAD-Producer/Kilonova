@@ -1,0 +1,208 @@
+{
+  "created_utc": "2026-10-31T11:34:46.934745+00:00",
+  "base_commit": "a5806a0aec06ac806c2fa717e2a9b07cb3315130",
+  "stage": "嵌套视频、定向 remap 和单 phase 曝光；不是整个 #257 的交付或验收",
+  "source_sha256": {
+    "crates/motion-model/src/layer_time.rs": {
+      "bytes": 16872,
+      "sha256": "1ceecd326852295ad7afd495b755d31911d617a24d3791fbf955ce52adb7ccd0"
+    },
+    "crates/motion-model/src/layer_time/document.rs": {
+      "bytes": 11067,
+      "sha256": "6d835fca388253a56cb9ba13de1b323df45a722bd274f70b8bd91e9f2306d4e9"
+    },
+    "crates/motion-render/src/scene.rs": {
+      "bytes": 46798,
+      "sha256": "5d87e5664b6811298d0f8b802befa970621a16b93e26f9889ceab36b6084e58d"
+    },
+    "crates/motion-render/src/exposure_scene.rs": {
+      "bytes": 15471,
+      "sha256": "49f9b1f335f7e5975b7f47c8557119bc97b8376f3895fadf08ca352b8c4cab11"
+    },
+    "crates/motion-render/src/renderer/nested_exposure.rs": {
+      "bytes": 9664,
+      "sha256": "14cfce189f1bacdbf4bdeb48f2790d728eab8fe3d705c27594dcbb70e5f54481"
+    },
+    "crates/motion-model/tests/layer_time_direction.rs": {
+      "bytes": 3395,
+      "sha256": "c5ec67928481ee104eba488118262c95e75b9b1b0614d3075c270beb5a274be1"
+    },
+    "crates/motion-render/tests/layer_time_nested.rs": {
+      "bytes": 8466,
+      "sha256": "0d37f7533fd438a9d3fb3b916d679de36a7f2175bf8d8266b2a890ce99a6fad5"
+    },
+    "crates/motion-desktop-media/tests/layer_time_video.rs": {
+      "bytes": 18879,
+      "sha256": "879214f2940a9857838ef8570bb347b3bcfb81afef7874fe1f513a9c5a69b5ec"
+    }
+  },
+  "existing_fixture_sha256": {
+    "silent-24fps.mp4": {
+      "bytes": 5902,
+      "sha256": "542160beafcbf10c5334ad5599002531e3442448b92c03f11a38f0bb901afc16"
+    },
+    "variable.mp4": {
+      "bytes": 3011,
+      "sha256": "20a1a9dbe79bb31de947386c5fc3b8707f1eab71a45af3ad08e46e5f2af471cb"
+    },
+    "manifest.json": {
+      "bytes": 78572,
+      "sha256": "2d87cc8e1f18fd46f129a6cca1feb5fb80fc11fc7f01947d60dcfee324991804"
+    }
+  },
+  "executed_new_test_programs": {
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_direction-b2e777fd4acbbddd.exe": {
+      "bytes": 922112,
+      "sha256": "ba0e695eacdbb0da99a2a7adf5943cd74bd4e30ef3728842d8d780450daaf461"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_video-b6341bad5be4442f.exe": {
+      "bytes": 1367552,
+      "sha256": "4d558f19ef04b600851ebb33b7d14b500ca8a4f500c7761a0808fe66cc1bc844"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_nested-d1d9573a1257455a.exe": {
+      "bytes": 13360128,
+      "sha256": "45cad11cb075f45013a4f0021aa2cdbe33247faba8925f0d76c9c4a9f38587ee"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_video-c3457cfedcd7a6b9.exe": {
+      "bytes": 61367808,
+      "sha256": "c230902a011f4adb314b4698889c73dfa1c42e76d8515c5b312093b171f5100f"
+    }
+  },
+  "raw_evidence": {
+    "layer-time-direction-before.log": {
+      "bytes": 3458,
+      "sha256": "ac3db2483b42b4829dc7dc9854ef7d1ba2d8ff81e964ecbdb3c7cd6ad619bda0"
+    },
+    "layer-time-direction-before-behavior.log": {
+      "bytes": 1395,
+      "sha256": "d55e8f210c2b7ddcae1b3d690935103793ffaafd68899a4788311b5e1f3d48aa"
+    },
+    "layer-time-nested-before.log": {
+      "bytes": 2571,
+      "sha256": "2a3035d4dc8de4aa5a2e93117a7392cf53d0c8200b491768e3d435ee0b3f7658"
+    },
+    "layer-time-direction-fixed.log": {
+      "bytes": 3151,
+      "sha256": "ca9357adea227ff9ea6995068a7fa61531ebdab21082952860c4e97033e56f95"
+    },
+    "layer-time-nested-fixed.log": {
+      "bytes": 1614,
+      "sha256": "2de1e69ab0723195e2b7f52ed67dc562f46cd48ae511098a1bed64b881871c5a"
+    },
+    "layer-time-nested-fixed-after-compiler-exit.log": {
+      "bytes": 2305,
+      "sha256": "fef7c793884ccc752b562d58efdf4c0f00fc43149a242de3fc97e709bdb96afc"
+    },
+    "layer-time-nested-native.log": {
+      "bytes": 1769,
+      "sha256": "77101e1bf5780c32244e1fbb4d7cfc3e5bb9b2cad3f7413d1bc7436c9766ffe4"
+    },
+    "layer-time-nested-model-full.log": {
+      "bytes": 30033,
+      "sha256": "89264ecea47f14ca980067d101d29a06de15e8ebca5cc0b79d9c8e6c821a88f7"
+    },
+    "layer-time-direction-endpoint-before.log": {
+      "bytes": 1052,
+      "sha256": "4c06aba0fd0a4110068c816f8c855c913687743b70ab9a1fcb7bfdc223cbe8a9"
+    },
+    "layer-time-nested-model-final.log": {
+      "bytes": 28758,
+      "sha256": "97efe28dabc6dd3c210b5884161b64a41c977054b15525258bcafa5aabb985de"
+    },
+    "layer-time-nested-render-final.log": {
+      "bytes": 7309,
+      "sha256": "d2af80d2166133eaa74385c4ca5dde3cc3cba0696dd4e6fe80f4ab3c444fc8e4"
+    },
+    "layer-time-nested-native-final.log": {
+      "bytes": 3562,
+      "sha256": "a091655cb5e808bbb86359eada20dd7f0682f64aab038063a55eb03134bff7f8"
+    },
+    "layer-time-nested-tool-exits.json": {
+      "bytes": 6692,
+      "sha256": "5caaf7cf7391d7fd64d5c001996758208a5a1658a26ac666fde654d95becef25"
+    },
+    "layer-time-nested-native-verified.log": {
+      "bytes": 1769,
+      "sha256": "0b98610e2c37bade856934ac43067714c206514bf32516d221a0117be8546d25"
+    },
+    "layer-time-nested-workspace-final.log": {
+      "bytes": 20388,
+      "sha256": "72150d89c2240b93bc7375f2c9bce2e5710373df6c5d512185468537ad58204d"
+    }
+  },
+  "results": {
+    "layer-time-nested-model-final.log": {
+      "passed": 206,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-nested-render-final.log": {
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-nested-native-verified.log": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_tests_passed": 254,
+  "native_cases": {
+    "nested_frozen_png_pairs": 4,
+    "nested_exposure_pixel_pairs": 4,
+    "dimensions": [
+      32,
+      32
+    ],
+    "oracle": "independent flat unmapped source at fixed expected microseconds; actual libav; entire image exact equality",
+    "media_callback": "actual ExposureMedia must run and see exact inherited source time",
+    "exposure_scope": "single phase, no shutter; not acceptance for retimed multi-tap motion blur",
+    "prior_root_cases_rerun": "34 CFR/VFR fixed points and two frozen PNG pairs",
+    "png_retention": "temporary files asserted in-process then removed by tempdir; no retained PNG artifact"
+  },
+  "environment": {
+    "shell_setup": "E:/Dev/aem/.tools/msvc-portable/env.ps1",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "WGPU_BACKEND": "vulkan",
+    "FFMPEG_DIR": "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1",
+    "LIBCLANG_PATH": "E:/Dev/aem/.tools/python-libclang/clang/native",
+    "TEMP_TMP": "E:/Dev/aem/artifacts/pr-integration-current/link-tmp",
+    "PATH_prefix_for_ffmpeg": "${FFMPEG_DIR}/bin"
+  },
+  "test_commands": [
+    "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --nocapture",
+    "cargo test -p motion-render --test layer_time_nested --test composition_frame_boundaries --test compositions --test nested_exposure --test exposure_scenes --test exposure_frame --test video_instances --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-desktop-media --features ffmpeg --test layer_time_video --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture"
+  ],
+  "workspace_check": {
+    "command": "cargo check --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "result": "passed; existing warnings retained; compilation is not execution"
+  },
+  "failure_dispositions": {
+    "direction_before": "LNK1104 in default temp folder; explicit existing link-tmp then produced actual behavior failures",
+    "direction_before_behavior": "two actual old-model signed interval failures, original assertions preserved",
+    "nested_before": "two missing end-entry child scenes and actual child frame 16 rather than expected 64",
+    "endpoint_before": "actual bit-level failure from a + (b - a) cancellation at reverse continuous endpoint; exact assertion preserved",
+    "compiler_and_rustdoc_exits": "STATUS_ACCESS_VIOLATION confirmed terminal; resource/tool version inspection then separate execution; root cause unknown and not claimed fixed",
+    "intermediate_source_retention": "archive has final sources and base production sources; intermediate draft snapshots not retained"
+  },
+  "observability": {
+    "new_observations": "none; functional source traversal correction, existing Result/worker boundary retained",
+    "existing_coverage": "composition fps errors and recovery preserve code/reference/phase; invalid exposure request context explicitly checked",
+    "normal_branches": "outside interval, holds, freeze, cancellation and stale requests not new fault counters",
+    "pending": "actual desktop default Info file, Error stderr, stdout isolation, in-flight blocking and panic evidence"
+  },
+  "pending": [
+    "stationary curve traversal limit distinct from true freeze; ordinary Hold/camera reverse edges; mapped multi-tap shutter",
+    "nonmonotonic prefetch; mapped source validation and resize; depth; model animation",
+    "bounded mapped PCM, reverse/freeze silence, unchanged fast path samples and movie audio",
+    "continuous ordinary-key editing; all manual offset consumers; cache and prerender identity",
+    "UI entry, main/floating locales, focus/cancel, screenshots, final CI and full issue audit"
+  ],
+  "archive": {
+    "bytes": 98042,
+    "sha256": "b1b9ed2d968cfc102d0598c625b13bb239900ac4308952e96168adcf54f962b7"
+  }
+}

@@ -79,7 +79,11 @@ fn command(
     };
     Command::CameraLens {
         object,
-        frame: state["frame"].as_f64().unwrap_or(0.).round().max(0.) as u32,
+        frame: if super::super::property_authoring::precise(state, object) {
+            state["frame"].as_f64().unwrap_or(f64::NAN)
+        } else {
+            state["frame"].as_f64().unwrap_or(f64::NAN).round()
+        },
         film_width_mm: film as f32,
         focal_length_mm: focal as f32,
     }

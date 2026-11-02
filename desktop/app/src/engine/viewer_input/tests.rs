@@ -74,7 +74,7 @@ fn real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_chan
     assert!(count.contains("expected 1, 2, or 4 cameras"));
     let point=run(&engine,request(&before,Query::Pick { camera:Camera::Camera(1),point:[f64::NAN,0.] })).unwrap_err();
     assert!(point.contains("invalid hit-test point"));
-    let drag=|state:&Value,camera,window,size|Drag{source:KeyframeSource::of(state),frame:state["frame"].as_f64().unwrap(),window,camera,object:7,delta:[10.,0.],size};
+    let drag=|state:&Value,camera,window,size|Drag{source:KeyframeSource::of(state),frame:state["frame"].as_f64().unwrap(),window,camera,object:7,spatial_key:None,delta:[10.,0.],size};
     let invalid_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(1),0,[0,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();
     assert!(invalid_drag.contains("invalid preview drag"));
     let missing_drag=engine.viewer_drag_async(drag(&before,Camera::Camera(999),0,[64,64])).unwrap().recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap_err();

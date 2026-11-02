@@ -1,7 +1,7 @@
 use super::*;
 
 fn signature(state: &types::TimelineState) -> u64 {
-    scroll_extent_signature(&("project".into(), "main".into(), 1), state, "", 180., 22.)
+    scroll_extent_signature(&("project".into(), "main".into(), 1, Some(7)), state, "", 180., 22.)
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn all_row_groups_and_viewport_identity_inputs_invalidate_the_signature() {
     ] {
         assert_ne!(
             scroll_extent_signature(
-                &(root.into(), comp.into(), revision),
+                &(root.into(), comp.into(), revision, Some(7)),
                 &empty,
                 query,
                 area,

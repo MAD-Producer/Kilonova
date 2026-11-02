@@ -99,7 +99,7 @@ impl Controls {
         if popup.host != host {
             return;
         }
-        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        let frame = state["frame"].as_f64().unwrap_or(f64::NAN);
         let parameter = keys::cached_layer(state, popup.object, &self.keys.cache)
             .filter(|l| !l.locked)
             .and_then(|l| match &l.content {
@@ -108,7 +108,7 @@ impl Controls {
                     l.size,
                     popup.item,
                     &popup.parameter,
-                    l.local_frame(f64::from(frame)),
+                    l.local_frame(frame),
                     locale,
                 ),
                 _ => None,

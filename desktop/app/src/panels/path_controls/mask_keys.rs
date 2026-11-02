@@ -145,6 +145,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(super) struct Controls {
+    pub(in crate::panels::path_controls) navigation_selection: Option<Vec<crate::panels::key_selection::AddressedKey>>,
     selection_intent: bool,
     context: Option<(String, String, u64)>,
     active: Option<Channel>,
@@ -173,6 +174,7 @@ fn emit(
 }
 impl Controls {
     pub(in crate::panels) fn project_key(&mut self, state: &Value, object: u64, mask: u64, property: u8, frame: u32) {
+        self.navigation_selection = None;
         self.context = Some((state["root"].as_str().unwrap_or("").into(), state["composition"].as_str().unwrap_or("").into(), object));
         let channel=Channel {object,mask,property};
         self.active=Some(channel.clone());
@@ -186,6 +188,13 @@ impl Controls {
         let layer = clipboard::layer(state, object)?;
         let mask = layer["masks"].as_array()?.iter().find(|m| m["id"] == c.mask)?;
         let track = |property| motion_core::KeyframeTarget::Mask { object, mask: c.mask, property };
+        if !layer["time_mapping"].is_null() {
+            let pose=c.property==mask_path::CHANNEL;
+            let targets=if pose {mask["path"]["nodes"].as_array()?.iter().map(|node|Some(track(MaskProperty::Node(node["id"].as_u64()?)))).collect::<Option<Vec<_>>>()?}
+                else{vec![track(property(c.property))]};
+            let selected=if let Some((selected,frame))=&self.selected {if selected!=c {return None;} Some(*frame)}else{None};
+            return clipboard::Selection::mapped(state,targets,selected,pose,layer["locked"]!=true);
+        }
         let (targets, mut frames): (Vec<_>, Vec<_>) = if c.property == mask_path::CHANNEL {
             mask["path"]["nodes"].as_array()?.iter().map(|node| Some((track(MaskProperty::Node(node["id"].as_u64()?)), clipboard::json_frames(state, &node["geometry"], clipboard::offset(layer), object)?)))
                 .collect::<Option<Vec<_>>>()?.into_iter().unzip()
@@ -225,6 +234,7 @@ impl Controls {
         self.menu.is_some()
     }
     pub(super) fn clear_selection(&mut self) {
+        self.navigation_selection = None;
         self.selection_intent = false;
         self.active = None;
         self.selected = None;
@@ -324,6 +334,7 @@ impl Controls {
         index: u8,
         out: &mut Vec<Action>,
     ) {
+        self.navigation_selection = None;
         let context = (
             state["root"].as_str().unwrap_or("").into(),
             state["composition"].as_str().unwrap_or("").into(),
@@ -355,6 +366,27 @@ impl Controls {
         out: &mut Vec<Action>,
     ) -> bool {
         use crate::panels::key_navigation::{self as navigation, Choice};
+        if crate::panels::property_authoring::precise(state, owner.object) {
+            let Ok(timing) = observe!("mask.navigation_time", super::key_time::mask(state, owner.object, mask, index),
+                "object={} mask={} channel={index} phase=rail", owner.object, mask.id) else { return false; };
+            let adjacent = navigation::neighbours(timing.entries.iter().map(|(time, _)| *time), timing.at, crate::panels::last_frame(state));
+            let editable = !owner.locked && state["observing"] != true && timing.editable;
+            let rect = navigation::rail(&list.styles(), row);
+            let Some(choice) = navigation::draw(list, rect, input, adjacent, editable) else {return false;};
+            self.choose(state, owner, mask.id, index, out);
+            match choice {
+                Choice::Seek(time) => {
+                    self.navigation_selection = Some(timing.selected(time));
+                    out.push(Action::Seek(time));
+                }
+                Choice::Toggle => {
+                    let (commands, keys) = timing.toggle();
+                    self.navigation_selection = Some(keys);
+                    out.push(Action::EditBatch(commands));
+                }
+            }
+            return true;
+        }
         let at = state["frame"].as_f64().unwrap_or(0.);
         let last = crate::panels::last_frame(state);
         let adjacent = navigation::neighbours(frames(mask, index).into_iter()
@@ -413,6 +445,18 @@ impl Controls {
             enabled,
         );
         if enabled && click(input, rect) {
+            if crate::panels::property_authoring::precise(state, owner.object) {
+                let properties = if index == mask_path::CHANNEL {
+                    mask.path.nodes.iter().map(|node| MaskProperty::Node(node.id)).collect()
+                } else {vec![property(index)]};
+                let commands = properties.into_iter().map(|property| motion_core::Command::TrackAt {
+                    target: motion_core::KeyframeTarget::Mask {object: owner.object, mask: mask.id, property},
+                    frame: state["frame"].as_f64().unwrap_or(f64::NAN),
+                    edit: motion_core::TrackEdit::Animate {enabled: !animated(mask, index)},
+                }).collect();
+                out.push(Action::EditBatch(commands));
+                return;
+            }
             emit(
                 out,
                 &Channel {
@@ -644,6 +688,23 @@ impl Controls {
         let Some(mask) = layer.masks.iter().find(|m| m.id == channel.mask) else {
             return navigation;
         };
+        if crate::panels::property_authoring::precise(state, channel.object) {
+            let Ok(timing) = observe!("mask.navigation_time", super::key_time::mask(state, channel.object, mask, channel.property),
+                "object={} mask={} channel={} phase=keyboard", channel.object, channel.mask, channel.property) else {return navigation;};
+            let mut at = timing.at;
+            for (key, _, _) in input.key_presses().filter(|(k,m,_)|
+                matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift) {
+                let adjacent = crate::panels::key_navigation::neighbours(timing.entries.iter().map(|(t,_)|*t), at, crate::panels::last_frame(state));
+                if let Some(time) = if key == Key::J {adjacent.previous} else {adjacent.next} {
+                    at = time;
+                    self.selected = None;
+                    self.navigation_selection = Some(timing.selected(time));
+                    self.selection_intent = true;
+                    out.push(Action::Seek(time));
+                }
+            }
+            return navigation;
+        }
         let offset = i64::from(Owner::from(&layer).offset);
         let total = state["project"]["frames"].as_u64().unwrap_or(1) as i64;
         let keys: Vec<_> = frames(mask, channel.property)
