@@ -68,6 +68,44 @@ fn captured(engine: &Engine, at: f64) -> image::RgbaImage {
     }
 }
 
+// Include original files and derived caches; prepared tasks own separate staging
+// directories which are expected to disappear when their publication fails.
+fn published_files(root: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    fn visit(base: &Path, path: &Path, out: &mut std::collections::BTreeMap<PathBuf, Vec<u8>>) {
+        for entry in fs::read_dir(path).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                if !path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(".video-import-")
+                {
+                    visit(base, &path, out);
+                }
+            } else {
+                out.insert(
+                    path.strip_prefix(base).unwrap().to_owned(),
+                    fs::read(&path).unwrap(),
+                );
+            }
+        }
+    }
+    let mut result = std::collections::BTreeMap::new();
+    for directory in ["assets", "cache"] {
+        let path = root.join(directory);
+        if path.is_dir() {
+            visit(root, &path, &mut result);
+        }
+    }
+    // Session lock files are intentionally held open and are not publications.
+    result.insert(
+        PathBuf::from("project.json"),
+        fs::read(root.join("project.json")).unwrap(),
+    );
+    result
+}
+
 #[test]
 fn fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable() {
     let observations = std::env::var_os("MOTION_TRACKED_PAIR_NATIVE_DIR").map(PathBuf::from);
@@ -131,6 +169,7 @@ fn fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable() {
             state["revision"].as_u64().unwrap(),
         )
         .unwrap();
+    engine.save().unwrap();
     let before = engine.state().unwrap();
     let warm = captured(&engine, 24.);
     let fresh = fixtures.join("video-delayed.mp4");
@@ -187,6 +226,42 @@ fn fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable() {
     stale["revision"] = json!(before["revision"].as_u64().unwrap() - 1);
     assert!(media(&engine, stale).is_err());
     assert_eq!(engine.state().unwrap()["project"], before["project"]);
+    // Both failures below happen AFTER the source/PTS checks and original
+    // staging, when the ordinary publisher has already moved the new video
+    // and caches. They must roll back those publications as well as the solve.
+    for (id, save_failure) in [("pair-invalid-binding", false), ("pair-save-failure", true)] {
+        prepare(&engine, id, &fresh);
+        let files = published_files(&root);
+        let mut failed = request(id, &new_document, &before);
+        if save_failure {
+            fs::create_dir(root.join("project.json.tmp")).unwrap();
+        } else {
+            failed["bindings"][0]["binding"]["track"] = json!("missing-new-camera");
+        }
+        let reason = media(&engine, failed).unwrap_err();
+        if save_failure {
+            // The real save encounters a directory where its temporary file
+            // must be created. No fake successful persistence return is used.
+            assert!(reason.contains("save_tracked_video_project"), "{reason}");
+            fs::remove_dir(root.join("project.json.tmp")).unwrap();
+        } else {
+            assert!(reason.contains("camera track missing"), "{reason}");
+        }
+        let status = media(&engine, json!({"op":"media_status","request_id":id})).unwrap();
+        assert_eq!(status["state"], "failed", "{status}");
+        assert_eq!(
+            published_files(&root),
+            files,
+            "publication leaked files for {id}"
+        );
+        let unchanged = engine.state().unwrap();
+        assert_eq!(unchanged["project"], before["project"]);
+        assert_eq!(unchanged["revision"], before["revision"]);
+        assert_eq!(
+            motion_core::storage::load(&root).unwrap(),
+            serde_json::from_value::<motion_core::Project>(before["project"].clone()).unwrap()
+        );
+    }
     let result = media(&engine, request("pair-fresh", &new_document, &before)).unwrap();
     assert_eq!(result["task"]["state"], "succeeded");
     let after = engine.state().unwrap();

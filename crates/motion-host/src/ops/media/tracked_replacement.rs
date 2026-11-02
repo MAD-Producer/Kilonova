@@ -148,6 +148,17 @@ impl EditSink for PairSink<'_> {
                         *acknowledgement = Some(error);
                         Ok(())
                     }
+                    Err(motion_core::Error::Io(source)) => {
+                        for original in originals.iter_mut() {
+                            original.retain_original(false);
+                        }
+                        Err(motion_core::Error::Storage {
+                            phase: "save_tracked_video_project",
+                            path: root.join("project.json"),
+                            published: false,
+                            source,
+                        })
+                    }
                     Err(error) => {
                         for original in originals.iter_mut() {
                             original.retain_original(false);

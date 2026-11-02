@@ -68,8 +68,7 @@ panel, layout, interaction or Android code was added by this increment.
 
 ## Pending acceptance
 
-- Dedicated rejection after original staging and publication rollback controls
-- Paired save failure, published durability acknowledgement and unwind injection
+- Published durability acknowledgement and unwind injection for the paired path
 - Point/plane bindings, explicit detach and nested-composition controls
 - Full affected-crate/desktop regression and cross-platform CI for the final head
 - Product-facing tracker preparation/finish workflow and protocol output proof
@@ -80,3 +79,30 @@ panel, layout, interaction or Android code was added by this increment.
 These are explicit draft limitations. The targeted successful runs do not establish
 complete fault safety, full regression, UI acceptance or issue completion. Android
 is stopped and excluded from the maintained desktop delivery scope.
+
+## Follow-up: real staged-publication rollback
+
+The [rollback receipt](data/tracking88-pair-rollback-v1.json) and
+[source/log archive](data/tracking88-pair-rollback-v1.zip) extend the same native
+test with two actual failures after original staging and video/cache publication:
+an invalid new camera track and a directory blocking `project.json.tmp` creation.
+Both reject with a failed task while preserving revision, author state, reopened
+saved state, and every published file byte under assets/cache plus project.json.
+The test then completes a valid replacement and its GPU undo/redo/reopen checks.
+The targeted FFmpeg test passed: **1 passed, 0 failed, 0 ignored, 14.01 seconds**.
+Default-level Info starts and each failure's Error in file and stderr were checked.
+
+The actual save failure exposed missing phase context in generic core IO errors.
+The paired sink now wraps that original error as `save_tracked_video_project`,
+including project.json and pre-publication status. Return/failure/rollback semantics
+remain unchanged. The first local attempt failed because its snapshot read a
+session-owned lock file. The fixture now snapshots published resources explicitly
+and saves its authored baseline before comparing reopen; no existing assertion was
+weakened and no production success was mocked.
+
+Initial PR head `07cefe16` passed Rust/GPU, Ubuntu and Windows CI. Its macOS Intel
+job failed the existing asynchronous movie-freeze panic test while waiting five
+seconds for a reply (`failure/tests.rs:378`); raw log was inspected locally in
+`artifacts/pr-queue/tracking88-pair-macos-first.log`. This is a failed gate, not a
+cross-platform pass. This increment does not modify or disable that assertion.
+Final-head CI remains required, together with the other pending items above.
