@@ -704,7 +704,7 @@
     "composition_precision-5ec53d2a2c8b6d1c.exe": "dab6accdf28cc66d4dd425ba386bb7896cc90161ce0847e3abfc168180877653",
     "layer_compositing-2bdc0319f69a3389.exe": "d946b6489cb3fa2ef3616445604afdbb5b4fb7f81b751965baf41ebe7aed6269"
   },
-  "evidence_zip_sha256": "24b834452ac045ecad2bebdbee130c94e8936c62df1e8f145250de6a408511fe",
+  "evidence_zip_sha256": "324da72a52ed8d05969555476d81360dab54632d0e240cf83da686366074ab47",
   "limits": [
     "Whole-frame allocation requirement still unmet.",
     "Local native GPU only; cross-platform CI pending.",
