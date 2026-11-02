@@ -25,6 +25,24 @@ class ConsecutiveFailure:
         return self.count if self.count in (1, 60) else None
 
 
+class TrackFailures:
+    """Per track/run: authored absence lasts until an explicit visible edit.
+
+    Subsequent missing samples retain the existing output contract, but do not
+    represent automatic measurement failures while the author has stopped the
+    track. A visible edit resumes failure observation even if reseeding fails.
+    """
+    def __init__(self):
+        self.manual_absence = False
+        self.streak = ConsecutiveFailure()
+
+    def record(self, visibility, manual):
+        if manual:
+            self.manual_absence = visibility != 'visible'
+        failed = visibility == 'lost' and not manual and not self.manual_absence
+        return failed, self.streak.record(failed)
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

@@ -462,6 +462,12 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Exercise actual optimized CLI rejection, default file/Error stderr isolation, original signed PTS, counter thresholds, corrections and child cancellation without optional media/CV dependencies"
     },
+    "tools/tracking/validate_manual_absence.py": {
+      "mode": "manual",
+      "command": "python tools/tracking/validate_manual_absence.py --ffmpeg <local-ffmpeg> --ffprobe <local-ffprobe> --output <new-evidence-directory>",
+      "requires": "Explicit local FFmpeg/ffprobe and the credited pinned OpenCV/NumPy environment",
+      "reason": "Actual encoded-video tracker controls distinguish authored absence from sustained automatic failure and verify default logs, stdout isolation and recovery resets"
+    },
     "tools/tracking/validate_prototype.py": {
       "mode": "manual",
       "command": "python tools/tracking/validate_prototype.py --ffmpeg <local-ffmpeg> --ffprobe <local-ffprobe> --output <new-evidence-directory>",

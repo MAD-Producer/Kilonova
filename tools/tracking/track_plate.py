@@ -18,7 +18,7 @@ import sys
 import threading
 import time
 
-from plate_contract import (ConsecutiveFailure, MAX_FRAMES, MAX_SOURCE_BYTES, check_coordinates,
+from plate_contract import (TrackFailures, MAX_FRAMES, MAX_SOURCE_BYTES, check_coordinates,
                             metadata, read_request, require, timestamp)
 
 
@@ -211,7 +211,7 @@ def track(source, request_path, output, ffmpeg, ffprobe):
         run.report.update(implementation=versions, limits=flow.LIMITS)
         edits = {(e['track'],e['source_index']):e for e in request['corrections']}
         tracks = [dict(id=seed['id'],kind=seed['kind'],reference_index=0 if seed['kind']=='plane' else None,samples=[]) for seed in request['tracks']]
-        trackers, counters = [], [ConsecutiveFailure() for _ in tracks]
+        trackers, counters = [], [TrackFailures() for _ in tracks]
         retained_causes = {}
         previous = None
         decoder = frames(run, ffmpeg, source, request['stream_index'], extent, len(pts))
@@ -228,14 +228,14 @@ def track(source, request_path, output, ffmpeg, ffprobe):
                     else:
                         observation, confidence = (tracker.initial,1. if tracker.initial is not None else 0.) if index==0 else tracker.observe(previous,gray)
                         visibility = 'visible' if observation is not None else 'lost'
-                    signal = counters[slot].record(visibility=='lost' and edit is None)
-                    if visibility == 'lost' and edit is None:
+                    failed, signal = counters[slot].record(visibility, edit is not None)
+                    if failed:
                         retained_causes.setdefault(target['id'],dict(firstFrame=index,
                             cause=(tracker.reason or 'track remains lost')[:256]))
                     if signal is not None:
                         log = run.log.debug if signal==1 else run.log.error
-                        log('tracking degradation source=%s track=%s phase=track occurrences=%d cause=%s',
-                            fingerprint,target['id'],signal,(tracker.reason or 'track remains lost')[:256])
+                        log('tracking degradation source=%s track=%s phase=track source_index=%d occurrences=%d cause=%s',
+                            fingerprint,target['id'],index,signal,(tracker.reason or 'track remains lost')[:256])
                     target['samples'].append(dict(source_index=index,visibility=visibility,
                         confidence=confidence,observation=observation,manual_correction=edit is not None))
                 previous = gray.copy()

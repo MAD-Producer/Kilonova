@@ -67,6 +67,11 @@ IO. `tracking.log` has Info starts at the default `MOTION_LOG=info` level; Error
 also goes to stderr and stdout stays empty. Per-track consecutive automatic loss
 logs Debug at occurrence 1 and Error once at 60, resets on recovery/manual
 states, and retains bounded causes. Sixty occurrences is not a duration.
+An authored lost/occluded state suppresses automatic-failure observation until
+an explicit visible correction resumes the track. Subsequent samples keep the
+existing lost visibility; no geometry or recovery is invented. Genuine failures
+after that visible correction start a fresh streak, even if the edit could not
+reseed automatic tracking. Error records identify the original source index.
 Child stderr is drained with retained output capped at 256 KiB per invocation.
 External tools have no hard execution deadline; the phase/PID records help
 diagnose a tool that never returns. Cancellation stops the owned child.
@@ -92,4 +97,10 @@ Run optional real-CV reference-cycle controls in the same credited environment:
 
 ```text
 python tools/tracking/test_flow.py -v
+```
+
+Verify authored absence and resumed failure thresholds through the actual CLI:
+
+```text
+python tools/tracking/validate_manual_absence.py --ffmpeg /absolute/path/to/ffmpeg --ffprobe /absolute/path/to/ffprobe --output new-absence-evaluation
 ```

@@ -5,16 +5,23 @@
 - Authors: Karel Zimmermann, Jiri Matas and Tomas Svoboda; the source page
   credits collection of ground truth and support code to Karel Zimmermann
 - Source: [Ground truth data for tracking of (almost) planar objects](https://cmp.felk.cvut.cz/cmp/demos/Tracking/linTrack/data/index.html),
-  phone/mouse-pad original 100 fps videos and corresponding ground-truth ZIPs
+  phone/mouse-pad published 100 fps overview videos, corresponding ground-truth
+  ZIPs, and the original named phone JPEG sequence
 - Revision: source page last-change stamp 2009-03-02; retrieved 2026-11-01.
   Exact URLs, byte lengths and SHA-256 identities are retained per local run
+- Original phone images: retrieved 2026-11-02 from
+  `https://cmp.felk.cvut.cz/cmp/demos/Tracking/linTrack/data/phone/phone_img.zip`,
+  69,298,425 bytes, SHA-256
+  `468c86c52d5ac91c9a3b93082853b904240e212b6d4ead5963cefed58e0ea667`;
+  upstream Last-Modified 2010-06-09. Used unmodified, locally, to verify named
+  image/overview-video correspondence and annotation consistency; not bundled
 - Permission statement: the authors describe the provided data as entirely
   public and request citation of the publication below. No standard SPDX license
   is specified. This is recorded as the source's custom public-use statement,
   not represented as Apache/MIT/Creative Commons permission
 - Citation: K. Zimmermann, J. Matas, T. Svoboda, "Tracking by an Optimal Sequence
   of Linear Predictors", IEEE TPAMI 31(4), 2009
-- Scope: external local validation only. Original videos/annotations and copied
+- Scope: external local validation only. Original images/videos/annotations and copied
   source-page permission evidence stay outside version control and product/CI
   packages. No upstream MATLAB implementation is copied or executed. Independently
   authored code reads the four manually annotated corners and compares them to

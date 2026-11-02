@@ -227,3 +227,11 @@ Both retain all 21 severe errors while reducing automatic coverage, so neither
 is adopted. Their frozen sources, actual logs and aggregate measurements are
 archived; successful experiment execution does not change this failed quality
 disposition or qualify a new native/full-regression gate.
+
+## Follow-up: authored absence observation fixed
+
+The [actual manual-absence qualification](tracking88-manual-absence-current.md)
+reproduces and fixes false Error escalation after an explicit lost/occluded
+correction. Full original real-sequence observations remain byte-identical;
+only normal absence versus genuine automatic-failure observation changes.
+Independent pixel/annotation diagnosis does not alter this failed quality gate.

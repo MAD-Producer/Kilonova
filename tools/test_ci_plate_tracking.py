@@ -85,6 +85,35 @@ class PlateAdmissionTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'not video'):
             contract.metadata(document,0)
 
+    def test_authored_absence_stays_normal_until_visible_correction(self):
+        for visibility in ('lost', 'occluded'):
+            with self.subTest(visibility=visibility):
+                counter=contract.TrackFailures()
+                self.assertEqual(counter.record('lost',False),(True,1))
+                self.assertEqual(counter.record(visibility,True),(False,None))
+                for _ in range(1000):
+                    self.assertEqual(counter.record('lost',False),(False,None))
+                self.assertEqual(counter.record('visible',True),(False,None))
+                signals=[]
+                for _ in range(1000):
+                    failed,signal=counter.record('lost',False)
+                    self.assertTrue(failed)
+                    if signal is not None:
+                        signals.append(signal)
+                self.assertEqual(signals,[1,60])
+                self.assertEqual(counter.streak.count,60)
+
+    def test_manual_absence_is_per_track_and_resets_an_incomplete_failure_streak(self):
+        absent,active=contract.TrackFailures(),contract.TrackFailures()
+        for _ in range(59):
+            absent.record('lost',False)
+            active.record('lost',False)
+        self.assertEqual(absent.record('occluded',True),(False,None))
+        self.assertEqual(active.record('lost',False),(True,60))
+        self.assertEqual(absent.record('visible',True),(False,None))
+        for index in range(1,61):
+            self.assertEqual(absent.record('lost',False),(True,index if index in (1,60) else None))
+
     def test_child_is_stopped_on_failure_without_replacing_primary_cause(self):
         with tempfile.TemporaryDirectory() as directory:
             run=track_plate.Run(Path(directory)/'evidence')
