@@ -1,0 +1,302 @@
+{
+  "status": "mcp_and_retained_surface_verified_on_integrated_layer_time_baseline",
+  "head": "17d1bc8a43348b23ef255b92bd1b9b9ac2774e3d",
+  "integratedParent": "6e2ea59a1380654f7f6cb769f0a4c7aa3b984cf6",
+  "source": {
+    "desktop/app/src/engine.rs": {
+      "rawSha256": "45fef9d70709a42ddc78c05dd42d64bed8cae405f9cf4d338b92a29f74997cb9",
+      "gitLfSha256": "45fef9d70709a42ddc78c05dd42d64bed8cae405f9cf4d338b92a29f74997cb9"
+    },
+    "desktop/app/src/engine/tracking_video_surface_tests.rs": {
+      "rawSha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a",
+      "gitLfSha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a"
+    },
+    "desktop/app/src/mcp/tracked_video.rs": {
+      "rawSha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f",
+      "gitLfSha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f"
+    },
+    "desktop/app/src/mcp/tracked_video_native_tests.rs": {
+      "rawSha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78",
+      "gitLfSha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78"
+    },
+    "desktop/app/src/mcp/tracked_video_tests.rs": {
+      "rawSha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d",
+      "gitLfSha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d"
+    },
+    "desktop/app/src/workflow/tracked_video.rs": {
+      "rawSha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02",
+      "gitLfSha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02"
+    }
+  },
+  "unchangedParentCrateTrees": {
+    "crates/motion-model": "3caa743c2775c80f4ebf00bc92e9a4c4e4b180f9",
+    "crates/motion-core": "07fdc6fff65f128f90d58ddb389fc0382b00c9a8",
+    "crates/motion-host": "baaf3de90cd4e09073ada5a7e28aa7b78f85501a",
+    "crates/motion-media": "966dc1ad2b46c45ba112bc2b75a52e8e1743dec1",
+    "crates/motion-render": "73156776ee86911ea731850c02ef1ffe864ecdb9"
+  },
+  "binarySha256": "10e684927c5559979f5a5c3ddb5c31256f3977672216ec1643521f37071b0ea3",
+  "buildResults": [
+    {
+      "phase": "tests",
+      "exitCode": 0
+    },
+    {
+      "phase": "surface",
+      "exitCode": 0
+    },
+    {
+      "phase": "build",
+      "exitCode": 0
+    }
+  ],
+  "surface": {
+    "actualSurface": true,
+    "after": {
+      "compositionRenders": 6,
+      "compositionReuses": 2,
+      "lastPresentUs": 2386
+    },
+    "before": {
+      "compositionRenders": 2,
+      "compositionReuses": 0,
+      "lastPresentUs": 8944
+    },
+    "nativeFfmpeg": true,
+    "oneRevision": true,
+    "originalFrame": 24,
+    "pairedCommitInvalidatesFront": true,
+    "redoAndReopenRestoreNewPixels": true,
+    "reopened": {
+      "compositionRenders": 2,
+      "compositionReuses": 1,
+      "lastPresentUs": 2206
+    },
+    "scope": "committed preview front after actual Surface present; not physical scanout readback or photographed tracking quality",
+    "unchangedPresentReusesFront": true,
+    "undoRestoresOldPixels": true,
+    "wrongSolvePreservesFront": true
+  },
+  "surfaceChild": {
+    "elapsed_ms": 7490,
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "pid": 41148,
+    "schema_version": 1,
+    "started_unix_ms": 1793622381248,
+    "status": "exit code: 0",
+    "success": true
+  },
+  "wireChecks": [
+    "real_stdio_advertises_five_actions",
+    "prepare_rejects_stale_context_and_unknown_fields",
+    "cancel_release_preserve_author_state",
+    "native_prepare_ready_does_not_publish_author_state",
+    "finish_rejects_stale_document_and_wrong_original",
+    "native_commit_is_one_revision_with_stable_ids_and_saved_project",
+    "wire_undo_redo_and_save_preserve_atomic_pair",
+    "default_info_start_error_file_and_stderr_with_pure_jsonrpc_stdout",
+    "new_process_reopens_saved_plate_and_solve",
+    "readonly_wire_denies_every_mutation_and_allows_status_dispatch"
+  ],
+  "editReplies": 22,
+  "readonlyReplies": 7,
+  "limits": [
+    "Focused current-source tests and actual native protocol/window proof, not a fresh full desktop/workspace regression",
+    "Parent full model/core/host results belong to #583; five unchanged crate trees are explicitly compared",
+    "One synthetic camera/video Surface case, not every mapped clock or binding/lens combination",
+    "Final-head cross-platform CI, photographed tracker quality and full #88/3D route remain incomplete",
+    "Android is retired and excluded"
+  ],
+  "archive": {
+    "path": "tracking88-mcp-clock-integration-v1.zip",
+    "bytes": 455609,
+    "sha256": "4e12ba7d32d93cef2123480549cedd51fef8b5ebcd63c1d76cc502990db60898",
+    "members": {
+      "publisher.py": {
+        "bytes": 12537,
+        "sha256": "f35d16cccb4f07ccb772105e4620bf946b44983f8a1b9d297fd63e50831834af"
+      },
+      "tracking88-mcp-time-build-v1/build.stderr.log": {
+        "bytes": 15305,
+        "sha256": "dba883b4d3aace498e22aa09fa86ebf91c0afd78d0fde0199614a8da6b7ea16e"
+      },
+      "tracking88-mcp-time-build-v1/build.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-mcp-time-build-v1/controller.py": {
+        "bytes": 4786,
+        "sha256": "a31733b6c16078453e75424dc2e5e22d49a29fcff6b477e136c3b4cd6f7c7797"
+      },
+      "tracking88-mcp-time-build-v1/exit.json": {
+        "bytes": 265710,
+        "sha256": "7900651419f0d391d16a23afbfcdbd3ee504b9c5393664cb3df7ce1668fb5900"
+      },
+      "tracking88-mcp-time-build-v1/native-project/cache/video-v2/video-import-1793622379501348200-1/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-mcp-time-build-v1/native-project/project.json": {
+        "bytes": 97629,
+        "sha256": "0b063125355368f50baa58e7d5a419716205e204bfa191946c2a12a07aaa1ea6"
+      },
+      "tracking88-mcp-time-build-v1/rpc-fixture.json": {
+        "bytes": 106779,
+        "sha256": "4701c54dbde2fe0e528192f39e1ef7a8152f54f42ac9c2cbed3fdedfcd96772b"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/engine.rs": {
+        "bytes": 122147,
+        "sha256": "45fef9d70709a42ddc78c05dd42d64bed8cae405f9cf4d338b92a29f74997cb9"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/engine/tracking_video_surface_tests.rs": {
+        "bytes": 13376,
+        "sha256": "4d59e9853db0c03f6f9141ba85e24ea186f049316b7237d453e8a443b4e9995a"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/mcp/tracked_video.rs": {
+        "bytes": 3165,
+        "sha256": "6313292bc133a66aac611e12efb3c1bd8f02b9728e69cf1bc74e3db9dfdf501f"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/mcp/tracked_video_native_tests.rs": {
+        "bytes": 10445,
+        "sha256": "6d1a320b41e6d812a1c2273aab56dd68bd07dedfe95e09b8e25353b937e1ef78"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/mcp/tracked_video_tests.rs": {
+        "bytes": 4970,
+        "sha256": "3c3dba997d05e7f7482ef35380033a91fd8bcef44db64a0def2eaed6c936c79d"
+      },
+      "tracking88-mcp-time-build-v1/source/desktop/app/src/workflow/tracked_video.rs": {
+        "bytes": 6958,
+        "sha256": "7c966471627839eee9f1ae57bd0acd1dcb98f061af0f13e3f99e9dcb02713a02"
+      },
+      "tracking88-mcp-time-build-v1/surface.stderr.log": {
+        "bytes": 12726,
+        "sha256": "3701113630c3f96dcd7c227b7d3ecee43c7e618723a3b7e9bcb9bf33b511a8e5"
+      },
+      "tracking88-mcp-time-build-v1/surface.stdout.log": {
+        "bytes": 271,
+        "sha256": "5c07466bcd20d8c06e8a2042d6974836296196431b9c83d1ac24900e14f376f4"
+      },
+      "tracking88-mcp-time-build-v1/surface/after-retained.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-mcp-time-build-v1/surface/after.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-mcp-time-build-v1/surface/before.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-mcp-time-build-v1/surface/child-process.json": {
+        "bytes": 197,
+        "sha256": "2541607b66e1c18d60cc5f64507b2eb45fb011421fb3664601ddc680aae64c56"
+      },
+      "tracking88-mcp-time-build-v1/surface/logs/motion-studio.log": {
+        "bytes": 14995,
+        "sha256": "4a8052dbaf9c3153e21dd9688306dff2341dac1ca3ed4aebedd4a12e1a75cd73"
+      },
+      "tracking88-mcp-time-build-v1/surface/project/cache/video-v2/video-import-1793622387673177600-1/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-mcp-time-build-v1/surface/project/project.json": {
+        "bytes": 99128,
+        "sha256": "e6069cd947b79b978bb79d0da41f10954a2495ae713ec9868214a234497e47a1"
+      },
+      "tracking88-mcp-time-build-v1/surface/redo.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-mcp-time-build-v1/surface/rejected-front.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-mcp-time-build-v1/surface/rejected.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-mcp-time-build-v1/surface/reopened.png": {
+        "bytes": 7703,
+        "sha256": "733abd0c1829f0346aae538ccf434bdcf4eaeb3f704b6d273acf4c69d2ea38ba"
+      },
+      "tracking88-mcp-time-build-v1/surface/report.json": {
+        "bytes": 724,
+        "sha256": "9ec71578b8e9565fa2b5491ce9f2166b8fd91dee204b97281c16561736be78f6"
+      },
+      "tracking88-mcp-time-build-v1/surface/retained.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-mcp-time-build-v1/surface/stderr.log": {
+        "bytes": 1512,
+        "sha256": "7556bcd3e82a353b6d658499387898435764465d48eaaeeba28705973cba2937"
+      },
+      "tracking88-mcp-time-build-v1/surface/stdout.log": {
+        "bytes": 271,
+        "sha256": "149f4bed5f53583b42560c29303719d1fa77159c137dcbe266d5b1d7c3a388d3"
+      },
+      "tracking88-mcp-time-build-v1/surface/undo.png": {
+        "bytes": 7768,
+        "sha256": "e929a110f0a1dc72694dd46cfe91a80bffe4db68b25e995b7f64a88c59594ac5"
+      },
+      "tracking88-mcp-time-build-v1/tests.stderr.log": {
+        "bytes": 13400,
+        "sha256": "eda0f01aa7313f6883f54f11795d99330fb7629100702aab19e6e4a3511a3ec0"
+      },
+      "tracking88-mcp-time-build-v1/tests.stdout.log": {
+        "bytes": 444,
+        "sha256": "483bdf538bb541553c6ab0f6abc63f6d41341a185222ac9a5ea2037d870cf32b"
+      },
+      "tracking88-mcp-time-wire-v1/appdata/MotionStudio/diagnostics/last-stalls.json": {
+        "bytes": 15574,
+        "sha256": "f00adcbfbf2bb5801411914239e4560dc011f37dcf0595ad8c4a787cc506d994"
+      },
+      "tracking88-mcp-time-wire-v1/appdata/MotionStudio/logs/motion-studio.log": {
+        "bytes": 1823,
+        "sha256": "500f6a5b7dd3c2bf0664b54881fee955f2e317e516e73e3bdc7a3a1b32d3e127"
+      },
+      "tracking88-mcp-time-wire-v1/controller.py": {
+        "bytes": 9377,
+        "sha256": "ab7febc036aa73a30f548ae69879b543c7129f2db8beb7c0da0be267ee939d59"
+      },
+      "tracking88-mcp-time-wire-v1/edit.motion-studio.log": {
+        "bytes": 5788,
+        "sha256": "2ee311d4b664ef4a8471987c1fdbc5585876278d65bf60fa0232412b7f39755f"
+      },
+      "tracking88-mcp-time-wire-v1/edit.stderr.log": {
+        "bytes": 485,
+        "sha256": "09e04eab54c9cf31b1b9a3c6c7ca6cb2b87152323e19c2133a83d439868c1983"
+      },
+      "tracking88-mcp-time-wire-v1/edit.stdout.jsonl": {
+        "bytes": 948183,
+        "sha256": "2df2df3caffdc7e6b93a05fcfb651da61b0cee4c9a499456f137669e4fc387d0"
+      },
+      "tracking88-mcp-time-wire-v1/exit.json": {
+        "bytes": 263857,
+        "sha256": "6c3a51756b5a7beb074841d049ef72989f3edff44bf615ed286c15ee6d730a33"
+      },
+      "tracking88-mcp-time-wire-v1/project/cache/video-v2/video-import-1793622379501348200-1/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-mcp-time-wire-v1/project/cache/video-v2/video-import-1793622455932652300-2/index.png": {
+        "bytes": 1389,
+        "sha256": "92f654f8db04f451cf391607ee895445f4cbc0e5f798e64d693309b7d4656a61"
+      },
+      "tracking88-mcp-time-wire-v1/project/project.json": {
+        "bytes": 97679,
+        "sha256": "a8558b936322bc712bbd604232e50b484c3db7b9321f81152600e9a2fb96df9b"
+      },
+      "tracking88-mcp-time-wire-v1/readonly-reopen.stderr.log": {
+        "bytes": 95,
+        "sha256": "47ee5d30e8c7e5ac148ea1bc6094b00eb1230b213c6a5eb0bd8211ab5a9e934c"
+      },
+      "tracking88-mcp-time-wire-v1/readonly-reopen.stdout.jsonl": {
+        "bytes": 104150,
+        "sha256": "8b273721bd10a59770f2ad636412865222ebb24fee180136da60d8ffae26d9fd"
+      }
+    }
+  }
+}

@@ -198,6 +198,69 @@ pub(super) fn contains(state: &Value, target: &KeyframeTarget, frame: u32) -> bo
     .unwrap_or(false)
 }
 
+/// Presence concerns the signed authored identity, not the visibility or the
+/// rounded composition position. Retained keys outside a trimmed clip remain
+/// valid selection targets for metadata and deletion.
+pub(super) fn contains_local(
+    state: &Value,
+    target: &KeyframeTarget,
+    frames: &BTreeSet<i32>,
+) -> bool {
+    let Some((track, _)) = track(state, target) else {
+        return false;
+    };
+    if track["spatial_animation"].is_object() {
+        return false;
+    }
+    let checked = || -> motion_core::Result<bool> {
+        let keys = track["keys"]
+            .as_array()
+            .ok_or_else(|| Error::Invalid("local key selection authored keys missing".into()))?;
+        let mut previous = None;
+        let mut wanted = frames.iter().peekable();
+        for key in keys {
+            let frame = key["frame"]
+                .as_i64()
+                .and_then(|f| i32::try_from(f).ok())
+                .ok_or_else(|| {
+                    Error::Invalid("local key selection authored time is not i32".into())
+                })?;
+            if previous.is_some_and(|p| p >= frame) {
+                return Err(Error::Invalid(
+                    "local key selection authored times are not strictly increasing".into(),
+                ));
+            }
+            previous = Some(frame);
+            if wanted.peek().is_some_and(|f| **f == frame) {
+                wanted.next();
+            }
+        }
+        Ok(wanted.next().is_none())
+    };
+    observe!(
+        "selection.local_authored_keys",
+        checked(),
+        "object={} phase=selection fallback=disable_key_edit",
+        target.object()
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn clock(
+    state: &Value,
+    target: &KeyframeTarget,
+) -> motion_core::Result<motion_core::layer_time::LayerClock> {
+    if target.object() == 0 {
+        return Ok(Default::default());
+    }
+    let layer = super::super::keyframe_clipboard::layer(state, target.object())
+        .ok_or_else(|| Error::Invalid("local key selection layer missing".into()))?;
+    if layer["time_mapping"].is_null() {
+        return Ok(Default::default());
+    }
+    serde_json::from_value(layer["time_mapping"]["clock"].clone()).map_err(Error::from)
+}
+
 pub(super) fn contains_spatial(
     state: &Value,
     target: &KeyframeTarget,

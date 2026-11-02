@@ -33,7 +33,7 @@ fn anchor_stopwatch_and_animated_numeric_cancel_agree_in_both_property_hosts() {
         let point=[field.min[0]+field.width()*0.5,field.min[1]+field.height()*0.5];let mut actions=vec![];
         control.draw(&mut paint,&mut atlas,area,y,host,&state["project"]["layers"][0],&state,&pointer(point,true,false),false,&mut actions);
         control.process(&styles,&state,&pointer([point[0]+20.,point[1]],false,false),&mut actions);
-        assert!(actions.iter().any(|a|matches!(a,Action::Edit(Command::AnchorAt{object:7,frame:45,..}))));
+        assert!(actions.iter().any(|a|matches!(a,Action::Edit(Command::AnchorAt{object:7,frame,..}) if *frame==45.)));
         apply(&mut e,std::mem::take(&mut actions));
         let state=anchor_state(&e,45.);
         control.process(&styles,&state,&Input{focus_lost:true,..Default::default()},&mut actions);

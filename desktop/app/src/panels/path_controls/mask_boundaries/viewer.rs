@@ -523,7 +523,9 @@ impl Controls {
                 && !self.point_selection.editing()
             {
                 if let Some(start) = projection.local(cursor) {
+                    let Ok(time) = numeric_time_begin(state, layer.id, mask.id, &grip.property) else {return owned;};
                     self.parameter = Some(Parameter {
+                        time,
                         host: motion_ui::dock::Panel::Composition,
                         object: layer.id,
                         mask: mask.id,

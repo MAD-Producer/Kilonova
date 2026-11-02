@@ -1,0 +1,190 @@
+{
+  "base": "9027bbaa55cb827e4f332beca8351961775323c6",
+  "sources": {
+    "crates/motion-core/src/lib.rs": "21c37011d5115c50b2a3beb543b3bdae10270b9785a0b035bc60fcbe4aa05ec8",
+    "crates/motion-host/src/ops/editing.rs": "8393fa5e4785687f4ed54c2594f286972fad1cbf7f3677fc38a1aa3184df9d38",
+    "desktop/app/src/engine.rs": "2b81bf0cb536d56dbe47f9c3d56bb050bdd7a3d130747695f2adac8316ab217a",
+    "desktop/app/src/engine/viewer_input.rs": "c3eaea8e866174638871788d6d149995bd23b7f4798e3097913070cb94348265",
+    "desktop/app/src/engine/viewer_input/tests.rs": "564047c33c0255ee08a7521a0ff801a6c2f86e6884a7456004622d28d75ccc82",
+    "desktop/app/src/panels/composition.rs": "a93fdcef8413b97b619ab3a6b80e4a7cf33202595a2659572938d867f8b4b2bd",
+    "desktop/app/src/panels/property_authoring/spatial.rs": "aaec615146d40f870db5aace949ad1837d7b0c7078a11b4987fb21a10f4d15a3",
+    "desktop/app/src/panels/transform_controls.rs": "45d22a2a252e90ccbc821a0bf81a8d266fdb2bb7004f5272288199477457ab32",
+    "desktop/app/src/panels/transform_controls/spatial.rs": "842b9e33124b0d58288350a9187072d482f682b61322a96fbb5bec1a00f0b4ab",
+    "desktop/app/src/panels/transform_controls/spatial/native_tests.rs": "0a038862bfe3c074795b398693a7832a1b64949e5eb4032bb97bba45c2b27dce",
+    "desktop/app/src/panels/transform_controls/spatial/native_tests/continuous_position.rs": "ed3b5b71da838c64d86fe39742a6984c868d294ef65dccad4385a0a903aca35d",
+    "desktop/app/src/panels/types.rs": "e5a1b876d64b9e98ea098777e6e4c82a6da525de83cf0e03d12fc1ebf5ccbce0",
+    "desktop/app/src/panels/viewer_guides/native_tests.rs": "f5f05ea2755fec7af28f27c983c256d2293f0cc26d266484f1d6e0c79ef3e095",
+    "desktop/app/src/shell/actions.rs": "b4b6842c45d94dcbf0965d6a3f7a17ac4e0283bc449e8ea43b93da56e7e44246",
+    "desktop/app/src/shell/viewer_views.rs": "0857d641636a4609b373822e427a396d98b405c83ef3c426a9799c5715eee734",
+    "desktop/app/src/shell/viewer_views/native_tests.rs": "ee315738a92fdf779f0bbb4d7a7fdfae14f28ad32f2bae919465797f42194ede",
+    "desktop/app/src/panels/transform_controls/spatial/free_position_tests.rs": "4193131083446b80af87406c78962efa88c7bfac8c550c0f28e2cebfd77d4cda",
+    "desktop/app/src/engine/viewer_input/free_drag_tests.rs": "50d017178c9f0daba1b5afc2c77e263acc59f6a3164f18a342ba304e8bb72839"
+  },
+  "results": [
+    {
+      "group": "free",
+      "args": [
+        "panels::transform_controls::spatial::free_position_tests::"
+      ],
+      "exit": 0,
+      "seconds": 12.203,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "worker",
+      "args": [
+        "engine::viewer_input::"
+      ],
+      "exit": 0,
+      "seconds": 16.75,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "native-free",
+      "args": [
+        "--exact",
+        "panels::transform_controls::spatial::native_tests::continuous_position::native_free_position_drag_keeps_stable_keys_in_main_and_floating_owners",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 31.484,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "transform",
+      "args": [
+        "panels::transform_controls::"
+      ],
+      "exit": 0,
+      "seconds": 53.421,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 4
+    },
+    {
+      "group": "composition",
+      "args": [
+        "panels::composition::tests::"
+      ],
+      "exit": 0,
+      "seconds": 14.11,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "native-axis",
+      "args": [
+        "--exact",
+        "panels::transform_controls::spatial::native_tests::continuous_position::native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 31.89,
+      "binarySha256": "324745261a3cca23055eb1cf977f673a29638d8c6601dcf5678b482600eec130",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "distinctPassed": 53,
+  "passed": [
+    "engine::viewer_input::free_drag_tests::missing_drag_key_reports_original_cause_without_mutation_and_allows_recovery",
+    "engine::viewer_input::tests::real_worker_view_queries_cancel_stale_sources_and_preserve_default_error_channels",
+    "panels::composition::tests::collapsed_viewers_never_submit_a_fabricated_pixel_outside_the_window",
+    "panels::composition::tests::hidden_handles_leave_pen_creation_available_and_do_not_toggle_during_its_active_draft",
+    "panels::composition::tests::malformed_mapping_is_bounded_visible_and_recovers_at_default_log_level",
+    "panels::composition::tests::multiview_pan_rolls_back_on_escape_focus_clock_and_geometry_changes",
+    "panels::composition::tests::selection_uses_the_same_zoomed_panned_mapping_as_drawing",
+    "panels::composition::tests::wheel_pan_cancel_fit_and_project_switch_emit_no_project_or_camera_commands",
+    "panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides",
+    "panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets",
+    "panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal",
+    "panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once",
+    "panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio",
+    "panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture",
+    "panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style",
+    "panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target",
+    "panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target",
+    "panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset",
+    "panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides",
+    "panels::transform_controls::mapped_anchor_tests::anchor_time_faults_and_worker_rejections_reach_default_logs_without_stdout",
+    "panels::transform_controls::mapped_anchor_tests::mapped_canvas_anchor_preserves_corners_and_cancels_when_the_clock_changes",
+    "panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo",
+    "panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently",
+    "panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint",
+    "panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview",
+    "panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture",
+    "panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion",
+    "panels::transform_controls::snap_feedback::tests::feedback_uses_window_tokens_and_only_reached_axes",
+    "panels::transform_controls::snap_feedback::tests::move_and_scale_snap_to_other_layer_geometry_with_one_undo_and_alt_bypasses_targets",
+    "panels::transform_controls::spatial::continuous_position_tests::continuous_viewport_identity_failures_reach_bounded_default_logs_and_recover",
+    "panels::transform_controls::spatial::continuous_position_tests::continuous_viewport_position_gestures_keep_the_key_through_three_worker_previews_save_undo_and_cancel",
+    "panels::transform_controls::spatial::free_position_tests::free_mapped_discrete_position_writes_author_time_instead_of_composition_frame",
+    "panels::transform_controls::spatial::free_position_tests::free_position_keeps_one_key_and_screen_distance_across_clock_dimension_and_cancel",
+    "panels::transform_controls::spatial::native_tests::continuous_position::native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners",
+    "panels::transform_controls::spatial::native_tests::continuous_position::native_free_position_drag_keeps_stable_keys_in_main_and_floating_owners",
+    "panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction",
+    "panels::transform_controls::spatial::tests::end_on_axes_and_edge_on_planes_are_disabled_and_projection_keeps_2d_mapping_identical",
+    "panels::transform_controls::spatial::tests::ray_constraints_preserve_parent_axes_and_layer_scale_axes_across_cameras_mirrors_and_anchors",
+    "panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal",
+    "panels::transform_controls::spatial::worker_tests::actual_worker_constraints_preserve_other_tracks_and_one_undo_restores_the_full_project",
+    "panels::transform_controls::spatial::worker_tests::spatial_context_rejects_lock_hierarchy_camera_mode_and_document_changes_without_followup_edits",
+    "panels::transform_controls::spatial::worker_tests::spatial_context_tracks_camera_parent_motion_and_shared_or_legacy_camera_ancestors",
+    "panels::transform_controls::spatial::worker_tests::spatial_release_focus_cancel_and_persistence_use_the_existing_preview_history",
+    "panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it",
+    "panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale",
+    "panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels",
+    "panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks",
+    "panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d",
+    "panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks",
+    "panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input",
+    "panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract",
+    "panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo",
+    "panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history"
+  ],
+  "unrunIgnored": [
+    "panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures",
+    "panels::transform_controls::spatial::native_tests::snapping::native_transform_snapping_preserves_history_and_exposes_reached_targets"
+  ],
+  "images": [
+    {
+      "path": "zh-main-forward-before.png",
+      "sha256": "316aaee6a8fd65fe0ca6595d1a961f51094583861d70b7de856de8bdbd6a96a1"
+    },
+    {
+      "path": "zh-main-forward-after.png",
+      "sha256": "5bfae56c442b340f2a3ecbac23ca76d5afecb75a8b24abf1b23f8b428ac7e3a5"
+    },
+    {
+      "path": "zh-main-forward-reopen.png",
+      "sha256": "378af647a4df26d3152d16bb4c3e1f289254990e758b26cb8e765709ba0a7cf8"
+    },
+    {
+      "path": "en-floating-reverse-before.png",
+      "sha256": "9bf0198751b490413a22d875540aaf500925873d986c0b908ee693f1a855abda"
+    },
+    {
+      "path": "en-floating-reverse-after.png",
+      "sha256": "9322fca3f54eb4da266a4c67833cba6f775305dc421e0e8a07c06bddeda58a04"
+    },
+    {
+      "path": "en-floating-reverse-reopen.png",
+      "sha256": "9322fca3f54eb4da266a4c67833cba6f775305dc421e0e8a07c06bddeda58a04"
+    }
+  ],
+  "evidenceZipSha256": "adb20de8c21eaaf4ee86308035e4d17ba6506b045f7d2f03a0996ed1a7ced170",
+  "previousHeadCi": "https://github.com/MAD-Producer/Kilonova/actions/runs/41396544004",
+  "previousHeadCiConclusion": "success"
+}

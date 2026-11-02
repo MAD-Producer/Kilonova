@@ -226,12 +226,18 @@ pub fn drag(
     width: i32,
     height: i32,
 ) -> Result<Value> {
+    drag_at_key(id,object,dx,dy,width,height,None)
+}
+
+pub fn drag_at_key(
+    id: i64, object: i64, dx: f64, dy: f64, width: i32, height: i32, spatial_key: Option<u64>,
+) -> Result<Value> {
     crate::session::with_session(id, |s| {
         if width <= 0 || height <= 0 || !dx.is_finite() || !dy.is_finite() {
             return Err("invalid preview drag".into());
         }
         s.sample()?;
-        let commands=drag_commands(s,&s.scene,object,dx,dy,width,height)?;
+        let commands=drag_commands(s,&s.scene,object,dx,dy,width,height,spatial_key)?;
         s.engine
             .apply_batch(commands)
             .map_err(crate::Error::from)?;
@@ -356,6 +362,7 @@ fn drag_commands(
     dy: f64,
     width: i32,
     height: i32,
+    spatial_key: Option<u64>,
 ) -> Result<Vec<Command>> {
     if width <= 0 || height <= 0 || !dx.is_finite() || !dy.is_finite() {
         return Err("invalid preview drag".into());
@@ -370,14 +377,28 @@ fn drag_commands(
     if !layer.active(s.frame, s.engine.project().frames) {
         return Err("drag layer is outside its clip".into());
     }
-    let position = layer
+    let sampled_position = layer
         .transform
         .position
         .sample(layer.local_frame(s.frame))?;
+    let position = if let Some(key) = spatial_key {
+        layer.transform.position.spatial_animation.as_ref()
+            .and_then(|animation| animation.keys().iter().find(|candidate| candidate.id == key))
+            .map(|key| key.value)
+            .ok_or_else(|| crate::Error::from(format!("drag object={object} key={key}: spatial key no longer exists")))?
+    } else { sampled_position };
     let separated = layer.transform.position.axes.is_some();
-    let world_position = scene
+    let mut world_position = scene
         .node_position(object as u64)
         .ok_or("object transform is unavailable")?;
+    if spatial_key.is_some() && layer.three_d {
+        let shift = motion_core::scene_prefix_offset_with_cameras(
+            s.engine.project(), object as u64, s.frame,
+            std::array::from_fn(|i| position[i] - sampled_position[i]),
+            &scene.model_source_catalog(),
+        )?;
+        for i in 0..3 { world_position[i] += shift[i]; }
+    }
     let offset = if layer.three_d {
         scene
             .screen_translation(
@@ -400,7 +421,15 @@ fn drag_commands(
     )
     .map_err(crate::Error::from)?;
     let frame = s.frame.floor() as u32;
-    let commands = if separated {
+    let commands = if let Some(key) = spatial_key {
+        vec![Command::TrackAt {
+            target: motion_core::KeyframeTarget::Property {
+                object:object as u64, property:motion_core::Property::Position, axis:None },
+            frame:s.frame,
+            edit:motion_core::TrackEdit::SetSpatialKey {
+                key, value:motion_core::TrackValue::Vec3(std::array::from_fn(|i| position[i]+offset[i])) },
+        }]
+    } else if separated {
         [
             motion_core::Axis::X,
             motion_core::Axis::Y,
@@ -425,7 +454,18 @@ fn drag_commands(
             value: std::array::from_fn(|i| position[i] + offset[i]),
         }]
     };
-    Ok(commands)
+    let precise = layer.time_mapping.is_some() || layer.transform.position.spatial_animation.is_some();
+    Ok(commands.into_iter().map(|command| {
+        if !precise { return command; }
+        let (axis,value)=match command {
+            Command::SetComponent {axis,value,..} => (Some(axis),motion_core::TrackValue::Scalar(value)),
+            Command::SetVector {value,..} => (None,motion_core::TrackValue::Vec3(value)),
+            _ => return command,
+        };
+        Command::TrackAt {target:motion_core::KeyframeTarget::Property {
+            object:object as u64, property:motion_core::Property::Position, axis },
+            frame:s.frame,edit:motion_core::TrackEdit::Set {value}}
+    }).collect())
 }
 impl crate::session::Session {
     pub fn drag_for_view(
@@ -434,6 +474,13 @@ impl crate::session::Session {
         object: u64,
         delta: [f32; 2],
         size: [i32; 2],
+    ) -> Result<Value> {
+        self.drag_for_view_at_key(view,object,delta,size,None)
+    }
+    /// A gesture may retain a spatial key independently of its retimed sample.
+    pub fn drag_for_view_at_key(
+        &mut self, view: motion_render::ViewCamera<'_>, object: u64,
+        delta: [f32; 2], size: [i32; 2], spatial_key: Option<u64>,
     ) -> Result<Value> {
         self.sample()?;
         let scene = self.scene.fork_view(view)?;
@@ -445,6 +492,7 @@ impl crate::session::Session {
             delta[1] as f64,
             size[0],
             size[1],
+            spatial_key,
         )?;
         self.engine
             .apply_batch(commands)

@@ -77,8 +77,11 @@ pub(in crate::panels) struct Rows {
 impl Rows {
     pub fn new(row: &Row, t: &TimelineState, frame: f64, locale: Locale) -> Self {
         let filter = t.filters.get(&row.id).copied().unwrap_or_default();
+        let Some(clock)=row.property_clock else {return Self::default();};
+        let Ok(local)=observe!("vector.timeline_time",clock.local_frame(frame,row.mask_offset),
+            "object={} phase=rows",row.id) else {return Self::default();};
         let Some(tree) = row.vector.as_ref().and_then(|v| parameters::filtered_tree(
-            v, row.vector_size, frame - f64::from(row.mask_offset), locale, filter)) else {
+            v, row.vector_size, local, locale, filter)) else {
             return Self::default();
         };
         let mut rows = Self {
@@ -313,6 +316,11 @@ pub(in crate::panels) fn render(
                         *depth, out,
                     );
                     if !panels.timeline.graph_mode {
+                        let target_item=row.vector.as_ref().and_then(|v|matches!(&v.source,VectorSource::Group {..}).then_some(*item));
+                        if crate::panels::key_selection::ui::mapped_lane(list,panels,row,
+                            motion_core::KeyframeTarget::Vector {object:row.id,item:target_item,parameter:p.id.clone()},
+                            lane,ppf,offset,styles.metric("graph.handle_radius",4.),
+                            styles.metric("graph.handle_radius",4.)+styles.metric("motion.drag_threshold",3.),true) {continue;}
                         let lane_input=if normal.pressed.is_some_and(|(b,p)|b==MouseButton::Left && lane.contains(p)) && !key_hit { &neutral } else { normal };
                         panels.path_controls.groups.keys.lane(
                             list,
@@ -328,7 +336,6 @@ pub(in crate::panels) fn render(
                             lane_input,
                             out,
                         );
-                        let target_item=row.vector.as_ref().and_then(|v|matches!(&v.source,VectorSource::Group {..}).then_some(*item));
                         crate::panels::key_selection::ui::vector_lane(list,panels,state,row.id,target_item,p,row.mask_offset,lane,ppf,offset);
                     }
                 }

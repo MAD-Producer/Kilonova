@@ -32,6 +32,7 @@ fn document(root: &Path) {
 }
 fn action(state: &serde_json::Value, intent: Intent, copy: bool) -> Action {
     Action::KeyframeClipboard {
+        local_selections: vec![],
         intent,
         source: crate::layer_clipboard::KeyframeSource::of(state),
         selections: if copy {
@@ -122,6 +123,7 @@ fn shell_keyframe_cancel_and_stale_commit_share_existing_action_barrier() {
     shell
         .action(
             Action::KeyframeClipboard {
+                local_selections: vec![],
                 intent: Intent::Cut,
                 source: crate::layer_clipboard::KeyframeSource::of(&shell.state),
                 selections: vec![],

@@ -828,6 +828,20 @@ fn entries_with_bindings(
 ) -> Vec<Entry> {
     let mut rows = entries(popup, state, locale);
     for row in &mut rows {
+        if let Choice::New(Action::LayerTimeSettings { objects, .. }) = &mut row.choice {
+            if popup.target.is_some_and(|id|selection.contains(&id)) {*objects=selection.to_vec();}
+            row.enabled=crate::dialogs::layer_time::eligible(state,objects);
+        }
+        if let Choice::New(Action::EditorAction {commands,..})=&mut row.choice {
+            if let [Command::LayerTime {object,action}]=commands.as_slice() {
+                let objects=if selection.contains(object){selection.to_vec()}else{vec![*object]};
+                let action=action.clone();
+                row.enabled=crate::dialogs::layer_time::eligible(state,&objects)
+                    && (!matches!(action,motion_core::layer_time::LayerTimeAction::Reset {})
+                        || objects.iter().any(|id|layer(state,*id).is_some_and(|l|!l["time_mapping"].is_null())));
+                *commands=objects.into_iter().map(|object|Command::LayerTime {object,action:action.clone()}).collect();
+            }
+        }
         if matches!(row.choice,Choice::Rename) {
             row.hint=crate::shortcuts::bindings::format_chord(RENAME_CHORD);
         }
@@ -1225,6 +1239,17 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             }
         }
         Page::Time => {
+            add("图层时间设置…","Layer time settings…",crate::dialogs::layer_time::eligible(state,&[id]),
+                Choice::New(Action::LayerTimeSettings {source:crate::layer_clipboard::KeyframeSource::of(state),objects:vec![id]}));
+            for (zh,en,action) in [
+                ("图层时间反向","Reverse layer time",motion_core::layer_time::LayerTimeAction::Reverse {}),
+                ("重置图层时间","Reset layer time",motion_core::layer_time::LayerTimeAction::Reset {}),
+            ] {
+                let enabled=crate::dialogs::layer_time::eligible(state,&[id])
+                    && (!matches!(action,motion_core::layer_time::LayerTimeAction::Reset {}) || !l["time_mapping"].is_null());
+                add(zh,en,enabled,Choice::New(Action::EditorAction {source:crate::layer_clipboard::KeyframeSource::of(state),
+                    commands:vec![Command::LayerTime {object:id,action}]}));
+            }
             divider_indices.push(add(
                 "在播放头处分割图层",
                 "Split at Playhead",

@@ -38,6 +38,7 @@ pub(crate) mod presentation_observation;
 pub(crate) mod styles;
 mod preferences;
 mod keyframe_timing;
+mod layer_time;
 pub(crate) mod expressions;
 #[cfg(all(test,target_os="windows"))]
 mod curve_comparison_tests;

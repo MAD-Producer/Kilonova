@@ -1,6 +1,8 @@
 //! Native video preparation must not silently reuse another plate's solve.
 #![cfg(feature = "ffmpeg")]
 use super::*;
+#[path = "tracking_video_replacement/mapped_time.rs"]
+mod mapped_time;
 use motion_core::media_assets::{AssetKind, AssetRef};
 use motion_host::tracking::{asset::Sample, plate::Extent};
 use serde_json::json;

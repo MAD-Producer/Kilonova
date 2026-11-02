@@ -108,3 +108,10 @@ still requires integration with subsequent main changes. Existing native crash
 root causes and the optional #582 photographed tracker quality remain unresolved.
 The hidden Surface does not prove physical scanout, all codecs/lenses/bindings,
 or a built-in 3D camera solver. Issue #88 and the overall 3D route remain open.
+
+
+## Current-main and layer-time synchronization
+
+The [fresh combined-source record](tracking88-lens-clock-current.md) covers the
+latest parent/main merge, mapped prefetch, actual Surface and independent lens
+oracles. Earlier results above retain their original source and scope.

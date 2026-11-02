@@ -1448,6 +1448,7 @@ fn negative_time_segment_handles_are_read_only_and_authored_keys_survive_graph_v
                 &mut atlas,
                 &mut panels,
                 source,
+                &state,
                 7,
                 Property::Position,
                 None,

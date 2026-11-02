@@ -1,0 +1,166 @@
+{
+  "createdUtc": "2026-11-02T08:42:02.096715+00:00",
+  "issue": 257,
+  "pr": 579,
+  "branch": "feat/layer-time-mapping",
+  "parent": "504ca626d426f6a8303a118d1ff4741201edd2b9",
+  "scope": "Windows actual audio device acceptance; issue remains open",
+  "binary": {
+    "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+    "bytes": 139868672,
+    "sha256": "89256de12e054d4750428a18f272ba2c97af6e342d3614da0f9fb7e612c4c475"
+  },
+  "source": {
+    ".github/workflows/ci.yml": {
+      "bytes": 21384,
+      "sha256": "54da3226ec2f9b9e4fb695fd86753f1b322ee8fc8a639c3e4d9e0724f8a9a0dc"
+    },
+    "desktop/app/src/audio_output.rs": {
+      "bytes": 47549,
+      "sha256": "ed738370f1db7deb723620cb9aa0d9bfd649e6686f7a882cda278b3354eddfe8"
+    },
+    "desktop/app/src/audio_output/mapped_device_tests.rs": {
+      "bytes": 8132,
+      "sha256": "f02fa1063601966e8c2fddde177cf4df027f1b3bf8bca75fe08d7f683d9f8e7b"
+    },
+    "desktop/app/src/audio_output/producer_observation/tests.rs": {
+      "bytes": 12033,
+      "sha256": "65e2362fef7aefab12e0bb47499b01ea0e7e9056984086b7096b5b7a493f0fb8"
+    }
+  },
+  "results": {
+    "hardware": {
+      "log": "mapped-device-first.log",
+      "sha256": "4cb1d8b1e49620990f2ea9e53e3f0e38c2e3c5d8e09fce4f4425611fa94ff032",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "audio_output": {
+      "log": "audio-output-final.log",
+      "sha256": "586bfe99b6f3aa24b32494408c7c9b15b5c04a942814d077621ffc54ea145921",
+      "exitCode": 0,
+      "status": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 2
+    },
+    "graph_ranges": {
+      "log": "graph-ranges-final.log",
+      "sha256": "c6bace6566f5791ce49311ccf5c7584321293d1f9d8203cc3391d473992610b1",
+      "exitCode": 0,
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 1
+    }
+  },
+  "deviceReport": [
+    {
+      "case": "fast",
+      "deviceRate": 48000,
+      "expectedPeak": 0.03125,
+      "finalFrame": 15.0,
+      "peak": [
+        0.03125,
+        0.03125
+      ],
+      "polls": 100,
+      "submittedFrames": 24000,
+      "underruns": 0
+    },
+    {
+      "case": "slow",
+      "deviceRate": 48000,
+      "expectedPeak": 0.015625,
+      "finalFrame": 15.0,
+      "peak": [
+        0.01563049666583538,
+        0.01563049666583538
+      ],
+      "polls": 101,
+      "submittedFrames": 24000,
+      "underruns": 0
+    },
+    {
+      "case": "reverse",
+      "deviceRate": 48000,
+      "expectedPeak": 0.03125,
+      "finalFrame": 15.0,
+      "peak": [
+        0.03125,
+        0.03125
+      ],
+      "polls": 100,
+      "submittedFrames": 24000,
+      "underruns": 0
+    },
+    {
+      "case": "freeze",
+      "deviceRate": 48000,
+      "expectedPeak": 0.0,
+      "finalFrame": 15.0,
+      "peak": [
+        0.0,
+        0.0
+      ],
+      "polls": 97,
+      "submittedFrames": 24000,
+      "underruns": 0
+    },
+    {
+      "case": "turn",
+      "deviceRate": 48000,
+      "expectedPeak": 0.03125,
+      "finalFrame": 15.0,
+      "peak": [
+        0.03125,
+        0.03125
+      ],
+      "polls": 99,
+      "submittedFrames": 24000,
+      "underruns": 0
+    },
+    {
+      "case": "nested-reverse",
+      "deviceRate": 48000,
+      "expectedPeak": 0.0078125,
+      "finalFrame": 15.0,
+      "peak": [
+        0.0078125,
+        0.0078125
+      ],
+      "polls": 97,
+      "submittedFrames": 24000,
+      "underruns": 0
+    }
+  ],
+  "commands": {
+    "build": "cargo test -p motion-desktop --bin motion-studio --features ffmpeg,motion-host/diagnostics --no-run --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "hardware": "<binary> --exact audio_output::mapped_device_tests::mapped_audio_reaches_the_real_device_for_stretch_reverse_freeze_turn_and_nested_fps --ignored --test-threads=1 --nocapture",
+    "regression": "<binary> audio_output:: --test-threads=1",
+    "graph_ranges": "<binary> panels::graph_ranges:: --test-threads=1",
+    "environment": {
+      "TEMP": "E:/Dev/aem/artifacts/pr-integration-current/link-tmp",
+      "MOTION_LOG": "unset (default info)",
+      "FFMPEG_DIR": "existing pinned FFmpeg 8.1 runtime"
+    }
+  },
+  "ciFailure": "https://github.com/MAD-Producer/Kilonova/actions/runs/41410961603/job/125163671849",
+  "ciFixValidation": {
+    "workflowPolicyTests": 14,
+    "actionlint": "passed; shellcheck not run locally",
+    "actualRunner": "pending next CI"
+  },
+  "limits": [
+    "No physical speaker loopback recording",
+    "Slow-device peak is not an independent source-index oracle",
+    "No high-speed adaptive low-pass acceptance",
+    "Other operating systems and hardware unverified"
+  ],
+  "archive": {
+    "bytes": 57620,
+    "sha256": "25748a0912598a4e672a7bce96193d845bddb28c3e1122c085646432395ab0b6"
+  }
+}

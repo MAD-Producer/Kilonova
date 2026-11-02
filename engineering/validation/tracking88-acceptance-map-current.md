@@ -33,7 +33,8 @@ exited with code 0 and all source hashes/target coverage were checked. See the
 [complete package record](tracking88-desktop-package-current.md). It precedes
 the new Surface test and is not a complete maintained-workspace gate.
 
-PRs #580 and #581 are formal increments with passing required CI. #582 is the
+PRs #580 and #581 are formal increments. Their earlier heads passed required CI;
+the updated parent/main integration heads require fresh checks. #582 is the
 separate failed real-footage prototype draft. #583 and #584 contain the bounded
 replacement transaction and MCP workflow; their current checks and readiness
 must be verified independently. This index does not authorize merging them.
@@ -41,3 +42,26 @@ must be verified independently. This index does not authorize merging them.
 The original prerequisites #85 and #86 remain open. Android is retired and
 excluded by the user's maintenance scope. Neither a documented disposition nor
 a green subset completes #88, its prerequisites, or the full 3D route.
+
+
+## Layer-time baseline synchronization
+
+The root [main integration](tracking88-root-main-integration-current.md), native
+[footage clock combinations](tracking88-video-clock-current.md), [paired edit
+history](tracking88-pair-clock-integration-current.md), and [MCP/native Surface
+workflow](tracking88-mcp-clock-integration-current.md) record the synchronized
+source and their newly executed gates. PR #583's frozen source passed 1060 tests
+with one existing manual ignore; PR #584 separately re-executed three MCP tests,
+one actual Surface test, and ten actual executable stdio controls. Five complete
+crate trees are identical to #583, with their Git identities recorded. These
+results do not constitute a new full desktop/workspace run or final-head
+cross-platform CI pass. The full 3D route and issue #88 remain incomplete.
+
+
+## Current-main prefetch and nonlinear-video synchronization
+
+The [latest combined-source record](tracking88-lens-clock-current.md) adds freshly
+executed complete host-library and seven renderer-target gates, actual Surface,
+original-video clock and current-main prefetch controls. It explicitly includes
+main e2347558. Historical full model/core results refer to identical crate trees;
+no new full desktop/workspace or final-head CI pass is claimed.

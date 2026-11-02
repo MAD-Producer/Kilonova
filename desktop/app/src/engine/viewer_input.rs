@@ -21,6 +21,7 @@ pub(crate) struct Drag {
     pub frame: f64,
     pub camera: Camera,
     pub object: u64,
+    pub spatial_key: Option<u64>,
     pub delta: [f32; 2],
     pub size: [i32; 2],
 }
@@ -38,11 +39,12 @@ pub(super) fn drag(
             json!({"cancelled":true,"reason":if closed{"window_closed"}else{"context_changed"}});
         return Ok(state);
     }
-    session.drag_for_view(
+    session.drag_for_view_at_key(
         request.camera.borrow(),
         request.object,
         request.delta,
         request.size,
+        request.spatial_key,
     )
 }
 impl Request {
@@ -94,3 +96,5 @@ pub(super) fn apply(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod free_drag_tests;

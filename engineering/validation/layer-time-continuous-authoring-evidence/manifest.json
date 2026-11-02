@@ -1,0 +1,156 @@
+{
+  "sourceBase": "5475cbeef95847192a80914b44200faf7d386a8e",
+  "results": [
+    {
+      "group": "new",
+      "args": [
+        "panels::property_authoring::spatial_tests::"
+      ],
+      "exit": 0,
+      "seconds": 26.135,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "ae2690096a9a6af86674873343189d477a2ab0db39671ca7d76b6fc59edf5511",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "properties",
+      "args": [
+        "panels::properties::tests::"
+      ],
+      "exit": 0,
+      "seconds": 0.664,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "ae2690096a9a6af86674873343189d477a2ab0db39671ca7d76b6fc59edf5511",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "anchor",
+      "args": [
+        "panels::properties::mapped_anchor_tests::"
+      ],
+      "exit": 0,
+      "seconds": 18.649,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "ae2690096a9a6af86674873343189d477a2ab0db39671ca7d76b6fc59edf5511",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "canvas-anchor",
+      "args": [
+        "panels::transform_controls::mapped_anchor_tests::"
+      ],
+      "exit": 0,
+      "seconds": 22.205,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "ae2690096a9a6af86674873343189d477a2ab0db39671ca7d76b6fc59edf5511",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "camera",
+      "args": [
+        "panels::camera_controls::mapped_tests::"
+      ],
+      "exit": 0,
+      "seconds": 46.387,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "ae2690096a9a6af86674873343189d477a2ab0db39671ca7d76b6fc59edf5511",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "model-time",
+      "args": [],
+      "exit": 0,
+      "seconds": 1.534,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_key_time-fd14e61b96ce2202.exe",
+      "exeSha256": "03aa0119c4fc8c1b9b1992b4a348c390f8dc3351ce4575c3b6411edcae097a62",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "model-spatial",
+      "args": [],
+      "exit": 0,
+      "seconds": 1.167,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\spatial_keyframes-72e6c7630329e05f.exe",
+      "exeSha256": "fbeff98a4274a57e1f568f74aae9f55ee2427dcc0c22155f0c39c9ecc1b209ea",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "sourceSha256": {
+    "desktop/app/src/panels/property_authoring.rs": "ced6d0148ea44f2cf902133eadf3669b61e29a3af981708fc9c8bf395349170f",
+    "desktop/app/src/panels/property_authoring/spatial_tests.rs": "6f6b5f58d152614568b13fb816f2da8f113e967d82f65d860647d93f85e23cd0",
+    "desktop/app/src/panels/property_authoring/spatial_tests/worker.rs": "3d0ea354160c4290906d239a902ca5a25549ed9cdc1d4b0ae7554ded9e400f24"
+  },
+  "ignoredNotRun": [
+    "test panels::properties::mapped_anchor_tests::native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows ... ignored, requires native GPU windows; run explicitly",
+    "test panels::camera_controls::mapped_tests::native::native_mapped_cameras_commit_cancel_and_reopen_in_both_hosts_languages_and_directions ... ignored, manual native mapped camera chrome, GPU capture and separate-process reopen"
+  ],
+  "checks": {
+    "workspaceAllTargetsWithFFmpeg": {
+      "exit": 0,
+      "log": "workspace-check.log"
+    },
+    "styleConsumers": {
+      "exit": 0
+    },
+    "rustfmtModifiedModules": {
+      "exit": 0
+    },
+    "gitDiffCheck": {
+      "exit": 0
+    }
+  },
+  "limits": [
+    "No new native screenshot, DPI or separate-process reopen acceptance.",
+    "Roving cases cover single writes; repeated numeric previews after geometry retiming still need stable-ID draft binding.",
+    "Mini editor, companion compensation and real media final integration remain pending."
+  ],
+  "rawFiles": {
+    "anchor.log": "393c75c6860470180228c79341c799b6101d76ed7639081c5450ac6785302022",
+    "build-source-sha256.json": "6a6b290d7675687126097b5630f6b9f69524bf6800a7600f08ec8770c3e00eec",
+    "build.log": "21cf1724916ad72469a45e20def04870833af7d3b42d9dda135353906a2ec004",
+    "build.ps1": "9daa24de44345026083e7471e5ce64b22b722e38a00c1e1bd2f94831874017f0",
+    "camera.log": "bff3face9095d18121c82d32898882d39f0616272d643df0b8cfcdc2a6328033",
+    "canvas-anchor.log": "0642beb36d964e501ad0a1f1d740bf2f3b2a9515636745f0dc11dc009808ddfe",
+    "initial-build-source-sha256.json": "d6255b70623a941351d9e1b3d78bb8cb03b7f59346f580864933804568b5be1c",
+    "initial-build.log": "92317f4392cd21fcc6e6dff046658932918894c1c5e1793f3ce32dfee8658988",
+    "initial-new.log": "62b5822249140700e4296122a6c353f88655d8533e3d045a5fca3872dc8fc8d4",
+    "initial-results-new.json": "f4d57ca18f7fd481e41c5a38075cb6cea87176e3fdd2dc0621ff7723655782d2",
+    "model-spatial.log": "c3eb7348d45d523fa199cb7e9bcd5d5553a332302f583803d060c6f60ccc0d89",
+    "model-time.log": "57263662700b3d2a532bbaf711faf8b0da00a3ff6bfb7cfe4a1abf760fe28cda",
+    "new.log": "834fdf84a35bc6ec83d357d9b79b6b764e4c7eb8be622c1e3b675c97f9807491",
+    "previous-ci-snapshot.json": "5eb3ec1370368beddf9f4359009f03aaf843d45af15d764e8a0ea17fc808e796",
+    "properties.log": "4a3375fe5b994fd860afed2585d0437327868a8fca90f1a35e489d0d75e1e4a4",
+    "results-all.json": "35058ad35c774f923152660a23424f790f8f1d4bdcf20ec4d536260dccb031ec",
+    "run.py": "7cbfe5f06806107612a2308f7454604394495b7778ec374e9314d0a296cd4fee",
+    "workspace-check.log": "a73017245f3a0ba2967d06fb7f47453202d1e27cdaf2bffcaa6793d7fe3b70bb",
+    "workspace.ps1": "c64f8b9a3b617cf2eba07d70ac48d1de9be66b577d3268afb703dc56b736bf82",
+    "faults-accepted/motion-studio.log": "ac518a563e6237ff328ba5b25d88aba8b35134ad6fa30ae2101852376db853b4",
+    "faults-accepted/stderr.log": "3503bcd067fb5052c0b62fba95a8c7e0da0ba436ca2a2c0d65f4b00c65f6a453",
+    "faults-accepted/stdout.log": "f475bfd31b0524a3c0e49e1d9c29b90c5ebe28ca810c17011d41a7f04f7a0b1e",
+    "initial-faults/motion-studio.log": "c5c5db9d180bd69db82be8f56d406f2aeb6ad132bd27d0c0f07d677736c0049d",
+    "initial-faults/stderr.log": "3503bcd067fb5052c0b62fba95a8c7e0da0ba436ca2a2c0d65f4b00c65f6a453",
+    "initial-faults/stdout.log": "e430b7ba2d32eed8585e5b628ff0ac32a8017f5143d24a12df61752509e57b2f",
+    "old-anchor-faults-accepted/motion-studio.log": "7e23fd7bc1bdc93701ee3d5b2ea949d8b8a49e96374c29a367fee874531c5944",
+    "old-anchor-faults-accepted/stderr.log": "b7adf9159c002832369b9dd20ed5e83d13ee35107e49fc0e481618f5faf1faae",
+    "old-anchor-faults-accepted/stdout.log": "978dd9f308c6f7be65ee975545e0550ad72b4b8f75a7d13bc11f256bfead8779"
+  },
+  "archive": {
+    "name": "evidence.zip",
+    "bytes": 36752,
+    "sha256": "a00a0c6f93eb6ad87b4a6863cc5dde7533c42cb78f0715b66001a51e0d9be0e2"
+  }
+}

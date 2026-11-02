@@ -131,7 +131,7 @@ impl Controls {
         frame: i64,
     ) {
         self.choose_track_in(state, object, property, axis);
-        self.selected_key = Some(frame);
+        self.selected_key = Some(time::Address::Frame(frame));
         self.key_explicit = true;
     }
 
