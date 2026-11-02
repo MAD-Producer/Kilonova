@@ -351,7 +351,8 @@ impl Command {
     }
     pub fn composition_transaction(&self) -> bool {
         if let Self::TrackAt { edit, .. } = self {
-            return !matches!(edit, crate::keyframe_clipboard::authoring::TrackEdit::Set { .. });
+            return !matches!(edit, crate::keyframe_clipboard::authoring::TrackEdit::Set { .. }
+                | crate::keyframe_clipboard::authoring::TrackEdit::SetSpatialKey { .. });
         }
         // A handle repeatedly updates one authored interval inside an existing
         // gesture. Structural local edits still require a separate transaction.

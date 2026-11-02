@@ -1,6 +1,8 @@
 //! Adapt explicit playhead edits without changing legacy selected-key commands.
 use motion_core::{Command, EffectAction, Error, KeyframeTarget, Property, TrackEdit, TrackValue};
 use serde_json::Value;
+mod spatial;
+pub(super) use spatial::SpatialDraft;
 
 /// A numeric draft belongs to the time and document at pointer-down. Revision
 /// deliberately is not included: the draft's own preview changes it.
@@ -330,4 +332,4 @@ pub(super) fn at_playhead(state: &Value, command: Command) -> Command {
 }
 
 #[cfg(test)]
-mod spatial_tests;
+pub(super) mod spatial_tests;

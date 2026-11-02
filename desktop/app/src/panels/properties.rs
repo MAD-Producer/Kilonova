@@ -819,12 +819,14 @@ pub(super) fn draw_value(
         panels.properties.field.as_mut().unwrap().rect = r;
     }
     if clicked(input, r) && !locked && !active && !panels.properties.consumed_press {
-        let Ok(time) = observe!("properties.numeric_time_begin",
-            super::property_authoring::NumericTime::read(state, object),
+        let Ok((time, spatial)) = observe!("properties.numeric_time_begin",
+            super::property_authoring::NumericTime::read(state, object).and_then(|time|
+                super::property_authoring::SpatialDraft::read(state, object, property, Some(axis)).map(|spatial| (time, spatial))),
             "object={object} property={property:?} axis={axis} phase=begin") else { return; };
         panels.properties.field = Some(Field {
             object,
             time,
+            spatial,
             property,
             axis,
             text: (value as f32).to_string(),
@@ -846,7 +848,9 @@ pub(super) fn draw_value(
 
 fn numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
     legacy_numeric_command(field, value, state)
-        .map(|command| super::property_authoring::at_playhead(state, command))
+        .and_then(|command| observe!("properties.spatial_numeric_command",
+            super::property_authoring::SpatialDraft::command(&field.spatial, state, command),
+            "object={} property={:?} axis={} phase=value", field.object, field.property, field.axis).ok())
 }
 
 fn legacy_numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
@@ -914,7 +918,8 @@ pub(super) fn process_field(
         return;
     };
     let current = observe!("properties.numeric_time_continue",
-        super::property_authoring::NumericTime::current(&field.time, state, field.object),
+        super::property_authoring::NumericTime::current(&field.time, state, field.object).and_then(|time|
+            super::property_authoring::SpatialDraft::current(&field.spatial, state).map(|spatial| time && spatial)),
         "object={} property={:?} axis={} phase=continue", field.object, field.property, field.axis);
     if !matches!(current, Ok(true)) || field.time.is_some() && panels.selected != Some(field.object) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
@@ -1172,6 +1177,7 @@ mod tests {
                 field: Some(Field {
                     object: 7,
                     time: None,
+                    spatial: None,
                     property: Property::Position,
                     axis: 0,
                     text: "10.00".into(),

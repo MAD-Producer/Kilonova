@@ -10,6 +10,7 @@ use motion_ui::{
 };
 use serde_json::json;
 mod faults;
+mod stable;
 #[cfg(target_os = "windows")]
 mod native;
 

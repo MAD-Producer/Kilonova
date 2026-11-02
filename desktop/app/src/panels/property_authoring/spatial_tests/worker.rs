@@ -1,6 +1,7 @@
 use super::*;
 use crate::panels::{properties, Action, Panels};
 use motion_ui::{dock::Panel, input::Input, paint::PaintList, text::TextAtlas, MouseButton, Rect};
+mod stable;
 
 fn start(mode: &str) -> (tempfile::TempDir, crate::engine::Engine, Value, f64) {
     let (p, at) = fixture(Channel::Position, mode, false);

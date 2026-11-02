@@ -19,8 +19,17 @@ pub enum TrackValue {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum TrackEdit {
-    Set { value: TrackValue },
-    Animate { enabled: bool },
+    Set {
+        value: TrackValue,
+    },
+    /// A gesture keeps this identity even when Roving redistributes its time.
+    SetSpatialKey {
+        key: u64,
+        value: TrackValue,
+    },
+    Animate {
+        enabled: bool,
+    },
     ToggleKey,
 }
 
@@ -93,6 +102,15 @@ fn edit_track<T: Tween>(
     let local = time.spatial_local(source, edit)?;
     let mut next = source.clone();
     match edit {
+        TrackEdit::SetSpatialKey { key, .. } => {
+            let value =
+                value.ok_or_else(|| Error::Invalid("property value type mismatch".into()))?;
+            ensure(value.finite(), "non-finite property value")?;
+            next.spatial_animation
+                .as_mut()
+                .ok_or_else(|| Error::Invalid("spatial key storage is not enabled".into()))?
+                .set_value(*key, value)?;
+        }
         TrackEdit::Set { .. } => {
             let value =
                 value.ok_or_else(|| Error::Invalid("property value type mismatch".into()))?;
@@ -186,7 +204,9 @@ fn edit_curve(source: &CurveTrack, time: &EditTime, edit: &TrackEdit) -> Result<
             }
             *value.clone()
         }
-        TrackEdit::Set { .. } => return Err(Error::Invalid("property value type mismatch".into())),
+        TrackEdit::Set { .. } | TrackEdit::SetSpatialKey { .. } => {
+            return Err(Error::Invalid("property value type mismatch".into()))
+        }
         TrackEdit::Animate { enabled: false } => {
             next.value = frozen(source, local)?;
             next.keys.clear();
@@ -227,6 +247,20 @@ pub fn edit(
     let result = (|| {
         target.editable(project)?;
         target.address()?;
+        if let TrackEdit::SetSpatialKey { key, .. } = edit {
+            ensure(*key > 0, "invalid spatial key identity")?;
+            ensure(
+                matches!(
+                    target,
+                    KeyframeTarget::Property {
+                        property: Property::Position | Property::Anchor | Property::Target,
+                        axis: None,
+                        ..
+                    }
+                ),
+                "spatial value edit requires a coupled spatial property",
+            )?;
+        }
         let time = EditTime::read(project, target.object(), frame)?;
         ensure(
             crate::serialized_bytes(edit) <= MAX_KEYFRAME_CLIPBOARD_BYTES,
@@ -314,6 +348,10 @@ pub fn edit(
             ($source:expr, $variant:ident) => {{
                 let value = if let TrackEdit::Set {
                     value: TrackValue::$variant(value),
+                }
+                | TrackEdit::SetSpatialKey {
+                    value: TrackValue::$variant(value),
+                    ..
                 } = edit
                 {
                     Some(*value)

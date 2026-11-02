@@ -76,6 +76,9 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
             "TrackEdit" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","key","value"],"properties":{
+                    "kind":{"const":"set_spatial_key"},"key":{"type":"integer","minimum":1},
+                    "value":{"type":"array","items":{"type":"number"},"minItems":2,"maxItems":3}}},
                 {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{
                     "kind":{"const":"set"},"value":{"oneOf":[{"type":"number"},
                         {"type":"array","items":{"type":"number"},"minItems":2,"maxItems":4},

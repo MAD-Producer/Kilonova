@@ -6,6 +6,8 @@ use motion_core::{
 use serde_json::json;
 
 mod worker;
+mod stable_drafts;
+pub(in crate::panels) mod faults;
 
 #[derive(Clone, Copy, Debug)]
 enum Channel {

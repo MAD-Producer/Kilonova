@@ -38,6 +38,7 @@ pub struct Controls {
 struct Field {
     property: Property,
     axis: usize,
+    spatial: Option<super::property_authoring::SpatialDraft>,
     number: super::numeric::Field,
     rect: Rect,
 }
@@ -147,7 +148,12 @@ impl Controls {
             frame.to_bits(),
             orbit,
         );
-        let changed_context = self.context.as_ref() != Some(&context) || self.time != time;
+        let spatial_current = self.field.as_ref().is_none_or(|field| {
+            observe!("camera.spatial_numeric_continue",
+                super::property_authoring::SpatialDraft::current(&field.spatial, state),
+                "object={object} property={:?} phase=continue", field.property).unwrap_or(false)
+        });
+        let changed_context = self.context.as_ref() != Some(&context) || self.time != time || !spatial_current;
         let changed_camera = self
             .context
             .as_ref()
@@ -466,9 +472,13 @@ impl Controls {
                     if self.cancel() {
                         out.push(Action::History(4));
                     }
+                    let Ok(spatial) = observe!("camera.spatial_numeric_begin",
+                        super::property_authoring::SpatialDraft::read(state, object, property, Some(axis)),
+                        "object={object} property={property:?} axis={axis} phase=begin") else { continue; };
                     self.field = Some(Field {
                         property,
                         axis,
+                        spatial,
                         number: Default::default(),
                         rect,
                     });
@@ -490,9 +500,28 @@ impl Controls {
                     if field.number.editor.text.error.is_some() {
                         self.drag_readout = Some((input.mouse, feedback(property, locale, true)));
                     }
-                    if super::numeric::apply(events, out, |v| {
+                    let mut pending = Vec::new();
+                    let finished = super::numeric::apply(events, &mut pending, |v| {
                         camera_command(state, object, property, axis, v)
-                    }) {
+                    });
+                    let starts_gesture = pending.iter().any(|action| matches!(action, Action::History(2)));
+                    let adapted = pending.into_iter().map(|action| match action {
+                        Action::Edit(command) => super::property_authoring::SpatialDraft::command(&field.spatial, state, command).map(Action::Edit),
+                        action => Ok(action),
+                    }).collect::<motion_core::Result<Vec<_>>>();
+                    match observe!("camera.spatial_numeric_command", adapted,
+                        "object={object} property={property:?} axis={axis} phase=value") {
+                        Ok(actions) => out.extend(actions),
+                        Err(_) => {
+                            field.number.cancel();
+                            // A release may already have closed the field while
+                            // its pending commit has not reached the worker.
+                            if !starts_gesture { out.push(Action::History(4)); }
+                            self.field = None;
+                            continue;
+                        }
+                    }
+                    if finished {
                         self.field = None;
                     }
                 } else {
