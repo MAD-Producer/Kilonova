@@ -46,6 +46,17 @@ pub(super) fn render(
         timeline.is_some()
     );
     if let (Some(sample), Some(timeline)) = (sample, timeline) {
+        if !panels.animation_controls.editing()
+            && panels.selected_keys.status(state) == super::key_selection::Status::Current {
+            if let Some(super::key_selection::AddressedKey::Spatial(key)) = panels.selected_keys.addressed_primary() {
+                if let motion_core::KeyframeTarget::Property {object: owner,property,axis} = key.target {
+                    if Some(owner) == object && panels.animation_controls.mini_context()
+                        != Some((motion_core::KeyframeTarget::Property {object:owner,property,axis},animation_controls::time::Address::Spatial(key.id))) {
+                        panels.animation_controls.select_address(state,owner,property,axis,animation_controls::time::Address::Spatial(key.id));
+                    }
+                }
+            }
+        }
         panels.animation_controls.clipboard_busy = panels.clipboard_busy;
         panels.animation_controls.expanded = true;
         panels.animation_controls.render(
@@ -67,6 +78,12 @@ pub(super) fn render(
                 focused: panels.focused,
             }),
         );
+        if let Some(key) = panels.animation_controls.take_spatial_selection() {
+            let _ = observe!("curve.controls.spatial_selection",
+                panels.selected_keys.apply_addressed(state, key.map(super::key_selection::AddressedKey::Spatial),
+                    super::key_selection::Mode::Replace),
+                "object={object:?} phase=spatial_selection");
+        }
         if let Some(key) = panels.animation_controls.take_local_selection() {
             let _ = observe!("curve.controls.selection",
                 panels.selected_keys.apply_addressed(state, key.map(super::key_selection::AddressedKey::Local),

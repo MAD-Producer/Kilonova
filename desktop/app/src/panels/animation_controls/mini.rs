@@ -9,6 +9,7 @@ use crate::panels::{
     Panel,
 };
 use motion_core::KeyframeTarget;
+use super::time::{Address, KeyTime};
 use std::sync::Arc;
 
 pub(in crate::panels) struct Context<'a> {
@@ -143,40 +144,36 @@ fn automatic(
     Ok(bounds)
 }
 
-pub(super) fn selection(
+#[cfg(test)]
+fn legacy_time(state: &Value, target: &KeyframeTarget, frame: i64) -> KeyTime {
+    KeyTime {address: if super::time::mapped(state,target) {Address::Local(frame as i32)} else {Address::Frame(frame)},local:frame as f64}
+}
+#[cfg(test)]
+pub(super) fn selection(state: &Value, target: &KeyframeTarget, start: i64, end: Option<i64>, context: &Context<'_>, legacy: Option<KeySelection>, easing: Easing, automatic: Bounds) -> Option<Bounds> {
+    selection_interval(state,target,legacy_time(state,target,start),end.map(|f|legacy_time(state,target,f)),context,legacy,easing,automatic)
+}
+pub(super) fn selection_interval(
     state: &Value,
     target: &KeyframeTarget,
-    start: i64,
-    end: Option<i64>,
+    start: KeyTime,
+    end: Option<KeyTime>,
     context: &Context<'_>,
     legacy: Option<KeySelection>,
     easing: Easing,
     automatic: Bounds,
 ) -> Option<Bounds> {
-    let mapped = super::time::mapped(state, target);
-    let end = end.filter(|end| (mapped || start >= 0) && *end > start)?;
-    let selected = |frame: i64| {
-        if mapped {
-            let frame = i32::try_from(frame).ok()?;
-            return Some(context.selection.status(state) == Status::Current
-                && context.selection.contains_addressed(&key_selection::AddressedKey::Local(key_selection::LocalKey {
-                    target: target.clone(), frame,
-                })));
-        }
-        let frame = u32::try_from(frame).ok()?;
+    let end = end.filter(|end| end.local > start.local)?;
+    let selected = |key: KeyTime| {
+        let address = key.address.selected(target.clone())?;
         Some(match context.selection.status(state) {
-            Status::Current => context.selection.contains(&key_selection::Key {
-                target: target.clone(),
-                frame,
-            }),
-            Status::Unowned => legacy.is_some_and(|key| {
-                KeyframeTarget::Property {
-                    object: key.object,
-                    property: key.property,
-                    axis: key.axis,
-                } == *target
-                    && key.frame == frame
-            }),
+            Status::Current => context.selection.contains_addressed(&address),
+            Status::Unowned => match key.address {
+                Address::Frame(frame) => legacy.is_some_and(|key| {
+                    KeyframeTarget::Property {object:key.object,property:key.property,axis:key.axis} == *target
+                        && i64::from(key.frame) == frame
+                }),
+                _ => false,
+            },
             Status::Empty | Status::Stale => false,
         })
     };
@@ -200,6 +197,7 @@ pub(super) fn selection(
     })
 }
 
+#[cfg(test)]
 pub(super) fn interval_frame(start: i64, end: Option<i64>, time: f64) -> Option<f64> {
     let end = end.filter(|end| start >= 0 && *end > start)?;
     (time.is_finite() && (0. ..=1.).contains(&time))
@@ -211,7 +209,18 @@ impl View {
         self.graph.is_some_and(|graph| graph.contains(input.mouse))
             && (input.modifiers.control || input.modifiers.shift)
     }
+    #[cfg(test)]
     pub(super) fn draw(
+        &mut self, list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect,
+        state: &Value, input: &Input, locale: Locale, easing: Easing,
+        target: KeyframeTarget, start: i64, end: Option<i64>, legacy: Option<KeySelection>,
+        frozen: Option<Bounds>, context: Option<Context<'_>>,
+    ) -> (Rect,Bounds) {
+        let first=legacy_time(state,&target,start);
+        let last=end.map(|f|legacy_time(state,&target,f));
+        self.draw_interval(list,atlas,rect,state,input,locale,easing,target,first,last,legacy,frozen,context)
+    }
+    pub(super) fn draw_interval(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
@@ -221,8 +230,8 @@ impl View {
         locale: Locale,
         easing: Easing,
         target: KeyframeTarget,
-        start: i64,
-        end: Option<i64>,
+        start: KeyTime,
+        end: Option<KeyTime>,
         legacy: Option<KeySelection>,
         frozen: Option<Bounds>,
         mut context: Option<Context<'_>>,
@@ -255,7 +264,7 @@ impl View {
             let automatic = observe!(
                 "curve.mini.fit_all",
                 automatic(easing, size, tolerance),
-                "phase=fit target={target:?} start={start} end={end:?} generation={:?} revision={:?} elapsed_us={}",
+                "phase=fit target={target:?} start={start:?} end={end:?} generation={:?} revision={:?} elapsed_us={}",
                 state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
             )
             .ok();
@@ -336,7 +345,7 @@ impl View {
                     && !input.ime_consumed,
             ) {
                 let selected = automatic.and_then(|all| {
-                    selection(state, &target, start, end, ctx, legacy, easing, all)
+                    selection_interval(state, &target, start, end, ctx, legacy, easing, all)
                 });
                 ctx.ranges.open(
                     point,
@@ -354,7 +363,7 @@ impl View {
                     Some(target.object()),
                     ctx.focused,
                 );
-                ctx.ranges.capture_mini(target.clone(), start);
+                ctx.ranges.capture_mini(target.clone(), start.address);
             }
         }
         #[cfg(test)]
@@ -410,7 +419,7 @@ impl View {
                 let points = observe!(
                     "curve.mini.adaptive",
                     sample(easing, bounds, size, tolerance),
-                    "phase=adaptive target={target:?} start={start} end={end:?} bounds={bounds:?} generation={:?} revision={:?} elapsed_us={}",
+                    "phase=adaptive target={target:?} start={start:?} end={end:?} bounds={bounds:?} generation={:?} revision={:?} elapsed_us={}",
                     state["document_generation"].as_u64(),state["revision"].as_u64(),started.elapsed().as_micros()
                 )
                 .ok();
@@ -482,7 +491,7 @@ impl View {
                             (false, false) => "normalized progress",
                         },
                     )];
-                    let (title, lines) = self.actual_readout(
+                    let (title, lines) = self.actual_readout_interval(
                         state, locale, &target, start, end, time, velocity, title, lines,
                     );
                     graph_ranges::readout_lines(list, atlas, graph, input.mouse, &title, &lines);
@@ -496,33 +505,39 @@ impl View {
         (graph, bounds)
     }
 
-    pub(super) fn actual_readout(
+    #[cfg(test)]
+    pub(super) fn actual_readout(&mut self, state:&Value, locale:Locale, target:&KeyframeTarget,
+        start:i64, end:Option<i64>, time:f64, speed:bool, title:String, lines:Vec<String>) -> (String,Vec<String>) {
+        self.actual_readout_interval(state,locale,target,legacy_time(state,target,start),end.map(|f|legacy_time(state,target,f)),time,speed,title,lines)
+    }
+    pub(super) fn actual_readout_interval(
         &mut self,
         state: &Value,
         locale: Locale,
         target: &KeyframeTarget,
-        start: i64,
-        end: Option<i64>,
+        start: KeyTime,
+        end: Option<KeyTime>,
         time: f64,
         speed: bool,
         mut title: String,
         mut lines: Vec<String>,
     ) -> (String, Vec<String>) {
-        let frame = if super::time::mapped(state, target) {
-            let Some(end) = end.filter(|end| *end > start) else { return (title, lines); };
-            if !time.is_finite() || !(0. ..=1.).contains(&time) { return (title, lines); }
-            let local = start as f64 + (end - start) as f64 * time;
+        let Some(end) = end.filter(|end| end.local > start.local) else { return (title, lines); };
+        if !time.is_finite() || !(0. ..=1.).contains(&time)
+            || !start.local.is_finite() || !end.local.is_finite() { return (title, lines); }
+        let local = start.local + (end.local - start.local) * time;
+        let frame = if matches!(start.address,Address::Frame(_)) {
+            if start.local < 0. { return (title,lines); }
+            local
+        } else {
             let projected = super::super::property_authoring::clock(state, target.object())
                 .and_then(|(clock, offset)| clock.projected_composition_frame(local, offset));
             let Some(frame) = observe!("curve.mini.readout_clock", projected,
-                "phase=project target={target:?} local={local} generation={:?} revision={:?}",
-                state["document_generation"].as_u64(), state["revision"].as_u64()).ok() else {
+                "phase=project target={target:?} key={:?} local={local} generation={:?} revision={:?}",
+                start.address, state["document_generation"].as_u64(), state["revision"].as_u64()).ok() else {
                 lines.push(if locale == Locale::Zh { "实际读数不可用" } else { "Actual readout unavailable" }.into());
                 return (title, lines);
             };
-            frame
-        } else {
-            let Some(frame) = interval_frame(start, end, time) else { return (title, lines); };
             frame
         };
         let source = crate::layer_clipboard::KeyframeSource::of(state);

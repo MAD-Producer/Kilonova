@@ -13,9 +13,11 @@ use motion_ui::{
 };
 use serde_json::Value;
 mod selection;
-mod time;
+pub(in crate::panels) mod time;
 #[cfg(test)]
 mod mapped_tests;
+#[cfg(test)]
+mod spatial_tests;
 pub(in crate::panels) mod mini;
 pub(super) use selection::{highlight_row, SelectedTrack, TrackSelection};
 
@@ -24,13 +26,13 @@ pub struct Controls {
     pub expanded: bool,
     pub property: Option<Property>,
     pub axis: Option<Axis>,
-    selected_key: Option<i64>,
+    selected_key: Option<time::Address>,
     key_context: Option<(u64, Property, Option<Axis>)>,
     key_explicit: bool,
-    key_local: bool,
     local_selection: Option<Option<super::key_selection::LocalKey>>,
+    spatial_selection: Option<Option<super::key_selection::SpatialKey>>,
     drag_time: Option<time::Context>,
-    drag_key: Option<(u64, Property, Option<Axis>, i64)>,
+    drag_key: Option<(u64, Property, Option<Axis>, time::Address)>,
     track_explicit: bool,
     track_scope: Option<(String, String, Option<u64>)>,
     row_probe: Option<selection::RowProbe>,
@@ -95,7 +97,7 @@ impl Controls {
     pub(in crate::panels) fn mini_owns_wheel(&self, input: &Input) -> bool {
         self.mini.owns_wheel(input)
     }
-    pub(in crate::panels) fn mini_context(&self) -> Option<(motion_core::KeyframeTarget, i64)> {
+    pub(in crate::panels) fn mini_context(&self) -> Option<(motion_core::KeyframeTarget, time::Address)> {
         let (object, property, axis) = self.key_context?;
         if self.property != Some(property) || self.axis != axis { return None; }
         Some((motion_core::KeyframeTarget::Property { object, property, axis }, self.selected_key?))
@@ -121,7 +123,6 @@ impl Controls {
         if self.key_context != Some(context) {
             self.selected_key = None;
             self.key_explicit = false;
-            self.key_local = false;
         }
         self.key_context = Some(context);
         self.property = Some(property);
@@ -136,27 +137,26 @@ impl Controls {
         frame: i64,
     ) {
         self.choose_track(object, property, axis);
-        self.selected_key = Some(frame);
+        self.selected_key = Some(time::Address::Frame(frame));
         self.key_explicit = true;
-        self.key_local = false;
     }
     pub(crate) fn user_key(&self) -> Option<KeySelection> {
-        if !self.key_explicit || self.key_local {
+        if !self.key_explicit {
             return None;
         }
         let (object, property, axis) = self.key_context?;
         if self.property != Some(property) || self.axis != axis {
             return None;
         }
+        let time::Address::Frame(frame) = self.selected_key? else { return None; };
         Some(KeySelection {
             object,
             property,
             axis,
-            frame: self.selected_key?.try_into().ok()?,
+            frame: frame.try_into().ok()?,
         })
     }
     pub(crate) fn clear_key(&mut self) {
-        self.key_local = false;
         self.selected_key = None;
         self.key_explicit = false;
     }
@@ -184,6 +184,7 @@ impl Controls {
         ranges: Option<mini::Context<'_>>,
     ) {
         self.local_selection = None;
+        self.spatial_selection = None;
         #[cfg(test)]
         { self.clipboard_hits = None; }
         let cancelled = self.editing() && (input.focus_lost
@@ -306,24 +307,24 @@ impl Controls {
             if self.cancel() { out.push(Action::History(4)); }
             return;
         };
-        if !timing.mapped && self.key_local && self.key_explicit {
-            // Retire the authored identity instead of aliasing a composition key.
-            self.selected_key = None;
-        }
-        if timing.mapped && self.key_explicit && !self.key_local {
-            self.selected_key = self.selected_key.and_then(|frame|
-                keys.iter().find(|key| key.composition == frame as f64).map(|key| key.frame));
-            self.key_local = true;
+        // Convert an explicit legacy selection only once and only at an exact,
+        // unambiguous projection. A stale stable ID must never claim a neighbour.
+        if timing.mapped && self.key_explicit {
+            if let Some(time::Address::Frame(frame)) = self.selected_key {
+                let matching: Vec<_> = keys.iter().filter(|key| key.composition == frame as f64).collect();
+                self.selected_key = (matching.len() == 1).then(|| matching[0].address);
+            }
         }
         self.display_track(object, property, self.axis);
-        let key_valid = !self.key_explicit || self.selected_key.is_some_and(|frame|
-            keys.iter().any(|key| key.frame == frame));
+        let key_valid = !self.key_explicit || self.selected_key.is_some_and(|address|
+            keys.iter().any(|key| key.address == address));
         let retargeted = self.drag_key.is_some_and(|key|
-            Some(key) != self.selected_key.map(|frame| (object, property, self.axis, frame)));
+            Some(key) != self.selected_key.map(|address| (object, property, self.axis, address)));
         if (locked || !key_valid || retargeted) && self.cancel() {
             out.push(Action::History(4));
             return;
         }
+        let spatial = track.get("spatial_keys").is_some();
         let animated = !keys.is_empty();
         if button(
             list,
@@ -335,7 +336,7 @@ impl Controls {
             } else {
                 locale.t(T::EnableAnimation)
             },
-            !locked && (animated || !timing.mapped || timing.integer().is_some()),
+            !locked && (animated || spatial || !timing.mapped || timing.integer().is_some()),
         ) {
             out.push(Action::Edit(super::property_authoring::at_playhead(state, Command::Animate {
                 object,
@@ -351,7 +352,7 @@ impl Controls {
             input,
             Rect::new(start + width / 2., *y, width / 2., 24.),
             locale.t(T::AddKey),
-            !locked && (!timing.mapped || timing.integer().is_some()),
+            !locked && (spatial || !timing.mapped || timing.integer().is_some()),
         ) {
             let command = if matches!(property, Property::Opacity | Property::Roll | Property::Fov | Property::Radius | Property::Azimuth | Property::Elevation) {
                 Command::SetScalar {
@@ -394,16 +395,21 @@ impl Controls {
                 }),
                 super::property_authoring::at_playhead(state, command),
             ]));
-            self.select_display_key(state, object, property, self.axis,
-                if timing.mapped { i64::from(timing.integer().expect("enabled exact key")) } else { frame as i64 }, timing.mapped);
+            if spatial {
+                // New IDs are assigned by the worker. Do not fabricate one from time.
+                self.clear_key();
+            } else {
+                self.select_display_key(state, object, property, self.axis,
+                    if timing.mapped { i64::from(timing.integer().expect("enabled exact key")) } else { frame as i64 }, timing.mapped);
+            }
         }
         *y += 30.;
         let selected = self
             .selected_key
-            .and_then(|f| keys.iter().position(|key| key.frame == f))
+            .and_then(|f| keys.iter().position(|key| key.address == f))
             .unwrap_or_else(|| {
                 keys.iter()
-                    .rposition(|key| key.frame as f64 <= timing.local)
+                    .rposition(|key| key.local <= timing.local)
                     .unwrap_or(0)
             });
         if keys.is_empty() {
@@ -419,10 +425,10 @@ impl Controls {
             return;
         }
         let keyframe = keys[selected].value;
-        let selected_frame = keys[selected].frame;
+        let selected_address = keys[selected].address;
+        let selected_frame = keys[selected].local;
         if !self.key_explicit {
-            self.selected_key = Some(selected_frame);
-            self.key_local = timing.mapped;
+            self.selected_key = Some(selected_address);
         }
         let previous = (selected.saturating_sub(1), selected > 0);
         let next = ((selected + 1).min(keys.len() - 1), selected + 1 < keys.len());
@@ -444,7 +450,7 @@ impl Controls {
                 enabled && self.dragging.is_none(),
             ) {
                 let next = &keys[index];
-                self.select_display_key(state, object, property, self.axis, next.frame, timing.mapped);
+                self.select_address(state, object, property, self.axis, next.address);
                 if next.composition >= 0. && state["project"]["frames"].as_f64()
                     .is_none_or(|frames| next.composition < frames) {
                     out.push(Action::Seek(next.composition));
@@ -456,7 +462,7 @@ impl Controls {
             atlas,
             Rect::new(start + 70., *y, width - 70., 24.),
             &format!("{}: {}", locale.t(T::Keyframe),
-                if timing.mapped { keys[selected].composition.to_string() } else { selected_frame.to_string() }),
+                keys[selected].composition),
             colors.ACCENT,
             Align::Left,
         );
@@ -467,43 +473,56 @@ impl Controls {
             input,
             Rect::new(start, *y, width / 2. - 2., 24.),
             locale.t(T::KeyToPlayhead),
-            !locked && (timing.mapped || selected_frame >= 0) && (!timing.mapped || timing.integer().is_some()) && self.dragging.is_none() && key_valid,
+            !locked && (spatial || timing.mapped || selected_frame >= 0.) && (spatial || !timing.mapped || timing.integer().is_some()) && self.dragging.is_none() && key_valid,
         ) {
-            let destination = if timing.mapped { i64::from(timing.integer().expect("enabled exact key")) } else { frame as i64 };
-            if let Some(delta) = destination.checked_sub(selected_frame).and_then(|d| i32::try_from(d).ok()) {
-                out.push(Action::Edit(if timing.mapped {
-                    Command::LocalKeyframes { target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
-                        edit: motion_core::LocalKeyEdit::Translate { frames: vec![selected_frame as i32], delta_frame: delta, copy: false, value_offset: None } }
-                } else { Command::MoveKey { object, property, axis: self.axis, from: selected_frame as u32, to: frame } }));
-                self.select_display_key(state, object, property, self.axis, destination, timing.mapped);
+            if let time::Address::Spatial(id) = selected_address {
+                out.push(Action::Edit(Command::SpatialKeyframes {
+                    target: motion_core::KeyframeTarget::Property {object, property, axis: self.axis},
+                    edit: motion_core::SpatialKeyEdit::Time {key: id, time: timing.composition},
+                }));
+                self.select_address(state, object, property, self.axis, selected_address);
             } else {
-                let _ = observe!("curve.controls.move_delta", Err::<(),_>("local move exceeds signed frame range"),
-                    "object={object} property={property:?} from={selected_frame} to={destination}");
+                let destination = if timing.mapped { i64::from(timing.integer().expect("enabled exact key")) } else { frame as i64 };
+                let from = match selected_address {time::Address::Frame(frame)=>frame,time::Address::Local(frame)=>i64::from(frame),time::Address::Spatial(_)=>unreachable!()};
+                if let Some(delta) = destination.checked_sub(from).and_then(|d| i32::try_from(d).ok()) {
+                    out.push(Action::Edit(if timing.mapped {
+                        Command::LocalKeyframes { target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
+                            edit: motion_core::LocalKeyEdit::Translate { frames: vec![from as i32], delta_frame: delta, copy: false, value_offset: None } }
+                    } else { Command::MoveKey { object, property, axis: self.axis, from: from as u32, to: frame } }));
+                    self.select_display_key(state, object, property, self.axis, destination, timing.mapped);
+                } else {
+                    let _ = observe!("curve.controls.move_delta", Err::<(),_>("local move exceeds signed frame range"),
+                        "object={object} property={property:?} from={from} to={destination}");
+                }
             }
         }
         if button(
-            list,
-            atlas,
-            input,
+            list, atlas, input,
             Rect::new(start + width / 2., *y, width / 2., 24.),
             locale.t(T::DeleteKey),
-            !locked && (timing.mapped || selected_frame >= 0) && self.dragging.is_none() && key_valid,
+            !locked && (spatial || timing.mapped || selected_frame >= 0.) && self.dragging.is_none() && key_valid,
         ) {
-            out.push(Action::Edit(if timing.mapped {
-                Command::LocalKeyframes { target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis },
-                    edit: motion_core::LocalKeyEdit::Delete { frames: vec![selected_frame as i32] } }
-            } else { Command::DeleteKey { object, property, axis: self.axis, frame: selected_frame as u32 } }));
+            out.push(Action::Edit(match selected_address {
+                time::Address::Spatial(key) => Command::SpatialKeyframes { target: motion_core::KeyframeTarget::Property {object,property,axis:self.axis}, edit: motion_core::SpatialKeyEdit::Delete {key} },
+                time::Address::Local(frame) => Command::LocalKeyframes { target: motion_core::KeyframeTarget::Property { object, property, axis: self.axis }, edit: motion_core::LocalKeyEdit::Delete { frames: vec![frame] } },
+                time::Address::Frame(frame) => Command::DeleteKey { object, property, axis: self.axis, frame: frame as u32 },
+            }));
             self.clear_key();
-            if timing.mapped { self.local_selection = Some(None); }
+            if spatial { self.spatial_selection = Some(None); }
+            else if timing.mapped { self.local_selection = Some(None); }
         }
         *y += 30.;
-        let mut easing = super::graph_handles::observed_easing(
-            keyframe,
-            object,
-            property,
-            selected_frame as f64,
-        );
-        let editable = !locked && (timing.mapped || selected_frame >= 0) && selected + 1 < keys.len() && key_valid;
+        let mut easing = if spatial {
+            let Some(easing) = observe!("curve.controls.spatial_easing",
+                serde_json::from_value::<Easing>(keyframe["easing"].clone()).map_err(motion_core::Error::from)
+                    .and_then(|easing| { easing.validate()?; Ok(easing) }),
+                "object={object} property={property:?} key={selected_address:?} phase=easing").ok() else { return; };
+            easing
+        } else {
+            super::graph_handles::observed_easing(keyframe, object, property, selected_frame)
+        };
+        let fixed_interval = !spatial || keyframe["roving"] == false && keys.get(selected + 1).is_some_and(|key| key.value["roving"] == false);
+        let editable = !locked && (timing.mapped || selected_frame >= 0.) && selected + 1 < keys.len() && key_valid && fixed_interval;
         let choices = [
             (locale.t(T::LinearCurve), Easing::default()),
             (
@@ -593,8 +612,8 @@ impl Controls {
         let paste_rect = Rect::new(start + width * 0.75, *y, width / 4., styles.metric("graph.control.height", 24.));
         #[cfg(test)]
         { self.clipboard_hits = Some([copy_rect, paste_rect]); }
-        let clipboard_frame = if timing.mapped { None } else { u32::try_from(selected_frame).ok() };
-        let clipboard_local = timing.mapped.then_some(selected_frame).and_then(|frame| i32::try_from(frame).ok());
+        let clipboard_frame = match selected_address {time::Address::Frame(frame)=>u32::try_from(frame).ok(),_=>None};
+        let clipboard_local = match selected_address {time::Address::Local(frame)=>Some(frame),_=>None};
         let clipboard_selections = || {
             let target = motion_core::KeyframeTarget::Property { object, property, axis: self.axis };
             let selections = clipboard_frame.map(|frame| motion_core::KeyframeSelection { target: target.clone(), frames: vec![frame] }).into_iter().collect();
@@ -640,11 +659,11 @@ impl Controls {
             easing = value;
         }
         let legacy = self.user_key();
-        let (graph, bounds) = self.mini.draw(list,atlas,
+        let (graph, bounds) = self.mini.draw_interval(list,atlas,
             Rect::new(start,*y,width,styles.metric("graph.mini.height",130.)),
             state,input,locale,easing,
             motion_core::KeyframeTarget::Property {object,property,axis:self.axis},
-            selected_frame,keys.get(selected+1).map(|key|key.frame),
+            time::KeyTime {address:selected_address,local:selected_frame},keys.get(selected+1).map(|key|time::KeyTime {address:key.address,local:key.local}),
             legacy,self.dragging.map(|(_,_,bounds)|bounds),ranges);
         let point = |p: [f64; 2]| {
             [
@@ -667,10 +686,10 @@ impl Controls {
                 paint::diamond(&mut handles, p, styles.metric("graph.key_radius",5.), colors.KEYFRAME);
                 let hit = styles.metric("graph.mini.handle.hit_radius",10.);
                 if editable && pressed(input, Rect::new(p[0]-hit,p[1]-hit,hit*2.,hit*2.)) {
-                    self.select_display_key(state, object, property, self.axis, selected_frame, timing.mapped);
+                    self.select_address(state, object, property, self.axis, selected_address);
                     self.dragging = Some((i, easing, bounds));
                     self.drag_time = Some(timing);
-                    self.drag_key = Some((object, property, self.axis, selected_frame));
+                    self.drag_key = Some((object, property, self.axis, selected_address));
                     out.push(Action::History(2));
                 }
             }
@@ -714,9 +733,9 @@ impl Controls {
         }
         if changed && editable && observe!("curve.controls.easing", easing.validate(),
             "object={object} property={property:?} axis={:?} local={selected_frame} phase=commit",self.axis).is_ok() {
-            self.select_display_key(state, object, property, self.axis, selected_frame, timing.mapped);
+            self.select_address(state, object, property, self.axis, selected_address);
             out.push(Action::Edit(timing.curve(
-                object, property, self.axis, selected_frame, easing)));
+                object, property, self.axis, selected_address, easing)));
         }
         if ended {
             out.push(Action::History(3));

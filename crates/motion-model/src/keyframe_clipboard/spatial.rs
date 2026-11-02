@@ -1,6 +1,6 @@
 //! Spatial keys use persistent IDs after their initial frame-key conversion.
 use super::*;
-use crate::layer_time::LayerClock;
+use crate::{layer_time::LayerClock, Easing};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -29,6 +29,11 @@ pub enum SpatialKeyEdit {
     },
     Delete {
         key: u64,
+    },
+    /// Existing fixed outgoing interval; stable identity survives time edits.
+    Curve {
+        key: u64,
+        easing: Easing,
     },
 }
 
@@ -99,6 +104,7 @@ fn candidate<T: Tween>(
                     animation.move_keys(keys, *delta * clock.rate())?
                 }
                 SpatialKeyEdit::Delete { key } => animation.delete_key(*key)?,
+                SpatialKeyEdit::Curve { key, easing } => animation.set_easing(*key, *easing)?,
                 SpatialKeyEdit::Enable { .. } | SpatialKeyEdit::EnableLocal { .. } => {
                     return Err(Error::Invalid(
                         "spatial conversion dispatch mismatch".into(),
@@ -224,6 +230,7 @@ pub fn edit(project: &mut Project, target: &KeyframeTarget, edit: &SpatialKeyEdi
             keys.len()
         ),
         SpatialKeyEdit::Delete { key } => format!("phase=delete key={key}"),
+        SpatialKeyEdit::Curve { key, .. } => format!("phase=curve key={key}"),
     };
     result.map_err(|source| Error::KeyframeEdit {
         operation: "spatial_keyframes",

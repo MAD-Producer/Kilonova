@@ -123,7 +123,9 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 {"type":"object","additionalProperties":false,"required":["kind","keys","delta"],"properties":{
                     "kind":{"const":"move"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"delta":{"type":"number","description":"Translate the selected stable IDs atomically from their current solved times"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key"],"properties":{
-                    "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}}
+                    "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}},
+                {"type":"object","additionalProperties":false,"required":["kind","key","easing"],"properties":{
+                    "kind":{"const":"curve"},"key":{"type":"integer","minimum":1},"easing":named_schema("Easing").1}}
             ]}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})

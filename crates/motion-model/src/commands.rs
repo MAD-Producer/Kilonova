@@ -350,6 +350,9 @@ impl Command {
         }
     }
     pub fn composition_transaction(&self) -> bool {
+        if let Self::SpatialKeyframes { edit: crate::keyframe_clipboard::spatial::SpatialKeyEdit::Curve { .. }, .. } = self {
+            return false;
+        }
         if let Self::TrackAt { edit, .. } = self {
             return !matches!(edit, crate::keyframe_clipboard::authoring::TrackEdit::Set { .. }
                 | crate::keyframe_clipboard::authoring::TrackEdit::SetSpatialKey { .. });

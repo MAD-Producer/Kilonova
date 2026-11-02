@@ -8,7 +8,7 @@ use serde_json::json;
 mod native;
 mod clipboard;
 
-fn pointer(point: [f32; 2], pressed: bool, released: bool) -> Input {
+pub(super) fn pointer(point: [f32; 2], pressed: bool, released: bool) -> Input {
     Input {
         mouse: point,
         held: (!released).then_some(MouseButton::Left),
@@ -17,7 +17,7 @@ fn pointer(point: [f32; 2], pressed: bool, released: bool) -> Input {
         ..Default::default()
     }
 }
-fn quadratic() -> Easing {
+pub(super) fn quadratic() -> Easing {
     Easing {
         ease: Ease::Linear,
         curve: Some(Curve {
@@ -97,7 +97,7 @@ fn controls() -> Controls {
         ..Default::default()
     }
 }
-fn draw(
+pub(super) fn draw(
     c: &mut Controls,
     atlas: &mut TextAtlas,
     state: &Value,
@@ -121,14 +121,14 @@ fn draw(
     );
     out
 }
-fn click(point: [f32; 2]) -> Input {
+pub(super) fn click(point: [f32; 2]) -> Input {
     Input {
         mouse: point,
         pressed: Some((MouseButton::Left, point)),
         ..Default::default()
     }
 }
-fn apply(engine: &mut Engine, actions: Vec<Action>) {
+pub(super) fn apply(engine: &mut Engine, actions: Vec<Action>) {
     for action in actions {
         match action {
             Action::Edit(command) => {

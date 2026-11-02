@@ -1,0 +1,320 @@
+{
+  "sourceBase": "35d4238c31c00894fdcaadaf515bb0adea7eb112",
+  "sourceSha256": {
+    "crates/motion-core/src/command_registry.rs": "574f6315d908f0a0a2c0f0cb495c5734d6279ab1a048c5686ec6b9a9ef9b5c16",
+    "crates/motion-model/src/animation/spatial_animation.rs": "d2c29911e8327e057348ab2f95a7c5b9fe937127f1ff95fa9bc62f9686d82140",
+    "crates/motion-model/src/commands.rs": "007db01acb4d76c98b86d6f55a99abee8d7d7ff26df22338bdf6a6ac3c92c760",
+    "crates/motion-model/src/keyframe_clipboard/spatial.rs": "e9ed4ea3ff466c3d00cd98dc7317ef2f7558aae95fdcdfdf09679765ee52bb92",
+    "desktop/app/src/panels/animation_controls.rs": "8ee33aa398776e0052f345b289d396ce1304a41f05f8a316666721806f0f9b4a",
+    "desktop/app/src/panels/animation_controls/mapped_tests.rs": "81aa3276774efb4309ced0d340794998e0631221a2460656b2b48d8eea9c0369",
+    "desktop/app/src/panels/animation_controls/mini.rs": "ddba55489f7b98fa6eae41c6fda9c14ef704db1b99d93faabefcfc5df1f3bbfa",
+    "desktop/app/src/panels/animation_controls/selection.rs": "edd2c0d676e10f780063fe704665281e24592fa7946334f3448cf331ab78f2c1",
+    "desktop/app/src/panels/animation_controls/time.rs": "51f4d52f59d28757c8b0849d2a35fc162cc1b9eeaf0d55b51261f2041313f07f",
+    "desktop/app/src/panels/curves.rs": "4e320ce416c9f70bb27c4e68f9236bd00de4a010e106c13f0aa31ad40c348d5c",
+    "desktop/app/src/panels/graph_ranges.rs": "b7b38d5881cab9219531574eff6a8eea87e3cd26d3d091f1e9689f31c1a504c9",
+    "desktop/app/src/panels/animation_controls/spatial_tests.rs": "c1eb3ba814ada737ff99389cbf6edb5526e0c4348f62b385a00afd6589051000",
+    "desktop/app/src/panels/animation_controls/spatial_tests/native.rs": "58158afba74444a5a1f26ccb6d092bf62a70d7aca154bcb3868d54b2401451b9",
+    "desktop/app/src/panels/animation_controls/spatial_tests/worker.rs": "f1cbd57c2e2bcae7bc8807cbf722d8073a0ba9711bf08915768e6f7eea9b3902"
+  },
+  "results": [
+    {
+      "group": "new",
+      "args": [
+        "panels::animation_controls::spatial_tests::"
+      ],
+      "exit": 0,
+      "seconds": 10.48,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "mini",
+      "args": [
+        "panels::animation_controls::mini::"
+      ],
+      "exit": 0,
+      "seconds": 1.251,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "mapped",
+      "args": [
+        "panels::animation_controls::mapped_tests::"
+      ],
+      "exit": 0,
+      "seconds": 1.033,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "group": "controls",
+      "args": [
+        "panels::animation_controls::tests::"
+      ],
+      "exit": 0,
+      "seconds": 0.145,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "ranges-mini",
+      "args": [
+        "panels::graph_ranges::tests::mini::"
+      ],
+      "exit": 0,
+      "seconds": 0.837,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "stable-numeric",
+      "args": [
+        "panels::property_authoring::spatial_tests::"
+      ],
+      "exit": 0,
+      "seconds": 30.187,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "native",
+      "args": [
+        "--exact",
+        "panels::animation_controls::spatial_tests::native::native_spatial_mini_captures_commit_and_reopens_in_separate_process",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 22.543,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "27f859c80b56415ab60c78582c2eacf2b00b8ad7fd237ec423cdfc776152a311",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "distinctPassed": [
+    "panels::animation_controls::mapped_tests::clipboard::fractional_mini_clipboard_buttons_keep_local_key_in_both_directions_and_languages",
+    "panels::animation_controls::mapped_tests::clipboard::local_menu_copy_and_paste_follow_owned_selection_lock_and_stale_guards",
+    "panels::animation_controls::mapped_tests::fit_selection_uses_signed_local_endpoints_and_never_a_legacy_projection_alias",
+    "panels::animation_controls::mapped_tests::mapped_clock_and_projection_faults_use_default_file_stderr_and_bounded_sites",
+    "panels::animation_controls::mapped_tests::mapped_handle_drag_is_one_undo_and_changed_time_owner_or_focus_cancels_it",
+    "panels::animation_controls::mapped_tests::mapped_separated_curve_edits_preserve_other_axes_and_vector_values",
+    "panels::animation_controls::mapped_tests::mini_actual_readout_projects_local_interval_and_signed_speed_without_rounding",
+    "panels::animation_controls::mapped_tests::mini_presets_add_move_delete_use_exact_signed_local_identity_in_both_directions",
+    "panels::animation_controls::mapped_tests::navigation_orders_composition_time_and_fractional_local_edits_stay_disabled",
+    "panels::animation_controls::mini::tests::actual_readouts_preserve_zero_and_negative_amplitude_and_duration_in_physical_units",
+    "panels::animation_controls::mini::tests::adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples",
+    "panels::animation_controls::mini::tests::automatic_ranges_include_authored_controls_and_actual_extrema_without_clipping",
+    "panels::animation_controls::mini::tests::coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_cache",
+    "panels::animation_controls::mini::tests::fault_tests::adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet",
+    "panels::animation_controls::mini::tests::fault_tests::default_failure_channels_cache_suppression_recovery_and_process_reset_use_real_consumers",
+    "panels::animation_controls::mini::tests::last_key_readout_remains_normalized_without_fabricated_frames_or_physical_units",
+    "panels::animation_controls::mini::tests::mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints",
+    "panels::animation_controls::mini::tests::outgoing_interval_maps_composition_time_once_and_never_invents_last_key_time",
+    "panels::animation_controls::mini::tests::physical_readout_keeps_component_values_and_units_visible_with_long_layer_names",
+    "panels::animation_controls::mini::tests::unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache",
+    "panels::animation_controls::spatial_tests::actual_mini_readout_and_fit_selection_keep_fractional_spatial_intervals_in_both_directions",
+    "panels::animation_controls::spatial_tests::fixed_spatial_curve_changes_the_sample_at_exact_local_time_and_preserves_all_key_times",
+    "panels::animation_controls::spatial_tests::mini_spatial_navigation_move_delete_add_and_presets_never_alias_an_integer_frame",
+    "panels::animation_controls::spatial_tests::native::native_spatial_mini_captures_commit_and_reopens_in_separate_process",
+    "panels::animation_controls::spatial_tests::spatial_curve_rejections_preserve_full_project_and_never_relax_roving_constraints",
+    "panels::animation_controls::spatial_tests::worker::actual_worker_mini_spatial_handles_keep_one_history_cancel_and_saved_project_in_both_chrome_owners",
+    "panels::animation_controls::spatial_tests::worker::malformed_mini_spatial_keys_and_easing_use_bounded_default_error_channels_and_recover",
+    "panels::animation_controls::tests::editing_a_separated_interval_emits_only_the_captured_axis_and_composition_time",
+    "panels::graph_ranges::tests::mini::mini_control_drag_inverts_zoomed_axes_and_escape_cancels_the_existing_transaction",
+    "panels::graph_ranges::tests::mini::mini_fit_selection_uses_normalized_interval_without_moving_shared_time_or_history",
+    "panels::graph_ranges::tests::mini::mini_hover_uses_actual_composition_frame_and_percent_but_last_key_stays_normalized",
+    "panels::graph_ranges::tests::mini::mini_locks_both_local_axes_during_playback_and_modifier_wheel_without_panel_scroll",
+    "panels::graph_ranges::tests::mini::mini_menu_owns_ime_and_cancels_changed_key_or_other_window_without_deleting",
+    "panels::graph_ranges::tests::mini::mini_modifier_zoom_and_pan_are_pointer_anchored_and_do_not_scroll_or_move_timeline",
+    "panels::property_authoring::spatial_tests::continuous_numeric_drafts_capture_fractional_time_and_cancel_on_context_changes",
+    "panels::property_authoring::spatial_tests::continuous_objects_do_not_round_other_animated_properties_into_adjacent_keys",
+    "panels::property_authoring::spatial_tests::continuous_property_edits_preserve_ids_in_plain_forward_and_reverse_clocks",
+    "panels::property_authoring::spatial_tests::malformed_continuous_storage_never_selects_the_rounded_legacy_path",
+    "panels::property_authoring::spatial_tests::ordinary_unmapped_channels_keep_legacy_authoring_and_partial_static_views",
+    "panels::property_authoring::spatial_tests::stable_drafts::bound_spatial_updates_follow_the_id_after_roving_moves_its_time",
+    "panels::property_authoring::spatial_tests::stable_drafts::deleted_identity_cancels_instead_of_rebinding_and_coincident_keys_are_rejected",
+    "panels::property_authoring::spatial_tests::stable_drafts::explicit_spatial_value_rejections_preserve_the_entire_project_and_history",
+    "panels::property_authoring::spatial_tests::stable_drafts::new_spatial_key_protocol_is_in_the_catalog_and_roundtrips_json",
+    "panels::property_authoring::spatial_tests::worker::continuous_time_faults_reach_default_file_and_stderr_with_bounded_counts",
+    "panels::property_authoring::spatial_tests::worker::numeric_context_changes_cancel_the_worker_preview_and_late_release_is_inert",
+    "panels::property_authoring::spatial_tests::worker::real_numeric_scrubs_edit_the_stable_key_and_keep_one_atomic_history",
+    "panels::property_authoring::spatial_tests::worker::stable::malformed_bound_numeric_values_use_default_error_channels_and_recover",
+    "panels::property_authoring::spatial_tests::worker::stable::repeated_roving_scrubs_keep_four_keys_and_cancel_deleted_targets"
+  ],
+  "ignoredNotRun": [
+    "panels::animation_controls::mapped_tests::native::clipboard::fractional_curve_system_clipboard_native_copy_paste_and_reopen",
+    "panels::animation_controls::mapped_tests::native::mapped_mini_native_chrome_drag_undo_pixels_and_reopen"
+  ],
+  "pixelComparison": [
+    {
+      "case": "zh-main-forward",
+      "changedPixels": 5658,
+      "changedBounds": [
+        16,
+        57,
+        984,
+        509
+      ],
+      "reopenDifferentPixels": 60
+    },
+    {
+      "case": "en-floating-reverse",
+      "changedPixels": 5598,
+      "changedBounds": [
+        16,
+        323,
+        984,
+        435
+      ],
+      "reopenDifferentPixels": 0
+    }
+  ],
+  "checks": {
+    "workspaceAllTargetsWithFFmpeg": {
+      "exit": 0,
+      "log": "workspace-final.log"
+    },
+    "styleConsumers": {
+      "exit": 0
+    },
+    "rustfmtSmallModifiedModules": {
+      "exit": 0
+    },
+    "gitDiffCheck": {
+      "exit": 0
+    }
+  },
+  "limits": [
+    "Whole graph_ranges pressure run was externally interrupted at 300s; original child 30840 observed to exit 101. Not accepted as a passing whole-group run.",
+    "Malformed-provider failure injection for the new spatial selection publication observer remains pending.",
+    "Companion anchor compensation, composition canvas gestures, real media/devices/high speed audio and full issue integration remain pending.",
+    "Native captures cover two Windows owners/languages/directions only; no all-platform or DPI acceptance."
+  ],
+  "rawFiles": {
+    "build-final.log": "f323411940015cf2d186588330686eaa6d2406034433d360587b36d57254c27d",
+    "build-first.log": "96b173cdf1227be03c2137385079600f7b1ed5101df9c47815e593c0ed1d05a3",
+    "build-second.log": "b75f568661e32f155d2526885516d668741e3ff6e09765300a717bf0bf990350",
+    "check-first.log": "6478904bc85d7f207acfca7fe50ed23d8ec40b1bfb0acb827a331ff5ad62ab6c",
+    "check-second.log": "fe2d7f4f416487c55eaa26b634d2a092b473946a9d07a7691082cc481ac9ff08",
+    "controls.log": "95ff1d8080f124cb14055922bfb7078be9c106bf9ddaf4a8dcdff2f3849631da",
+    "edit_controls.py": "85f422aee88f7b69235eb10197598fde93af7514171cb3d286f4a087e600814e",
+    "edit_mini.py": "860817edca5f3fdaa80de0f07e6addf615f6ba0b9555a8710ef19ad1c3d1de4d",
+    "edit_time.py": "755da92dfc6f2ab0eac3045ee1ab9b489ef33ec4f7772b68e0570f2ad5454b5f",
+    "mapped.log": "831436d6c20639e1dca3d840c23f320f2241fd2aeb0a0b42dd8ef90e240588a3",
+    "mini.log": "c32ebe3f2c8c164aa45a31111d10002efcb8fd05b07650e491bf85a9a418adcc",
+    "native.log": "92bd58267683cb3cd833e0a90dc6ea3314aa0f94778e25e69ec6e264d86c3341",
+    "new.log": "39fa7bbf8d38e104ee169fd99da1ad2fb508f00cbda229c1415e7dbf62b71eaa",
+    "original-range-child-status.json": "b06f218740500b292fe565a440b4a242db62a63a33922e08d4caca650fda3ef3",
+    "pixel-comparison.json": "28713b5219732c3535fea23b9f6bf4043cdc6a7f805360b6aa306193f6cdb448",
+    "range-harness-timeout.json": "02658c33a564820ed288f57ac6aebc6f9a74ad93ea50ece80ca0deb031975ee4",
+    "ranges-mini.log": "6a684a0cbf770de97a589a697c21a590749e01933c9e5118ef0a653bf88fbf62",
+    "ranges.log": "0de559c424c217008d9040eb0a5b8ba078b589f6b78dca9e91f374756e95c6c4",
+    "results-all.json": "95e74014f1979319a8c10ad79cb0bb910966a20735c28b43706036b80c38a719",
+    "results-mini-mapped-controls-ranges-stable-numeric.json": "8a136f1cd412b8c1f9da081161c8f5b5a9d69cab370a7502821fd10b4281219a",
+    "results-native.json": "02f5868fda17bf39ffa1194ce1b593c33316645878aafeccaccc13bdeb3e6283",
+    "run.py": "bfe4b5bb7882a02da0c9cd510d04ec56af21003fb74af67034861936c4ec5c96",
+    "runner-before-timeout.py": "0f245059d37b2b079822f9a519fea4e2a274ecb26bf615c5974be15952e4e6fc",
+    "source-sha256.json": "e5fa85eddd1e0a4d46224538dd1e78c75ade37eed5b697d3bdf9fb22327c493d",
+    "stable-numeric.log": "e3fe7f97453fc70c7c53e24c650ffb8a8710d772e8228dc4d4931f6bfc90b69d",
+    "workspace-check.log": "a1574ae44ddd2f2ee621d19e7e0d016f5f081067e5e73df37f939e4a194feead",
+    "workspace-final.log": "bdf42307e426d2d6180c4f9666cda7d241f6cba5f4981f788d048a013d850f89",
+    "before-fixture-corrections/build-second.log": "b75f568661e32f155d2526885516d668741e3ff6e09765300a717bf0bf990350",
+    "before-fixture-corrections/new.log": "ad737d4b335b1d91218413a67b8a0b3797af73c3f76cfca9fa994a7a07e58e27",
+    "before-fixture-corrections/results-all.json": "04ac0320d75c51191e7adf5eb15925c686c890008b1a1a0729d7440cb1e36179",
+    "before-fixture-corrections/source-sha256.json": "add0127fb3e97036f584d15c0b936bcbaa1efc272a6d0ac80aae64cffccfa0b2",
+    "before-fixture-corrections/source/crates/motion-core/src/command_registry.rs": "574f6315d908f0a0a2c0f0cb495c5734d6279ab1a048c5686ec6b9a9ef9b5c16",
+    "before-fixture-corrections/source/crates/motion-model/src/commands.rs": "007db01acb4d76c98b86d6f55a99abee8d7d7ff26df22338bdf6a6ac3c92c760",
+    "before-fixture-corrections/source/crates/motion-model/src/animation/spatial_animation.rs": "d2c29911e8327e057348ab2f95a7c5b9fe937127f1ff95fa9bc62f9686d82140",
+    "before-fixture-corrections/source/crates/motion-model/src/keyframe_clipboard/spatial.rs": "e9ed4ea3ff466c3d00cd98dc7317ef2f7558aae95fdcdfdf09679765ee52bb92",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls.rs": "92336fcce3c7915e4d3fab3081989bdef2fa4e173e0f57c2cdc9e98b3bf6aeda",
+    "before-fixture-corrections/source/desktop/app/src/panels/curves.rs": "4e320ce416c9f70bb27c4e68f9236bd00de4a010e106c13f0aa31ad40c348d5c",
+    "before-fixture-corrections/source/desktop/app/src/panels/graph_ranges.rs": "b7b38d5881cab9219531574eff6a8eea87e3cd26d3d091f1e9689f31c1a504c9",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/mapped_tests.rs": "81aa3276774efb4309ced0d340794998e0631221a2460656b2b48d8eea9c0369",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/mini.rs": "ddba55489f7b98fa6eae41c6fda9c14ef704db1b99d93faabefcfc5df1f3bbfa",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/selection.rs": "edd2c0d676e10f780063fe704665281e24592fa7946334f3448cf331ab78f2c1",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/spatial_tests.rs": "ec8ace914865845eca091753a60f5176a0f5e806015c7a232fd22779cbd58774",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/time.rs": "51f4d52f59d28757c8b0849d2a35fc162cc1b9eeaf0d55b51261f2041313f07f",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/spatial_tests/native.rs": "58158afba74444a5a1f26ccb6d092bf62a70d7aca154bcb3868d54b2401451b9",
+    "before-fixture-corrections/source/desktop/app/src/panels/animation_controls/spatial_tests/worker.rs": "f1cbd57c2e2bcae7bc8807cbf722d8073a0ba9711bf08915768e6f7eea9b3902",
+    "faults/spatial-mini/motion-studio.log": "22b2c596f33a179eec523b05a6b3547a7a1d971f3604ef3d5fc1aa6376e9a771",
+    "faults/spatial-mini/stderr.log": "1e50f1a5e697765079db73073ecfcd3027b40c8cdd265b3e00f00560a75b1946",
+    "faults/spatial-mini/stdout.log": "e54e4d8b10abd1e5faf4985b82f67e5c0c5784a9b55e7ee5d1df7d83a990db22",
+    "faults-final/properties/motion-studio.log": "fccc66f233bdac552cee7a67a4971aa41f8e6773c9ad3db5d89086e9b413ec87",
+    "faults-final/properties/stderr.log": "c5e41a0d9b01c38543bde05bae43efefa85035ca1ea973f217b12afcf5327198",
+    "faults-final/properties/stdout.log": "0bb6970a0011232602be506647e9656f841de79396c13796f6e6f1d4a25f4393",
+    "faults-final/spatial-mini/motion-studio.log": "087d43fa605a175bd2527a3b6634f27ae4fe88f0340628cf6b9506cce5acd868",
+    "faults-final/spatial-mini/stderr.log": "1e50f1a5e697765079db73073ecfcd3027b40c8cdd265b3e00f00560a75b1946",
+    "faults-final/spatial-mini/stdout.log": "4b2ac2a37426fd8cc4de48e368e85485404890569d6f7ead6f291419b6fae316",
+    "native/capture-process.json": "b216fa46183d33f8f0320b57dfd67a85bcef0c335af639744e18861882046b84",
+    "native/capture-stderr.log": "cc26ff36017ac7de89d23d03192255c928b712eda9eceeed69cc167610ba83f2",
+    "native/capture-stdout.log": "64974e8a33f11a5d16efb0f1ce2b5f86c6563d96a50327830da9f265737db840",
+    "native/reopen-process.json": "b37126647d917b9356946fb314d6f5f3e68d6377ede9a72a6669582e325ad84b",
+    "native/reopen-stderr.log": "4d0cf8338cb8b0352c55bcbf7682b2e8e2c761718ed2667bb6074725b0c57466",
+    "native/reopen-stdout.log": "0cc9074f196da3b0d6695395ee19971b5ec571d76f0d0b6da354395c895a1044",
+    "native/capture-logs/motion-studio.log": "c74c982dcd6e8b1d27171e8f7a7b201bb43ff1279e6463ccb75d299d15c5fb3e",
+    "native/en-floating-reverse/after.json": "e11238f2e00d893de770a6ed9d4baba29eb0febf76b6a1c3b7e2bf4404941bae",
+    "native/en-floating-reverse/after.png": "f60e456edb54118cee72e52ed225b24167b2d662d6033258585bbf8921b0f784",
+    "native/en-floating-reverse/before.json": "8d3a292fbb19425197df736bc8c1a753d7745b7a60d22d2509736b057ee4b0a3",
+    "native/en-floating-reverse/before.png": "814168f345794f197dd834913de4a6ccd322c90835ad9f9123940726f339be0f",
+    "native/en-floating-reverse/reopen.png": "f60e456edb54118cee72e52ed225b24167b2d662d6033258585bbf8921b0f784",
+    "native/en-floating-reverse/project/project.json": "e35b26052ad70a46675fe04470950646ea59d66ae7d5ea9a274434b4651e3318",
+    "native/reopen-logs/motion-studio.log": "b0bf68e7b3f0a40f625f28f5bf600a67618ab1f81b59847d91edbfe59bc98f56",
+    "native/zh-main-forward/after.json": "2e64d79d0795123359b6a95b304e18f261408452b8538f35a699945c8dd6f43a",
+    "native/zh-main-forward/after.png": "c9716d6f2d4e7f8265a8b08ca6a8b2200e6790ff31a167be50e660b96d7f9b26",
+    "native/zh-main-forward/before.json": "fc269e2e58a01d567810e2f6b8c0323d49e9a9552dba972992e9e5e3fc74d25d",
+    "native/zh-main-forward/before.png": "e42e1db71d396ab55183b6e32ad4452492a8292a9ffccd2fc1244ae22d0738d7",
+    "native/zh-main-forward/reopen.png": "fc377ad34b392137301b7e15736c188c41a98a868d69008e89693c35436ed118",
+    "native/zh-main-forward/project/project.json": "699236ca0fa69f6a54dc6464551994df49c0a9b16e683fb6ea1a2e19f04a3c33",
+    "native-final/capture-process.json": "0ebbc7ccebc52f285c95c5681cf16fccae3966658fdaa5d00ff7147b2de9f87a",
+    "native-final/capture-stderr.log": "0013c3ebfc5e5b09b0871be5215b9963e4b1d450d4e469856ab7ef851dd46667",
+    "native-final/capture-stdout.log": "c4bb9a71beb9eaa050a9eb6f8eee08bd76e7f98c1cd8e64ba4e0a3305ff04646",
+    "native-final/reopen-process.json": "08853d5ce491da71128ab026570f5d7d1411a33d26fe49e0ae64d5dc146f37ef",
+    "native-final/reopen-stderr.log": "5e9dcf88385361c806d920ccb8f94c6556a9e9e51a4a1c5ff9a5ae9a0950f030",
+    "native-final/reopen-stdout.log": "cf0133bbbe2cc65cc9bc072ccd0f3559621eace46827a2ef68ac67b842a7f8e0",
+    "native-final/capture-logs/motion-studio.log": "60031fc2099a37821547f7dcf87dfb69f72623fece639f7fbe7ef1bb1942c022",
+    "native-final/en-floating-reverse/after.json": "e11238f2e00d893de770a6ed9d4baba29eb0febf76b6a1c3b7e2bf4404941bae",
+    "native-final/en-floating-reverse/after.png": "f60e456edb54118cee72e52ed225b24167b2d662d6033258585bbf8921b0f784",
+    "native-final/en-floating-reverse/before.json": "8d3a292fbb19425197df736bc8c1a753d7745b7a60d22d2509736b057ee4b0a3",
+    "native-final/en-floating-reverse/before.png": "814168f345794f197dd834913de4a6ccd322c90835ad9f9123940726f339be0f",
+    "native-final/en-floating-reverse/reopen.png": "f60e456edb54118cee72e52ed225b24167b2d662d6033258585bbf8921b0f784",
+    "native-final/en-floating-reverse/project/project.json": "e35b26052ad70a46675fe04470950646ea59d66ae7d5ea9a274434b4651e3318",
+    "native-final/reopen-logs/motion-studio.log": "d503eca01df00fad0fd0da2f0dc0b51f33e259a58e2592a01ba44feb805271e8",
+    "native-final/zh-main-forward/after.json": "2e64d79d0795123359b6a95b304e18f261408452b8538f35a699945c8dd6f43a",
+    "native-final/zh-main-forward/after.png": "c9716d6f2d4e7f8265a8b08ca6a8b2200e6790ff31a167be50e660b96d7f9b26",
+    "native-final/zh-main-forward/before.json": "fc269e2e58a01d567810e2f6b8c0323d49e9a9552dba972992e9e5e3fc74d25d",
+    "native-final/zh-main-forward/before.png": "e42e1db71d396ab55183b6e32ad4452492a8292a9ffccd2fc1244ae22d0738d7",
+    "native-final/zh-main-forward/reopen.png": "fc377ad34b392137301b7e15736c188c41a98a868d69008e89693c35436ed118",
+    "native-final/zh-main-forward/project/project.json": "699236ca0fa69f6a54dc6464551994df49c0a9b16e683fb6ea1a2e19f04a3c33",
+    "original-range-child/first-process/motion-studio.log": "300e69beb284c7daa85a922fe645b123f2c3fba9e415b30ee7306c05745d6a30",
+    "original-range-child/first-process/result.json": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6",
+    "original-range-child/first-process/stderr.log": "4ba7cf1bf329ebd0180befb65421f0cc42648c4ed1ecd62e35423dbf66219691",
+    "original-range-child/first-process/stdout.log": "6578d64f9afe3e47b6ff4ed4bb897daaa9078f8405e27875778f27db6f294a1b",
+    "original-range-child/reset-process/motion-studio.log": "c0f7d4acb8b450d1de24c6efadf9034c71a9d94aab35a170d0f7f43d01482bcd",
+    "original-range-child/reset-process/result.json": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6"
+  },
+  "archive": {
+    "name": "evidence.zip",
+    "bytes": 604070,
+    "sha256": "c53a4aa389d7325c651d8a7ba6fedad0654a7281eb56b91a70aa537a03b321fd"
+  }
+}
