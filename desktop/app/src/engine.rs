@@ -77,6 +77,8 @@ mod sampling_playback_tests;
 mod native_video_study;
 #[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
 mod native_gpu_identity;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod mapped_video_prefetch_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod memory_lifecycle_tests;
 #[cfg(all(test, target_os = "windows"))]
