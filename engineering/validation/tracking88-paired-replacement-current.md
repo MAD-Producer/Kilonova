@@ -68,7 +68,7 @@ panel, layout, interaction or Android code was added by this increment.
 
 ## Pending acceptance
 
-- End-to-end video/cache publisher and worker recovery under post-publication faults
+- Native-video/audio publisher and desktop worker recovery under post-publication faults
 - Full affected-crate/desktop regression and cross-platform CI for the final head
 - Product-facing tracker preparation/finish workflow and protocol output proof
 - Exclusion or detection of external file writes between verification/publication
@@ -153,3 +153,29 @@ cache publisher nor exercise worker session closure after the injected panic.
 Native FFmpeg/GPU admission/replacement is established separately by the earlier
 native evidence. The combined end-to-end fault boundary, final desktop regression
 and final-head cross-platform CI remain pending. No existing assertion changed.
+
+## Follow-up: actual media publisher under post-save faults
+
+The [publisher receipt](data/tracking88-pair-publisher-v1.json) and
+[source/log archive](data/tracking88-pair-publisher-v1.zip) record **4 passed,
+0 failed, 0 ignored**: the previous two policy tests and two new tests crossing
+the actual `VideoJobs` asynchronous copy, ready-candidate identity, source rename,
+cache-pair publication and paired save boundary. Tests verify real source bytes,
+time-index existence, decoded thumbnail pixels and original-solve resource reads
+before the save and again after the fault and publisher teardown.
+
+A published acknowledgement error lets the publisher retain its successful
+resources while preserving the original acknowledgement cause in the paired sink.
+Disk/model/history match and undo/redo remains complete. A real panic after save
+unwinds through both the paired transaction and publisher; the author model is
+restored, while the newly saved document and all its source/cache/original files
+remain reopenable after both publisher and original preparation are dropped.
+
+The provider is deliberately controlled: it decodes independently generated PNG
+bytes and supplies one-frame video metadata. It does not verify native video
+decoding, audio publication, desktop worker shutdown or default logger behavior.
+Those are separate boundaries. The initial fixture incorrectly selected the
+image decoder by the neutral staging filename `source.mp4`; it now decodes the
+actual input bytes by content. No production code or existing assertion changed.
+The previous 166-test full-host result belongs to the earlier source; this follow-up
+adds two tests and establishes the four focused controls, not a new full-suite pass.
