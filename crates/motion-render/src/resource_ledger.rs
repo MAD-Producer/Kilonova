@@ -20,9 +20,16 @@ impl OwnedTexture {
         if &self.texture == view.texture() { self.allocation() } else { None }
     }
     pub(crate) fn admitted_view(&self) -> Result<crate::AdmittedTextureView, crate::RenderError> {
+        self.admitted_view_format(self.format())
+    }
+    /// Retain the admitted allocation and the actual sampling interpretation.
+    /// wgpu validates that the format was declared when the texture was created.
+    pub(crate) fn admitted_view_format(&self, format: wgpu::TextureFormat) -> Result<crate::AdmittedTextureView, crate::RenderError> {
         let lease = self.allocation.clone().ok_or_else(|| crate::RenderError::Invalid(
             "texture has no allocation reservation".into()))?;
-        Ok(crate::AdmittedTextureView { view: self.create_view(&Default::default()), lease })
+        Ok(crate::AdmittedTextureView { view: self.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(format), ..Default::default()
+        }), format, lease })
     }
 }
 impl Deref for OwnedTexture {

@@ -29,7 +29,8 @@ fn shared_plane(renderer: &Renderer, scene: &Scene, layer: &crate::DrawLayer) ->
                 .get(&key)
                 .is_some_and(|image| image.plane_image.is_some())
         })
-        && (layer.video.is_none() || scene.has_owned_video_depth(layer.id))
+        && (layer.video.is_none() || scene.has_owned_video_depth(layer.id)
+            || scene.native_lens().is_some())
         && layer.vector.is_none()
         && layer.three_d
         && !layer.screen_overlay
@@ -731,7 +732,7 @@ impl Renderer {
                         self.images.get(&key)
                             .ok_or_else(|| RenderError::Invalid(format!(
                                 "scene plane object={} key={key:?} phase=shared_plane_image: prepared image is missing", layer.id
-                            )))?._texture.admitted_view()
+                            )))?._texture.admitted_view_format(TARGET_FORMAT)
                     }).transpose()? },
                 }))
                 .collect::<Result<Vec<_>>>()?;
