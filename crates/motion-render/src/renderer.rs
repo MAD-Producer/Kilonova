@@ -81,6 +81,8 @@ fn restore_effect_snapshot(encoder: &mut wgpu::CommandEncoder, source: &wgpu::Te
 }
 #[cfg(test)]
 mod scratch_reuse_tests;
+#[cfg(test)]
+mod vector_planning_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

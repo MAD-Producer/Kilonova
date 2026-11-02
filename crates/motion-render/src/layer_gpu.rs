@@ -25,6 +25,7 @@ pub(crate) struct LayerGpu {
     dirty_vectors: Vec<usize>,
     raster_scratch: HashMap<(u32, u32), OwnedTexture>,
     raster_resolve: HashMap<(u32, u32), FxTexture>,
+    raster_targets_scratch: std::collections::HashSet<(u32, u32)>,
     groups: groups::GroupGpu,
     uploads: crate::vector_upload::UploadPool,
     vertex_upload: crate::vector_upload::ReusableBuffer,
@@ -48,6 +49,7 @@ impl LayerGpu {
         self.raster_scratch.clear();self.raster_resolve.clear();self.groups.release();
         self.uploads.release(); self.vertex_upload.clear();
         self.dirty_vectors = Vec::new();
+        self.raster_targets_scratch = std::collections::HashSet::new();
     }
     pub fn new(
         device: &wgpu::Device,
@@ -185,6 +187,7 @@ impl LayerGpu {
             dirty_vectors: Vec::new(),
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
+            raster_targets_scratch: std::collections::HashSet::new(),
             groups: groups::GroupGpu::new(device,image,budget,precision),
             uploads: crate::vector_upload::UploadPool::new(budget.clone()),
             vertex_upload: crate::vector_upload::ReusableBuffer::new(budget.clone()),
@@ -255,17 +258,18 @@ impl LayerGpu {
     fn color_pixel_bytes(&self) -> u64 { self.color_pixel_bytes }
     fn raster_pixel_bytes(&self) -> u64 { self.raster_pixel_bytes }
     pub fn group_scratch_bytes(&self) -> u64 { self.groups.bytes() }
-    pub fn pending_vector_bytes(&self, scene: &crate::Scene, meshes: &[crate::vector_mesh::VectorMesh], images: &HashMap<TextureKey, GpuImage>) -> u64 {
-        let mut scratch: std::collections::HashSet<_> = self.raster_scratch.keys().copied()
-            .filter(|size| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height))).collect();
-        let mut bytes = scratch.iter().map(|(w, h)| u64::from(*w) * u64::from(*h) * self.raster_pixel_bytes() * 5).sum::<u64>() + self.groups.required_bytes(meshes);
+    pub fn pending_vector_bytes(&mut self, scene: &crate::Scene, meshes: &[crate::vector_mesh::VectorMesh], images: &HashMap<TextureKey, GpuImage>) -> u64 {
+        self.raster_targets_scratch.clear();
+        self.raster_targets_scratch.extend(self.raster_scratch.keys().copied()
+            .filter(|size| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height))));
+        let mut bytes = self.raster_targets_scratch.iter().map(|(w, h)| u64::from(*w) * u64::from(*h) * self.raster_pixel_bytes() * 5).sum::<u64>() + self.groups.required_bytes(meshes);
         for mesh in meshes {
             let id = scene.layers[mesh.layer].id;
             let old = images.get(&TextureKey::Vector(id));
             if self.fingerprints.get(&id) == Some(&mesh.fingerprint) && old.is_some_and(|i| i.size == (mesh.width, mesh.height)) { continue; }
             let cost = u64::from(mesh.width) * u64::from(mesh.height) * self.color_pixel_bytes();
             if old.is_none_or(|i| i.size != (mesh.width, mesh.height)) { bytes += cost; }
-            if !groups::GroupGpu::grouped(mesh) && scratch.insert((mesh.width, mesh.height)) { bytes += u64::from(mesh.width) * u64::from(mesh.height) * self.raster_pixel_bytes() * 5; }
+            if !groups::GroupGpu::grouped(mesh) && self.raster_targets_scratch.insert((mesh.width, mesh.height)) { bytes += u64::from(mesh.width) * u64::from(mesh.height) * self.raster_pixel_bytes() * 5; }
         }
         bytes
     }
@@ -357,6 +361,7 @@ impl LayerGpu {
         self.groups.retain(meshes);
         if meshes.is_empty() {
             self.uploads.release(); self.vertex_upload.clear(); self.groups.release();
+            self.raster_targets_scratch = std::collections::HashSet::new();
         }
         Ok(changed)
     }

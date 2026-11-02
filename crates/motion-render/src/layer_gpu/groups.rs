@@ -12,6 +12,8 @@ struct OpacityBinding {
 }
 pub(super) struct GroupGpu {
     targets: HashMap<(u32,u32,usize),Target>,
+    needed_scratch: HashSet<(u32,u32,usize)>,
+    staged_scratch: HashSet<(u32,u32,usize)>,
     uniform: wgpu::BindGroupLayout,
     composite: wgpu::RenderPipeline,
     encode: wgpu::RenderPipeline,
@@ -48,33 +50,35 @@ impl GroupGpu {
             fragment:Some(wgpu::FragmentState {module:&shader,entry_point:Some("fs"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend,write_mask:wgpu::ColorWrites::ALL})]}),
             primitive:Default::default(),depth_stencil:None,multisample:wgpu::MultisampleState {count:samples,..Default::default()},multiview_mask:None,cache:None,
         });
-        Self {targets:HashMap::new(),composite:pipeline(4,raster_format,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
+        Self {targets:HashMap::new(),needed_scratch:HashSet::new(),staged_scratch:HashSet::new(),composite:pipeline(4,raster_format,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
             encode:pipeline(1,color_format,None),uniform,
             raster_format, raster_pixel_bytes: raster_storage.bytes_per_pixel(),
             opacity_buffer:crate::vector_upload::ReusableBuffer::new(budget.clone()),opacity_group:None,opacity_upload:Vec::new()}
     }
     pub fn grouped(mesh:&VectorMesh) -> bool { !mesh.commands.is_empty() || mesh.root_opacity!=1. }
-    fn needed(meshes:&[VectorMesh]) -> HashSet<(u32,u32,usize)> {
-        meshes.iter().filter(|m|Self::grouped(m)).flat_map(|m|(0..=m.scope_depth()).map(move|d|(m.width,m.height,d))).collect()
+    fn collect_needed(&mut self,meshes:&[VectorMesh]) {
+        self.needed_scratch.clear();
+        self.needed_scratch.extend(meshes.iter().filter(|m|Self::grouped(m))
+            .flat_map(|m|(0..=m.scope_depth()).map(move|d|(m.width,m.height,d))));
     }
-    pub fn retain(&mut self,meshes:&[VectorMesh]) { let needed=Self::needed(meshes);self.targets.retain(|k,_|needed.contains(k)); }
+    pub fn retain(&mut self,meshes:&[VectorMesh]) { self.collect_needed(meshes);self.targets.retain(|k,_|self.needed_scratch.contains(k)); }
     pub fn bytes(&self) -> u64 {self.targets.values().flat_map(|t| [&t.multisample, &t.resolved.texture])
         .map(|t| crate::resource_ledger::logical_bytes(t).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)}
-    pub fn release(&mut self) {self.targets.clear();self.opacity_group=None;self.opacity_buffer.clear();self.opacity_upload=Vec::new();}
-    pub fn required_bytes(&self,meshes:&[VectorMesh]) -> u64 {Self::needed(meshes).iter()
+    pub fn release(&mut self) {self.targets.clear();self.needed_scratch=HashSet::new();self.staged_scratch=HashSet::new();self.opacity_group=None;self.opacity_buffer.clear();self.opacity_upload=Vec::new();}
+    pub fn required_bytes(&mut self,meshes:&[VectorMesh]) -> u64 {self.collect_needed(meshes);self.needed_scratch.iter()
         .map(|(w,h,_)|u64::from(*w)*u64::from(*h)*self.raster_pixel_bytes*5).sum()}
     pub(super) fn upload_info(&self) -> (u64,u64) { (self.opacity_buffer.bytes(),self.opacity_buffer.created) }
-    pub(super) fn stage_targets(&self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
+    pub(super) fn stage_targets(&mut self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, scene: &crate::Scene, meshes: &[&VectorMesh],
         budget: &crate::AllocationBudget) -> Result<StagedTargets, RenderError> {
         let mut staged = Vec::new();
-        let mut seen = HashSet::new();
+        self.staged_scratch.clear();
         // Mesh order and ascending depth keep refusal context deterministic.
         for mesh in meshes.iter().filter(|m| Self::grouped(m)) {
             let layer = scene.layers[mesh.layer].id;
             for depth in 0..=mesh.scope_depth() {
                 let key = (mesh.width, mesh.height, depth);
-                if self.targets.contains_key(&key) || !seen.insert(key) { continue; }
+                if self.targets.contains_key(&key) || !self.staged_scratch.insert(key) { continue; }
                 let format = self.raster_format;
                 let multisample = device.create_admitted_texture(&wgpu::TextureDescriptor {
                     label: Some("pooled vector group MSAA"),
@@ -164,3 +168,6 @@ impl GroupGpu {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod planning_tests;
