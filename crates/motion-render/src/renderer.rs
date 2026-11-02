@@ -87,6 +87,8 @@ mod vector_planning_tests;
 mod scene_asset_storage_tests;
 #[cfg(test)]
 mod snapshot_storage_tests;
+#[cfg(test)]
+mod preview_allocation_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -302,6 +304,7 @@ pub struct Renderer {
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
+    matte_planning: compositing::MattePlanning,
     compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
     video_blend: Option<frame_blend::FrameBlendGpu>,
@@ -610,6 +613,7 @@ impl Renderer {
             effect_diagnostics: Vec::new(),
             snapshot_encodes: Vec::new(),
             compositing_gpu: None,
+            matte_planning: Default::default(),
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
         };
@@ -1802,6 +1806,7 @@ impl Renderer {
         Ok(())
     }
     pub fn clear_assets(&mut self) {
+        self.matte_planning = Default::default();
         self.models.clear_gpu();
         self.video_blend = None;
         self.layer_gpu.release();
@@ -2319,13 +2324,12 @@ impl Renderer {
         })?;
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes();
-            let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
-                .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
+            self.matte_planning.collect_targets(&self.effect_gpu.builder.frame);
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("compositing initialization did not publish resources".into()))?;
             let changed = gpu.prepare_targets(&self.device, &self.image_layout, &self.sampler,
-                composition_size, &needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
+                composition_size, &self.matte_planning.needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
                 has_transfer).map_err(|error| RenderError::Context {
                     message: format!("compositing frame={} phase=targets: {error}", scene.frame),
                     cause: Box::new(error),
@@ -2345,6 +2349,7 @@ impl Renderer {
             self.effect_gpu.builder.source_texture_budget,
             )?;
         }
+        self.matte_planning.prepare_coverage(&self.effect_gpu.builder.frame)?;
         let frame = &self.effect_gpu.builder.frame;
         self.geometry_upload.clear();
         self.geometry_upload

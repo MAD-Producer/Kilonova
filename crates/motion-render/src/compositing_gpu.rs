@@ -18,6 +18,7 @@ pub(crate) struct CompositingGpu {
     pub blend_group: wgpu::BindGroup,
     pub blend_inputs: Vec<BlendInput>,
     pub mattes: HashMap<(u64, bool), FxTexture>,
+    unique_needed: std::collections::HashSet<(u64, bool)>,
     pub zero: FxTexture,
     pub source: Option<FxTexture>,
     pub extract_buffer: crate::allocation_buffer::AllocationBuffer,
@@ -260,6 +261,7 @@ impl CompositingGpu {
             alpha: make("alpha_matte", coverage_format, None),
             luma: make("luma_matte", coverage_format, None),
             mattes: HashMap::new(),
+            unique_needed: Default::default(),
             zero,
             source: None,
             size: [0; 2],
@@ -285,6 +287,7 @@ impl CompositingGpu {
             .map(|t| crate::resource_ledger::logical_bytes(&t.texture).unwrap_or(u64::MAX)).fold(0, u64::saturating_add)
     }
     pub fn release(&mut self) {
+        self.unique_needed.clear();
         self.blend_inputs.clear();
         self.mattes.clear();
         self.source = None;
@@ -302,10 +305,11 @@ impl CompositingGpu {
         blend: bool,
     ) -> Result<bool, RenderError> {
         let pixels = u64::from(size[0]) * u64::from(size[1]);
-        let unique: std::collections::HashSet<_> = needed.iter().copied().collect();
-        if other_bytes + self.coverage_bytes + pixels * unique.len() as u64 * self.coverage_bytes > source_budget {
+        self.unique_needed.clear();
+        self.unique_needed.extend(needed.iter().copied());
+        if other_bytes + self.coverage_bytes + pixels * self.unique_needed.len() as u64 * self.coverage_bytes > source_budget {
             return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                other_bytes + self.coverage_bytes + pixels * unique.len() as u64 * self.coverage_bytes, source_budget,
+                other_bytes + self.coverage_bytes + pixels * self.unique_needed.len() as u64 * self.coverage_bytes, source_budget,
                 "track matte textures exceed configured source texture budget"));
         }
         if blend && pixels * self.color_bytes * 3 > source_budget {

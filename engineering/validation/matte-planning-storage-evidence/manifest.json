@@ -1,0 +1,714 @@
+{
+  "base_commit": "9a2ae9f09136107038387fd4417115b867da80d4",
+  "issue": 126,
+  "issue_complete": false,
+  "branch": "perf/matte-planning-storage",
+  "stack_base": 589,
+  "results": {
+    "before-frame": {
+      "exit_code": 0,
+      "passed": 1,
+      "log": "before-frame.log"
+    },
+    "final-planning": {
+      "exit_code": 0,
+      "passed": 4,
+      "log": "final-planning.log"
+    },
+    "final-frame": {
+      "exit_code": 0,
+      "passed": 1,
+      "log": "final-frame.log"
+    },
+    "final-admission": {
+      "exit_code": 0,
+      "passed": 5,
+      "log": "final-admission.log"
+    },
+    "final-integration": {
+      "exit_code": 0,
+      "passed": 12,
+      "log": "final-integration.log"
+    },
+    "final-workspace": {
+      "exit_code": 0,
+      "passed": 0,
+      "log": "final-workspace.log"
+    }
+  },
+  "final_distinct_tests": 22,
+  "frame_allocation_counts": {
+    "before": [
+      {
+        "kind": "solid",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            19,
+            19
+          ],
+          "submit": [
+            41,
+            41
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            66,
+            66
+          ]
+        }
+      },
+      {
+        "kind": "solid",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            22,
+            22
+          ],
+          "submit": [
+            43,
+            43
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            71,
+            71
+          ]
+        }
+      },
+      {
+        "kind": "solid",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            26,
+            26
+          ],
+          "submit": [
+            45,
+            45
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            77,
+            77
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            9,
+            9
+          ],
+          "encode": [
+            60,
+            60
+          ],
+          "submit": [
+            51,
+            51
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            120,
+            120
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            12,
+            12
+          ],
+          "encode": [
+            122,
+            122
+          ],
+          "submit": [
+            121,
+            121
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            255,
+            255
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            21,
+            21
+          ],
+          "encode": [
+            332,
+            332
+          ],
+          "submit": [
+            345,
+            345
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            698,
+            698
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            19,
+            19
+          ],
+          "submit": [
+            41,
+            41
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            66,
+            66
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            2,
+            2
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            14,
+            14
+          ],
+          "encode": [
+            553,
+            553
+          ],
+          "submit": [
+            265,
+            265
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            834,
+            834
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            4,
+            4
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            26,
+            26
+          ],
+          "encode": [
+            2188,
+            2188
+          ],
+          "submit": [
+            909,
+            909
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            3127,
+            3127
+          ]
+        }
+      }
+    ],
+    "final": [
+      {
+        "kind": "solid",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            19,
+            19
+          ],
+          "submit": [
+            41,
+            41
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            66,
+            66
+          ]
+        }
+      },
+      {
+        "kind": "solid",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            22,
+            22
+          ],
+          "submit": [
+            43,
+            43
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            71,
+            71
+          ]
+        }
+      },
+      {
+        "kind": "solid",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            26,
+            26
+          ],
+          "submit": [
+            45,
+            45
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            77,
+            77
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            9,
+            9
+          ],
+          "encode": [
+            60,
+            60
+          ],
+          "submit": [
+            51,
+            51
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            120,
+            120
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            12,
+            12
+          ],
+          "encode": [
+            122,
+            122
+          ],
+          "submit": [
+            121,
+            121
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            255,
+            255
+          ]
+        }
+      },
+      {
+        "kind": "vector",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            21,
+            21
+          ],
+          "encode": [
+            332,
+            332
+          ],
+          "submit": [
+            345,
+            345
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            698,
+            698
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 1,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            0,
+            0
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            6,
+            6
+          ],
+          "encode": [
+            19,
+            19
+          ],
+          "submit": [
+            41,
+            41
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            66,
+            66
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 8,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            2,
+            2
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            14,
+            14
+          ],
+          "encode": [
+            545,
+            545
+          ],
+          "submit": [
+            265,
+            265
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            826,
+            826
+          ]
+        }
+      },
+      {
+        "kind": "matte",
+        "layers": 32,
+        "frames": 16,
+        "ranges": {
+          "sample": [
+            4,
+            4
+          ],
+          "prepare": [
+            0,
+            0
+          ],
+          "create": [
+            26,
+            26
+          ],
+          "encode": [
+            2174,
+            2174
+          ],
+          "submit": [
+            909,
+            909
+          ],
+          "poll": [
+            0,
+            0
+          ],
+          "total": [
+            3113,
+            3113
+          ]
+        }
+      }
+    ]
+  },
+  "measurement_scope": "Successful alloc/alloc_zeroed/realloc on test calling thread; real sampling, asset preparation, encoder creation, preview encoding, finish/submit, blocking completion poll. No readback/reference drawing, bytes, other threads or driver external memory.",
+  "baseline_failures": [
+    "fixture-compile-failure",
+    "fixture-depth-failure",
+    "before-planning"
+  ],
+  "baseline_binary_identity": "Not retained; baseline production sources and raw execution logs archived. Full-frame fixture behavior unchanged; coverage test owner adapted without weakening assertions.",
+  "commands": [
+    "cargo test -p motion-render --lib renderer::compositing::tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --lib preview_allocation_tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --lib renderer::admission_tests::matte_textures --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo test -p motion-render --test layer_compositing --test composition_precision --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/compositing_gpu.rs": "0a0f12dd54720338a2e95ba516cafb237d502c19bec76324a8ed5d04dc4abb61",
+    "crates/motion-render/src/renderer.rs": "46f4818221661afa1f0927cd638e517a71b8d86381d9c5f7a061ed553f7c3cc7",
+    "crates/motion-render/src/renderer/compositing.rs": "b3b1e135d620065a162ff76b0cdc62519f51bb28a62e19d3e487355925b512a5",
+    "crates/motion-render/src/renderer/compositing/tests.rs": "062fe39785afa46bbb784dcf22fc38250c430a7ebb4c782735eed53cb12f49aa",
+    "crates/motion-render/src/renderer/preview_allocation_tests.rs": "c13c07be07d1bff3c1761cffb06ef2d70c644b19575d9ac025e95c20ffccd7b6",
+    "crates/motion-render/src/renderer/admission_tests/matte_textures.rs": "5f62b7d949ffc0c8005baa86a25f9a327559d8ac894b289e6d0937ee5f1ab342",
+    "crates/motion-render/src/test_allocations.rs": "9802ffbfcf0a689f3ce50eeaae4ebd9f96aa71eed248b375293ab4863a635469",
+    "crates/motion-render/tests/layer_compositing.rs": "0a7804b14358c884c388b8b9846f2156c752a0497d3729d2d4e7999e0c0555ef",
+    "crates/motion-render/tests/composition_precision.rs": "d64e8ea4777bdbadee0a82222180bd84c077b592bfd0bb635fdb26bff450a4a1",
+    "engineering/validation/matte-planning-storage.md": "4fa7651959df9d80a5d134228eccf5f6862eb378594721c498a27f181dcf219e"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "938886300cf862c6e819035f2d124b03579280cf7bcf82ab7e092d5213817ad0",
+    "composition_precision-5ec53d2a2c8b6d1c.exe": "dab6accdf28cc66d4dd425ba386bb7896cc90161ce0847e3abfc168180877653",
+    "layer_compositing-2bdc0319f69a3389.exe": "d946b6489cb3fa2ef3616445604afdbb5b4fb7f81b751965baf41ebe7aed6269"
+  },
+  "evidence_zip_sha256": "24b834452ac045ecad2bebdbee130c94e8936c62df1e8f145250de6a408511fe",
+  "limits": [
+    "Whole-frame allocation requirement still unmet.",
+    "Local native GPU only; cross-platform CI pending.",
+    "No new observability channel; existing actual rejection and resource recovery regression exercised."
+  ],
+  "ci": "pending for final head"
+}
