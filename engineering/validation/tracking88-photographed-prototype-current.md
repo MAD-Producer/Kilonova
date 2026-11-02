@@ -177,7 +177,43 @@ without complete source snapshots; the final source and the failed coarse-level
 synthetic source are preserved. These intermediate measurements are diagnostics,
 not claims of fully reproducible final acceptance.
 
-Remaining: useful photographed-motion accuracy and coverage,
-retained interactive Surface/cache behavior, atomic new
-plate/solve replacement, full maintained regression and exact-head cross-platform
-CI. Neither this measurement nor conservative missing output closes #88.
+The atomic new plate/solve transaction is now tracked separately by #583; #584
+adds its MCP prepare/status/finish/cancel/release workflow. Those increments do
+not change the optional tracker's quality. Remaining here: useful photographed
+accuracy and coverage, retained interactive Surface/cache behavior, full
+maintained regression and exact-head cross-platform CI. Neither this measurement
+nor conservative missing output closes #88.
+
+## Follow-up: overconfident real-motion failure diagnosis
+
+The [aggregate diagnostic](tracking88-plane-support-diagnostic-v1.json) and
+[observer/controller archive](tracking88-plane-support-diagnostic-v1.zip) replay
+the unchanged tracker on all 2,300 original frames with the unchanged ROI and
+eleven manual corrections. They reproduce exactly 915 automatically visible and
+1,373 lost plane samples, and maximum corner error 56.6400304460409 pixels.
+External truth enters only the observer, never tracker fitting or decisions.
+
+All 21 automatically visible samples above 15 pixels occur at source indices
+1801 through 1822, after the explicit reference reset at 1800. Their median
+internal confidence is about 0.898, higher than the 0.802 median among 855
+samples below 5 pixels. The worst sample also differs from the corner-derived
+oracle by 38.37 pixels at the four requested ROI probes: the 56.64-pixel corner
+error is not explained solely by extrapolating outside the ROI. Fit features
+cover a median 47% of the ROI convex-hull area in the over-15 group versus 85.5%
+in the under-5 group. This association does not establish a causal threshold or
+justify simply suppressing more output to pass acceptance.
+
+The feature/oracle residual compares correspondences against a homography
+derived from four annotated corners. It is not independent per-feature truth.
+Two annotated corners at indices 1800 and 1801 are below the 480-pixel image;
+all oracle measurements, including these, remain included. Key depth, repeated
+patterns, distortion, offscreen extrapolation and annotation uncertainty remain
+possible contributors, not established explanations for the failure.
+
+This counterexample shows that independent fit/held-out agreement and low local
+residual cannot certify target identity or turn the current confidence into an
+accuracy probability. The next algorithm work must test common false matches
+and ambiguous manual reference resets with independent appearance evidence,
+while retaining this full-sequence quality gate. No ROI, truth, timeline,
+correction schedule, threshold or existing assertion was changed. No third-party
+video, annotations, diagnostic captures or per-frame payloads are redistributed.
