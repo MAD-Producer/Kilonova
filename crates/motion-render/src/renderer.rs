@@ -85,6 +85,8 @@ mod scratch_reuse_tests;
 mod vector_planning_tests;
 #[cfg(test)]
 mod scene_asset_storage_tests;
+#[cfg(test)]
+mod snapshot_storage_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -2003,16 +2005,7 @@ impl Renderer {
         }
         // Direct drawing consumes neither mask coverage nor effect-input snapshots.
         // Release both without discarding reusable compositing pipelines.
-        let obsolete_inputs:Vec<_>=self.images.keys().copied()
-            .filter(|k|matches!(k,TextureKey::Mask(_) | TextureKey::EffectInput(_))).collect();
-        if !obsolete_inputs.is_empty() {
-            for key in obsolete_inputs {
-                if let Some(image) = self.images.remove(&key) {
-                    self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
-                }
-            }
-            self.mask_gpu.clear();self.effect_gpu.state.invalidate();
-        }
+        self.release_effect_input_images();
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
         let vector_other = self.effect_gpu.state.resource_bytes() + self.video_plane_bytes();
@@ -2147,25 +2140,45 @@ impl Renderer {
             particles_culled: 0,
         })
     }
-    fn prepare_input_snapshots(&mut self, input_order: &[usize])->Result<()> {
+    fn release_effect_input_images(&mut self) {
+        let mut removed = false;
+        self.images.retain(|key, image| {
+            if matches!(key, TextureKey::Mask(_) | TextureKey::EffectInput(_)) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+                removed = true;
+                false
+            } else { true }
+        });
+        if removed {
+            self.mask_gpu.clear();
+            self.effect_gpu.state.invalidate();
+        }
+    }
+    fn prepare_input_snapshots(&mut self)->Result<()> {
         let frame=&self.effect_gpu.builder.frame;
+        let input_order=self.effect_gpu.builder.effect_snapshot_order();
         let storage=crate::image_formats::color_storage(frame.precision);
         let format=crate::image_formats::native_format(storage);
         let pixel_bytes=storage.bytes_per_pixel();
-        let specs=input_order.iter().copied().map(|i| {
-            let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),draw.layer,pass.width,pass.height)
-        }).collect::<Vec<_>>();
-        let stale=self.images.keys().copied().filter(|key|matches!(key,TextureKey::EffectInput(_))&&!specs.iter().any(|v|v.0==*key)).collect::<Vec<_>>();
-        for key in stale {
-            if let Some(image) = self.images.remove(&key) {
+        self.images.retain(|key, image| {
+            if matches!(key, TextureKey::EffectInput(_))
+                && !input_order.iter().any(|&i| TextureKey::EffectInput(frame.draws[i].layer) == *key) {
                 self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
-                self.effect_gpu.invalidate();
-            }
-        }
-        let needed=specs.iter().filter(|(key,_,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)||image._texture.format()!=format))
-            .map(|(_,_,w,h)|u64::from(*w)*u64::from(*h)*pixel_bytes).sum();
+                self.effect_gpu.state.invalidate();
+                false
+            } else { true }
+        });
+        let needed=input_order.iter().map(|&i| {
+            let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];
+            (TextureKey::EffectInput(draw.layer),pass.width,pass.height)
+        }).filter(|(key,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)||image._texture.format()!=format))
+            .map(|(_,w,h)|u64::from(w)*u64::from(h)*pixel_bytes).sum();
         self.trim_image_cache(needed);
-        for (key,layer,width,height) in specs {
+        for index in 0..self.effect_gpu.builder.effect_snapshot_order().len() {
+            let i=self.effect_gpu.builder.effect_snapshot_order()[index];
+            let frame=&self.effect_gpu.builder.frame;
+            let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];
+            let (key,layer,width,height)=(TextureKey::EffectInput(draw.layer),draw.layer,pass.width,pass.height);
             if self.images.get(&key).is_some_and(|image|image.size==(width,height)&&image._texture.format()==format){continue;}
             let bytes=u64::from(width)*u64::from(height)*pixel_bytes;
             // Replacement must keep the old snapshot alive until allocation and
@@ -2207,7 +2220,7 @@ impl Renderer {
         let started = Instant::now();
         self.effect_gpu.builder.enable_plane_coverage();
         self.snapshot_encodes.clear();
-        let image_input_order = loop {
+        loop {
             if let Some((receiver, _)) = &materialize {
                 self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
             } else if prepare_only {
@@ -2221,8 +2234,7 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            let input_order = self.effect_gpu.builder.effect_snapshot_order().to_vec();
-            self.prepare_input_snapshots(&input_order).map_err(|error| RenderError::Context {
+            self.prepare_input_snapshots().map_err(|error| RenderError::Context {
                 message: format!("effects frame={} phase=input_snapshots: {error}", scene.frame),
                 cause: Box::new(error),
             })?;
@@ -2235,7 +2247,7 @@ impl Renderer {
                 self.texture_bytes + self.video_plane_bytes(),
             self.effect_gpu.builder.source_texture_budget,
             ) {
-                Ok(()) => break input_order,
+                Ok(()) => break,
                 Err(error) => {
                     if let Some((program, message)) = self.effect_gpu.state.failed_program.take() {
                         self.effect_gpu
@@ -2423,7 +2435,7 @@ impl Renderer {
         let mut accumulator = 0;
         // Preserve each referenced source before another draw reuses scratch.
         // This is GPU-only and independent of the composition's stacking order.
-        for i in image_input_order {
+        for &i in self.effect_gpu.builder.effect_snapshot_order() {
             let draw=&frame.draws[i];
             for &p in self.effect_gpu.builder.effect_pass_order(i) {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
