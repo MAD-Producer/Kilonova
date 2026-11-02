@@ -2,6 +2,7 @@ mod composition;
 mod text_input;
 pub(crate) mod project_precision;
 pub(crate) mod keyframe_timing;
+pub(crate) mod layer_time;
 pub(crate) mod preferences;
 use crate::i18n::Locale;
 use motion_ui::{
@@ -86,6 +87,10 @@ pub enum Event {
         selections: Vec<motion_core::KeyframeSelection>,
         settings: motion_core::timing::TimingSettings,
     },
+    LayerTime {
+        source: crate::layer_clipboard::KeyframeSource,
+        commands: Vec<motion_core::Command>,
+    },
     CreateComposition(Value),
     Text {
         text: String,
@@ -105,6 +110,7 @@ pub struct Dialog {
     pub(crate) preferences: Option<preferences::Editor>,
     project_precision: Option<project_precision::Editor>,
     keyframe_timing: Option<keyframe_timing::Editor>,
+    layer_time: Option<layer_time::Editor>,
     kind: Kind,
     settings_tab: usize,
     preset_dropdown: motion_ui::widgets::Dropdown,
@@ -171,6 +177,7 @@ impl Dialog {
             preferences: None,
             project_precision: None,
             keyframe_timing: None,
+            layer_time: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -204,6 +211,7 @@ impl Dialog {
             preferences: None,
             project_precision: None,
             keyframe_timing: None,
+            layer_time: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -233,6 +241,9 @@ impl Dialog {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        if let Some(editor) = &mut self.layer_time {
+            return editor.draw(list, atlas, size, input, locale, self.error.as_deref());
+        }
         if let Some(timing) = &mut self.keyframe_timing {
             return timing.draw(list, atlas, size, input, locale, self.error.as_deref());
         }

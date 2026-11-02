@@ -342,7 +342,7 @@ impl PluginEditorSession {
                 let (layer, instance) = self.check(engine.project())?;
                 let p=instance.params.get(&param).ok_or_else(||Error::Invalid("editor parameter missing".into()))?;
                 ensure(p.animatable && p.curve.is_none(),"parameter does not support numeric keys")?;
-                let local=layer.clip(engine.project().frames).edit_frame(frame)?;
+                let local=layer.edit_frame(frame)?;
                 if p.track.keys.is_empty() { EffectAction::Animate {effect,param,frame,enabled:true} }
                 else if p.track.keys.iter().any(|k|k.frame==local) {EffectAction::DeleteKey {effect,param,frame}}
                 else {EffectAction::Set {effect,param,frame,value:p.sample(local as f64)?}}

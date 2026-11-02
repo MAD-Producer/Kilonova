@@ -1,5 +1,7 @@
 use motion_core::{Command, Content, Ease, Engine, Layer, LayerTimeline, Project, Property, Track};
 use motion_render::Scene;
+#[path = "layer_anchor_animation/mapped.rs"]
+mod mapped;
 
 fn fixture() -> Project {
     let mut p = Project::new(640, 360, 30, 120).unwrap();
@@ -103,7 +105,7 @@ fn anchor_uses_local_time_and_survives_save_reopen_and_frozen_snapshot() {
             .iter()
             .map(|k| k.frame)
             .collect::<Vec<_>>(),
-        [10, 50]
+        [10., 50.]
     );
     let root = tempfile::tempdir().unwrap();
     motion_core::storage::save(root.path(), e.project()).unwrap();
@@ -160,7 +162,7 @@ fn animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_und
     for a in [[0.35, 0.8], [0.6, 0.2], anchor] {
         e.apply(Command::AnchorAt {
             object: 2,
-            frame: 30,
+            frame: 30.,
             anchor: a,
         })
         .unwrap();
@@ -171,7 +173,7 @@ fn animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_und
     assert_eq!(e.project(), &before);
     e.apply(Command::AnchorAt {
         object: 2,
-        frame: 30,
+        frame: 30.,
         anchor: [0.8, 0.2],
     })
     .unwrap();
@@ -229,7 +231,7 @@ fn anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically() {
         },
         Command::AnchorAt {
             object: 2,
-            frame: 120,
+            frame: 120.,
             anchor: [0.; 2],
         },
         Command::SeparateDimensions {

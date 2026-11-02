@@ -1,0 +1,399 @@
+{
+  "status": "mapped_original_video_publication_and_regression_passed",
+  "head": "8a1dfb7f57fc1bc65683942427214b18595ac625",
+  "integratedParent": "9ec5ee4d4e39b6873eb81e42616ba9b2141c27f8",
+  "source": {
+    "desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+      "rawSha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698",
+      "gitLfSha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698"
+    },
+    "desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+      "rawSha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560",
+      "gitLfSha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560"
+    }
+  },
+  "steps": [
+    {
+      "name": "mapped-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T11:48:11.562702+00:00",
+      "pid": 38140,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T11:49:57.064031+00:00"
+    },
+    {
+      "name": "existing-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::tracked_video_replacement_refuses_changed_plate_and_preserves_identical_source",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T11:49:57.309000+00:00",
+      "pid": 40792,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T11:50:12.116242+00:00"
+    },
+    {
+      "name": "media-video",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-media",
+        "--locked",
+        "--offline",
+        "--lib",
+        "video::",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T11:50:12.368172+00:00",
+      "pid": 24676,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T11:50:38.451496+00:00"
+    },
+    {
+      "name": "host-lib",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T11:50:38.707213+00:00",
+      "pid": 33024,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T11:52:54.508012+00:00"
+    },
+    {
+      "name": "host-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--test",
+        "tracking_relink",
+        "--test",
+        "asset_registration",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T11:52:54.677577+00:00",
+      "pid": 3700,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T11:53:20.736673+00:00"
+    }
+  ],
+  "counts": {
+    "mapped-native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "existing-native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "media-video": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "host-lib": {
+      "passed": 164,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "host-integration": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 2
+    }
+  },
+  "native": {
+    "cases": [
+      {
+        "authored_clock": true,
+        "case": "stretch",
+        "composition_frame": 36.75,
+        "equal_native_pixels": true,
+        "original_pts": true,
+        "reference_source_frame": 24.5,
+        "undo_redo_reopen": true
+      },
+      {
+        "authored_clock": true,
+        "case": "reverse",
+        "composition_frame": 35.25,
+        "equal_native_pixels": true,
+        "original_pts": true,
+        "reference_source_frame": 24.5,
+        "undo_redo_reopen": true
+      },
+      {
+        "authored_clock": true,
+        "case": "source-remap",
+        "composition_frame": 36.75,
+        "equal_native_pixels": true,
+        "original_pts": true,
+        "reference_source_frame": 12.166666666666666,
+        "undo_redo_reopen": true
+      },
+      {
+        "authored_clock": true,
+        "case": "source-hold",
+        "composition_frame": 36.75,
+        "equal_native_pixels": true,
+        "original_pts": true,
+        "reference_source_frame": 24.5,
+        "undo_redo_reopen": true
+      }
+    ]
+  },
+  "elapsedSeconds": 309.531,
+  "limits": [
+    "No new complete desktop/workspace regression or final-head cross-platform CI claim",
+    "Offscreen actual decoder/GPU capture, not a retained native Surface",
+    "Constant imported camera pose isolates footage time; independently bound objects do not implicitly follow footage remaps",
+    "Original VFR/B-frame fixture and four bounded clock combinations, not every codec or nesting arrangement",
+    "Photographed tracker quality and the full 3D route remain incomplete"
+  ],
+  "archive": {
+    "path": "tracking88-video-clock-v1.zip",
+    "bytes": 490373,
+    "sha256": "1fd7713fd6489ce0fbad1c76591c435420b55f945a26eabf638e071556c4e7be",
+    "members": {
+      "publisher.py": {
+        "bytes": 11113,
+        "sha256": "221550c23922ba6d6be12861489a4403bc5eb23c680cb8ba614d96c0e0b9b107"
+      },
+      "tracking88-video-clock-v1/controller.py": {
+        "bytes": 5725,
+        "sha256": "255ee00139c5c3d1a33906a45ee295a117817c32c4d093d8375b6ac55cc13550"
+      },
+      "tracking88-video-clock-v1/exit.json": {
+        "bytes": 262596,
+        "sha256": "43c91d02404f97b4ce07570d6d163ce72a903979c91e7a0cedcae16a9a9b6db4"
+      },
+      "tracking88-video-clock-v1/mapped-native.stderr.log": {
+        "bytes": 5076,
+        "sha256": "613eb1ce9e5f74c4b97ef366217d5c535a5f7a8ceb92f510981ce246358f803a"
+      },
+      "tracking88-video-clock-v1/mapped-native.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-video-clock-v1/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 11821,
+        "sha256": "66b6e144016e6e99d5b8a30a1b7813f262fc0945de7ee5abf8887b36e68d5217"
+      },
+      "tracking88-video-clock-v1/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11153,
+        "sha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698"
+      },
+      "tracking88-video-clock-v2/controller.py": {
+        "bytes": 5725,
+        "sha256": "f9ea9eb61b74364005d8a599ccf318b4d83e629fe8ec789793599cea10f8df91"
+      },
+      "tracking88-video-clock-v2/exit.json": {
+        "bytes": 262596,
+        "sha256": "9bc6577b3e4912ed438492f066d932537cd6b820f52bc7dc2220a242e486aa74"
+      },
+      "tracking88-video-clock-v2/mapped-native.stderr.log": {
+        "bytes": 21718,
+        "sha256": "5030f3e37e5428236126f66dac0858672c7b882dc184befca376d1e0f53473d2"
+      },
+      "tracking88-video-clock-v2/mapped-native.stdout.log": {
+        "bytes": 433,
+        "sha256": "dbaf5ae511a7b8cd28ce7895dc5cd43734307772c9973803389274690d0ccd26"
+      },
+      "tracking88-video-clock-v2/mapped/logs/motion-studio.log": {
+        "bytes": 10329,
+        "sha256": "3496913d2461bc7382af5e741153834c5db585c68e82c3e4298fbbb6f2c4c583"
+      },
+      "tracking88-video-clock-v2/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 13225,
+        "sha256": "688710f9df7eacade60d560b7748da9f843347690ea9a21bfb69e9a30f78b872"
+      },
+      "tracking88-video-clock-v2/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11153,
+        "sha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698"
+      },
+      "tracking88-video-clock-v3/controller.py": {
+        "bytes": 5725,
+        "sha256": "68d363aa43ec753db4e33aa0c514fdddc67450b108bd10584a63265bf2fa7b7a"
+      },
+      "tracking88-video-clock-v3/exit.json": {
+        "bytes": 262593,
+        "sha256": "b8e839ed16a98ac2aeb25511e910dd2d134bc2692654866067fd91afdfffe4bf"
+      },
+      "tracking88-video-clock-v3/mapped-native.stderr.log": {
+        "bytes": 29199,
+        "sha256": "cd215245a12f5a9a2c25acabc8158d13d8fbd36e45e820e572caaa1e4afea7e9"
+      },
+      "tracking88-video-clock-v3/mapped-native.stdout.log": {
+        "bytes": 434,
+        "sha256": "d87524a1db1440203a67a1b75d0cdb16bc5e0b666fafe878ceed945e8690c80d"
+      },
+      "tracking88-video-clock-v3/mapped/logs/motion-studio.log": {
+        "bytes": 28320,
+        "sha256": "2237cdaa4e473966d399a396d1ebbcc145457b9aef52b8133c7827259c6e8402"
+      },
+      "tracking88-video-clock-v3/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 13819,
+        "sha256": "c8366eae19026bf62c158dbaca6ba64b4bfe9ca51fb07b85d13215c0e7912fa6"
+      },
+      "tracking88-video-clock-v3/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11153,
+        "sha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698"
+      },
+      "tracking88-video-clock-v4/controller.py": {
+        "bytes": 5725,
+        "sha256": "0929198984db7902ad1105f736ce81cfc55779cc4446a8820bd36a22c5f57e8e"
+      },
+      "tracking88-video-clock-v4/existing-native.stderr.log": {
+        "bytes": 24551,
+        "sha256": "81adfd9b12d8f5198fa70dd45fb89d64faa8922d395ce021bb892cbc861a0c97"
+      },
+      "tracking88-video-clock-v4/existing-native.stdout.log": {
+        "bytes": 249,
+        "sha256": "e986a26e1c3a701123542bbe882f652e41ea9d361e5a494af3339fb17b8710a2"
+      },
+      "tracking88-video-clock-v4/existing/before.png": {
+        "bytes": 7726,
+        "sha256": "e94153b83371d10871daa20e2c7945e4df56d874326e0ceeecdedddb1d99ffe1"
+      },
+      "tracking88-video-clock-v4/existing/logs/motion-studio.log": {
+        "bytes": 32175,
+        "sha256": "bcca38108f2df7866125d9c8fab6bdd86dc3696913b6c8171aa86ed3023065f3"
+      },
+      "tracking88-video-clock-v4/exit.json": {
+        "bytes": 264184,
+        "sha256": "26d93027b526d552a57e2a5b85f50dc302a9a1c6065e202587b6439251b349c4"
+      },
+      "tracking88-video-clock-v4/host-integration.stderr.log": {
+        "bytes": 1273,
+        "sha256": "4e14e1dfe899174db76de2fbf30aed3c26c714cb27762fc97337b08e537cbcc3"
+      },
+      "tracking88-video-clock-v4/host-integration.stdout.log": {
+        "bytes": 1320,
+        "sha256": "c45967ff30957ce9209d7db14b5cf446a2172b81817b3652978fff1ebc15c4d6"
+      },
+      "tracking88-video-clock-v4/host-lib.stderr.log": {
+        "bytes": 1222,
+        "sha256": "5ea78990d30c22bc6629063fbb2e7b7211abcfa6a1ec0488ab64170a43c86740"
+      },
+      "tracking88-video-clock-v4/host-lib.stdout.log": {
+        "bytes": 18291,
+        "sha256": "709827907165f90d1a3277d9f3ea651cdaa5c4b07b7637e4e0257005692604cd"
+      },
+      "tracking88-video-clock-v4/mapped-native.stderr.log": {
+        "bytes": 71163,
+        "sha256": "dc7b2665181ce19ed6adb725706bf273d9ad2704100976e4c30c255aa176c9c1"
+      },
+      "tracking88-video-clock-v4/mapped-native.stdout.log": {
+        "bytes": 264,
+        "sha256": "f6df62c18a1308baf49c9640e48ac82c73900422e375450d77ae80acd7f298ba"
+      },
+      "tracking88-video-clock-v4/mapped/logs/motion-studio.log": {
+        "bytes": 152049,
+        "sha256": "65d8701e059ca4fe11bb108e93b4879bf48f088ecd20fc9344b5e3c40682672b"
+      },
+      "tracking88-video-clock-v4/mapped/report.json": {
+        "bytes": 978,
+        "sha256": "8ddac1dce7c246ae6eee2ff918721ac1cc6f5d068d79614edd6853857dc419e9"
+      },
+      "tracking88-video-clock-v4/mapped/reverse-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/mapped/reverse-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/mapped/source-hold-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/mapped/source-hold-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/mapped/source-remap-reference.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "tracking88-video-clock-v4/mapped/source-remap-reopened.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "tracking88-video-clock-v4/mapped/stretch-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/mapped/stretch-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "tracking88-video-clock-v4/media-video.stderr.log": {
+        "bytes": 1320,
+        "sha256": "cd6ba986e8dbaa22c13781dab702dd2cbc756939e1f356be377add449809f67b"
+      },
+      "tracking88-video-clock-v4/media-video.stdout.log": {
+        "bytes": 1369,
+        "sha256": "c45c296517135122f14425c27a8452261bd9690e8620b2725de9a41b9f5305f1"
+      },
+      "tracking88-video-clock-v4/source/desktop/app/src/engine/tracking_video_replacement/mapped_time.rs": {
+        "bytes": 13870,
+        "sha256": "5ec5c9d78a34d849eb7ffa6c4e1bb3228031f3cf90c22df2fe02cbf60362b560"
+      },
+      "tracking88-video-clock-v4/source/desktop/app/src/engine/tracking_video_replacement_tests.rs": {
+        "bytes": 11153,
+        "sha256": "c15144eeb0fa038d75dd8a470a3881d86f6b2c532175df4c8c6a6f820e03e698"
+      }
+    }
+  }
+}

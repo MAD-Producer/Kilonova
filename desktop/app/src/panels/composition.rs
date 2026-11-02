@@ -129,12 +129,14 @@ pub(super) fn render(
             object,
             delta,
             size,
+            spatial_key,
         } = action
         {
             *action = Action::ViewerDrag {
                 key: key.clone(),
                 cell: active,
                 object: *object,
+                spatial_key: *spatial_key,
                 delta: *delta,
                 size: *size,
             };

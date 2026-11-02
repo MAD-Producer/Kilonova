@@ -4,6 +4,8 @@ use motion_core::SpatialKeyEdit;
 #[cfg(target_os = "windows")]
 #[path = "spatial_native_tests.rs"]
 mod native;
+#[path = "mapped_spatial_tests.rs"]
+mod mapped;
 
 fn spatial_fixture(coincident: bool) -> Engine {
     let mut project = fixture().snapshot();

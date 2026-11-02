@@ -12,6 +12,8 @@ use motion_ui::{
 mod dragging;
 #[path = "spatial_ui_tests.rs"]
 mod spatial;
+#[path = "local_timing_tests.rs"]
+mod local_timing;
 
 fn view(engine: &Engine) -> Value {
     let mut value = state(engine);

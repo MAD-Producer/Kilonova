@@ -432,6 +432,7 @@ impl Shell {
         object: u64,
         delta: [f32; 2],
         size: [i32; 2],
+        spatial_key: Option<u64>,
     ) -> Result<(), String> {
         self.stop();
         if key != self.projection_key() || cell != self.panels.viewer_views.settings.active() {
@@ -450,6 +451,7 @@ impl Shell {
                 frame: f64::from_bits(key.frame),
                 camera,
                 object,
+                spatial_key,
                 delta,
                 size,
             })?,

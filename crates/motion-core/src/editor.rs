@@ -200,6 +200,13 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
     let mut result = None;
     match command {
         Command::InComposition { .. } => unreachable!(),
+        Command::LayerTime { object, action } => {
+            let frames = project.frames;
+            let layer = project.layer_mut(object).map_err(|source| Error::LayerTimeObject {
+                object, phase: "edit_lookup", source: Box::new(source),
+            })?;
+            motion_model::layer_time::apply(layer, frames, action)?;
+        }
         Command::ApplyAnimationPreset { preset, objects, at_frame } => preset.apply(project, &objects, at_frame)?,
         Command::PasteLayers { clipboard, at_frame, keep_external_references } => {
             result = Some(crate::layer_clipboard::paste(project, *clipboard, at_frame, keep_external_references)?);
@@ -209,9 +216,11 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
         Command::RemoveKeyframes { clipboard } => motion_model::keyframe_clipboard::remove(project, &clipboard)?,
         Command::KeyframeInterpolation { selections, ease } => motion_model::keyframe_clipboard::set_interpolation(project, &selections, ease)?,
         Command::KeyframeAutomatic { selections, enabled } => motion_model::keyframe_clipboard::set_automatic(project, &selections, enabled)?,
+        Command::LocalKeyframes { target, edit } => motion_model::keyframe_clipboard::local::edit(project, &target, &edit)?,
+        Command::TrackAt { target, frame, edit } => motion_model::keyframe_clipboard::authoring::edit(project, &target, frame, &edit)?,
         Command::SpatialKeyframes {target,edit} => motion_model::keyframe_clipboard::spatial::edit(project,&target,&edit)?,
         Command::KeyframeHandle { target, frame, incoming, control } => motion_model::keyframe_clipboard::set_handle(project, &target, frame, incoming, control)?,
-        Command::PasteEasing { clipboard, selections } => clipboard.paste(project, &selections)?,
+        Command::PasteEasing { clipboard, selections, local_selections } => clipboard.paste_all(project, &selections, &local_selections)?,
         Command::KeyframeTiming { selections, settings } => motion_model::keyframe_clipboard::timing::configure(project, &selections, &settings)?,
         Command::EaseKeyframes { selections, incoming, outgoing } => motion_model::keyframe_clipboard::ease_keys(project, &selections, incoming, outgoing)?,
         Command::DeleteKeyframes { selections } => motion_model::keyframe_clipboard::delete_keys(project, &selections)?,
@@ -912,16 +921,12 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             project.camera_for_mut(object)?.tracking=binding;
         }
         Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
-            valid_frame(frame)?;
             let lens = motion_model::lens::Lens::from_focal_length(
                 f64::from(film_width_mm), f64::from(focal_length_mm), project.width, project.height)?;
-            let local = if object == 0 { frame as i32 } else {
-                let frames = project.frames;
-                project.layer_mut(object)?.clip(frames).edit_frame(frame)?
-            };
-            let camera = project.camera_for_mut(object)?;
-            camera.fov.set_at(local, lens.vertical_fov_degrees as f32)?;
-            camera.film_width_mm = film_width_mm;
+            motion_model::keyframe_clipboard::authoring::edit(project,
+                &crate::KeyframeTarget::Property { object, property: Property::Fov, axis: None },
+                frame, &crate::TrackEdit::Set { value: crate::TrackValue::Scalar(lens.vertical_fov_degrees as f32) })?;
+            project.camera_for_mut(object)?.film_width_mm = film_width_mm;
         }
         Command::CameraMode { object, mode } => {
             let (start, end) = if object == 0 { (0, project.frames as i32) } else {
@@ -1053,20 +1058,7 @@ fn apply_to(project: &mut Project, command: Command, cameras: &dyn crate::Camera
             layer.transform.anchor = Track::constant(anchor);
         }
         Command::AnchorAt { object, frame, anchor } => {
-            let local = project.edit_frame(object, frame)?;
-            ensure(anchor.iter().all(|v|v.is_finite() && v.abs()<=1000.), "invalid anchor")?;
-            let layer = project.layer_mut(object)?;
-            ensure(layer.camera_data().is_none() && !matches!(layer.content, Content::Audio { .. }), "object has no layer anchor")?;
-            if layer.locked { return Err(Error::Locked(object)); }
-            let previous = layer.transform.anchor.sample(f64::from(local))?;
-            let mut rotation = layer.transform.rotation.sample(f64::from(local))?;
-            if !layer.three_d { rotation[0]=0.; rotation[1]=0.; }
-            let delta = motion_model::geometry::rotation_quaternion(rotation,layer.rotation_order)
-                * (Vec3::from_array(layer.transform.scale.sample(f64::from(local))?)/100.
-                    * Vec3::new((anchor[0]-previous[0])*layer.size[0],(previous[1]-anchor[1])*layer.size[1],0.));
-            let position = layer.transform.position.sample(f64::from(local))?;
-            layer.transform.position.set_at(local,[position[0]+delta.x,position[1]-delta.y,position[2]-delta.z])?;
-            layer.transform.anchor.set_at(local,anchor)?;
+            motion_model::keyframe_clipboard::authoring::compensate_anchor(project, object, frame, anchor)?;
         }
     }
     project.rebuild_plugin_dependencies();

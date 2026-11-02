@@ -16,7 +16,7 @@ pub(super) struct Drag {
     press: [f32; 2],
     motion: Option<ValueMotion>,
     value_limits: [f32; 2],
-    candidates: BTreeSet<i64>,
+    candidates: Vec<f64>,
     copy: bool,
     started: bool,
     delta: i32,
@@ -42,15 +42,15 @@ fn value_limits(
         .as_array()
         .ok_or_else(|| Error::Invalid("key drag value keys missing".into()))?
     {
-        let frame = key["frame"]
+        let local = key["frame"]
             .as_i64()
-            .and_then(|f| f.checked_add(offset))
-            .and_then(|f| u32::try_from(f).ok())
+            .and_then(|f| i32::try_from(f).ok())
             .ok_or_else(|| Error::Invalid("key drag authored time overflow".into()))?;
-        if !plan.selected.contains(&Key {
-            target: motion.target.clone(),
-            frame,
-        }) {
+        let chosen = plan.selected.contains_addressed(&AddressedKey::Local(LocalKey {
+            target: motion.target.clone(), frame: local,
+        })) || i64::from(local).checked_add(offset).and_then(|f| u32::try_from(f).ok())
+            .is_some_and(|frame| plan.selected.contains(&Key { target: motion.target.clone(), frame }));
+        if !chosen {
             continue;
         }
         let raw = if key["value"].is_array() {
@@ -92,21 +92,18 @@ pub(super) fn arm(
     let prepare = || -> motion_core::Result<_> {
         let plan = Plan::capture(&chosen, state)?;
         let limits = value_limits(&plan, state, motion.as_ref())?;
-        let selected: BTreeSet<_> = chosen
-            .selections()
-            .into_iter()
-            .flat_map(|s| s.frames)
-            .map(i64::from)
-            .collect();
-        let candidates: BTreeSet<_> = candidates
+        let mut selected: Vec<_> = plan.times().collect();
+        selected.sort_by(f64::total_cmp);
+        let mut candidates: Vec<_> = candidates
             .iter()
             .copied()
             .chain(state["frame"].as_f64())
             .filter(|f| f.is_finite() && *f >= 0. && *f < f64::from(plan.total))
-            .map(|f| f.round() as i64)
-            .filter(|f| !selected.contains(f))
+            .filter(|f| selected.binary_search_by(|s| s.total_cmp(f)).is_err())
             .take(MAX_KEYFRAME_CLIPBOARD_BYTES / std::mem::size_of::<i64>() + 1)
             .collect();
+        candidates.sort_by(f64::total_cmp);
+        candidates.dedup_by(|a, b| *a == *b);
         if candidates.len() > MAX_KEYFRAME_CLIPBOARD_BYTES / std::mem::size_of::<i64>() {
             return Err(Error::Invalid(
                 "key drag snap candidates exceed metadata limit".into(),
@@ -149,19 +146,16 @@ fn snapped(drag: &Drag, delta: i32, tolerance: f64) -> Option<(i32, f64)> {
     let ppf = f64::from(drag.view.mapping[0]);
     let mut best: Option<(f64, i32, f64)> = None;
     for from in drag.plan.times() {
-        let to = i64::from(from) + i64::from(delta);
-        let candidates = drag
-            .candidates
-            .range(..=to)
-            .next_back()
-            .into_iter()
-            .chain(drag.candidates.range(to..).next())
-            .copied()
-            .map(|f| f as f64);
-        let Some(snap) = motion_ui::snap::nearest(candidates, to as f64, ppf, tolerance) else {
+        let to = from + drag.plan.delta_frame(delta);
+        let at = drag.candidates.partition_point(|f| *f < to);
+        let candidates = at.checked_sub(1).and_then(|i| drag.candidates.get(i)).into_iter()
+            .chain(drag.candidates.get(at)).copied().filter(|candidate| {
+                drag.plan.exact_steps(*candidate - from).is_some_and(|steps| drag.plan.allows(steps, drag.copy))
+            });
+        let Some(snap) = motion_ui::snap::nearest(candidates, to, ppf, tolerance) else {
             continue;
         };
-        let Ok(next) = i32::try_from(snap.target as i64 - i64::from(from)) else {
+        let Some(next) = drag.plan.exact_steps(snap.target - from) else {
             continue;
         };
         if !drag.plan.allows(next, drag.copy) {
@@ -221,9 +215,10 @@ pub(super) fn advance(panels: &mut Panels, state: &Value, input: &Input, view: &
         let raw = if value_only {
             0.
         } else {
-            (dx / drag.view.mapping[0]).round()
+            f64::from(dx) / f64::from(drag.view.mapping[0])
         };
-        drag.delta = raw.clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+        let steps = drag.plan.nearest_steps(raw);
+        drag.delta = steps.unwrap_or(0);
         drag.guide = None;
         if !input.modifiers.alt && !value_only && drag.delta != 0 {
             if let Some((delta, target)) = snapped(
@@ -242,7 +237,7 @@ pub(super) fn advance(panels: &mut Panels, state: &Value, input: &Input, view: &
                 (dy * m.per_pixel).clamp(drag.value_limits[0], drag.value_limits[1])
             })
         };
-        drag.valid = raw.is_finite()
+        drag.valid = steps.is_some()
             && drag.value_delta.is_finite()
             && drag.plan.allows(drag.delta, drag.copy);
         panels.timeline.snap_guide = drag.guide;
@@ -269,11 +264,13 @@ pub(super) fn advance(panels: &mut Panels, state: &Value, input: &Input, view: &
         } else {
             format!(" · Δ {:+.3}", drag.value_delta)
         };
+        let time = if drag.plan.selected.has_local() {
+            format!("{:+.2}", drag.plan.delta_frame(drag.delta))
+        } else { format!("{:+}", drag.delta) };
         panels.drag_readout = Some((
             point,
             format!(
-                "{:+} f · {axis}{value}{}{}",
-                drag.delta,
+                "{time} f · {axis}{value}{}{}",
                 if drag.copy {
                     if panels.locale == crate::i18n::Locale::Zh {
                         " · 复制"
@@ -326,11 +323,13 @@ pub(super) fn finish(
                         delta: drag.value_delta,
                     })
                     .filter(|v| v.delta != 0.);
-                match drag.plan.selected.translated(drag.delta) {
-                    Ok(selected) => {
+                match drag.plan.translated(drag.delta).and_then(|set| {
+                    Ok((set, drag.plan.commands(drag.delta, value, drag.copy)?))
+                }) {
+                    Ok((selected, commands)) => {
                         out.push(Action::EditorAction {
                             source: drag.source,
-                            commands: drag.plan.commands(drag.delta, value, drag.copy),
+                            commands,
                         });
                         panels.selected_keys = selected;
                         project_primary(panels, state);
@@ -368,7 +367,7 @@ pub(super) fn ghost_addressed(
         .filter(|m| &m.target == key.target() && component == Some(m.component))
         .map_or(0., |m| drag.value_delta / m.per_pixel);
     Some([
-        point[0] + drag.delta as f32 * drag.view.mapping[0],
+        point[0] + drag.plan.delta_frame(drag.delta) as f32 * drag.view.mapping[0],
         point[1] - dy,
     ])
 }
