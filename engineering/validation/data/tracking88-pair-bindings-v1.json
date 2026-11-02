@@ -1,0 +1,66 @@
+{
+  "status": "passed_seven_core_pair_camera_point_plane_nested_detach_controls",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-core",
+    "--test",
+    "tracking_replacement",
+    "--locked",
+    "--offline",
+    "--",
+    "--test-threads=1"
+  ],
+  "exitCode": 0,
+  "startedUtc": "2026-11-02T04:26:05.045661+00:00",
+  "completedUtc": "2026-11-02T04:26:09.666154+00:00",
+  "source": {
+    "crates/motion-core/tests/tracking_replacement.rs": {
+      "validatedRawSha256": "886809f78f0bb879b9301ec67a424ccf3eddfec53dfcf059492ddaaa2c39d9ff",
+      "gitLfSha256": "886809f78f0bb879b9301ec67a424ccf3eddfec53dfcf059492ddaaa2c39d9ff"
+    },
+    "crates/motion-core/tests/tracking_replacement/bindings.rs": {
+      "validatedRawSha256": "74143d8d2b0ab0c6d9b37e14c296f3be11a6e35607c0621ae4d1bb5a2f1d4a08",
+      "gitLfSha256": "74143d8d2b0ab0c6d9b37e14c296f3be11a6e35607c0621ae4d1bb5a2f1d4a08"
+    }
+  },
+  "baseCommit": "28a88d9702fd0a99de69f38ac2b769e1ca07af89",
+  "members": {
+    "source/crates/motion-core/tests/tracking_replacement.rs": {
+      "bytes": 8148,
+      "sha256": "886809f78f0bb879b9301ec67a424ccf3eddfec53dfcf059492ddaaa2c39d9ff"
+    },
+    "source/crates/motion-core/tests/tracking_replacement/bindings.rs": {
+      "bytes": 8796,
+      "sha256": "74143d8d2b0ab0c6d9b37e14c296f3be11a6e35607c0621ae4d1bb5a2f1d4a08"
+    },
+    "stdout.log": {
+      "bytes": 747,
+      "sha256": "0fe4a132e24cd7b4d44f1e5d74c34dbefb499f6dac6a752f0c2c92817ef57847"
+    },
+    "stderr.log": {
+      "bytes": 1144,
+      "sha256": "c792ec0654b997d49c65d8a3434e0507cbde53d99e56c1a087eef7e3c85b0b1d"
+    },
+    "controller.py": {
+      "bytes": 1793,
+      "sha256": "e01ffdac8c35a202e3149562d578631b6ff5de59d66aa0652e8262280133ddfd"
+    }
+  },
+  "limits": [
+    "CPU model/command tests only; no new GPU/UI/fault-injection proof",
+    "Existing four assertions unchanged; three new tests added"
+  ],
+  "earlierAttempts": [
+    "v1 compile failed: fixture used nonexistent Track.x instead of Track.value[0]",
+    "v2 fixture IDs lacked mandatory comp- prefix; corrected fixture",
+    "v3 seven tests passed before true nested reference and numeric plane control added",
+    "v4 new plane oracle incorrectly used composition scale; actual plane API maps to layer-local 320x240, so independent expected displacement is [10,5], while point maps to 640x480 composition and stays 20px"
+  ],
+  "archive": {
+    "path": "engineering/validation/data/tracking88-pair-bindings-v1.zip",
+    "sha256": "723b953a3283d0713c024f3f3852e93ec582642c9ae842b5467ef0a0bbeaa90e",
+    "bytes": 7078
+  }
+}

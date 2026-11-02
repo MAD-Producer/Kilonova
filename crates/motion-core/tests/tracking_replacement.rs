@@ -8,6 +8,8 @@ use motion_core::tracking_assets::replacement::{BindingUpdate, Replacement};
 use motion_core::*;
 #[path = "../../motion-model/tests/support/tracking_camera.rs"]
 mod fixture;
+#[path = "tracking_replacement/bindings.rs"]
+mod bindings;
 
 fn replacement(project: &Project) -> Replacement {
     let mut video = project.video_assets[0].clone();

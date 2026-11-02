@@ -69,7 +69,6 @@ panel, layout, interaction or Android code was added by this increment.
 ## Pending acceptance
 
 - Published durability acknowledgement and unwind injection for the paired path
-- Point/plane bindings, explicit detach and nested-composition controls
 - Full affected-crate/desktop regression and cross-platform CI for the final head
 - Product-facing tracker preparation/finish workflow and protocol output proof
 - Exclusion or detection of external file writes between verification/publication
@@ -106,3 +105,26 @@ seconds for a reply (`failure/tests.rs:378`); raw log was inspected locally in
 `artifacts/pr-queue/tracking88-pair-macos-first.log`. This is a failed gate, not a
 cross-platform pass. This increment does not modify or disable that assertion.
 Final-head CI remains required, together with the other pending items above.
+
+## Follow-up: binding kinds and nested authoring state
+
+The [binding receipt](data/tracking88-pair-bindings-v1.json) and
+[test-source/log archive](data/tracking88-pair-bindings-v1.zip) cover three new
+CPU controls plus the existing four core transaction tests: **7 passed, 0 failed,
+0 ignored**. A root composition references an actual child composition; both
+contain point and plane bindings sharing the replaced solve, with independent
+authored offsets. The child remains active across the joint transaction.
+
+Controls verify renamed point/plane track IDs in both compositions, unchanged
+corner-pin effects/authored transforms/manual observations, one revision and
+one undo/redo step. An independent numerical check distinguishes 20 composition
+pixels of point motion from [10,5] layer-local pixels of corner-pin motion.
+Explicit null point, plane and camera bindings traverse the JSON command parser
+and/or transaction and preserve authored corrections. Locked child targets and
+missing compositions reject the whole edit without history or partial bindings.
+
+Early fixture attempts are recorded in the receipt: the Track API and composition
+ID prefix were corrected; an added plane numerical oracle was corrected to use
+the API's layer-local axes, rather than composition axes. Existing four test
+assertions were unchanged. These CPU tests do not establish GPU/UI behavior or
+post-publication acknowledgement/unwind safety. No production behavior changed.
