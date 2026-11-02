@@ -105,6 +105,16 @@ impl EditSink for PairSink<'_> {
         commands: Vec<Command>,
         root: &Path,
     ) -> motion_core::Result<Vec<motion_core::EditResult>> {
+        self.apply_saved_using(commands, root, motion_core::storage::save)
+    }
+}
+impl PairSink<'_> {
+    fn apply_saved_using(
+        &mut self,
+        commands: Vec<Command>,
+        root: &Path,
+        persist: impl FnOnce(&Path, &Project) -> motion_core::Result<()>,
+    ) -> motion_core::Result<Vec<motion_core::EditResult>> {
         let mut commands = commands.into_iter();
         let Some(Command::MediaAsset {
             action: motion_core::media_assets::AssetAction::ReplaceVideo { video, audio },
@@ -135,7 +145,7 @@ impl EditSink for PairSink<'_> {
                 for original in originals.iter_mut() {
                     original.retain_original(true);
                 }
-                match motion_core::storage::save(root, candidate) {
+                match persist(root, candidate) {
                     Ok(()) => Ok(()),
                     Err(
                         error @ motion_core::Error::Storage {
@@ -170,6 +180,10 @@ impl EditSink for PairSink<'_> {
         )
     }
 }
+
+#[cfg(test)]
+#[path = "tracked_replacement_tests.rs"]
+mod tests;
 
 pub(super) fn finish(
     id: i64,

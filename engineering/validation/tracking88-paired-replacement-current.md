@@ -68,7 +68,7 @@ panel, layout, interaction or Android code was added by this increment.
 
 ## Pending acceptance
 
-- Published durability acknowledgement and unwind injection for the paired path
+- End-to-end video/cache publisher and worker recovery under post-publication faults
 - Full affected-crate/desktop regression and cross-platform CI for the final head
 - Product-facing tracker preparation/finish workflow and protocol output proof
 - Exclusion or detection of external file writes between verification/publication
@@ -128,3 +128,28 @@ ID prefix were corrected; an added plane numerical oracle was corrected to use
 the API's layer-local axes, rather than composition axes. Existing four test
 assertions were unchanged. These CPU tests do not establish GPU/UI behavior or
 post-publication acknowledgement/unwind safety. No production behavior changed.
+
+## Follow-up: published acknowledgement and unwind policy
+
+The [publication receipt](data/tracking88-pair-publication-v1.json) and
+[source/log archive](data/tracking88-pair-publication-v1.zip) record **2 passed,
+0 failed, 0 ignored** save-policy controls and the subsequent complete host
+library unit suite: **166 passed, 0 failed, 0 ignored, 161.26 seconds**. Both runs
+kept crate source frozen and checked its hashes after the validator exited.
+
+The paired sink's persistence call is factored into a private callback; production
+continues to pass the same `storage::save`. Tests write and reopen real project
+bytes, retain actual `Prepared` owned originals, and inject faults only after the
+save succeeds. A published acknowledgement error is retained separately while
+the author model/history commits to match disk; cleanup preserves both original
+documents and undo/redo remains complete. A panic really unwinds through the core
+transaction, restoring memory/history while retaining all originals referenced by
+the already-published document. That document remains loadable from disk.
+
+These are **save/history/original-ownership policy tests**. Originals use actual
+PNG source decoding; video metadata envelopes exercise the model publication
+boundary, not a native video decoder. They neither run the enclosing VideoJobs
+cache publisher nor exercise worker session closure after the injected panic.
+Native FFmpeg/GPU admission/replacement is established separately by the earlier
+native evidence. The combined end-to-end fault boundary, final desktop regression
+and final-head cross-platform CI remain pending. No existing assertion changed.
