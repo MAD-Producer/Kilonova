@@ -232,6 +232,14 @@ pub(in crate::panels) fn plot(panels: &mut Panels, area: Rect, low: f32, high: f
         }
     }
 }
+/// A painted handle owns this press before key/marquee finishing. It must not
+/// seek or replace the selection when its hit area overlaps an endpoint.
+pub(in crate::panels) fn own_handle(panels: &mut Panels) {
+    if let Some(frame)=&mut panels.key_gestures.frame {
+        frame.press=None;
+        frame.background_owned=true;
+    }
+}
 pub(in crate::panels) fn block_background(panels: &mut Panels) {
     if let Some(frame) = &mut panels.key_gestures.frame {
         frame.background_owned = true;
@@ -300,6 +308,50 @@ pub(in crate::panels) fn all_channel(
                     frame: time as u32,
                 }),
         );
+    }
+}
+
+pub(in crate::panels) fn local_address(target: &KeyframeTarget, raw: &Value) -> motion_core::Result<(LocalKey, f64)> {
+    let frame = raw["local_frame"].as_i64().and_then(|f| i32::try_from(f).ok())
+        .ok_or_else(|| Error::Invalid("projected key local identity is not i32".into()))?;
+    let time = raw["frame"].as_f64().filter(|t| t.is_finite())
+        .ok_or_else(|| Error::Invalid("projected key composition time is not finite".into()))?;
+    Ok((LocalKey { target: target.clone(), frame }, time))
+}
+pub(in crate::panels) fn all_local_channel(panels: &mut Panels, state: &Value, target: KeyframeTarget, source: &Value) {
+    if !selecting_all(panels) { return; }
+    let Some(keys) = source["keys"].as_array() else {
+        failed(panels, Error::Invalid("projected local key array missing".into())); return;
+    };
+    for raw in keys {
+        match local_address(&target, raw) {
+            Ok((key, time)) if time >= 0. && time < state["project"]["frames"].as_f64().unwrap_or(0.) => {
+                all_addressed(panels, [key.into()]);
+            }
+            Ok(_) => {},
+            Err(error) => { failed(panels, error); return; }
+        }
+    }
+}
+/// The ordinary diamond is painted by its existing lane. This adds only the
+/// existing selection ring, drag ghost and hit registration using local IDs.
+pub(in crate::panels) fn local_channel(
+    list: &mut PaintList, panels: &mut Panels, state: &Value, target: KeyframeTarget,
+    source: &Value, lane: Rect, ppf: f32, offset: f32,
+) {
+    if !panels.key_gestures.recording() && !panels.key_gestures.current && !panels.key_gestures.dragging() { return; }
+    let styles = list.styles();
+    let radius = styles.metric("timeline.key.radius", 4.);
+    let hit = styles.metric("timeline.key.hit_radius", 5.);
+    let Ok(keys) = observe!("timeline.local_key_array", source["keys"].as_array().ok_or("projected local key array missing"),
+        "object={} phase=paint fallback=disable_key_edit", target.object()) else { return; };
+    for raw in keys {
+        let Ok((key, time)) = observe!("timeline.local_key", local_address(&target, raw),
+            "object={} phase=paint fallback=disable_key_edit", target.object()) else { continue; };
+        if time < 0. || time >= state["project"]["frames"].as_f64().unwrap_or(0.) { continue; }
+        let point = [lane.min[0] + (time as f32 - offset) * ppf, lane.min[1] + lane.height() * 0.5];
+        if point[0] < lane.min[0] + radius || point[0] >= lane.max[0] - radius { continue; }
+        local_mark(list, panels, key, point, radius, Rect::new(point[0] - hit, lane.min[1], hit * 2., lane.height()));
     }
 }
 
@@ -491,13 +543,44 @@ pub(in crate::panels) fn spatial_mark(
     radius: f32,
     hit: Rect,
 ) {
-    let key=AddressedKey::Spatial(key);
+    addressed_mark(list, panels, AddressedKey::Spatial(key), point, radius, hit, None);
+}
+pub(in crate::panels) fn local_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: LocalKey,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+) {
+    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit, None);
+}
+pub(in crate::panels) fn local_graph_mark(
+    list: &mut PaintList, panels: &mut Panels, key: LocalKey, point: [f32; 2],
+    radius: f32, hit: Rect, component: usize, per_pixel: f32, limits: Option<[f32; 2]>,
+) {
+    if let Some(frame) = &mut panels.key_gestures.frame {
+        if frame.press.is_some_and(|p| hit.contains(p)) && per_pixel.is_finite() && per_pixel > 0. {
+            frame.motion = Some(drag::ValueMotion { target: key.target.clone(), component, per_pixel, limits });
+        }
+    }
+    addressed_mark(list, panels, AddressedKey::Local(key), point, radius, hit, Some(component));
+}
+fn addressed_mark(
+    list: &mut PaintList,
+    panels: &mut Panels,
+    key: AddressedKey,
+    point: [f32; 2],
+    radius: f32,
+    hit: Rect,
+    component: Option<usize>,
+) {
     let styles=list.styles();
     if panels.key_gestures.current && panels.selected_keys.contains_addressed(&key) {
         paint::diamond(list,point,radius+styles.metric("border",1.),styles.color("text"));
         paint::diamond(list,point,radius,styles.color("keyframe"));
     }
-    if let Some(ghost)=drag::ghost_addressed(panels,&key,point,None) {
+    if let Some(ghost)=drag::ghost_addressed(panels,&key,point,component) {
         paint::diamond(list,ghost,radius+styles.metric("border",1.),styles.color("focus"));
         paint::diamond(list,ghost,radius,styles.color("keyframe"));
     }
@@ -601,6 +684,34 @@ pub(in crate::panels) fn mask_lane(
         }
     }
 }
+/// A mapped row owns its complete authored projection in the existing row
+/// cache. Never let a failed cache fall through to integer-addressed listeners.
+pub(in crate::panels) fn mapped_lane(
+    list: &mut PaintList, panels: &mut Panels, row: &crate::panels::timeline::Row,
+    target: KeyframeTarget, lane: Rect, ppf: f32, view_offset: f32,
+    radius: f32, tolerance: f32, round_hit: bool,
+) -> bool {
+    if row.property_clock == Some(Default::default()) {return false;}
+    let Some(keys)=&row.mapped_keys else {return true;};
+    let styles=list.styles();
+    for (key,time) in keys.iter().filter(|(key,_)|key.target()==&target) {
+        let point=[lane.min[0]+(*time as f32-view_offset)*ppf,lane.min[1]+lane.height()*0.5];
+        if !lane.contains(point) {continue;}
+        paint::diamond(list,point,radius,styles.color("keyframe"));
+        let rect=if round_hit {
+            Rect::new(point[0]-tolerance,point[1]-tolerance,tolerance*2.,tolerance*2.)
+        } else {Rect::new(point[0]-tolerance,lane.min[1],tolerance*2.,lane.height())};
+        match key {
+            AddressedKey::Local(key)=>local_mark(list,panels,key.clone(),point,radius,rect),
+            AddressedKey::Spatial(key)=>spatial_mark(list,panels,key.clone(),point,radius,rect),
+            AddressedKey::Frame(_)=>{
+                let _=observe!("timeline.mapped_key_address",Err::<(),_>("mapped row contains a composition-integer address"),
+                    "object={} phase=paint fallback=disable_key_edit",row.id);
+            }
+        }
+    }
+    true
+}
 pub(in crate::panels) fn vector_lane(
     list: &mut PaintList,
     panels: &mut Panels,
@@ -676,13 +787,15 @@ fn apply(panels: &mut Panels, state: &Value, batch: Batch, mode: Mode) {
     project_primary(panels, state);
 }
 pub(super) fn project_primary(panels: &mut Panels, state: &Value) {
-    if let Some(key) = panels.selected_keys.spatial_primary.clone() {
+    let exact_target = panels.selected_keys.local_primary.as_ref().map(|k| k.target.clone())
+        .or_else(|| panels.selected_keys.spatial_primary.as_ref().map(|k| k.target.clone()));
+    if let Some(target) = exact_target {
         panels.animation_controls.clear_key();
         panels.path_controls.clear_mask_selection();
         panels.audio_controls.clear_selection();
         crate::panels::effect_timeline::clear_projected_key(panels);
         panels.timeline.graph_box.clear_selection();
-        let object = key.target.object();
+        let object = target.object();
         panels.selected = Some(object);
         panels.selected_layers.clear();
         if object != 0 {
@@ -693,7 +806,7 @@ pub(super) fn project_primary(panels: &mut Panels, state: &Value) {
             object,
             property,
             axis,
-        } = key.target
+        } = target
         {
             panels
                 .animation_controls
@@ -814,7 +927,7 @@ pub(in crate::panels) fn finish(
             .hits
             .channels
             .values()
-            .map(|c| c.frames.len() + c.ids.len())
+            .map(|c| c.frames.len() + c.local_frames.len() + c.ids.len())
             .sum::<usize>();
         panels.selected_keys = before.clone();
         if frame.mode == Mode::Replace && already_selected {
@@ -830,6 +943,19 @@ pub(in crate::panels) fn finish(
             panels.selected_keys.clone()
         };
         chosen.set_primary(primary);
+        if let Some(key) = &chosen.local_primary {
+            let project = || -> motion_core::Result<f64> {
+                let (_, offset) = source::track(state, &key.target)
+                    .ok_or_else(|| Error::Invalid("local key selection channel missing".into()))?;
+                let offset = i32::try_from(offset)
+                    .map_err(|_| Error::Invalid("local key selection clip offset exceeds i32".into()))?;
+                source::clock(state, &key.target)?.projected_composition_frame(f64::from(key.frame), offset)
+            };
+            match project() {
+                Ok(time) => out.push(Action::Seek(time)),
+                Err(error) => { transform::failed(panels, state, error); return; }
+            }
+        }
         if frame.key_body
             && chosen.writable(state)
             && panels.timeline.graph_drag.is_none()

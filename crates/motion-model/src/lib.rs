@@ -34,6 +34,7 @@ pub use node_resources::{NodeResource, NodeImageReference};
 pub use model_assets::{ModelAnimation, ModelAsset, ModelClip};
 mod observability;
 mod clip_range;
+pub mod layer_time;
 pub mod particle_history;
 pub mod masks;
 pub mod compositing;
@@ -52,7 +53,7 @@ pub mod vector;
 pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePublication};
 pub use commands::{Command, EditResult, Property};
 pub use layer_clipboard::LayerClipboard;
-pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use keyframe_clipboard::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget, LocalKeyframeSelection};
 pub use keyframe_clipboard::KeyframeValueOffset;
 pub use keyframe_clipboard::curve_clipboard::CurveClipboard;
 pub use path_clipboard::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
@@ -92,6 +93,10 @@ pub use video::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("layer time object={object} phase={phase}: {source}")]
+    LayerTimeObject { object: u64, phase: &'static str, #[source] source: Box<Error> },
+    #[error("layer time phase={phase}: {source}")]
+    LayerTime { phase: &'static str, #[source] source: Box<Error> },
     #[error("spatial animation phase={phase} key={key:?}: {source}")]
     SpatialAnimation { phase: &'static str, key: Option<u64>, #[source] source: Box<Error> },
     #[error("path sampling path={path} frame={frame}: {source}")]

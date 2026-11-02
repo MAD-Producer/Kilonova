@@ -10,9 +10,11 @@ pub use motion_model::{serialized_bytes, LayerClipboard};
 pub use motion_model::{animation_presets, AnimationPreset, PresetProperty};
 pub use motion_model::{node_resources, NodeResource, NodeImageReference};
 pub use motion_model::{TextAlign, TextStyle};
-pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget};
+pub use motion_model::{KeyframeClipboard, KeyframeData, KeyframeSelection, KeyframeTarget, LocalKeyframeSelection};
 pub use motion_model::KeyframeValueOffset;
 pub use motion_model::keyframe_clipboard::spatial::SpatialKeyEdit;
+pub use motion_model::keyframe_clipboard::local::{LocalKeyEdit, LocalValueOffset};
+pub use motion_model::keyframe_clipboard::authoring::{TrackEdit, TrackValue};
 pub use motion_model::keyframe_clipboard::timing;
 pub use motion_model::keyframe_clipboard::MAX_KEYFRAME_CLIPBOARD_BYTES;
 pub use motion_model::{PathClipboard, PathDestination, PathEntry, PathSelection, PathTarget};
@@ -24,6 +26,7 @@ pub mod storage;
 
 pub use motion_model::{compositing, composition, color_curves, particle_history, masks, vector};
 pub use motion_model::render_sampling;
+pub use motion_model::layer_time;
 pub use motion_model::LayerSwitch;
 pub use motion_model::{AuthoredCameraSampler, CameraSample, CameraSampler};
 pub use motion_model::lens;
@@ -92,4 +95,19 @@ pub fn scene_prefix_delta_with_cameras(
         .inverse()
         .transform_vector3(glam::Vec3::new(delta[0], -delta[1], -delta[2]));
     Ok([local.x, -local.y, -local.z])
+}
+
+/// Map an authored displacement through the same ancestry as preview dragging.
+/// Used to project the captured key rather than its newly retimed sample.
+pub fn scene_prefix_offset_with_cameras(
+    p: &Project, object: u64, frame: f64, delta: [f32; 3], sampler: &dyn CameraSampler,
+) -> Result<[f32; 3]> {
+    let evaluated = p.evaluated_at(frame)?;
+    let mut prefix = motion_model::hierarchy::prefix_with_cameras(&evaluated, object, frame, sampler)?;
+    if p.layers.iter().any(|l| l.id == object && !l.three_d) {
+        prefix = motion_model::geometry::flat_matrix(prefix);
+    }
+    let world = prefix.transform_vector3(glam::Vec3::new(delta[0], -delta[1], -delta[2]));
+    ensure(world.is_finite(), "invalid preview drag ancestry offset")?;
+    Ok([world.x, -world.y, -world.z])
 }

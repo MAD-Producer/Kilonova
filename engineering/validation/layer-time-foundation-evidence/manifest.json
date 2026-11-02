@@ -1,0 +1,60 @@
+{
+  "issue": 257,
+  "stage": "continuous clock foundation; product integration pending",
+  "base": "f2e9f0e82f625eb0e1095857bf3e98d917bcfbcf",
+  "branch": "feat/layer-time-mapping",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+  "modelTests": {
+    "passed": 182,
+    "failed": 0,
+    "ignored": 0,
+    "focusedIncluded": 22,
+    "resultSectionsIncludingEmptyLibAndDoctest": 38,
+    "command": "cargo test -p motion-model --locked --offline --jobs 1 --target-dir E:/Dev/aem/.tools/layer-time-mapping/target",
+    "exitCode": 0
+  },
+  "coreCheck": {
+    "command": "cargo check -p motion-core --locked --offline --jobs 1 --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "exitCode": 0,
+    "behaviorTests": false
+  },
+  "failedInitialTests": {
+    "passed": 14,
+    "failed": 2,
+    "retained": true,
+    "initialProgramHashUnavailable": true,
+    "cause": "new-test preconditions incorrectly required lossless offset inverse and applied coordinate bounds to finite derivative; no preexisting assertion changed"
+  },
+  "sources": {
+    "crates/motion-model/src/lib.rs": "c8703b9bd1535b65097e2a690599be3ab10cbb8d4a5b7e6941bbbd267cb5fcca",
+    "crates/motion-model/src/layer_time.rs": "237c5f8589c46602ff4b97071e38087ff247440894a1daa99231ffe28b758b79",
+    "crates/motion-model/src/layer_time/media.rs": "af52f0d631f02cb79a25bb390db668585d926aaf4c4b21ab64914d6d79961562",
+    "crates/motion-model/tests/layer_time.rs": "fdc1c04939491f2c6be3f048bea48dc9fc6f94f50640175b0d77e73eb77fddc3"
+  },
+  "logs": {
+    "layer-time-model-first.log": "d9b4733be73c4e1eabd172be10f9ee5741a789093ce8e7c0790a918339e25910",
+    "layer-time-model-second.log": "23af8c29d0407f7926c37c7adca5ae9b24c07def149bc21c67f8849457660585",
+    "layer-time-model-all.log": "7b9e37a439dc0600117ccee6892ac1a99d7ddfd8a18c90e0fb77d63af3fe1bf1",
+    "layer-time-model-media.log": "5418036f9ae0b2d68607e7ea87c37a2a2ad9e38bda75a2ddcb24d825971818af",
+    "layer-time-model-final-all.log": "ddd56db22d1bdd329be06062bdd45926415a71da212315d29eb17e812bab2acc",
+    "layer-time-core-check.log": "9c2ee54675ba11bd61e1b47e0bbafdff7bef61be655d93d38a05da5ed8131061",
+    "layer-time-core-final-check.log": "c0ef30b5fd5e505d127f4a84c6a4e08d0fc258a3d6b93b6fe6491c2fbe0070c2"
+  },
+  "archive": {
+    "name": "logs.zip",
+    "sha256": "70ca45959a0b3f07693f3c313757ba300bf796abde5f4ab37b381964fe696266",
+    "originalLogBytesVerified": true
+  },
+  "focusedProgram": {
+    "path": "E:\\Dev\\aem\\.tools\\layer-time-mapping\\target\\debug\\deps\\layer_time-d65314f053dc1c41.exe",
+    "sha256": "bc32a5061e685306d45878e472c90ee18015011dd7c8c02b4ac82578478bf41d",
+    "scope": "final source, 22 focused tests; earlier failed program was not retained"
+  },
+  "limits": [
+    "No Layer/project schema or version change yet",
+    "No editor/undo/timeline or native UI integration",
+    "No decoder, PCM mixer, preview, export or cache integration",
+    "No worker/default-log claim from pure model tests",
+    "No issue completion or CI gate claimed for this branch"
+  ]
+}

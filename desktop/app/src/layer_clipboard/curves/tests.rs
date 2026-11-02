@@ -89,7 +89,7 @@ fn curve_clipboard_real_system_roundtrip_between_processes_and_default_error_out
                 project.layers.push(layer);
                 let mut engine = motion_core::Engine::new(project.clone()).unwrap();
                 engine
-                    .apply(motion_core::Command::PasteEasing {
+                    .apply(motion_core::Command::PasteEasing { local_selections: vec![],
                         clipboard: Box::new(payload),
                         selections: vec![KeyframeSelection {
                             target: motion_core::KeyframeTarget::Property {

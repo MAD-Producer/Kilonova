@@ -159,11 +159,11 @@ fn dispatch(events: &mut EventLoop<()>, engine: &Engine, actions: Vec<Action>) {
                     .unwrap(),
                 false,
             ),
-            Action::ViewerDrag {key,cell,object,delta,size} => {
+            Action::ViewerDrag {key,cell,object,delta,size,spatial_key} => {
                 assert_eq!(cell,0,"single-view fixture must keep its view identity");
                 (engine.viewer_drag_async(crate::engine::viewer_input::Drag {
                     window:key.window,source:key.source,frame:f64::from_bits(key.frame),
-                    camera:crate::engine::viewer_frame::Camera::Composition,object,delta,size}).unwrap(),false)
+                    camera:crate::engine::viewer_frame::Camera::Composition,object,delta,size,spatial_key}).unwrap(),false)
             },
             Action::ViewerPick {key,cell,point} => {
                 assert_eq!(cell,0,"single-view fixture must keep its view identity");
@@ -178,10 +178,11 @@ fn dispatch(events: &mut EventLoop<()>, engine: &Engine, actions: Vec<Action>) {
             },
             Action::PreviewDrag {
                 object,
+                spatial_key,
                 delta,
                 size,
             } => (
-                engine.drag_async(object as i64, delta, size).unwrap(),
+                engine.drag_at_key_async(object as i64, delta, size, spatial_key).unwrap(),
                 false,
             ),
             Action::SelectAt(point) => (

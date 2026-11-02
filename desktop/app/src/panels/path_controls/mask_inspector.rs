@@ -254,7 +254,9 @@ impl Controls {
                 out.push(Action::History(3));
             }
             let linked = linked && matches!(property, MaskProperty::Feather);
+            let Ok(time) = numeric_time_begin(state, owner.object, mask, &property) else {return;};
             self.parameter = Some(Parameter {
+                time,
                 host,
                 object: owner.object,
                 mask,
@@ -663,6 +665,11 @@ impl Controls {
                     }
                 };
                 let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
+                #[cfg(test)]
+                for axis in 0..values.len().max(1) {
+                    let layout = property_row(styles.as_ref(), area, *y, axis, values.len(), host);
+                    self.mask_property_rects.insert((host as u32, owner.object, mask.id, index, axis), (layout.watch, layout.number));
+                }
                 self.selection_probe.record(fields.caption, area);
                 let picked = click(input, fields.caption) || click(input, fields.watch)
                     || (0..values.len()).any(|axis|

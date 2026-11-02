@@ -656,6 +656,8 @@ impl Producer {
 mod playhead_tests;
 #[cfg(test)]
 mod work_area_tests;
+#[cfg(test)]
+mod mapped_device_tests;
 
 #[cfg(test)]
 mod tests {

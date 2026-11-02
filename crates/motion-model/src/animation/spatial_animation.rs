@@ -412,6 +412,23 @@ impl<T: Tween> SpatialAnimation<T> {
         Ok(())
     }
 
+    /// Temporal authoring may replace fixed-interval arc parameterization, but
+    /// must never silently remove an active Roving distance constraint.
+    pub fn set_easing(&mut self, id: u64, easing: Easing) -> Result<()> {
+        easing.validate()?;
+        let index = self.keys.iter().position(|key| key.id == id)
+            .ok_or_else(|| crate::Error::Invalid("spatial key identity missing".into()))?;
+        let next = self.keys.get(index + 1)
+            .ok_or_else(|| crate::Error::Invalid("last spatial key has no outgoing interval".into()))?;
+        ensure(self.keys[index].fixed.is_some() && next.fixed.is_some(),
+            "fix Roving interval endpoints before editing temporal easing")?;
+        let mut keys = self.keys.clone();
+        keys[index].easing = easing;
+        keys[index].arc = false;
+        *self = Self::prepare(keys, self.next_id)?;
+        Ok(())
+    }
+
     pub fn set_value(&mut self, id: u64, value: T) -> Result<()> {
         self.edit_key(id, |key| key.value = value)
     }

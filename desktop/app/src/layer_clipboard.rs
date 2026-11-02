@@ -83,6 +83,7 @@ pub(crate) enum Edit {
         stamp: Stamp,
         clipboard: motion_core::CurveClipboard,
         selections: Vec<motion_core::KeyframeSelection>,
+        local_selections: Vec<motion_core::LocalKeyframeSelection>,
         cancel: Arc<AtomicBool>,
     },
     CutPaths {
@@ -106,7 +107,7 @@ pub(crate) enum Edit {
         stamp: Stamp,
         clipboard: Arc<motion_core::KeyframeClipboard>,
         targets: Vec<motion_core::KeyframeTarget>,
-        at_frame: Option<u32>,
+        at_frame: Option<f64>,
         cancel: Arc<AtomicBool>,
     },
     Cut {
@@ -154,8 +155,8 @@ pub(crate) fn commit(session: &mut Session, edit: Edit) -> motion_host::Result<V
             if session.engine.revision() != before { staged.keep_resources(); }
             match result { Ok(value) => value, Err(payload) => std::panic::resume_unwind(payload) }
         }
-        Edit::PasteEasing { clipboard, selections, .. } => session.apply_command_batch(vec![
-            motion_core::Command::PasteEasing { clipboard: Box::new(clipboard), selections },
+        Edit::PasteEasing { clipboard, selections, local_selections, .. } => session.apply_command_batch(vec![
+            motion_core::Command::PasteEasing { clipboard: Box::new(clipboard), selections, local_selections },
         ]),
         Edit::CutPaths { clipboard, .. } => session.apply_command_batch(vec![
             motion_core::Command::RemovePaths { clipboard: Box::new((*clipboard).clone()) },

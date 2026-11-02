@@ -1,0 +1,165 @@
+{
+  "created_utc": "2026-10-31T12:03:26.074832+00:00",
+  "time_mapping_commit": "b27ce99f",
+  "integrated_main_commit": "8573d9975cf70d2c8fe05605102ec9d744816070",
+  "scope": "retain full time cursor alongside explicit view/Arc ownership; backend integration only",
+  "source_sha256": {
+    "crates/motion-render/src/scene.rs": {
+      "bytes": 47947,
+      "sha256": "66299afe877a6e8bedb6858c8495754953a9b6b491d74dfd98a5798bd5002dd2"
+    },
+    "crates/motion-render/src/exposure_scene.rs": {
+      "bytes": 17377,
+      "sha256": "50da7af7a0e27bcac778171f64462a83f5b8986467135f93e05967b9ca110f31"
+    },
+    "crates/motion-render/src/renderer/nested_exposure.rs": {
+      "bytes": 9703,
+      "sha256": "60cfcd043985eaa8a62ab902befe42e0a715d599da740c9da0ba738acde6cfff"
+    },
+    "crates/motion-render/tests/layer_time_nested.rs": {
+      "bytes": 10963,
+      "sha256": "76bff85b78d499787f9e40424d39171e09182e88f665fa25520db3ef1c3d1965"
+    },
+    "crates/motion-desktop-media/tests/layer_time_video.rs": {
+      "bytes": 21565,
+      "sha256": "f3521bead06cd0877c0d0a9547359ab6d11ddaf67ee50f48e817b16de8a84da4"
+    }
+  },
+  "executed_programs": {
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/composition_frame_boundaries-56f096e815503d9b.exe": {
+      "bytes": 13107200,
+      "sha256": "15e5b2dd6a89ccad45e58e6d64d418f3b2b07033ef3a1bf84b0961922e545a5b"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/compositions-8ddd9b5c26e74dab.exe": {
+      "bytes": 50827264,
+      "sha256": "c5ea01bb92a41cd4b4880c964770b56007a1b642a8d23a9ce881376036ce473e"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/exposure_frame-f334a759af705c24.exe": {
+      "bytes": 38985216,
+      "sha256": "b30ff03f8473b9c703dd9a1f6681544c188b30ee4bbde50b8126d72d94545382"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/exposure_scenes-50db716eda47448e.exe": {
+      "bytes": 46474752,
+      "sha256": "8bd6b939b1f67bdc1302fba77a879f911214f8f2d70e7753e26406dc69527194"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_nested-d1d9573a1257455a.exe": {
+      "bytes": 13443072,
+      "sha256": "01155cb102fa7cf2432ae299f006ee207e1987ea70690ec10b8648828b8794ad"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/nested_exposure-c89537592449add3.exe": {
+      "bytes": 38795776,
+      "sha256": "1cb041e8d07f9c09dd134f44f09385dcd5b70824087fc0e5b4266d0b7e41bc3a"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/video_instances-ab7892745a31492a.exe": {
+      "bytes": 41814528,
+      "sha256": "373a499b67be9b905d048b4aaabb9459d373e29ebf4a69f6748650281a6c2230"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/viewer_frame_views-6303ff61162ebc0e.exe": {
+      "bytes": 40569856,
+      "sha256": "48a0d8e364f732ba66f9dc46c1af521acd7726dae0772d1b476b564b6e4fb6e7"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/viewer_views-74382f289cf4a885.exe": {
+      "bytes": 44813824,
+      "sha256": "8bbc84ca6d93b0d4c84b371f217dc28afb73fd18aadb71f05668a0f5ca2f75ba"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_video-c3457cfedcd7a6b9.exe": {
+      "bytes": 61399552,
+      "sha256": "6725729c7b23803930d3d748ae3774ed8f0ca45b991f5a2ac9a7e79deb4bd41d"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/motion_host-c9a9d3369fb6fb6e.exe": {
+      "bytes": 67712000,
+      "sha256": "0b6978a333822c509aa398d5b95101cf3fb3008fb9d616e3b000fe947d5fdb08"
+    }
+  },
+  "raw_evidence": {
+    "layer-time-view-integration-render.log": {
+      "bytes": 9427,
+      "sha256": "826603e3c18f737910ebf9b609e3c27629021935dd6c0e9f18f608816783d41f"
+    },
+    "layer-time-view-integration-native.log": {
+      "bytes": 1770,
+      "sha256": "263ce32a07b65527ea7c0872c741f68ea21646290e88049f628b207385efc344"
+    },
+    "layer-time-view-integration-host.log": {
+      "bytes": 15899,
+      "sha256": "24dd573a69d3af1f52b963cab59e414674a113b5c0524c909b692b4326ec2a1c"
+    },
+    "layer-time-view-integration-workspace.log": {
+      "bytes": 3021,
+      "sha256": "e5be5d3be2b0d599f3005502c1ac4eba90b58026fa751013c664557c17456207"
+    },
+    "layer-time-view-integration-workspace-verified.log": {
+      "bytes": 22801,
+      "sha256": "8ac4617dfc9b3e7011fc30eb4d7a5588dc4649d2f57b60e5bec2421b9e3a862d"
+    },
+    "layer-time-view-integration-tool-exit.json": {
+      "bytes": 820,
+      "sha256": "c94973f1d073a741831c0651a63ab40547f082b080d094d912bf0b8504f010b7"
+    }
+  },
+  "results": {
+    "layer-time-view-integration-render.log": {
+      "passed": 66,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-view-integration-native.log": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-view-integration-host.log": {
+      "passed": 113,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_tests_passed": 182,
+  "model_verification": {
+    "passed": 211,
+    "source_hashes_unchanged_from_previous_manifest": {
+      "crates/motion-model/src/curve.rs": {
+        "bytes": 13354,
+        "sha256": "8bedfa98a19482d8c87f4c1a8e25940c90d2dfd626ddd9e98229f44eb1b382ca"
+      },
+      "crates/motion-model/src/layer_time.rs": {
+        "bytes": 18646,
+        "sha256": "f6b172a141b19260eae1451a336cc08813df0680038fddedd8a5d2ee890fdc5f"
+      },
+      "crates/motion-model/src/layer_time/media.rs": {
+        "bytes": 3225,
+        "sha256": "8460f22a3de881b8cb5a4c8a361408d446bdbb4af02a9fe03c6dee6e91224276"
+      },
+      "crates/motion-model/tests/layer_time.rs": {
+        "bytes": 22969,
+        "sha256": "6bd772862a79aba6bf8eb1485dfc709ef7d91ac98e7032df374c1310a1111e72"
+      },
+      "crates/motion-model/tests/layer_time_stationary.rs": {
+        "bytes": 7790,
+        "sha256": "01641abfed8fb45c9460dfc752bedfbc18b026b57cd143859d749fe8f61c1872"
+      }
+    },
+    "note": "not re-executed or added to this integration test count"
+  },
+  "commands": [
+    "cargo test -p motion-render --test layer_time_nested --test composition_frame_boundaries --test compositions --test nested_exposure --test exposure_scenes --test exposure_frame --test video_instances --test viewer_views --test viewer_frame_views --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-desktop-media --features ffmpeg --test layer_time_video --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-host --features diagnostics --lib --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo check --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "new_control": "resample shared child in observer and named camera; retained old scene stays at original frame and exact source; no project mutation",
+  "raw_log_policy": "inherited main raw evidence whitespace retained without rewriting; code diff whitespace check passes",
+  "tool_failure": "initial workspace check: rustc 1.97.1 STATUS_ACCESS_VIOLATION in rustc_driver; confirmed terminal and inspected resources/events before separate check; original log and event retained; root cause unknown",
+  "observability": "existing camera failure invalidation and original causes retained; no new logger/retry/restart; desktop mapping error-channel acceptance pending",
+  "pending": [
+    "ordinary Hold/camera reverse edges; mapped multi-tap shutter",
+    "nonmonotonic prefetch; mapped source validation and resize; depth; model animation",
+    "bounded mapped PCM, reverse/freeze silence, unchanged fast path samples and movie audio",
+    "continuous key editing; manual offset consumers; cache and prerender identity",
+    "UI entry, main/floating locales, focus/cancel, screenshots, final CI and full issue audit"
+  ],
+  "archive": {
+    "bytes": 43921,
+    "sha256": "24efbeae11285265bdaf16b7cca796f8c72612cd8b890580dee6905e9a1a5399"
+  }
+}

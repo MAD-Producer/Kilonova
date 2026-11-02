@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 31;
+pub const CURRENT_PROJECT_VERSION: u32 = 32;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -187,6 +187,9 @@ pub struct Layer {
     pub video_depth_calibration: Option<crate::depth::VideoDepthTrack>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
+    /// None preserves the original layer/property/source clocks exactly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_mapping: Option<crate::layer_time::LayerTimeMapping>,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub subframe_range:Option<crate::ClipRange>,
     #[serde(default,skip_serializing_if="Option::is_none")]
@@ -218,6 +221,7 @@ impl Layer {
             depth_calibration: None,
             video_depth_calibration: None,
             timeline: None,
+            time_mapping: None,
             subframe_range:None,
             audio_levels: None,
             audio_markers: Vec::new(),
@@ -237,7 +241,11 @@ impl Layer {
         self.timeline.unwrap_or_else(|| LayerTimeline::full(frames))
     }
     pub fn local_frame(&self, composition_frame: f64) -> f64 {
-        composition_frame - f64::from(self.timeline.map_or(0, |t| t.offset_frame))
+        let offset = self.timeline.map_or(0, |t| t.offset_frame);
+        match &self.time_mapping {
+            Some(mapping) => mapping.clock.sample_local_frame(composition_frame, offset),
+            None => composition_frame - f64::from(offset),
+        }
     }
     pub fn active(&self, frame: f64, frames: u32) -> bool {
         let t = self.interval(frames);
@@ -508,6 +516,7 @@ impl Project {
         let mut ids = HashSet::new();
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
+            layer.validate_time_mapping(self.frames)?;
             layer.sampling.validate_content(&layer.content)?;
             if let Some(track) = &layer.video_depth_calibration {
                 ensure(layer.depth_calibration.is_none(), "choose a single depth sample or an indexed video track")?;
@@ -735,7 +744,6 @@ impl Project {
             .iter()
             .find(|l| l.id == object)
             .ok_or(crate::Error::Missing(object))?
-            .clip(self.frames)
             .edit_frame(frame)
     }
     pub fn layer_mut(&mut self, id: u64) -> Result<&mut Layer> {

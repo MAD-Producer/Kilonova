@@ -331,7 +331,7 @@ fn actual_lens_failures_reach_default_logs_and_stderr_with_recovery_and_stdout_i
             .edit(
                 serde_json::to_string(&Command::CameraLens {
                     object,
-                    frame: 0,
+                    frame: 0.,
                     film_width_mm: 0.,
                     focal_length_mm: 50.,
                 })

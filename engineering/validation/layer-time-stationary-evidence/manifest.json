@@ -1,0 +1,154 @@
+{
+  "created_utc": "2026-10-31T11:52:17.803681+00:00",
+  "base_commit": "aefd5154",
+  "stage": "零速驻点与真正冻结的区分；不是整个 #257 的交付或验收",
+  "source_sha256": {
+    "crates/motion-model/src/curve.rs": {
+      "bytes": 13354,
+      "sha256": "8bedfa98a19482d8c87f4c1a8e25940c90d2dfd626ddd9e98229f44eb1b382ca"
+    },
+    "crates/motion-model/src/layer_time.rs": {
+      "bytes": 18646,
+      "sha256": "f6b172a141b19260eae1451a336cc08813df0680038fddedd8a5d2ee890fdc5f"
+    },
+    "crates/motion-model/src/layer_time/media.rs": {
+      "bytes": 3225,
+      "sha256": "8460f22a3de881b8cb5a4c8a361408d446bdbb4af02a9fe03c6dee6e91224276"
+    },
+    "crates/motion-model/tests/layer_time.rs": {
+      "bytes": 22969,
+      "sha256": "6bd772862a79aba6bf8eb1485dfc709ef7d91ac98e7032df374c1310a1111e72"
+    },
+    "crates/motion-model/tests/layer_time_stationary.rs": {
+      "bytes": 7790,
+      "sha256": "01641abfed8fb45c9460dfc752bedfbc18b026b57cd143859d749fe8f61c1872"
+    },
+    "crates/motion-render/src/scene.rs": {
+      "bytes": 46969,
+      "sha256": "d5ef43ca943df6a5eaa9bb0af491bc19703eabffc3e44ae5e53218904caed593"
+    },
+    "crates/motion-render/src/exposure_scene.rs": {
+      "bytes": 15681,
+      "sha256": "119dd65a4233bf1d1f86f96421949f395eb86daae99368b816f65d796ae40996"
+    },
+    "crates/motion-render/src/renderer/nested_exposure.rs": {
+      "bytes": 9703,
+      "sha256": "60cfcd043985eaa8a62ab902befe42e0a715d599da740c9da0ba738acde6cfff"
+    },
+    "crates/motion-render/tests/layer_time_nested.rs": {
+      "bytes": 9238,
+      "sha256": "f753d61483ecc744f8d8f8967aa7652a891b667267cb5e1abb85d3b9ac832b04"
+    },
+    "crates/motion-desktop-media/tests/layer_time_video.rs": {
+      "bytes": 21565,
+      "sha256": "f3521bead06cd0877c0d0a9547359ab6d11ddaf67ee50f48e817b16de8a84da4"
+    }
+  },
+  "executed_test_programs": {
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_stationary-4ec2736c9296e6e3.exe": {
+      "bytes": 991232,
+      "sha256": "ad60fa13ef6d3fbc1b474aaa9a1ed55d318b482b7fd4d36f8a5aa16202cb1677"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_video-b6341bad5be4442f.exe": {
+      "bytes": 1372672,
+      "sha256": "53417616679e66dbd66e3543b23f3b8d521e22ded9dbf7b2639922d364adc3be"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_nested-d1d9573a1257455a.exe": {
+      "bytes": 13367296,
+      "sha256": "19cc735fe49a400f77734be96d64a382633c5c5ebd5a3d4684e7d97823a775fc"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_video-c3457cfedcd7a6b9.exe": {
+      "bytes": 61381120,
+      "sha256": "3f4a6c715a7f7a0ea8a30651dfcbcfd0673626a8d29fb78a50d4beb6138abf42"
+    }
+  },
+  "raw_evidence": {
+    "layer-time-stationary-before.log": {
+      "bytes": 2055,
+      "sha256": "ab1f6aebd9b5c228220f14b097442169f18a5ab2022d47ee4281975d73adea65"
+    },
+    "layer-time-stationary-model.log": {
+      "bytes": 3421,
+      "sha256": "3a12bbe188e95edfad43d4c4fd639d0d07a28eef560c1979b898143657af0ea8"
+    },
+    "layer-time-stationary-render.log": {
+      "bytes": 8731,
+      "sha256": "2f3491db0cb3bf393152f8174476a259a0bee772f1fa92cc86549e7fbe637898"
+    },
+    "layer-time-stationary-model-full.log": {
+      "bytes": 29528,
+      "sha256": "5cd8824075781a72d362c23a20b5b249150ab461e4d7864cf6230550d7a96e80"
+    },
+    "layer-time-stationary-native.log": {
+      "bytes": 2059,
+      "sha256": "2e88d7b6056c50db94ed9c329c71e01d54ebf23918db3df0486bd3b948118b12"
+    }
+  },
+  "results": {
+    "layer-time-stationary-model-full.log": {
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-stationary-render.log": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    "layer-time-stationary-native.log": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_tests_passed": 221,
+  "native_cases": {
+    "root_fixed_pts_and_rgba_points": 38,
+    "root_frozen_png_pairs": 4,
+    "nested_frozen_png_pairs": 8,
+    "nested_exposure_pixel_pairs": 8,
+    "dimensions": [
+      32,
+      32
+    ],
+    "oracle": "fixed independent microseconds; actual libav; entire image equality against flat unmapped source",
+    "media_callback": "actual ExposureMedia must run and receive exact expected source time",
+    "exposure_scope": "single phase, no shutter; retimed multi-tap blur remains pending",
+    "png_retention": "temporary PNGs asserted in process; not retained as UI evidence"
+  },
+  "environment": {
+    "shell_setup": "E:/Dev/aem/.tools/msvc-portable/env.ps1",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "WGPU_BACKEND": "vulkan",
+    "FFMPEG_DIR": "E:/Dev/aem/.tools/ffmpeg-dev/ffmpeg-n8.1-latest-win64-lgpl-shared-8.1",
+    "LIBCLANG_PATH": "E:/Dev/aem/.tools/python-libclang/clang/native",
+    "TEMP_TMP": "E:/Dev/aem/artifacts/pr-integration-current/link-tmp"
+  },
+  "test_commands": [
+    "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --nocapture",
+    "cargo test -p motion-render --test layer_time_nested --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --nocapture",
+    "cargo test -p motion-desktop-media --features ffmpeg --test layer_time_video --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture"
+  ],
+  "failure_dispositions": {
+    "before_model": "three real behavior failures with original numeric assertions preserved; genuine freeze control passed",
+    "literal_adaptation": "existing expected frame/rate numbers unchanged; expected cursors use constructor for added traversal field; malformed NaN cursor remains explicit invalid input"
+  },
+  "observability": {
+    "new_observations": "bounded traversal name in existing nested failure details; no new logger/retry/restart",
+    "existing_coverage": "typed source failures and original exposure composition code/phase retained",
+    "normal_branches": "holds, freeze, outside clip and cancellation are not faults",
+    "pending": "actual desktop default file logs, Error stderr, stdout isolation, in-flight blocking and panic"
+  },
+  "pending": [
+    "ordinary Hold/camera reverse edges; mapped multi-tap shutter",
+    "nonmonotonic prefetch; mapped source validation and resize; depth; model animation",
+    "bounded mapped PCM, reverse/freeze silence, unchanged fast path samples and movie audio",
+    "continuous key editing; manual offset consumers; cache and prerender identity",
+    "UI entry, main/floating locales, focus/cancel, screenshots, final CI and full issue audit"
+  ],
+  "archive": {
+    "bytes": 101468,
+    "sha256": "5c367214fa9781bd99bb8565e74ae73fc3e06da52c79221e6368a15ed9362952"
+  }
+}

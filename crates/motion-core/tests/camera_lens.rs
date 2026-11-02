@@ -11,7 +11,7 @@ fn engine() -> (Engine, u64) {
 fn edit(object: u64, frame: u32, film: f32, focal: f32) -> Command {
     Command::CameraLens {
         object,
-        frame,
+        frame: f64::from(frame),
         film_width_mm: film,
         focal_length_mm: focal,
     }
