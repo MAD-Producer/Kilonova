@@ -269,7 +269,7 @@ impl Drag {
         let time = observe!("transform.numeric_time_begin",
             super::property_authoring::NumericTime::read(state, pose.object),
             "object={} phase=begin", pose.object).ok()?;
-        let position_key = if matches!(handle, Handle::Spatial(_, false)) {
+        let position_key = if matches!(handle, Handle::Move | Handle::Spatial(_, false)) {
             observe!("transform.spatial_key_begin",
                 super::property_authoring::SpatialDraft::read(state, pose.object, Property::Position, None),
                 "object={} phase=begin handle={handle:?}", pose.object).ok()?
@@ -360,6 +360,7 @@ impl Drag {
                         .min(self.pose.projection.image.height()/size[1] as f32);
                     out.push(Action::PreviewDrag {
                         object: self.pose.object,
+                        spatial_key: self.position_key.as_ref().map(|draft| draft.key()),
                         delta: delta.map(|v| v/scale),
                         size,
                     });
@@ -802,18 +803,13 @@ mod tests {
                 }
                 Action::PreviewDrag {
                     object,
+                    spatial_key,
                     delta,
                     size,
                 } => {
                     engine
-                        .drag(
-                            object as i64,
-                            delta[0] as f64,
-                            delta[1] as f64,
-                            size[0],
-                            size[1],
-                        )
-                        .unwrap();
+                        .drag_at_key_async(object as i64,delta,size,spatial_key).unwrap()
+                        .recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
                 }
                 _ => panic!("unexpected gesture action"),
             }

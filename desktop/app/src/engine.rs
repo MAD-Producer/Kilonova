@@ -381,6 +381,7 @@ pub enum Command {
     },
     Drag {
         object: i64,
+        spatial_key: Option<u64>,
         dx: f64,
         dy: f64,
         width: i32,
@@ -1155,6 +1156,7 @@ impl Engine {
     ) -> Result<Value, String> {
         self.call(|reply| Command::Drag {
             object,
+            spatial_key: None,
             dx,
             dy,
             width,
@@ -1171,8 +1173,14 @@ impl Engine {
         delta: [f32; 2],
         size: [i32; 2],
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.drag_at_key_async(object,delta,size,None)
+    }
+    pub(crate) fn drag_at_key_async(
+        &self, object:i64, delta:[f32;2], size:[i32;2], spatial_key:Option<u64>,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
         self.request(|reply| Command::Drag {
             object,
+            spatial_key,
             dx: delta[0] as f64,
             dy: delta[1] as f64,
             width: size[0],
@@ -2257,12 +2265,13 @@ fn handle(
         Command::History { op, reply } => respond(reply,editing::history(id, op)),
         Command::Drag {
             object,
+            spatial_key,
             dx,
             dy,
             width,
             height,
             reply,
-        } => respond(reply,editing::drag(id, object, dx, dy, width, height)),
+        } => respond(reply,editing::drag_at_key(id, object, dx, dy, width, height, spatial_key)),
         Command::Seek { frame, reply } | Command::SeekAudioPreview { frame, reply } => respond(reply,preview::seek(id, frame)),
         Command::View { kind, reply } => respond(reply,preview::view(id, kind)),
         Command::CameraGesture { action, reply } => respond(reply,preview::camera_gesture(id, action)),

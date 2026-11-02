@@ -96,3 +96,18 @@ pub fn scene_prefix_delta_with_cameras(
         .transform_vector3(glam::Vec3::new(delta[0], -delta[1], -delta[2]));
     Ok([local.x, -local.y, -local.z])
 }
+
+/// Map an authored displacement through the same ancestry as preview dragging.
+/// Used to project the captured key rather than its newly retimed sample.
+pub fn scene_prefix_offset_with_cameras(
+    p: &Project, object: u64, frame: f64, delta: [f32; 3], sampler: &dyn CameraSampler,
+) -> Result<[f32; 3]> {
+    let evaluated = p.evaluated_at(frame)?;
+    let mut prefix = motion_model::hierarchy::prefix_with_cameras(&evaluated, object, frame, sampler)?;
+    if p.layers.iter().any(|l| l.id == object && !l.three_d) {
+        prefix = motion_model::geometry::flat_matrix(prefix);
+    }
+    let world = prefix.transform_vector3(glam::Vec3::new(delta[0], -delta[1], -delta[2]));
+    ensure(world.is_finite(), "invalid preview drag ancestry offset")?;
+    Ok([world.x, -world.y, -world.z])
+}

@@ -646,3 +646,5 @@ mod tests;
 mod worker_tests;
 #[cfg(test)]
 mod continuous_position_tests;
+#[cfg(test)]
+mod free_position_tests;

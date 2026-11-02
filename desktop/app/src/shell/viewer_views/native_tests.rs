@@ -483,7 +483,7 @@ fn native_view_layout_navigation_projection_and_reopen() {
     };
     let position = point(&before, 7);
     shell
-        .drag_view(shell.projection_key(), 3, 7, [20., 0.], [480, 270])
+        .drag_view(shell.projection_key(), 3, 7, [20., 0.], [480, 270], None)
         .unwrap();
     let (_, receive) = shell
         .editing

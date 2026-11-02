@@ -726,7 +726,7 @@ impl Shell {
             Action::ViewerSettings(settings)=>self.save_view_settings(settings)?,
             Action::ViewerPick{key,cell,point}=>self.pick_view(key,cell,point)?,
             Action::ViewerCamera{key,cell,action}=>self.camera_view(key,cell,action)?,
-            Action::ViewerDrag{key,cell,object,delta,size}=>self.drag_view(key,cell,object,delta,size)?,
+            Action::ViewerDrag{key,cell,object,delta,size,spatial_key}=>self.drag_view(key,cell,object,delta,size,spatial_key)?,
             Action::CameraGesture(action) => {
                 self.camera_view(self.projection_key(),self.panels.viewer_views.settings.active(),action)?;
             }
@@ -742,13 +742,14 @@ impl Shell {
             }
             Action::PreviewDrag {
                 object,
+                spatial_key,
                 delta,
                 size,
             } => {
                 self.stop();
                 self.editing = Some((
                     Instant::now(),
-                    self.engine.drag_async(object as i64, delta, size)?,
+                    self.engine.drag_at_key_async(object as i64, delta, size, spatial_key)?,
                 ));
             }
             Action::Float(panel) => {

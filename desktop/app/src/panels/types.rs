@@ -9,7 +9,7 @@ pub enum Action {
     ViewerSettings(crate::viewer_views::Settings),
     ViewerPick { key: super::composition_views::Key, cell: usize, point: [f64; 2] },
     ViewerCamera { key: super::composition_views::Key, cell: usize, action: motion_host::ops::preview::CameraGesture },
-    ViewerDrag { key: super::composition_views::Key, cell: usize, object:u64, delta:[f32;2], size:[i32;2] },
+    ViewerDrag { key: super::composition_views::Key, cell: usize, object:u64, delta:[f32;2], size:[i32;2], spatial_key:Option<u64> },
     OpenPluginEditor,
     OpenViewerInspection { floating: bool, point: [f32; 2] },
     CaptureViewerSnapshot { floating: bool },
@@ -165,6 +165,7 @@ pub enum Action {
     SelectAt([f64; 2]),
     PreviewDrag {
         object: u64,
+        spatial_key: Option<u64>,
         delta: [f32; 2],
         size: [i32; 2],
     },

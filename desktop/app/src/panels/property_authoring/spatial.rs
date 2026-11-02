@@ -9,6 +9,7 @@ pub(crate) struct SpatialDraft {
     axis: Option<usize>,
 }
 impl SpatialDraft {
+    pub(in crate::panels) fn key(&self) -> u64 { self.key }
     pub(in crate::panels) fn read(
         state: &Value,
         object: u64,

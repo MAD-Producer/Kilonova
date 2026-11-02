@@ -9,8 +9,20 @@ fn record(path: impl AsRef<Path>, value: &Value) {
 #[test]
 #[ignore = "explicit Windows GPU, continuous spatial keys, native main/floating owners and process reopen"]
 fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners() {
-    const CHILD: &str = "MOTION_CONTINUOUS_POSITION_NATIVE_CHILD";
-    if let Some(root) = std::env::var_os(CHILD) {
+    run(
+        false,
+        NAME,
+        "MOTION_CONTINUOUS_POSITION_NATIVE_CHILD",
+        "MOTION_CONTINUOUS_POSITION_NATIVE_ARTIFACTS",
+    );
+}
+#[test]
+#[ignore = "explicit Windows GPU, free spatial movement, native owners and process reopen"]
+fn native_free_position_drag_keeps_stable_keys_in_main_and_floating_owners() {
+    run(true, "panels::transform_controls::spatial::native_tests::continuous_position::native_free_position_drag_keeps_stable_keys_in_main_and_floating_owners", "MOTION_FREE_POSITION_NATIVE_CHILD", "MOTION_FREE_POSITION_NATIVE_ARTIFACTS");
+}
+fn run(free: bool, name: &str, child: &str, artifacts: &str) {
+    if let Some(root) = std::env::var_os(child) {
         let root = PathBuf::from(root);
         let reopen = std::env::var_os("MOTION_CONTINUOUS_POSITION_NATIVE_REOPEN").is_some();
         let phase = if reopen { "reopen" } else { "capture" };
@@ -47,7 +59,10 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
         ] {
             let folder = root.join(tag);
             std::fs::create_dir_all(&folder).unwrap();
-            let (before, at) = mapped(base.clone(), mode, true);
+            let (mut before, at) = mapped(base.clone(), mode, true);
+            if free && window == 0 {
+                before.layers[0].three_d = false;
+            }
             if !reopen {
                 motion_core::storage::save(&folder.join("project"), &before).unwrap();
             }
@@ -94,13 +109,23 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
                 record(folder.join("before.json"), &initial["project"]);
                 let pose = Pose::new(&initial, 7, view).unwrap();
                 let styles = PaintList::default().styles();
-                let frame = Frame::new(&pose, Tool::Move, &styles).unwrap();
+                let mut handle_pose = pose.clone();
+                handle_pose.three_d = true;
+                let frame = Frame::new(&handle_pose, Tool::Move, &styles).unwrap();
                 let start = axis(0) * frame.lengths[0].unwrap();
-                let from = frame.projection.screen3(start).unwrap();
-                assert_eq!(
-                    pose.handle(from, Tool::Move, &styles),
-                    Some(Handle::Spatial(Constraint::Axis(0), false))
-                );
+                let from = if free {
+                    pose.pivot
+                } else {
+                    frame.projection.screen3(start).unwrap()
+                };
+                if !free {
+                    assert_eq!(
+                        pose.handle(from, Tool::Move, &styles),
+                        Some(Handle::Spatial(Constraint::Axis(0), false))
+                    );
+                } else {
+                    assert_eq!(pose.handle(from, Tool::Move, &styles), None);
+                }
                 let (_, actions, _) = draw(
                     &engine,
                     &mut panels,
@@ -111,17 +136,45 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
                         ..pointer(from)
                     },
                 );
-                assert!(actions.is_empty());
+                if free {
+                    assert!(
+                        matches!(actions.as_slice(), [Action::ViewerPick { .. }]),
+                        "{actions:?}"
+                    );
+                    dispatch(&mut events, &engine, actions);
+                } else {
+                    assert!(actions.is_empty());
+                }
                 let mut end = from;
                 for delta in [40., 80., 120.] {
-                    end = frame.projection.screen3(start + DVec3::X * delta).unwrap();
+                    end = if free {
+                        [from[0] + delta as f32, from[1] - delta as f32 * 0.5]
+                    } else {
+                        frame.projection.screen3(start + DVec3::X * delta).unwrap()
+                    };
                     assert!(
                         distance(from, end) > styles.metric("motion.drag_threshold", 3.),
                         "native fixture must exceed the production threshold: {from:?} {end:?}"
                     );
-                    let (_, actions, _) =
-                        draw(&engine, &mut panels, &mut atlas, window, &pointer(end));
-                    assert!(actions.iter().any(|a|matches!(a,Action::EditBatch(commands) if matches!(commands.as_slice(),[Command::TrackAt {edit:motion_core::TrackEdit::SetSpatialKey {key:2,..},..}]))),"{actions:?}");
+                    let mut movement = pointer(end);
+                    // Alt is the existing user control for unsnapped translation.
+                    movement.modifiers.alt = free;
+                    let (_, actions, _) = draw(&engine, &mut panels, &mut atlas, window, &movement);
+                    if free {
+                        assert!(
+                            actions.iter().any(|a| matches!(
+                                a,
+                                Action::ViewerDrag {
+                                    object: 7,
+                                    spatial_key: Some(2),
+                                    ..
+                                }
+                            )),
+                            "{actions:?}"
+                        );
+                    } else {
+                        assert!(actions.iter().any(|a|matches!(a,Action::EditBatch(commands) if matches!(commands.as_slice(),[Command::TrackAt {edit:motion_core::TrackEdit::SetSpatialKey {key:2,..},..}]))),"{actions:?}");
+                    }
                     dispatch(&mut events, &engine, actions);
                 }
                 let (_, actions, _) = draw(
@@ -132,6 +185,10 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
                     &Input {
                         mouse: end,
                         released: Some((MouseButton::Left, end)),
+                        modifiers: motion_ui::input::Modifiers {
+                            alt: free,
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
                 );
@@ -147,7 +204,19 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
                     .unwrap();
                 assert_eq!(animation.keys().len(), 4);
                 assert_eq!(animation.keys()[1].id, 2);
-                assert!((animation.keys()[1].value[0] - pose.position[0] - 120.).abs() < 0.03);
+                if free {
+                    let origin = super::super::free_position_tests::key_screen(&before, at);
+                    let now = super::super::free_position_tests::key_screen(&actual, at);
+                    let scale = (view.width() / 1920.).min(view.height() / 1080.);
+                    for i in 0..2 {
+                        assert!(
+                            (now[i] - origin[i] - [120., -60.][i] / scale).abs() < 0.1,
+                            "{now:?} {origin:?} scale={scale}"
+                        );
+                    }
+                } else {
+                    assert!((animation.keys()[1].value[0] - pose.position[0] - 120.).abs() < 0.03);
+                }
                 assert_ne!(
                     animation.prepared().keys().nth(1).unwrap().1,
                     before.layers[0]
@@ -200,7 +269,7 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
         return;
     }
     let temp = tempfile::tempdir().unwrap();
-    let root = std::env::var_os("MOTION_CONTINUOUS_POSITION_NATIVE_ARTIFACTS")
+    let root = std::env::var_os(artifacts)
         .map(PathBuf::from)
         .unwrap_or_else(|| temp.path().to_owned());
     std::fs::create_dir_all(&root).unwrap();
@@ -208,12 +277,12 @@ fn native_continuous_position_handles_save_reopen_and_undo_in_both_window_owners
         let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
         cmd.args([
             "--exact",
-            NAME,
+            name,
             "--ignored",
             "--nocapture",
             "--test-threads=1",
         ])
-        .env(CHILD, &root)
+        .env(child, &root)
         .env_remove("MOTION_LOG");
         if phase == "reopen" {
             cmd.env("MOTION_CONTINUOUS_POSITION_NATIVE_REOPEN", "1");
