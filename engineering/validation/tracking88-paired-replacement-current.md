@@ -30,7 +30,8 @@ publication owns video/audio/cache publication and exact prepared-task identity.
 The paired edit preserves original raw document bytes. A reported post-publication
 durability failure keeps model/history and referenced files aligned and returns
 the acknowledgement error after the media publisher retains its resources.
-This latter failure path still needs dedicated injection in this increment.
+Dedicated save-policy and actual publisher injections are recorded below;
+their controlled-probe scope is distinct from the native media controls.
 
 The request accepts at most 256 solves, 1024 binding updates and 16 MiB aggregate
 original-document metadata size. Info admission/verification starts precede cold
@@ -179,3 +180,67 @@ image decoder by the neutral staging filename `source.mp4`; it now decodes the
 actual input bytes by content. No production code or existing assertion changed.
 The previous 166-test full-host result belongs to the earlier source; this follow-up
 adds two tests and establishes the four focused controls, not a new full-suite pass.
+
+## Follow-up: native linked-audio admission and rollback
+
+The [audio receipt](data/tracking88-pair-audio-v1.json) and
+[source/log archive](data/tracking88-pair-audio-v1.zip) retain the focused runs,
+full regression, unchanged-source isolated reruns and Windows event evidence.
+
+The new native audio control first reproduced a real admission defect: the
+temporary verification view combined the new video byte count with the old
+linked-audio metadata. A valid different container therefore failed with
+`video/audio source timeline mismatch` before original-solve verification.
+The view now applies a coherent prepared video/audio pair using the normal
+media replacement action. Existing audio IDs remain stable; newly added audio
+uses the publisher's all-resource ID policy. These changes affect only the
+temporary verification clone; full author state is still committed once.
+The ready-task token also snapshots and compares its linked-audio metadata.
+
+Focused validation passed **9 tests, 0 failed, 0 ignored**: three media candidate
+controls, five paired host controls, and one native desktop test (**12.74 seconds**).
+The new host control covers audio addition, replacement and removal, allocation
+beyond a removed solve's ID, and unchanged author state. The candidate control
+rejects a changed audio presence or byte count and accepts a restored exact match.
+
+The native test uses the existing credited synthetic `sound-24fps.mp4` and
+`audio-delayed.mp4`, real FFmpeg picture decoding, the platform's normal portable
+audio decoder, actual asynchronous import/publication, and GPU capture. Original
+PTS are parsed exactly from the fixture manifest's decimal microsecond strings,
+not inferred from frame rate. Invalid camera rebinding and a real filesystem save
+failure must roll back every published source/PCM/waveform/index/thumbnail/solve
+and preserve revision, disk project, rendered pixels and the old audible pulse.
+A valid paired replacement preserves video/audio/solve IDs in one revision. Its
+PCM bytes match a separate decode of the new external source, its waveform cache
+exists, and independently authored pulse times distinguish the old audible head
+from the new silent head and delayed audible pulse. Undo, redo and reopening after
+deleting the external solve document preserve the matching project/audio/picture.
+Default-level starts and actual failure records in file and stderr are checked.
+
+Earlier attempts remain recorded: an authored fixture's placeholder video was
+removed from the new empty import project; one rustc process exited with a native
+access violation; the next executed test exposed the real admission defect above.
+No existing assertion was changed or disabled. These controls do not inject
+post-publication faults through native codecs, test desktop worker closure on
+that fault, or exercise an audio output device or a new MCP endpoint.
+
+The complete host library suite passed **169 tests, 0 failed, 0 ignored** in
+149.19 seconds. The complete FFmpeg-enabled desktop **binary** suite did not
+pass: **1522 passed, 3 failed, 50 existing ignored**, in 2166.92 seconds. Its
+failures were the existing mask-admission, text-style export and project-precision
+native-window subprocess wrappers. No test was skipped by the invocation, and no
+new ignore annotation was added. This is not a full-package integration-suite or
+manual native-window acceptance claim; the receipt lists the ignored tests.
+
+Windows Application Event 1000 recorded three `0xc0000005` native crashes of the
+same test executable during that full run, with faulting module `unknown`.
+These records coincide with the three failed subprocess wrappers; the archived
+parent output does not establish each child's PID or a native crash stack.
+All three tests then passed separately against unchanged source: mask 8.23s,
+text export 16.21s, project precision 59.93s. Those isolated successes do not erase
+the failed full gate or establish its root cause. No assertion, production
+renderer, panel, driver or machine setting was changed to obtain them.
+
+The PR remains a draft pending the unresolved full-regression gate and final-head
+cross-platform checks. Native crash attribution and the other explicit scope
+limitations above remain open; successful focused tests do not close issue #88.

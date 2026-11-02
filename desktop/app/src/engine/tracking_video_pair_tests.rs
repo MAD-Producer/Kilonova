@@ -2,6 +2,9 @@
 use super::*;
 use motion_host::tracking::asset::{Asset, Observation};
 
+#[path = "tracking_video_pair_audio_tests.rs"]
+mod audio;
+
 fn solve(source: &Path, name: &str, x: f64) -> Asset {
     let platform = motion_desktop_media::platform();
     let probe = platform

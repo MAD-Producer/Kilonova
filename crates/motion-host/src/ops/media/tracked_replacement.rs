@@ -30,20 +30,50 @@ fn verification_view(
     project: &Project,
     source: AssetRef,
     video: &motion_core::VideoAsset,
+    audio: Option<&motion_core::AudioAsset>,
     ids: &HashSet<u64>,
 ) -> Result<Project> {
     let mut candidate = project.clone();
     candidate.tracking_assets.retain(|a| !ids.contains(&a.id));
-    let selected = candidate
+    let selected = project
         .video_assets
-        .iter_mut()
+        .iter()
         .find(|a| a.id == source.id)
         .ok_or("tracked replacement source is missing")?;
     let mut next = video.clone();
     next.id = source.id;
     next.path = selected.path.clone();
-    next.audio_asset = selected.audio_asset;
-    *selected = next;
+    // This clone must contain a coherent new video/audio pair too: retaining
+    // old audio byte counts or duration would reject a valid new container.
+    // Use the same stable/all-resource identity policy as the media publisher.
+    let audio = audio
+        .map(|audio| -> Result<motion_core::AudioAsset> {
+            let mut audio = audio.clone();
+            audio.id = selected
+                .audio_asset
+                .or_else(|| {
+                    project
+                        .assets
+                        .iter()
+                        .map(|a| a.id)
+                        .chain(project.audio_assets.iter().map(|a| a.id))
+                        .chain(project.video_assets.iter().map(|a| a.id))
+                        .chain(project.model_assets.iter().map(|a| a.id))
+                        .chain(project.tracking_assets.iter().map(|a| a.id))
+                        .max()
+                        .unwrap_or(0)
+                        .checked_add(1)
+                })
+                .ok_or("asset ID exhausted")?;
+            audio.path = next.path.clone();
+            Ok(audio)
+        })
+        .transpose()?;
+    next.audio_asset = audio.as_ref().map(|a| a.id);
+    motion_core::media_assets::apply(
+        &mut candidate,
+        motion_core::media_assets::AssetAction::ReplaceVideo { video: next, audio },
+    )?;
     let active = candidate.composition_id.clone();
     for id in candidate.composition_ids() {
         candidate.activate_composition(&id)?;
@@ -261,7 +291,7 @@ pub(super) fn finish(
                 );
             }
         }
-        let mut view = verification_view(&expected, source, video.asset(), &ids)?;
+        let mut view = verification_view(&expected, source, video.asset(), video.audio(), &ids)?;
         let mut tracking = Vec::new();
         for solve in &solves {
             log::info!("tracked video replacement start request={request} session={id} source=Video:{} tracking_asset={} phase=verify_original",source.id,solve.asset);

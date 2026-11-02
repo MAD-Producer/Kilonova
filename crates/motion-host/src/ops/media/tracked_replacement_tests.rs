@@ -124,6 +124,61 @@ impl Fixture {
 }
 
 #[test]
+fn verification_clone_adds_replaces_and_removes_coherent_audio_without_changing_author_state() {
+    let mut f = Fixture::new();
+    f.before.tracking_assets[0].id = 90;
+    let source = AssetRef {
+        kind: AssetKind::Video,
+        id: 1,
+    };
+    let ids = HashSet::from([90]);
+    let mut video = envelope(f.root.path(), "new");
+    video.duration_us = 1_000_000;
+    let audio = motion_core::AudioAsset {
+        id: 0,
+        path: "assets/prepared.mp4".into(),
+        mime: "audio/mp4".into(),
+        bytes: video.bytes,
+        track: 1,
+        sample_rate: 48_000,
+        channels: 2,
+        sample_frames: 48_000,
+        duration_us: 1_000_000,
+    };
+    f.before.validate().unwrap();
+    let before = f.before.clone();
+    let added = verification_view(&before, source, &video, Some(&audio), &ids).unwrap();
+    assert_eq!(added.video_assets[0].audio_asset, Some(91));
+    assert_eq!(added.audio_assets[0].id, 91);
+    assert_eq!(added.audio_assets[0].path, before.video_assets[0].path);
+    assert_eq!(added.audio_assets[0].bytes, video.bytes);
+    assert_eq!(added.audio_assets[0].duration_us, 1_000_000);
+    assert_eq!(f.before, before);
+
+    let mut linked = before.clone();
+    let mut old_audio = audio.clone();
+    old_audio.id = 2;
+    old_audio.path = linked.video_assets[0].path.clone();
+    old_audio.bytes = linked.video_assets[0].bytes;
+    old_audio.sample_frames = 1600;
+    old_audio.duration_us = 33_333;
+    linked.video_assets[0].audio_asset = Some(2);
+    linked.audio_assets.push(old_audio);
+    linked.validate().unwrap();
+    let snapshot = linked.clone();
+    let replaced = verification_view(&linked, source, &video, Some(&audio), &ids).unwrap();
+    assert_eq!(replaced.video_assets[0].audio_asset, Some(2));
+    assert_eq!(replaced.audio_assets.len(), 1);
+    assert_eq!(replaced.audio_assets[0].id, 2);
+    assert_eq!(replaced.audio_assets[0].bytes, video.bytes);
+    assert_eq!(replaced.audio_assets[0].duration_us, 1_000_000);
+    let removed = verification_view(&linked, source, &video, None, &ids).unwrap();
+    assert!(removed.audio_assets.is_empty());
+    assert_eq!(removed.video_assets[0].audio_asset, None);
+    assert_eq!(linked, snapshot);
+}
+
+#[test]
 fn published_acknowledgement_keeps_matching_model_history_and_both_originals() {
     let mut f = Fixture::new();
     let path = f.root.path().join(&f.next.path);
