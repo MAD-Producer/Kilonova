@@ -1,0 +1,1545 @@
+{
+  "status": "paired_replacement_clock_integration_and_native_controls_passed",
+  "head": "9c7bb66d570dbf63c82b485600710281b5b30495",
+  "integratedParent": "7cf168a45b948ae8ed15384320dbc90c10ef0699",
+  "counts": {
+    "model-core": {
+      "passed": 859,
+      "failed": 0,
+      "ignored": 1,
+      "targets": 137,
+      "filtered": 0
+    },
+    "host-lib": {
+      "passed": 169,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1,
+      "filtered": 0
+    },
+    "host-integration": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 2,
+      "filtered": 0
+    },
+    "media-video": {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1,
+      "filtered": 88
+    },
+    "paired-native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1,
+      "filtered": 1746
+    },
+    "audio-native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1,
+      "filtered": 1746
+    },
+    "mapped-native": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1,
+      "filtered": 1746
+    }
+  },
+  "source": {
+    "crates/motion-core/tests/tracking_replacement.rs": {
+      "rawSha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993",
+      "gitLfSha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+    },
+    "crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+      "rawSha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75",
+      "gitLfSha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75"
+    },
+    "crates/motion-model/src/commands.rs": {
+      "rawSha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609",
+      "gitLfSha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+    }
+  },
+  "steps": [
+    {
+      "name": "model-core",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-model",
+        "-p",
+        "motion-core",
+        "--locked",
+        "--offline",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:02:40.773517+00:00",
+      "pid": 31384,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:11:10.709189+00:00",
+      "summaries": [
+        [
+          "ok",
+          "39",
+          "0",
+          "1",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "15",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "11",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "10",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "70",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "12",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "12",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "11",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "16",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "17",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "65",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "10",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "22",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "5",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "6",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "11",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "3",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "4",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "9",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "2",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "host-lib",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:11:11.462888+00:00",
+      "pid": 21600,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:14:14.922956+00:00",
+      "summaries": [
+        [
+          "ok",
+          "169",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "host-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-host",
+        "--locked",
+        "--offline",
+        "--test",
+        "tracking_relink",
+        "--test",
+        "asset_registration",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:14:15.143317+00:00",
+      "pid": 32056,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:14:46.321967+00:00",
+      "summaries": [
+        [
+          "ok",
+          "8",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "7",
+          "0",
+          "0",
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "name": "media-video",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-media",
+        "--locked",
+        "--offline",
+        "--lib",
+        "video::",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUtc": "2026-11-02T12:14:46.630185+00:00",
+      "pid": 38700,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:14:55.128314+00:00",
+      "summaries": [
+        [
+          "ok",
+          "14",
+          "0",
+          "0",
+          "0",
+          "88"
+        ]
+      ]
+    },
+    {
+      "name": "paired-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::fresh_plate_and_solve_are_atomic_native_verified_undoable_and_reopenable",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:14:55.629148+00:00",
+      "pid": 41468,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:17:41.573971+00:00",
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1746"
+        ]
+      ]
+    },
+    {
+      "name": "audio-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::paired::audio::native_audio_and_tracking_replace_rollback_undo_redo_and_reopen_together",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:17:42.972240+00:00",
+      "pid": 39396,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:18:01.810067+00:00",
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1746"
+        ]
+      ]
+    },
+    {
+      "name": "mapped-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "ffmpeg",
+        "--bin",
+        "motion-studio",
+        "--locked",
+        "--offline",
+        "engine::tracking_video_replacement_tests::mapped_time::mapped_original_video_keeps_native_picture_and_authored_clock_across_replacement",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "startedUtc": "2026-11-02T12:18:02.212893+00:00",
+      "pid": 29360,
+      "exitCode": 0,
+      "completedUtc": "2026-11-02T12:19:18.823418+00:00",
+      "summaries": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1746"
+        ]
+      ]
+    }
+  ],
+  "elapsedSeconds": 998.468,
+  "limits": [
+    "No fresh complete desktop package or workspace regression",
+    "Final-head cross-platform CI remains required",
+    "Native controls capture offscreen GPU output, not a retained native Surface",
+    "Mapped footage and paired publication are separate native controls; their combination is covered at the core history boundary",
+    "Photographed planar tracker quality, prerequisites #85/#86 and full 3D route remain separate incomplete acceptance",
+    "Android is retired and excluded"
+  ],
+  "archive": {
+    "path": "tracking88-pair-clock-integration-v1.zip",
+    "bytes": 189921,
+    "sha256": "a997fb7d1db36459cc2f924e1038dded56a24f749d6f688e2cb812e3cf74ac31",
+    "members": {
+      "audio-native.stderr.log": {
+        "bytes": 19175,
+        "sha256": "58596c40637c17ee3087c3a0184157f755e1ee970cbe8cd64a751610317a049e"
+      },
+      "audio-native.stdout.log": {
+        "bytes": 258,
+        "sha256": "8ebe94c892305dfd69d02b3d67b1b12c3d00db6573444a473413ba9722b175c5"
+      },
+      "audio/audio-plate.png": {
+        "bytes": 7287,
+        "sha256": "0587d330ec03c38e7a51d8af25a7dc42b3c77ff68596b096150c71e5b0376c59"
+      },
+      "audio/logs/motion-studio.log": {
+        "bytes": 24804,
+        "sha256": "f86d925578fd6c4f9e4926f0d9b53ef608a73da79eb0e9b0c9cc05791360852f"
+      },
+      "controller.py": {
+        "bytes": 6559,
+        "sha256": "0d17143279e64bd20688ce9881f8e3417fe2d3d18d60869e4fd6c1e43459dc02"
+      },
+      "exit.json": {
+        "bytes": 283867,
+        "sha256": "1ebea397fc7b8c2018b69d8827abbe9c8eb2d4be82511fc6b5045cdba669242e"
+      },
+      "host-integration.stderr.log": {
+        "bytes": 1273,
+        "sha256": "a9e7df44df7a89fc3b0bea03d035d1c2b8a3b29a8f758fa92579a790bf653e39"
+      },
+      "host-integration.stdout.log": {
+        "bytes": 1320,
+        "sha256": "6b16d0821c63eb0764d55255c9aa96d7db486f19aea0ac8f82519f258af905ec"
+      },
+      "host-lib.stderr.log": {
+        "bytes": 1507,
+        "sha256": "e01aa4b344f99113a5adef42f09859621d54aa224d78ecae0b720e8122af6e25"
+      },
+      "host-lib.stdout.log": {
+        "bytes": 18924,
+        "sha256": "2dbba2622fce597a0fad499bc43658c42dec19bcc92a6ab1a5caceb094672fa8"
+      },
+      "mapped-native.stderr.log": {
+        "bytes": 71075,
+        "sha256": "62956a9edb50e6af45cca424193d180407530d136decc2335cbb9efd68ace155"
+      },
+      "mapped-native.stdout.log": {
+        "bytes": 264,
+        "sha256": "4b4a569855556f22c79980f245775644938e4b002f334ebd263f44356129e08f"
+      },
+      "mapped/logs/motion-studio.log": {
+        "bytes": 152211,
+        "sha256": "d7103bbd7cd2b42e85f41fa18fc02d97a90a4dfc95847133d2facc3c13fd9fd1"
+      },
+      "mapped/report.json": {
+        "bytes": 978,
+        "sha256": "8ddac1dce7c246ae6eee2ff918721ac1cc6f5d068d79614edd6853857dc419e9"
+      },
+      "mapped/reverse-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "mapped/reverse-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "mapped/source-hold-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "mapped/source-hold-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "mapped/source-remap-reference.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "mapped/source-remap-reopened.png": {
+        "bytes": 7648,
+        "sha256": "d8c0caa5be6826399212e903c29c96e876d551c9d58c678cfa184e9b7ebf2105"
+      },
+      "mapped/stretch-reference.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "mapped/stretch-reopened.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "media-video.stderr.log": {
+        "bytes": 1129,
+        "sha256": "41a862a3e14b488bdcae5f3fabc52a4d1414b984e6e63af582ca38dd97bb8d98"
+      },
+      "media-video.stdout.log": {
+        "bytes": 1466,
+        "sha256": "acf8e976edd12afa09427242a496b4560ea7ebd5bf4f14ea1ceadffddad2d9d9"
+      },
+      "model-core.stderr.log": {
+        "bytes": 19389,
+        "sha256": "43da7cc2ee092f4a8f4baa7e709744eb22fdc9358df3169137a9ed82443268e3"
+      },
+      "model-core.stdout.log": {
+        "bytes": 91467,
+        "sha256": "b35113c0aab185b1649ccf2956a0dc169f1e00f831decc3f6771fec4c2449bcf"
+      },
+      "paired-native.stderr.log": {
+        "bytes": 22661,
+        "sha256": "6d5adcc3c1adf5ad72ec991ca8e590790116fabf60a83d26aa10c0b74c8f0ac2"
+      },
+      "paired-native.stdout.log": {
+        "bytes": 251,
+        "sha256": "1f1173d4b40d8430f2f4508e11b0cd7eea7e1b4fa72c4dc209a8e95522e822f0"
+      },
+      "paired/after.png": {
+        "bytes": 7705,
+        "sha256": "c804360a2e1478c312a05eef1f13d492af7259e74f94e1f0ca1d8ddf9b02debd"
+      },
+      "paired/before.png": {
+        "bytes": 7770,
+        "sha256": "fb67abed88b33de884f2ef869ba3fea11b40590825e83278b0dc5a42a2fb77dd"
+      },
+      "paired/logs/motion-studio.log": {
+        "bytes": 25821,
+        "sha256": "415ac56f227fda828aa7b025bcc760188e2782906267f8cebdb8de273ad9402b"
+      },
+      "publisher.py": {
+        "bytes": 12301,
+        "sha256": "ab4745c71a613bd5c7dc4259149c38342d40c4a0ac22cdc0d261d79923c3c7f2"
+      },
+      "source/crates/motion-core/tests/tracking_replacement.rs": {
+        "bytes": 8213,
+        "sha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+      },
+      "source/crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+        "bytes": 2001,
+        "sha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75"
+      },
+      "source/crates/motion-model/src/commands.rs": {
+        "bytes": 14313,
+        "sha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+      }
+    }
+  }
+}

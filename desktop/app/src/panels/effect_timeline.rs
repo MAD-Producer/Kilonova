@@ -136,6 +136,7 @@ struct KeyDrag {
     bounds: Option<[f32; 2]>,
 }
 struct HandleDrag {
+    local: Option<(i32, motion_core::layer_time::LayerClock,i32)>,
     target: Target,
     frame: u32,
     index: usize,
@@ -498,7 +499,9 @@ pub(super) fn render(
             choose(panels, state, &target, None);
         }
         let at = state["frame"].as_f64().unwrap_or(0.);
-        let local = at - row.mask_offset as f64;
+        let Some(clock)=row.property_clock else {continue;};
+        let Ok(local)=observe!("timeline.effect_time",clock.local_frame(at,row.mask_offset),
+            "object={} effect={id} phase=sample",row.id) else {continue;};
         let frame = composition_frame(at, state);
         let enabled = target.editable(state) && parameter.implemented && frame.is_some();
         let times = frames(&parameter, row.mask_offset as f64);
@@ -603,6 +606,10 @@ pub(super) fn render(
         if panels.timeline.graph_mode {
             continue;
         }
+        if key_selection::ui::mapped_lane(list,panels,row,
+            motion_core::KeyframeTarget::Effect {object:row.id,effect:id,param:param.into()},
+            Rect::new(track.min[0],py,track.width(),height),ppf,offset,
+            styles.metric("timeline.key.radius",4.),styles.metric("timeline.key.hit_radius",5.),false) {continue;}
         for time in frames(&parameter, row.mask_offset as f64) {
             let x = track.min[0] + (time as f32 - offset) * ppf;
             if x < track.min[0] || x >= track.max[0] {

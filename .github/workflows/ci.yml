@@ -154,6 +154,14 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+      - name: Reserve Linux desktop build disk space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          # These hosted-runner SDKs are not used by the desktop build. Free
+          # them before restoring Rust artifacts; retain all build/test data.
+          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet
+          df -h "$GITHUB_WORKSPACE"
       - name: Install headless Vulkan and native build dependencies
         if: runner.os == 'Linux'
         run: |

@@ -1,0 +1,258 @@
+{
+  "issue": 257,
+  "stage": "exact-time anchor compensation",
+  "branch": "feat/layer-time-mapping",
+  "base": "f4cabfb2c428b7c6ff4514543897b432e7e911d3",
+  "sourceHashes": {
+    "crates/motion-core/src/command_registry.rs": "924626acf7063853b0039de7821d373ea7798d144b9c0336f4c6f97877c7f39d",
+    "crates/motion-core/src/editor.rs": "725446e2d3fd239251cd99e23796ed8c6ad04db6d57c40b089704ea5612b3696",
+    "crates/motion-core/tests/layer_anchor_animation.rs": "ccf127b7dd661cccc89d889538831696a7d366476855958676c3547b1063a138",
+    "crates/motion-core/tests/layer_anchor_animation/mapped.rs": "b082d7f18724524d6d1162dfc52ff3e5fc663d07dc5f4382f457203711a6e91e",
+    "crates/motion-model/src/commands.rs": "51835bb2cbe5eeeb6964fb411f7e60c3053bebc8891c8e35f5a102be55780b7c",
+    "crates/motion-model/src/keyframe_clipboard/authoring.rs": "7d0838e29eb4089dad07cd14a970765f54e5a533ea9f73268662567c2c3a7648",
+    "crates/motion-model/src/keyframe_clipboard/authoring/anchor.rs": "0e9b50c74f7403a967b56d886204e61801e5c5f2c5f99ca66342b59446f20810",
+    "desktop/app/src/panels/properties.rs": "896791c345f9a839f7220ce4ef00c1e8d9c9412fb10f14ad2fb6ad87f3080684",
+    "desktop/app/src/panels/properties/tree_tests.rs": "eed498bc30424302698bef216f6ae61ca2a8d044691d05ccddb0517accf7eff6",
+    "desktop/app/src/panels/properties/mapped_anchor_tests.rs": "536f47d10bf3feddaaaad1542b0d87786f6d6f05c9c122ced51dcad5123c4598",
+    "desktop/app/src/panels/transform_controls.rs": "0f854b7ac545e93981aa14046dd828b0910369b87d52a22d1d7697b00ec6ea1e",
+    "desktop/app/src/panels/transform_controls/mapped_anchor_tests.rs": "3ec46e64f8422b6ebb11fb9e172a28d12ae7b4e8b8436633c84fdce6f7c13354"
+  },
+  "binaries": {
+    "anchor-tested.exe": "36dfb6a223b5cff454b7f3ae2e7094a2d25cf71f162b21ea68dbe67744dac8e1",
+    "track-at-tested.exe": "eea6d27d630afb9f7872eed0992a1f62ddc9c7b7dafbc4d2566346331fb811d2",
+    "motion-studio-tested.exe": "8e8a4abcd394e65da7aa411d1909b27d84c0042afd7a0189eb7396404c56008f"
+  },
+  "passed": 145,
+  "unrunManual": [
+    "panels::effect_controls::mapped_authoring_tests::native::mapped_numeric_native_worker_pixels_errors_history_and_reopen",
+    "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+    "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages",
+    "panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures",
+    "panels::transform_controls::spatial::native_tests::snapping::native_transform_snapping_preserves_history_and_exposes_reached_targets"
+  ],
+  "testResults": [
+    {
+      "group": "core-anchor",
+      "exit": 0,
+      "seconds": 1.453,
+      "passed": [
+        "anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically",
+        "anchor_uses_local_time_and_survives_save_reopen_and_frozen_snapshot",
+        "animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_undo",
+        "mapped::anchor_candidate_is_not_published_when_the_compensation_channel_cannot_address_time",
+        "mapped::anchor_command_catalogue_and_parser_expose_fractional_composition_time",
+        "mapped::continuous_anchor_and_position_keep_stable_ids_at_exact_projected_time",
+        "mapped::exact_fractional_composition_anchor_preserves_parented_mirrored_pose_and_only_local_keys",
+        "mapped::invalid_anchor_values_times_and_locked_layers_preserve_full_project_and_history",
+        "mapped::mapped_anchor_gesture_cancels_both_channels_and_commit_is_one_undo",
+        "mapped::roving_compensation_that_changes_the_current_sample_is_rejected_without_policy_or_pose_changes",
+        "mapped::static_separated_position_uses_owned_axis_values_at_fractional_local_time_without_keys",
+        "static_anchor_array_keeps_format_pose_and_noncentral_pivot"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "core-track",
+      "exit": 0,
+      "seconds": 2.797,
+      "passed": [
+        "color_curve_disable_freezes_the_exact_fractional_sample_and_edit_preserves_timing",
+        "continuous_spatial_keys_keep_stable_identity_and_accept_fractional_local_edits",
+        "effect_numeric_and_discrete_parameters_use_the_same_exact_authoring_protocol",
+        "exact_integer_projection_survives_inversion_error_without_accepting_nearby_composition_times",
+        "exact_toggle_removes_and_restores_local_key_without_duplicate_projected_keys",
+        "fractional_composition_time_updates_exact_signed_local_keys_in_both_directions",
+        "fractional_local_keys_are_rejected_without_rounding_or_partial_batch_mutation",
+        "invalid_targets_values_times_and_locked_layers_leave_project_and_history_unchanged",
+        "numeric_updates_share_one_gesture_and_cancel_preserves_the_original_project",
+        "projected_continuous_spatial_key_updates_its_stable_id_instead_of_inserting_a_nearby_key",
+        "protocol_requires_exact_time_and_typed_values_and_rejects_unknown_fields",
+        "separated_axes_require_an_explicit_axis_and_other_axes_remain_unchanged",
+        "static_only_effects_accept_fractional_value_edits_but_never_gain_animation_or_edit_unimplemented_parameters",
+        "static_values_accept_fractional_local_times_and_animation_disable_freezes_exact_sample"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "properties",
+      "exit": 0,
+      "seconds": 13.703,
+      "passed": [
+        "panels::properties::mapped_anchor_tests::continuous_anchor_uses_timed_compensation_instead_of_global_baking",
+        "panels::properties::mapped_anchor_tests::mapped_anchor_numeric_drag_uses_exact_time_and_cancels_on_clock_change_in_all_hosts",
+        "panels::properties::tests::anchor_and_scrub_fallback_evidence_preserves_values_and_empty_gestures",
+        "panels::properties::tests::click_keeps_value_and_typing_replaces_only_after_input",
+        "panels::properties::tests::clipboard::numeric_clipboard_drafts_commit_one_typed_edit_and_undo_once",
+        "panels::properties::tests::clipboard::numeric_clipboard_failure_and_ime_confirmation_do_not_commit_or_erase_the_field",
+        "panels::properties::tests::coalesced_return_drag_closes_without_reopening_input",
+        "panels::properties::tests::empty_numeric_input_changes_nothing_and_escape_cancels_scrub",
+        "panels::properties::tests::scrub_returning_through_origin_starts_once_and_closes_transaction",
+        "panels::properties::tests::stationary_held_pointer_does_not_resubmit_the_numeric_edit",
+        "panels::properties::tests::stylesheet_threshold_and_grabbing_cursor_preserve_single_transaction",
+        "panels::properties::tree_tests::anchor_rows_keep_one_gesture_when_other_layers_render_and_cancel_when_hidden",
+        "panels::properties::tree_tests::anchor_stopwatch_and_animated_numeric_cancel_agree_in_both_property_hosts",
+        "panels::properties::tree_tests::embedded_effect_dropdown_blocks_group_folding_in_main_and_floating_properties",
+        "panels::properties::tree_tests::invalid_anchor_edit_reaches_reply_file_stderr_without_mutating_state"
+      ],
+      "ignored": [
+        "panels::properties::mapped_anchor_tests::native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows"
+      ]
+    },
+    {
+      "group": "transform_controls",
+      "exit": 0,
+      "seconds": 13.157,
+      "passed": [
+        "panels::transform_controls::guide_routing_tests::composition_preserves_grip_priority_and_specialized_tools_near_guides",
+        "panels::transform_controls::guide_tests::edge_snap_keeps_separated_uncontrolled_tracks_and_alt_bypasses_guide_targets",
+        "panels::transform_controls::guide_tests::hidden_overlays_and_distant_guides_preserve_unsnapped_scale_and_unreachable_targets_are_normal",
+        "panels::transform_controls::guide_tests::moving_anchor_snaps_through_the_actual_host_at_different_zoom_and_camera_modes_and_undoes_once",
+        "panels::transform_controls::guide_tests::uniform_corner_scale_snaps_the_real_rotated_or_perspective_grip_and_preserves_ratio",
+        "panels::transform_controls::hit_tests::alt_does_not_implicitly_start_an_anchor_gesture",
+        "panels::transform_controls::hit_tests::cursor_highlight_and_press_use_the_same_window_hit_style",
+        "panels::transform_controls::hit_tests::exact_ties_are_stable_and_locked_or_invalid_points_have_no_target",
+        "panels::transform_controls::hit_tests::overlapping_handles_choose_the_closest_geometric_target",
+        "panels::transform_controls::hit_tests::projected_small_layer_corners_are_captured_at_each_zoom_and_offset",
+        "panels::transform_controls::hit_tests::radii_preserve_default_boundaries_and_follow_window_overrides",
+        "panels::transform_controls::mapped_anchor_tests::anchor_time_faults_and_worker_rejections_reach_default_logs_without_stdout",
+        "panels::transform_controls::mapped_anchor_tests::mapped_canvas_anchor_preserves_corners_and_cancels_when_the_clock_changes",
+        "panels::transform_controls::scale_tests::all_scale_grips_follow_the_modifier_table_in_2d_and_3d_with_one_undo",
+        "panels::transform_controls::scale_tests::alt_corner_scaling_changes_axes_independently",
+        "panels::transform_controls::scale_tests::ctrl_corner_scaling_keeps_the_default_proportion_constraint",
+        "panels::transform_controls::scale_tests::escape_restores_the_original_project_after_a_free_scale_preview",
+        "panels::transform_controls::scale_tests::modifier_changes_use_the_original_seed_and_stay_in_one_gesture",
+        "panels::transform_controls::scale_tests::shift_edge_scaling_preserves_the_other_axis_proportion",
+        "panels::transform_controls::snap_feedback::tests::feedback_uses_window_tokens_and_only_reached_axes",
+        "panels::transform_controls::snap_feedback::tests::move_and_scale_snap_to_other_layer_geometry_with_one_undo_and_alt_bypasses_targets",
+        "panels::transform_controls::spatial::tests::constrained_commands_only_change_requested_components_and_share_one_preview_transaction",
+        "panels::transform_controls::spatial::tests::end_on_axes_and_edge_on_planes_are_disabled_and_projection_keeps_2d_mapping_identical",
+        "panels::transform_controls::spatial::tests::ray_constraints_preserve_parent_axes_and_layer_scale_axes_across_cameras_mirrors_and_anchors",
+        "panels::transform_controls::spatial::worker_tests::actual_plane_presses_reach_constraints_and_locked_or_singular_handles_explain_refusal",
+        "panels::transform_controls::spatial::worker_tests::actual_worker_constraints_preserve_other_tracks_and_one_undo_restores_the_full_project",
+        "panels::transform_controls::spatial::worker_tests::spatial_context_rejects_lock_hierarchy_camera_mode_and_document_changes_without_followup_edits",
+        "panels::transform_controls::spatial::worker_tests::spatial_context_tracks_camera_parent_motion_and_shared_or_legacy_camera_ancestors",
+        "panels::transform_controls::spatial::worker_tests::spatial_release_focus_cancel_and_persistence_use_the_existing_preview_history",
+        "panels::transform_controls::tests::hovered_grip_identity_matches_hit_test_and_lock_disables_it",
+        "panels::transform_controls::tests::move_under_nonuniform_parent_changes_position_without_changing_scale",
+        "panels::transform_controls::tests::moving_anchor_compensates_position_without_moving_pixels",
+        "panels::transform_controls::tests::separate_x_scale_does_not_write_y_or_z_tracks",
+        "panels::transform_controls::tests::source_projection_matches_actual_selection_for_2d_and_3d",
+        "panels::transform_controls::tests::uniform_scale_preserves_ratio_and_one_undo_restores_tracks",
+        "panels::transform_controls::tests::zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input",
+        "panels::transform_controls::threshold_tests::default_boundary_pointer_travel_and_started_gestures_keep_their_contract",
+        "panels::transform_controls::threshold_tests::small_window_threshold_starts_real_gizmo_edits_with_one_undo",
+        "panels::transform_controls::threshold_tests::window_threshold_keeps_short_gizmo_motion_and_release_out_of_history"
+      ],
+      "ignored": [
+        "panels::transform_controls::spatial::native_tests::native_spatial_handles_preserve_owner_locale_history_and_report_projection_failures",
+        "panels::transform_controls::spatial::native_tests::snapping::native_transform_snapping_preserves_history_and_exposes_reached_targets"
+      ]
+    },
+    {
+      "group": "numeric",
+      "exit": 0,
+      "seconds": 21.031,
+      "passed": [
+        "panels::numeric::contract_tests::empty_and_unchanged_numeric_drafts_preserve_redo",
+        "panels::numeric::contract_tests::invalid_and_ime_outside_clicks_keep_drafts_without_model_changes",
+        "panels::numeric::contract_tests::mapped_time::mapped_native_chrome_cancels_stale_numeric_drafts_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::numeric_close_faults_use_default_file_and_error_stderr_without_committing",
+        "panels::numeric::contract_tests::numeric_drafts_and_scrubs_cancel_without_losing_redo_or_crossing_locked_targets",
+        "panels::numeric::contract_tests::numeric_scrubs_share_threshold_modifiers_and_one_history_record",
+        "panels::numeric::contract_tests::valid_outside_click_commits_in_both_numeric_hosts_and_restores_history",
+        "panels::numeric::tests::camera_scrub_preserves_other_axes_and_undo",
+        "panels::numeric::tests::effect_parameter_scrub_uses_real_catalogue_and_one_undo"
+      ],
+      "ignored": [
+        "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages"
+      ]
+    },
+    {
+      "group": "effect_controls",
+      "exit": 0,
+      "seconds": 25.719,
+      "passed": [
+        "panels::effect_controls::application_reveal_tests::reveal_reopens_reused_ids_clears_filters_and_scrolls_only_the_target_layer_once",
+        "panels::effect_controls::color_observation_tests::invalid_color_track_still_closes_popup_and_reports_the_object",
+        "panels::effect_controls::curve::observation_tests::zero_extent_and_retained_curve_drag_emit_bounded_real_draw_evidence",
+        "panels::effect_controls::curve::sampling_failure_tests::actual_curve_draw_failures_log_at_default_level_with_bounded_lifetime_counts",
+        "panels::effect_controls::curve::sampling_failure_tests::refused_drag_sampling_cancels_once_and_retains_last_healthy_cache",
+        "panels::effect_controls::curve::sampling_failure_tests::refused_key_toggle_emits_no_edits_and_preserves_default_failure_channels_then_recovers",
+        "panels::effect_controls::curve::tests::channel_dropdown_is_observational_and_escape_cancels_an_unmoved_gesture",
+        "panels::effect_controls::curve::tests::click_adds_point_and_drag_commits_one_undo",
+        "panels::effect_controls::curve::tests::right_click_removes_interior_points_only",
+        "panels::effect_controls::dropdown_cache::tests::names_are_owned_and_effect_parameter_states_close_independently",
+        "panels::effect_controls::identity_tests::malformed_effect_ids_do_not_reserve_rows_or_change_the_valid_effect_paint",
+        "panels::effect_controls::identity_tests::real_invalid_id_diagnostics_are_bounded_visible_at_default_level_and_reset_on_recovery",
+        "panels::effect_controls::identity_tests::surviving_effect_context_keeps_its_identity_and_original_array_index",
+        "panels::effect_controls::key_navigation::dense_tests::dense_channel_tables_freeze_without_duplicate_payload_through_the_actual_worker",
+        "panels::effect_controls::key_navigation::dense_tests::diamond_keeps_sub_preview_detail_in_all_precisions_and_roundtrips_one_history_step",
+        "panels::effect_controls::key_navigation::dense_tests::locked_or_malformed_curve_diamond_cannot_emit_an_edit",
+        "panels::effect_controls::key_navigation::selection_tests::property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_stale_commands",
+        "panels::effect_controls::key_navigation::tests::custom_effect_key_navigation_disables_old_chord_and_uses_typed_parameter_times",
+        "panels::effect_controls::key_navigation::tests::malformed_navigation_parameters_reach_default_file_and_error_stderr_without_stdout",
+        "panels::effect_controls::library::bound_tests::bound_runtime_versions_are_hidden_from_public_effect_search",
+        "panels::effect_controls::library::scroll_tests::scrolling_the_library_keeps_the_import_button_fixed",
+        "panels::effect_controls::library::tests::categories_use_manifest_metadata_and_never_package_names_or_effect_id_guesses",
+        "panels::effect_controls::library::tests::delayed_fixture_work_preserves_synthetic_double_click_interval_and_disabled_target",
+        "panels::effect_controls::library::tests::double_click_interval_and_intervening_click_preserve_exact_package_identity",
+        "panels::effect_controls::library::tests::import_button_works_without_a_selected_layer_and_browsing_does_not_apply",
+        "panels::effect_controls::library::tests::newest_enabled_version_wins_without_collapsing_different_providers",
+        "panels::effect_controls::library::tests::row_selection_double_click_and_enter_apply_exact_package_identity",
+        "panels::effect_controls::mapped_authoring_tests::invalid_clock_and_offset_do_not_sample_or_generate_rounded_healthy_edits",
+        "panels::effect_controls::mapped_authoring_tests::invalid_clock_cancels_an_active_numeric_gesture_once_without_committing",
+        "panels::effect_controls::mapped_authoring_tests::mapped_clock_faults_reach_default_file_and_error_stderr_with_bounded_lifetime_sites",
+        "panels::effect_controls::mapped_authoring_tests::mapped_edits_use_exact_commands_and_unmapped_edits_keep_the_legacy_protocol",
+        "panels::effect_controls::mapped_authoring_tests::mapped_effect_keyboard_navigation_uses_fractional_projected_times_in_reverse_order",
+        "panels::effect_controls::mapped_authoring_tests::mapped_effect_rail_toggles_at_fractional_composition_frame_and_disables_fractional_local_frame",
+        "panels::effect_controls::mapped_authoring_tests::mapped_property_navigation_selects_local_identity_and_toggle_never_casts_the_playhead",
+        "panels::effect_controls::mapped_authoring_tests::mapped_transform_sampling_uses_local_clock_in_both_directions",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::effect_text_outside_commit_cannot_bypass_the_captured_time",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::effect_time_changes_cancel_previews_once_and_never_retarget_another_key",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::faults::numeric_time_faults_keep_original_causes_in_default_file_and_error_stderr",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::numeric_time_compares_the_clock_not_only_the_resulting_local_sample",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::transform_preview_revisions_do_not_cancel_their_own_gesture_and_commit_undoes_once",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::transform_time_changes_cancel_scrub_or_text_without_writing_at_the_new_playhead",
+        "panels::effect_controls::mapped_authoring_tests::parameter_readout_and_numeric_drag_edit_exact_local_key_and_undo_once",
+        "panels::effect_controls::mapped_authoring_tests::seeking_coincident_spatial_keys_does_not_keep_an_unrelated_previous_key_selected",
+        "panels::effect_controls::removal_tests::cancellation_closes_both_menus_without_editing",
+        "panels::effect_controls::removal_tests::context_removal_keeps_its_single_layer_scope_at_both_host_sizes",
+        "panels::effect_controls::removal_tests::effect_menu_removes_selected_layers_atomically_and_one_undo_restores_all",
+        "panels::effect_controls::removal_tests::invalidated_batch_returns_the_engine_error_without_partial_removal_or_history",
+        "panels::effect_controls::removal_tests::localized_scope_and_counts_are_fully_painted_in_the_existing_menu_row",
+        "panels::effect_controls::removal_tests::menu_refreshes_live_targets_and_keeps_primary_and_empty_layer_scope",
+        "panels::effect_controls::removal_tests::real_main_and_floating_input_owners_preserve_removal_and_cancellation",
+        "panels::effect_controls::removal_tests::unavailable_targets_disable_whole_selection_and_empty_contexts",
+        "panels::effect_controls::tests::color_row_opens_popup_and_channel_scrub_commits_one_undo",
+        "panels::effect_controls::tests::inline_rows_keep_vectors_together_and_real_discrete_and_curve_edits_undo",
+        "panels::effect_controls::track_cache_tests::render_reloads_reused_ids_for_each_snapshot_identity_component",
+        "panels::effect_controls::track_cache_tests::same_snapshot_resamples_the_displayed_scalar_at_the_current_local_frame"
+      ],
+      "ignored": [
+        "panels::effect_controls::mapped_authoring_tests::native::mapped_numeric_native_worker_pixels_errors_history_and_reopen"
+      ]
+    },
+    {
+      "group": "native",
+      "exit": 0,
+      "seconds": 9.031,
+      "passed": [
+        "panels::properties::mapped_anchor_tests::native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows"
+      ],
+      "ignored": []
+    }
+  ],
+  "nativeCases": 2,
+  "nativeScreenshots": 4,
+  "boundary": "Roving edits that change the current compensated sample are explicitly rejected; fixed spatial IDs are supported.",
+  "bundle": {
+    "path": "evidence.zip",
+    "sha256": "8a7ea08ac572c58cb68e38fb99a69d3b9c32a76d39b679e7ce89f894f0d6567f",
+    "bytes": 400491
+  },
+  "screenshots": {
+    "properties-main-zh.png": "ad77b0ef75bdf1e82c9773d68a57b8fe65456941eef62001248d0dad2c3455e1",
+    "timeline-floating-en.png": "72bbb062804284d004f8693a2e4521bf800b3535865edaa043f29ee151203588"
+  }
+}

@@ -88,7 +88,7 @@ struct Menu {
     legacy: Option<super::types::KeySelection>,
     effect_key: Option<super::key_selection::Key>,
     comparison: Option<super::curve_comparison::RangeContext>,
-    mini: Option<(KeyframeTarget, i64)>,
+    mini: Option<(KeyframeTarget, super::animation_controls::time::Address)>,
     selected: Option<u64>,
     focused: Option<Panel>,
     track: Option<(Value, i64)>,
@@ -200,7 +200,7 @@ impl Controls {
         legacy: Option<super::types::KeySelection>,
         effect_key: Option<super::key_selection::Key>,
         comparison: &super::curve_comparison::Controls,
-        mini: Option<(KeyframeTarget, i64)>,
+        mini: Option<(KeyframeTarget, super::animation_controls::time::Address)>,
         selected: Option<u64>,
         focused: Option<Panel>,
     ) -> bool {
@@ -402,7 +402,7 @@ impl Controls {
         });
     }
 
-    pub(super) fn capture_mini(&mut self, target: KeyframeTarget, frame: i64) {
+    pub(super) fn capture_mini(&mut self, target: KeyframeTarget, frame: super::animation_controls::time::Address) {
         if let Some(menu) = &mut self.menu {
             if matches!(menu.id.surface, Surface::Mini(_)) {
                 menu.mini = Some((target, frame));

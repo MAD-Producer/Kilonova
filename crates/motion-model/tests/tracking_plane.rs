@@ -5,6 +5,8 @@ use motion_model::{
 #[path = "support/tracking_plane.rs"]
 mod fixture;
 use fixture::plane_fixture;
+#[path = "tracking_layer_time/plane.rs"]
+mod mapped_clock;
 #[test]
 fn equivalent_homogeneous_scales_preserve_perspective_and_reject_poles() {
     use tracking::plane::project_quad;

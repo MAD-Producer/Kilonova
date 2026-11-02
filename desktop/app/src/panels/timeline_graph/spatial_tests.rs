@@ -120,7 +120,7 @@ fn spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities() {
         .unwrap();
     let source = &snapshot["timeline_layers"][0]["properties"]["position"];
     assert_eq!(
-        fit_intervals(&panels, &snapshot, &target(), source, 15),
+        fit_intervals(&panels, &snapshot, &target(), source, false),
         ([15., 35.], Some([17.5, 17.5]))
     );
     let mut project = fixture().snapshot();

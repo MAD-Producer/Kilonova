@@ -47,7 +47,7 @@ fn keyframe_clipboard_failures_use_default_engine_error_channel_and_preserve_sta
                 property,
                 axis: None,
             }],
-            at_frame: Some(30),
+            at_frame: Some(30.),
         };
         engine
             .edit(serde_json::to_string(&paste(Property::Position)).unwrap())

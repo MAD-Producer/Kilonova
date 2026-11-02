@@ -75,16 +75,47 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "bool" => json!({"type":"boolean"}),
             "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
+            "TrackEdit" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","key","value"],"properties":{
+                    "kind":{"const":"set_spatial_key"},"key":{"type":"integer","minimum":1},
+                    "value":{"type":"array","items":{"type":"number"},"minItems":2,"maxItems":3}}},
+                {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{
+                    "kind":{"const":"set"},"value":{"oneOf":[{"type":"number"},
+                        {"type":"array","items":{"type":"number"},"minItems":2,"maxItems":4},
+                        {"type":"array","items":{"type":"number"},"minItems":6,"maxItems":6},
+                        {"type":"object","description":"Validated CurveObject color-transfer function"}]}}},
+                {"type":"object","additionalProperties":false,"required":["kind","enabled"],"properties":{
+                    "kind":{"const":"animate"},"enabled":{"type":"boolean"}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"toggle_key"}}}
+            ]}),
             "LayerSwitch" => json!({"type":"string","enum":["solo","effects","video","audio"]}),
+            "LayerTimeAction" => json!({"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind","stretch","anchor_frame","resize_clip"],"properties":{
+                    "kind":{"const":"stretch"},"anchor_frame":{"type":"number","minimum":-i64::from(crate::MAX_FRAMES),"maximum":crate::MAX_FRAMES},
+                    "resize_clip":{"type":"boolean"},"stretch":{"type":"object","additionalProperties":false,
+                        "required":["numerator","denominator"],"properties":{"numerator":{"type":"integer","minimum":1,"maximum":1000000},
+                            "denominator":{"type":"integer","minimum":1,"maximum":1000000}}}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"reverse"}}},
+                {"type":"object","additionalProperties":false,"required":["kind","remap"],"properties":{
+                    "kind":{"const":"remap"},"remap":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                        "required":["keys"],"properties":{"keys":{"type":"array","minItems":1,
+                            "maxItems":motion_model::layer_time::MAX_TIME_REMAP_KEYS,"items":{"type":"object","additionalProperties":false,
+                                "required":["frame","source_frame","easing"],"properties":{"frame":{"type":"number"},
+                                    "source_frame":{"type":"number"},"easing":named_schema("Easing").1}}}}}]}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"reset"}}}
+            ]}),
             "Property" => {
                 json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
             }
             "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
             "Vec<KeyframeTarget>" => json!({"type":"array","minItems":1,"items":{"type":"object","description":"Typed KeyframeTarget channel address"}}),
             "Vec<KeyframeSelection>" => json!({"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["target","frames"],"properties":{"target":{"type":"object","description":"Typed KeyframeTarget channel address"},"frames":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}}}),
+            "LocalKeyEdit" => local_key_edit_schema(),
             "SpatialKeyEdit" => json!({"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
                     "kind":{"const":"enable"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":0}}}},
+                {"type":"object","additionalProperties":false,"required":["kind","frames"],"properties":{
+                    "kind":{"const":"enable_local"},"frames":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"description":"Strictly increasing authored signed-local key identities; never rounded composition frames","items":{"type":"integer","minimum":-2147483648_i64,"maximum":2147483647_i64}}}},
                 {"type":"object","additionalProperties":false,"required":["kind","keys","enabled"],"properties":{
                     "kind":{"const":"roving"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"enabled":{"type":"boolean"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key","time"],"properties":{
@@ -92,7 +123,9 @@ fn named_schema(kind: &str) -> (bool, Value) {
                 {"type":"object","additionalProperties":false,"required":["kind","keys","delta"],"properties":{
                     "kind":{"const":"move"},"keys":{"type":"array","minItems":1,"maxItems":16385,"uniqueItems":true,"items":{"type":"integer","minimum":1}},"delta":{"type":"number","description":"Translate the selected stable IDs atomically from their current solved times"}}},
                 {"type":"object","additionalProperties":false,"required":["kind","key"],"properties":{
-                    "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}}
+                    "kind":{"const":"delete"},"key":{"type":"integer","minimum":1}}},
+                {"type":"object","additionalProperties":false,"required":["kind","key","easing"],"properties":{
+                    "kind":{"const":"curve"},"key":{"type":"integer","minimum":1},"easing":named_schema("Easing").1}}
             ]}),
             "crate::geometry::RotationOrder" => {
                 json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
@@ -189,6 +222,43 @@ fn named_schema(kind: &str) -> (bool, Value) {
     )
 }
 
+fn local_key_edit_schema() -> Value {
+    let frames = json!({"type":"array","minItems":1,"maxItems":crate::MAX_FRAMES,
+        "uniqueItems":true,"description":"Sorted signed authored local-frame identities; never rounded composition times",
+        "items":{"type":"integer","minimum":i32::MIN,"maximum":i32::MAX}});
+    let variant = |kind: &str, fields: Vec<(&str, Value)>, required: &[&str]| {
+        let mut properties = serde_json::Map::new();
+        properties.insert("kind".into(), json!({"const":kind}));
+        properties.insert("frames".into(), frames.clone());
+        for (name, schema) in fields { properties.insert(name.into(), schema); }
+        let required: Vec<_> = ["kind", "frames"].into_iter().chain(required.iter().copied()).collect();
+        json!({"type":"object","additionalProperties":false,"required":required,"properties":properties})
+    };
+    json!({"description":"Edits authored integer keys by local identity; ease sides follow increasing local time",
+        "oneOf":[
+        variant("translate", vec![
+            ("delta_frame",json!({"type":"integer","minimum":i32::MIN,"maximum":i32::MAX,
+                "description":"Signed layer-local frame delta; composition projection can be fractional"})),
+            ("copy",json!({"type":"boolean"})),
+            ("value_offset",json!({"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,
+                "required":["component","delta"],"properties":{"component":{"type":"integer","minimum":0},
+                    "delta":{"type":"number"}}}]}))], &["delta_frame","copy"]),
+        variant("interpolation",vec![("ease",named_schema("Ease").1)], &["ease"]),
+        variant("curve",vec![("easing",named_schema("Easing").1)], &["easing"]),
+        {"type":"object","additionalProperties":false,"required":["kind","frame","incoming","control"],
+            "properties":{"kind":{"const":"handle"},
+                "frame":{"type":"integer","minimum":i32::MIN,"maximum":i32::MAX,
+                    "description":"Authored local interval start, including negative keys"},
+                "incoming":{"type":"boolean"},
+                "control":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number"},
+                    "description":"Only the edited normalized cubic endpoint; opposite endpoint is resolved at apply time"}}},
+        variant("ease",vec![("incoming",json!({"type":"boolean"})),
+            ("outgoing",json!({"type":"boolean"}))], &["incoming","outgoing"]),
+        variant("automatic",vec![("enabled",json!({"type":"boolean"}))], &["enabled"]),
+        variant("delete",vec![], &[])
+    ]})
+}
+
 fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDescriptor {
     let mut properties = serde_json::Map::new();
     properties.insert("op".into(), json!({"const":id}));
@@ -217,6 +287,7 @@ fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDe
 }
 registry! {
     Command::SetTrackingCamera { .. } => "set_tracking_camera" [("object","u64",true),("binding","Option<CameraBinding>",true)];
+    Command::LayerTime { .. } => "layer_time" [("object","u64",true),("action","LayerTimeAction",true)];
     Command::ApplyAnimationPreset { .. } => "apply_animation_preset" [("preset","AnimationPreset",true),("objects","Vec<u64>",true),("at_frame","u32",true)];
     Command::PasteLayers { .. } => "paste_layers" [("clipboard","crate::LayerClipboard",true),("at_frame","Option<u32>",false),("keep_external_references","bool",true)];
     Command::RemoveLayers { .. } => "remove_layers" [("objects","Vec<u64>",true),("frame","u32",true)];
@@ -258,13 +329,15 @@ registry! {
     Command::Parent { .. } => "parent" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true)];
     Command::ParentWithMode { .. } => "parent_with_mode" [("object","u64",true), ("parent","Option<u64>",false), ("frame","u32",true), ("mode","ParentMode",true)];
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
-    Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<u32>",false)];
+    Command::PasteKeyframes { .. } => "paste_keyframes" [("clipboard","KeyframeClipboard",true), ("targets","Vec<KeyframeTarget>",true), ("at_frame","Option<f64>",false)];
     Command::RemoveKeyframes { .. } => "remove_keyframes" [("clipboard","KeyframeClipboard",true)];
     Command::KeyframeInterpolation { .. } => "keyframe_interpolation" [("selections","Vec<KeyframeSelection>",true),("ease","Ease",true)];
     Command::KeyframeAutomatic { .. } => "keyframe_automatic" [("selections","Vec<KeyframeSelection>",true),("enabled","bool",true)];
+    Command::LocalKeyframes { .. } => "local_keyframes" [("target","KeyframeTarget",true),("edit","LocalKeyEdit",true)];
+    Command::TrackAt { .. } => "track_at" [("target","KeyframeTarget",true),("frame","f64",true),("edit","TrackEdit",true)];
     Command::SpatialKeyframes { .. } => "spatial_keyframes" [("target","KeyframeTarget",true),("edit","SpatialKeyEdit",true)];
     Command::KeyframeHandle { .. } => "keyframe_handle" [("target","KeyframeTarget",true),("frame","u32",true),("incoming","bool",true),("control","[f64;2]",true)];
-    Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true)];
+    Command::PasteEasing { .. } => "paste_easing" [("clipboard","CurveClipboard",true),("selections","Vec<KeyframeSelection>",true),("local_selections","Vec<LocalKeyframeSelection>",false)];
     Command::KeyframeTiming { .. } => "keyframe_timing" [("selections","Vec<KeyframeSelection>",true),("settings","TimingSettings",true)];
     Command::EaseKeyframes { .. } => "ease_keyframes" [("selections","Vec<KeyframeSelection>",true),("incoming","bool",true),("outgoing","bool",true)];
     Command::DeleteKeyframes { .. } => "delete_keyframes" [("selections","Vec<KeyframeSelection>",true)];
@@ -300,10 +373,10 @@ registry! {
     Command::SetGuides { .. } => "set_guides" [("guides","Vec<Guide>",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
-    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
+    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","f64",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
     Command::CameraImported { .. } => "camera_imported" [("object","u64",false), ("binding","Option<ImportedCamera>",true)];
-    Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
+    Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","f64",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
     Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];
     Command::Pan { .. } => "pan" [("object","u64",false), ("frame","u32",true), ("x","f32",true), ("y","f32",true)];
 }

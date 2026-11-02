@@ -6,16 +6,31 @@ pub(crate) struct AnchorControls {
 }
 struct AnchorField {
     object: u64,
+    time: Option<super::property_authoring::NumericTime>,
     axis: usize,
     rect: Rect,
     number: super::numeric::Field,
 }
-pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
-    let animated = state["project"]["layers"].as_array().into_iter().flatten()
+fn anchor_animated(state: &Value, object: u64) -> bool {
+    state["project"]["layers"].as_array().into_iter().flatten()
         .find(|l|l["id"].as_u64()==Some(object))
-        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty()));
-    if animated {
-        Command::AnchorAt { object, anchor, frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32 }
+        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty())
+            || l["transform"]["anchor"]["spatial_animation"].is_object())
+}
+fn anchor_time(state: &Value, object: u64) -> motion_core::Result<Option<super::property_authoring::NumericTime>> {
+    // Static, unmapped Anchor is a global operation and needs no playhead.
+    // Legacy partial views legitimately contain only the project for this path.
+    let mapped = super::keyframe_clipboard::layer(state, object)
+        .is_some_and(|layer| !layer["time_mapping"].is_null());
+    if !mapped && !anchor_animated(state, object) { return Ok(None); }
+    super::property_authoring::NumericTime::read(state, object)
+}
+pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
+    if anchor_animated(state, object) {
+        let frame = if super::property_authoring::precise(state, object) {
+            state["frame"].as_f64().unwrap_or(f64::NAN)
+        } else { state["frame"].as_f64().unwrap_or(0.).floor() };
+        Command::AnchorAt { object, anchor, frame }
     } else { Command::Anchor { object, anchor } }
 }
 impl AnchorControls {
@@ -119,6 +134,13 @@ impl AnchorControls {
         let Some(mut field) = self.field.take() else {
             return;
         };
+        let current = observe!("properties.anchor_time_continue",
+            anchor_time(state, field.object).map(|time| time == field.time),
+            "object={} axis={} phase=continue", field.object, field.axis);
+        if !matches!(current, Ok(true)) {
+            if field.number.cancel() { out.push(Action::History(4)); }
+            return;
+        }
         let (anchor, size) = Self::values_at(state,layer);
         field.number.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = field.number.editor.update(
@@ -174,8 +196,12 @@ impl AnchorControls {
                 if self.cancel() {
                     out.push(Action::History(4));
                 }
+                let Ok(time) = observe!("properties.anchor_time_begin",
+                    anchor_time(state, object),
+                    "object={object} axis={axis} phase=begin") else { continue; };
                 self.field = Some(AnchorField {
                     object,
+                    time,
                     axis,
                     rect,
                     number: Default::default(),
@@ -793,8 +819,14 @@ pub(super) fn draw_value(
         panels.properties.field.as_mut().unwrap().rect = r;
     }
     if clicked(input, r) && !locked && !active && !panels.properties.consumed_press {
+        let Ok((time, spatial)) = observe!("properties.numeric_time_begin",
+            super::property_authoring::NumericTime::read(state, object).and_then(|time|
+                super::property_authoring::SpatialDraft::read(state, object, property, Some(axis)).map(|spatial| (time, spatial))),
+            "object={object} property={property:?} axis={axis} phase=begin") else { return; };
         panels.properties.field = Some(Field {
             object,
+            time,
+            spatial,
             property,
             axis,
             text: (value as f32).to_string(),
@@ -815,6 +847,13 @@ pub(super) fn draw_value(
 }
 
 fn numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
+    legacy_numeric_command(field, value, state)
+        .and_then(|command| observe!("properties.spatial_numeric_command",
+            super::property_authoring::SpatialDraft::command(&field.spatial, state, command),
+            "object={} property={:?} axis={} phase=value", field.object, field.property, field.axis).ok())
+}
+
+fn legacy_numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
     let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
     if matches!(field.property, Property::Roll | Property::Fov | Property::Radius | Property::Azimuth | Property::Elevation) {
         return Some(Command::SetScalar { object: field.object, property: field.property, frame, value });
@@ -878,6 +917,15 @@ pub(super) fn process_field(
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
+    let current = observe!("properties.numeric_time_continue",
+        super::property_authoring::NumericTime::current(&field.time, state, field.object).and_then(|time|
+            super::property_authoring::SpatialDraft::current(&field.spatial, state).map(|spatial| time && spatial)),
+        "object={} property={:?} axis={} phase=continue", field.object, field.property, field.axis);
+    if !matches!(current, Ok(true)) || field.time.is_some() && panels.selected != Some(field.object) {
+        if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
+        panels.properties.consumed_press = input.pressed.is_some();
+        return;
+    }
     if state["observing"] == true || state["project"]["layers"].as_array().into_iter().flatten()
         .any(|layer| layer["id"].as_u64() == Some(field.object) && layer["locked"] == true) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) { out.push(Action::History(4)); }
@@ -1128,6 +1176,8 @@ mod tests {
             properties: types::PropertiesState {
                 field: Some(Field {
                     object: 7,
+                    time: None,
+                    spatial: None,
                     property: Property::Position,
                     axis: 0,
                     text: "10.00".into(),
@@ -1359,3 +1409,5 @@ mod tests {
 
 #[cfg(test)]
 mod tree_tests;
+#[cfg(test)]
+pub(super) mod mapped_anchor_tests;

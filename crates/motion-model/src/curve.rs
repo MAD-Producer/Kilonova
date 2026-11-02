@@ -61,6 +61,20 @@ enum CurveDefinition {
 }
 
 impl Easing {
+    /// Sign of progress(t + direction * h) - progress(t) for positive h tending
+    /// to zero. Unlike velocity, this remains useful at stationary points.
+    pub(crate) fn value_side(self, t: f64, direction: i8) -> i8 {
+        if direction == 0 { return 0; }
+        if let Some(curve) = self.curve { return curve.value_side(t, direction); }
+        match self.ease {
+            Ease::Hold => 0,
+            Ease::In if t == 0. => 1,
+            Ease::Out if t == 1. => -1,
+            Ease::InOut if t == 0. => 1,
+            Ease::InOut if t == 1. => -1,
+            _ => direction,
+        }
+    }
     /// Flatten only the requested temporal endpoint tangents. Progress Beziers
     /// retain their authored opposite handle; other curve forms use their real
     /// endpoint derivatives, matching the editor's existing quick-ease policy.
@@ -122,6 +136,40 @@ impl Easing {
 }
 
 impl Curve {
+    fn value_side(self, t: f64, direction: i8) -> i8 {
+        match self.definition() {
+            CurveDefinition::Bezier(x, y) => {
+                let u = invert(x, t);
+                let side = f64::from(direction);
+                // x is monotone. The first nonzero Taylor coefficient of y
+                // determines its one-sided change, even with a vertical tangent.
+                if self.space == CurveSpace::Progress {
+                    first_sign(&[derivative(y, u) * side,
+                        y[2] + 3. * y[3] * u, y[3] * side])
+                } else {
+                    // Progress is the integral of velocity against monotone x.
+                    // The side of that integral follows local y, the integration
+                    // direction and the signed normalization area.
+                    direction * first_sign(&[polynomial(y, u), derivative(y, u) * side,
+                        y[2] + 3. * y[3] * u, y[3] * side])
+                        * first_sign(&[integral(x, y, 1.)])
+                }
+            }
+            CurveDefinition::Elastic { oscillations, damping } => {
+                let w = std::f64::consts::TAU * oscillations;
+                let norm = 1. - (-damping).exp() * (w.cos() + damping / w * w.sin());
+                let half_turns = 2. * oscillations * t;
+                if half_turns.fract() == 0. {
+                    // sin(k*pi) is mathematically zero; evaluating it in f64
+                    // would invent a tiny velocity with an arbitrary sign.
+                    let curvature = if half_turns as i32 % 2 == 0 { 1 } else { -1 };
+                    curvature * first_sign(&[norm])
+                } else {
+                    direction * first_sign(&[(w * t).sin() / norm])
+                }
+            }
+        }
+    }
     pub fn definition_scale(self) -> f64 {
         if self.space == CurveSpace::Velocity {
             if let CurveDefinition::Bezier(x, y) = self.definition() {
@@ -288,6 +336,13 @@ impl Curve {
     }
 }
 
+fn first_sign(coefficients: &[f64]) -> i8 {
+    for value in coefficients {
+        if *value < 0. { return -1; }
+        if *value > 0. { return 1; }
+    }
+    0
+}
 fn polynomial(c: [f64; 4], u: f64) -> f64 {
     ((c[3] * u + c[2]) * u + c[1]) * u + c[0]
 }

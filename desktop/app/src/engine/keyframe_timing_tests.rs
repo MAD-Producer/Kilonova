@@ -4,6 +4,70 @@ use motion_core::timing::{TimingInterpolation, TimingSettings, TimingSide, Veloc
 use motion_core::{Ease, Layer, Project, Property};
 
 #[test]
+fn local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history() {
+    const NAME: &str = "engine::keyframe_timing_tests::local_identity_refusals_use_default_error_channels_and_allow_recovery_without_partial_history";
+    const CHILD: &str = "MOTION_LOCAL_KEYS_ERROR_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logging = crate::logging::init(root.join("logs")).unwrap();
+        let mut project = Project::new(64,64,30,60).unwrap();
+        let mut layer = Layer::solid(7,"Local identity",[24.;2],[0.;3],[1.;4]);
+        layer.timeline=Some(motion_core::LayerTimeline{in_frame:0,out_frame:60,offset_frame:2});
+        layer.time_mapping=Some(motion_core::layer_time::LayerTimeMapping {
+            clock:motion_core::layer_time::LayerClock::new(motion_core::layer_time::TimeStretch::new(3,2).unwrap(),
+                motion_core::layer_time::TimeDirection::Forward,0.,0.).unwrap(), remap:None });
+        for frame in [0,3,6] {layer.transform.position.upsert(frame,[frame as f32,0.,0.],Ease::Linear).unwrap();}
+        project.layers.push(layer);
+        let directory=root.join("project");
+        motion_core::storage::save(&directory,&project).unwrap();
+        let engine=Engine::start(directory,motion_desktop_media::platform(),8<<30).unwrap();
+        let before=engine.state().unwrap();
+        let request=|edit|serde_json::json!({"op":"local_keyframes",
+            "target":{"kind":"property","object":7,"property":"position","axis":null},"edit":edit}).to_string();
+        for (edit,cause) in [
+            (serde_json::json!({"kind":"translate","frames":[3],"delta_frame":3,"copy":false}),"occupied"),
+            (serde_json::json!({"kind":"delete","frames":[4]}),"does not exist"),
+            (serde_json::json!({"kind":"translate","frames":[3],"delta_frame":40,"copy":false}),"outside composition"),
+        ] {
+            let error=engine.edit(request(edit)).unwrap_err();
+            assert!(error.contains(cause),"{error}");
+            let after=engine.state().unwrap();
+            for field in ["project","revision","history"] {assert_eq!(after[field],before[field]);}
+        }
+        let after=engine.edit(request(serde_json::json!({"kind":"translate","frames":[3],
+            "delta_frame":1,"copy":false}))).unwrap();
+        assert_eq!(after["project"]["layers"][0]["transform"]["position"]["keys"][1]["frame"],4);
+        assert_eq!(engine.history(0).unwrap()["project"],before["project"]);
+        engine.request_shutdown().unwrap();
+        return;
+    }
+    let temporary=tempfile::tempdir().unwrap();
+    let root=std::env::var_os("MOTION_LOCAL_KEYS_ERROR_ARTIFACTS").map(PathBuf::from)
+        .unwrap_or_else(||temporary.path().into());
+    std::fs::create_dir_all(&root).unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact",NAME,"--nocapture","--test-threads=1"]).env(CHILD,&root).env_remove("MOTION_LOG").output().unwrap();
+    std::fs::write(root.join("stdout.log"),&output.stdout).unwrap();
+    std::fs::write(root.join("stderr.log"),&output.stderr).unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let file=std::fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+    let stderr=String::from_utf8_lossy(&output.stderr);
+    let stdout=String::from_utf8_lossy(&output.stdout);
+    for (operation,cause) in [("local_translate","occupied"),("local_delete","does not exist"),
+        ("local_translate","outside composition")] {
+        let line=file.lines().find(|line|line.contains(" ERROR ")&&line.contains(operation)&&line.contains(cause)).unwrap();
+        assert!(line.contains("edit")&&line.contains("object=7"),"{line}");
+        let request=line.split_once("error #").unwrap().1.split_whitespace().next().unwrap();
+        let start=format!("start #{request} edit");
+        assert!(file.find(&start).unwrap()<file.find(line).unwrap());
+        assert!(stderr.contains(operation)&&stderr.contains(cause),"{stderr}");
+        assert!(!stdout.contains(operation)&&!stdout.contains(cause),"{stdout}");
+    }
+    assert_eq!(file.lines().filter(|line|line.contains(" ERROR ")&&line.contains("local_")).count(),3);
+    assert!(!stderr.contains("start #")&&!stdout.contains("start #"));
+}
+
+#[test]
 fn timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover() {
     const NAME: &str = "engine::keyframe_timing_tests::timing_refusals_reach_default_file_and_stderr_without_partial_history_then_recover";
     const CHILD: &str = "MOTION_KEY_TIMING_ERROR_CHILD";

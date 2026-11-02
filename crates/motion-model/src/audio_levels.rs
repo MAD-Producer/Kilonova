@@ -115,7 +115,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioLevelsAction) -> Result
     )?;
     let local = |frame: u32| {
         ensure(frame < frames, "audio key outside composition")?;
-        layer.clip(frames).edit_frame(frame)
+        layer.edit_frame(frame)
     };
     if matches!(action, AudioLevelsAction::Clear) {
         layer.audio_levels = None;

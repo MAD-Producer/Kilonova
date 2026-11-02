@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 #[path = "animation_action_tests/spatial.rs"]
 mod spatial;
+#[path = "animation_action_tests/spatial_time.rs"]
+mod spatial_time;
 
 #[test]
 fn single_handle_fault_is_atomic_and_reaches_default_error_channels() {
