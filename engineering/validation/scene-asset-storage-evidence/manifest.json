@@ -1,0 +1,65 @@
+{
+  "base_commit": "aef2fd4b483d807abd5ab81dd5ade5b116e49ef0",
+  "branch": "perf/scene-asset-storage",
+  "issue": 126,
+  "issue_complete": false,
+  "results": {
+    "final-scene": {
+      "exit_code": 0,
+      "passed": 2,
+      "log": "final-scene.log"
+    },
+    "allowed": {
+      "exit_code": 0,
+      "passed": 4,
+      "log": "allowed.log"
+    },
+    "trim": {
+      "exit_code": 0,
+      "passed": 3,
+      "log": "trim.log"
+    },
+    "regression": {
+      "exit_code": 0,
+      "passed": 13,
+      "log": "regression.log"
+    },
+    "workspace": {
+      "exit_code": 0,
+      "passed": 0,
+      "log": "workspace.log"
+    }
+  },
+  "distinct_tests": 22,
+  "baseline": {
+    "exit": 101,
+    "allocations": 120,
+    "calls": 120
+  },
+  "source_sha256_raw_files": {
+    "crates/motion-render/src/image_resources.rs": "9b064c2737b1d1f567741f5548cc0a9a1874768089272d60466947d14bf6b4b1",
+    "crates/motion-render/src/image_resources/allowed.rs": "a6b63681e386963267b82df3f660c787ad20a07def4e23a924dd9f670b00f3c2",
+    "crates/motion-render/src/renderer.rs": "45c032d86bde85ca15d852f538fc18e1c07cbb42c2a86673467e146160be47b3",
+    "crates/motion-render/src/renderer/image_trim_tests.rs": "1f44f1def4dec84dc35815a5fef513c70b0587378610db11177e86cef530e264",
+    "crates/motion-render/src/renderer/scene_asset_storage_tests.rs": "8af7a6bacec51902f064dea250e59baa99d17cf3c96034a0f1f4689adffda104",
+    "crates/motion-render/src/test_allocations.rs": "9802ffbfcf0a689f3ce50eeaae4ebd9f96aa71eed248b375293ab4863a635469",
+    "engineering/validation/scene-asset-storage.md": "5a6b9b594007189a9d6d5e19ec8c103d8d4539239f9884f383188cb5beac02f5"
+  },
+  "binary_sha256": {
+    "motion_render-1fcc3fb8d09fa888.exe": "65176a4f84bc9fbdac1cec5e582ffa0b005f165c4d2401bc135b2a380d1bace3",
+    "image_allowed_sets-63173e4cc37d1c8b.exe": "02cb7c2eef81e2d168a40943ffe471025f1464afac7755194bc9c9331299950f",
+    "image_decode_budget-3cf3064063c2f85a.exe": "63c9ee4b7a91db1e572e9c46d4a07b27c06cd7219b26517e4b2ab92e07f22fb4",
+    "image_preview_cache-f37ecb360dd6074f.exe": "f155e33754b90fe3300d0bbdd5924a71098b5d9aba19f6e36aa28b653a743fd9",
+    "image_working_set-1f549d0dcc754f0f.exe": "d7f7df1475bcaaca5496d864f04695b9a7435ba4f6be073ffb4691590b66f10e"
+  },
+  "commands": [
+    "cargo test -p motion-render --lib scene_asset_storage --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-render --lib image_resources::allowed --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-render --lib image_trim_tests --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --nocapture",
+    "cargo test -p motion-render --test image_allowed_sets --test image_preview_cache --test image_working_set --test image_decode_budget --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target"
+  ],
+  "scope": "Calling-thread allocations during resident image preparation after warmup; no whole-frame, background-allocation or FPS claim. No new production observation or fault-channel acceptance.",
+  "ci": "pending",
+  "evidence_zip_sha256": "7bbfd2060d36e35305a46e385359eab5b1ec269e607cdfa24921df4d2dd6f6dd"
+}

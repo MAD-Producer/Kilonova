@@ -83,6 +83,8 @@ fn restore_effect_snapshot(encoder: &mut wgpu::CommandEncoder, source: &wgpu::Te
 mod scratch_reuse_tests;
 #[cfg(test)]
 mod vector_planning_tests;
+#[cfg(test)]
+mod scene_asset_storage_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -315,7 +317,8 @@ pub struct Renderer {
     asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
-    image_active: std::collections::BTreeSet<u64>,
+    image_active: Vec<u64>,
+    image_wanted_scratch: Vec<u64>,
     image_access: HashMap<u64, u64>,
     image_trim_candidates: Vec<(u64, u64)>,
     image_clock: u64,
@@ -590,6 +593,7 @@ impl Renderer {
             image_sources: HashMap::new(),
             image_decode: Default::default(),
             image_active: Default::default(),
+            image_wanted_scratch: Vec::new(),
             image_access: Default::default(),
             image_trim_candidates: Vec::new(),
             image_clock: 0,
@@ -760,7 +764,7 @@ impl Renderer {
     pub fn evict_idle_preview_cache(&mut self) -> u64 {
         self.image_prefetch.clear();
         let idle: Vec<_> = self.image_access.keys().copied()
-            .filter(|id| *id != 0 && !self.image_active.contains(id)).collect();
+            .filter(|id| *id != 0 && self.image_active.binary_search(id).is_err()).collect();
         let mut bytes = 0u64;
         for id in idle {
             bytes = bytes.saturating_add(self.images.get(&TextureKey::Static(id)).map_or(0, |image| image.bytes));
@@ -778,7 +782,7 @@ impl Renderer {
         self.image_decode.cancel();
         self.image_prefetch.clear();
         self.image_trim_candidates = Vec::new();
-        let idle: Vec<_> = self.image_access.keys().copied().filter(|id| !self.image_active.contains(id)).collect();
+        let idle: Vec<_> = self.image_access.keys().copied().filter(|id| self.image_active.binary_search(id).is_err()).collect();
         for id in idle { self.remove_static_image(id); }
         let dynamic: Vec<_> = self.images.keys().copied().filter(|key| !matches!(key, TextureKey::Static(_))).collect();
         for key in dynamic {
@@ -1557,7 +1561,8 @@ impl Renderer {
         }).collect();
         for id in stale { self.remove_static_image(id); }
         self.image_decode.cancel();
-        self.image_active.clear();
+        self.image_active = Vec::new();
+        self.image_wanted_scratch = Vec::new();
         self.image_prefetch.clear();
         self.image_prefetch_failed.clear();
         // Resource edits and project switches may reuse object/source IDs and
@@ -1590,7 +1595,7 @@ impl Renderer {
     }
     pub fn asset_ids(&self) -> &[u64] { &self.asset_order }
     pub fn image_idle_bytes(&self) -> u64 {
-        self.image_access.keys().filter(|id| !self.image_active.contains(id))
+        self.image_access.keys().filter(|id| self.image_active.binary_search(id).is_err())
             .filter_map(|id| self.images.get(&TextureKey::Static(*id))).map(|i| i.bytes).sum()
     }
     pub fn set_image_prefetch(&mut self, assets: Vec<u64>) { self.image_prefetch = assets; }
@@ -1625,7 +1630,7 @@ impl Renderer {
         }
         let mut victims = std::mem::take(&mut self.image_trim_candidates);
         victims.extend(self.image_access.iter()
-            .filter(|(id, _)| !self.image_active.contains(id) && replacing != Some(TextureKey::Static(**id)))
+            .filter(|(id, _)| self.image_active.binary_search(id).is_err() && replacing != Some(TextureKey::Static(**id)))
             .map(|(id, time)| (*time, *id)));
         victims.sort_unstable();
         for &(_, id) in &victims {
@@ -1659,11 +1664,20 @@ impl Renderer {
         resolution: crate::image_resources::Resolution,
         asynchronous: bool,
     ) -> Result<bool> {
-        use crate::image_resources::{decode_with_budget, scene_assets, Resolution};
+        let mut wanted = std::mem::take(&mut self.image_wanted_scratch);
+        crate::image_resources::collect_scene_assets(scene, &mut wanted);
+        let result = self.prepare_scene_assets_with_demand(scene, resolution, asynchronous, &wanted);
+        // Restore storage on every Result path, including refusal and pending
+        // decode. The scratch contents are never used as committed active IDs.
+        self.image_wanted_scratch = wanted;
+        result
+    }
+    fn prepare_scene_assets_with_demand(&mut self, scene: &Scene,
+        resolution: crate::image_resources::Resolution, asynchronous: bool, wanted: &[u64]) -> Result<bool> {
+        use crate::image_resources::{decode_with_budget, Resolution};
         let decode_budget = self.effect_gpu.builder.decoded_image_budget;
-        let wanted = scene_assets(scene);
         let mut required = 4u64;
-        for id in &wanted {
+        for id in wanted {
             let source = self.image_sources.get(id)
                 .ok_or_else(|| RenderError::Invalid(format!("image asset {id} is not registered")))?;
             let (w, h) = resolution.dimensions(source.width, source.height);
@@ -1680,16 +1694,17 @@ impl Renderer {
                 "active image working set exceeds configured source texture budget; full output requires original resolution"));
         }
         self.image_cache_enabled = matches!(resolution, Resolution::Preview(_));
-        for id in wanted.difference(&self.image_active) {
+        for id in wanted.iter().filter(|id| self.image_active.binary_search(id).is_err()) {
             if self.image_access.contains_key(id) && self.images.get(&TextureKey::Static(*id))
                 .is_some_and(|i| resolution.dimensions(self.image_sources[id].width, self.image_sources[id].height) == i.size) {
                 self.image_memory_cache_hits += 1;
             }
         }
         if self.image_active != wanted {
-            self.image_active = wanted.clone();
+            self.image_active.clear();
+            self.image_active.extend_from_slice(wanted);
         }
-        for id in &wanted { if self.images.contains_key(&TextureKey::Static(*id)) { self.touch_image(*id); } }
+        for id in wanted { if self.images.contains_key(&TextureKey::Static(*id)) { self.touch_image(*id); } }
         // Wrong-resolution images cannot survive a quality switch. Idle preview
         // images otherwise stay resident until LRU or resource pressure evicts.
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
@@ -1701,9 +1716,9 @@ impl Renderer {
         self.trim_image_cache(0);
         self.prepare_owned_depth_images(scene, resolution, decode_budget)?;
         let demand_missing = wanted.iter().any(|id| !self.images.contains_key(&TextureKey::Static(*id)));
-        let allowed = crate::image_resources::allowed_assets(&wanted, &self.image_prefetch,
+        let allowed = crate::image_resources::AllowedAssets::new(wanted, &self.image_prefetch,
             self.image_cache_enabled && asynchronous && !demand_missing);
-        self.image_decode.cancel_unwanted_with_budget(&allowed, resolution, decode_budget);
+        self.image_decode.cancel_unwanted_matching(|id| allowed.contains(id), resolution, Some(decode_budget));
         if let Some((source, mode, speculative, result)) = self.image_decode.poll() {
             if mode == resolution && allowed.contains(&source.id) && self.image_sources.get(&source.id) == Some(&source)
                 && !self.images.contains_key(&TextureKey::Static(source.id)) {
@@ -1713,7 +1728,7 @@ impl Renderer {
                     // Prefetch must never evict useful recent images or consume
                     // resources needed by an already active video/effect.
                     let cost = pixels.rgba.len() as u64;
-                    if !wanted.contains(&source.id) && (cost + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
+                    if wanted.binary_search(&source.id).is_err() && (cost + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
                         || self.resident_source_texture_bytes() + cost > self.effect_gpu.builder.source_texture_budget) { IMAGE_PENDING.success(); return Ok(true); }
                 self.upload_pixels(TextureKey::Static(source.id), pixels.width, pixels.height, &pixels.rgba, false)?;
                 self.image_decodes += u64::from(!pixels.cached);
@@ -1733,8 +1748,7 @@ impl Renderer {
                 }
             }
         }
-        drop(allowed);
-        for id in wanted {
+        for &id in wanted {
             if self.images.contains_key(&TextureKey::Static(id)) { continue; }
             let source = self.image_sources[&id].clone();
             if asynchronous {
@@ -1769,7 +1783,7 @@ impl Renderer {
         for index in 0..self.image_prefetch.len() {
             if remaining == 0 { break; }
             let id = self.image_prefetch[index];
-            if self.image_active.contains(&id) { continue; }
+            if self.image_active.binary_search(&id).is_ok() { continue; }
             remaining -= 1;
             if self.images.contains_key(&TextureKey::Static(id)) { continue; }
             if self.image_prefetch_failed.contains(&id) { continue; }
@@ -1791,7 +1805,8 @@ impl Renderer {
         self.layer_gpu.release();
         if let Some(gpu)=&mut self.compositing_gpu{gpu.release();}
         self.image_decode.cancel();
-        self.image_active.clear();
+        self.image_active = Vec::new();
+        self.image_wanted_scratch = Vec::new();
         self.image_access.clear();
         self.image_trim_candidates = Vec::new();
         self.image_prefetch.clear();
