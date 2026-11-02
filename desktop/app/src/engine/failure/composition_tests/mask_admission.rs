@@ -51,9 +51,9 @@ fn mask_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         return;
     }
     let root = tempfile::tempdir().unwrap();
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", NAME]).env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
-    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let (output, process) = crate::test_process::capture(std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME]).env(CHILD, root.path()).env_remove("MOTION_LOG"), &root.path().join("child-process.json")).unwrap();
+    assert!(output.status.success(), "child={process}\n{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
