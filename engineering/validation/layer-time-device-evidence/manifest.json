@@ -1,9 +1,9 @@
 {
-  "createdUtc": "2026-11-02T08:36:47.274329+00:00",
+  "createdUtc": "2026-11-02T08:42:02.096715+00:00",
   "issue": 257,
   "pr": 579,
   "branch": "feat/layer-time-mapping",
-  "parent": "bfbfafdc5b2f1d2feaf1d0d8de28e98955c39588",
+  "parent": "504ca626d426f6a8303a118d1ff4741201edd2b9",
   "scope": "Windows actual audio device acceptance; issue remains open",
   "binary": {
     "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
@@ -48,9 +48,12 @@
     },
     "graph_ranges": {
       "log": "graph-ranges-final.log",
-      "sha256": "70200c97820d59796d33cde428c5227601a9ec318e11a33d56253cecd91e4d91",
-      "exitCode": null,
-      "status": "no_terminal_result_verified"
+      "sha256": "c6bace6566f5791ce49311ccf5c7584321293d1f9d8203cc3391d473992610b1",
+      "exitCode": 0,
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 1
     }
   },
   "deviceReport": [
@@ -157,7 +160,7 @@
     "Other operating systems and hardware unverified"
   ],
   "archive": {
-    "bytes": 56978,
-    "sha256": "79c39d852e9eef3c5e4381b2459c071b36e1a990e54bac5f68019a173134786a"
+    "bytes": 57620,
+    "sha256": "25748a0912598a4e672a7bce96193d845bddb28c3e1122c085646432395ab0b6"
   }
 }
