@@ -463,6 +463,10 @@ pub enum Command {
         text: String,
         reply: Sender<Result<Value, String>>,
     },
+    TrackedVideoReplacement {
+        request: crate::workflow::tracked_video::Request,
+        reply: Sender<Result<Value, String>>,
+    },
     MediaPackageLimits(Sender<Result<Value, String>>),
     Capture {
         output: Option<PathBuf>,
@@ -524,7 +528,7 @@ impl Command {
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. } | CameraGesture { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | ViewerDrag { reply, .. } | ViewerInput { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
-            | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
+            | Composition { reply, .. } | Media { reply, .. } | TrackedVideoReplacement { reply, .. } | ImageInfo { reply, .. }
             | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
             #[cfg(test)]
@@ -1307,6 +1311,13 @@ impl Engine {
     }
     pub fn media(&self, text: String) -> Result<Value, String> {
         self.call(|reply| Command::Media { text, reply })
+    }
+    pub fn tracked_video_replacement(&self, request: crate::workflow::tracked_video::Request) -> Result<Value, String> {
+        request.validate()?;
+        if serde_json::to_vec(&request).map_err(|e| e.to_string())?.len() > REQUEST_LIMIT {
+            return Err("tracked replacement request exceeds 256 KiB".into());
+        }
+        self.call(|reply| Command::TrackedVideoReplacement { request, reply })
     }
     pub fn media_package_limits(&self) -> Result<Value, String> {
         self.call(Command::MediaPackageLimits)
@@ -2328,6 +2339,15 @@ fn handle(
         Command::ColorCurveGraph { text, reply } => respond(reply,effects::color_curve_graph(&text)),
         Command::Composition { text, reply } => respond(reply,composition::request(id, &text)),
         Command::Media { text, reply } => respond(reply,media_request(id, &text)),
+        Command::TrackedVideoReplacement { request, reply } => {
+            let result = crate::workflow::tracked_video::request(id, request);
+            if matches!(&result, Err(motion_host::Error::TrackingImport(
+                motion_host::tracking::import::Error::Cancelled | motion_host::tracking::import::Error::Superseded))) {
+                let _ = reply.send(result.map_err(String::from));
+            } else {
+                respond(reply, result);
+            }
+        },
         Command::MediaPackageLimits(reply) => respond(reply,Ok(media::package_limits())),
         Command::Capture { output, control, reply } => {
             if let Err(error) = frame_capture.start(id, output, control, reply.clone()) {
