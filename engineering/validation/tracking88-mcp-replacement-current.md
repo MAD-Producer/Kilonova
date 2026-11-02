@@ -110,3 +110,20 @@ workspace regression. The three native subprocess crashes from #583 remain
 unresolved. It also does not exercise audio-device output, add new panel
 interactions, or establish the optional tracker's real-footage quality. No
 panels, UI style, dependency or third-party asset change is part of this increment.
+
+## Subsequent complete package gate
+
+After rebasing onto #583's test-only subprocess diagnostics, combined source
+`52ce7ebf` passed the complete FFmpeg-enabled desktop package: 1542 passed,
+0 failed, 50 existing ignored, including all five integration targets. The
+[complete package receipt](tracking88-desktop-package-current.md) is separate
+from the focused MCP and actual-stdio records above. All three previously
+failing native wrappers passed in that invocation; their earlier access-violation
+cause remains unexplained. This does not imply real-footage tracker quality,
+complete maintained-workspace coverage or final-head CI completion.
+
+The subsequent [actual Surface control](tracking88-surface-current.md) separately
+checks the paired camera/video transaction against a retained native preview
+front, with wrong-source rejection, history, save/reopen and reuse counters.
+It is a test-only addition after that complete package snapshot, not evidence
+that the optional photographed tracker or every preview combination is qualified.

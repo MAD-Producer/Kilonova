@@ -4,6 +4,9 @@ use motion_host::tracking::asset::{Asset, Observation};
 
 #[path = "tracking_video_pair_audio_tests.rs"]
 mod audio;
+#[cfg(target_os = "windows")]
+#[path = "tracking_video_surface_tests.rs"]
+mod surface;
 
 fn solve(source: &Path, name: &str, x: f64) -> Asset {
     let platform = motion_desktop_media::platform();
