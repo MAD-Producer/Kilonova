@@ -89,12 +89,37 @@ pub(super) fn writable(panels: &Panels, state: &Value) -> bool {
         && if panels.selected_keys.owns_keys() {
             panels.selected_keys.writable(state)
         } else {
-            super::interpolation_selection(panels, state).is_some()
+            super::super::keyframe_clipboard::selection(panels, state).is_some_and(|selected| {
+                selected.writable
+                    && (!selected.selections.is_empty() || !selected.local_selections.is_empty())
+                    && selected.selections.iter().all(|s| !s.frames.is_empty())
+                    && selected
+                        .local_selections
+                        .iter()
+                        .all(|s| !s.frames.is_empty())
+            })
         }
 }
 
+fn scope(panels: &Panels, state: &Value) -> MenuScope {
+    let mut scope = MenuScope::of(panels, state);
+    if !panels.selected_keys.owns_keys() {
+        scope.local_keys = super::super::keyframe_clipboard::selection(panels, state).map_or_else(
+            Vec::new,
+            |selected| {
+                selected
+                    .local_selections
+                    .into_iter()
+                    .map(|selection| (selection.target, selection.frames))
+                    .collect()
+            },
+        );
+    }
+    scope
+}
+
 pub(super) fn plans(panels: &Panels, state: &Value) -> Arc<Plans> {
-    let scope = MenuScope::of(panels, state);
+    let scope = scope(panels, state);
     let versioned = state["revision"].is_u64()
         && state["document_generation"].is_u64()
         && state["root"].is_string()
@@ -138,6 +163,7 @@ fn channel<T: Tween + DeserializeOwned + serde::Serialize>(
     source: &Value,
     offset: i64,
     frames: &[u32],
+    local_frames: &[i32],
     ids: &[u64],
 ) -> Option<Channel> {
     let original: Track<T> = observe!(
@@ -155,7 +181,7 @@ fn channel<T: Tween + DeserializeOwned + serde::Serialize>(
     )
     .ok()?;
     let mut result = Channel {
-        count: frames.len() + ids.len(),
+        count: frames.len() + local_frames.len() + ids.len(),
         spatial: ids.len(),
         ..Default::default()
     };
@@ -190,25 +216,39 @@ fn channel<T: Tween + DeserializeOwned + serde::Serialize>(
         )
         .ok()
     };
-    if !frames.is_empty() {
+    if !frames.is_empty() || !local_frames.is_empty() {
         if !ids.is_empty() || original.spatial_animation.is_some() {
             return Some(result);
         }
+        let clock = observe!(
+            "animation.roving.clock",
+            key_selection::property_clock(state, target.object()),
+            "object={} phase=roving_capability",
+            target.object()
+        )
+        .ok()?;
+        let offset = i32::try_from(offset).ok()?;
         let locals = frames
             .iter()
             .map(|frame| {
                 (u64::from(*frame) < state["project"]["frames"].as_u64()?)
-                    .then(|| i32::try_from(i64::from(*frame) - offset).ok())
+                    .then(|| clock.integer_key_frame(f64::from(*frame), offset).ok())
                     .flatten()
             })
             .collect::<Option<Vec<_>>>();
-        let Some(locals) = locals else {
+        let Some(mut locals) = locals else {
             return Some(result);
         };
+        locals.extend_from_slice(local_frames);
+        locals.sort_unstable();
+        // Two different address types must never silently alias the same key.
+        if locals.windows(2).any(|keys| keys[0] == keys[1]) {
+            return Some(result);
+        }
         let mut candidate = original;
         if candidate.enable_roving(&locals).is_ok() && valid(&candidate) {
             let animation = candidate.spatial_animation.as_ref()?;
-            for local in locals {
+            for &local in &locals {
                 let key = animation
                     .keys()
                     .iter()
@@ -219,8 +259,12 @@ fn channel<T: Tween + DeserializeOwned + serde::Serialize>(
                 });
             }
             result.enable = Some((
-                SpatialKeyEdit::Enable {
-                    frames: frames.to_vec(),
+                if local_frames.is_empty() {
+                    SpatialKeyEdit::Enable {
+                        frames: frames.to_vec(),
+                    }
+                } else {
+                    SpatialKeyEdit::EnableLocal { frames: locals }
                 },
                 encode(&candidate)?,
             ));
@@ -279,15 +323,23 @@ fn build(panels: &Panels, state: &Value, scope: &MenuScope) -> Option<Plans> {
             (
                 selected.target.clone(),
                 selected.frames.clone(),
+                Vec::<i32>::new(),
                 Vec::<u64>::new(),
             )
         })
         .collect::<Vec<_>>();
+    for (target, frames) in &scope.local_keys {
+        if let Some((_, _, locals, _)) = channels.iter_mut().find(|(key, ..)| key == target) {
+            locals.extend(frames);
+        } else {
+            channels.push((target.clone(), vec![], frames.clone(), vec![]));
+        }
+    }
     for (target, ids) in &scope.spatial_keys {
-        if let Some((_, _, keys)) = channels.iter_mut().find(|(key, _, _)| key == target) {
+        if let Some((_, _, _, keys)) = channels.iter_mut().find(|(key, ..)| key == target) {
             keys.extend(ids);
         } else {
-            channels.push((target.clone(), vec![], ids.clone()));
+            channels.push((target.clone(), vec![], vec![], ids.clone()));
         }
     }
     let mut result = Plans {
@@ -296,7 +348,7 @@ fn build(panels: &Panels, state: &Value, scope: &MenuScope) -> Option<Plans> {
         ..Default::default()
     };
     let mut bytes = 0usize;
-    for (target, frames, ids) in channels {
+    for (target, frames, locals, ids) in channels {
         let supported = matches!(
             target,
             KeyframeTarget::Property {
@@ -316,13 +368,13 @@ fn build(panels: &Panels, state: &Value, scope: &MenuScope) -> Option<Plans> {
                     ..
                 }
             ) {
-                channel::<[f32; 2]>(state, &target, source, offset, &frames, &ids)?
+                channel::<[f32; 2]>(state, &target, source, offset, &frames, &locals, &ids)?
             } else {
-                channel::<[f32; 3]>(state, &target, source, offset, &frames, &ids)?
+                channel::<[f32; 3]>(state, &target, source, offset, &frames, &locals, &ids)?
             }
         } else {
             Channel {
-                count: frames.len() + ids.len(),
+                count: frames.len() + locals.len() + ids.len(),
                 ..Default::default()
             }
         };
@@ -385,22 +437,32 @@ pub(super) fn apply(panels: &mut Panels, state: &Value, enabled: bool, out: &mut
         return;
     };
     if enabled && plan.spatial < plan.count {
-        let frames = MenuScope::of(panels, state)
-            .keys
-            .into_iter()
-            .flat_map(|selected| {
-                selected
-                    .frames
-                    .into_iter()
-                    .map(move |frame| key_selection::Key {
-                        target: selected.target.clone(),
-                        frame,
-                    })
-            });
+        let scope = scope(panels, state);
+        let frames = scope.keys.into_iter().flat_map(|selected| {
+            selected.frames.into_iter().map(move |frame| {
+                key_selection::AddressedKey::from(key_selection::Key {
+                    target: selected.target.clone(),
+                    frame,
+                })
+            })
+        });
+        let locals = scope.local_keys.into_iter().flat_map(|(target, frames)| {
+            frames.into_iter().map(move |frame| {
+                key_selection::AddressedKey::from(key_selection::LocalKey {
+                    target: target.clone(),
+                    frame,
+                })
+            })
+        });
         // Claim the legacy property selection before the asynchronous commit.
         // Mixed spatial selections are already owned and must remain intact.
         if !panels.selected_keys.owns_keys()
-            && !key_selection::choose(panels, state, frames, key_selection::Mode::Replace)
+            && !key_selection::choose_addressed(
+                panels,
+                state,
+                frames.chain(locals),
+                key_selection::Mode::Replace,
+            )
         {
             return;
         }
@@ -461,6 +523,9 @@ pub(super) fn reconcile(panels: &mut Panels, state: &Value) {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod mapped_tests;
 
 #[cfg(all(test, windows, feature = "gpu-tests"))]
 mod native_tests;

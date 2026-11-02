@@ -91,7 +91,7 @@ fn channels(
         Property::Radius,
         Property::Azimuth,
         Property::Elevation,
-    ] {
+    ].into_iter().filter(|_| row.spatial) {
         for axis in [None, Some(Axis::X), Some(Axis::Y), Some(Axis::Z)] {
             if let Some(source) =
                 animation_data::channel(state, row.id, property, axis).filter(|s| !s.is_null())
@@ -149,7 +149,7 @@ fn channels(
         offset: i64,
         record: &mut impl FnMut(Target, &mut dyn Iterator<Item = i64>),
     ) {
-        for p in node.parameters {
+        for p in node.parameters.into_iter().filter(|p| !p.static_value) {
             record(
                 Target::Shape(node.id, p.id),
                 &mut p.keys.iter().map(|(f, _)| i64::from(*f) + offset),
@@ -160,11 +160,18 @@ fn channels(
         }
     }
     if let Some(vector) = &row.vector {
-        shape(
-            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En)?,
-            offset,
-            &mut record,
-        );
+        let mut tree =
+            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En)?;
+        if !matches!(&vector.source, motion_core::vector::VectorSource::Group { .. }) {
+            // Flat content has a synthetic group and constant geometry dimensions
+            // in its display tree. Only wrapped groups author these tracks.
+            tree.parameters.clear();
+            tree.children.retain(|child| child.tag != 1);
+            for geometry in &mut tree.children {
+                geometry.parameters.retain(|p| !matches!(p.id.as_str(), "size" | "position"));
+            }
+        }
+        shape(tree, offset, &mut record);
     }
     let json_frames = |source: &Value| -> motion_core::Result<Vec<i64>> {
         source["keys"]
@@ -279,6 +286,96 @@ pub(super) fn selection_keys(
     Ok(selected)
 }
 
+/// Select from the authored store, including offscreen/fractionally projected
+/// keys. The legacy collector above deliberately owns composition integers.
+/// Reuse its target discovery for every channel kind, never its shifted times.
+pub(super) fn local_keys(state: &Value, row: &timeline::Row)
+    -> motion_core::Result<Vec<(super::key_selection::AddressedKey,f64)>> {
+    use super::key_selection::{LocalKey, SpatialKey};
+    let clock=super::key_selection::property_clock(state,row.id)?;
+    let total=state["project"]["frames"].as_u64()
+        .ok_or_else(||motion_core::Error::Invalid("composition duration missing".into()))? as f64;
+    let mut result=Vec::new();
+    let mut bytes=0usize;
+    let mut push=|key:super::key_selection::AddressedKey,time:f64|->motion_core::Result<()> {
+        let name=match key.target() {
+            motion_core::KeyframeTarget::Effect {param,..}=>param.len(),
+            motion_core::KeyframeTarget::Vector {parameter,..}=>parameter.len(),
+            _=>0,
+        };
+        bytes=bytes.saturating_add(std::mem::size_of::<(super::key_selection::AddressedKey,f64)>()).saturating_add(name);
+        if bytes>motion_core::MAX_KEYFRAME_CLIPBOARD_BYTES {
+            return Err(motion_core::Error::Invalid("projected row keys exceed metadata limit".into()));
+        }
+        result.push((key,time));
+        Ok(())
+    };
+    let mut targets:Vec<_>=channels(state,row)?.into_keys().map(|t|target_key(row,&t)).collect();
+    targets.sort_by_key(|target|format!("{target:?}"));
+    for target in targets {
+        // Current-format static anchors are packed as [x,y], not Track JSON.
+        // Their derived empty display channel is a normal discovery result.
+        if matches!(target,motion_core::KeyframeTarget::Property {property:Property::Anchor,axis:None,..}) {
+            if let Some(raw)=super::keyframe_clipboard::layer(state,row.id)
+                .map(|layer|&layer["transform"]["anchor"]).filter(|raw|raw.is_array()) {
+                let valid=raw.as_array().is_some_and(|values|values.len()==2 && values.iter()
+                    .all(|value|value.as_f64().is_some_and(|v|(v as f32).is_finite())));
+                if !valid {
+                    return Err(motion_core::Error::Invalid("packed static anchor must contain two finite numbers".into()));
+                }
+                let empty=animation_data::channel(state,row.id,Property::Anchor,None)
+                    .and_then(|view|view["keys"].as_array()).is_some_and(|keys|keys.is_empty());
+                if !empty {return Err(motion_core::Error::Invalid("packed static anchor has projected animation keys".into()));}
+                continue;
+            }
+        }
+        let (track,offset)=super::key_selection::authored_track(state,&target)
+            .ok_or_else(||motion_core::Error::Invalid(format!("authored select-all channel missing object={} target={}",row.id,
+                crate::fallback_observation::short(format_args!("{target:?}")))))?;
+        let offset=i32::try_from(offset).map_err(|_|motion_core::Error::Invalid("select-all local offset exceeds i32".into()))?;
+        if track["spatial_animation"].is_object() {
+            let motion_core::KeyframeTarget::Property {object,property,axis}=&target else {
+                return Err(motion_core::Error::Invalid("spatial select-all target is not a property".into()));
+            };
+            let keys=animation_data::channel(state,*object,*property,*axis)
+                .and_then(|view|view["spatial_keys"].as_array())
+                .ok_or_else(||motion_core::Error::Invalid("spatial select-all projected keys missing".into()))?;
+            for key in keys {
+                let (id,time)=key["id"].as_u64().filter(|id|*id>0)
+                    .zip(key["frame"].as_f64().filter(|t|t.is_finite()))
+                    .ok_or_else(||motion_core::Error::Invalid("spatial select-all identity or time missing".into()))?;
+                if time>=0. && time<total {
+                    push(SpatialKey {target:target.clone(),id}.into(),time)?;
+                }
+            }
+            continue;
+        }
+        let keys=track["keys"].as_array()
+            .ok_or_else(||motion_core::Error::Invalid("local select-all authored keys missing".into()))?;
+        let mut previous=None;
+        for key in keys {
+            let frame=key["frame"].as_i64().and_then(|f|i32::try_from(f).ok())
+                .ok_or_else(||motion_core::Error::Invalid("local select-all authored frame is not i32".into()))?;
+            if previous.is_some_and(|p|p>=frame) {
+                return Err(motion_core::Error::Invalid("local select-all keys are not strictly increasing".into()));
+            }
+            previous=Some(frame);
+            let time=clock.projected_composition_frame(f64::from(frame),offset)?;
+            if time>=0. && time<total {
+                push(LocalKey {target:target.clone(),frame}.into(),time)?;
+            }
+        }
+    }
+    Ok(result)
+}
+
+pub(super) fn select_all_local(panels: &mut Panels, _state: &Value, row: &timeline::Row)
+    -> motion_core::Result<()> {
+    let keys=row.mapped_keys.as_ref().ok_or_else(||motion_core::Error::Invalid("mapped row key cache unavailable".into()))?;
+    super::key_selection::ui::all_addressed(panels,keys.iter().map(|(key,_)|key.clone()));
+    Ok(())
+}
+
 pub(super) fn begin(
     panels: &mut Panels,
     state: &Value,
@@ -290,6 +387,7 @@ pub(super) fn begin(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    if row.property_clock.is_none_or(|clock| clock != Default::default()) { return; }
     if !ppf.is_finite() || ppf <= 0. {
         return;
     }

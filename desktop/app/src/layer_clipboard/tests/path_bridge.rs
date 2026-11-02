@@ -494,7 +494,7 @@ fn independent_path_keyframe_and_layer_caches_survive_a_rejected_capture() {
             &engine,
             Intent::Copy,
             KeyframeSource::of(&engine.state().unwrap()),
-            keys.clone(),
+            keys.clone(), vec![],
             vec![]
         )
         .unwrap());
@@ -507,7 +507,7 @@ fn independent_path_keyframe_and_layer_caches_survive_a_rejected_capture() {
             &engine,
             Intent::Copy,
             KeyframeSource::of(&engine.state().unwrap()),
-            keys,
+            keys, vec![],
             vec![]
         )
         .unwrap());

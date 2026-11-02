@@ -178,7 +178,7 @@ pub(super) fn ease_plan(panels: &Panels, state: &Value, command: Shortcut) -> Re
         return Err(EaseUnavailable::Context);
     }
     if panels.selected_keys.owns_keys() {
-        return super::key_selection::ease_command(panels, state, command).map(|edit| vec![edit]).ok_or(EaseUnavailable::Context);
+        return super::key_selection::ease_commands(panels, state, command).ok_or(EaseUnavailable::Context);
     }
     if let Some(edits) = super::effect_timeline::ease_plan(panels, state, command) {
         return Ok(edits);

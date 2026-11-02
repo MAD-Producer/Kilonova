@@ -1,6 +1,60 @@
 use super::*;
 use motion_core::{Keyframe, Track};
 
+#[test]
+fn stretched_and_reversed_effect_samples_fit_signed_speed_and_keep_jump_neighbors() {
+    use motion_core::layer_time::{TimeDirection, TimeStretch};
+    for reverse in [false, true] {
+        for ease in [Ease::Linear, Ease::InOut, Ease::Hold] {
+            let clock = LayerClock::new(
+                TimeStretch::new(3, 2).unwrap(),
+                if reverse {
+                    TimeDirection::Reverse
+                } else {
+                    TimeDirection::Forward
+                },
+                if reverse { 40. } else { 0. },
+                0.,
+            )
+            .unwrap();
+            let mut p = parameter(ease, None);
+            p.track.keys[0].frame = 3;
+            p.track.keys[1].frame = 13;
+            let seeds = knots(&p, 0., 60., 2., clock).unwrap().collect::<Vec<_>>();
+            assert!(seeds.windows(2).all(|p| p[0] < p[1]));
+            for local in [3., 13.] {
+                let time = clock.projected_composition_frame(local, 2).unwrap();
+                for adjacent in [time.next_down(), time, time.next_up()] {
+                    assert!(seeds.contains(&adjacent));
+                }
+            }
+            for speed in [false, true] {
+                let fit =
+                    fitted(&p, [0., 60.], 2., [800., 400.], 0.35, speed, 30., 0, clock).unwrap();
+                let points = graph_adaptive::sample(seeds.clone(), [20., 1000.], 0.35, |t| {
+                    sample_value(&p, t, 2., speed, 30., 0, clock)
+                })
+                .unwrap();
+                assert!(points.len() < 65536);
+                for n in 0..=960 {
+                    let local = f64::from(n) / 64.;
+                    let time = clock.projected_composition_frame(local, 2).unwrap();
+                    let expected =
+                        sample_value(&p, local + 2., 2., speed, 30., 0, LayerClock::default())
+                            .unwrap()
+                            * if speed { clock.rate() } else { 1. };
+                    let actual = sample_value(&p, time, 2., speed, 30., 0, clock).unwrap();
+                    assert!(
+                        (actual - expected).abs() < 0.00001,
+                        "reverse={reverse} ease={ease:?} speed={speed} local={local}"
+                    );
+                    assert!(actual >= fit.y.low && actual <= fit.y.high);
+                }
+            }
+        }
+    }
+}
+
 fn parameter(ease: Ease, curve: Option<Curve>) -> EffectParam {
     let mut track = Track::constant([0.25, 0., 0., 0.]);
     track.keys = vec![
@@ -74,12 +128,18 @@ fn effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_a
                 for scale_y in [500., 32000.] {
                     let scale = [800. / (end - start), scale_y];
                     let value =
-                        |frame| sample_value(&parameter, frame, 17., speed, 30., 0).unwrap();
+                        |frame| {
+                        sample_value(&parameter, frame, 17., speed, 30., 0, LayerClock::default()).unwrap()
+                    };
                     let points = graph_adaptive::sample(
-                        knots(&parameter, start, end, 17.),
+                        knots(&parameter, start, end, 17., LayerClock::default()).unwrap(),
                         scale,
                         0.35,
-                        |frame| sample_value(&parameter, frame, 17., speed, 30., 0),
+                        |frame| {
+                            sample_value(&parameter, frame, 17., speed, 30., 0,
+                                LayerClock::default(),
+                            )
+                        },
                     )
                     .unwrap();
                     assert!(points.len() >= 257 && points.len() < 65536);
@@ -122,25 +182,28 @@ fn discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_eas
     parameter.max = 3.;
     parameter.track.keys[0].value = [0.; 4];
     parameter.track.keys[1].value = [3., 0., 0., 0.];
-    let seeds = knots(&parameter, 10., 90., 17.).collect::<Vec<_>>();
+    let seeds = knots(&parameter, 10., 90., 17., LayerClock::default())
+        .unwrap().collect::<Vec<_>>();
     assert!(seeds.windows(2).all(|pair| pair[0] < pair[1]));
     assert!(seeds.contains(&77f64.next_down()));
     assert_eq!(
-        sample_value(&parameter, 77f64.next_down(), 17., false, 30., 0).unwrap(),
+        sample_value(&parameter, 77f64.next_down(), 17., false, 30., 0,
+            LayerClock::default()
+        ).unwrap(),
         0.
     );
     assert_eq!(
-        sample_value(&parameter, 77., 17., false, 30., 0).unwrap(),
+        sample_value(&parameter, 77., 17., false, 30., 0, LayerClock::default()).unwrap(),
         3.
     );
     for frame in [10., 17., 30., 77f64.next_down(), 77., 90.] {
         assert_eq!(
-            sample_value(&parameter, frame, 17., true, 30., 0).unwrap(),
+            sample_value(&parameter, frame, 17., true, 30., 0, LayerClock::default()).unwrap(),
             0.
         );
     }
     let points = graph_adaptive::sample(seeds, [10000., 2000.], 0.35, |frame| {
-        sample_value(&parameter, frame, 17., false, 30., 0)
+        sample_value(&parameter, frame, 17., false, 30., 0, LayerClock::default())
     })
     .unwrap();
     let jump = points
@@ -168,6 +231,7 @@ fn fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_part
         false,
         30.,
         0,
+        LayerClock::default(),
     )
     .unwrap_err();
     match error {
@@ -191,7 +255,8 @@ fn fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_part
             0.35,
             false,
             30.,
-            0
+            0,
+            LayerClock::default()
         ),
         Err(graph_adaptive::Failure::NonFinite { .. })
     ));

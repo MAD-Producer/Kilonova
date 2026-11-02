@@ -1,0 +1,178 @@
+{
+  "issue": 257,
+  "pr": 579,
+  "stage": "exact camera pose and lens numeric authoring",
+  "base": "85cf16601b84bdba08d68e21b268bf8336190d49",
+  "sourceHashes": {
+    "crates/motion-core/src/command_registry.rs": "f753dcfbb8de026424e6cd4bac375070aacb14e12da2039bfac3ed189c520c25",
+    "crates/motion-core/src/editor.rs": "862c93f8080e837fab9dbbe2f9d39645b621ee0b7a4692ae939d656edc320bf7",
+    "crates/motion-core/tests/camera_lens.rs": "1a18660651c4bec17f217fc7c230b17509076866aa80969c41a6276610a964e2",
+    "crates/motion-core/tests/camera_lens_time.rs": "31736c8bd3c2d4d18b642036e06c515f1a2bac17ec27e8d40de467938e21aa4b",
+    "crates/motion-model/src/commands.rs": "64c1fe2ceed74d538b70ea3c02e8602f3ff5ed6b9ee2c913da6faa43bb3e2aa8",
+    "desktop/app/src/panels/camera_controls.rs": "89d1113dc1465a6aac968e459c88ee0f2565134a71cb9c3553d4d3873105016c",
+    "desktop/app/src/panels/camera_controls/authoring.rs": "e9474119727ea319e7794890c71943d6dfe45fa533e54f5306154843e8c3f7f7",
+    "desktop/app/src/panels/camera_controls/lens.rs": "e9c38ecd909c6a62ef9b9524e091fe88760acafc763c63b1b34d43d222082bc6",
+    "desktop/app/src/panels/camera_controls/lens/tests.rs": "75def7536fe9a51068011e426a4f504d6c053667a3a496cdd206fcc975d17db4",
+    "desktop/app/src/panels/camera_controls/mapped_tests.rs": "577a62b66b6630ba59fb63bc107ee8191a2930cc56622b78a37bae542a27819a",
+    "desktop/app/src/panels/camera_controls/mapped_tests/faults.rs": "1630e6991a50f24e20809bee7ad7586b1cd9fb55eb85b3d999f0ec991516d24e",
+    "desktop/app/src/panels/camera_controls/mapped_tests/native.rs": "c62e20f66907aa5da8dbe84ead392e4de1efab3690a81766fc97eee4df507f1d"
+  },
+  "checks": {
+    "rustfmt": 0,
+    "style": 0,
+    "diff": 0,
+    "workspace": 0
+  },
+  "passed": 33,
+  "unrunManual": [],
+  "groups": [
+    {
+      "group": "mapped",
+      "args": [
+        "panels::camera_controls::mapped_tests::"
+      ],
+      "exit": 0,
+      "seconds": 23.96,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "f0d0af3d0493754c16523a6278a6656b992680663c72cb197b2f16e0ee01e720",
+      "passed": [
+        "panels::camera_controls::mapped_tests::camera_chrome_writes_exact_signed_pose_and_fov_keys_in_both_hosts_languages_and_directions",
+        "panels::camera_controls::mapped_tests::camera_numeric_drafts_cancel_on_clock_generation_time_focus_and_lock_changes",
+        "panels::camera_controls::mapped_tests::faults::camera_time_failures_are_bounded_and_visible_on_default_channels",
+        "panels::camera_controls::mapped_tests::fractional_local_camera_keys_are_disabled_but_static_values_and_animation_freeze_remain_exact",
+        "panels::camera_controls::mapped_tests::mapped_camera_reset_menu_writes_only_the_clicked_local_key_with_one_undo"
+      ],
+      "ignored": [
+        "panels::camera_controls::mapped_tests::native::native_mapped_cameras_commit_cancel_and_reopen_in_both_hosts_languages_and_directions"
+      ]
+    },
+    {
+      "group": "camera",
+      "args": [
+        "panels::camera_controls::",
+        "--skip",
+        "panels::camera_controls::mapped_tests::"
+      ],
+      "exit": 0,
+      "seconds": 60.295,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "f0d0af3d0493754c16523a6278a6656b992680663c72cb197b2f16e0ee01e720",
+      "passed": [
+        "panels::camera_controls::lens::tests::actual_lens_failures_reach_default_logs_and_stderr_with_recovery_and_stdout_isolation",
+        "panels::camera_controls::lens::tests::derived_numeric_gestures_share_fov_and_cancel_or_commit_one_history_entry",
+        "panels::camera_controls::lens::tests::lens_editor_rejects_malformed_snapshots_and_does_not_edit_locked_or_observed_cameras",
+        "panels::camera_controls::lens::tests::native::native_camera_lens_presets_render_in_both_languages_and_commit_to_the_fov_track",
+        "panels::camera_controls::lens::tests::preset_popup_consumes_outside_click_before_the_camera_mode_can_open",
+        "panels::camera_controls::tests::elevation_rejects_poles_and_non_finite_text_and_clamps_drag_with_localized_feedback",
+        "panels::camera_controls::tests::legacy_camera_rails_toggle_and_seek_real_coupled_and_separated_keys",
+        "panels::camera_controls::tests::missing_sample_streak_reports_once_at_sixty_and_recovers_at_default_log_level",
+        "panels::camera_controls::tests::native::native_reset_and_bounds_use_main_and_floating_routes_in_both_languages_at_four_dpis",
+        "panels::camera_controls::tests::reset_is_one_undoable_value_edit_preserving_animation_and_other_channels_after_reopen",
+        "panels::camera_controls::tests::reset_popup_cancels_on_escape_focus_loss_context_lock_and_subframe_without_editing"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "observation",
+      "args": [
+        "panels::tools::camera::"
+      ],
+      "exit": 0,
+      "seconds": 21.359,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "f0d0af3d0493754c16523a6278a6656b992680663c72cb197b2f16e0ee01e720",
+      "passed": [
+        "panels::tools::camera::tests::camera_cycles_respect_view_capability_and_preserve_ime_and_document_shortcuts",
+        "panels::tools::camera::tests::host_observation_transactions_are_absolute_cancellable_and_separate_from_project_history",
+        "panels::tools::camera::tests::invalid_and_stale_gestures_do_not_change_published_view_or_project",
+        "panels::tools::camera::tests::native::observation_modes_render_on_native_main_and_scaled_float_without_authoring_changes",
+        "panels::tools::camera::tests::observer_history_is_bounded_and_cleared_by_view_or_project_context_changes",
+        "panels::tools::camera::tests::rejected_camera_command_preserves_default_error_sinks_and_original_context",
+        "panels::tools::camera::tests::scaled_input_release_and_cancel_restore_the_whole_observation_gesture"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "lens",
+      "args": [],
+      "exit": 0,
+      "seconds": 0.17,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\camera_lens-4c7ef5b3471bbe12.exe",
+      "exeSha256": "f09b3eb6560f7122023476abae1a7815362526ed3a088e943bb5110a7c44e500",
+      "passed": [
+        "default_gate_is_explicit_and_edits_keep_the_current_format",
+        "failed_lens_edits_and_locked_targets_are_atomic",
+        "lens_edit_uses_existing_fov_animation_and_one_undo_with_storage_round_trip",
+        "lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projection",
+        "numeric_f32_boundary_values_can_round_trip_through_the_command",
+        "pinhole_conversions_follow_vertical_fov_and_horizontal_gate_without_drift",
+        "scoped_lens_edits_use_target_dimensions_and_survive_package_export"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "lens-time",
+      "args": [],
+      "exit": 0,
+      "seconds": 0.127,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\camera_lens_time-2dea86e4e80f7534.exe",
+      "exeSha256": "c08dfdd5ec5eb6b21c1cb1a0074a523c81b9126c3b3cfd0cc17d41371fbe92d6",
+      "passed": [
+        "lens_command_preserves_exact_signed_identity_and_roundtrips_with_one_undo",
+        "lens_failures_preserve_film_fov_history_and_the_complete_batch"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "native",
+      "args": [
+        "--exact",
+        "panels::camera_controls::mapped_tests::native::native_mapped_cameras_commit_cancel_and_reopen_in_both_hosts_languages_and_directions",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 27.292,
+      "exe": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\debug\\deps\\motion_studio-b34b3a7e7eb835e8.exe",
+      "exeSha256": "f0d0af3d0493754c16523a6278a6656b992680663c72cb197b2f16e0ee01e720",
+      "passed": [
+        "panels::camera_controls::mapped_tests::native::native_mapped_cameras_commit_cancel_and_reopen_in_both_hosts_languages_and_directions"
+      ],
+      "ignored": []
+    }
+  ],
+  "native": {
+    "cases": 8,
+    "screenshots": 40,
+    "separateProcessReopens": 8,
+    "capturePid": 45152,
+    "reopenPid": 37004,
+    "input": "synthetic native chrome Input with production worker and native GPU captures; not physical OS mouse input"
+  },
+  "observations": {
+    "new": [
+      "camera.numeric_time"
+    ],
+    "scope": "process lifetime, Warn first and Error at 60; healthy calls do not reset",
+    "existing": [
+      "worker Info start and atomic rollback",
+      "camera sample and lens failures"
+    ]
+  },
+  "originalFailures": [
+    "initial-fixture-build.log: Camera requires Box",
+    "initial-fixture-runtime.log: solid transform violates camera invariant; use Layer::camera; guards unchanged",
+    "initial-lens-precision.log: new expected value must include the existing f32 protocol input conversion; full equality preserved"
+  ],
+  "limits": [
+    "Windows verification only",
+    "no global DESIGN compliance claim",
+    "continuous spatial camera stopwatch and legacy continuous editors still need audit",
+    "real media devices, prewarm and high-speed sampling acceptance pending",
+    "issue 257 remains open"
+  ],
+  "archive": {
+    "file": "evidence.zip",
+    "sha256": "0e03d20dc57f28020423fe95e8d4d78db94811f655b8417f11b777f884f7a728",
+    "bytes": 1315326
+  }
+}

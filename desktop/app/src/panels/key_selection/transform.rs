@@ -2,6 +2,7 @@
 //! collisions and bounds are rejected before the serial worker receives edits.
 use super::*;
 use crate::panels::{Action, Panels};
+mod local;
 
 pub(super) struct Occupancy {
     selected: BTreeSet<u32>,
@@ -12,13 +13,23 @@ pub(super) struct Plan {
     pub channels: Vec<Occupancy>,
     pub total: u32,
     spatial: Vec<SpatialOccupancy>,
+    local: local::Local,
 }
 struct SpatialOccupancy {
     target: KeyframeTarget,
     ids: Vec<u64>,
-    // Authored order, effective composition time and ownership. Prepared only
+    clock: motion_core::layer_time::LayerClock,
+    offset: i32,
+    // Authored order, effective local/composition time and ownership. Prepared only
     // once per gesture; pointer movement never rebuilds spatial geometry.
-    keys: Vec<(u64, f64, bool, f64)>,
+    keys: Vec<SolvedKey>,
+}
+struct SolvedKey {
+    id: u64,
+    local: f64,
+    composition: f64,
+    fixed: bool,
+    incoming: f64,
 }
 impl Plan {
     pub fn capture(selected: &Set, state: &Value) -> motion_core::Result<Self> {
@@ -58,6 +69,7 @@ impl Plan {
         }
         let mut spatial = Vec::new();
         for (target, ids) in selected.spatial_selections() {
+            let clock = source::clock(state, &target)?;
             let KeyframeTarget::Property {
                 object,
                 property,
@@ -71,6 +83,8 @@ impl Plan {
             let (authored, offset) = source::track(state, &target).ok_or_else(|| {
                 Error::Invalid("spatial transform authored channel missing".into())
             })?;
+            let offset = i32::try_from(offset)
+                .map_err(|_| Error::Invalid("spatial transform clip offset exceeds i32".into()))?;
             let author_keys = authored["spatial_animation"]["keys"]
                 .as_array()
                 .ok_or_else(|| Error::Invalid("spatial transform authored keys missing".into()))?;
@@ -81,12 +95,7 @@ impl Plan {
             let view_keys = view["spatial_keys"]
                 .as_array()
                 .ok_or_else(|| Error::Invalid("spatial transform solved keys missing".into()))?;
-            bytes = bytes.saturating_add(author_keys.len().saturating_mul(std::mem::size_of::<(
-                u64,
-                f64,
-                bool,
-                f64,
-            )>()));
+            bytes = bytes.saturating_add(author_keys.len().saturating_mul(std::mem::size_of::<SolvedKey>()));
             if bytes > MAX_KEYFRAME_CLIPBOARD_BYTES || author_keys.len() > 16_385 {
                 return Err(Error::Invalid(
                     "spatial transform occupancy exceeds metadata limit".into(),
@@ -112,9 +121,12 @@ impl Plan {
                 let fixed = author.get("fixed").ok_or_else(|| {
                     Error::Invalid("spatial transform time ownership missing".into())
                 })?;
+                let local = view["local_frame"].as_f64().filter(|t| t.is_finite())
+                    .ok_or_else(|| Error::Invalid("spatial transform solved local time missing".into()))?;
                 if !seen.insert(id)
                     || view["id"].as_u64() != Some(id)
-                    || !fixed.is_null() && fixed.as_f64().is_none_or(|t| t + offset as f64 != time)
+                    || !fixed.is_null() && fixed.as_f64() != Some(local)
+                    || clock.projected_composition_frame(local, offset)? != time
                     || view["roving"].as_bool() != Some(fixed.is_null())
                 {
                     return Err(Error::Invalid(
@@ -127,37 +139,42 @@ impl Plan {
                     .ok_or_else(|| {
                         Error::Invalid("spatial transform incoming metric missing".into())
                     })?;
-                keys.push((id, time, !fixed.is_null(), incoming));
+                keys.push(SolvedKey { id, local, composition: time, fixed: !fixed.is_null(), incoming });
             }
             if ids.iter().any(|id| !seen.contains(id)) {
                 return Err(Error::Invalid(
                     "spatial transform selected identity missing".into(),
                 ));
             }
-            spatial.push(SpatialOccupancy { target, ids, keys });
+            spatial.push(SpatialOccupancy { target, ids, clock, offset, keys });
         }
+        let local = local::Local::capture(selected, state, &mut bytes)?;
         Ok(Self {
             selected: selected.clone(),
             channels,
             total,
             spatial,
+            local,
         })
     }
     pub fn allows(&self, delta: i32, copy: bool) -> bool {
         if copy && !self.spatial.is_empty() {
             return false;
         }
-        self.spatial.iter().all(|c| {
+        let composition_delta = self.delta_frame(delta);
+        let Some(integer_delta) = self.integer_delta(delta) else { return false; };
+        self.local.allows(delta, self.total, copy) && self.spatial.iter().all(|c| {
             let mut previous = None;
             let mut moving = false;
-            c.keys.iter().all(|(id, time, fixed, incoming)| {
-                moving |= *incoming > 0.;
-                let chosen = c.ids.binary_search(id).is_ok();
-                let next = *time + if chosen { f64::from(delta) } else { 0. };
-                if chosen && !(next >= 0. && next < f64::from(self.total)) {
+            c.keys.iter().all(|key| {
+                moving |= key.incoming > 0.;
+                let chosen = c.ids.binary_search(&key.id).is_ok();
+                let next = key.local + if chosen { composition_delta * c.clock.rate() } else { 0. };
+                if chosen && !c.clock.projected_composition_frame(next, c.offset)
+                    .is_ok_and(|time| time >= 0. && time < f64::from(self.total)) {
                     return false;
                 }
-                if chosen || *fixed {
+                if chosen || key.fixed {
                     if previous.is_some_and(|p| p > next || p == next && moving) {
                         return false;
                     }
@@ -168,7 +185,7 @@ impl Plan {
             })
         }) && self.channels.iter().all(|c| {
             c.selected.iter().all(|from| {
-                let to = i64::from(*from) + i64::from(delta);
+                let to = i64::from(*from) + i64::from(integer_delta);
                 (0..i64::from(self.total)).contains(&to)
                     && (!c.authored.contains(&to)
                         || !copy && u32::try_from(to).is_ok_and(|to| c.selected.contains(&to)))
@@ -180,13 +197,21 @@ impl Plan {
         delta: i32,
         value_offset: Option<motion_core::KeyframeValueOffset>,
         copy: bool,
-    ) -> Vec<motion_core::Command> {
+    ) -> motion_core::Result<Vec<motion_core::Command>> {
+        if !self.allows(delta, copy) {
+            return Err(Error::Invalid("key transform destination is occupied or outside the composition".into()));
+        }
+        if value_offset.as_ref().is_some_and(|value| !self.selected.channels.values()
+            .any(|c| c.target.as_ref() == Some(&value.target))) {
+            return Err(Error::Invalid("key transform value target is not selected".into()));
+        }
         let mut commands = Vec::new();
         if !self.channels.is_empty() {
+            let selections = self.selected.selections();
             commands.push(motion_core::Command::TransformKeyframes {
-                selections: self.selected.selections(),
-                delta_frame: delta,
-                value_offset,
+                value_offset: value_offset.as_ref().filter(|v| selections.iter().any(|s| s.target == v.target)).cloned(),
+                selections,
+                delta_frame: self.integer_delta(delta).ok_or_else(|| Error::Invalid("composition key delta overflow".into()))?,
                 copy,
             });
         }
@@ -197,16 +222,55 @@ impl Plan {
                     target: c.target.clone(),
                     edit: motion_core::SpatialKeyEdit::Move {
                         keys: c.ids.clone(),
-                        delta: f64::from(delta),
+                        delta: self.delta_frame(delta),
                     },
                 }),
         );
-        commands
+        commands.extend(self.local.commands(delta, value_offset.as_ref(), copy)?);
+        Ok(commands)
     }
-    pub fn times(&self) -> impl Iterator<Item = u32> + '_ {
+    pub fn times(&self) -> impl Iterator<Item = f64> + '_ {
         self.channels
             .iter()
-            .flat_map(|c| c.selected.iter().copied())
+            .flat_map(|c| c.selected.iter().copied().map(f64::from))
+            .chain(self.local.times())
+            .chain(self.spatial.iter().flat_map(|c| c.keys.iter()
+                .filter(|key| c.ids.binary_search(&key.id).is_ok()).map(|key| key.composition)))
+    }
+    pub fn delta_frame(&self, steps: i32) -> f64 {
+        f64::from(steps) * self.local.grid.scale()
+    }
+    pub fn nearest_steps(&self, frames: f64) -> Option<i32> {
+        let steps = (frames / self.local.grid.scale()).round();
+        (steps.is_finite() && steps >= f64::from(i32::MIN) && steps <= f64::from(i32::MAX))
+            .then_some(steps as i32)
+    }
+    pub fn exact_steps(&self, frames: f64) -> Option<i32> {
+        self.nearest_steps(frames).filter(|s| {
+            (self.delta_frame(*s) - frames).abs() <= 16. * f64::EPSILON * frames.abs().max(1.)
+        })
+    }
+    fn integer_delta(&self, steps: i32) -> Option<i32> {
+        if self.channels.is_empty() { return Some(0); }
+        let delta = self.delta_frame(steps);
+        (delta.fract() == 0. && delta >= f64::from(i32::MIN) && delta <= f64::from(i32::MAX))
+            .then_some(delta as i32)
+    }
+    pub fn translated(&self, steps: i32) -> motion_core::Result<Set> {
+        let delta = self.integer_delta(steps)
+            .ok_or_else(|| Error::Invalid("composition key delta overflow".into()))?;
+        if !self.selected.has_local() { return self.selected.translated(delta); }
+        let mut next = self.selected.clone();
+        let shift = |frame: u32| u32::try_from(i64::from(frame) + i64::from(delta))
+            .map_err(|_| Error::Invalid("key selection time overflow".into()));
+        for channel in next.channels.values_mut() {
+            channel.frames = channel.frames.iter().map(|f| shift(*f)).collect::<motion_core::Result<_>>()?;
+        }
+        if let Some(primary) = &mut next.primary { primary.frame = shift(primary.frame)?; }
+        self.local.translated(&mut next, steps)?;
+        next.validated.set(None);
+        next.intent = true;
+        Ok(next)
     }
 }
 pub(super) fn unavailable(panels: &mut Panels) {
@@ -272,12 +336,20 @@ pub(super) fn nudge(
             return true;
         }
     };
+    let Some(delta) = plan.exact_steps(f64::from(delta)) else {
+        panels.message = Some(if panels.locale == crate::i18n::Locale::Zh {
+            format!("所选图层无法精确移动 {delta} 个合成帧；请按可表示的时间步长拖动关键帧")
+        } else {
+            format!("Selected layer clocks cannot move exactly {delta} composition frames; drag on their representable time grid")
+        });
+        return true;
+    };
     if !plan.allows(delta, false) {
         rejected(panels);
         return true;
     }
-    let moved = match panels.selected_keys.translated(delta) {
-        Ok(set) => set,
+    let (moved, commands) = match plan.translated(delta).and_then(|set| Ok((set, plan.commands(delta, None, false)?))) {
+        Ok(result) => result,
         Err(error) => {
             failed(panels, state, error);
             return true;
@@ -285,7 +357,7 @@ pub(super) fn nudge(
     };
     out.push(Action::EditorAction {
         source: crate::layer_clipboard::KeyframeSource::of(state),
-        commands: plan.commands(delta, None, false),
+        commands,
     });
     panels.selected_keys = moved;
     ui::project_primary(panels, state);

@@ -10,6 +10,8 @@ use motion_core::*;
 mod fixture;
 #[path = "tracking_replacement/bindings.rs"]
 mod bindings;
+#[path = "tracking_replacement/layer_time.rs"]
+mod mapped_clock;
 
 fn replacement(project: &Project) -> Replacement {
     let mut video = project.video_assets[0].clone();

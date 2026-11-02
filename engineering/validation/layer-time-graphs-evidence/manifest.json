@@ -1,0 +1,1570 @@
+{
+  "base_commit": "faeabdfc494cc749d18965ad0ca18c9f7a8f7de5",
+  "branch": "feat/layer-time-mapping",
+  "scope": "#257 mapped comparison/effect graphs; whole issue remains open",
+  "summary": {
+    "different_tests_passed": 179,
+    "desktop_passed": 155,
+    "core_passed": 24,
+    "manual_not_run": 8,
+    "desktop_tests": [
+      "panels::animation_controls::mini::tests::actual_readouts_preserve_zero_and_negative_amplitude_and_duration_in_physical_units",
+      "panels::animation_controls::mini::tests::adaptive_normalized_curves_cover_high_zoom_and_one_sided_hold_against_dense_samples",
+      "panels::animation_controls::mini::tests::automatic_ranges_include_authored_controls_and_actual_extrema_without_clipping",
+      "panels::animation_controls::mini::tests::coupled_readout_keeps_each_visible_component_and_source_revision_invalidates_cache",
+      "panels::animation_controls::mini::tests::fault_tests::adaptive_frozen_geometry_failure_uses_real_view_and_valid_normalized_readout_guard_stays_quiet",
+      "panels::animation_controls::mini::tests::fault_tests::default_failure_channels_cache_suppression_recovery_and_process_reset_use_real_consumers",
+      "panels::animation_controls::mini::tests::last_key_readout_remains_normalized_without_fabricated_frames_or_physical_units",
+      "panels::animation_controls::mini::tests::mini_selection_distinguishes_unowned_empty_stale_and_both_interval_endpoints",
+      "panels::animation_controls::mini::tests::outgoing_interval_maps_composition_time_once_and_never_invents_last_key_time",
+      "panels::animation_controls::mini::tests::physical_readout_keeps_component_values_and_units_visible_with_long_layer_names",
+      "panels::animation_controls::mini::tests::unchanged_mini_reuses_geometry_but_zoom_resize_and_mode_rebuild_the_correct_cache",
+      "panels::curve_comparison::tests::clicks_select_the_authored_channel_and_single_key_drag_uses_one_atomic_existing_command",
+      "panels::curve_comparison::tests::collection_expands_components_deduplicates_and_keeps_unit_groups_separate_without_editing",
+      "panels::curve_comparison::tests::compact_controls_keep_a_visible_plot_and_own_popup_keys_and_closing_clicks",
+      "panels::curve_comparison::tests::error_tests::comparison_menu_and_keyboard_controls_work_in_read_only_views_and_do_not_start_playback",
+      "panels::curve_comparison::tests::error_tests::malformed_tracks_report_once_per_revision_at_default_level_then_recover_without_stdout_diagnostics",
+      "panels::curve_comparison::tests::local_offsets_physical_units_and_signed_separated_axes_follow_actual_samples",
+      "panels::curve_comparison::tests::native_effect_values_do_not_share_axes_without_the_same_parameter_identity",
+      "panels::curve_comparison::tests::ranges::comparison_actual_samples_keep_dense_high_zoom_error_bounds_for_values_and_physical_speed",
+      "panels::curve_comparison::tests::ranges::comparison_context_snapshot_notices_visibility_collection_and_group_changes_without_allocating_each_match",
+      "panels::curve_comparison::tests::ranges::comparison_sampling_budget_failure_is_not_a_partial_curve_and_is_cached_until_the_view_changes",
+      "panels::curve_comparison::tests::ranges::comparison_tessellation_cache_tracks_ordinate_geometry_and_time_scale_even_when_end_is_capped",
+      "panels::curve_comparison::tests::samples_reuse_the_revision_cache_while_visibility_and_graph_modes_leave_the_project_unchanged",
+      "panels::curve_comparison::tests::spatial_selection_opens_its_real_curves_without_using_integer_clipboard_payloads",
+      "panels::curve_comparison::tests::stale_keys_partial_add_limits_and_removed_dimensions_preserve_authored_state",
+      "panels::curve_comparison::tests::wide_legend_reserves_the_same_time_viewport_for_ruler_keys_zoom_and_navigation",
+      "panels::effect_timeline::graph::tests::discrete_effect_steps_keep_the_left_limit_and_zero_speed_without_changing_easing",
+      "panels::effect_timeline::graph::tests::effect_adaptive_values_and_bounded_physical_speed_match_dense_model_oracles_at_high_zoom",
+      "panels::effect_timeline::graph::tests::fit_preserves_actual_sampler_errors_and_rejects_nonfinite_values_without_partial_ranges",
+      "panels::effect_timeline::graph::tests::stretched_and_reversed_effect_samples_fit_signed_speed_and_keep_jump_neighbors",
+      "panels::effect_timeline::tests::clipboard_effect_key_uses_only_the_selected_timeline_key",
+      "panels::effect_timeline::tests::effect_graph_edits_actual_values_and_handles_and_each_gesture_restores_on_undo",
+      "panels::effect_timeline::tests::effect_key_f9_and_context_menu_edit_both_sides_without_touching_transform",
+      "panels::effect_timeline::tests::effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_history",
+      "panels::effect_timeline::tests::effect_speed_uses_the_same_clamp_as_the_value_sampler",
+      "panels::effect_timeline::tests::handle_tests::automatic_handle_input_preserves_neighbours_and_cancels_in_both_owners_and_languages",
+      "panels::effect_timeline::tests::malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdout",
+      "panels::effect_timeline::tests::mapped_graph::clock_change_and_focus_loss_cancel_active_local_handle_without_committing",
+      "panels::effect_timeline::tests::mapped_graph::fractional_effect_handles_edit_the_local_interval_and_undo_once_in_both_owners",
+      "panels::effect_timeline::tests::node_effect_rows_reserve_every_parameter_and_expansion_invalidates_scroll_extent",
+      "panels::effect_timeline::tests::real_node_parameter_numeric_and_timing_drags_each_undo_once_in_both_hosts",
+      "panels::effect_timeline::tests::scroll_cache_tests::group_boundaries_keep_different_row_layouts_from_sharing_the_scroll_cache",
+      "panels::effect_timeline::tests::stale_and_readonly_effect_targets_cancel_once_and_do_not_recover_command_ownership",
+      "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_changes_key_spacing_in_the_wheel_frame_without_editing",
+      "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_keeps_mouse_value_after_repaint_including_both_limits",
+      "panels::effect_timeline::tests::zoom_tests::effect_value_zoom_preserves_invalid_input_and_pending_drag_cancel_boundaries",
+      "panels::graph_ranges::tests::a_full_locked_cache_keeps_old_locks_and_opens_a_readonly_menu_until_another_view_is_unlocked",
+      "panels::graph_ranges::tests::actual_main_and_floating_chrome_keep_menu_keys_from_editing_the_selected_key",
+      "panels::graph_ranges::tests::actual_property_graph_menu_fits_composition_time_once_and_owned_empty_does_not_fall_back",
+      "panels::graph_ranges::tests::automatic_fit_resets_old_vertical_navigation_and_preserves_a_locked_axis",
+      "panels::graph_ranges::tests::comparison::comparison_axis_locks_are_per_unit_and_automatic_preserves_other_unit_and_legacy_y",
+      "panels::graph_ranges::tests::comparison::comparison_fit_selection_uses_only_its_unit_group_and_composition_time_without_history",
+      "panels::graph_ranges::tests::comparison::comparison_menu_cancels_mode_and_collection_changes_and_consumes_delete_escape",
+      "panels::graph_ranges::tests::comparison::comparison_more_button_owns_left_press_without_starting_marquee_or_changing_key_context",
+      "panels::graph_ranges::tests::effect::effect_locks_survive_playback_wheel_and_main_float_escape_consumes_the_key",
+      "panels::graph_ranges::tests::effect::effect_menu_cancels_projected_key_changes_and_owned_empty_never_uses_the_old_diamond",
+      "panels::graph_ranges::tests::effect::effect_range_menu_fits_local_keys_once_and_retains_native_values_and_per_second_speed",
+      "panels::graph_ranges::tests::faults::effect_and_comparison_readout_overflow_reports_the_real_hover_without_poisoning_the_curve",
+      "panels::graph_ranges::tests::faults::real_renderers_report_bounds_adaptive_and_fit_budget_failures_at_default_level_and_recover",
+      "panels::graph_ranges::tests::keyboard_skips_disabled_rows_and_ime_repeat_and_opening_frame_cannot_activate",
+      "panels::graph_ranges::tests::locked_ranges_survive_scrolling_through_more_views_than_the_cache_limit",
+      "panels::graph_ranges::tests::menu_consumes_closing_frames_and_cancels_foreign_input_source_selection_and_track_changes",
+      "panels::graph_ranges::tests::mini::mini_control_drag_inverts_zoomed_axes_and_escape_cancels_the_existing_transaction",
+      "panels::graph_ranges::tests::mini::mini_fit_selection_uses_normalized_interval_without_moving_shared_time_or_history",
+      "panels::graph_ranges::tests::mini::mini_hover_uses_actual_composition_frame_and_percent_but_last_key_stays_normalized",
+      "panels::graph_ranges::tests::mini::mini_locks_both_local_axes_during_playback_and_modifier_wheel_without_panel_scroll",
+      "panels::graph_ranges::tests::mini::mini_menu_owns_ime_and_cancels_changed_key_or_other_window_without_deleting",
+      "panels::graph_ranges::tests::mini::mini_modifier_zoom_and_pan_are_pointer_anchored_and_do_not_scroll_or_move_timeline",
+      "panels::graph_ranges::tests::native_checkbox_locks_capture_bounds_and_fit_only_the_unlocked_axis_without_edits",
+      "panels::graph_ranges::tests::time_lock_blocks_navigation_and_channel_views_are_bounded_and_reset_on_document_change",
+      "panels::graph_sampling::tests::adaptive_knots_keep_signed_local_keys_offsets_and_hold_boundaries",
+      "panels::graph_sampling::tests::adaptive_real_model_values_and_physical_speeds_match_dense_screen_oracles",
+      "panels::graph_sampling::tests::automatic_speed_matches_the_value_derivative_and_rejects_unsupported_policy",
+      "panels::graph_sampling::tests::physical_speed_and_hold_do_not_use_a_discontinuous_finite_difference",
+      "panels::graph_sampling::tests::vector_spatial_path_derivative_matches_the_actual_sampler",
+      "panels::key_selection::tests::add_toggle_and_empty_replace_preserve_explicit_key_ownership",
+      "panels::key_selection::tests::authored_delete_and_undo_invalidate_and_restore_keys_without_layer_fallback",
+      "panels::key_selection::tests::empty_stale_and_read_only_collections_consume_delete_and_never_copy_or_cut_layers",
+      "panels::key_selection::tests::key_delete_and_ease_dispatch_the_entire_collection_with_guarded_document_identity",
+      "panels::key_selection::tests::local::exact_primary_and_clipboard_gates_never_fall_back_to_an_integer_key_or_layer",
+      "panels::key_selection::tests::local::local_presence_rechecks_authored_keys_and_document_identity_but_lock_only_disables_writes",
+      "panels::key_selection::tests::local::malformed_local_source_is_visible_at_default_level_and_normal_absence_is_quiet",
+      "panels::key_selection::tests::local::mixed_coordinate_envelopes_are_rejected_atomically_and_budget_counts_signed_addresses",
+      "panels::key_selection::tests::local::mixed_delete_runs_as_one_real_transaction_and_saves_without_touching_mapping_or_other_axes",
+      "panels::key_selection::tests::local::signed_local_selection_survives_fractional_projection_and_trim_without_integer_aliases",
+      "panels::key_selection::tests::local::visible_incoming_ease_swaps_local_sides_once_for_reverse_and_keeps_unmapped_channels",
+      "panels::key_selection::tests::oversized_gesture_is_atomic_and_new_document_add_cannot_resurrect_old_keys",
+      "panels::key_selection::tests::primary_property_focus_arbitration_preserves_same_gesture_and_releases_explicit_navigation",
+      "panels::key_selection::tests::revision_cache_is_document_scoped_and_missing_revision_never_caches",
+      "panels::key_selection::tests::selection_addresses_cross_layers_separated_axes_and_signed_local_offsets",
+      "panels::key_selection::tests::sources::malformed_authored_lookup_reaches_default_channels_without_turning_normal_misses_into_faults",
+      "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_camera_offsets_and_stereo_audio",
+      "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_flat_and_nested_vector_channels",
+      "panels::key_selection::tests::sources::raw_authored_lookup_agrees_with_model_for_masks_and_effect_curve_tracks",
+      "panels::key_selection::tests::transforms::authored_nudges_use_one_or_ten_frames_and_one_atomic_history_entry",
+      "panels::key_selection::tests::transforms::malformed_drag_occupancy_reports_default_channels_and_recovery_can_nudge_again",
+      "panels::key_selection::tests::transforms::nudge_bindings_repeat_but_respect_text_ime_and_other_panel_focus",
+      "panels::key_selection::tests::transforms::rejected_nudge_keeps_selection_data_and_history_and_never_seeks_or_moves_layers",
+      "panels::key_selection::tests::transforms::remapped_nudge_repeats_through_keyboard_routing_and_disables_its_old_default",
+      "panels::key_selection::tests::ui::actual_expanded_keys_batch_f9_delete_save_reopen_and_one_undo",
+      "panels::key_selection::tests::ui::actual_graph_pointer_and_marquee_select_authored_keys_without_component_duplicates",
+      "panels::key_selection::tests::ui::actual_marquee_cancels_on_escape_focus_or_changed_document_and_view",
+      "panels::key_selection::tests::ui::actual_single_key_drag_tracks_selection_and_cancel_restores_identity",
+      "panels::key_selection::tests::ui::actual_summary_marquee_works_in_both_directions_and_empty_selection_owns_delete",
+      "panels::key_selection::tests::ui::actual_summary_pointer_replace_add_toggle_and_select_all_use_channel_identities",
+      "panels::key_selection::tests::ui::actual_summary_selects_mask_vector_effect_and_audio_keys_at_their_own_times",
+      "panels::key_selection::tests::ui::actual_ui_capture_failures_preserve_selection_and_default_file_stderr_channels",
+      "panels::key_selection::tests::ui::dragging::expanded_row_drag_keeps_other_selected_channels_at_the_same_time",
+      "panels::key_selection::tests::ui::dragging::graph_multi_key_body_drag_preserves_spacing_and_constrains_time_or_value",
+      "panels::key_selection::tests::ui::dragging::multi_key_pointer_cancel_stale_and_late_release_never_modify_authored_data",
+      "panels::key_selection::tests::ui::dragging::multi_key_pointer_drag_previews_then_commits_once_and_copy_keeps_sources",
+      "panels::key_selection::tests::ui::dragging::multi_key_pointer_rejects_collision_and_bounds_without_partial_edits",
+      "panels::key_selection::tests::ui::dragging::multi_key_snapping_uses_screen_pixels_at_different_timeline_zooms",
+      "panels::key_selection::tests::ui::dragging::single_key_snap_keeps_existing_lane_history_and_rejects_stale_input_before_editing",
+      "panels::key_selection::tests::ui::local_timing::clicking_a_local_member_keeps_the_mixed_collection_and_moves_on_its_common_grid",
+      "panels::key_selection::tests::ui::local_timing::clipboard::all_typed_mapped_channels_copy_exact_clicked_keys_through_both_chrome_owners",
+      "panels::key_selection::tests::ui::local_timing::clipboard::mapped_clipboard_degradation_is_bounded_visible_at_default_level_and_recovers_functionally",
+      "panels::key_selection::tests::ui::local_timing::clipboard::mixed_frame_and_local_sets_copy_together_but_stale_sets_never_copy_a_subset",
+      "panels::key_selection::tests::ui::local_timing::clipboard::property_clipboard_reads_authored_frames_and_keeps_empty_audio_a_normal_paste_target",
+      "panels::key_selection::tests::ui::local_timing::common_grid_moves_mixed_clocks_together_and_value_offsets_only_the_target",
+      "panels::key_selection::tests::ui::local_timing::common_grid_with_legacy_keys_collision_and_copy_are_checked_before_commands",
+      "panels::key_selection::tests::ui::local_timing::fractional_pointer_drag_uses_release_position_in_both_owners_languages_and_lanes",
+      "panels::key_selection::tests::ui::local_timing::graph_local_drag_and_select_all_retain_storage_identity",
+      "panels::key_selection::tests::ui::local_timing::graphs::audio_property_graph_ignores_source_remap_while_obeying_its_layer_clock",
+      "panels::key_selection::tests::ui::local_timing::graphs::comparison_fractional_key_drag_edits_local_key_in_main_and_floating_owners",
+      "panels::key_selection::tests::ui::local_timing::graphs::comparison_local_graph_keeps_vertical_value_drag_instead_of_only_moving_time",
+      "panels::key_selection::tests::ui::local_timing::graphs::continuous_spatial_keys_project_prepared_times_and_keep_neighboring_knots",
+      "panels::key_selection::tests::ui::local_timing::graphs::malformed_graph_clock_is_bounded_visible_at_default_level_and_recovers_without_stdout_logs",
+      "panels::key_selection::tests::ui::local_timing::graphs::native::mapped_comparison_native_pixels_worker_undo_save_and_reopen",
+      "panels::key_selection::tests::ui::local_timing::graphs::typed_comparison_values_speeds_and_addresses_follow_signed_clock_without_rounding",
+      "panels::key_selection::tests::ui::local_timing::keyboard_nudge_is_exact_composition_time_and_never_rounds_each_layer",
+      "panels::key_selection::tests::ui::local_timing::local_drag_cancels_on_escape_focus_loss_revision_and_rejects_occupied_destination",
+      "panels::key_selection::tests::ui::local_timing::malformed_projection_and_row_clocks_are_bounded_visible_and_stdout_isolated",
+      "panels::key_selection::tests::ui::local_timing::mapped_graph_value_drag_uses_local_target_and_preserves_opacity_limits",
+      "panels::key_selection::tests::ui::local_timing::ordinary_select_all_uses_local_identity_for_integer_and_fractional_times_offscreen",
+      "panels::key_selection::tests::ui::local_timing::typed::failed_typed_cache_is_atomic_observed_at_default_level_and_restores_without_retries",
+      "panels::key_selection::tests::ui::local_timing::typed::reopening_the_same_root_and_revision_refreshes_clocked_rows_in_both_owners",
+      "panels::key_selection::tests::ui::local_timing::typed::row_cache_projects_all_typed_addresses_and_keeps_static_vector_settings_normal",
+      "panels::key_selection::tests::ui::local_timing::typed::typed_lanes_and_summaries_drag_the_authored_cohort_once_in_both_owners_and_languages",
+      "panels::key_selection::tests::ui::select_all_includes_offscreen_keys_and_readonly_pointer_selection_cannot_edit",
+      "panels::key_selection::tests::ui::spatial::coincident_spatial_pointer_hits_keep_both_ids_and_select_all_keeps_integer_channels",
+      "panels::key_selection::tests::ui::spatial::fractional_spatial_pointer_drag_uses_stable_ids_in_summary_and_expanded_rows",
+      "panels::key_selection::tests::ui::spatial::mixed_nudge_is_one_undo_and_unsupported_clipboard_and_easing_do_not_edit_a_subset",
+      "panels::key_selection::tests::ui::spatial::spatial_bounds_and_order_rejections_keep_the_entire_mixed_selection_unchanged",
+      "panels::key_selection::tests::ui::spatial::spatial_delete_addresses_the_id_and_keeps_layer_and_survivor_identity_through_undo",
+      "panels::key_selection::tests::ui::spatial::spatial_drag_cancel_stale_focus_and_copy_never_dispatch_partial_edits_or_late_release",
+      "panels::key_selection::tests::ui::spatial::stable_selection_keeps_coincident_identities_and_invalidates_only_deleted_ids_or_scope",
+      "panels::key_selection::tests::ui::spatial::zero_duration_preview_rejects_moving_spans_but_accepts_stationary_coincident_keys",
+      "panels::timeline_graph::spatial_tests::cached_graph_reads_fractional_spatial_times_and_real_velocity_without_repreparing",
+      "panels::timeline_graph::spatial_tests::graph_cache_invalidates_document_revision_and_channel_with_identical_object_ids",
+      "panels::timeline_graph::spatial_tests::malformed_spatial_graph_is_logged_once_per_revision_then_recovers_at_default_level",
+      "panels::timeline_graph::spatial_tests::spatial_fit_selection_and_knots_keep_fractional_and_coincident_identities",
+      "panels::timeline_graph::time_tests::malformed_clock_uses_existing_bounded_graph_fault_and_recovers_at_default_level",
+      "panels::timeline_graph::time_tests::reversed_hold_knots_keep_order_and_match_the_existing_model_on_both_sides",
+      "panels::timeline_graph::time_tests::value_and_physical_speed_use_the_same_clock_and_fit_keeps_fractional_identity"
+    ],
+    "core_tests": [
+      "a_later_command_failure_rolls_back_mapping_revision_and_all_history_accounting",
+      "cancelled_gesture_restores_the_full_unmapped_project_and_does_not_create_an_undo_entry",
+      "repeating_the_same_duration_scale_does_not_publish_a_new_revision_or_history_entry",
+      "command_transport_and_catalogue_agree_on_required_time_mapping_fields",
+      "failed_real_project_publication_preserves_mapping_history_and_original_destination",
+      "mapping_undo_redo_and_real_storage_roundtrip_restore_the_entire_project",
+      "unrepresentable_reversed_steps_and_elastic_curves_are_rejected_without_partial_results",
+      "cut_fingerprints_the_source_clock_and_keys_and_undo_restores_the_entire_document",
+      "mixed_coordinate_tracks_preserve_common_alignment_and_late_failures_are_atomic",
+      "opposite_clocks_reverse_interval_ownership_curves_and_spatial_tangents_without_changing_samples",
+      "fractional_transfer_preserves_signed_identity_exact_spacing_save_and_full_undo",
+      "mapped_audio_envelope_edits_preserve_the_other_channel_and_source_clock",
+      "retained_negative_keys_can_edit_metadata_and_move_to_a_visible_fractional_time",
+      "separated_axes_require_an_explicit_channel_and_deleting_all_keys_keeps_the_last_value",
+      "continuous_spatial_storage_is_explicitly_rejected_and_domain_failures_restore_prior_batch_edits",
+      "reverse_projection_keeps_local_interval_sides_and_automatic_policy",
+      "local_failures_are_atomic_and_keep_context_including_locks_bounds_missing_keys_and_numeric_overflow",
+      "overlapping_selection_moves_without_replacing_unselected_keys_and_copy_offsets_one_component",
+      "explicit_composition_routing_edits_only_the_child_and_retains_one_step_history",
+      "transport_rejects_fractional_identities_and_unknown_fields_and_catalogue_describes_local_coordinates",
+      "fractional_projection_moves_by_local_identity_and_preserves_undo_and_save",
+      "local_curve_updates_share_one_gesture_preserve_failed_updates_and_roundtrip_history",
+      "discrete_effects_keep_hold_and_reject_temporal_curves_without_partial_edits",
+      "masks_vector_groups_and_effects_use_the_same_exact_local_protocol"
+    ],
+    "manual_not_run_tests": [
+      "panels::graph_ranges::native_tests::graph_ranges_native_all_surfaces_locales_dpi_locks_cancellation_and_saved_files",
+      "panels::key_selection::tests::ui::dragging::native::native_key_drag_pixels_transactions_and_independent_reopen",
+      "panels::key_selection::tests::ui::local_timing::clipboard::native::typed_fractional_clipboard_native_input_transactions_errors_and_reopen",
+      "panels::key_selection::tests::ui::local_timing::native::fractional_key_drag_pixels_transactions_and_reopen",
+      "panels::key_selection::tests::ui::local_timing::native::typed_lanes_pixels_worker_undo_and_reopen",
+      "panels::key_selection::tests::ui::spatial::native::native_spatial_comparison_pixels_and_atomic_worker_moves",
+      "panels::key_selection::tests::ui::spatial::native::native_spatial_graph_pixels_and_atomic_worker_moves",
+      "panels::key_selection::tests::ui::spatial::native::native_spatial_timeline_pixels_and_atomic_worker_moves"
+    ]
+  },
+  "program": {
+    "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\layer-time-graphs-final-tested.exe",
+    "sha256": "c0d9c5745fcffba899c29c24e5331becca46e965341c3d3a8cfc31525fe3839a"
+  },
+  "native": {
+    "png_count": 14,
+    "processes": {
+      "capture-process": 47420,
+      "reopen-process": 48720
+    },
+    "independent_project_reopens": 2
+  },
+  "source_sha256": {
+    "crates/motion-core/tests/local_keyframes.rs": "cc74ee4115ece4ca7d0da58090d60e97586f1c3163a07d29c5470f9be3b230b5",
+    "crates/motion-model/src/commands.rs": "01adfd53f1c9923e96dfe9d74b67be4d94d0c5a7953f6fe76d75f59aeaa16b6a",
+    "desktop/app/src/panels/curve_comparison/data.rs": "ea31e69ea3702634bcb1f8e7df53bf4f8e9c128572cc943ef992df17ed29a7f3",
+    "desktop/app/src/panels/curve_comparison/view.rs": "ac5cca2ae35f762c11d4fd242f2b326706fd50a56ef5add3037bf24ac863b50f",
+    "desktop/app/src/panels/effect_timeline.rs": "1aac4fda97baafdab5451a0881a567cebc437959ae817e545dfe6d4eaf055e3b",
+    "desktop/app/src/panels/effect_timeline/graph.rs": "530150a205b6fa59033cabb82d4238a626a279199553a1823ff9c9ec767a3d19",
+    "desktop/app/src/panels/effect_timeline/graph/tests.rs": "5204bc967a3d4c87d4939b34028e18b7f1e127a3f74df88fdb4bee5d9bc56b95",
+    "desktop/app/src/panels/effect_timeline/mapped_graph_tests.rs": "2b59837bc6d163bc22ad766816a3f04ab3de48322fbe2f4fbda26a8b0e59aa97",
+    "desktop/app/src/panels/effect_timeline/tests.rs": "53b0c54dc2b8333b122654265d29daa6c640fa538282f7b89326782c53620093",
+    "desktop/app/src/panels/graph_sampling.rs": "55306e7cde8c0c4d7f44018eb9fa28ca4bdea846d20f9bdddd9ea0183d72fc58",
+    "desktop/app/src/panels/key_selection/local_graph_native_tests.rs": "474ad24f1f2bce9a769f1224c0f505c180f6497fdbfe22d0ec3cf0af6759c030",
+    "desktop/app/src/panels/key_selection/local_graph_tests.rs": "295b93be8aed27ae11892a5cc8e0b10dae205bd5991ec17232c220d4c8147cf4",
+    "desktop/app/src/panels/key_selection/local_timing_tests.rs": "5b3b24f32e8b9135edd89b8d589e3385c2d42b2ec56c56282f7b677930dbc918",
+    "desktop/app/src/panels/timeline_graph.rs": "2335863ff54e8748b2b9a0064cc53b40de75e376e573ca9e9ee7c046a4039adf"
+  },
+  "archive_sha256": "da1d7db6037e054b7cc4d82bf71e2a6dd2854eb41e070732d52eb5514a57096f",
+  "files": [
+    {
+      "path": "layer-time-graphs-all-final-comparison-stderr.log",
+      "bytes": 1344,
+      "sha256": "a33391ba10495668defb7724f06798d72704fe67015b17371ea41d470c8046bf"
+    },
+    {
+      "path": "layer-time-graphs-all-final-comparison-stdout.log",
+      "bytes": 2159,
+      "sha256": "76ada061943bbbb8c5afdd2aa8b7d1666c7588247139361fbeb94473d4126feb"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/first-process/motion-studio.log",
+      "bytes": 10171,
+      "sha256": "8cd39f1dbb3f1e1fb7743540c2ceee3807d5c4412bcec237a8794d53e9edb9f1"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/first-process/result.json",
+      "bytes": 932,
+      "sha256": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/first-process/stderr.log",
+      "bytes": 3322,
+      "sha256": "c7348691ccdbafa2f5e3a49c12b6f0072fc5de3c8bc69f8d39ba1137ebced109"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/first-process/stdout.log",
+      "bytes": 257,
+      "sha256": "ad6a82ddd832b9de8991916ce8554c5a2eb9b1e790ba7cd4b6247a23488f0f99"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/reset-process/motion-studio.log",
+      "bytes": 10176,
+      "sha256": "03c8c9469baa10508d11531f8f5fc3a1e819eaf269530ef10db6f7224e982a38"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/reset-process/result.json",
+      "bytes": 932,
+      "sha256": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/reset-process/stderr.log",
+      "bytes": 3324,
+      "sha256": "54c9b5a42acae1896728d30286f9ab919dbcaa769fbea87a201bb28fa11eb869"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_range_fault/reset-process/stdout.log",
+      "bytes": 257,
+      "sha256": "505388e98e23f0ab660de8d64fb86b08916b93324d5cba70d457f7b46fe22a81"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/first-process/motion-studio.log",
+      "bytes": 1728,
+      "sha256": "e44d6cb1221554b0d073eb0dee850f6765f216dca79c80a239f37167bb1f0ca8"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/first-process/result.json",
+      "bytes": 411,
+      "sha256": "169962e258c25f94f7963254aa9152413354c9fed3883d0c9ff7fcccf445bb5d"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/first-process/stderr.log",
+      "bytes": 487,
+      "sha256": "24c531bd68eac5127003b416fc65d370fd469d85ee1e9fea3f4866862341ede5"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/first-process/stdout.log",
+      "bytes": 254,
+      "sha256": "cec1defc69349f163a3986253488c575ff7bc808f1d107c6e72baaa227440f33"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/reset-process/motion-studio.log",
+      "bytes": 1728,
+      "sha256": "72864de7cece72f4e22825d1de791773bd973000c2e5773521eec4200d16c437"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/reset-process/result.json",
+      "bytes": 411,
+      "sha256": "169962e258c25f94f7963254aa9152413354c9fed3883d0c9ff7fcccf445bb5d"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/reset-process/stderr.log",
+      "bytes": 487,
+      "sha256": "24c531bd68eac5127003b416fc65d370fd469d85ee1e9fea3f4866862341ede5"
+    },
+    {
+      "path": "layer-time-graphs-all-final-curve_readout_fault/reset-process/stdout.log",
+      "bytes": 254,
+      "sha256": "a345b37abc9ef7f32ddb7813dd3b0c210ac82a0b81247b13bb8b8c3b53bfe30d"
+    },
+    {
+      "path": "layer-time-graphs-all-final-effects-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-effects-stdout.log",
+      "bytes": 5049,
+      "sha256": "0caacd8466c7fc30c72fc5e8a1046143348ab182db1d0ea393fdb3c3fb949ced"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_selection_log/motion-studio.log",
+      "bytes": 1667,
+      "sha256": "f35bd4d4b900ca09af699cece102525b9924a7cd36ea71bde844c7d9bd814f97"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_selection_log/stderr.log",
+      "bytes": 484,
+      "sha256": "76ea00a3e417fc942909335afcc6b40d09c581b8670cc839a05b764d638e8da8"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_selection_log/stdout.log",
+      "bytes": 243,
+      "sha256": "6aacce1c7ad4cda777cf8114265afe6374380769eaabe2dc78dd60a32d4c7aef"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_timing_log/motion-studio.log",
+      "bytes": 57386,
+      "sha256": "8e7abbe436a366a1c9ec1eee2cb29ad723b5036479d4a962c89443c13c2ea72a"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_timing_log/stderr.log",
+      "bytes": 17643,
+      "sha256": "c337a35098b04cf6c6ee564ad11ecd3a4deb32c4012785110292c202d15b4424"
+    },
+    {
+      "path": "layer-time-graphs-all-final-local_timing_log/stdout.log",
+      "bytes": 251,
+      "sha256": "eee5ee0dd8ab2e436e616fd3eb88123a0cc8f4f688cd8dd727e99b4d0b9beb63"
+    },
+    {
+      "path": "layer-time-graphs-all-final-main_graph-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-main_graph-stdout.log",
+      "bytes": 1015,
+      "sha256": "d8c833a1c3f07c55e0a82a2f8bfa6d33e5d040e88c7813dcd0fa108dff0a9feb"
+    },
+    {
+      "path": "layer-time-graphs-all-final-mapped_clipboard_log/motion-studio.log",
+      "bytes": 966,
+      "sha256": "9d66ff1d2191b6c32f3bc58f5f30a54ea413cd493555642e61a601ff3bc495d7"
+    },
+    {
+      "path": "layer-time-graphs-all-final-mapped_clipboard_log/stderr.log",
+      "bytes": 209,
+      "sha256": "cef324089fc422acbd8137a28a2c72f81bfb0467688ccb01f82022fda5184635"
+    },
+    {
+      "path": "layer-time-graphs-all-final-mapped_clipboard_log/stdout.log",
+      "bytes": 277,
+      "sha256": "9ce229d5afddb083d7ffeb1bcf23cf1491875b39cebd7dbac43fd3240d3a7711"
+    },
+    {
+      "path": "layer-time-graphs-all-final-ranges-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-ranges-stdout.log",
+      "bytes": 3455,
+      "sha256": "a639ba7dba20dca5bc4a25cd297ecfe4f9a27ffcfc4d8da2c12b2533a9421d56"
+    },
+    {
+      "path": "layer-time-graphs-all-final-readout-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-readout-stdout.log",
+      "bytes": 116,
+      "sha256": "7483aacc2989197fa6d0b0ee148e49f56d1f1de9c02e777bfe39ea484ab2fe98"
+    },
+    {
+      "path": "layer-time-graphs-all-final-results.json",
+      "bytes": 42858,
+      "sha256": "d5c2fdff1835e653f087abd64f43f20f87ea22f7772a59031d42038f3bad6ea7"
+    },
+    {
+      "path": "layer-time-graphs-all-final-sampling-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-sampling-stdout.log",
+      "bytes": 674,
+      "sha256": "b708d388d616fae971ea737d2a4c6fb227d7c00ee9ad7cce84b4e12b7efcdd7c"
+    },
+    {
+      "path": "layer-time-graphs-all-final-selection-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-all-final-selection-stdout.log",
+      "bytes": 11271,
+      "sha256": "7ef190f08a2ce0598d9cfd10e253e04cfcda7ae2838bb51303e9d5554943978c"
+    },
+    {
+      "path": "layer-time-graphs-all-final-timed_graph_log/motion-studio.log",
+      "bytes": 1103,
+      "sha256": "380d53a32ab5519c441ce496538acd30b41fca7bfd09b5ab4bec55ad53df3977"
+    },
+    {
+      "path": "layer-time-graphs-all-final-timed_graph_log/stderr.log",
+      "bytes": 644,
+      "sha256": "1f46b990fd699be204af6d5ee920d1fddb812553b527267a7e758eab48af7aa7"
+    },
+    {
+      "path": "layer-time-graphs-all-final-timed_graph_log/stdout.log",
+      "bytes": 243,
+      "sha256": "ad65888febcc7bd3ba5a9df457d84d53fe99ea0a6497478edee6fca5249111d6"
+    },
+    {
+      "path": "layer-time-graphs-all-final-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "eb9c01c1f38048c1e8a3406527a20ea493f0e3485121f5d4b20b8dfe1ee703a2"
+    },
+    {
+      "path": "layer-time-graphs-all-final-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-graphs-all-final-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "8206c1a1f57fcae1a5c767b99f84e3dbbea522f136557169d2e2a1b0cc4b1813"
+    },
+    {
+      "path": "layer-time-graphs-all-second-comparison-stderr.log",
+      "bytes": 1344,
+      "sha256": "a33391ba10495668defb7724f06798d72704fe67015b17371ea41d470c8046bf"
+    },
+    {
+      "path": "layer-time-graphs-all-second-comparison-stdout.log",
+      "bytes": 2159,
+      "sha256": "7d53f8663c094629020558121a0d5dd05c06d2f4ad358c14073d7facef296cbc"
+    },
+    {
+      "path": "layer-time-graphs-all-second-effects-stderr.log",
+      "bytes": 1648,
+      "sha256": "8f906238310f182d487841d4c9ba0633257ea32eb714a3d4e4abee2025b3c435"
+    },
+    {
+      "path": "layer-time-graphs-all-second-effects-stdout.log",
+      "bytes": 5195,
+      "sha256": "9c362dac71e489cb355debdbc0649161879746302cae7a16c68eced4caec33e8"
+    },
+    {
+      "path": "layer-time-graphs-all-second-results.json",
+      "bytes": 5785,
+      "sha256": "3699c5ae1ab542961d651071858a0748624f340d0b5a22ce9333452e0321539d"
+    },
+    {
+      "path": "layer-time-graphs-all-targets-final.log",
+      "bytes": 21851,
+      "sha256": "f8106e7a658e3e09c7234658f3595b787a035f46496175213208f851c36913f5"
+    },
+    {
+      "path": "layer-time-graphs-all-targets.log",
+      "bytes": 22629,
+      "sha256": "5accc85211a6dda34634e03a9ab97ba9e9a0a86f752dc07ee09cdf2aa47b69eb"
+    },
+    {
+      "path": "layer-time-graphs-build-final.log",
+      "bytes": 13213,
+      "sha256": "598b611a9788326d668a23dd795b28e95f61084040cd203c2916abeb83bf2313"
+    },
+    {
+      "path": "layer-time-graphs-build-first.log",
+      "bytes": 13213,
+      "sha256": "aaff1c1c71e2197de72e002b0be5abab68f4775ced68dbd0b34c510ccf3a357b"
+    },
+    {
+      "path": "layer-time-graphs-build-second.log",
+      "bytes": 13809,
+      "sha256": "a999a04dfa892f29930eebd37283363a2fbea71f31b9e37b0d9b2b49566e546c"
+    },
+    {
+      "path": "layer-time-graphs-check-first.log",
+      "bytes": 6030,
+      "sha256": "a8526e7f2e6e02830fd9765ae08d8adeb295168d6766c1344622e3d001d4fdf3"
+    },
+    {
+      "path": "layer-time-graphs-check-second.log",
+      "bytes": 13078,
+      "sha256": "24927cd75ad0e8cea2343a52537109f46ca9901aab45403406ef60729792ecfd"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-all-final/motion-studio.log",
+      "bytes": 29824,
+      "sha256": "50939cdbdf4120b0bc27b1511f804dfcd33a839194efcd2488d9841a8e0eb542"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-all-final/stderr.log",
+      "bytes": 8508,
+      "sha256": "563d2b7b96d15ef5d33c37af73e072979ee14ef4ee7f8ce18adc396e9e48f002"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-all-final/stdout.log",
+      "bytes": 274,
+      "sha256": "11e16ad49d5792d9481cd2eb88c3bb90bf97174b2a626c6846124828be2932fe"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-final/motion-studio.log",
+      "bytes": 29824,
+      "sha256": "3dbef2952bda11cbbddf1bc63af0f1f34fe5c58514f942a2e332632c057ed35a"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-final/stderr.log",
+      "bytes": 8508,
+      "sha256": "829436b823f7e1c932214bb319d85f24b71c4764f7739ad59649510a41968041"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-final/stdout.log",
+      "bytes": 274,
+      "sha256": "b491f54c090491f5b4ca34d9b5380629a3155935495c2c836072f038928e6b08"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-first/motion-studio.log",
+      "bytes": 29752,
+      "sha256": "920c7c04f4190ec4a81ed9a2d4a66ffc5e009a6f6808006af45b60fd3f80330f"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-first/stderr.log",
+      "bytes": 8472,
+      "sha256": "8f88f07a4187d9d1e1d203467fd7bfc3ee5484ca27b06629e6353bfc17c9e270"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-first/stdout.log",
+      "bytes": 274,
+      "sha256": "d267052635a134d3e7e8ac81bb77e407f964b4b4fe871587297bb2c7abf2466b"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-second/motion-studio.log",
+      "bytes": 29752,
+      "sha256": "66dd97e1d74978a0614570d685cb1858b021d0d1403a8c0526df2e63a5389252"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-second/stderr.log",
+      "bytes": 8472,
+      "sha256": "455b1e3588a37673296bf07a9eaa577cbda7b1f968ffd25bc9f59853c67f9e4a"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-new-second/stdout.log",
+      "bytes": 274,
+      "sha256": "af1d7cb2e633e6708d4c9cb2261ee245b70f9b0dbf88b095376a6c6753816232"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-rest-second/motion-studio.log",
+      "bytes": 29752,
+      "sha256": "82ba1475822de46aa6beeb0a12b486714934d288e791aed17aaefd985041398f"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-rest-second/stderr.log",
+      "bytes": 8472,
+      "sha256": "ceaa26a1ac3a0439c5d8dfe5318effdb63a1b4733e384bd243c63c43c9e4f1aa"
+    },
+    {
+      "path": "layer-time-graphs-clock-error-rest-second/stdout.log",
+      "bytes": 274,
+      "sha256": "ed2365b3bb8f3fd459552e6c9f67d7aee6dba5a0682092da70afd1ec3d22fa0f"
+    },
+    {
+      "path": "layer-time-graphs-core-final.log",
+      "bytes": 4093,
+      "sha256": "1c7dc45e373691ddda82c34fa10e708c02b73b1fdd01017fb89af42c8378127c"
+    },
+    {
+      "path": "layer-time-graphs-core-first.log",
+      "bytes": 3390,
+      "sha256": "45a61f26e5ba2b76923175b33345e3d7cbebfe7b4fc7193fef006b22cf870bad"
+    },
+    {
+      "path": "layer-time-graphs-core-second.log",
+      "bytes": 2539,
+      "sha256": "6ff5e336a7e6e26c8b97cb905b66af0c74af75cdd11fbb0d6dba02a454200f67"
+    },
+    {
+      "path": "layer-time-graphs-diff-check.log",
+      "bytes": 1113,
+      "sha256": "ca8e7e9ca22260522333511977d6fbd9ea53a7f525563549f50e3fcc0c70dd10"
+    },
+    {
+      "path": "layer-time-graphs-mini-final-readout-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-mini-final-readout-stdout.log",
+      "bytes": 1637,
+      "sha256": "9ce0426b0c0f6a59211d38945305a1e030ddd508626aa059402b25d1968ac674"
+    },
+    {
+      "path": "layer-time-graphs-mini-final-results.json",
+      "bytes": 3851,
+      "sha256": "32cb391aa4cbbe5446437b0ab843cdf5fad0f6a5ba38f16ef74c6e83035864bb"
+    },
+    {
+      "path": "layer-time-graphs-native-final/capture-process.json",
+      "bytes": 18,
+      "sha256": "0439acb970e935a33f2901c99f94f469a2fa257b0e4bdb5b82cc7b3a49cf97c9"
+    },
+    {
+      "path": "layer-time-graphs-native-final/capture-stderr.log",
+      "bytes": 1172,
+      "sha256": "0992f687b1de2623846fdd93d8e0fefc324db10dca98a91f97c2707e1cfe8e67"
+    },
+    {
+      "path": "layer-time-graphs-native-final/capture-stdout.log",
+      "bytes": 252,
+      "sha256": "db3bdca08b02976b2d99458231b90f694e58ece3cdcfc5bc802831cd01cb2678"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-after.json",
+      "bytes": 89345,
+      "sha256": "8b77bb8945c80ceacd2f6b4d230d7f90efb58fae08ab127ae6bbd05572b4c65c"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-before.json",
+      "bytes": 90676,
+      "sha256": "273cc9f64a7fb73f69541ffc49ff798fa7d79db71d9dec95ae177150fe3bd6cd"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-handle.json",
+      "bytes": 91294,
+      "sha256": "4afde5564a0fc973726020b3f7c640dbdaa5574db31562106f96641b20c0b4b3"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-handle.png",
+      "bytes": 53138,
+      "sha256": "d62cdf737abbb29593e668a022336e297eabb49f47802f168875c67a16fff3cc"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-preview.png",
+      "bytes": 56338,
+      "sha256": "04f255dd9510168156e09262dc10f0dcff40c07da950826f9de0ae167e723adb"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-speed.png",
+      "bytes": 53517,
+      "sha256": "768e68a7de147bfb37f219039265c19d1fcd3e400cafb4103a15e05bf268279b"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-undo.json",
+      "bytes": 89345,
+      "sha256": "037f5e4143d4ab883acc728c4a3ce7d4ad5ce8e99435bef5b1e04980c372dac8"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/en-float-reverse-values.png",
+      "bytes": 54794,
+      "sha256": "eb183ce7bd129bb297aef084b5167db5fe8d61b1c2cf5d6f97039c722569866e"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx",
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx",
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx",
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx",
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx",
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx",
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx",
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/project/.motion-editor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/project/project.json",
+      "bytes": 12959,
+      "sha256": "73235d3b36e628aea7b1b1ea109821a05d0c9f59dde910184ffb86220d28d009"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/reopened.json",
+      "bytes": 88449,
+      "sha256": "3a0421b519a303d68d731e03703c44a421f7ddd73d6c343288ea33ee9277eb4d"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/saved.json",
+      "bytes": 89962,
+      "sha256": "c35bc09e80fed4ad481ef8aa59e21865af91eeeb68b78d195227d532cd9cf783"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-after.json",
+      "bytes": 89323,
+      "sha256": "090ddb417b7403c5906c15b883acf95f80f17ded5961cad76c5282c0599690d4"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-before.json",
+      "bytes": 90602,
+      "sha256": "96629e34ef7922a08f3344b8466bef30cb6603b72944f42f1f243493cb4ebe56"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-handle.json",
+      "bytes": 91268,
+      "sha256": "386d33a31cd228b27381c00c593a9ba2bea8402a2afda10d323dd641440882dd"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-handle.png",
+      "bytes": 67728,
+      "sha256": "90186d478ec160fe169464e65bf0422ba944697b23bc95d9ceccdaf1b1db3d21"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-preview.png",
+      "bytes": 72570,
+      "sha256": "78e565d552b250cb8116383a4af2a20b02a3b37e39acbcf5b7be63d5bbfe6f56"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-speed.png",
+      "bytes": 69026,
+      "sha256": "79e20023fb2991ebb965c60061a5c9505e76fc9060d351d7ac34f0792b63da71"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-undo.json",
+      "bytes": 89331,
+      "sha256": "47b69ab07dfddbeb340130ba92537278fc1e47050edbdf0c98eec852c534bd93"
+    },
+    {
+      "path": "layer-time-graphs-native-final/Effects/zh-main-forward-values.png",
+      "bytes": 70295,
+      "sha256": "6edbd541cc37eb8547b194978fccf1b8319fdba0f650daa107ef8522f8534ee7"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-after.json",
+      "bytes": 46704,
+      "sha256": "c1637b98e86fc061681642dc55618acf73f57585caed99794ddd249611c30c54"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-before.json",
+      "bytes": 48027,
+      "sha256": "7a3ac813739644242cff21f97b6d38fc6531478fb76c450758b7251ce5815ad4"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-preview.png",
+      "bytes": 61297,
+      "sha256": "1e5978b0a13b7338e11d5ef48e138e58716061f1e1b629d4bb80cd595e471b81"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-speed.png",
+      "bytes": 60928,
+      "sha256": "4777fae73914b52cf2dd9aa7016e0b5b31172c1e4a593d131aff29271bc43a29"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-undo.json",
+      "bytes": 46702,
+      "sha256": "4a14a55e52759c9e4fe32b52abb64cbe01c832075e091068bcfc6e987121457a"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/en-float-reverse-values.png",
+      "bytes": 59754,
+      "sha256": "a113656ace313b490aa3c37f418e163f89367671e1b6191b8eafddd6fb323eb4"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx",
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx",
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx",
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx",
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx",
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx",
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx",
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/project/.motion-editor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/project/project.json",
+      "bytes": 6767,
+      "sha256": "d92e4fd13a6280f79f427422853c42acc6f4af9ebfc3f877235b6f0de79cf93c"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/reopened.json",
+      "bytes": 45193,
+      "sha256": "df459596ee07ba3affe623a38f895f5778c781aed6b1a15b7375206b247f55f2"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/saved.json",
+      "bytes": 46704,
+      "sha256": "dc9e20be44e5878a6a3c795254622c67f5324d044e97dec2add07d52b8c8933b"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-after.json",
+      "bytes": 46693,
+      "sha256": "db5b3ac11643308552fbfa5af95b99e67b41bf1377f226bb7f152e6aad8afec3"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-before.json",
+      "bytes": 47972,
+      "sha256": "7eb0ad109d4f0b4dd264dd7d03e0cbf755871593dda6dc80164a5929cc10476d"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-preview.png",
+      "bytes": 77629,
+      "sha256": "5001cef9f010db04becd03d508e501489e23e6e1d325b8e4edd0b5a608c1cde0"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-speed.png",
+      "bytes": 76519,
+      "sha256": "33bb0ec47a7ceed34e8547bf7b77e916dbe849c80672a0463a59d7d66edc4582"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-undo.json",
+      "bytes": 46693,
+      "sha256": "07150633e3b7ccd94064f06d66cf3b4f01b020eb7f97d0c8fe14acd3803e771f"
+    },
+    {
+      "path": "layer-time-graphs-native-final/GroupVector/zh-main-forward-values.png",
+      "bytes": 75242,
+      "sha256": "194f4024ff19903326a591eb23036fae8ca9efedb5fcd2ff20b59e609316d3c0"
+    },
+    {
+      "path": "layer-time-graphs-native-final/logs/motion-studio.log",
+      "bytes": 12676,
+      "sha256": "8f396cf7357d3ea3ffc931743ab7aebab5015f816f6f5aadbdee0b6dd9d919bf"
+    },
+    {
+      "path": "layer-time-graphs-native-final/reopen-logs/motion-studio.log",
+      "bytes": 3453,
+      "sha256": "b5f3c369de715624793973b58b7ca31aaf362164b4b515df78b471ee091bfeb4"
+    },
+    {
+      "path": "layer-time-graphs-native-final/reopen-process.json",
+      "bytes": 18,
+      "sha256": "ea6c34cf01bd9c4518a5363359e2fa601395b4d566d61f5e2ea286ee03c7fe72"
+    },
+    {
+      "path": "layer-time-graphs-native-final/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-final/reopen-stdout.log",
+      "bytes": 251,
+      "sha256": "d05cea2271f4fbe3bdd33e9fbfa814124d9f3b28b9e1773ee3c875220a1d88f9"
+    },
+    {
+      "path": "layer-time-graphs-native-final-native-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-final-native-stdout.log",
+      "bytes": 252,
+      "sha256": "56bdccd7ddbaddc87c9c6da31914952653d4ee7335db258e6c0040c4d0ee9a7d"
+    },
+    {
+      "path": "layer-time-graphs-native-final-results.json",
+      "bytes": 1256,
+      "sha256": "0389fc73f5fd1c3a70648e07b8fec04d9d3b63e741b7c6b657a791af79d735a9"
+    },
+    {
+      "path": "layer-time-graphs-native-second/capture-process.json",
+      "bytes": 18,
+      "sha256": "6f894d3565b9bc377858e14fc9e6ed19d5c5ef001aac335bbeed6a2dff781268"
+    },
+    {
+      "path": "layer-time-graphs-native-second/capture-stderr.log",
+      "bytes": 1172,
+      "sha256": "cc4712b29f8cabfc70672809771a2e8a3e3ba4511e06257c549132fedea81fe6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/capture-stdout.log",
+      "bytes": 252,
+      "sha256": "1ae0dc618e54398be4ee40c05d5f00692878e2f0e8065e6967beedc6c6309459"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-after.json",
+      "bytes": 89346,
+      "sha256": "ac8f598e2cf05008bcab47aac3c84d40a4e0891f422a84d41a15e8df668c0145"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-before.json",
+      "bytes": 90677,
+      "sha256": "7baf29ecc940c9798f4ecd1240227bbb3abe8b2d38334809c8fa2c97ce5944cd"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-handle.json",
+      "bytes": 91295,
+      "sha256": "6afbde614dc329be0058f3fafb933e07c64fee8a60f17e7646d7450a0e0929c9"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-handle.png",
+      "bytes": 53138,
+      "sha256": "d62cdf737abbb29593e668a022336e297eabb49f47802f168875c67a16fff3cc"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-preview.png",
+      "bytes": 56338,
+      "sha256": "04f255dd9510168156e09262dc10f0dcff40c07da950826f9de0ae167e723adb"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-speed.png",
+      "bytes": 53517,
+      "sha256": "768e68a7de147bfb37f219039265c19d1fcd3e400cafb4103a15e05bf268279b"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-undo.json",
+      "bytes": 89346,
+      "sha256": "32b6bffbe96ef0ff5056ed3dac09afdcbe48f45a739f3b7ccc3662f748bdd199"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/en-float-reverse-values.png",
+      "bytes": 54794,
+      "sha256": "eb183ce7bd129bb297aef084b5167db5fe8d61b1c2cf5d6f97039c722569866e"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx",
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx",
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx",
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx",
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx",
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx",
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx",
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/project/.motion-editor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/project/project.json",
+      "bytes": 12959,
+      "sha256": "73235d3b36e628aea7b1b1ea109821a05d0c9f59dde910184ffb86220d28d009"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/reopened.json",
+      "bytes": 88450,
+      "sha256": "4057daddf192390492668e48a38c247d02590aedff4ca5d784de1c91c776707b"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/saved.json",
+      "bytes": 89963,
+      "sha256": "aee615e90465836088e4192ab2040e14921adbdb2c3717af830ec7f574ba74d5"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-after.json",
+      "bytes": 89324,
+      "sha256": "399226ed9f5e46097089b814d70cab28ed998de66c78209dc2e356183e42aed4"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-before.json",
+      "bytes": 90603,
+      "sha256": "bea70411748be2cbc28e77f6a4f8422999fa8fac622c1fe58967fa793ca20a15"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-handle.json",
+      "bytes": 91269,
+      "sha256": "9648e80b59509e7dab980ccb7b0bbeae35ae114adc424fc685daae8ac4fba1d6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-handle.png",
+      "bytes": 67728,
+      "sha256": "90186d478ec160fe169464e65bf0422ba944697b23bc95d9ceccdaf1b1db3d21"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-preview.png",
+      "bytes": 72570,
+      "sha256": "78e565d552b250cb8116383a4af2a20b02a3b37e39acbcf5b7be63d5bbfe6f56"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-speed.png",
+      "bytes": 69026,
+      "sha256": "79e20023fb2991ebb965c60061a5c9505e76fc9060d351d7ac34f0792b63da71"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-undo.json",
+      "bytes": 89332,
+      "sha256": "13bc1503783151e691a6c05f0d4139d242f985eb1eaa6bde6b321ac3fd58b33b"
+    },
+    {
+      "path": "layer-time-graphs-native-second/Effects/zh-main-forward-values.png",
+      "bytes": 70295,
+      "sha256": "6edbd541cc37eb8547b194978fccf1b8319fdba0f650daa107ef8522f8534ee7"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-after.json",
+      "bytes": 46705,
+      "sha256": "97430315a4b313555364486dfe8546e266b0dce783af8a7156bfb22eaa8650e8"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-before.json",
+      "bytes": 48028,
+      "sha256": "8a7ab5808f8340932844cfcc09f7ea3723202ed55b7281f312c11ca9eef3e9e6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-preview.png",
+      "bytes": 61297,
+      "sha256": "1e5978b0a13b7338e11d5ef48e138e58716061f1e1b629d4bb80cd595e471b81"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-speed.png",
+      "bytes": 60928,
+      "sha256": "4777fae73914b52cf2dd9aa7016e0b5b31172c1e4a593d131aff29271bc43a29"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-undo.json",
+      "bytes": 46703,
+      "sha256": "3f0c0565046e5f7f037e7fe2f7280b49624a274ed2f8122573a71292c86fd9ab"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/en-float-reverse-values.png",
+      "bytes": 59754,
+      "sha256": "a113656ace313b490aa3c37f418e163f89367671e1b6191b8eafddd6fb323eb4"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9.msfx",
+      "bytes": 64500,
+      "sha256": "0a0d38bf1c01aafca75416c93bbf0bd615cabd9246be2b8a041c3bdfde4c4ef9"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6.msfx",
+      "bytes": 58096,
+      "sha256": "14ef270c1199166fdc12e0d0ad43f7789256086fd24aaa76721e7bd31565adf6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399.msfx",
+      "bytes": 18341,
+      "sha256": "446d91d606ee24c9acbee8dad942ecced978085133a3c380efef15def2226399"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203.msfx",
+      "bytes": 64772,
+      "sha256": "78a412ef70c3cf682e9e6dda5414d136f426807de0fc0044bbb56179318b0203"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454.msfx",
+      "bytes": 63419,
+      "sha256": "a2655482198ebc3a1e75b569a8d5e14d8232c9ad2445c24fc9badfb6274aa454"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821.msfx",
+      "bytes": 146587,
+      "sha256": "d492322ae4ee5254b008bc734def9d686313e8e3fece8dd9d9597c8e774dd821"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/plugins/df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2.msfx",
+      "bytes": 40713,
+      "sha256": "df9da73a4c18ee5c8d1c652d60bb5c45b01677371e461f65cafc3272746bbbf2"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/project/.motion-editor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/project/project.json",
+      "bytes": 6767,
+      "sha256": "d92e4fd13a6280f79f427422853c42acc6f4af9ebfc3f877235b6f0de79cf93c"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/reopened.json",
+      "bytes": 45194,
+      "sha256": "2ea26102541450c0afd732d6822ba6d58403a5166297a6df776906080cc282e2"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/saved.json",
+      "bytes": 46705,
+      "sha256": "51eb87fcfafcf647d17c7e3b2ce7acd1a408b16aa841556f4a0cd4f384cd0bda"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-after.json",
+      "bytes": 46694,
+      "sha256": "ba02ff5feb4f6c9bf3b8e2c4e2c8463b42e74acbbc479ea49871edd005587f54"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-before.json",
+      "bytes": 47973,
+      "sha256": "f88ef0ed35a6ef64b670acfc272e5c9bb2586b484bc3f3ffc9ea66bfcfeeaf62"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-preview.png",
+      "bytes": 77629,
+      "sha256": "5001cef9f010db04becd03d508e501489e23e6e1d325b8e4edd0b5a608c1cde0"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-speed.png",
+      "bytes": 76519,
+      "sha256": "33bb0ec47a7ceed34e8547bf7b77e916dbe849c80672a0463a59d7d66edc4582"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-undo.json",
+      "bytes": 46694,
+      "sha256": "6477f2cadeabde889a1f5ef4db619cc8c96216298362f942097565813087ecbd"
+    },
+    {
+      "path": "layer-time-graphs-native-second/GroupVector/zh-main-forward-values.png",
+      "bytes": 75242,
+      "sha256": "194f4024ff19903326a591eb23036fae8ca9efedb5fcd2ff20b59e609316d3c0"
+    },
+    {
+      "path": "layer-time-graphs-native-second/logs/motion-studio.log",
+      "bytes": 12681,
+      "sha256": "52a8ee08f3259770533cbd12fedf804629beb4b28b8a3efa59402002d4e6f4c7"
+    },
+    {
+      "path": "layer-time-graphs-native-second/reopen-logs/motion-studio.log",
+      "bytes": 3459,
+      "sha256": "ee8ef4e358f05fb6bbfa64b5f8ed8021297cb0082c66d7394b6ceaae9dcf1504"
+    },
+    {
+      "path": "layer-time-graphs-native-second/reopen-process.json",
+      "bytes": 18,
+      "sha256": "a4bf9d4398cfb21f44e396bdabb61a2a8ab2e6ffd0afc6ca73ca5618b3197ca6"
+    },
+    {
+      "path": "layer-time-graphs-native-second/reopen-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-second/reopen-stdout.log",
+      "bytes": 251,
+      "sha256": "5e29795c134b3e58b4e24798b70cedf8dcba916ab20705456a750448968461bd"
+    },
+    {
+      "path": "layer-time-graphs-native-second-native-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-native-second-native-stdout.log",
+      "bytes": 252,
+      "sha256": "ae16ae64ecb0f3e931579ac95373b43e88b3791a978673fa13bac833679e408a"
+    },
+    {
+      "path": "layer-time-graphs-native-second-results.json",
+      "bytes": 1244,
+      "sha256": "77747ad28cdd7beb5a8fdd23a9bcd21f7c8040721dc562a401809469afdab242"
+    },
+    {
+      "path": "layer-time-graphs-new-final-mapped_effect-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-final-mapped_effect-stdout.log",
+      "bytes": 385,
+      "sha256": "137887ee9d208c1e4e0ae2665ee49afce23fb05fdd135b4b50e6a9c87885c07c"
+    },
+    {
+      "path": "layer-time-graphs-new-final-mapped_sampler-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-final-mapped_sampler-stdout.log",
+      "bytes": 245,
+      "sha256": "c1500c06d3ebe2decce1d4049337a7b9afe643895910ed4d6eb066f6634dc64c"
+    },
+    {
+      "path": "layer-time-graphs-new-final-new-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-final-new-stdout.log",
+      "bytes": 1194,
+      "sha256": "9b04a025b92d7dc866b7875cb04a3d1b974d02ed3b783a827b696ed4d51a5814"
+    },
+    {
+      "path": "layer-time-graphs-new-final-results.json",
+      "bytes": 4790,
+      "sha256": "6a7dcb9486c5f128c6bc2fb08546018ca33c031abe59a3789b1e61a4c3d1b8f9"
+    },
+    {
+      "path": "layer-time-graphs-new-first-mapped_effect-stderr.log",
+      "bytes": 601,
+      "sha256": "b6f4135ddf6e4b39d3d12aa716be0afe9c998ddbbe549630495a24ec8d845f51"
+    },
+    {
+      "path": "layer-time-graphs-new-first-mapped_effect-stdout.log",
+      "bytes": 672,
+      "sha256": "4cb1519d9d4a5128e4736665667d846b235d0a1855b537948f332a9447b4fb42"
+    },
+    {
+      "path": "layer-time-graphs-new-first-new-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-first-new-stdout.log",
+      "bytes": 912,
+      "sha256": "997ea18484932d3f5794ce88ce3587ba9900df640bc50060102c03c92afa88b3"
+    },
+    {
+      "path": "layer-time-graphs-new-first-results.json",
+      "bytes": 2341,
+      "sha256": "4997d9e5253d932386e4f14274b18456637efc716f531b6e56003873426c492f"
+    },
+    {
+      "path": "layer-time-graphs-new-modules-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-second-mapped_effect-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-second-mapped_effect-stdout.log",
+      "bytes": 385,
+      "sha256": "c2f637673cdc188baf4aa2376b04b510e619acd95b1db93a831915c4efb354bf"
+    },
+    {
+      "path": "layer-time-graphs-new-second-mapped_sampler-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-second-mapped_sampler-stdout.log",
+      "bytes": 245,
+      "sha256": "c1500c06d3ebe2decce1d4049337a7b9afe643895910ed4d6eb066f6634dc64c"
+    },
+    {
+      "path": "layer-time-graphs-new-second-new-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-new-second-new-stdout.log",
+      "bytes": 1194,
+      "sha256": "ae1dcbd14c54c5c8ad1ffca28da19084c5d86871ed67ae2f8a2e41711673c27c"
+    },
+    {
+      "path": "layer-time-graphs-new-second-results.json",
+      "bytes": 4766,
+      "sha256": "36ee8eda3cbc433a9e36899e51dfa7b4c57c495eaa80843a85811f6046f93bbe"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/first-process/motion-studio.log",
+      "bytes": 10174,
+      "sha256": "1d157487af1bfea00c6e8e8f183aa080dea32cbf6a2a45f24554319fcf8ef16f"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/first-process/result.json",
+      "bytes": 932,
+      "sha256": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/first-process/stderr.log",
+      "bytes": 3324,
+      "sha256": "6ab7f015ba375633140966f73c14f61f3376c91fcbc85f696a2ff3ae217178d4"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/first-process/stdout.log",
+      "bytes": 257,
+      "sha256": "ab5e84fd1f4c4eb97fac81eb30d6cc5ac006647de0090602d206917c1233d5dc"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/reset-process/motion-studio.log",
+      "bytes": 10174,
+      "sha256": "5ff19dded7c4238178493747bc7fabfe332dbfb108d2ed3cb54eb8abacb52903"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/reset-process/result.json",
+      "bytes": 932,
+      "sha256": "eee8ff741fcbfcf8443418b1ececb9530836ad5f82065d8809ac4c042f896fa6"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/reset-process/stderr.log",
+      "bytes": 3323,
+      "sha256": "c63aab6300fb569c289fff98c59cd03cac87f18521e30f98cdcd2112d35fc854"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_range_fault/reset-process/stdout.log",
+      "bytes": 257,
+      "sha256": "48c9ca9e53bcbf6c902d71ad3c3a47ad4e9f886dc0ecae97abe450a1ca75ea88"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/first-process/motion-studio.log",
+      "bytes": 1728,
+      "sha256": "3328ccf248da6ea2f77c2aa05956eaee0f9009b7be17c73d70c195fcff6b5ea5"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/first-process/result.json",
+      "bytes": 411,
+      "sha256": "169962e258c25f94f7963254aa9152413354c9fed3883d0c9ff7fcccf445bb5d"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/first-process/stderr.log",
+      "bytes": 487,
+      "sha256": "24c531bd68eac5127003b416fc65d370fd469d85ee1e9fea3f4866862341ede5"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/first-process/stdout.log",
+      "bytes": 254,
+      "sha256": "99c89732da8cf31684e5d8b80f19c31810bd3b21c070115e7a47713c40877baa"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/reset-process/motion-studio.log",
+      "bytes": 1728,
+      "sha256": "39027b925a22c0018fcaf2a94f0e3c748a52180054eb46179e98b9a9b2240651"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/reset-process/result.json",
+      "bytes": 411,
+      "sha256": "169962e258c25f94f7963254aa9152413354c9fed3883d0c9ff7fcccf445bb5d"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/reset-process/stderr.log",
+      "bytes": 487,
+      "sha256": "24c531bd68eac5127003b416fc65d370fd469d85ee1e9fea3f4866862341ede5"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-curve_readout_fault/reset-process/stdout.log",
+      "bytes": 254,
+      "sha256": "cec1defc69349f163a3986253488c575ff7bc808f1d107c6e72baaa227440f33"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_selection_log/motion-studio.log",
+      "bytes": 1667,
+      "sha256": "a3a6a651e2a7fe9a77c86d508f516b6b3ea523e036dea457e11c8f4b0357cff8"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_selection_log/stderr.log",
+      "bytes": 484,
+      "sha256": "76ea00a3e417fc942909335afcc6b40d09c581b8670cc839a05b764d638e8da8"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_selection_log/stdout.log",
+      "bytes": 243,
+      "sha256": "75c9729e040b2d04987e6b92f04688cb2b42664edee39748afc6b75af99865b9"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_timing_log/motion-studio.log",
+      "bytes": 57385,
+      "sha256": "cd10b9d5c9958b5b89f85d71c768051659ccea30ac3ed420d4c61140842e4219"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_timing_log/stderr.log",
+      "bytes": 17642,
+      "sha256": "11addb1734ee197e91d4373ba25b596c3fb3924b5e0eba724cf5cbb57dcdda13"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-local_timing_log/stdout.log",
+      "bytes": 251,
+      "sha256": "00d02388ebef6a520794daf5dcc6c7d48a2c354286a86730028c93a2dc567cd0"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-main_graph-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-main_graph-stdout.log",
+      "bytes": 1015,
+      "sha256": "d8c833a1c3f07c55e0a82a2f8bfa6d33e5d040e88c7813dcd0fa108dff0a9feb"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-mapped_clipboard_log/motion-studio.log",
+      "bytes": 966,
+      "sha256": "8a91a5af773eb84755f626794db82bbe8b6c499724a96b92fbdf531834cd3229"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-mapped_clipboard_log/stderr.log",
+      "bytes": 209,
+      "sha256": "cef324089fc422acbd8137a28a2c72f81bfb0467688ccb01f82022fda5184635"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-mapped_clipboard_log/stdout.log",
+      "bytes": 277,
+      "sha256": "9ce229d5afddb083d7ffeb1bcf23cf1491875b39cebd7dbac43fd3240d3a7711"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-ranges-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-ranges-stdout.log",
+      "bytes": 3455,
+      "sha256": "d4c92579f3ed26a47f2b7ab6170d4f3a4cb16d1f72f3fcb3c2e13f57bcd0e9c3"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-readout-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-readout-stdout.log",
+      "bytes": 116,
+      "sha256": "7483aacc2989197fa6d0b0ee148e49f56d1f1de9c02e777bfe39ea484ab2fe98"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-results.json",
+      "bytes": 32797,
+      "sha256": "48f7d7bca3d2540430650ca830bec9726b3baa52d7ac697536187d44a3a1aa75"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-sampling-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-sampling-stdout.log",
+      "bytes": 674,
+      "sha256": "81d7a5c7eb61b958c499507d1080ac885cf8d8a5f60cf5ccc9961d3201c7dd4c"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-selection-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-selection-stdout.log",
+      "bytes": 11271,
+      "sha256": "54a864cae2b41dc0b5d83af46cd27973dd7ecee9ef48be5d9fa712e7db07c732"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-timed_graph_log/motion-studio.log",
+      "bytes": 1103,
+      "sha256": "e3f1df35c9b67f1f2ffd20f479201e1f2a26f1af643841f642f6b10318becc8e"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-timed_graph_log/stderr.log",
+      "bytes": 644,
+      "sha256": "1f46b990fd699be204af6d5ee920d1fddb812553b527267a7e758eab48af7aa7"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-timed_graph_log/stdout.log",
+      "bytes": 243,
+      "sha256": "ad65888febcc7bd3ba5a9df457d84d53fe99ea0a6497478edee6fca5249111d6"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-typed_keys_log/motion-studio.log",
+      "bytes": 1568,
+      "sha256": "90c4c1f0049d0f18fbd8e75070865c0988cfdd32030a286741b0f91e2c786983"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-typed_keys_log/stderr.log",
+      "bytes": 377,
+      "sha256": "2ebb1685baacf79996ef80e1a736f0266f200efdca6b0899f8b5968f9717c9c8"
+    },
+    {
+      "path": "layer-time-graphs-rest-second-typed_keys_log/stdout.log",
+      "bytes": 266,
+      "sha256": "a6ecae9960ecb36e0e64f09419a65159a085d22178e6098ff2a592fe3e800e0e"
+    },
+    {
+      "path": "layer-time-graphs-sampler-first.log",
+      "bytes": 251,
+      "sha256": "c0d88288ad6e07ec8aedfb197dcd9112cf8085cb2e093363ea3e42c7d12e7f03"
+    },
+    {
+      "path": "layer-time-graphs-style.log",
+      "bytes": 32,
+      "sha256": "5f67b4b268bee737ed0f9bd65174071d38e676a2c6bc1e9fa3af8a86c8030e22"
+    },
+    {
+      "path": "run-layer-time-graphs.py",
+      "bytes": 4456,
+      "sha256": "8b427e4728e02ad82d8aab97a80493cd5ca08f143ab3e46759d3328fff29d72e"
+    }
+  ]
+}

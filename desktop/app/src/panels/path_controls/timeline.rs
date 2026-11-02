@@ -196,10 +196,13 @@ pub(in crate::panels) fn render(
             let values = if index == mask_path::CHANNEL {
                 vec![]
             } else {
+                let Some(clock)=row.property_clock else {continue;};
+                let Ok(local)=observe!("mask.timeline_time",clock.local_frame(state["frame"].as_f64().unwrap_or(0.),owner.offset),
+                    "object={} mask={} channel={index} phase=sample",owner.object,mask.id) else {continue;};
                 match observe!("mask.timeline_sample", mask_keys::values(
                     mask,
                     index,
-                    state["frame"].as_f64().unwrap_or(0.) - f64::from(owner.offset),
+                    local,
                 ), "object={} mask={} channel={index}", owner.object, mask.id) {
                     Ok(values) => values,
                     Err(_) => continue,
@@ -317,6 +320,22 @@ pub(in crate::panels) fn render(
                 }
             }
             if !panels.timeline.graph_mode {
+                if row.property_clock!=Some(Default::default()) {
+                    let properties=if index==mask_path::CHANNEL {
+                        mask.path.nodes.iter().map(|node|motion_core::masks::MaskProperty::Node(node.id)).collect()
+                    } else {vec![match index {
+                        0=>motion_core::masks::MaskProperty::Opacity,
+                        1=>motion_core::masks::MaskProperty::Feather,
+                        _=>motion_core::masks::MaskProperty::Expansion,
+                    }]};
+                    for property in properties {
+                        crate::panels::key_selection::ui::mapped_lane(list,panels,row,
+                            motion_core::KeyframeTarget::Mask {object:row.id,mask:mask.id,property},
+                            lane,ppf,offset,styles.metric("timeline.key.radius",4.),
+                            styles.metric("timeline.key.radius",4.)+styles.metric("motion.drag_threshold",3.),true);
+                    }
+                    continue;
+                }
                 let neutral = Input::default();
                 let lane_input = if input.pressed.is_some_and(|(b,p)|b==MouseButton::Left && lane.contains(p)) && !key_hit { &neutral } else { input };
                 panels.path_controls.keys.lane(

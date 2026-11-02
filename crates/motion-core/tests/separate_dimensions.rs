@@ -332,7 +332,7 @@ fn axis_tracks_survive_clips_parenting_and_storage_without_vector_shadow_data() 
     }
     let timeline = e.project().timeline_layers(25.0).unwrap();
     let a = timeline[1].properties.position.axes.as_ref().unwrap();
-    assert_eq!(a.x.keys[0].frame, 20);
+    assert_eq!(a.x.keys[0].frame, 20.);
     assert_eq!(a.x.keys[0].local_frame, 0);
     let tmp = tempfile::tempdir().unwrap();
     motion_core::storage::save(tmp.path(), e.project()).unwrap();

@@ -6,6 +6,8 @@ use motion_model::{
 #[path = "support/tracking_camera.rs"]
 mod fixture;
 use fixture::camera_fixture;
+#[path = "tracking_layer_time/camera.rs"]
+mod mapped_clock;
 fn sample(p: &Project, frame: f64) -> CameraSample {
     let mut world = Vec::new();
     let mut states = Vec::new();

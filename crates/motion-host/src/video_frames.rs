@@ -599,7 +599,7 @@ impl VideoFrames {
             .iter()
             .find(|a| a.id == video.asset)
             .ok_or("video asset missing")?;
-        let source = video.picture_time_us(layer.local_frame(frame), project.fps, asset);
+        let source = layer.video_picture_time_us(frame, project.fps, asset)?;
         if !layer.active(frame, project.frames)
             || source < asset.video_start_us as i64
             || source >= asset.video_end_us as i64
@@ -701,12 +701,13 @@ impl VideoFrames {
             .map_err(|_| "video frame state poisoned")?
             .desired
             .ok_or("video target missing")?;
-        if !layer.active(*time, project.frames)
-            || stream.asset.id != video.asset
-            || stream
-                .key(video.picture_time_us(layer.local_frame(*time), project.fps, &stream.asset) as u64)?
-                .0
-                != desired.time
+        if !layer.active(*time, project.frames) || stream.asset.id != video.asset {
+            return Err("video clip changed; request its current source time".into());
+        }
+        let source = layer.video_picture_time_us(*time, project.fps, &stream.asset)?;
+        if source < stream.asset.video_start_us as i64
+            || source >= stream.asset.video_end_us as i64
+            || stream.key(source as u64)?.0 != desired.time
         {
             return Err("video clip changed; request its current source time".into());
         }

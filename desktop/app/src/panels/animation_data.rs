@@ -132,7 +132,8 @@ pub(super) fn sample(
             "object={object} property={property:?} axis={axis:?}").ok()?;
         Some(decoded)
     }
-    let local = frame - offset as f64;
+    let local = observe!("animation.property_time", super::property_authoring::local(state, object, frame),
+        "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?;
     if property.is_scalar() || axis.is_some() {
         Some(serde_json::json!(
             observe!("animation_data.sample", read::<f32>(state,object,property,axis,source,offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?

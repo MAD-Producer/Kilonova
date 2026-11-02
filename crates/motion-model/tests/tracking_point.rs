@@ -10,6 +10,9 @@ use motion_model::{
     *,
 };
 
+#[path = "tracking_layer_time/point.rs"]
+mod mapped_clock;
+
 fn fixture() -> Project {
     let mut p = Project::new(640, 480, 24, 120).unwrap();
     let data = SharedData::new(tracking::asset::Asset {

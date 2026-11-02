@@ -1,0 +1,388 @@
+{
+  "status": "complete_model_and_core_packages_on_integrated_main_passed",
+  "head": "8672e59e8492bb654ac39c5f5777f0f228144253",
+  "integratedMain": "9d085c0f1fb63106babb48d5781b700e20da6eac",
+  "source": {
+    "crates/motion-core/src/command_registry.rs": {
+      "rawSha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1",
+      "gitLfSha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1"
+    },
+    "crates/motion-core/src/history_accounting.rs": {
+      "rawSha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771",
+      "gitLfSha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771"
+    },
+    "crates/motion-core/tests/tracking_replacement.rs": {
+      "rawSha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993",
+      "gitLfSha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+    },
+    "crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+      "rawSha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75",
+      "gitLfSha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75"
+    },
+    "crates/motion-model/src/commands.rs": {
+      "rawSha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609",
+      "gitLfSha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+    },
+    "crates/motion-model/src/lib.rs": {
+      "rawSha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc",
+      "gitLfSha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc"
+    },
+    "crates/motion-model/src/model.rs": {
+      "rawSha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a",
+      "gitLfSha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a"
+    },
+    "crates/motion-model/tests/tracking_camera.rs": {
+      "rawSha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de",
+      "gitLfSha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de"
+    },
+    "crates/motion-model/tests/tracking_plane.rs": {
+      "rawSha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79",
+      "gitLfSha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79"
+    },
+    "crates/motion-model/tests/tracking_point.rs": {
+      "rawSha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d",
+      "gitLfSha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d"
+    },
+    "crates/motion-model/tests/tracking_layer_time/camera.rs": {
+      "rawSha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552",
+      "gitLfSha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+    },
+    "crates/motion-model/tests/tracking_layer_time/plane.rs": {
+      "rawSha256": "176d99276252a8a332d7320526681f50568cea6bdfda26732d4de95025d35b61",
+      "gitLfSha256": "176d99276252a8a332d7320526681f50568cea6bdfda26732d4de95025d35b61"
+    },
+    "crates/motion-model/tests/tracking_layer_time/point.rs": {
+      "rawSha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8",
+      "gitLfSha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+    }
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-model",
+    "-p",
+    "motion-core",
+    "--locked",
+    "--offline",
+    "--no-fail-fast",
+    "--",
+    "--test-threads=1"
+  ],
+  "elapsedSeconds": 73.64,
+  "targets": 137,
+  "totals": {
+    "passed": 859,
+    "failed": 0,
+    "ignored": 1
+  },
+  "tools": {
+    "discovered": 110,
+    "passed": 109,
+    "failed": 0,
+    "existingSkipped": 1
+  },
+  "retainedFailures": [
+    "v1 completion missing and original process/handle absent; interrupted, no exit claim",
+    "v2 new plane test returned an array as Vec; corrected conversion without assertion changes",
+    "v3 new video fixture exceeded original source duration; corrected only clip interval to four frames",
+    "system Python lacked yaml; tools rerun uses existing validation environment"
+  ],
+  "limits": [
+    "Complete model/core packages only, not full maintained workspace or native desktop acceptance",
+    "Bindings retain explicit target local property clocks, not implicit source-layer remap following",
+    "No new panels changes relative to integrated main",
+    "Issues 85/86/88 and 3D route remain open"
+  ],
+  "archive": {
+    "path": "tracking88-main-time-v1.zip",
+    "sha256": "bbf6d4b0bd65b9a19014f856df828b2dcb9d501d0d1d33e8f43116ead9185989",
+    "bytes": 590788,
+    "members": {
+      "tracking88-main-time-v1/controller.py": {
+        "bytes": 3467,
+        "sha256": "c4ff5065142be767671371715a7c7173fd5cf9df6961bbb16d9d9f164ec0b363"
+      },
+      "tracking88-main-time-v1/exit.json": {
+        "bytes": 233493,
+        "sha256": "c9f7ebf2be75a9c78fbd880ef2b566db4410a1d5239d712f458213c5c81ee01c"
+      },
+      "tracking88-main-time-v1/source/crates/motion-core/src/command_registry.rs": {
+        "bytes": 34211,
+        "sha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1"
+      },
+      "tracking88-main-time-v1/source/crates/motion-core/src/history_accounting.rs": {
+        "bytes": 15378,
+        "sha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771"
+      },
+      "tracking88-main-time-v1/source/crates/motion-core/tests/tracking_replacement.rs": {
+        "bytes": 8213,
+        "sha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+      },
+      "tracking88-main-time-v1/source/crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+        "bytes": 1883,
+        "sha256": "60a7f7d4501b32b56ccf1de8b60816e448f1ca568a3d8c1c599810dde515c116"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/src/commands.rs": {
+        "bytes": 14313,
+        "sha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/src/lib.rs": {
+        "bytes": 10340,
+        "sha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/src/model.rs": {
+        "bytes": 38296,
+        "sha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_camera.rs": {
+        "bytes": 9936,
+        "sha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_layer_time/camera.rs": {
+        "bytes": 3222,
+        "sha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_layer_time/plane.rs": {
+        "bytes": 2608,
+        "sha256": "02f3dd8cffa2f617a8fda7fa5c7647cf4db6c0edcebd97cb3cee9d5b2f0b03c6"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_layer_time/point.rs": {
+        "bytes": 2693,
+        "sha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_plane.rs": {
+        "bytes": 8098,
+        "sha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79"
+      },
+      "tracking88-main-time-v1/source/crates/motion-model/tests/tracking_point.rs": {
+        "bytes": 9857,
+        "sha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d"
+      },
+      "tracking88-main-time-v1/stderr.log": {
+        "bytes": 1133,
+        "sha256": "e9f0be754a19b6f875440fd55e84e436c119661fa6469dd493d76a094b408f55"
+      },
+      "tracking88-main-time-v1/stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-main-time-v2/controller.py": {
+        "bytes": 3469,
+        "sha256": "a74fe60d2fc1667e6571f88b844782b1e1f71d81fcf5dddf4d1ea36fac5f0ba8"
+      },
+      "tracking88-main-time-v2/exit.json": {
+        "bytes": 233661,
+        "sha256": "e868092b65185799cc4880f564415235c57023b144a014f80fde941c1189fe0b"
+      },
+      "tracking88-main-time-v2/source/crates/motion-core/src/command_registry.rs": {
+        "bytes": 34211,
+        "sha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1"
+      },
+      "tracking88-main-time-v2/source/crates/motion-core/src/history_accounting.rs": {
+        "bytes": 15378,
+        "sha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771"
+      },
+      "tracking88-main-time-v2/source/crates/motion-core/tests/tracking_replacement.rs": {
+        "bytes": 8213,
+        "sha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+      },
+      "tracking88-main-time-v2/source/crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+        "bytes": 1883,
+        "sha256": "60a7f7d4501b32b56ccf1de8b60816e448f1ca568a3d8c1c599810dde515c116"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/src/commands.rs": {
+        "bytes": 14313,
+        "sha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/src/lib.rs": {
+        "bytes": 10340,
+        "sha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/src/model.rs": {
+        "bytes": 38296,
+        "sha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_camera.rs": {
+        "bytes": 9936,
+        "sha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_layer_time/camera.rs": {
+        "bytes": 3222,
+        "sha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_layer_time/plane.rs": {
+        "bytes": 2608,
+        "sha256": "02f3dd8cffa2f617a8fda7fa5c7647cf4db6c0edcebd97cb3cee9d5b2f0b03c6"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_layer_time/point.rs": {
+        "bytes": 2693,
+        "sha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_plane.rs": {
+        "bytes": 8098,
+        "sha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79"
+      },
+      "tracking88-main-time-v2/source/crates/motion-model/tests/tracking_point.rs": {
+        "bytes": 9857,
+        "sha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d"
+      },
+      "tracking88-main-time-v2/stderr.log": {
+        "bytes": 1797,
+        "sha256": "a943b5991356556231a63ea5aafab64c9530eed3480aaf98c1cf7d64adb51844"
+      },
+      "tracking88-main-time-v2/stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tracking88-main-time-v3/controller.py": {
+        "bytes": 3471,
+        "sha256": "d719f277ad89d83760178b9bb4b2e8a2e231c201e5d59daec45da1cf6a027528"
+      },
+      "tracking88-main-time-v3/exit.json": {
+        "bytes": 233662,
+        "sha256": "09d3e7becf0ff51ac2740ae3406075eef94b241f833353fda6ad00071f002fe7"
+      },
+      "tracking88-main-time-v3/source/crates/motion-core/src/command_registry.rs": {
+        "bytes": 34211,
+        "sha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1"
+      },
+      "tracking88-main-time-v3/source/crates/motion-core/src/history_accounting.rs": {
+        "bytes": 15378,
+        "sha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771"
+      },
+      "tracking88-main-time-v3/source/crates/motion-core/tests/tracking_replacement.rs": {
+        "bytes": 8213,
+        "sha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+      },
+      "tracking88-main-time-v3/source/crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+        "bytes": 1883,
+        "sha256": "60a7f7d4501b32b56ccf1de8b60816e448f1ca568a3d8c1c599810dde515c116"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/src/commands.rs": {
+        "bytes": 14313,
+        "sha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/src/lib.rs": {
+        "bytes": 10340,
+        "sha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/src/model.rs": {
+        "bytes": 38296,
+        "sha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_camera.rs": {
+        "bytes": 9936,
+        "sha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_layer_time/camera.rs": {
+        "bytes": 3222,
+        "sha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_layer_time/plane.rs": {
+        "bytes": 2617,
+        "sha256": "176d99276252a8a332d7320526681f50568cea6bdfda26732d4de95025d35b61"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_layer_time/point.rs": {
+        "bytes": 2693,
+        "sha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_plane.rs": {
+        "bytes": 8098,
+        "sha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79"
+      },
+      "tracking88-main-time-v3/source/crates/motion-model/tests/tracking_point.rs": {
+        "bytes": 9857,
+        "sha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d"
+      },
+      "tracking88-main-time-v3/stderr.log": {
+        "bytes": 19351,
+        "sha256": "90384821208da827e0fedd026c78c8c501e4ce6a4b596769694abc7304573e76"
+      },
+      "tracking88-main-time-v3/stdout.log": {
+        "bytes": 98825,
+        "sha256": "d4213c9da48b3359120ee28ddaf74dc06a32402b006f4bc86c7608c028e3ea3a"
+      },
+      "tracking88-main-time-v4/controller.py": {
+        "bytes": 3473,
+        "sha256": "fab601cab140886ce74054dcf87ae3e89c1aff5aae1c4b8d386d6909bc27801a"
+      },
+      "tracking88-main-time-v4/exit.json": {
+        "bytes": 233673,
+        "sha256": "b9c0aff94818a7afd81f32461487ebb927f86a1999cbc31d2060146ca2c9e6da"
+      },
+      "tracking88-main-time-v4/source/crates/motion-core/src/command_registry.rs": {
+        "bytes": 34211,
+        "sha256": "7a04f92eea06b4d3508be978f0a42497bc425a3627dd00b23b1c41032203f8d1"
+      },
+      "tracking88-main-time-v4/source/crates/motion-core/src/history_accounting.rs": {
+        "bytes": 15378,
+        "sha256": "68516b355ad16fc7f42f0269158776addac3c864354e90c030da0edb8451c771"
+      },
+      "tracking88-main-time-v4/source/crates/motion-core/tests/tracking_replacement.rs": {
+        "bytes": 8213,
+        "sha256": "3a6f76031d2ae420dd3fef4ac60564c6371bf25fb9431da8245355098b7ab993"
+      },
+      "tracking88-main-time-v4/source/crates/motion-core/tests/tracking_replacement/layer_time.rs": {
+        "bytes": 2001,
+        "sha256": "68459936626a00f6f8e490e7f9216285b7a9d37bded38f1676e6462410172f75"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/src/commands.rs": {
+        "bytes": 14313,
+        "sha256": "0e960c486f20d5bd9ededb19c29a4ab15161d2ec493ea9e2b8899719da4f8609"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/src/lib.rs": {
+        "bytes": 10340,
+        "sha256": "ac94f020957ff0dcd7b37c69c5f49b79f54ce5b3d953aa15cd509e8d2bcf05fc"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/src/model.rs": {
+        "bytes": 38296,
+        "sha256": "3fe78d9a3627409ce72883985097fb0919892d341713fd026820fc207160c28a"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_camera.rs": {
+        "bytes": 9936,
+        "sha256": "d467ecd4312d07a8dac045ab98c44a36d40ef7f10de803cdc3d70103a712f4de"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_layer_time/camera.rs": {
+        "bytes": 3222,
+        "sha256": "febcb73381e539c54bb217709d5e5b8257dd5782ee4e17902eac2bdc4f0cd552"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_layer_time/plane.rs": {
+        "bytes": 2617,
+        "sha256": "176d99276252a8a332d7320526681f50568cea6bdfda26732d4de95025d35b61"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_layer_time/point.rs": {
+        "bytes": 2693,
+        "sha256": "ade188400f705b1055fa92a8e23b8bd77821a0957518bde30827a841bb6bd5b8"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_plane.rs": {
+        "bytes": 8098,
+        "sha256": "dc70cf91e2cd1e7482d8d66c4a21ab1875c8ca1a4fc2d65403f3863fc73c6b79"
+      },
+      "tracking88-main-time-v4/source/crates/motion-model/tests/tracking_point.rs": {
+        "bytes": 9857,
+        "sha256": "d7482198ae51db4ba31b414e0b6a601420cdc9c6060caad7f36f04e03a1ba15d"
+      },
+      "tracking88-main-time-v4/stderr.log": {
+        "bytes": 19196,
+        "sha256": "bbd2bcb42c0d2e43a3bbe071e660c12e6a2c130c168b34ea2218bd13e4d86ee1"
+      },
+      "tracking88-main-time-v4/stdout.log": {
+        "bytes": 91467,
+        "sha256": "21068d4d20112d336a15144d6ab27bec5eb9573926ea383899314a088397007f"
+      },
+      "tracking88-main-tools-v2/exit.json": {
+        "bytes": 193,
+        "sha256": "aebf75fc5b9295a058a64f145872f29102f690007ac4b6bb252e19f1b42424f4"
+      },
+      "tracking88-main-tools-v2/stderr.log": {
+        "bytes": 20853,
+        "sha256": "6cbee62c0a739dc5fb834bdcdd9223e1c0525fa5d251798d193da4f05551dde0"
+      },
+      "tracking88-main-tools-v2/stdout.log": {
+        "bytes": 2045,
+        "sha256": "1e4a7f6e64f791ac35bbe33800d281d0af2d5d31c9b406e9e109bee7452af00f"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 //! The linked graph edits the same serialized easing as the core sampler.
 use super::*;
 use motion_core::{Axis, Curve, CurveShape, CurveSpace, Ease, Easing};
+mod time;
 
 pub(super) fn handle_command(
     target: motion_core::KeyframeTarget,
@@ -8,29 +9,21 @@ pub(super) fn handle_command(
     incoming: bool,
     easing: Easing,
 ) -> motion_core::Result<Command> {
-    let Some(Curve {
-        space: CurveSpace::Progress,
-        shape: CurveShape::Cubic {
-            control1, control2, ..
-        },
-    }) = easing.curve else {
-        return Err(motion_core::Error::Invalid(
-            "graph handle requires a progress-space cubic".into(),
-        ));
+    Ok(Command::KeyframeHandle {target,frame,incoming,control:handle_control(incoming,easing)?})
+}
+fn handle_control(incoming: bool, easing: Easing) -> motion_core::Result<[f64;2]> {
+    let Some(Curve {space:CurveSpace::Progress,shape:CurveShape::Cubic {control1,control2,..}})=easing.curve else {
+        return Err(motion_core::Error::Invalid("graph handle requires a progress-space cubic".into()));
     };
-    Ok(Command::KeyframeHandle {
-        target,
-        frame,
-        incoming,
-        control: if incoming { control2 } else { control1 },
-    })
+    Ok(if incoming {control2} else {control1})
 }
 #[derive(Clone)]
 pub(crate) struct Drag {
     object: u64,
     property: Property,
     axis: Option<Axis>,
-    frame: u32,
+    frame: i64,
+    guard: Option<time::Guard>,
     index: usize,
     easing: Easing,
     start: f64,
@@ -42,7 +35,7 @@ pub(crate) struct Drag {
     hit: [f32; 2],
     begun: bool,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Plot {
     pub area: Rect,
     pub offset: f64,
@@ -158,6 +151,7 @@ pub(super) fn draw(
     atlas: &mut TextAtlas,
     panels: &mut Panels,
     source: &Value,
+    state: &Value,
     object: u64,
     property: Property,
     axis: Option<Axis>,
@@ -168,10 +162,38 @@ pub(super) fn draw(
     out: &mut Vec<Action>,
 ) {
     let sheet = list.styles();
-    let Some(selected) = panels.animation_controls.user_key() else {
-        return;
+    let target=motion_core::KeyframeTarget::Property {object,property,axis};
+    let Ok(timing)=observe!("graph_handles.clock",time::Context::read(state,object),
+        "object={object} property={property:?} phase=handle_context") else {
+        time::cancel(panels,out);return;
     };
     let keys = source["keys"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    if timing.mapped && source["spatial_keys"].is_array() {time::cancel(panels,out);return;}
+    if timing.mapped && observe!("graph_handles.key_array",source["keys"].as_array()
+        .ok_or("graph handle projected keys missing"),"object={object} property={property:?}").is_err() {
+        time::cancel(panels,out);return;
+    }
+    if observe!("graph_handles.local_keys",timing.validate(keys,property.is_scalar() || axis.is_some(),component),
+        "object={object} property={property:?} axis={axis:?} phase=handle_keys").is_err() {
+        time::cancel(panels,out);return;
+    }
+    if panels.timeline.graph_drag.as_ref().is_some_and(|drag|timing.mapped != drag.guard.is_some() || drag.guard.as_ref().is_some_and(|guard|
+        !guard.current(timing,panels,state,component,plot) || locked || input.focus_lost || input.composing || input.ime_consumed
+        || (!input.dragging() && input.released.is_none() && input.pressed.is_none()))) {
+        time::cancel(panels,out);return;
+    }
+    let Some(selected)=timing.selected(panels,state,&target) else {
+        if timing.mapped {time::cancel(panels,out);}
+        return;
+    };
+    let authored_source = if timing.mapped {
+        let Some((track,_))=super::key_selection::authored_track(state,&target) else {
+            let _=observe!("graph_handles.authored_track",Err::<(),_>("authored handle track missing"),
+                "object={object} property={property:?} phase=handle_keys");
+            time::cancel(panels,out);return;
+        };
+        track
+    } else {source};
     let key_value = |key: &Value| -> f64 {
         if property.is_scalar() || axis.is_some() {
             key["value"].as_f64().unwrap_or(0.) * plot.scale as f64
@@ -184,16 +206,16 @@ pub(super) fn draw(
         else {
             continue;
         };
-        if start < 0.
-            || end <= start
-            || (selected.frame as f64 != start && selected.frame as f64 != end)
+        if (!timing.mapped && (start < 0. || end <= start))
+            || (timing.mapped && end == start)
+            || (Some(selected.frame) != timing.frame(&pair[0]) && Some(selected.frame) != timing.frame(&pair[1]))
             || selected.object != object
             || selected.property != property
             || selected.axis != axis
         {
             continue;
         }
-        let Some(easing) = interval_easing(source, object, property, axis, interval) else { continue; };
+        let Some(easing) = interval_easing(authored_source, object, property, axis, interval) else { continue; };
         if easing.ease == Ease::Hold
             || easing.curve.is_some_and(|c| {
                 !matches!(
@@ -264,12 +286,17 @@ pub(super) fn draw(
                 0.,
                 radius,
             );
-            if !locked && clicked(input, Rect::new(point[0] - 9., point[1] - 9., 18., 18.)) {
+            if !locked && !input.focus_lost && !input.composing && !input.ime_consumed
+                && (!timing.mapped || input.pressed.is_some_and(|(_,point)|plot.area.contains(point)))
+                && clicked(input, Rect::new(point[0] - 9., point[1] - 9., 18., 18.)) {
+                let Ok(frame)=observe!("graph_handles.identity",timing.identity(&pair[0]),
+                    "object={object} property={property:?} phase=handle_press") else {continue;};
                 panels.timeline.graph_drag = Some(Drag {
                     object,
                     property,
                     axis,
-                    frame: start as u32,
+                    frame,
+                    guard: timing.guard(panels,component,plot),
                     index,
                     easing: current,
                     start,
@@ -285,6 +312,14 @@ pub(super) fn draw(
         }
     }
     if let Some(mut drag) = panels.timeline.graph_drag.clone() {
+        if timing.mapped {super::key_selection::ui::own_handle(panels);}
+        if timing.mapped && keys.iter().position(|key|timing.frame(key)==Some(drag.frame))
+            .and_then(|index|keys.get(index).zip(keys.get(index+1)))
+            .is_none_or(|(a,b)| a["frame"].as_f64()!=Some(drag.start)
+                || b["frame"].as_f64().map(|end|end-drag.start)!=Some(drag.duration)
+                || key_value(a)!=drag.a || key_value(b)!=drag.b) {
+            time::cancel(panels,out);return;
+        }
         if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             panels.timeline.graph_drag = None;
             if drag.begun {
@@ -385,7 +420,7 @@ pub(super) fn draw(
                     if !input.modifiers.alt {
                         let at = keys
                             .iter()
-                            .position(|k| k["frame"].as_u64() == Some(drag.frame as u64));
+                            .position(|k| timing.frame(k) == Some(drag.frame));
                         if let Some(at) = at {
                             let other = if drag.index == 0 {
                                 at.checked_sub(1)
@@ -398,8 +433,8 @@ pub(super) fn draw(
                                 let dt = ob["frame"].as_f64().unwrap_or(0.)
                                     - oa["frame"].as_f64().unwrap_or(0.);
                                 let dv = key_value(ob) - key_value(oa);
-                                if let Some(old) = interval_easing(source, drag.object, drag.property, drag.axis, other)
-                                    .filter(|old| dt > 0. && dv.abs() > 1e-9 && linkable(old)) {
+                                if let Some(old) = interval_easing(authored_source, drag.object, drag.property, drag.axis, other)
+                                    .filter(|old| (if timing.mapped {dt != 0.} else {dt > 0.}) && dv.abs() > 1e-9 && linkable(old)) {
                                     let mut linked = cubic(old);
                                     let slope = if drag.index == 0 {
                                         p[1] / p[0].max(0.001)
@@ -424,16 +459,17 @@ pub(super) fn draw(
                                                 (slope * dt / dv * control1[0]).clamp(-8., 8.);
                                         }
                                     }
-                                    if linked.validate().is_ok() {
+                                    if observe!("graph_handles.linked_validation",linked.validate(),
+                                        "object={} property={:?} phase=linked_handle",drag.object,drag.property).is_ok() {
                                         if let Ok(command) = observe!(
                                             "graph_handles.linked_command",
-                                            handle_command(
+                                            timing.command_key(
                                                 motion_core::KeyframeTarget::Property {
                                                     object: drag.object,
                                                     property: drag.property,
                                                     axis: drag.axis,
                                                 },
-                                                oa["frame"].as_u64().unwrap_or(0) as u32,
+                                                oa,
                                                 drag.index == 0,
                                                 linked,
                                             ),
@@ -450,7 +486,7 @@ pub(super) fn draw(
                     }
                     if let Ok(command) = observe!(
                         "graph_handles.command",
-                        handle_command(
+                        timing.command(
                             motion_core::KeyframeTarget::Property {
                                 object: drag.object,
                                 property: drag.property,
@@ -476,6 +512,12 @@ pub(super) fn draw(
             panels.timeline.graph_drag = None;
             out.push(Action::History(3));
         }
+    }
+}
+
+pub(super) fn cancel_local(panels: &mut Panels, out: &mut Vec<Action>) {
+    if panels.timeline.graph_drag.as_ref().is_some_and(|drag|drag.guard.is_some()) {
+        time::cancel(panels,out);
     }
 }
 

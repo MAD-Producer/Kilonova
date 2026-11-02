@@ -102,14 +102,16 @@ pub struct ExposureScenes<E> {
 pub(crate) struct ExposureScope {
     registry: Arc<crate::scene::instance_ids::InstanceIds>,
     path: Vec<u64>,
+    source_time: motion_model::layer_time::SourceTimeSample,
 }
 impl ExposureScope {
-    pub(crate) fn child(&self, reference: u64) -> Self {
+    pub(crate) fn child(&self, reference: u64, source_time: motion_model::layer_time::SourceTimeSample) -> Self {
         let mut path = self.path.clone();
         path.push(reference);
         Self {
             registry: self.registry.clone(),
             path,
+            source_time,
         }
     }
 }
@@ -186,6 +188,9 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                 ExposureScope {
                     registry: Arc::new(registry),
                     path: vec![],
+                    source_time: motion_model::layer_time::SourceTimeSample {
+                        frame, rate: 1., traversal: motion_model::layer_time::TimeTraversal::Later,
+                    },
                 }
             }
         };
@@ -212,7 +217,8 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                 None => Ok(object),
             }
         };
-        if !frame.is_finite() || frame < 0. || frame >= f64::from(project.frames) {
+        let cursor = motion_model::layer_time::SourceTimeSample { frame, ..scope.source_time };
+        if !frame.is_finite() || !cursor.in_interval(0., f64::from(project.frames)) {
             return composition::fail(
                 &project.composition_id,
                 "sample_failed",
@@ -221,6 +227,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                     "phase":"exposure_scene_init", "sample_frame":frame.to_string(), "frames":project.frames}),
             );
         }
+        cursor.validate()?;
         let objects = project
             .layers
             .iter()
@@ -373,7 +380,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             if let Err(mut error) = scene.sample_exposure_instance(
                 &self.document,
                 root,
-                frame,
+                motion_model::layer_time::SourceTimeSample { frame, ..self.scope.source_time },
                 self.view.borrowed(),
                 self.evaluator.as_ref(),
                 &self.scope.registry,
@@ -421,7 +428,9 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                 weight: self.clock.phases()[self.phase].weight,
             });
         };
-        let in_range = receiver.frame >= 0. && receiver.frame < f64::from(self.project().frames);
+        let in_range = motion_model::layer_time::SourceTimeSample {
+            frame: receiver.frame, ..self.scope.source_time
+        }.in_interval(0., f64::from(self.project().frames));
         if !self.prepared {
             if in_range {
                 self.prepare_context(receiver.frame, Some(receiver.object))?;

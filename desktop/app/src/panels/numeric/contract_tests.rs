@@ -5,6 +5,7 @@ use motion_ui::{dock::{Edge, Node, Panel}, input::{Key, Modifiers, MouseButton}}
 use serde_json::Value;
 
 const SIZE: [f32; 2] = [900., 720.];
+mod mapped_time;
 #[derive(Clone, Copy, Debug)]
 enum Provider { Effect, Transform }
 impl Provider {
