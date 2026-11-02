@@ -261,6 +261,9 @@ impl Shell {
             Action::KeyframeTimingSettings { source, selections } => {
                 self.open_keyframe_timing(source, selections)?;
             }
+            Action::LayerTimeSettings { source, objects } => {
+                self.open_layer_time(source, objects)?;
+            }
             Action::ExportMovie => {
                 if self.render_queue.preparing() {
                     return Err("render queue is preparing a task".into());
@@ -723,7 +726,7 @@ impl Shell {
             Action::ViewerSettings(settings)=>self.save_view_settings(settings)?,
             Action::ViewerPick{key,cell,point}=>self.pick_view(key,cell,point)?,
             Action::ViewerCamera{key,cell,action}=>self.camera_view(key,cell,action)?,
-            Action::ViewerDrag{key,cell,object,delta,size}=>self.drag_view(key,cell,object,delta,size)?,
+            Action::ViewerDrag{key,cell,object,delta,size,spatial_key}=>self.drag_view(key,cell,object,delta,size,spatial_key)?,
             Action::CameraGesture(action) => {
                 self.camera_view(self.projection_key(),self.panels.viewer_views.settings.active(),action)?;
             }
@@ -739,13 +742,14 @@ impl Shell {
             }
             Action::PreviewDrag {
                 object,
+                spatial_key,
                 delta,
                 size,
             } => {
                 self.stop();
                 self.editing = Some((
                     Instant::now(),
-                    self.engine.drag_async(object as i64, delta, size)?,
+                    self.engine.drag_at_key_async(object as i64, delta, size, spatial_key)?,
                 ));
             }
             Action::Float(panel) => {
@@ -843,8 +847,8 @@ impl Shell {
                 ));
             }
             Action::LayerClipboard(intent) => self.request_layer_clipboard(intent)?,
-            Action::CurveClipboard { intent, source, selections } => self.request_curve_clipboard(intent, source, selections)?,
-            Action::KeyframeClipboard { intent, source, selections, targets } => self.request_keyframe_clipboard(intent, source, selections, targets)?,
+            Action::CurveClipboard { intent, source, selections, local_selections } => self.request_curve_clipboard(intent, source, selections, local_selections)?,
+            Action::KeyframeClipboard { intent, source, selections, local_selections, targets } => self.request_keyframe_clipboard(intent, source, selections, local_selections, targets)?,
             Action::PathClipboard { intent, source, selections, target } => self.request_path_clipboard(intent, source, selections, target)?,
             Action::CancelLayerClipboard => self.cancel_layer_clipboard(),
             Action::History(op) => {

@@ -33,6 +33,7 @@ fn clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership() 
 }
 mod property_focus_tests;
 mod monitor_tests;
+mod mapped;
 
 #[test]
 fn modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync() {

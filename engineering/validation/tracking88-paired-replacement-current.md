@@ -241,6 +241,15 @@ text export 16.21s, project precision 59.93s. Those isolated successes do not er
 the failed full gate or establish its root cause. No assertion, production
 renderer, panel, driver or machine setting was changed to obtain them.
 
-The PR remains a draft pending the unresolved full-regression gate and final-head
-cross-platform checks. Native crash attribution and the other explicit scope
+At the time of this recorded run the PR remained a draft pending the unresolved
+full-regression gate and final-head cross-platform checks. Native crash attribution and the other explicit scope
 limitations above remain open; successful focused tests do not close issue #88.
+
+
+## Current integrated-source follow-up
+
+PR #583 is now formal. The [layer-time integration record](tracking88-pair-clock-integration-current.md)
+and its source-bound evidence describe the latest parent/main synchronization,
+complete model/core and host-library regressions, actual paired video/audio
+controls, and exact remaining acceptance boundaries. Earlier results and failed
+runs above retain their original source and scope; they are not final-head claims.

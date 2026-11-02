@@ -1,0 +1,526 @@
+{
+  "created_utc": "2026-10-31T12:36:08.228754+00:00",
+  "branch": "feat/layer-time-mapping",
+  "parent": "9f9bccd6",
+  "issue": 257,
+  "status": "audio_execution_stage_only_issue_remains_open",
+  "test_configuration": "single-threaded as in existing CI; CARGO_BUILD_JOBS=1; CARGO_INCREMENTAL=0",
+  "commands": {
+    "model-final": "cargo test -p motion-model --target-dir E:/Dev/aem/.tools/layer-time-mapping/target -- --test-threads=1",
+    "media-final": "cargo test -p motion-media --locked --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1",
+    "core": "cargo test -p motion-core --test audio_levels --test audio_references --test composition_fps --test composition_resources --test subframe_clips --test layer_switches --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1",
+    "output": "cargo test -p motion-desktop --features ffmpeg,motion-host/diagnostics --bin motion-studio --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target audio_output:: -- --test-threads=1",
+    "native-final": "cargo test -p motion-desktop-media --locked --features ffmpeg,motion-host/diagnostics --test layer_time_audio --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target -- --test-threads=1 --nocapture",
+    "workspace": "cargo check --workspace --all-targets --exclude motion-android --locked --features motion-desktop/ffmpeg,motion-host/diagnostics --target-dir E:/Dev/aem/.tools/viewer-inspection/native-target",
+    "default-channels": "<compiled motion-studio test binary> --exact audio_output::producer_observation::tests::mapped_pcm_read_failure_reaches_default_file_and_stderr_after_a_published_start --test-threads=1"
+  },
+  "source_sha256": {
+    "crates/motion-model/src/composition.rs": {
+      "bytes": 53601,
+      "sha256": "fad725be9c3446b512d070083d328a5c518e9339cdc6e8c070da9bce2f62de8c"
+    },
+    "crates/motion-model/src/composition/audio_time.rs": {
+      "bytes": 5029,
+      "sha256": "fd7bc3a5c33c52644baedf8957458a1dcd4c0df8b1e250e0b35da75b4c39bbe7"
+    },
+    "crates/motion-media/src/mixer.rs": {
+      "bytes": 26113,
+      "sha256": "8fea70aab0d4b0d7f51e6057bac69c91a704610ea1b6f21b22287c7b62ef0d6b"
+    },
+    "crates/motion-media/src/mixer/mapped.rs": {
+      "bytes": 7147,
+      "sha256": "7a281384a0e6daa5f22a5ba49c8d3be1c8320ee67614ba6dee72d53c4d3a33f0"
+    },
+    "crates/motion-media/src/mixer/memory.rs": {
+      "bytes": 2257,
+      "sha256": "e4a1420a122d9ca0c0332c285a7ddb71bc25ff9a8b43fbed0e00e0c842bddad9"
+    },
+    "crates/motion-media/tests/layer_time_audio.rs": {
+      "bytes": 14660,
+      "sha256": "2df8a84359241005b7712f773ad0fa5c4f5b2e64c8ce65dd2dd7f3c8885f129a"
+    },
+    "crates/motion-desktop-media/tests/layer_time_audio.rs": {
+      "bytes": 9830,
+      "sha256": "de4993a87eac71e1872c403254e84043e954faa88d3f0dcc48ed3f588bcf12dd"
+    },
+    "desktop/app/src/audio_output/producer_observation/tests.rs": {
+      "bytes": 12033,
+      "sha256": "65e2362fef7aefab12e0bb47499b01ea0e7e9056984086b7096b5b7a493f0fb8"
+    }
+  },
+  "results": {
+    "model-final": {
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0
+    },
+    "media-final": {
+      "passed": 187,
+      "failed": 0,
+      "ignored": 2
+    },
+    "core": {
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0
+    },
+    "output": {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 1
+    },
+    "native-final": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "distinct_passed_tests": 462,
+  "ignored_not_counted_as_passed": 3,
+  "duplicate_runs_not_added": [
+    "before",
+    "fixed",
+    "expanded",
+    "regression",
+    "model",
+    "media-serial",
+    "native",
+    "native-retained",
+    "default-channels",
+    "workspace"
+  ],
+  "workspace_all_targets": "passed excluding retired motion-android; desktop FFmpeg and host diagnostics",
+  "raw_log_sha256": {
+    "layer-time-audio-before.log": {
+      "bytes": 3109,
+      "sha256": "0ef190f9244daa19a6d604113b80f424dc28d4814fa92d6031594db4da28ecbd"
+    },
+    "layer-time-audio-fixed.log": {
+      "bytes": 1932,
+      "sha256": "92d900d537391bf26b7bf3ab1e91d33203bbef96faf39a8516429184aa483be9"
+    },
+    "layer-time-audio-expanded.log": {
+      "bytes": 2246,
+      "sha256": "7c161a0d96916c61d12a62125c00fe26b66050421a9695f0a4aeb56a8d134328"
+    },
+    "layer-time-audio-regression.log": {
+      "bytes": 14435,
+      "sha256": "bb344fb1c02756596cd7a2ae9d8a0f990c63481117d2daf20dad272d0423e81e"
+    },
+    "layer-time-audio-model.log": {
+      "bytes": 29404,
+      "sha256": "88d1704c982793e34dab084f74475f9fefa2c26b3091700849c6f6a2764b19b9"
+    },
+    "layer-time-audio-media-serial.log": {
+      "bytes": 23209,
+      "sha256": "a7b529543438325955a86fe1f9bd5737e517b92cbe101d7fd33cca3270d328d7"
+    },
+    "layer-time-audio-native.log": {
+      "bytes": 6314,
+      "sha256": "6dbbc4f45da2f29d96bdc9b90d46682868c7e8ada2eadbc94d4f132a746af851"
+    },
+    "layer-time-audio-native-retained.log": {
+      "bytes": 5831,
+      "sha256": "fe154315505cb9e2b18b034f8049bec914935b84e7fa0066dbdc99002d85b450"
+    },
+    "layer-time-audio-default-channels.log": {
+      "bytes": 256,
+      "sha256": "32e14eec04a0acaf76da01482ced80d1da8a7222f902956f647e8193ec209f20"
+    },
+    "layer-time-audio-workspace.log": {
+      "bytes": 22603,
+      "sha256": "26af59872f81ed6a8573c72738f0634beba1d3833736e756c75e1ba9e69170d1"
+    },
+    "layer-time-audio-model-final.log": {
+      "bytes": 29404,
+      "sha256": "053b8b2f561c876cc90f601ceed7a2639d76115e31885c5036b3f7a5357ae64a"
+    },
+    "layer-time-audio-media-final.log": {
+      "bytes": 23555,
+      "sha256": "b1f229524d2ff6cbaae687ee8db138b977268a34af82720db819d8153044e27f"
+    },
+    "layer-time-audio-core.log": {
+      "bytes": 5738,
+      "sha256": "0ce3afb062e623ad6f1e3f86f3e85bf2d5bd6e58697102503b4e65ffc9448e56"
+    },
+    "layer-time-audio-output.log": {
+      "bytes": 17455,
+      "sha256": "f2323492769a7844b637b269e3a5441b26817b1cc9100a0aa8dbf62a6050db25"
+    },
+    "layer-time-audio-native-final.log": {
+      "bytes": 5871,
+      "sha256": "f96434abd917ed596c0a464b21e819008a3692aa841654830fde7a2c143cc391"
+    }
+  },
+  "programs_at_final_verification": {
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/motion_model-40401b121414d355.exe": {
+      "bytes": 1581568,
+      "sha256": "99682fb14aac998b5745a0863ae7bb504d93ade063e74f8f5c458a3aea43c61f"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/animation_sampling_errors-4f11c019005fa93c.exe": {
+      "bytes": 1380352,
+      "sha256": "12f37ef5e2813f722402de179af5b2838140ed995b5c7e831e25949fed42ac81"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/audio_plan_time_bounds-c1603dc8da725a97.exe": {
+      "bytes": 3004928,
+      "sha256": "a0aa3e81a82625215e8d12c42b8316bf3f402cbd7b3f67fa453e50117b417a20"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/automatic_bezier-e98df2f93fb5a7e2.exe": {
+      "bytes": 1972736,
+      "sha256": "bc2e966b7b790698843f6ffc2e13acb8c14c63e759631684db1534a06418aa0a"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/color_curve_failures-6346e6a64a4bbc24.exe": {
+      "bytes": 1220608,
+      "sha256": "ee7286e80ecd50d40a3e76a13e2dd81d11ddf96de8e2baf3009807692c8daaab"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/composition_boundaries-8a268af74154aea2.exe": {
+      "bytes": 6780416,
+      "sha256": "2eb0f2cb388d8817cd4a28429bae04e9113dde606b72e7d9d2df04ebbf735a51"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/composition_candidate_oracle-9bcf3a254af14c14.exe": {
+      "bytes": 2770432,
+      "sha256": "b8b11554b06a103838b94232eb11d5c6f7e41728360e1c642b3c338254b42fd3"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/composition_frame_mapping-d3f383ca6aa57005.exe": {
+      "bytes": 984064,
+      "sha256": "9942cbd0c48537a7b982825f913aef8cc5d43d25d9d0ae7d67d683bbaa632797"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/composition_queries-39a659e3641afde9.exe": {
+      "bytes": 2976256,
+      "sha256": "f2902b10d5190f0f46cec30edc6791c7a9a15f2ed0feb3219fc530c46b168f5f"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/dense_color_curves-72bb9759010306c3.exe": {
+      "bytes": 1413120,
+      "sha256": "b19c1debab42eb5691955276d50c842acb3187f13db06d9e351cf8738e7ca856"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/dependency_boundaries-53f019ff7bc3f4dc.exe": {
+      "bytes": 1042944,
+      "sha256": "394e2070e085544f3d31353274d2d8232e0ad49cd8f8e2eba32c888ebd2b83de"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth-276a1e9938b310ba.exe": {
+      "bytes": 1533440,
+      "sha256": "4c199a7c48658793093293bafe0412ad30be711d4d7f27bd21ef7979820ba89c"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_calibration-b68df62cab502140.exe": {
+      "bytes": 1167360,
+      "sha256": "aa37f94ea6ba948b553b1036f55115b03694d059ed3656fe81e9a8d9fe6d167e"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_of_field-87c934a83bcdba39.exe": {
+      "bytes": 2059264,
+      "sha256": "8e8a6b4df150aa8cfc9ab1b2eb014779a69a5a62a2fee5db5fc3b2aa5e9d46d7"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_prepared-bac6339b80d70d54.exe": {
+      "bytes": 1281024,
+      "sha256": "8b85ef4be866f546962f0409dd4203cafbdbc51f8cfe6358ccd5364ac42e12b3"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_saved-8a8851208156ce1c.exe": {
+      "bytes": 1593856,
+      "sha256": "103403840cb85220f38cece0d770e422af76e0eaa98419cfb5da935b8252a9b0"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_surface-2d36fd856f2b3090.exe": {
+      "bytes": 1844224,
+      "sha256": "449b5fda79cbf0b0cfa2c02a2ac96f5aa49732270645e4543667938933e363fd"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/depth_video_track-9102da7d3a3c7c69.exe": {
+      "bytes": 2026496,
+      "sha256": "679907f86ad50aaa6d8394927270c5ec52a5da4f82492e218c91caedd3497a78"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/dimension_conversion_errors-7670df326f97ffab.exe": {
+      "bytes": 1274368,
+      "sha256": "c117d912d3377825cd9c4f1b0f68e30fb1d425f5ccccd49bf73ba69aa4190e35"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/dimension_edit_errors-805559df8d69deec.exe": {
+      "bytes": 1496064,
+      "sha256": "273cc0f84a7b3150a8d8d2c17f7191ba1bd487cc87a66ac765f35f68da4217b7"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/effect_parameter_errors-8d77c8b25f462e8c.exe": {
+      "bytes": 15690752,
+      "sha256": "8967088d3cd0b49b0589a5b628bd1d53d35d679c8d3dec0153ac4f4e5ced2c4c"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/key_collisions-9b2079be8ad86182.exe": {
+      "bytes": 15100416,
+      "sha256": "bf19b0628bc11ee4940d721871bd41d850a1c36d01983387a3d76c5b47857093"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time-d65314f053dc1c41.exe": {
+      "bytes": 2051584,
+      "sha256": "608f339448f23b1c928c504214637fe5370866291cb1f33b4ab40fbab3fa3dbf"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_direction-b2e777fd4acbbddd.exe": {
+      "bytes": 926208,
+      "sha256": "3ea8e02efeddfca4c6f1d06f8d8071e53b7b58b34df9ac241774181fecedb9df"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_document-4f2f1e07a3232566.exe": {
+      "bytes": 6765568,
+      "sha256": "efe75866c6f6a55d340696a70ca998574279d25772c88bdf3f5c2752daac585f"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_projection-031131098be9a580.exe": {
+      "bytes": 3168256,
+      "sha256": "f25af6271567fa2e0bc9c4167d4d2cb005aada98f17d46d8aafebd8fd0648bda"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_stationary-4ec2736c9296e6e3.exe": {
+      "bytes": 991232,
+      "sha256": "d32a0b3420394f8c7523ee3a89c784bae2dd27a2cdda24e00c80563be09fccd6"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/layer_time_video-b6341bad5be4442f.exe": {
+      "bytes": 1372672,
+      "sha256": "9a7ec8702d792436b711f534aa5543f6495453833e150de3251b9297b38d0528"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/node_resources-72b6fc5e391a8a95.exe": {
+      "bytes": 1111040,
+      "sha256": "6df82997e7d4f70b5927acb753d831b86ee286931b429736ef19438736c4d98a"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/observability-0e980bd6d47e517d.exe": {
+      "bytes": 1294848,
+      "sha256": "0d0f4b5a1c5ef6f136cb87694ccc015d2d837176296aa970c7c22a70452fdf6f"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/path_auto_tangents-0c917193f28a82f8.exe": {
+      "bytes": 1049088,
+      "sha256": "78f4694e52cf20be75fb604d5c0e5d4ff920a80cd7fe807f226f5aec0e839877"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/path_tangent_sampling-1e7fb94b1eacafe1.exe": {
+      "bytes": 2820608,
+      "sha256": "3de0a6910e9c9aeefd12c83a0862b50313f6ce75f1550c3dab448f7fcaf2d576"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/sample_time-1f599466a1ca0a07.exe": {
+      "bytes": 1104384,
+      "sha256": "803d48be1fcfd2312f815f8a71cacb508336f2c029b7552f94e6b78b22c7c7f4"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/shape_parameter_errors-ed53318ec6afa455.exe": {
+      "bytes": 2809856,
+      "sha256": "c1b2c849bff685a77c8b8503c46267e6a7a486d1876468d352c33628803f82a8"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/spatial_hot_path-0281114c01d352e7.exe": {
+      "bytes": 1906176,
+      "sha256": "2e9a83a01d2e299b970f56b945047f773e4c48a6e4b803c384d0bfd3cca696fb"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/spatial_schedule-1630a1fe24dc35b0.exe": {
+      "bytes": 2457600,
+      "sha256": "4a1ec97a7a57cefd4ddb87b7acbbabc48526b1df84a13a104572921799a091ad"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/spatial_timing-b03009c2ec1746eb.exe": {
+      "bytes": 1594880,
+      "sha256": "9df68b2253e2a9fff2515379026dc3a602d2ed5ac419d24eb13fbb214457914e"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/spatial_track-48bc46fb7a0e247d.exe": {
+      "bytes": 9368576,
+      "sha256": "956cf0b815e7e0d5c55aec89282f29baf4268aeedd095beca9d2b387baccd9a7"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/spatial_velocity-5f298d84ce84dcbf.exe": {
+      "bytes": 1903104,
+      "sha256": "bfd84593d53333b7e166e62bad7a15ede1270a0b37a662aace07a51e059d496b"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/timeline_errors-72c3e75b1ac8eedc.exe": {
+      "bytes": 2957312,
+      "sha256": "99dbf49362c022124e21dc6eef3173a127159af45615183f0fc3e227a91f9966"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/vector_path_inputs-17a74fa710ab79ff.exe": {
+      "bytes": 1091072,
+      "sha256": "da8c2839016c357d7835fdf6a023b50e09e049791b79bf11f0ef89966dd1e910"
+    },
+    "E:/Dev/aem/.tools/layer-time-mapping/target/debug/deps/working_precision-08f000340deaf256.exe": {
+      "bytes": 6504448,
+      "sha256": "1c0061526697eb3b93d704285ad631421d0440a6eaa02bb1cc258646babb16fc"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/motion_media-f3b5f5bb1c9fbc63.exe": {
+      "bytes": 31933440,
+      "sha256": "53dd92a6161ab8c01e9d54b602a5072a0ce3004d39eda2740ebb1d1c96b11d44"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/audio_backend-c996586db745e6cc.exe": {
+      "bytes": 29328896,
+      "sha256": "5ada13e579330622cef9b575827cafa4d670ec095b4e50637b0f9e981efa0c4d"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/audio_decode_progress-97fec14369b4ac3d.exe": {
+      "bytes": 5868032,
+      "sha256": "9ed97029cd12414a1066cadb25f04ae7e64b0836e47539cd782cb6baebc8e35e"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/audio_levels-54feb25942c9cd67.exe": {
+      "bytes": 20770816,
+      "sha256": "a3d7a4af9023fb15991a2b3ef8c8328089b7cb8522f057b65a00d4b7e8d2e625"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/fonts-fe3aa2de0c72604d.exe": {
+      "bytes": 10546688,
+      "sha256": "ca100539da485dcd07d494b7495a907df457e90cbf23bd14f12a79e0ca5bcc3e"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_audio-bffbe0be41790674.exe": {
+      "bytes": 4474880,
+      "sha256": "6501807c63c5e1f51ef7e6037b64ceed597461f13e219996dcb67845f9ab026b"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/media_formats-996512c9588e21c1.exe": {
+      "bytes": 25304576,
+      "sha256": "e6cb9f80245b78b29196d32d0cefde646bcf0bba0418eda3949d0319b70bce27"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/mp4_audio_clock-29326453f3aa4369.exe": {
+      "bytes": 5509632,
+      "sha256": "4272765c82d5dd9eb75926f5150db7868eb976338fe088fcaa269e731bc397a8"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/package_jobs-d29119971e97b8a6.exe": {
+      "bytes": 10048000,
+      "sha256": "b76be6a34afb437f2c4c4b5e0d57ba30ba268955063ec1c9a34306a79f16ebad"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/panic_boundaries-114728bbc31e321c.exe": {
+      "bytes": 5664256,
+      "sha256": "7555a9062d57495ba52d2d9b4bef60e0534ecb7134849b2eb93bc731b7079745"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/subframe_clips-e71d6d56ae18ddfc.exe": {
+      "bytes": 2613248,
+      "sha256": "d70d9ed6cf4d79c9e90b15ff0633925e3df1ddb1239262a5bb2bfd986ffd2086"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/text_styles-c76194952d4b5cf8.exe": {
+      "bytes": 2174976,
+      "sha256": "b0633da844058e9599c2072ede370eb3ac8bbf343a712dbe23538a839d32cd19"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/typed_errors-23b701359154a12f.exe": {
+      "bytes": 7567872,
+      "sha256": "7be1d1931d815cdd4c37e1472603376076b593e37bd736f5c8b66bec2bb57201"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/video_input_index-9b414d8201d09cd9.exe": {
+      "bytes": 1096704,
+      "sha256": "2ac1d1a05333eebe40923581dfda370dc5049e1f8aebac350da362756263cd41"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/video_transactions-f3f54489d0b0f4ad.exe": {
+      "bytes": 29172736,
+      "sha256": "4df929b4bcfaca3052b338830d2ad8396509517b4070f8dae51b380d923b5a7b"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/worker_shutdown-7b8b9d06042e4840.exe": {
+      "bytes": 11030528,
+      "sha256": "7081dc5f0e1cb8327e0febe2711c92bfece866147a2d346622565c6e381072b4"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/audio_levels-977c60be72b516a4.exe": {
+      "bytes": 30455808,
+      "sha256": "58a78e5e354167f543da07aba9810a978adfc4b328b74c8cf5d6c6a6cb7bee0c"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/audio_references-995d1d9beb90e715.exe": {
+      "bytes": 27943936,
+      "sha256": "7a744abdc2fad325b0e0d1cd4360316988d8b32bc6a8195cecebcb364870cdd5"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/composition_fps-3c74c9379926f00c.exe": {
+      "bytes": 25584640,
+      "sha256": "8dda138f2c3de5b4b7031c5d964cd550948ed6577069117118acc15b63576050"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/composition_resources-170fb80d488c271d.exe": {
+      "bytes": 24422912,
+      "sha256": "bd069d12d92bcf575240a102bb5e15343a7e4acd27ae0f8e5c2147d2389d85d8"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_switches-3fb246c65e507410.exe": {
+      "bytes": 30904832,
+      "sha256": "b765b32df1a22e1ee5ad11793197ff3fd9deda1a328fc2246f52152faeae94a1"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/subframe_clips-f4970b2acb708f22.exe": {
+      "bytes": 27507712,
+      "sha256": "a63fc21ebd862f0d9f3dd6db5775d8d7765035394b87fc0e9865ee8b3ca5f03d"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/motion_studio-b34b3a7e7eb835e8.exe": {
+      "bytes": 134603264,
+      "sha256": "87063cd744f487d66cfc4f844ccfcb4b4814ecb0a7395223fc397dc2028655d8"
+    },
+    "E:/Dev/aem/.tools/viewer-inspection/native-target/debug/deps/layer_time_audio-d0a1413b0a85cd8e.exe": {
+      "bytes": 46848512,
+      "sha256": "c8a8a3a2a31eb106f4118af2217548ce30c524ffe345c2db85c8ab73aca2a938"
+    }
+  },
+  "actual_media_and_default_channels": {
+    "freeze/authored-project.json": {
+      "bytes": 4407,
+      "sha256": "9af462da3f32df06ba3c2c46d09eb0ea8e445773a0df95d433f938026b13e500"
+    },
+    "freeze/decoded-aac.f32": {
+      "bytes": 81920,
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+    },
+    "freeze/flat-reference.f32": {
+      "bytes": 76800,
+      "sha256": "e2cc2a1fa6131cf4d86faa3baf78851f35a36853e2467c257b3df9d89e85cce5"
+    },
+    "freeze/flat.mp4": {
+      "bytes": 1677,
+      "sha256": "e3963c32123afb1ab4531187bcb80f186c750cf5a7e9b1b7d5faacbcf2bff4f3"
+    },
+    "freeze/mapped.mp4": {
+      "bytes": 1677,
+      "sha256": "e3963c32123afb1ab4531187bcb80f186c750cf5a7e9b1b7d5faacbcf2bff4f3"
+    },
+    "nested/authored-project.json": {
+      "bytes": 7548,
+      "sha256": "17b35eb10bc46ee014c1ffaaf91adff7732dfc7029f26d81974e117489abf097"
+    },
+    "nested/decoded-aac.f32": {
+      "bytes": 81920,
+      "sha256": "fc1daf009b0ad992adb77d75cb032e8a600e192af65c033a11ef4c129a8fc867"
+    },
+    "nested/flat-reference.f32": {
+      "bytes": 76800,
+      "sha256": "5c202a71bd33656cf6223c1f43410ba2b361139b48b3feee6d95660738a7cb69"
+    },
+    "nested/flat.mp4": {
+      "bytes": 6292,
+      "sha256": "324520d26544a23f6ec1fd337f3ee7efa251b4c638f9c38ad190d8075daf70c7"
+    },
+    "nested/mapped.mp4": {
+      "bytes": 6245,
+      "sha256": "9ce417110e0748f2744b0733199806e348c90dd5638ec0343af3682886473ea5"
+    },
+    "producer/motion-studio.log": {
+      "bytes": 809,
+      "sha256": "2af346ebefabbd98cd6844f9095a404b636e1c8e78e157f2c428d4a07622c399"
+    },
+    "producer/stderr.txt": {
+      "bytes": 273,
+      "sha256": "d4ccef3cc65546187a3c81c7ae6445c3f9b9c09867d65ce3104370529b186a43"
+    },
+    "producer/stdout.txt": {
+      "bytes": 250,
+      "sha256": "1c347b8cc00d216b20f74c627bc4faafa5b83872dc6bf215e6855fc39412298a"
+    },
+    "remap/authored-project.json": {
+      "bytes": 5075,
+      "sha256": "adddbafd1e58d1649fa056079f15a64013134ca226a268a61b0f66532a53c1e8"
+    },
+    "remap/decoded-aac.f32": {
+      "bytes": 81920,
+      "sha256": "553af15967432f8d492bd0a10b9071542fd6a666a6c8b28cda95ef9af56c8084"
+    },
+    "remap/flat-reference.f32": {
+      "bytes": 76800,
+      "sha256": "7cdfd1f13caa065efc0d29524d638fa08ebe006087278a0db4c3f94c62aeb5b1"
+    },
+    "remap/flat.mp4": {
+      "bytes": 7437,
+      "sha256": "7ec4e6412cfb88e032bd660e8b73dfd954ecb9388580c0780c247a145731eb29"
+    },
+    "remap/mapped.mp4": {
+      "bytes": 7437,
+      "sha256": "7ec4e6412cfb88e032bd660e8b73dfd954ecb9388580c0780c247a145731eb29"
+    },
+    "reverse/authored-project.json": {
+      "bytes": 4179,
+      "sha256": "b8f1b4e939644306ddce41c097f4e5190a0e44bde44bffb2db0777e4ef360eb5"
+    },
+    "reverse/decoded-aac.f32": {
+      "bytes": 81920,
+      "sha256": "5df91d053d13fc5d02dcc6e33af139d784ea289fc8eba12de271132623d883c1"
+    },
+    "reverse/flat-reference.f32": {
+      "bytes": 76800,
+      "sha256": "165c78728a6ad79126e7cef2c705313bc86f9cb5e45e2cd77477fe3321cd1211"
+    },
+    "reverse/flat.mp4": {
+      "bytes": 6181,
+      "sha256": "f419aeb8ab7db995cdee9a16dd2abb5f20503b02bffb14d3ea38760c36107cca"
+    },
+    "reverse/mapped.mp4": {
+      "bytes": 6181,
+      "sha256": "f419aeb8ab7db995cdee9a16dd2abb5f20503b02bffb14d3ea38760c36107cca"
+    }
+  },
+  "archive": {
+    "bytes": 549241,
+    "sha256": "33eb12ef1834339e6ecb49d82a62a5e9bdead577efa0f82e56f0a976cb3e0a0e"
+  },
+  "limitations": [
+    "No real native audio-device acceptance (existing ignored test)",
+    "Two existing media large-file acceptances remain ignored",
+    "No velocity-adaptive antialias cutoff or pitch preservation",
+    "UI/editing/cache/pre-render/source-range and full real-time acceptance remain pending",
+    "Initial default parallel package test failure retained; budget and assertions unchanged"
+  ]
+}

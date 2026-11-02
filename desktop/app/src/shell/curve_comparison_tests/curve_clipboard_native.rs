@@ -6,10 +6,12 @@ fn check(actions: &[panels::Action], intent: Intent, source: &Value) {
         intent: actual,
         source: stamp,
         selections,
+        local_selections,
     }] = actions
     else {
         panic!("expected one curve clipboard action: {actions:?}");
     };
+    assert!(local_selections.is_empty());
     assert_eq!(*actual, intent);
     assert_eq!(stamp, &crate::layer_clipboard::KeyframeSource::of(source));
     assert_eq!(

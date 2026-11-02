@@ -139,6 +139,9 @@ fn selected(panels: &Panels, state: &Value) -> Option<Vec<KeyframeTarget>> {
         for (target,_) in panels.selected_keys.spatial_selections() {
             if !targets.contains(&target) {targets.push(target);}
         }
+        for (target,_) in panels.selected_keys.local_selections() {
+            if !targets.contains(&target) {targets.push(target);}
+        }
         return Some(targets);
     }
     super::keyframe_clipboard::selection(panels, state).map(|s|s.targets)

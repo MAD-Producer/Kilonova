@@ -1,0 +1,301 @@
+{
+  "issue": 257,
+  "pr": 579,
+  "stage": "exact-time vector and mask parameter authoring",
+  "base": "04e74a492e5749db5112f8d503059ddf314c3ca1",
+  "branch": "feat/layer-time-mapping",
+  "sourceHashes": {
+    "desktop/app/src/panels/path_controls.rs": "cc030c54fa9354a13c6ee19dfe90a0d4421b52b4559ee886ef9f73bcce53f176",
+    "desktop/app/src/panels/path_controls/clipboard_tests.rs": "bb6cabea61ce1f7c725647073015416176746141185c91501c4c38c2d7dfb657",
+    "desktop/app/src/panels/path_controls/groups.rs": "d758d8592e7453769f1e643af5cc993c6689a8384ba25004f44b95c7c9a20107",
+    "desktop/app/src/panels/path_controls/groups/color.rs": "12e739d8e2f1c021f0474616c5da8d4a1dc4691e3029d4fac93b63bd5b24c8fc",
+    "desktop/app/src/panels/path_controls/mapped_authoring_tests.rs": "64f870c57a9af599e19d7db08a154eab532576847c986b09fd99623c624d64c0",
+    "desktop/app/src/panels/path_controls/mapped_authoring_tests/faults.rs": "41185bc5359e208dd4241a0b48c0a0871336895bed81fa34691ff63cbe0289ab",
+    "desktop/app/src/panels/path_controls/mapped_authoring_tests/native.rs": "5e29464c927023a3d859c1a7b59a868f4abaea7bd633eb18c1e4c4b742991c17",
+    "desktop/app/src/panels/path_controls/mask_boundaries/viewer.rs": "a32d7aa0cf0856770b09dab8126c315f76b335ea357348e6eb20bbd4ba865149",
+    "desktop/app/src/panels/path_controls/mask_boundaries/viewer/tests.rs": "efdfff6ae278e7e994c862ebc32d51004b95840e607b658f3989eadcbad2974a",
+    "desktop/app/src/panels/path_controls/mask_boundaries/viewer/tests/mapped_time.rs": "1eb2147ab0297144268644d4caf1fe9e8b5cf64cd325d4f0798d88910f99e4eb",
+    "desktop/app/src/panels/path_controls/mask_inspector.rs": "ad56d712cf66aed27fce67484b89896db61eb5ac4ccd4958297bbbd937e0675d",
+    "desktop/app/src/panels/path_controls/mask_keys.rs": "e30a8e8aa0ff4046bc75dd24175fbe1e90fe9394c9bc6a94be7f70920ee3d434",
+    "desktop/app/src/panels/property_authoring.rs": "736a43b95975de0338582f7f33dfd2d1d75e5eaf80fc85116759d1b4bf6d5fc4"
+  },
+  "checks": {
+    "diff": 0,
+    "workspace": 0,
+    "style": 0,
+    "rustfmt": 0
+  },
+  "passed": 158,
+  "testResults": [
+    {
+      "group": "core",
+      "passed": [
+        "audio::audio_at_changes_only_the_exact_local_channel_and_preserves_remap_balance_history_and_storage",
+        "audio::audio_at_creates_an_absent_envelope_only_after_valid_preflight_and_never_rounds_key_time",
+        "audio::audio_at_disables_animation_at_the_exact_sample_and_refuses_wrong_or_locked_targets",
+        "color_curve_disable_freezes_the_exact_fractional_sample_and_edit_preserves_timing",
+        "continuous_spatial_keys_keep_stable_identity_and_accept_fractional_local_edits",
+        "effect_numeric_and_discrete_parameters_use_the_same_exact_authoring_protocol",
+        "exact_integer_projection_survives_inversion_error_without_accepting_nearby_composition_times",
+        "exact_toggle_removes_and_restores_local_key_without_duplicate_projected_keys",
+        "fractional_composition_time_updates_exact_signed_local_keys_in_both_directions",
+        "fractional_local_keys_are_rejected_without_rounding_or_partial_batch_mutation",
+        "invalid_targets_values_times_and_locked_layers_leave_project_and_history_unchanged",
+        "numeric_updates_share_one_gesture_and_cancel_preserves_the_original_project",
+        "projected_continuous_spatial_key_updates_its_stable_id_instead_of_inserting_a_nearby_key",
+        "protocol_requires_exact_time_and_typed_values_and_rejects_unknown_fields",
+        "separated_axes_require_an_explicit_axis_and_other_axes_remain_unchanged",
+        "static_only_effects_accept_fractional_value_edits_but_never_gain_animation_or_edit_unimplemented_parameters",
+        "static_values_accept_fractional_local_times_and_animation_disable_freezes_exact_sample"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "mapped",
+      "passed": [
+        "panels::path_controls::mapped_authoring_tests::faults::mapped_path_time_faults_use_default_bounded_error_channels",
+        "panels::path_controls::mapped_authoring_tests::mapped_color_popup_and_linked_mask_feather_preserve_the_exact_companion_components",
+        "panels::path_controls::mapped_authoring_tests::mapped_mask_and_vector_numeric_chrome_edits_preserve_the_other_component_and_all_other_tracks",
+        "panels::path_controls::mapped_authoring_tests::mapped_mask_pose_and_vector_stopwatches_freeze_the_exact_fractional_sample_with_single_undo",
+        "panels::path_controls::mapped_authoring_tests::mapped_path_numeric_preview_cancels_once_on_subframe_or_clock_identity_change"
+      ],
+      "ignored": [
+        "panels::path_controls::mapped_authoring_tests::native::native_mapped_paths_keep_exact_keys_in_both_hosts_languages_and_directions"
+      ]
+    },
+    {
+      "group": "boundary-time",
+      "passed": [
+        "panels::path_controls::mask_boundaries::viewer::tests::mapped_time::mapped_boundary_feather_uses_the_exact_local_key_and_cancels_on_a_new_document_generation"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "paths",
+      "passed": [
+        "panels::path_controls::clipboard_tests::mask_numeric_clipboard_preserves_draft_history_range_validation_save_and_single_undo",
+        "panels::path_controls::context_menu::tests::context_changes_focus_escape_and_foreign_input_cancel_without_dispatch_or_repaint_loss",
+        "panels::path_controls::context_menu::tests::context_menu_retains_source_labels_closedness_lock_and_single_choice_semantics",
+        "panels::path_controls::context_menu::tests::short_context_menu_scrolls_to_paste_without_clipped_invisible_hit_regions",
+        "panels::path_controls::context_menu::tests::tangent_menu_dispatches_explicit_mode_with_frozen_source_in_both_languages",
+        "panels::path_controls::drag_lifecycle_tests::delayed_release_uses_release_position_and_never_follows_later_motion",
+        "panels::path_controls::drag_lifecycle_tests::lost_button_or_focus_finishes_capture_without_reusing_it_for_another_press",
+        "panels::path_controls::drag_lifecycle_tests::new_pen_handle_placement_stops_at_release_even_when_motion_is_coalesced",
+        "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence",
+        "panels::path_controls::groups::parameters::modified_tests::shared_tree_keeps_authored_operators_and_only_changed_or_keyed_values",
+        "panels::path_controls::groups::tests::add_repeater_from_ui_preserves_original_geometry_and_style_and_roundtrips",
+        "panels::path_controls::groups::tests::nested_shape_navigation_keeps_complete_watch_slots_clear_of_values",
+        "panels::path_controls::groups::tests::removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step",
+        "panels::path_controls::groups::tests::repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_consume_it",
+        "panels::path_controls::groups::tests::repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_with_one_undo",
+        "panels::path_controls::groups::tests::shape_content_animated_filter_reveals_real_tracks_and_counts_match_rendered_tree",
+        "panels::path_controls::groups::tests::shape_content_dropdown_blocks_obscured_fields_and_opens_only_in_its_owner_host",
+        "panels::path_controls::groups::tests::shape_content_geometry_tree_and_fields_stay_inside_narrow_and_wide_panels",
+        "panels::path_controls::groups::tests::shape_content_key_popup_samples_clicked_time_and_changes_easing",
+        "panels::path_controls::groups::tests::shape_content_key_selection_cannot_delete_from_a_different_project",
+        "panels::path_controls::groups::tests::shape_content_number_drag_in_main_and_floating_timeline_selects_owner_and_commits",
+        "panels::path_controls::groups::tests::shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_hosts",
+        "panels::path_controls::groups::tests::shape_content_source_cache_reuses_authored_revision_but_never_caches_sampled_time",
+        "panels::path_controls::groups::tests::shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo",
+        "panels::path_controls::groups::tests::shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and_undo",
+        "panels::path_controls::handle_visibility_tests::mask_handles_remain_visible_but_only_the_selected_node_can_be_dragged",
+        "panels::path_controls::hidden_handles_tests::hidden_authored_handles_do_not_capture_clicks_and_pen_and_mask_can_commit_new_geometry_and_undo",
+        "panels::path_controls::hover_tests::hover_reaches_handles_only_where_paint_draws_them",
+        "panels::path_controls::hover_tests::hover_reports_only_the_nearest_grip_within_tolerance",
+        "panels::path_controls::mask_boundaries::tests::feather_link_checkbox_stays_inline_and_dispatches_only_for_an_unlocked_owner",
+        "panels::path_controls::mask_boundaries::tests::linked_feather_preserves_ratio_or_zero_axis_delta_with_a_shared_limit",
+        "panels::path_controls::mask_boundaries::tests::linked_numeric_gesture_updates_both_axes_and_cancels_the_complete_track_on_context_loss",
+        "panels::path_controls::mask_boundaries::viewer::tests::a_coalesced_release_can_commit_a_drag_and_an_empty_section_can_recover",
+        "panels::path_controls::mask_boundaries::viewer::tests::boundary_capture_cancels_complete_tracks_on_stale_context_and_never_resumes_after_release",
+        "panels::path_controls::mask_boundaries::viewer::tests::boundary_failures_emit_default_errors_reset_after_normal_misses_and_keep_stdout_clean",
+        "panels::path_controls::mask_boundaries::viewer::tests::transformed_feather_and_expansion_grips_share_numeric_history_and_release_coordinates",
+        "panels::path_controls::mask_inspector::tests::compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap",
+        "panels::path_controls::mask_keys::navigation_tests::navigation_buttons_preserve_mask_channels_and_local_path_poses_with_one_undo",
+        "panels::path_controls::mask_keys::path_tests::canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_static",
+        "panels::path_controls::mask_keys::path_tests::control_drag_copies_path_pose_once_then_moves_only_the_copy",
+        "panels::path_controls::mask_keys::path_tests::mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target",
+        "panels::path_controls::mask_keys::path_tests::mask_path_commands_preserve_parameter_updates_between_snapshot_and_apply",
+        "panels::path_controls::mask_keys::path_tests::path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape",
+        "panels::path_controls::mask_keys::path_tests::path_stopwatch_viewport_pose_and_key_gestures_use_one_undo_and_local_time",
+        "panels::path_controls::mask_keys::path_tests::rejected_mask_path_command_retains_object_mask_and_cause_in_the_log",
+        "panels::path_controls::mask_keys::path_tests::sparse_legacy_node_keys_are_sorted_and_edited_without_losing_other_tracks",
+        "panels::path_controls::mask_keys::tests::animated_feather_numeric_drag_preserves_y_and_cancels_when_its_context_changes",
+        "panels::path_controls::mask_keys::tests::delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows",
+        "panels::path_controls::mask_keys::tests::layer_properties_owns_mask_creation_menus_and_numeric_gestures_in_main_and_floating_windows",
+        "panels::path_controls::mask_keys::tests::mask_key_context_menu_changes_interpolation_and_delete_is_undoable",
+        "panels::path_controls::mask_keys::tests::mask_key_drag_preserves_other_keys_and_easing_and_commits_or_cancels_once",
+        "panels::path_controls::mask_keys::tests::mask_ui_animates_all_channels_at_local_time_and_key_toggle_undoes",
+        "panels::path_controls::numeric_tests::mask_scrub_obeys_shared_threshold_and_commit_or_cancel_restores_engine_bytes",
+        "panels::path_controls::pen_tests::pen_placement_alt_handles_commit_cancel_and_save_roundtrip",
+        "panels::path_controls::pen_tools::tests::automatic_insertion_uses_sampled_curve_and_keeps_authored_tracks",
+        "panels::path_controls::pen_tools::tests::conversion_preserves_anchor_lengths_and_other_keyframes_and_delete_opens_small_paths",
+        "panels::path_controls::pen_tools::tests::existing_parametric_conversion_is_required_then_pen_edits_preserve_paint_and_undo",
+        "panels::path_controls::pen_tools::tests::grouped_topology_targets_authored_item_and_keeps_siblings_transforms_and_repeaters",
+        "panels::path_controls::pen_tools::tests::independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing",
+        "panels::path_controls::pen_tools::tests::independent_clock_union_obeys_key_budget_without_partial_mutation",
+        "panels::path_controls::pen_tools::tests::rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_and_reset",
+        "panels::path_controls::pen_tools::tests::release_commits_once_and_cancel_or_stale_context_never_edits",
+        "panels::path_controls::pen_tools::tests::segment_picking_uses_zoomed_cubic_geometry_and_ignores_open_closing_edge",
+        "panels::path_controls::pen_tools::tests::stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data",
+        "panels::path_controls::pen_tools::tests::subdivide_preserves_curves_open_and_closed_edges_and_unrelated_tracks",
+        "panels::path_controls::pen_tools::tests::subdivision_preserves_matching_temporal_curves_at_fractional_frames",
+        "panels::path_controls::pen_tools::tests::tool_dropdown_owns_its_clicks_and_escape_leaves_the_path_unchanged",
+        "panels::path_controls::point_selection::nudge_tests::authored_and_mask_nodes_nudge_without_moving_tangents_or_other_points",
+        "panels::path_controls::point_selection::tests::animated_masks_with_identical_node_ids_move_together_without_pose_overwrite",
+        "panels::path_controls::point_selection::tests::animated_vector_batch_keeps_existing_keys_and_failed_second_command_rolls_back",
+        "panels::path_controls::point_selection::tests::automatic_grips_show_sampled_curve_but_anchor_drag_preserves_manual_handles",
+        "panels::path_controls::point_selection::tests::composing_text_never_deletes_selected_points_or_layer",
+        "panels::path_controls::point_selection::tests::context_changes_and_unavailable_projection_cancel_without_reusing_selection",
+        "panels::path_controls::point_selection::tests::document_replacement_with_identical_ids_clears_authored_point_selection",
+        "panels::path_controls::point_selection::tests::failed_translation_is_visible_at_default_level_and_resets_after_recovery",
+        "panels::path_controls::point_selection::tests::grouped_selection_uses_authored_owners_and_world_translation_before_repeaters",
+        "panels::path_controls::point_selection::tests::invalid_batch_is_reported_without_partial_edits_and_recovery_is_possible",
+        "panels::path_controls::point_selection::tests::marquee_replace_add_toggle_cancel_delete_and_save_reopen",
+        "panels::path_controls::point_selection::tests::moving_selection_cancels_on_escape_focus_loss_time_change_and_lock",
+        "panels::path_controls::point_selection::tests::path_clipboard_uses_authored_selection_and_owns_shortcuts_and_menu_without_layer_fallback",
+        "panels::path_controls::point_selection::tests::point_add_toggle_group_drag_release_and_one_undo_at_multiple_zooms",
+        "panels::path_controls::point_selection::tests::segment_moves_endpoints_and_handles_only_and_closed_edge_is_pickable",
+        "panels::path_controls::property_focus_tests::clipboard_mask_and_nested_shape_channels_keep_typed_targets_and_authored_times",
+        "panels::path_controls::property_focus_tests::clipboard_mask_path_copies_whole_vertex_poses_and_rejects_partial_authored_pose",
+        "panels::path_controls::property_focus_tests::latest_typed_property_choice_replaces_old_transform_mask_and_shape_owners",
+        "panels::path_controls::property_focus_tests::old_graph_box_cannot_delete_keys_after_another_property_takes_ownership",
+        "panels::path_controls::property_focus_tests::property_navigation_follows_the_chosen_channel_across_panel_focus_and_defers_to_ime",
+        "panels::path_controls::property_focus_tests::stale_typed_owners_consume_repeated_keys_before_and_after_their_prepare_pass",
+        "panels::path_controls::resize_tests::grouped_path_grips_keep_owner_identity_before_repeaters_and_trim",
+        "panels::path_controls::resize_tests::invalid_authored_geometry_reports_default_level_file_and_stderr_and_recovers",
+        "panels::path_controls::resize_tests::nested_geometry_uses_its_transform_owner_and_animated_local_time",
+        "panels::path_controls::resize_tests::rejected_second_dimension_command_cannot_publish_a_partial_resize",
+        "panels::path_controls::resize_tests::shape_corners_resize_width_height_keep_opposite_corner_and_preserve_parameters",
+        "panels::path_controls::review327_regressions::review327_locked_path_does_not_advertise_hover",
+        "panels::path_controls::review327_regressions::review327_only_the_hovered_bezier_handle_is_highlighted",
+        "panels::path_controls::timeline::tests::mask_path_only_animation_is_visible_in_animated_filter_and_collapsed_layer_keys"
+      ],
+      "ignored": [
+        "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+        "panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions",
+        "panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss"
+      ]
+    },
+    {
+      "group": "audio",
+      "passed": [
+        "panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands",
+        "panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history",
+        "panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit",
+        "panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable",
+        "panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts",
+        "panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist",
+        "panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route",
+        "panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen",
+        "panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id",
+        "panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership",
+        "panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback",
+        "panels::audio::tests::mapped::faults::audio_authoring_faults_use_default_bounded_logs_and_never_stdout",
+        "panels::audio::tests::mapped::mapped_audio_keyboard_navigation_projects_channels_through_the_property_clock_not_source_remap",
+        "panels::audio::tests::mapped::mapped_audio_numeric_typing_preserves_signed_key_identity_and_all_other_channels_in_both_hosts",
+        "panels::audio::tests::mapped::mapped_audio_rails_toggle_and_seek_fractional_projections_without_legacy_integer_selection",
+        "panels::audio::tests::mapped::mapped_audio_scrubs_cancel_once_when_the_time_context_changes_and_static_gain_stays_global",
+        "panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text",
+        "panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers",
+        "panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows",
+        "panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo",
+        "panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item",
+        "panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once",
+        "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics",
+        "panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply",
+        "panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs",
+        "panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity"
+      ],
+      "ignored": [
+        "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+        "panels::audio::tests::mapped::native::native_audio_envelopes_keep_exact_time_and_cancel_in_both_owners_and_languages"
+      ]
+    },
+    {
+      "group": "numeric",
+      "passed": [
+        "panels::numeric::contract_tests::empty_and_unchanged_numeric_drafts_preserve_redo",
+        "panels::numeric::contract_tests::invalid_and_ime_outside_clicks_keep_drafts_without_model_changes",
+        "panels::numeric::contract_tests::mapped_time::mapped_native_chrome_cancels_stale_numeric_drafts_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::numeric_close_faults_use_default_file_and_error_stderr_without_committing",
+        "panels::numeric::contract_tests::numeric_drafts_and_scrubs_cancel_without_losing_redo_or_crossing_locked_targets",
+        "panels::numeric::contract_tests::numeric_scrubs_share_threshold_modifiers_and_one_history_record",
+        "panels::numeric::contract_tests::valid_outside_click_commits_in_both_numeric_hosts_and_restores_history",
+        "panels::numeric::tests::camera_scrub_preserves_other_axes_and_undo",
+        "panels::numeric::tests::effect_parameter_scrub_uses_real_catalogue_and_one_undo"
+      ],
+      "ignored": [
+        "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages"
+      ]
+    },
+    {
+      "group": "native",
+      "passed": [
+        "panels::path_controls::mapped_authoring_tests::native::native_mapped_paths_keep_exact_keys_in_both_hosts_languages_and_directions"
+      ],
+      "ignored": []
+    }
+  ],
+  "unrunManual": [
+    "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+    "panels::audio::tests::mapped::native::native_audio_envelopes_keep_exact_time_and_cancel_in_both_owners_and_languages",
+    "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+    "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages",
+    "panels::path_controls::mask_boundaries::tests::native::native_mask_feather_link_main_and_float_pixels_and_transactions",
+    "panels::path_controls::mask_boundaries::viewer::tests::native::native_boundary_viewer_main_and_independent_float_render_and_transactions",
+    "panels::path_controls::mask_boundaries::viewer::tests::native::owner::independent_native_owners_release_once_and_cancel_complete_tracks_on_focus_loss"
+  ],
+  "binaries": [
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\path-authoring\\tested.exe",
+      "sha256": "de122e1f0bebe64d0340911d1290a9b7f75db0ff686547ae672b88b642fffbb5",
+      "bytes": 138479104
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\path-authoring\\core-tested.exe",
+      "sha256": "24a191aad33877adb5f97eb8be272b62b3772472889ed571c9a3fddde86fc497",
+      "bytes": 38894592
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\path-authoring\\motion_studio-b34b3a7e7eb835e8.pdb",
+      "sha256": "3eec138a78a1f442aa559bb0c3c16490002dd49e731479297cdb591c7021383a",
+      "bytes": 812281856
+    }
+  ],
+  "native": {
+    "cases": 16,
+    "screenshots": 48,
+    "separateProcessReopens": 16,
+    "capturePid": 38440,
+    "reopenPid": 48080,
+    "input": "synthetic Input through production main/floating chrome with real native GPU capture; no physical OS mouse input"
+  },
+  "originalFailures": [
+    "initial-compile-failure.log: wrong new fixture field name and ambiguous helper import",
+    "initial-fixture-failure.log: Group fixture incorrectly retained outer fill/stroke; production validation unchanged",
+    "audio-missing-symbols-failure.log: copied test executable lacked adjacent debug symbols; panic backtrace symbol assertion failed; production and existing assertion unchanged"
+  ],
+  "observationSites": [
+    "mask.numeric_time_begin",
+    "mask.numeric_time_continue",
+    "vector.numeric_time_begin",
+    "vector.numeric_time_continue"
+  ],
+  "limits": [
+    "Windows only",
+    "no new layout styling or product-wide visual compliance claim",
+    "partial path navigation and continuous spatial edit entrances remain",
+    "camera gestures, roving compensation and real media device/high-speed sampling acceptance incomplete",
+    "existing warnings and Epic Overlay missing Vulkan JSON records retained",
+    "issue 257 stays open"
+  ],
+  "archive": {
+    "file": "evidence.zip",
+    "sha256": "72b81b55cd17edb7e7297e7dc920442e3985a9cf632f661a0fc97f849d25c768",
+    "bytes": 1821215
+  }
+}

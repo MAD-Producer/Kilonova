@@ -127,3 +127,12 @@ checks the paired camera/video transaction against a retained native preview
 front, with wrong-source rejection, history, save/reopen and reuse counters.
 It is a test-only addition after that complete package snapshot, not evidence
 that the optional photographed tracker or every preview combination is qualified.
+
+
+## Current layer-time baseline integration
+
+The [fresh integration record](tracking88-mcp-clock-integration-current.md) covers
+parent #583 and main's layer-time baseline, with newly executed MCP, actual
+retained-Surface and real stdio workflow controls on that frozen source. Earlier
+results above keep their original source/scope; they are not final-head full
+regression claims.

@@ -43,7 +43,7 @@ impl KeyframeSource {
 
 pub(crate) struct KeyframeRead {
     pub stamp: Stamp,
-    pub frame: u32,
+    pub frame: f64,
     pub clipboard: Option<Arc<KeyframeClipboard>>,
     pub superseded: bool,
 }
@@ -52,27 +52,29 @@ pub(crate) fn read_keyframes(
     session: &Session,
     source: KeyframeSource,
     selections: Vec<KeyframeSelection>,
+    local_selections: Vec<motion_core::LocalKeyframeSelection>,
 ) -> motion_host::Result<KeyframeRead> {
     let stamp = Stamp::of(session);
     if !source.matches(&stamp) {
         return Ok(KeyframeRead {
             stamp,
-            frame: session.frame.floor() as u32,
+            frame: session.frame,
             clipboard: None,
             superseded: true,
         });
     }
-    let clipboard = if selections.is_empty() {
+    let clipboard = if selections.is_empty() && local_selections.is_empty() {
         None
     } else {
-        Some(Arc::new(KeyframeClipboard::capture(
+        Some(Arc::new(KeyframeClipboard::capture_mixed(
             session.engine.project(),
             &selections,
+            &local_selections,
         )?))
     };
     Ok(KeyframeRead {
         stamp,
-        frame: session.frame.floor() as u32,
+        frame: session.frame,
         clipboard,
         superseded: false,
     })

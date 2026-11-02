@@ -2,7 +2,7 @@
 use super::*;
 use crate::{Curve, CurveShape, CurveSpace, Easing};
 
-fn interval<T>(keys: &[Keyframe<T>], frame: i32) -> Result<usize> {
+pub(super) fn interval<T>(keys: &[Keyframe<T>], frame: i32) -> Result<usize> {
     let index = keys
         .binary_search_by_key(&frame, |key| key.frame)
         .map_err(|_| Error::Invalid("curve interval start key is missing".into()))?;
@@ -13,7 +13,7 @@ fn interval<T>(keys: &[Keyframe<T>], frame: i32) -> Result<usize> {
     Ok(index)
 }
 
-fn edited(easing: Easing, incoming: bool, control: [f64; 2]) -> Result<Easing> {
+pub(super) fn edited(easing: Easing, incoming: bool, control: [f64; 2]) -> Result<Easing> {
     let (mut control1, mut control2) = timing::cubic(easing, false)?;
     if incoming {
         control2 = control;

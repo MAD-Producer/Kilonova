@@ -1,0 +1,270 @@
+{
+  "issue": 257,
+  "stage": "exact-time audio envelope authoring and navigation",
+  "base": "d66bd83ca7719030b6fc8eb10cee6f9d3b266d39",
+  "branch": "feat/layer-time-mapping",
+  "sourceHashes": {
+    "crates/motion-core/tests/track_at.rs": "7b56577e90c29bc0c65c7997fc4822e593fb9fa128b89d9b15f0001a3a3cd0ea",
+    "crates/motion-core/tests/track_at/audio.rs": "eed84d7d9553cdfe5ab314f6182cec2897f3858a044a837143e1226d701b1925",
+    "crates/motion-model/src/keyframe_clipboard/authoring.rs": "7acd9b894fe5054c113a5877d5d925991ff38f1caebf83c219f1104a82afa58b",
+    "desktop/app/src/panels/audio.rs": "e6374735b17807d2ceee06b0fd47245de0a7c74fa1d57bbd15a12c8f06d4fdee",
+    "desktop/app/src/panels/audio/authoring.rs": "bbec5c6e5c01774b712ee5586d560f545a60dc3f379304acfee6625e4c9ecd6b",
+    "desktop/app/src/panels/audio/tests.rs": "b28e6642e7d8c376c16e5c0aff5a020ed2a161c222e85ed5ab1ed80924d79e86",
+    "desktop/app/src/panels/audio/tests/mapped.rs": "9cc28d7628f675a3d22a07bb6aa356f03971848e103d8b062647aacbf7df407e",
+    "desktop/app/src/panels/audio/tests/mapped/faults.rs": "b0decd075710e23b800a73dcb9df4bea3f10690331e7a3eacefb9c678a9da447",
+    "desktop/app/src/panels/audio/tests/mapped/native.rs": "4a8551af8bd58d89ceeafc964419d54ee14edebbd69f878e1ceb66b6ddbb6c66",
+    "desktop/app/src/panels/property_authoring.rs": "c44802eb1b25cb47400b1afcdf5d0b2fbfa7c8f5643dc7ed7af354cd4b6ee6a4"
+  },
+  "checks": {
+    "style_consumers": 0,
+    "rustfmt": 0,
+    "diff_check": 0,
+    "workspace_all_targets_ffmpeg": 0
+  },
+  "passed": 126,
+  "testResults": [
+    {
+      "group": "core",
+      "binary": "core-tested.exe",
+      "passed": [
+        "audio::audio_at_changes_only_the_exact_local_channel_and_preserves_remap_balance_history_and_storage",
+        "audio::audio_at_creates_an_absent_envelope_only_after_valid_preflight_and_never_rounds_key_time",
+        "audio::audio_at_disables_animation_at_the_exact_sample_and_refuses_wrong_or_locked_targets",
+        "color_curve_disable_freezes_the_exact_fractional_sample_and_edit_preserves_timing",
+        "continuous_spatial_keys_keep_stable_identity_and_accept_fractional_local_edits",
+        "effect_numeric_and_discrete_parameters_use_the_same_exact_authoring_protocol",
+        "exact_integer_projection_survives_inversion_error_without_accepting_nearby_composition_times",
+        "exact_toggle_removes_and_restores_local_key_without_duplicate_projected_keys",
+        "fractional_composition_time_updates_exact_signed_local_keys_in_both_directions",
+        "fractional_local_keys_are_rejected_without_rounding_or_partial_batch_mutation",
+        "invalid_targets_values_times_and_locked_layers_leave_project_and_history_unchanged",
+        "numeric_updates_share_one_gesture_and_cancel_preserves_the_original_project",
+        "projected_continuous_spatial_key_updates_its_stable_id_instead_of_inserting_a_nearby_key",
+        "protocol_requires_exact_time_and_typed_values_and_rejects_unknown_fields",
+        "separated_axes_require_an_explicit_axis_and_other_axes_remain_unchanged",
+        "static_only_effects_accept_fractional_value_edits_but_never_gain_animation_or_edit_unimplemented_parameters",
+        "static_values_accept_fractional_local_times_and_animation_disable_freezes_exact_sample"
+      ],
+      "ignored": []
+    },
+    {
+      "group": "audio",
+      "binary": "tested.exe",
+      "passed": [
+        "panels::audio::tests::audio_composition_reference_uses_its_own_envelopes_without_static_gain_commands",
+        "panels::audio::tests::audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history",
+        "panels::audio::tests::audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit",
+        "panels::audio::tests::audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable",
+        "panels::audio::tests::audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts",
+        "panels::audio::tests::audio_property_menu_only_offers_analysis_selection_after_markers_exist",
+        "panels::audio::tests::audio_scrub_release_escape_focus_and_locked_state_share_the_owner_route",
+        "panels::audio::tests::audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen",
+        "panels::audio::tests::child_composition_audio_edits_never_change_the_main_layer_with_the_same_id",
+        "panels::audio::tests::clipboard_audio_keys_preserve_channel_single_selection_and_stale_ownership",
+        "panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback",
+        "panels::audio::tests::mapped::faults::audio_authoring_faults_use_default_bounded_logs_and_never_stdout",
+        "panels::audio::tests::mapped::mapped_audio_keyboard_navigation_projects_channels_through_the_property_clock_not_source_remap",
+        "panels::audio::tests::mapped::mapped_audio_numeric_typing_preserves_signed_key_identity_and_all_other_channels_in_both_hosts",
+        "panels::audio::tests::mapped::mapped_audio_rails_toggle_and_seek_fractional_projections_without_legacy_integer_selection",
+        "panels::audio::tests::mapped::mapped_audio_scrubs_cancel_once_when_the_time_context_changes_and_static_gain_stays_global",
+        "panels::audio::tests::modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_scrub_is_one_history_step_and_cancel_restores_in_both_hosts_and_languages",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_typing_outside_commit_ime_invalid_value_and_focus_loss_preserve_history",
+        "panels::audio::tests::monitor_tests::audio_monitor_balance_unsupported_and_locked_do_not_write_history_or_consume_text",
+        "panels::audio::tests::property_focus_tests::actual_audio_caption_replaces_transform_owner_and_stale_scope_cannot_delete_reused_layers",
+        "panels::audio::tests::ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows",
+        "panels::audio::tests::ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo",
+        "panels::audio::tests::timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item",
+        "panels::audio::tests::video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once",
+        "panels::audio::waveform::tests::audio_waveform_blocked_and_panicking_handlers_publish_state_and_default_diagnostics",
+        "panels::audio::waveform::tests::audio_waveform_publishes_one_inflight_request_cancels_and_discards_superseded_reply",
+        "panels::audio::waveform::tests::audio_waveform_real_failure_is_visible_and_uses_default_file_stderr_without_stdout_logs",
+        "panels::audio::waveform::tests::audio_waveform_request_maps_video_audio_offset_subframe_clip_and_composition_identity"
+      ],
+      "ignored": [
+        "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+        "panels::audio::tests::mapped::native::native_audio_envelopes_keep_exact_time_and_cancel_in_both_owners_and_languages"
+      ]
+    },
+    {
+      "group": "effects",
+      "binary": "pre-font-test.exe",
+      "passed": [
+        "panels::effect_controls::application_reveal_tests::reveal_reopens_reused_ids_clears_filters_and_scrolls_only_the_target_layer_once",
+        "panels::effect_controls::color_observation_tests::invalid_color_track_still_closes_popup_and_reports_the_object",
+        "panels::effect_controls::curve::observation_tests::zero_extent_and_retained_curve_drag_emit_bounded_real_draw_evidence",
+        "panels::effect_controls::curve::sampling_failure_tests::actual_curve_draw_failures_log_at_default_level_with_bounded_lifetime_counts",
+        "panels::effect_controls::curve::sampling_failure_tests::refused_drag_sampling_cancels_once_and_retains_last_healthy_cache",
+        "panels::effect_controls::curve::sampling_failure_tests::refused_key_toggle_emits_no_edits_and_preserves_default_failure_channels_then_recovers",
+        "panels::effect_controls::curve::tests::channel_dropdown_is_observational_and_escape_cancels_an_unmoved_gesture",
+        "panels::effect_controls::curve::tests::click_adds_point_and_drag_commits_one_undo",
+        "panels::effect_controls::curve::tests::right_click_removes_interior_points_only",
+        "panels::effect_controls::dropdown_cache::tests::names_are_owned_and_effect_parameter_states_close_independently",
+        "panels::effect_controls::identity_tests::malformed_effect_ids_do_not_reserve_rows_or_change_the_valid_effect_paint",
+        "panels::effect_controls::identity_tests::real_invalid_id_diagnostics_are_bounded_visible_at_default_level_and_reset_on_recovery",
+        "panels::effect_controls::identity_tests::surviving_effect_context_keeps_its_identity_and_original_array_index",
+        "panels::effect_controls::key_navigation::dense_tests::dense_channel_tables_freeze_without_duplicate_payload_through_the_actual_worker",
+        "panels::effect_controls::key_navigation::dense_tests::diamond_keeps_sub_preview_detail_in_all_precisions_and_roundtrips_one_history_step",
+        "panels::effect_controls::key_navigation::dense_tests::locked_or_malformed_curve_diamond_cannot_emit_an_edit",
+        "panels::effect_controls::key_navigation::selection_tests::property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_stale_commands",
+        "panels::effect_controls::key_navigation::tests::custom_effect_key_navigation_disables_old_chord_and_uses_typed_parameter_times",
+        "panels::effect_controls::key_navigation::tests::malformed_navigation_parameters_reach_default_file_and_error_stderr_without_stdout",
+        "panels::effect_controls::library::bound_tests::bound_runtime_versions_are_hidden_from_public_effect_search",
+        "panels::effect_controls::library::scroll_tests::scrolling_the_library_keeps_the_import_button_fixed",
+        "panels::effect_controls::library::tests::categories_use_manifest_metadata_and_never_package_names_or_effect_id_guesses",
+        "panels::effect_controls::library::tests::delayed_fixture_work_preserves_synthetic_double_click_interval_and_disabled_target",
+        "panels::effect_controls::library::tests::double_click_interval_and_intervening_click_preserve_exact_package_identity",
+        "panels::effect_controls::library::tests::import_button_works_without_a_selected_layer_and_browsing_does_not_apply",
+        "panels::effect_controls::library::tests::newest_enabled_version_wins_without_collapsing_different_providers",
+        "panels::effect_controls::library::tests::row_selection_double_click_and_enter_apply_exact_package_identity",
+        "panels::effect_controls::mapped_authoring_tests::invalid_clock_and_offset_do_not_sample_or_generate_rounded_healthy_edits",
+        "panels::effect_controls::mapped_authoring_tests::invalid_clock_cancels_an_active_numeric_gesture_once_without_committing",
+        "panels::effect_controls::mapped_authoring_tests::mapped_clock_faults_reach_default_file_and_error_stderr_with_bounded_lifetime_sites",
+        "panels::effect_controls::mapped_authoring_tests::mapped_edits_use_exact_commands_and_unmapped_edits_keep_the_legacy_protocol",
+        "panels::effect_controls::mapped_authoring_tests::mapped_effect_keyboard_navigation_uses_fractional_projected_times_in_reverse_order",
+        "panels::effect_controls::mapped_authoring_tests::mapped_effect_rail_toggles_at_fractional_composition_frame_and_disables_fractional_local_frame",
+        "panels::effect_controls::mapped_authoring_tests::mapped_property_navigation_selects_local_identity_and_toggle_never_casts_the_playhead",
+        "panels::effect_controls::mapped_authoring_tests::mapped_transform_sampling_uses_local_clock_in_both_directions",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::effect_text_outside_commit_cannot_bypass_the_captured_time",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::effect_time_changes_cancel_previews_once_and_never_retarget_another_key",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::faults::numeric_time_faults_keep_original_causes_in_default_file_and_error_stderr",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::numeric_time_compares_the_clock_not_only_the_resulting_local_sample",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::transform_preview_revisions_do_not_cancel_their_own_gesture_and_commit_undoes_once",
+        "panels::effect_controls::mapped_authoring_tests::numeric_time::transform_time_changes_cancel_scrub_or_text_without_writing_at_the_new_playhead",
+        "panels::effect_controls::mapped_authoring_tests::parameter_readout_and_numeric_drag_edit_exact_local_key_and_undo_once",
+        "panels::effect_controls::mapped_authoring_tests::seeking_coincident_spatial_keys_does_not_keep_an_unrelated_previous_key_selected",
+        "panels::effect_controls::removal_tests::cancellation_closes_both_menus_without_editing",
+        "panels::effect_controls::removal_tests::context_removal_keeps_its_single_layer_scope_at_both_host_sizes",
+        "panels::effect_controls::removal_tests::effect_menu_removes_selected_layers_atomically_and_one_undo_restores_all",
+        "panels::effect_controls::removal_tests::invalidated_batch_returns_the_engine_error_without_partial_removal_or_history",
+        "panels::effect_controls::removal_tests::localized_scope_and_counts_are_fully_painted_in_the_existing_menu_row",
+        "panels::effect_controls::removal_tests::menu_refreshes_live_targets_and_keeps_primary_and_empty_layer_scope",
+        "panels::effect_controls::removal_tests::real_main_and_floating_input_owners_preserve_removal_and_cancellation",
+        "panels::effect_controls::removal_tests::unavailable_targets_disable_whole_selection_and_empty_contexts",
+        "panels::effect_controls::tests::color_row_opens_popup_and_channel_scrub_commits_one_undo",
+        "panels::effect_controls::tests::inline_rows_keep_vectors_together_and_real_discrete_and_curve_edits_undo",
+        "panels::effect_controls::track_cache_tests::render_reloads_reused_ids_for_each_snapshot_identity_component",
+        "panels::effect_controls::track_cache_tests::same_snapshot_resamples_the_displayed_scalar_at_the_current_local_frame"
+      ],
+      "ignored": [
+        "panels::effect_controls::mapped_authoring_tests::native::mapped_numeric_native_worker_pixels_errors_history_and_reopen"
+      ]
+    },
+    {
+      "group": "properties",
+      "binary": "pre-font-test.exe",
+      "passed": [
+        "panels::properties::mapped_anchor_tests::continuous_anchor_uses_timed_compensation_instead_of_global_baking",
+        "panels::properties::mapped_anchor_tests::mapped_anchor_numeric_drag_uses_exact_time_and_cancels_on_clock_change_in_all_hosts",
+        "panels::properties::tests::anchor_and_scrub_fallback_evidence_preserves_values_and_empty_gestures",
+        "panels::properties::tests::click_keeps_value_and_typing_replaces_only_after_input",
+        "panels::properties::tests::clipboard::numeric_clipboard_drafts_commit_one_typed_edit_and_undo_once",
+        "panels::properties::tests::clipboard::numeric_clipboard_failure_and_ime_confirmation_do_not_commit_or_erase_the_field",
+        "panels::properties::tests::coalesced_return_drag_closes_without_reopening_input",
+        "panels::properties::tests::empty_numeric_input_changes_nothing_and_escape_cancels_scrub",
+        "panels::properties::tests::scrub_returning_through_origin_starts_once_and_closes_transaction",
+        "panels::properties::tests::stationary_held_pointer_does_not_resubmit_the_numeric_edit",
+        "panels::properties::tests::stylesheet_threshold_and_grabbing_cursor_preserve_single_transaction",
+        "panels::properties::tree_tests::anchor_rows_keep_one_gesture_when_other_layers_render_and_cancel_when_hidden",
+        "panels::properties::tree_tests::anchor_stopwatch_and_animated_numeric_cancel_agree_in_both_property_hosts",
+        "panels::properties::tree_tests::embedded_effect_dropdown_blocks_group_folding_in_main_and_floating_properties",
+        "panels::properties::tree_tests::invalid_anchor_edit_reaches_reply_file_stderr_without_mutating_state"
+      ],
+      "ignored": [
+        "panels::properties::mapped_anchor_tests::native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows"
+      ]
+    },
+    {
+      "group": "numeric",
+      "binary": "pre-font-test.exe",
+      "passed": [
+        "panels::numeric::contract_tests::empty_and_unchanged_numeric_drafts_preserve_redo",
+        "panels::numeric::contract_tests::invalid_and_ime_outside_clicks_keep_drafts_without_model_changes",
+        "panels::numeric::contract_tests::mapped_time::mapped_native_chrome_cancels_stale_numeric_drafts_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::numeric_close_faults_use_default_file_and_error_stderr_without_committing",
+        "panels::numeric::contract_tests::numeric_drafts_and_scrubs_cancel_without_losing_redo_or_crossing_locked_targets",
+        "panels::numeric::contract_tests::numeric_scrubs_share_threshold_modifiers_and_one_history_record",
+        "panels::numeric::contract_tests::valid_outside_click_commits_in_both_numeric_hosts_and_restores_history",
+        "panels::numeric::tests::camera_scrub_preserves_other_axes_and_undo",
+        "panels::numeric::tests::effect_parameter_scrub_uses_real_catalogue_and_one_undo"
+      ],
+      "ignored": [
+        "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+        "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages"
+      ]
+    },
+    {
+      "group": "native",
+      "binary": "tested.exe",
+      "passed": [
+        "panels::audio::tests::mapped::native::native_audio_envelopes_keep_exact_time_and_cancel_in_both_owners_and_languages"
+      ],
+      "ignored": []
+    }
+  ],
+  "unrunManual": [
+    "panels::audio::monitor::native_tests::native_audio_monitor_captures_real_source_waveform_both_owners_languages_and_scales",
+    "panels::effect_controls::mapped_authoring_tests::native::mapped_numeric_native_worker_pixels_errors_history_and_reopen",
+    "panels::numeric::contract_tests::mapped_time::native_mapped_numeric_cancel_and_new_draft_render_in_both_owners_and_languages",
+    "panels::numeric::contract_tests::native_numeric_drafts_commit_and_cancel_in_two_windows_and_languages",
+    "panels::properties::mapped_anchor_tests::native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows"
+  ],
+  "binaries": [
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\audio-authoring\\core-tested.exe",
+      "sha256": "24a191aad33877adb5f97eb8be272b62b3772472889ed571c9a3fddde86fc497",
+      "bytes": 38894592
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\audio-authoring\\pre-font-test.exe",
+      "sha256": "8f95cdbf0b8297e3a4ab0f88e98a50884df30ba6f435e15d1c0f15429a968861",
+      "bytes": 138312704
+    },
+    {
+      "path": "E:\\Dev\\aem\\artifacts\\issue-goal-current\\audio-authoring\\tested.exe",
+      "sha256": "a057555c3de37a51e48d68cf4660b9e34565ff56c5168b2c76f827bbbf731b1a",
+      "bytes": 138302464
+    }
+  ],
+  "binaryScope": "Only new mapped audio test fixture font selection differs between pre-font-test.exe and tested.exe; unchanged production sources. Effects/properties/numeric groups were not needlessly repeated.",
+  "native": {
+    "cases": 8,
+    "screenshots": 24,
+    "separateProcessReopens": 8,
+    "capturePid": 39724,
+    "reopenPid": 27612,
+    "input": "synthetic Input through production main/floating chrome; real native GPU capture, not physical mouse input or an audio device"
+  },
+  "originalFailures": [
+    "initial-core.log and initial-ui.log: raw clip fixture in=0 offset=2 invalid recoverable source interval",
+    "fixture-storage-failure.log: missing audio asset and invalid remap on solid negative control",
+    "compiler-heap-failure.log: rustc STATUS_HEAP_CORRUPTION",
+    "audio-initial-timeout.log: existing waveform controlled-panic wait deadline failed; same assertion rerun after compilation",
+    "initial-native/: first captures used non-language-specific fixture font, Chinese text missing; not accepted as final visuals"
+  ],
+  "normalBranches": [
+    "optional envelope means unity",
+    "fractional local time disables integer key insertion",
+    "focus or time-context cancellation rolls back once"
+  ],
+  "observationSites": [
+    "audio.numeric_time_begin",
+    "audio.numeric_time_continue",
+    "audio.rail_times",
+    "audio.rail_select_navigate",
+    "audio.rail_select_toggle",
+    "audio.navigation_time"
+  ],
+  "limits": [
+    "Windows only",
+    "no real audio device or DSP/pitch verification in this stage",
+    "pre-existing compiler warnings and Epic Overlay missing Vulkan JSON errors retained",
+    "DESIGN baseline retained, no product-wide visual compliance claim",
+    "issue 257 remains open"
+  ],
+  "archive": {
+    "file": "evidence.zip",
+    "sha256": "be11ff566797c62b2a0c274487a450c4845e3a3899790975088ceaa006856df8",
+    "bytes": 1613296
+  }
+}

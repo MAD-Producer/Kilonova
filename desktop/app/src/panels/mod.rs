@@ -33,6 +33,7 @@ mod input_routes;
 mod frame_cache_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
+mod property_authoring;
 mod audio;
 mod work_area;
 pub(crate) mod auxiliary;
@@ -2061,6 +2062,8 @@ mod tests {
                 properties: types::PropertiesState {
                     field: Some(Field {
                         object: 1,
+                        time: None,
+                        spatial: None,
                         property: Property::Position,
                         axis: 0,
                         text: "123".into(),
@@ -2298,6 +2301,7 @@ fn render_panel(
         Panel::Expression => properties::render(list, atlas, area, panels, state, input, out),
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
+    path_controls::key_time::apply_selection(panels, state);
     property_focus::settle(panels);
     #[cfg(all(test, target_os = "windows"))]
     if let Some(timer) = panel_timer { timer.finish(list); }

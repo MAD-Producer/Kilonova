@@ -1,6 +1,8 @@
 use super::*;
 use motion_core::{EffectInstance, Engine, Layer, Project};
 use motion_ui::input::Modifiers;
+#[path = "mapped_graph_tests.rs"]
+mod mapped_graph;
 
 pub(in crate::panels) fn fixture() -> (Engine, Value) {
     let graph = motion_graph::builtin_examples()
@@ -549,6 +551,7 @@ fn malformed_effect_rows_emit_bounded_default_file_and_error_stderr_without_stdo
         let mut panels = setup(&catalogue, Locale::Zh);
         choose(&mut panels, &s, &target, Some(20));
         panels.effect_timeline.handle = Some(HandleDrag {
+            local: None,
             target: target.clone(),
             frame: 20,
             index: 0,
