@@ -1,4 +1,6 @@
 use super::*;
+mod anchor_keys;
+pub(super) use anchor_keys::AnchorKeysDraft;
 
 #[derive(Default)]
 pub(crate) struct AnchorControls {
@@ -7,6 +9,7 @@ pub(crate) struct AnchorControls {
 struct AnchorField {
     object: u64,
     time: Option<super::property_authoring::NumericTime>,
+    keys: AnchorKeysDraft,
     axis: usize,
     rect: Rect,
     number: super::numeric::Field,
@@ -30,7 +33,7 @@ pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Com
         let frame = if super::property_authoring::precise(state, object) {
             state["frame"].as_f64().unwrap_or(f64::NAN)
         } else { state["frame"].as_f64().unwrap_or(0.).floor() };
-        Command::AnchorAt { object, anchor, frame }
+        Command::AnchorAt { object, anchor, frame , keys: None }
     } else { Command::Anchor { object, anchor } }
 }
 impl AnchorControls {
@@ -135,7 +138,7 @@ impl AnchorControls {
             return;
         };
         let current = observe!("properties.anchor_time_continue",
-            anchor_time(state, field.object).map(|time| time == field.time),
+            anchor_time(state, field.object).and_then(|time| Ok(time == field.time && field.keys.current(state)?)),
             "object={} axis={} phase=continue", field.object, field.axis);
         if !matches!(current, Ok(true)) {
             if field.number.cancel() { out.push(Action::History(4)); }
@@ -152,7 +155,7 @@ impl AnchorControls {
         let finished = super::numeric::apply(events, out, |value| {
             let mut next = anchor;
             next[field.axis] = value / size[field.axis];
-            anchor_command(state,field.object,next)
+            field.keys.command(anchor_command(state,field.object,next))
         });
         if !finished {
             self.field = Some(field);
@@ -196,12 +199,13 @@ impl AnchorControls {
                 if self.cancel() {
                     out.push(Action::History(4));
                 }
-                let Ok(time) = observe!("properties.anchor_time_begin",
-                    anchor_time(state, object),
+                let Ok((time,keys)) = observe!("properties.anchor_time_begin",
+                    anchor_time(state, object).and_then(|time| Ok((time, AnchorKeysDraft::read(state,object)?))),
                     "object={object} axis={axis} phase=begin") else { continue; };
                 self.field = Some(AnchorField {
                     object,
                     time,
+                    keys,
                     axis,
                     rect,
                     number: Default::default(),
@@ -1411,3 +1415,6 @@ mod tests {
 mod tree_tests;
 #[cfg(test)]
 pub(super) mod mapped_anchor_tests;
+
+#[cfg(test)]
+pub(super) mod anchor_key_tests;
