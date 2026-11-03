@@ -15,6 +15,7 @@ rasterized source-mask / track-matte / flat-precompose shot.
 | Camera | Camera layers, Position/Orbit modes, existing lens/transform tracks; active camera is the topmost enabled camera in range | Stored source camera and free observation camera are separate; unsupported imported-camera edits retain their existing rejection rules | `motion-core/tests/multiple_cameras.rs`; new public-host native camera example |
 | XYZ separation | `separate_dimensions`, `set_component`, axis-specific `animate`, and existing `merge_dimensions` for accepted vector properties | Scalar properties reject separation; merging retains existing compatibility/error rules and does not resample unrelated keys | `motion-core/tests/separate_dimensions.rs`, `merge_dimensions.rs`; new native example animates only Y |
 | Effect parameters | Stable effect instance and parameter IDs; actual schema publishes Numeric, Hold and Color Curve LUT support | Schema support does not imply an unlocked/enabled instance or available shader package; resource bindings are not continuous tracks | [Parameter contract](effect-parameter-animation.md) and actual host tests |
+| Source relink | `missing_media_assets`, `start_asset_relink`, `media_status`, `finish_asset_relink`, `release_asset_relink`; bind a batch to the current revision and document generation | Decode in isolated staging before one atomic edit; references retain asset IDs; stale edits cancel; undo can restore an available original source but cannot recreate externally deleted files | Desktop `workflow/media_asset_tests/relink.rs`; native public-host PNG example below |
 
 Existing component tests are listed so maintainers can locate coverage; their
 current execution status belongs to the validation record, not this table.
@@ -147,3 +148,44 @@ source color and the existing bilinear scaling path. Both output pipelines share
 the original immutable 32-byte uniform; no per-frame allocation or uniform write
 is added. Conversion creation builds two pipelines instead of one; these checks
 are correctness evidence, not a conversion-creation performance benchmark.
+
+## Executable real-PNG relink example
+
+[`professional_relink.rs`](../../crates/motion-desktop-media/tests/professional_relink.rs)
+opens a registered host Session through `Host::create` and uses the public media
+request protocol. Two repository-authored PNG plates share a 64x48 composition
+at exactly 30000/1001, with clips starting/offset at frame 5. Each full-size
+image has a complementary opaque half and a clear border. Source versions have
+different binary sRGB patterns. A separately written full-frame oracle checks
+every channel with a fixed one-unit Unorm8 budget, including fractional and
+out-of-range frames. This is image decoding and relink acceptance, not footage
+keying or photographic image-quality acceptance.
+
+The example stages both replacements while asserting unchanged model, revision,
+saved JSON and native pixels. A single commit retains layer/asset identities and
+tracks and advances the revision once. The same Renderer must display the new
+source bytes. One public undo restores both old sources and their pixels; redo
+restores both replacements. A corrupt PNG batch fails without changing the
+document or output. After externally deleting both registered replacement files,
+one batch recovers both missing sources. Save/reopen into a new registered
+Session preserves the model and exact native pixels.
+
+Two independent PNG export plans are captured before/after the first relink.
+Both export only after live layer deletion and all registered Session closures.
+Their pixels and captured revisions must match the old and new versions
+respectively. The new version's original registered files have also been removed
+before export: retaining source handles is necessary, not just retaining a path.
+
+```sh
+cargo test -p motion-host -p motion-desktop-media --test layer_time_mapping --test professional_relink --no-default-features --features motion-desktop-media/gpu-tests --locked --offline -- --test-threads=1
+```
+
+Set `MOTION_PROFESSIONAL_RELINK_ARTIFACTS` to preserve the initial/replaced/recovered
+projects, source and replacement PNGs, native and independently computed golden
+images, old/new frozen outputs, protocol requests and receipts. The generated
+README explains replay: resolve candidate paths against the retained files and
+refresh revision/document generation from the newly opened session. Poll until
+ready before commit. The initial and recovered projects have all required source
+files in the artifact directory; the intermediate replaced project intentionally
+references files deleted during missing-media recovery. The complete Rust test
+is the executable operation script, including failure and recovery steps.

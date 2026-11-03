@@ -244,6 +244,58 @@ dev-dependency omitted explicit `default-features = false`. This increment fixes
 that declaration and passes the original policy suite; it does not change the
 policy assertion. That CI run ended in failure and is not final-head proof.
 
+## Public real-PNG relink and frozen source identity
+
+`professional_relink.rs` opens registered Sessions through `Host::create` and
+uses the actual public media protocol, rather than directly mutating asset
+paths in a model. Two decoded PNG plates have stable layer/asset IDs, clip
+offsets and distinct source versions. A separately authored frame oracle checks
+all RGBA channels at 5, 7.5, 15, 0, 26 and 10 with a fixed one-unit budget. Actual
+maximum error was zero for the initial and all relinked frames.
+
+The test proves unchanged model/revision/disk/pixels throughout isolated staging,
+one committed edit for both sources, unchanged layer identities/tracks, actual
+new pixels in the retained Renderer, one-step public undo/redo, malformed-source
+atomic rejection, two externally missing sources recovered in one edit, and
+exact saved/reopened output. Old/new independently frozen PNG plans retain their
+captured revisions and exact pixels after live layer deletion and Session
+closure. The new version's registered source paths were deleted before export;
+the test therefore requires retained source handles, not only paths. It does
+not claim that undo can recreate externally deleted file bytes; healthy-source
+replacement undo/redo is tested before simulating that deletion.
+
+| Gate | Result |
+| --- | --- |
+| Relink v1 | New test compile failure: `Layer::solid` requires a borrowed name; fixture reference corrected, no tests counted as executed |
+| Relink v2 | 9 passed, 0 failed/ignored, 15.796 seconds; actual native relink and eight existing host integration tests |
+| Relink v3 | 9 passed, 0 failed/ignored, 15.281 seconds; adds recorded public requests and replay instructions with unchanged assertions |
+
+Both passing gates run with FFmpeg disabled. Rust/WGSL/Python/workflow/manifest/
+lockfile source hashes remain unchanged during execution. No production code,
+existing assertion, error budget or ignore annotation changes in this increment.
+The test is the complete executable operation script. Retained request JSON must
+bind fresh revision/document generation and absolute candidate paths on replay.
+All images are repository-authored MIT geometry with no external assets, not
+photographic footage or other-precision acceptance.
+
+The immutable
+[`professional-api86-relink-v1.zip`](data/professional-api86-relink-v1.zip) and
+[SHA-256 receipt](data/professional-api86-relink-v1.json) retain 57 members:
+initial/recovered usable projects and assets, actual/CPU-golden/frozen PNGs,
+protocol requests, replay instructions, comparison sheet, source snapshots and
+original failed/passed logs. Every member hash was verified by reading it back.
+The intermediate replacement project records the intentionally deleted sources;
+open the initial or recovered project for a complete retained asset set.
+
+PR #599 head `fc0a9ed2`, run `41588997953`, has failed Windows/Linux desktop jobs
+while other jobs are still running at this snapshot. Its independently downloaded
+Windows log confirms exactly five integer-to-FrameRate test fixture errors:
+`panels/audio/tests.rs:343,970`, `panels/auxiliary/render_queue/tests.rs:33`,
+`panels/layer_sampling/tests.rs:408`, and `panels/project/tests.rs:14`.
+No panel changes are included in this branch; the prior panel-clock scope
+question remains unanswered. These logs do not certify the new relink commit,
+which requires its own CI.
+
 ## Evidence boundaries and remaining work
 
 The parameter-only host example checks model/scene state without requesting a GPU surface or
@@ -260,9 +312,11 @@ explicitly separate from advertised implemented animation.
 The matrix now documents existing professional API boundaries, and the native
 example proves one procedural camera/XYZ/effect output path. The separate native
 mask/matte/precompose example now has independent full-frame geometric goldens.
-Issue #86 still requires independently sourced or repository-authored shot goldens
-and scripts for roto, green screen/spill, screen replacement, complex
-matte/precompose and relink. Broader preview/frozen/export agreement, independent
+The relink example now proves real PNG decoding, source identity, history,
+missing-media recovery and frozen source isolation with independent full-frame
+goldens. Issue #86 still requires independently sourced or repository-authored
+shot goldens and scripts for roto, green screen/spill, screen replacement and
+more complex matte/precompose cases. Broader preview/frozen/export agreement, independent
 image quality goldens, other working precisions, complete desktop regression
 and final-head cross-platform CI remain unaccepted. The native camera example
 is not desktop window capture or acceptance of photographed footage.
