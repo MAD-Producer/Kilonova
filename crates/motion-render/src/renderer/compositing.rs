@@ -1,56 +1,89 @@
 //! Projected matte extraction shares the effects-stage snapshots used by image inputs.
 use super::*;
+#[cfg(test)]
+mod tests;
 
-fn coverage_order(frame: &crate::effect_plan::EffectFramePlan) -> Result<Vec<(usize, bool)>> {
-    fn visit(
+// Producer plans are bounded by MAX_LAYERS. Retain only the current traversal
+// and demand; no history or frame keys accumulate in this scratch storage.
+#[derive(Default)]
+pub(super) struct MattePlanning {
+    pub needed: Vec<(u64, bool)>,
+    order: Vec<(usize, bool)>,
+    active: std::collections::HashSet<usize>,
+    done: std::collections::HashSet<(usize, bool)>,
+}
+impl MattePlanning {
+    pub fn collect_targets(&mut self, frame: &crate::effect_plan::EffectFramePlan) {
+        self.needed.clear();
+        self.needed.extend(
+            frame
+                .compositing
+                .iter()
+                .filter(|c| c.matte >= 0)
+                .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)),
+        );
+    }
+
+    pub fn prepare_coverage(
+        &mut self,
         frame: &crate::effect_plan::EffectFramePlan,
-        index: usize,
-        luma: bool,
-        active: &mut std::collections::HashSet<usize>,
-        done: &mut std::collections::HashSet<(usize, bool)>,
-        out: &mut Vec<(usize, bool)>,
-    ) -> Result<()> {
-        if done.contains(&(index, luma)) {
-            return Ok(());
+    ) -> Result<&[(usize, bool)]> {
+        fn visit(
+            frame: &crate::effect_plan::EffectFramePlan,
+            index: usize,
+            luma: bool,
+            active: &mut std::collections::HashSet<usize>,
+            done: &mut std::collections::HashSet<(usize, bool)>,
+            out: &mut Vec<(usize, bool)>,
+        ) -> Result<()> {
+            if done.contains(&(index, luma)) {
+                return Ok(());
+            }
+            if !active.insert(index) {
+                return Err(RenderError::Invalid("track matte dependency cycle".into()));
+            }
+            let c = frame.compositing[index];
+            if c.matte >= 0 {
+                visit(frame, c.matte as usize, c.mode >= 3, active, done, out)?;
+            }
+            active.remove(&index);
+            done.insert((index, luma));
+            out.push((index, luma));
+            Ok(())
         }
-        if !active.insert(index) {
-            return Err(RenderError::Invalid("track matte dependency cycle".into()));
+        self.active.clear();
+        self.done.clear();
+        self.order.clear();
+        for c in &frame.compositing {
+            if c.matte >= 0 {
+                visit(
+                    frame,
+                    c.matte as usize,
+                    c.mode >= 3,
+                    &mut self.active,
+                    &mut self.done,
+                    &mut self.order,
+                )?;
+            }
         }
-        let c = frame.compositing[index];
-        if c.matte >= 0 {
-            visit(frame, c.matte as usize, c.mode >= 3, active, done, out)?;
-        }
-        active.remove(&index);
-        done.insert((index, luma));
-        out.push((index, luma));
-        Ok(())
+        Ok(&self.order)
     }
-    let mut active = Default::default();
-    let mut done = Default::default();
-    let mut out = Vec::new();
-    for c in &frame.compositing {
-        if c.matte >= 0 {
-            visit(
-                frame,
-                c.matte as usize,
-                c.mode >= 3,
-                &mut active,
-                &mut done,
-                &mut out,
-            )?;
-        }
-    }
-    Ok(out)
 }
 
 impl Renderer {
     pub(super) fn ensure_compositing_gpu(&mut self, frame: f64, phase: &str) -> Result<()> {
         if self.compositing_gpu.is_none() {
             let gpu = crate::compositing_gpu::CompositingGpu::new(
-                &self.device, &self.queue, &self.uniform_layout, &self.image_layout,
-                &self.sampler, self.target_format, &self.allocation_budget,
+                &self.device,
+                &self.queue,
+                &self.uniform_layout,
+                &self.image_layout,
+                &self.sampler,
+                self.target_format,
+                &self.allocation_budget,
                 self.allocation_uploads.clone(),
-            ).map_err(|error| RenderError::Context {
+            )
+            .map_err(|error| RenderError::Context {
                 message: format!("compositing frame={frame} phase={phase}: {error}"),
                 cause: Box::new(error),
             })?;
@@ -70,7 +103,7 @@ impl Renderer {
         };
         let frame = &self.effect_gpu.builder.frame;
         let mut draws = 0;
-        for (index, luma) in coverage_order(frame)? {
+        for &(index, luma) in &self.matte_planning.order {
             let d = &frame.draws[index];
             let c = frame.compositing[index];
             let target = &gpu.mattes[&(d.layer, luma)];
@@ -85,10 +118,14 @@ impl Renderer {
                 color: [1.; 4],
                 extent_opacity: [0., 0., d.words[22], flags as f32],
                 uv_scale: [1., 1., size[0] as f32, size[1] as f32],
-                screen_uv: crate::plane_coordinates::screen_map(frame.uv_maps[index],
-                    [0., 0., size[0] as f32, size[1] as f32], d.layer)?,
+                screen_uv: crate::plane_coordinates::screen_map(
+                    frame.uv_maps[index],
+                    [0., 0., size[0] as f32, size[1] as f32],
+                    d.layer,
+                )?,
             };
-            self.allocation_uploads.track(Some(gpu.extract_buffer.allocation()))?;
+            self.allocation_uploads
+                .track(Some(gpu.extract_buffer.allocation()))?;
             self.queue.write_buffer(
                 &gpu.extract_buffer,
                 (index * gpu.extract_stride) as u64,

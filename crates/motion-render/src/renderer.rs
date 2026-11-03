@@ -3,6 +3,7 @@ use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
+mod composition_runs;
 mod gpu_failure;
 mod frame_blend;
 mod exposure;
@@ -87,6 +88,10 @@ mod vector_planning_tests;
 mod scene_asset_storage_tests;
 #[cfg(test)]
 mod snapshot_storage_tests;
+#[cfg(test)]
+mod preview_allocation_tests;
+#[cfg(test)]
+mod composition_run_tests;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -302,6 +307,11 @@ pub struct Renderer {
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
+    matte_planning: compositing::MattePlanning,
+    #[cfg(test)]
+    legacy_composition_passes: bool,
+    #[cfg(test)]
+    composition_runs: usize,
     compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
     video_blend: Option<frame_blend::FrameBlendGpu>,
@@ -610,6 +620,11 @@ impl Renderer {
             effect_diagnostics: Vec::new(),
             snapshot_encodes: Vec::new(),
             compositing_gpu: None,
+            matte_planning: Default::default(),
+            #[cfg(test)]
+            legacy_composition_passes: false,
+            #[cfg(test)]
+            composition_runs: 0,
             compositing_pipeline_set_builds: 0,
             allocation_uploads,
         };
@@ -1802,6 +1817,7 @@ impl Renderer {
         Ok(())
     }
     pub fn clear_assets(&mut self) {
+        self.matte_planning = Default::default();
         self.models.clear_gpu();
         self.video_blend = None;
         self.layer_gpu.release();
@@ -1993,6 +2009,8 @@ impl Renderer {
                 "invalid render target or layer count".into(),
             ));
         }
+        #[cfg(test)]
+        { self.composition_runs = 0; }
         let started = Instant::now();
         if scene.effects.iter().any(|e| e.enabled) || scene.layers.iter().any(|l|!l.masks.is_empty())
             || scene
@@ -2319,13 +2337,12 @@ impl Renderer {
         })?;
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes();
-            let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
-                .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
+            self.matte_planning.collect_targets(&self.effect_gpu.builder.frame);
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("compositing initialization did not publish resources".into()))?;
             let changed = gpu.prepare_targets(&self.device, &self.image_layout, &self.sampler,
-                composition_size, &needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
+                composition_size, &self.matte_planning.needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
                 has_transfer).map_err(|error| RenderError::Context {
                     message: format!("compositing frame={} phase=targets: {error}", scene.frame),
                     cause: Box::new(error),
@@ -2345,6 +2362,7 @@ impl Renderer {
             self.effect_gpu.builder.source_texture_budget,
             )?;
         }
+        self.matte_planning.prepare_coverage(&self.effect_gpu.builder.frame)?;
         let frame = &self.effect_gpu.builder.frame;
         self.geometry_upload.clear();
         self.geometry_upload
@@ -2472,10 +2490,38 @@ impl Renderer {
             return Ok(stats);
         }
         let view = view.ok_or_else(|| RenderError::Invalid("missing composition render destination".into()))?;
-        for (batch_index, batch) in frame.batches.iter().enumerate() {
+        let mut next_batch = 0;
+        while next_batch < frame.batches.len() {
+            let batch_index = next_batch;
+            next_batch += 1;
+            let batch = &frame.batches[batch_index];
             let i = batch.layer;
             let draw = &frame.draws[i];
             if !frame.compositing[i].visible {continue;}
+            let run_end = self.composition_run_end(scene, frame, batch_index);
+            if run_end > batch_index + 1 {
+                let (vw, vh) = if has_accumulator {
+                    (composition_size[0] as f32, composition_size[1] as f32)
+                } else { (viewport[0], viewport[1]) };
+                let writes = if !has_accumulator && run_end == frame.batches.len() {
+                    timestamps.as_ref().map(|t| wgpu::RenderPassTimestampWrites {
+                        query_set: t.query_set, beginning_of_pass_write_index: None,
+                        end_of_pass_write_index: t.end_of_pass_write_index,
+                    })
+                } else { None };
+                composition_draws += self.encode_composition_run(encoder, composition_runs::CompositionRun {
+                    scene, frame, batches: &frame.batches[batch_index..run_end],
+                    view: if has_accumulator { &self.layer_gpu.accumulators[accumulator].view } else { view },
+                    viewport: [if has_accumulator { 0. } else { (width as f32 - vw) / 2. },
+                        if has_accumulator { 0. } else { (height as f32 - vh) / 2. }, vw, vh],
+                    timestamps: writes, compositing: has_compositing,
+                })?;
+                #[cfg(test)]
+                { self.composition_runs += 1; }
+                materialized = Some(frame.batches[run_end - 1].layer);
+                next_batch = run_end;
+                continue;
+            }
             if materialized!=Some(i) {
                 if let Some(cached)=self.images.get(&TextureKey::EffectInput(draw.layer)) {
                     restore_effect_snapshot(encoder, &cached._texture, cached.size,
