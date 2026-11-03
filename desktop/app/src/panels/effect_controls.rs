@@ -16,6 +16,7 @@ use motion_ui::{
 use serde_json::Value;
 use std::collections::HashMap;
 mod curve;
+pub(super) mod definition;
 mod dropdown_cache;
 mod key_navigation;
 mod library;
@@ -407,17 +408,6 @@ impl Controls {
         self.dropdowns.close();
         begun
     }
-    pub(super) fn definition(&self, effect: &Value) -> Option<Value> {
-        self.catalogue["packages"].as_array()?.iter().find(|p| {
-            p["hash"] == effect["hash"]
-                && p["manifest"]["id"] == effect["plugin"]
-                && p["manifest"]["version"] == effect["version"]
-        })?["manifest"]["effects"]
-            .as_array()?
-            .iter()
-            .find(|d| d["id"] == effect["effect"])
-            .cloned()
-    }
     pub fn height(
         &mut self,
         layer: &Value,
@@ -487,7 +477,7 @@ impl Controls {
                         {
                             0.
                         } else {
-                            self.definition(effect).map_or(0., |definition| {
+                            definition::find(&self.catalogue, effect).map_or(0., |definition| {
                                 definition["params"]
                                     .as_array()
                                     .into_iter()
@@ -1319,6 +1309,8 @@ impl Controls {
 
             return;
         }
+        // Keep this catalogue generation alive while controls mutate their drafts.
+        let catalogue = self.catalogue.clone();
         let mut invalid_identity = false;
         for (index, effect) in layer["effects"]
             .as_array()
@@ -1339,7 +1331,7 @@ impl Controls {
             *y += styles.metric("effect.group.gap", 8.);
             let Some(def) = observe!(
                 "effects.definition",
-                self.definition(effect).ok_or("no matching definition"),
+                definition::find(&catalogue, effect).ok_or("no matching definition"),
                 "object={object} effect={id} hash={} plugin={} version={} kind={}",
                 effect["hash"],
                 effect["plugin"],
@@ -1527,9 +1519,7 @@ impl Controls {
             }
 
             // Render effect parameters
-            let mut parameters: Vec<_> = def["params"].as_array().into_iter().flatten().collect();
-            parameters.sort_by_key(|parameter| parameter["kind"] == "curve");
-            for parameter in parameters {
+            for parameter in definition::parameters(def) {
                 let param = parameter["id"].as_str().unwrap();
                 if !super::modified_properties::effect_parameter_visible(
                     self.property_filter,&effect["params"][param],state,object,id,param) { continue; }
