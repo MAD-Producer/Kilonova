@@ -3,7 +3,8 @@
 This matrix describes the current host/model interfaces, not a percentage of
 another application's feature set. A source-defined capability, an executed
 component test and an accepted professional shot are different evidence levels.
-The new native example below covers the procedural camera row only.
+The native examples below cover procedural camera output and an independently
+rasterized source-mask / track-matte / flat-precompose shot.
 
 | Capability | API and semantics | Boundary | Evidence location |
 | --- | --- | --- | --- |
@@ -91,3 +92,58 @@ of a desktop window, independently produced image goldens, photographed-shot
 acceptance, compiled-node-graph proof, or acceptance of other working precisions.
 The [validation record](../validation/professional-api86-parameter-contract-current.md)
 tracks those remaining requirements.
+
+## Executable source-mask, matte and precompose shot
+
+[`professional_mattes.rs`](../../crates/motion-desktop-media/tests/professional_mattes.rs)
+uses actual public JSON commands to author a hidden green matte source and a
+red target with an additive rectangular source mask and a subtractive hole.
+The matte source has its own moving source-space mask and animated opacity.
+This deliberately exercises source masks and layer references together rather
+than treating the two operations as interchangeable.
+
+The clip starts at composition frame 5, with offset 5. Mask nodes and opacity
+have local keys 0/10 (composition 5/15). Four separate cases use Alpha, Alpha
+Inverted, Luma and Luma Inverted. The source is hidden from normal composition
+but must still supply coverage. Luma uses a pure green source and the documented
+0.7152 green coefficient, making the independent arithmetic unambiguous.
+
+The CPU golden uses pixel-center rectangle membership, additive/subtractive
+coverage and the requested matte mode. It does not sample a Scene, call the
+renderer tessellator or reuse WGSL. Each case checks every pixel at composition
+frames 5, 7.5, 15, 0, 26 and 10, including a fractional sample, out-of-clip
+transparency and nonmonotonic seeks. The fixed error budget is three 8-bit
+channel units for mask/matte/nested quantization, declared before execution.
+
+Precomposing only the target must fail atomically with `cross_selection_matte`.
+Precomposing both contiguous flat layers must preserve the child's exact layers,
+local tracks, hidden-source flag, matte association and transparent background.
+All sampled native RGBA outputs are checked against the independent golden and
+against the original flat output. Undoing both public batches returns the empty
+original project; redo restores the nested model. Save/load into a fresh Session
+preserves exact RGBA. Each mode also freezes a PNG at 7.5, deletes the live
+composition reference and closes both Sessions before independently exporting
+the frozen plan and checking its exact pixels and captured revision.
+
+Run the standalone example without FFmpeg:
+
+```sh
+cargo test -p motion-host -p motion-desktop-media --test layer_time_mapping --test professional_mattes --no-default-features --features motion-desktop-media/gpu-tests --locked --offline -- --test-threads=1
+```
+
+Set `MOTION_PROFESSIONAL_MATTE_ARTIFACTS` to retain each case's initial, flat and
+nested projects, `commands.json`, `precompose.json`, independent golden PNGs,
+native flat PNGs and frozen nested PNG. Apply the command batch to the initial
+project, then apply `precompose.json`; the saved project already contains both.
+The example is self-authored MIT geometry with no external assets. It is not a
+photographed roto/green-screen shot, feather quality or other-precision proof.
+
+The example exposed two actual renderer faults. Recreating a mask output must
+invalidate the signature of the retired output before the raster cache shortcut.
+Equal-size SDR conversion now loads exact integer texels instead of
+reconstructing centers from interpolated UVs. This avoids neighboring color
+leaking into exact transparent holes while preserving actual positive low-alpha
+source color and the existing bilinear scaling path. Both output pipelines share
+the original immutable 32-byte uniform; no per-frame allocation or uniform write
+is added. Conversion creation builds two pipelines instead of one; these checks
+are correctness evidence, not a conversion-creation performance benchmark.

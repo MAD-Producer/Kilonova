@@ -176,6 +176,74 @@ causes of those three job failures have not been independently read here. This
 run also predates the node integration commit. The parent's five known panel
 fixture errors remain pending; they are not fixed by adding this test.
 
+## Native animated masks, four mattes and precompose
+
+The actual public-host example in `professional_mattes.rs` now covers source
+mask node/opacity animation, hidden matte sources, Alpha/Alpha Inverted/Luma/
+Luma Inverted, a subtractive target hole, local clip offsets, fractional frames
+and nonmonotonic seeks. An independent CPU pixel-center/coverage oracle checks
+every channel with a predeclared maximum error of three Unorm8 units. The final
+execution observed at most one unit; nested versus flat output was exact.
+The example also checks atomic rejection of a target-only precompose, exact
+child model preservation, batch undo/redo, save/reopen and independently frozen
+PNGs after deleting the live composition reference and closing the Sessions.
+This is a repository-authored procedural geometric shot, not photographed
+footage, feather acceptance, external media or other working precisions.
+
+Two renderer defects required functional fixes, separate from the API contract:
+
+- Recreating an empty mask output retained the retired texture's geometry
+  fingerprint, allowing a cache hit to skip rasterization. Invalidate the
+  fingerprint only when the new allocation commits. A raw GPU regression first
+  failed with zero center coverage instead of 255, then passed with unchanged
+  assertions. Existing transactional admission and reuse tests also pass.
+- Equal-size SDR output reconstructed texel centers from interpolated UVs,
+  leaking adjacent red into exactly transparent holes. A retained integer-texel
+  fragment pipeline now handles equal extents; scaling keeps bilinear sampling.
+  Both pipelines share the original 32-byte uniform. A new exact-pixel test also
+  preserves genuine positive subquantum-alpha color. Existing alpha, precision,
+  tone mapping, resize and allocation-budget assertions remain unchanged.
+  One additional pipeline is created per conversion object; creation performance
+  is not benchmarked here.
+
+| Gate | Result and disposition |
+| --- | --- |
+| Matte-shot v1/v2 | Failed independent golden: RGB contamination in transparent holes; original failures retained |
+| Matte-shot v3/v4 | Failed later sample: retained renderer blank, fresh renderer matches golden; isolates stale mask output cache |
+| Mask-eviction red v1 | New test compilation failed due to missing HashMap type annotation; no GPU proof in this run |
+| Mask-eviction red v2 | New raw GPU test fails before fix: center coverage 0 instead of 255 |
+| Matte-shot v5 | Native matte/node/camera/host pass; existing low-alpha test rejects an attempted alpha guard; guard removed |
+| Matte-shot v6 | Native matte/node/camera/host pass; existing budget test rejects a second uniform; second uniform removed |
+| Matte-shot v5/v6 fixture correction | New strict alpha=0.5 case hits GPU UNORM tie 127/128; use 0.25, away from the tie, without relaxing any assertion or budget |
+| Matte-shot v7 | 21 passed, 0 failed, 0 ignored; final two-pipeline/shared-uniform implementation |
+| Mask-cache regression v1 | 15 mask reuse/admission plus 35 existing composition/matte/host tests pass |
+| Matte-final v1 | Final manifest: all 71 Rust tests pass; Python policy fails from missing local PyYAML and sparse-excluded inventory files; overall controller correctly remains failed |
+| CI-policy v2 | Install existing CI pin PyYAML 6.0.3, materialize tracked inventory without changes; 108 tests run, OK with one existing skip |
+| Matte-default v1 | FFmpeg disabled: native matte example plus eight existing host tests pass, 0 failed/ignored, 39.453 seconds |
+
+All original failures, controllers, logs, source snapshots, editable projects,
+command batches, native/golden/frozen PNGs and comparison sheet are retained in
+[`professional-api86-matte-shot-v1.zip`](data/professional-api86-matte-shot-v1.zip)
+with a [SHA-256 receipt](data/professional-api86-matte-shot-v1.json). The archive
+contains 468 members and was read back to verify each recorded member hash.
+Its final source hashes match this increment; the older complete backend run
+does not cover these renderer fixes and is not counted as final full regression.
+
+The original mask-eviction red v1 controller copied an inaccurate native-shot
+scope description. Its actual command only selected the new mask GPU unit test,
+which did not compile; no native-shot coverage is attributed to that run.
+Early matte-shot controllers hash Rust only, not WGSL or Cargo manifests. The
+matte-final and CI-policy gates instead retain and verify Rust, WGSL, Python,
+workflow, manifest and lockfile hashes. Both final gates verify unchanged source.
+Reading the retired Android test inventory is a CI policy check, not Android
+device/runtime validation.
+
+The raw Rust/GPU log for PR #599 head `0f1c3d40`, run `41583900279`, independently
+confirms a CI policy failure before Rust tests: the new internal `motion-graph`
+dev-dependency omitted explicit `default-features = false`. This increment fixes
+that declaration and passes the original policy suite; it does not change the
+policy assertion. That CI run ended in failure and is not final-head proof.
+
 ## Evidence boundaries and remaining work
 
 The parameter-only host example checks model/scene state without requesting a GPU surface or
@@ -190,9 +258,9 @@ output for Float, Vec3, Color and Bool. Unimplemented defaults and package avail
 explicitly separate from advertised implemented animation.
 
 The matrix now documents existing professional API boundaries, and the native
-example proves one procedural camera/XYZ/effect output path. Issue #86 still
-requires executed shared mask/matte/precompose
-examples and independently sourced or repository-authored actual-shot goldens
+example proves one procedural camera/XYZ/effect output path. The separate native
+mask/matte/precompose example now has independent full-frame geometric goldens.
+Issue #86 still requires independently sourced or repository-authored shot goldens
 and scripts for roto, green screen/spill, screen replacement, complex
 matte/precompose and relink. Broader preview/frozen/export agreement, independent
 image quality goldens, other working precisions, complete desktop regression

@@ -1,0 +1,21 @@
+{
+  "archive": "professional-api86-matte-shot-v1.zip",
+  "sha256": "2b3276e80ef85481ac9b1085f60e9e0b0b68c5fead9304ab43373391a71e68f8",
+  "bytes": 1564656,
+  "members": 468,
+  "scope": "Issue86 actual native animated source masks, four matte modes, precompose and frozen PNGs; two renderer fixes and original CI dependency policy",
+  "limits": [
+    "Headless Unorm8 geometric shot, not desktop screenshots, photographic footage, feather or other precision acceptance",
+    "Targeted 71 Rust tests plus 9 non-FFmpeg tests, not full workspace/desktop regression or final-head platform CI",
+    "Earlier shot gates hash Rust only; final and policy gates include WGSL, manifests, Python and workflows",
+    "Two conversion pipelines share the original 32-byte uniform; extra pipeline creation cost not benchmarked"
+  ],
+  "corrections": [
+    "Mask-eviction red v1 copied an inaccurate native-shot scope; actual unit-test command failed compilation",
+    "Existing low-positive-alpha assertion rejected attempted alpha guard; guard removed",
+    "Existing allocation assertion rejected attempted second uniform; second uniform removed",
+    "New alpha 0.5 fixture encountered GPU tie rounding; use 0.25 without changing assertions or budgets",
+    "Final v1 correctly remains failed: 71 Rust tests passed but Python lacked existing PyYAML pin and sparse inventory; policy v2 fixes environment and passes original suite",
+    "CI raw log shows internal graph dev-dependency default feature policy violation; fixed explicit defaults=false"
+  ]
+}
