@@ -278,7 +278,15 @@ fn continuous_anchor_uses_timed_compensation_instead_of_global_baking() {
 #[cfg(target_os = "windows")]
 #[test]
 #[ignore = "requires native GPU windows; run explicitly"]
-fn native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows() {
+fn native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows() { run_native_anchor_controls(false); }
+#[cfg(target_os="windows")]
+#[test]
+#[ignore="requires native GPU windows; run explicitly"]
+fn native_bound_anchor_controls_render_cancel_commit_and_undo_in_two_windows() {
+    run_native_anchor_controls(true);
+}
+#[cfg(target_os="windows")]
+fn run_native_anchor_controls(bound:bool) {
     use std::{path::PathBuf, sync::Arc, time::Duration};
     use winit::platform::windows::EventLoopBuilderExtWindows;
     let root = PathBuf::from(
@@ -310,7 +318,7 @@ fn native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows() 
         (Locale::Zh, Panel::Properties, false, false),
         (Locale::En, Panel::Timeline, true, true),
     ] {
-        let (_folder, engine) = fixture(reverse);
+        let (_folder, engine) = if bound { super::anchor_key_tests::spatial_fixture(reverse) } else {fixture(reverse)};
         let before = engine.state().unwrap();
         crate::native_test_support::receive(
             &mut events,
@@ -374,18 +382,11 @@ fn native_mapped_anchor_controls_render_cancel_commit_and_undo_in_two_windows() 
                 )
                 .1,
             );
-            apply(
-                &engine,
-                draw(
-                    &mut p,
-                    &engine,
-                    &mut atlas,
-                    host,
-                    floating,
-                    pointer(end, false, false),
-                )
-                .1,
-            );
+            let actions=draw(&mut p,&engine,&mut atlas,host,floating,pointer(end,false,false)).1;
+            if bound {
+                assert!(actions.iter().any(|a|matches!(a,Action::Edit(Command::AnchorAt {keys:Some(keys),..}) if keys.anchor==Some(2) && keys.position==Some(2))));
+            }
+            apply(&engine,actions);
             if commit {
                 apply(
                     &engine,

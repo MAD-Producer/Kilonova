@@ -69,12 +69,17 @@ fn bound_pivot_gestures_preserve_pose_ids_history_and_saved_project_in_both_dire
                         .len(),
                     3
                 );
-                let mut expected = p.clone();
-                expected.layers[1].transform.anchor =
-                    engine.project().layers[1].transform.anchor.clone();
-                expected.layers[1].transform.position =
-                    engine.project().layers[1].transform.position.clone();
-                assert_eq!(engine.project(), &expected);
+                let mut expected = serde_json::to_value(&p).unwrap();
+                let actual = serde_json::to_value(engine.project()).unwrap();
+                let base = &mut expected["layers"][1]["transform"];
+                base["anchor"]["spatial_animation"]["keys"][1]["value"] = serde_json::json!(anchor);
+                base["position"]["spatial_animation"]["keys"][1]["value"] = actual["layers"][1]
+                    ["transform"]["position"]["spatial_animation"]["keys"][1]["value"]
+                    .clone();
+                assert_eq!(
+                    actual, expected,
+                    "only the two original key values may change"
+                );
             }
             engine.end_gesture(commit).unwrap();
             if commit {
@@ -180,9 +185,45 @@ fn moved_keys_missing_storage_and_empty_or_zero_bindings_are_atomic_errors() {
 #[test]
 fn bound_roving_compensation_keeps_the_existing_constant_speed_policy_on_rejection() {
     let mut p = mapped::project(false, false, 0);
+    // Exactly representable equally spaced values put both solved keys at 3.
+    for (frame, value) in [(0, [0.25, 0.75]), (3, [0.5, 0.5]), (6, [0.75, 0.25])] {
+        p.layers[1]
+            .transform
+            .anchor
+            .upsert(frame, value, Ease::Linear)
+            .unwrap();
+    }
     p.layers[1].transform.anchor.enable_roving(&[3]).unwrap();
     p.layers[1].transform.position.enable_roving(&[3]).unwrap();
     let keys = binding(&p);
+    assert_eq!(
+        p.layers[1]
+            .transform
+            .anchor
+            .spatial_animation
+            .as_ref()
+            .unwrap()
+            .prepared()
+            .keys()
+            .nth(1)
+            .unwrap()
+            .1,
+        3.
+    );
+    assert_eq!(
+        p.layers[1]
+            .transform
+            .position
+            .spatial_animation
+            .as_ref()
+            .unwrap()
+            .prepared()
+            .keys()
+            .nth(1)
+            .unwrap()
+            .1,
+        3.
+    );
     let mut engine = Engine::new(p.clone()).unwrap();
     let error = engine
         .apply(command(keys, [0.7, 0.2]))
@@ -194,11 +235,15 @@ fn bound_roving_compensation_keeps_the_existing_constant_speed_policy_on_rejecti
 }
 #[test]
 fn optional_binding_is_typed_in_the_catalogue_and_round_trips_without_changing_unbound_payloads() {
-    let old = r#"{"op":"anchor_at","object":2,"frame":6.5,"anchor":[0.7,0.2]}"#;
-    let unbound = CommandRegistry::parse(old).unwrap().remove(0);
+    let old = r#"{"op":"anchor_at","object":2,"frame":6.5,"anchor":[0.75,0.25]}"#;
+    let raw: Command = serde_json::from_str(old).unwrap();
+    let expected: serde_json::Value = serde_json::from_str(old).unwrap();
+    assert_eq!(serde_json::to_value(raw).unwrap(), expected);
+    let wrapped = CommandRegistry::parse(old).unwrap().remove(0);
     assert_eq!(
-        serde_json::to_value(unbound).unwrap(),
-        serde_json::from_str::<serde_json::Value>(old).unwrap()
+        serde_json::to_value(wrapped).unwrap(),
+        serde_json::json!({
+        "op":"in_composition","composition":"comp-main","command":expected})
     );
     let catalogue = CommandRegistry::catalogue();
     let desc = catalogue["commands"]

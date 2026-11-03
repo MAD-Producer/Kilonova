@@ -2,6 +2,12 @@ use super::*;
 use motion_core::{Project, Track, Tween};
 
 pub(in crate::panels) fn spatial_state(reverse: bool) -> Value {
+    let (_folder, engine) = spatial_fixture(reverse);
+    engine.state().unwrap()
+}
+pub(in crate::panels) fn spatial_fixture(
+    reverse: bool,
+) -> (tempfile::TempDir, crate::engine::Engine) {
     let (_folder, engine) = mapped_anchor_tests::fixture(reverse);
     let mut state = engine.state().unwrap();
     let mut project: Project = serde_json::from_value(state["project"].clone()).unwrap();
@@ -17,8 +23,16 @@ pub(in crate::panels) fn spatial_state(reverse: bool) -> Value {
     fixed_spatial(&mut transform.anchor);
     fixed_spatial(&mut transform.position);
     project.validate().unwrap();
-    state["project"] = serde_json::to_value(project).unwrap();
-    state
+    drop(engine);
+    motion_core::storage::save(_folder.path(), &project).unwrap();
+    let engine = crate::engine::Engine::start(
+        _folder.path().to_owned(),
+        motion_desktop_media::platform(),
+        8 << 30,
+    )
+    .unwrap();
+    engine.seek(6.5).unwrap();
+    (_folder, engine)
 }
 fn pointer(point: [f32; 2], press: bool) -> Input {
     Input {
@@ -79,5 +93,104 @@ fn replacing_either_compensated_key_cancels_numeric_anchor_before_an_edit_is_sen
                 "stale anchor must not target the replacement key"
             );
         }
+    }
+}
+
+#[test]
+fn stale_bound_worker_command_uses_default_error_outputs_and_fresh_binding_recovers() {
+    const CHILD: &str = "MOTION_ANCHOR_KEYS_FAILURE_CHILD";
+    const TEST:&str="panels::properties::anchor_key_tests::stale_bound_worker_command_uses_default_error_outputs_and_fresh_binding_recovers";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let mut state = spatial_state(false);
+        replace_middle(&mut state, "position");
+        let project: motion_core::Project =
+            serde_json::from_value(state["project"].clone()).unwrap();
+        let project_root = root.join("project");
+        motion_core::storage::save(&project_root, &project).unwrap();
+        let engine =
+            crate::engine::Engine::start(project_root, motion_desktop_media::platform(), 8 << 30)
+                .unwrap();
+        engine.seek(6.5).unwrap();
+        let before = engine.state().unwrap();
+        let stale = Command::AnchorAt {
+            object: 7,
+            frame: 6.5,
+            anchor: [0.7, 0.2],
+            keys: Some(motion_core::AnchorKeyBinding {
+                anchor: Some(2),
+                position: Some(2),
+            }),
+        };
+        let error = engine
+            .edit(serde_json::to_string(&stale).unwrap())
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("anchor_key_binding")
+                && error.contains("key=2")
+                && error.contains("no longer exists"),
+            "{error}"
+        );
+        let rejected = engine.state().unwrap();
+        assert_eq!(rejected["project"], before["project"]);
+        assert_eq!(rejected["history"], before["history"]);
+        let current = AnchorKeysDraft::read(&before, 7).unwrap();
+        let healthy = current.command(anchor_command(&before, 7, [0.7, 0.2]));
+        engine
+            .edit(serde_json::to_string(&healthy).unwrap())
+            .unwrap();
+        assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        crate::logging::flush();
+        let file = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        let failures: Vec<_> = file
+            .lines()
+            .filter(|l| l.contains(" ERROR ") && l.contains("anchor_key_binding"))
+            .collect();
+        assert_eq!(failures.len(), 1, "{file}");
+        assert!(
+            failures[0].contains("edit")
+                && failures[0].contains("key=2")
+                && failures[0].contains("7")
+        );
+        assert!(file
+            .lines()
+            .any(|l| l.contains(" INFO ") && l.contains("start #") && l.contains("edit")));
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stdout}\n{stderr}");
+    assert_eq!(
+        stderr
+            .lines()
+            .filter(|l| l.contains("anchor_key_binding") && l.contains("ERROR"))
+            .count(),
+        1,
+        "{stderr}"
+    );
+    assert!(
+        !stdout.contains("anchor_key_binding")
+            && !stdout.contains(" INFO [")
+            && !stdout.contains(" ERROR ")
+    );
+    if let Some(destination) = std::env::var_os("MOTION_ANCHOR_KEYS_EVIDENCE") {
+        let destination = std::path::PathBuf::from(destination);
+        std::fs::create_dir_all(&destination).unwrap();
+        std::fs::copy(
+            root.path().join("motion-studio.log"),
+            destination.join("motion-studio.log"),
+        )
+        .unwrap();
+        std::fs::write(destination.join("stdout.log"), output.stdout).unwrap();
+        std::fs::write(destination.join("stderr.log"), output.stderr).unwrap();
     }
 }
