@@ -110,7 +110,43 @@ requested. It proves real host command admission, sampled state, references,
 history and persistence, not GPU pixel equivalence or final video export.
 The matrix exercises actual built-in Float, Vec2, Color, Bool, Enum and Curve
 parameters. Vec3 follows the shared model predicate but has no built-in fixture
-in this gate and is not claimed as package or GPU acceptance.
+in this parameter-only gate. Actual compiled-package and GPU coverage is
+provided separately below.
+
+## Compiled node package example
+
+[`node_parameter_animation.rs`](../../crates/motion-desktop-media/tests/node_parameter_animation.rs)
+compiles a repository-authored graph into an actual `.msfx` package. Four
+public parameters (Float `gain`, Vec3 `vector`, Color `tint`, Bool `enabled`)
+all reach ColorOutput. The graph computes a weighted Vec3 dot product times
+gain, multiplies tint by the resulting gray, and selects opaque black when
+disabled. This spatially constant graph has an independent arithmetic oracle:
+every RGBA pixel is checked within one RGB quantization unit, with exact alpha.
+
+The package is staged as a content-verified project-owned NodeResource. The
+host restores it from the actual effect insertion and again in a fresh Session
+after save/load; the test does not manually install its runtime registry entry.
+The public JSON batch creates composition-frame keys at 10/20, stored locally
+at 0/10, and attaches `value + [0.05, 0.1, 0.15]` to the Vec3 parameter.
+Samples at 10, 15.5, 19.999 and 20 check all vector/color components, Float
+interpolation and Bool's held boundary. Invalid fractional Bool edits and Bool
+expressions preserve the project and undo history. Undo/redo restores the
+whole animation batch and its actual rendered output.
+
+Four independently rendered frozen PNGs must match the original RGBA exactly
+after the live layer is deleted and both Sessions are dropped. Their revisions
+are checked individually. This test also executes without FFmpeg enabled:
+
+```sh
+cargo test -p motion-host -p motion-graph -p motion-desktop-media --test compiler --test layer_time_mapping --test node_parameter_animation --no-default-features --features motion-desktop-media/gpu-tests --locked --offline -- --test-threads=1
+```
+
+Set `MOTION_NODE_PARAMETER_ARTIFACTS` to retain the editable project, its owned
+package, source graph, initial project, JSON command batch, frozen PNGs and
+sample/capability receipt. Apply the commands to `initial-project.json`, with
+the retained `assets` directory; `project.json` already contains the edits.
+This fixture proves default 8-bit headless output, not desktop window capture,
+other precisions, image-resource animation or arbitrary professional footage.
 
 See the [validation record](../validation/professional-api86-parameter-contract-current.md)
 for executed results, original failed attempts and remaining issue #86 scope.

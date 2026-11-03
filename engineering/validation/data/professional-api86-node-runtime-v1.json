@@ -1,0 +1,17 @@
+{
+  "archive": "professional-api86-node-runtime-v1.zip",
+  "sha256": "e50010fe87023dae1e60beea47570f1f3ec3663ba195fa6cb8bcb785143a7cc9",
+  "bytes": 538122,
+  "members": 63,
+  "scope": "Issue86 actual compiled node parameters through host/GPU/frozen PNGs, FFmpeg and non-FFmpeg configurations",
+  "limits": [
+    "Default 8-bit headless output only, not desktop HWND or other working precisions",
+    "Independent full-frame arithmetic golden for a spatially constant graph, not photographic footage",
+    "Original 1058-test backend run predates this addition; full desktop and final-head platform CI remain pending"
+  ],
+  "corrections": [
+    "V1 failed to compile the new fixture because EffectPackage requires owned bytes; clone retained fixture bytes",
+    "V2 failed graph validation because the authored Color constant used color instead of its actual value output port",
+    "V3 passed the center oracle; V4 adds full-frame/component/rejection/revision assertions without weakening prior assertions"
+  ]
+}

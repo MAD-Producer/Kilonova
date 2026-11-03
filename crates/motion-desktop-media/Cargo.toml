@@ -41,5 +41,6 @@ ffmpeg-next = { version = "9", optional = true, default-features = false, featur
 ] }
 
 [dev-dependencies]
+motion-graph = { path = "../motion-graph" }
 motion-scene = { path = "../motion-scene" }
 motion-model = { path = "../motion-model" }

@@ -19,7 +19,9 @@ not presented as an independent main-ready project port.
   the unchanged schema as runtime availability.
 - Verify cross-parameter sampling and atomic dependency-cycle rejection.
 
-No panel, layout, style, dependency, third-party asset, project-format migration,
+The compiled-node test adds a local dev-dependency on the existing workspace
+`motion-graph` crate; it introduces no new third-party dependency.
+No panel, layout, style, third-party asset, project-format migration,
 worker timeout/restart or expression execution-budget change is included.
 
 ## Actual local execution
@@ -136,6 +138,44 @@ for the final follow-up commit. The parent PR #597 run `41574083851` independent
 confirmed five integer-to-FrameRate panel test fixture errors; no panel changes
 are included here. The final follow-up head still requires its own CI.
 
+## Compiled node parameter integration
+
+The new actual native integration target compiles a graph with Float, Vec3,
+Color and Bool public parameters into a real project-owned `.msfx` package.
+The host restores its runtime on insertion and fresh-session reopen, without
+manual test registry installation. All four parameters reach the rendered
+output. The test exercises keys at composition frames 10/20 (local 0/10), a
+Vec3 expression, samples at 10/15.5/19.999/20, atomic rejection of fractional
+Bool and Bool expressions, batch undo/redo, exact save/load state and output,
+and four independently frozen PNG exports after live deletion/session closure.
+It independently computes expected values and checks every output pixel, with
+RGB error <=1 quantization unit and exact opaque alpha. This is an arithmetic
+golden for a spatially constant graph, not a photographic-shot image golden.
+
+| Gate | Result | Interpretation |
+| --- | --- | --- |
+| Node-runtime v1 | Compile failure: new test borrowed bytes where EffectPackage requires ownership | Fixed the new fixture with an explicit clone; original failure retained |
+| Node-runtime v2 | 0 passed, 1 failed: Color constant used nonexistent output port `color` | Fixed the authored connection to the actual `value` port; no product code or assertion changed |
+| Node-runtime v3 | 9 passed, 0 failed, 0 ignored; 15.828 seconds | New node GPU test plus existing eight host tests; initial center-pixel oracle |
+| Node-runtime v4 | 9 passed, 0 failed, 0 ignored; 15.609 seconds | Adds the independent full-frame oracle, sampled Float/Color assertions, Bool expression rejection and frozen revision checks |
+| Node-default v1 | 12 passed, 0 failed, 0 ignored; 20.609 seconds | Same node and host tests plus three existing compiler tests, with FFmpeg disabled |
+
+Both final gates retained unchanged Rust-source hashes. Original logs,
+controllers, final test source, actual owned packages, projects and PNGs are in
+[`professional-api86-node-runtime-v1.zip`](data/professional-api86-node-runtime-v1.zip)
+with a [SHA-256 receipt](data/professional-api86-node-runtime-v1.json). The
+[API reference](../host-api/effect-parameter-animation.md#compiled-node-package-example)
+documents the executable command and artifact replay. The earlier complete
+1058-test backend run predates this test/dev-dependency addition; its original
+source coverage is not relabeled as final-head full regression.
+
+PR #599 head `2557ab8a` run `41581573413` has three failed desktop jobs and a
+successful dependency audit; Rust/GPU was still running at the last snapshot.
+Downloading its Windows log failed with a TLS handshake timeout, so the exact
+causes of those three job failures have not been independently read here. This
+run also predates the node integration commit. The parent's five known panel
+fixture errors remain pending; they are not fixed by adding this test.
+
 ## Evidence boundaries and remaining work
 
 The parameter-only host example checks model/scene state without requesting a GPU surface or
@@ -144,14 +184,14 @@ or final export. Existing reference regression tests exercise full ID identity,
 layer offsets, cycles, missing targets, isolation, timeouts and recovery; they
 do not constitute actual professional-shot acceptance.
 
-Actual package fixtures cover Float, Vec2, Color, Bool, Enum, Curve and a
-non-animatable Bool. Vec3 has shared schema support but no actual package/GPU
-fixture in these runs. Unimplemented defaults and package availability remain
+Actual package fixtures cover Float, Vec2, Vec3, Color, Bool, Enum, Curve and a
+non-animatable Bool. The separate node gate proves actual compiled-package/GPU
+output for Float, Vec3, Color and Bool. Unimplemented defaults and package availability remain
 explicitly separate from advertised implemented animation.
 
 The matrix now documents existing professional API boundaries, and the native
 example proves one procedural camera/XYZ/effect output path. Issue #86 still
-requires node parameter integration proof, executed shared mask/matte/precompose
+requires executed shared mask/matte/precompose
 examples and independently sourced or repository-authored actual-shot goldens
 and scripts for roto, green screen/spill, screen replacement, complex
 matte/precompose and relink. Broader preview/frozen/export agreement, independent
