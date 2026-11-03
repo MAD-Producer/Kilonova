@@ -11,6 +11,7 @@ pub(super) struct Check {
     expected: Project,
     candidate: Project,
     assets: Vec<u64>,
+    platform: std::sync::Arc<dyn crate::Platform>,
 }
 impl Check {
     pub(super) fn capture(s: &Session, request: &str) -> Result<Option<Self>> {
@@ -44,6 +45,7 @@ impl Check {
             expected: s.engine.project().clone(),
             candidate: candidate.clone(),
             assets,
+            platform: s.platform().clone(),
         }))
     }
     pub(super) fn matches(&self, s: &Session, request: &str) -> bool {
@@ -69,62 +71,17 @@ impl Check {
         }
         result
     }
-    fn verify_inner(&self, session: i64, request: &str) -> Result<()> {
-        let workspace = self.workspace.canonicalize()?;
-        for &id in &self.assets {
-            let descriptor = self
-                .candidate
-                .tracking_assets
-                .iter()
-                .find(|a| a.id == id)
-                .ok_or("relink tracking attachment missing")?;
-            let source = lookup(&self.candidate, descriptor.source)
-                .ok_or("relink tracking source missing")?;
-            // Starts are emitted with no business guard before file IO, including
-            // original-document read and the potentially blocked source reader.
-            log::info!("asset relink tracking start request={request} session={session} tracking_asset={id} source={:?}:{} phase=verify_tracking",
-                descriptor.source.kind, descriptor.source.id);
-            let result = (|| -> Result<()> {
-                let path = self.workspace.join(source.path()).canonicalize()?;
-                if !path.starts_with(&workspace) {
-                    return Err("relink tracking source escapes staging".into());
-                }
-                let mut file = fs::File::open(&path)?;
-                let before = file.metadata()?;
-                if !before.is_file()
-                    || before.len() == 0
-                    || before.len() > motion_core::storage::MAX_MEDIA_ASSET
-                {
-                    return Err("relink tracking source exceeds file budget".into());
-                }
-                // Reuses original-document hash/runtime consistency, complete
-                // source SHA-256, dimensions and video-frame-count validation.
-                // Staging has already decoded the media. Exact encoded identity
-                // retains the PTS verified at original import; no FPS inference.
-                crate::tracking::project::load_original(
-                    &self.root,
-                    &self.candidate,
-                    id,
-                    &mut file,
-                    before.len(),
-                    || false,
-                )?;
-                let after = file.metadata()?;
-                if before.len() != after.len() || before.modified()? != after.modified()? {
-                    return Err("relink tracking source changed during verification".into());
-                }
-                Ok(())
-            })();
-            result.map_err(|cause| {
-                crate::Error::with_context(
-                    format!(
-                        "relink tracking_asset={id} source={:?}:{} phase=verify_tracking",
-                        descriptor.source.kind, descriptor.source.id
-                    ),
-                    cause,
-                )
-            })?;
-        }
-        Ok(())
+    fn verify_inner(&self, _session: i64, request: &str) -> Result<()> {
+        super::super::tracking::same_streams(&self.expected, &self.candidate, &self.assets)?;
+        super::super::tracking::verify(
+            &self.root,
+            &self.workspace,
+            &self.candidate,
+            &self.assets,
+            self.platform.as_ref(),
+            request,
+            "asset relink",
+            None,
+        )
     }
 }
