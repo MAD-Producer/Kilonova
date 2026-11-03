@@ -3,6 +3,8 @@ mod add_menu;
 mod canvas;
 #[cfg(test)]
 mod frame_cards_tests;
+#[cfg(test)]
+mod content_height_tests;
 mod connection_menu;
 mod context_menu;
 mod control_popup;
@@ -92,15 +94,22 @@ struct Socket {
     ty: ValueType,
     spec: motion_graph::PortSpec,
     point: [f32; 2],
+    // Expanded world row, retained while the node is collapsed.
+    row_y: f32,
 }
 struct Card {
     // Identity only: never dereferenced or retained beyond this frame's cards.
     source_node: *const Node,
     id: String,
     rect: Rect,
+    world_height: f32,
+    expanded_rows: usize,
+    collapsed: bool,
     sockets: Vec<Socket>,
 }
 pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
+    #[cfg(test)]
+    content_height_tests::record_height_resolution();
     if node.collapsed {
         return HEADER;
     }
@@ -410,7 +419,9 @@ impl NodeEditor {
         let geometry_stamp = |editor: &Self| {
             (editor.epoch, editor.revision, editor.preview_revision, editor.view.pan, editor.view.zoom)
         };
-        let mut cards = self.cards(layout.canvas);
+        // Inline controls need pre-edit hit geometry only when they actually read
+        // it. Other regions can finish their edits before the first card build.
+        let mut cards = None;
         let mut geometry = geometry_stamp(self);
         let numeric_file = if self.inline.popup.is_none()
             && self
@@ -444,7 +455,7 @@ impl NodeEditor {
             && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
         {
             self.inline_input(
-                &cards,
+                &mut cards,
                 layout.canvas,
                 commit_input.as_ref().unwrap_or(input),
                 language,
@@ -522,19 +533,32 @@ impl NodeEditor {
             self.inspector(list, atlas, inspector, body_input, language);
         }
         let current = geometry_stamp(self);
-        if current != geometry {
-            cards = self.cards(layout.canvas);
-            geometry = current;
-        }
+        let mut cards = match cards {
+            Some(mut cards) => {
+                if current != geometry
+                    && ((current.0, current.2) != (geometry.0, geometry.2)
+                        || !self.refresh_card_positions(&mut cards, layout.canvas))
+                {
+                    cards = self.cards(layout.canvas);
+                }
+                cards
+            }
+            None => self.cards(layout.canvas),
+        };
+        geometry = current;
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
         }
-        // Node positions can change during a held drag before history is committed.
-        if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. }))
-            || geometry != geometry_stamp(self)
-        {
-            cards = self.cards(layout.canvas);
+        let current = geometry_stamp(self);
+        if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
+            // Presentation-only commits preserve port metadata. A replacement
+            // document (including cancellation or group socket renaming) must
+            // still pass every node identity check before anything is updated.
+            let same_metadata = current.0 == geometry.0 && current.2 == geometry.2;
+            if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
+                cards = self.cards(layout.canvas);
+            }
         }
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         self.paint_minimap(list, layout.canvas);

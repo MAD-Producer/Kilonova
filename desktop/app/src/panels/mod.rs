@@ -31,6 +31,8 @@ mod frame_cache;
 mod input_routes;
 #[cfg(test)]
 mod frame_cache_tests;
+#[cfg(test)]
+pub(crate) mod workload_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
 mod property_authoring;
@@ -181,6 +183,8 @@ pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
 }
 
 fn calculate_frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
+    #[cfg(test)]
+    workload_tests::record_frame_build();
     dock::solve(
         layout,
         Rect::new(
@@ -380,6 +384,8 @@ pub fn chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    #[cfg(test)]
+    workload_tests::record_chrome();
     if panels.viewer_views.window==0 {panels.viewer_views.begin_frame();}
     let view_menu_input=input;
     let view_menu_neutral=Input::default();

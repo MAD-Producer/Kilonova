@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "scope": "Steady position-only node drags and node content paint reuse current-frame metadata; changed geometry keeps original rebuild behavior and identity mismatches keep original height calculation",
+  "sources": {
+    "desktop/app/src/node_editor/view/mod.rs": "e027a1500d541a5a270e9934e4c028ed2036c7aec0886aac22091768beb49df0",
+    "desktop/app/src/node_editor/view/canvas.rs": "a50bfd09012dca1e8ec4b0b8fdd4581a8d4feb9a8a2acc4672424a8cf6c94b0b",
+    "desktop/app/src/node_editor/view/frame_cards_tests.rs": "19848599ea6e38ce181b916440ac4f2bdc1c9039ecd316ed0a19435410b75e1f",
+    "desktop/app/src/node_editor/view/frame_cards_tests/drag_geometry.rs": "220f5cc9256a79f9d61f641fcb60b0a6958214da40fec5b199c0e2f8c3350997",
+    "desktop/app/src/node_editor/view/content_height_tests.rs": "6ef04784df43b432b6dc114df03ce377b6da3be8fb73b88ed3f1aac52a338635",
+    "desktop/app/src/node_editor/view/wire_target_tests.rs": "1bf42f1c56ccefcaf7331f7a6f5de1ecf55b5fabeb7259aac7e27eee0d9ea5de",
+    "desktop/app/src/node_editor/view/wires/socket_index_tests.rs": "88741c25d3e12acb043166e35b2a7be9dd5ba5836dfba15d9e05196aa86b4a13"
+  },
+  "archive_sha256": "6ef62e31eb9d98caa8c86fd7d1f3eae169e87e64607701674dd9f7054b18c9e7",
+  "tests": {
+    "distinct_passed": 183,
+    "new": 6,
+    "existing": 177,
+    "ignored": 0,
+    "builtin_geometry_comparisons": 114,
+    "complete_canvas_comparisons": 228,
+    "original_height_resolutions": 2172,
+    "reused_height_resolutions": 0,
+    "complete_drag_paint_and_state_comparisons": 72,
+    "moving_pointer_controls": 24,
+    "original_rebuild_negative_exit": 101,
+    "original_height_negative_exit": 101
+  },
+  "pending": [
+    "Exact-head CI",
+    "Whole issue134 acceptance",
+    "Whole-frame timing and memory peak",
+    "Other branch runtime integration",
+    "Full DESIGN acceptance"
+  ]
+}
