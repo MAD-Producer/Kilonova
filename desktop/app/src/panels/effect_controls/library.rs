@@ -21,6 +21,7 @@ impl Entry {
     pub(crate) fn command(&self, object: u64) -> Value {
         serde_json::json!({"op":"add","object":object,"plugin":self.plugin,"version":self.version,"hash":self.hash,"effect":self.id})
     }
+    #[cfg(test)]
     pub(crate) fn matches(&self, query: &str) -> bool {
         let haystack = self.search_terms();
         query.split_whitespace().all(|term| haystack.contains(term))
@@ -107,28 +108,55 @@ pub(crate) fn entries(catalogue: &Value, locale: Locale) -> Vec<Entry> {
 }
 
 pub(super) fn projection(catalogue: &Value, locale: Locale) -> Vec<(Entry, String)> {
-    entries(catalogue, locale).into_iter().map(|entry| {
-        let terms = entry.search_terms();
-        (entry, terms)
-    }).collect()
+    entries(catalogue, locale)
+        .into_iter()
+        .map(|entry| {
+            let terms = entry.search_terms();
+            (entry, terms)
+        })
+        .collect()
 }
 
-pub(super) fn chooser_projection(catalogue: &Value, locale: Locale) -> Vec<((Entry, String), String)> {
-    entries(catalogue, locale).into_iter().filter(|entry| entry.supported).map(|entry| {
-        // The inline chooser historically has a different missing-name fallback
-        // from the library. Preserve that label, including an explicitly empty
-        // name and the first matching package, while projecting only once.
-        let label = catalogue["packages"].as_array().into_iter().flatten()
-            .find(|package| package["manifest"]["id"].as_str() == Some(entry.plugin.as_str())
-                && package["hash"].as_str() == Some(entry.hash.as_str()))
-            .and_then(|package| package["manifest"]["effects"].as_array()?.iter()
-                .find(|effect| effect["id"].as_str() == Some(entry.id.as_str())))
-            .and_then(|effect| if locale == Locale::Zh { effect["name"].as_str() } else { effect["english_name"].as_str() })
-            .unwrap_or("Effect").to_owned();
-        let terms = entry.search_terms();
-        ((entry, label), terms)
-    }).collect()
+pub(super) fn chooser_projection(
+    catalogue: &Value,
+    locale: Locale,
+) -> Vec<((Entry, String), String)> {
+    entries(catalogue, locale)
+        .into_iter()
+        .filter(|entry| entry.supported)
+        .map(|entry| {
+            // The inline chooser historically has a different missing-name fallback
+            // from the library. Preserve that label, including an explicitly empty
+            // name and the first matching package, while projecting only once.
+            let label = catalogue["packages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|package| {
+                    package["manifest"]["id"].as_str() == Some(entry.plugin.as_str())
+                        && package["hash"].as_str() == Some(entry.hash.as_str())
+                })
+                .and_then(|package| {
+                    package["manifest"]["effects"]
+                        .as_array()?
+                        .iter()
+                        .find(|effect| effect["id"].as_str() == Some(entry.id.as_str()))
+                })
+                .and_then(|effect| {
+                    if locale == Locale::Zh {
+                        effect["name"].as_str()
+                    } else {
+                        effect["english_name"].as_str()
+                    }
+                })
+                .unwrap_or("Effect")
+                .to_owned();
+            let terms = entry.search_terms();
+            ((entry, label), terms)
+        })
+        .collect()
 }
+
 impl Controls {
     #[cfg(test)]
     pub(crate) fn library_row(&self, key: &str) -> Option<Rect> { self.library_row_hits.get(key).copied() }
@@ -292,10 +320,18 @@ impl Controls {
             return;
         }
         let view = self.library_cache.grouped(
-            &self.catalogue, locale, &self.query,
+            &self.catalogue,
+            locale,
+            &self.query,
             super::super::effect_search::Selection {
-                tab: self.library_tab, favorites: &self.favorites, recent: &self.recent,
-                sort: if self.library_tab == 2 { super::super::effect_search::Sort::Recent } else { super::super::effect_search::Sort::Name },
+                tab: self.library_tab,
+                favorites: &self.favorites,
+                recent: &self.recent,
+                sort: if self.library_tab == 2 {
+                    super::super::effect_search::Sort::Recent
+                } else {
+                    super::super::effect_search::Sort::Name
+                },
             },
             || projection(&self.catalogue, locale),
             super::super::effect_search::Fields {

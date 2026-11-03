@@ -28,6 +28,8 @@ mod removal_tests;
 #[cfg(test)]
 mod identity_tests;
 #[cfg(test)]
+mod library_cache_tests;
+#[cfg(test)]
 mod mapped_authoring_tests;
 pub(crate) use library::{entries, Entry};
 
@@ -436,9 +438,13 @@ impl Controls {
         let top = pad * 2. + toolbar;
         if self.choosing {
             let view = self.chooser_cache.grouped(
-                &self.catalogue, locale, &self.query,
+                &self.catalogue,
+                locale,
+                &self.query,
                 super::effect_search::Selection {
-                    tab: self.library_tab, favorites: &self.favorites, recent: &self.recent,
+                    tab: self.library_tab,
+                    favorites: &self.favorites,
+                    recent: &self.recent,
                     sort: super::effect_search::Sort::FavoritesFirst,
                 },
                 || library::chooser_projection(&self.catalogue, locale),
@@ -1159,9 +1165,13 @@ impl Controls {
             }
             *y += secondary + secondary_gap;
             let view = self.chooser_cache.grouped(
-                &self.catalogue, locale, &self.query,
+                &self.catalogue,
+                locale,
+                &self.query,
                 super::effect_search::Selection {
-                    tab: self.library_tab, favorites: &self.favorites, recent: &self.recent,
+                    tab: self.library_tab,
+                    favorites: &self.favorites,
+                    recent: &self.recent,
                     sort: super::effect_search::Sort::FavoritesFirst,
                 },
                 || library::chooser_projection(&self.catalogue, locale),
@@ -1240,7 +1250,8 @@ impl Controls {
                 // Render effects if not collapsed
                 if !is_collapsed {
                     for (entry, effect_name) in group.iter() {
-                        let (plugin_id, version, hash, effect_id) = (&entry.plugin, &entry.version, &entry.hash, &entry.id);
+                        let (plugin_id, version, hash, effect_id) =
+                            (&entry.plugin, &entry.version, &entry.hash, &entry.id);
                         let favorite_key = &entry.key;
                         let star = Rect::new(area.max[0] - 32., *y, 20., 22.);
                         if let Some(value) = motion_ui::widgets::StarRating::draw(
@@ -1283,8 +1294,8 @@ impl Controls {
                             Align::Left,
                         );
                         if clicked(input, row) && !locked {
-                            self.recent.retain(|id| id != &favorite_key);
-                            self.recent.insert(0, favorite_key);
+                            self.recent.retain(|id| id != favorite_key);
+                            self.recent.insert(0, favorite_key.clone());
                             self.recent.truncate(24);
                             out.push(Action::Plugin(serde_json::json!({
                                 "op": "add",
