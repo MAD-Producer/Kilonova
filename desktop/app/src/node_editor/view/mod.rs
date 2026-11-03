@@ -92,12 +92,14 @@ struct Socket {
     ty: ValueType,
     spec: motion_graph::PortSpec,
     point: [f32; 2],
+    row_y: f32,
 }
 struct Card {
     // Identity only: never dereferenced or retained beyond this frame's cards.
     source_node: *const Node,
     id: String,
     rect: Rect,
+    world_height: f32,
     sockets: Vec<Socket>,
 }
 pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
@@ -530,9 +532,16 @@ impl NodeEditor {
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
         }
-        // Node positions can change during a held drag before history is committed.
-        if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. }))
-            || geometry != geometry_stamp(self)
+        // An ongoing node drag changes positions without committing a revision.
+        // Reuse this frame's port metadata only while the document identity and
+        // viewport stamp remain unchanged; all other transitions rebuild as before.
+        let positions_refreshed = moving_nodes
+            && matches!(self.drag, Some(Drag::Nodes { .. }))
+            && geometry == geometry_stamp(self)
+            && self.refresh_card_positions(&mut cards, layout.canvas);
+        if !positions_refreshed
+            && (moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. }))
+                || geometry != geometry_stamp(self))
         {
             cards = self.cards(layout.canvas);
         }

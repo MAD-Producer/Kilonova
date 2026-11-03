@@ -2,6 +2,7 @@ use super::super::tests::{press, release, simple};
 use super::*;
 use motion_ui::input::Modifiers;
 use std::cell::RefCell;
+mod drag_geometry;
 
 #[derive(Default)]
 struct Probe {

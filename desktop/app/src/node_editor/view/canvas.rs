@@ -35,6 +35,11 @@ impl NodeEditor {
                     let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
+                            let row_y = if node.collapsed {
+                                HEADER * 0.5
+                            } else {
+                                HEADER + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5)
+                            };
                             sockets.push(Socket {
                                 connectable: !node.collapsed,
                                 port: PortRef::new(&node.id, port),
@@ -43,18 +48,9 @@ impl NodeEditor {
                                 spec,
                                 point: [
                                     if output { rect.max[0] } else { rect.min[0] },
-                                    rect.min[1]
-                                        + if node.collapsed {
-                                            HEADER * 0.5 * self.view.zoom
-                                        } else {
-                                            (HEADER
-                                                + ROW
-                                                    * (port_row_index(node, inputs, output, index)
-                                                        as f32
-                                                        + 0.5))
-                                                * self.view.zoom
-                                        },
+                                    rect.min[1] + row_y * self.view.zoom,
                                 ],
+                                row_y,
                             });
                         }
                     }
@@ -63,10 +59,34 @@ impl NodeEditor {
                     source_node: node,
                     id: node.id.clone(),
                     rect,
+                    world_height: height,
                     sockets,
                 }
             })
             .collect()
+    }
+
+    /// Only called for position-only changes in an existing, uncommitted drag.
+    /// Validate every identity before updating anything; never dereference the
+    /// stored pointer or retain these cards beyond the current draw.
+    pub(super) fn refresh_card_positions(&self, cards: &mut [Card], canvas: Rect) -> bool {
+        if cards.len() != self.document.nodes.len()
+            || !cards.iter().zip(&self.document.nodes).all(|(card, node)| {
+                std::ptr::eq(card.source_node, node) && card.id == node.id
+            })
+        {
+            return false;
+        }
+        for (card, node) in cards.iter_mut().zip(&self.document.nodes) {
+            let point = self.view.world_to_screen(node.position, canvas);
+            card.rect = Rect::new(point[0], point[1], NODE_WIDTH * self.view.zoom,
+                card.world_height * self.view.zoom);
+            for socket in &mut card.sockets {
+                socket.point = [if socket.output { card.rect.max[0] } else { card.rect.min[0] },
+                    card.rect.min[1] + socket.row_y * self.view.zoom];
+            }
+        }
+        true
     }
     pub(super) fn paint_canvas(
         &self,

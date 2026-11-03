@@ -179,6 +179,7 @@ fn socket_lookup_scaling_matches_the_linear_oracle() {
                     source_node: std::ptr::null(),
                     id: socket.port.node.clone(),
                     rect: Rect::default(),
+                    world_height: 0.,
                     sockets: vec![socket],
                 }
             })
