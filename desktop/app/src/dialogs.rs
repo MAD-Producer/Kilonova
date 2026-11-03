@@ -174,7 +174,7 @@ impl Dialog {
     }
     pub fn settings(state: &Value) -> Self {
         let p = &state["project"];
-        let (fps, error) = match serde_json::from_value::<motion_core::FrameRate>(p["fps"].clone()) {
+        let (fps, error) = match crate::project_clock::read(state) {
             Ok(fps) => (fps.to_string(), None),
             Err(cause) => {
                 let reason = crate::fallback_observation::error_cause(cause);

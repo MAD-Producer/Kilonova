@@ -6,7 +6,7 @@ impl Shell {
             return Ok(());
         }
         let p = &self.state["project"];
-        let fps: motion_core::FrameRate = serde_json::from_value(p["fps"].clone())
+        let fps = crate::project_clock::read(&self.state)
             .map_err(|error| format!("remember project frame rate: {error}"))?;
         self.workspace.recent_projects.retain(|r| r.root != root);
         self.workspace.recent_projects.insert(

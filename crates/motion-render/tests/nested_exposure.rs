@@ -22,7 +22,7 @@ fn composition(id: &str, fps: u32, layers: Vec<Layer>) -> Composition {
         name: "independent clocks".into(),
         width: 64,
         height: 64,
-        fps,
+        fps: FrameRate::integer(fps).unwrap(),
         frames: 90,
         work_area: motion_core::WorkArea::full(90),
         guides: Vec::new(),

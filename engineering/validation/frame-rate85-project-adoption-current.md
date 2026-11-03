@@ -15,6 +15,78 @@ members, 442104 bytes, SHA-256
 All member hashes were verified after writing. It deliberately retains failed
 attempts alongside successful steps and does not certify complete acceptance.
 
+## Clock reader, cache and test-adoption follow-up
+
+The follow-up is published on the same draft PR #597. Its evidence archive is
+[`data/frame-rate85-clock-followup-v1.zip`](data/frame-rate85-clock-followup-v1.zip),
+with a [receipt](data/frame-rate85-clock-followup-v1.json): 61 members,
+449013 bytes, SHA-256
+`1290e511794658e38d4a2af7d1094422a17750367e2bb709bac1d93fa09c54de`.
+All archived member hashes were checked after writing. Original unsuccessful
+attempts and initial PR CI logs are retained alongside the successful gates.
+
+The desktop now shares a borrowed project-clock reader across settings,
+recent-project recording and the audio acceptance setup. It requires exactly
+two unsigned components, reduces them through the native `FrameRate`
+constructor, checks exact composition bounds, and preserves native rate errors
+as error sources. It neither clones the JSON clock object nor substitutes
+30 fps on failure. Diagnostic messages name invalid fields without including
+arbitrary supplied values. The reader does not log internally; callers retain
+their existing error handling and context.
+
+Executed verification, with frozen sources unchanged during each gate:
+
+| Gate | Executed result | Scope and limit |
+| --- | --- | --- |
+| Desktop reader | 5 passed, 0 failed, 0 ignored | Actual production module compiled with a direct rustc harness and existing native dependencies; not the desktop main test binary |
+| Complete motion-media rerun | 187 passed, 0 failed, 2 existing manual ignores | All original package targets, including the unchanged declared-size rejection tests; no low-space preflight or assertion relaxation |
+| FFmpeg desktop check | Passed, 8.578 seconds | Production application compilation; not unit tests or interactive acceptance |
+| Rational render clock | 4 passed, 0 failed, 0 ignored | Bundle/native/packed clocks, retained preview-plan identity and actual GPU output |
+| Existing exposure/nested exposure tests | 17 passed, 0 failed, 0 ignored | Original tests executed with GPU tests explicitly enabled; all numerical bounds retained |
+| All motion-render test targets | Compile passed | Includes the benchmark example marked as a test; does not prove complete runtime regression |
+| Benchmark example fixture tests | 2 passed, 0 failed, 0 ignored | Original fixed feature and workload contracts, with the 30/1 typed expectation |
+| All maintained non-desktop-app test targets | Compile passed | Workspace test compilation with FFmpeg enabled; Android excluded by scope, desktop app excluded pending panel adoption |
+| Host preview-input tests | 11 passed, 0 failed, 0 ignored | Includes actual PNG decode/cache and a new rational metadata/local-clock seek regression |
+
+The new plan-cache regression compares complete cached and fresh packed bytes
+through 28 evaluations. It distinguishes 30000/1001 from 30000/1003, accepts
+60000/2002 as the same canonical clock as 30000/1001, refreshes subframe shader
+clocks on cache hits, and verifies exact packed-byte recovery after seeking
+back. Build/hit counts independently require rate changes to invalidate the
+retained plan and unchanged canonical rates to reuse it.
+
+The GPU regression executed on an NVIDIA GeForce RTX 4070 Laptop GPU through
+Vulkan. At five integer/rational rates it compared 20 cached preview captures
+against fresh formal captures with exact RGBA equality, required nonempty and
+time-varying output, and verified exact pixel recovery after seeking back.
+Twenty generated PNGs and their rate/frame metadata are archived. The fixture
+is repository-authored; no external media is used. This proves the tested
+preview-plan geometry/time path, not the host's complete retained-frame or disk
+cache, all renderer formats, or cross-platform output equivalence.
+
+The host regression reuses the same actual decoded PNG across 20 requests at
+five rates and several subframes, checking source/local clock identity,
+canonical serialized rate metadata, independent seconds calculations and
+unchanged project state. The image Arc remains shared while request sequence,
+revision and clock metadata advance. It does not claim actual video decoding;
+the separate native-media tests below cover that boundary.
+
+Initial PR #597 CI at `9f18c452` exposed the old integer `exposure_scenes`
+fixture. Broader local test compilation also found the equivalent
+`nested_exposure` fixture, the benchmark's integer-rate expectation, and the
+host preview-input expectation. These now require explicit canonical integer
+rates, retaining 30/1 and 60/1 exactly; original sampling, output, cost, duration
+and error assertions are not relaxed. The first broader render and maintained
+test checks remain failed in their archived receipts. Their later checks pass
+after those adapters; they are not relabeled retroactively.
+
+Foundation PR #591 head `2080125b` completed CI successfully in
+[run 41564820599](https://github.com/MAD-Producer/Kilonova/actions/runs/41564820599).
+That result is not proof for the larger adoption diff. The five panel fixture
+type errors reproduced by initial Linux/Windows CI remain outside this patch,
+as do actual panel clock adoption and the main desktop test execution. Final
+adoption-head CI and interactive acceptance remain required.
+
 ## Implemented and executed boundaries
 
 - Project, composition, composition view, settings, animation recipes and
@@ -140,8 +212,9 @@ is claimed. V2 completed the full media suite with **184 passed, 3 failed,
 boundary test that expects to reach the length-mismatch branch; the production
 copy preflight checks available space first, and E: had less than 512 MiB free
 (the test also declares a 2 GiB source). The remaining two failures are poisoned
-test mutexes after that assertion. Adequate-space rerun is required; neither the
-preflight nor the existing assertions have been weakened.
+test mutexes after that assertion. The adequate-space follow-up rerun above
+passed the complete package; neither the preflight nor the existing assertions
+have been weakened. The original v2 receipt remains failed.
 
 The v2 desktop check identified one visibility error in the new dialog timing
 helper. After correcting that helper to `pub(super)`, a fresh actual

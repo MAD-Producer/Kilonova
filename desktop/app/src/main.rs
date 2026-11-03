@@ -26,6 +26,7 @@ mod layer_clipboard;
 mod panels;
 mod animation_presets;
 mod project_lifecycle;
+mod project_clock;
 mod preview_playback;
 mod project_preview;
 mod plugin_check;

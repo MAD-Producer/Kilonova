@@ -520,7 +520,7 @@ mod tests {
             );
             assert_eq!(
                 (project.width, project.height, project.fps, project.frames),
-                (1280, 720, 30, 68)
+                (1280, 720, motion_core::FrameRate::integer(30).unwrap(), 68)
             );
             match name {
                 "static" => assert_eq!(

@@ -388,7 +388,7 @@ impl Shell {
         // Owned acceptance-only source, sufficient for the complete composition.
         let root = PathBuf::from(self.state["root"].as_str().ok_or("missing smoke root")?);
         let frames = self.state["project"]["frames"].as_u64().unwrap_or(300);
-        let fps: motion_core::FrameRate = serde_json::from_value(self.state["project"]["fps"].clone())
+        let fps = crate::project_clock::read(&self.state)
             .map_err(|e| format!("audio panel smoke frame rate: {e}"))?;
         let frames = i64::try_from(frames).map_err(|e| format!("audio panel smoke frame count: {e}"))?;
         let samples = fps.ticks_at_frame(frames, 48_000, motion_core::ClockRounding::Floor)

@@ -1,0 +1,22 @@
+{
+  "archive": "frame-rate85-clock-followup-v1.zip",
+  "sha256": "1290e511794658e38d4a2af7d1094422a17750367e2bb709bac1d93fa09c54de",
+  "bytes": 449013,
+  "members": 61,
+  "scope": "Executed rational clock follow-up proof with unsuccessful original gates retained; not complete issue or desktop acceptance",
+  "foundationCi": {
+    "conclusion": "success",
+    "headSha": "2080125ba4b254c432d4d21813a8dd757653fb3d",
+    "status": "completed",
+    "url": "https://github.com/MAD-Producer/Kilonova/actions/runs/41564820599"
+  },
+  "limits": [
+    "The actual desktop reader unit tests use a direct rustc harness against existing native dependencies, not the desktop main test binary",
+    "Complete motion-media tests retain two existing manual ignored tests",
+    "All maintained non-desktop-app test targets compiled; Android is excluded and desktop app test compilation is still blocked by five panel fixture types",
+    "GPU output proof covers retained preview-plan geometry/time updates, not the complete host retained-frame/disk cache or UI",
+    "Old PR597 CI logs describe head 9f18c452, before this follow-up; successful foundation CI proves only PR591 head 2080125b",
+    "Actual UI screenshots, complete desktop/render/workspace execution, integration and final-head cross-platform CI remain pending",
+    "Compiled binaries and dependency libraries remain local and are not included in this review archive"
+  ]
+}
