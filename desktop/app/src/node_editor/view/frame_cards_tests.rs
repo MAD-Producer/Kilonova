@@ -7,6 +7,7 @@ mod collapse_geometry;
 mod input_geometry;
 mod inline_geometry;
 mod canvas_geometry;
+mod restore_geometry;
 mod viewport_geometry;
 
 #[derive(Default)]

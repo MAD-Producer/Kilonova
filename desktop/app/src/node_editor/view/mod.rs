@@ -529,10 +529,14 @@ impl NodeEditor {
         if let Some(inspector) = layout.inspector {
             self.inspector(list, atlas, inspector, body_input, language);
         }
+        // A cancelled drag restores the document. Finish it before building
+        // geometry, then keep its sample consumed so the wheel stays suppressed.
+        let canvas_handled = self.minimap_input(layout.canvas, body_input, &styles)
+            || self.settle_node_cancellation(layout.canvas, body_input);
         let mut cards = self.cards(layout.canvas);
         let geometry = geometry_stamp(self);
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        let ports_unchanged = if self.minimap_input(layout.canvas, body_input, &styles) {
+        let ports_unchanged = if canvas_handled {
             true
         } else {
             self.canvas_input(&cards, layout.canvas, body_input, language)

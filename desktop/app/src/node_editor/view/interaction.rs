@@ -169,6 +169,44 @@ impl NodeEditor {
             }
         }
     }
+    /// Settle only a lost-button node drag before allocating its final cards.
+    /// New presses and explicit releases still follow the normal canvas order.
+    pub(super) fn settle_node_cancellation(&mut self, canvas: Rect, input: &Input) -> bool {
+        if input.held == Some(MouseButton::Left)
+            || input.released.is_some_and(|(button, _)| button == MouseButton::Left)
+            || input.pressed.is_some_and(|(_, point)| canvas.contains(point))
+            || !matches!(self.drag, Some(Drag::Nodes { .. }))
+        {
+            return false;
+        }
+        if let Some(Drag::Nodes { origin, positions, before }) = self.drag.take() {
+            self.update_node_drag(origin, positions, before, canvas, input);
+            return true;
+        }
+        false
+    }
+
+    fn update_node_drag(&mut self, origin: [f32; 2], positions: Vec<(String, [f32; 2])>, before: History, canvas: Rect, input: &Input) {
+        let point = self.view.screen_to_world(input.mouse, canvas);
+        for (id, start) in &positions {
+            if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == *id) {
+                node.position = [
+                    (start[0] + point[0] - origin[0]).clamp(-1.0e6, 1.0e6),
+                    (start[1] + point[1] - origin[1]).clamp(-1.0e6, 1.0e6),
+                ];
+            }
+        }
+        if input.held == Some(MouseButton::Left) {
+            self.drag = Some(Drag::Nodes { origin, positions, before });
+        } else if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
+            if self.document != before.document {
+                self.finish_edit(before);
+            }
+        } else {
+            self.restore_node_drag(before);
+        }
+    }
+
     /// Whether this call leaves node operations and public port metadata intact.
     /// Edges, preview selection and positions do not change port specifications;
     /// field commits and group navigation may. The caller must still validate
@@ -454,28 +492,7 @@ impl NodeEditor {
                     positions,
                     before,
                 } => {
-                    let point = self.view.screen_to_world(input.mouse, canvas);
-                    for (id, start) in &positions {
-                        if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == *id) {
-                            node.position = [
-                                (start[0] + point[0] - origin[0]).clamp(-1.0e6, 1.0e6),
-                                (start[1] + point[1] - origin[1]).clamp(-1.0e6, 1.0e6),
-                            ];
-                        }
-                    }
-                    if input.held == Some(MouseButton::Left) {
-                        self.drag = Some(Drag::Nodes {
-                            origin,
-                            positions,
-                            before,
-                        });
-                    } else if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
-                        if self.document != before.document {
-                            self.finish_edit(before);
-                        }
-                    } else {
-                        self.restore_node_drag(before);
-                    }
+                    self.update_node_drag(origin, positions, before, canvas, input);
                 }
                 drag @ (Drag::Wire { .. } | Drag::WireInput { .. }) => {
                     if let Some((MouseButton::Left, point)) = input.released {
