@@ -43,6 +43,17 @@ The original prerequisites #85 and #86 remain open. Android is retired and
 excluded by the user's maintenance scope. Neither a documented disposition nor
 a green subset completes #88, its prerequisites, or the full 3D route.
 
+## Historical layer-clock integration
+
+The [layer-clock integration](tracking88-layer-time-integration-current.md)
+combines main `9d085c0f` with the video/lens fix: complete model/core packages
+passed 859 tests with one existing manual ignore; seven complete renderer
+targets passed 100 tests; two actual Windows Surface controls passed. These
+source-bound results supersede the old-main boundary for those selected gates,
+not the full workspace, entire desktop binary, photographed tracker or final CI.
+
+This is evidence for the original integration source, not a new execution on
+the combined branch after synchronizing the later video prefetch baseline.
 
 ## Layer-time baseline synchronization
 

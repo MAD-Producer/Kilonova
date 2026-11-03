@@ -115,3 +115,24 @@ or a built-in 3D camera solver. Issue #88 and the overall 3D route remain open.
 The [fresh combined-source record](tracking88-lens-clock-current.md) covers the
 latest parent/main merge, mapped prefetch, actual Surface and independent lens
 oracles. Earlier results above retain their original source and scope.
+## Consolidated historical integration evidence
+
+PR #587's original head `18579d81` had synchronized an earlier layer-clock
+baseline with the native video/lens fix. The later PR #586 base `599c35e3`
+already contains its product code and tests. A conflict-resolution candidate
+merged both heads without any code conflict; the `crates`, `desktop`, `tools`
+and `.github` Git trees are byte-identical to that later base. The exhaustive
+remaining diff contains only six validation documents/archives, not Cargo
+files, product sources, tests, workflows or assets.
+
+The [source-inclusion receipt](data/tracking88-pr587-supersession-v1.json)
+records both heads, the candidate tree, all four tree pairs and every retained
+evidence hash. Those historical archives and their explanatory integration
+record are now retained here, permitting the redundant PR #587 to be closed
+without removing its evidence or keeping an additional integration dependency.
+Its original remote branch is retained.
+
+This consolidation changes documentation/evidence only. It does not execute
+new runtime tests, upgrade historical results to a new source snapshot, prove
+photographic tracking quality or complete issue #88 or the 3D route. The latest
+PR checks must be inspected separately; Android remains outside acceptance.
