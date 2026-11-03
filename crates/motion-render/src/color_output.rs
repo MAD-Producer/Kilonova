@@ -71,7 +71,7 @@ fn validate_output_format(format: wgpu::TextureFormat) -> Result<(), RenderError
 /// contents in place each frame. Recreate this object after replacing the source
 /// allocation or changing the descriptor. The input must belong to this device.
 pub struct ColorOutput {
-    pipeline: wgpu::RenderPipeline,
+    pipelines: [wgpu::RenderPipeline; 2],
     group: wgpu::BindGroup,
     source: OwnedTexture,
     descriptor: ColorOutputDescriptor,
@@ -217,7 +217,7 @@ impl ColorOutput {
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let make_pipeline = |entry| device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("explicit SDR conversion"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
@@ -228,7 +228,7 @@ impl ColorOutput {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: Some("fragment_main"),
+                entry_point: Some(entry),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: descriptor.format,
@@ -242,9 +242,10 @@ impl ColorOutput {
             multiview_mask: None,
             cache: None,
         });
+        let pipelines = [make_pipeline("fragment_main"), make_pipeline("fragment_exact")];
         renderer.check_health()?;
         Ok(Self {
-            pipeline,
+            pipelines,
             group,
             source: source.clone(),
             descriptor,
@@ -318,7 +319,10 @@ impl ColorOutput {
             })],
             ..Default::default()
         });
-        pass.set_pipeline(&self.pipeline);
+        // Equal extents use integer pixel addresses; scaling keeps bilinear
+        // sampling. Both pipelines share the original immutable 32-byte uniform.
+        let same_size = destination.texture().size() == self.source.size();
+        pass.set_pipeline(&self.pipelines[usize::from(same_size)]);
         pass.set_bind_group(0, &self.group, &[]);
         pass.draw(0..3, 0..1);
         Ok(())

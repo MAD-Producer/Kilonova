@@ -28,8 +28,8 @@ fn decode_srgb(x:vec3<f32>) -> vec3<f32> {
 fn encode_srgb(x:vec3<f32>) -> vec3<f32> {
     return select(1.055*pow(max(x,vec3(0.0)),vec3(1.0/2.4))-0.055,x*12.92,x<=vec3(0.0031308));
 }
-@fragment fn fragment_main(input:Vertex) -> @location(0) vec4<f32> {
-    let sampled=bilinear(input.uv); let alpha=clamp(sampled.a,0.0,1.0);
+fn output_color(sampled:vec4<f32>) -> vec4<f32> {
+    let alpha=clamp(sampled.a,0.0,1.0);
     // Zero source alpha produces transparent black. Division uses original
     // positive alpha before output clamping, in linear premultiplied space.
     if sampled.a<=0.0 { return vec4(0.0,0.0,0.0,select(0.0,1.0,transform.reserved.x!=0u)); }
@@ -40,4 +40,13 @@ fn encode_srgb(x:vec3<f32>) -> vec3<f32> {
     if transform.flags.z!=0u { color*=alpha; }
     if transform.encode_srgb!=0u { color=encode_srgb(color); }
     return vec4(color,select(alpha,1.0,transform.reserved.x!=0u));
+}
+
+@fragment fn fragment_main(input:Vertex) -> @location(0) vec4<f32> {
+    return output_color(bilinear(input.uv));
+}
+@fragment fn fragment_exact(input:Vertex) -> @location(0) vec4<f32> {
+    // Interpolated UV roundoff must not mix adjacent texels at equal extents.
+    let pixel=vec2<i32>(input.position.xy);
+    return output_color(load(pixel,vec2<i32>(textureDimensions(source))-1));
 }

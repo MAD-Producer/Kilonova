@@ -136,6 +136,53 @@ fn srgb(x: f64) -> f64 {
         1.055 * x.powf(1. / 2.4) - 0.055
     }
 }
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn same_size_sdr_uses_exact_texels_without_erasing_real_subquantum_alpha_color() {
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let source = target(
+        &renderer,
+        64,
+        48,
+        ChannelPrecision::Float16,
+        WorkingSpace::Linear,
+        AlphaMode::Premultiplied,
+    );
+    paint(&renderer,&source,"var a=0.25; if p.x<16.0 { a=1.0/1024.0; } if p.x>=20.0 && p.x<28.0 && p.y>=16.0 && p.y<28.0 { a=0.0; } return vec4<f32>(a,0.0,0.0,a);");
+    let output = target(
+        &renderer,
+        64,
+        48,
+        ChannelPrecision::Unorm8,
+        WorkingSpace::Srgb,
+        AlphaMode::Straight,
+    );
+    let conversion = ColorOutput::for_image(
+        &renderer,
+        &source,
+        ColorOutputDescriptor {
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            alpha: AlphaMode::Straight,
+            transform: OutputTransform::SDR_CLIP,
+        },
+    )
+    .unwrap();
+    let pixels = submit(&renderer, &conversion, &output);
+    for y in 0..48usize {
+        for x in 0..64usize {
+            let expected = if (20..28).contains(&x) && (16..28).contains(&y) {
+                [0; 4]
+            } else if x < 16 {
+                [255, 0, 0, 0]
+            } else {
+                [255, 0, 0, 64]
+            };
+            let offset = (y * 64 + x) * 4;
+            assert_eq!(&pixels[offset..offset + 4], &expected, "pixel ({x},{y})");
+        }
+    }
+}
+
 fn linear(x: f64) -> f64 {
     if x <= 0.04045 {
         x / 12.92
