@@ -1,7 +1,8 @@
 # Issue 85: remaining approved panel clock adoption
 
-Status: focused acceptance passed; complete desktop runtime, actual UI readouts
-and final cross-platform CI remain pending. This does not close issue 85 or 86.
+Status: focused CPU acceptance and native clock readout review passed; complete
+integrated desktop runtime and final cross-platform CI remain pending. This
+does not close issue 85 or 86.
 
 The user explicitly approved ten additional panel files: helpers, waveform,
 auxiliary, composition, project, timeline, timeline graph, effect timeline graph,
@@ -53,9 +54,18 @@ arithmetic and error observations only. Timeline coordinates and the column
 gutter remain intact; path/effect control remediation files are untouched.
 No layout, style, dimension, hit area, asset or dependency changes are included.
 
-Actual window readout screenshots and the full desktop runtime gate are still
-required. The concurrent complete renderer gate is on child `162edfed` and does
-not include these later ten panel changes. Final integration must merge them
-after that source-frozen gate exits, then validate the resulting source and CI.
-The historical native heap-corruption failure remains unresolved. Android is
-outside the maintained acceptance scope. No final issue-completion claim is made.
+The [native readout record](frame-rate85-native-readouts-current.md) retains four
+actual attached-GPU screenshots: both fractional clocks in both locales visibly
+read `00:01:00:00` in preview and timeline. The earlier two-color OS screenshots
+failed visual review and remain retained separately.
+
+The complete renderer gate on historical child `162edfed` passed 957 tests with
+one original ignore, but its desktop gate failed one precision-menu child with
+a motion-engine stack overflow (1697 passed, 69 original ignores). That source
+did not contain these later ten panel changes. A single later diagnostic pass
+does not resolve the native failure. The panel changes and cold-expression
+preparation fix are now locally integrated; final-source runtime and CI remain
+required. A separate graph-readout fault fixture clock update remains pending
+user authorization. The historical native heap-corruption failure remains unresolved.
+Android is outside the maintained acceptance scope. No final issue-completion
+claim is made.
