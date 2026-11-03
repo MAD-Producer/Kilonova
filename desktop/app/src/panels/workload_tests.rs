@@ -4,7 +4,8 @@ use std::cell::Cell;
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize, PartialEq, Eq)]
 struct Counts {
-    solves: usize,
+    // Counts calculate_frames calls, not every low-level dock solver caller.
+    frame_builds: usize,
     chrome: usize,
     cards: usize,
 }
@@ -21,8 +22,8 @@ fn record(update: impl FnOnce(&mut Counts)) {
         }
     });
 }
-pub(super) fn record_solve() {
-    record(|counts| counts.solves = counts.solves.saturating_add(1));
+pub(super) fn record_frame_build() {
+    record(|counts| counts.frame_builds = counts.frame_builds.saturating_add(1));
 }
 pub(super) fn record_chrome() {
     record(|counts| counts.chrome = counts.chrome.saturating_add(1));
@@ -144,7 +145,7 @@ fn complete_shell_drag_frames_match_static_work_and_solve_once_for_each_stable_l
                 FRAME_CACHE.with(|slot| *slot.borrow_mut() = frame_cache::Cache::new());
                 let cold = frame(&mut shell, size, Input::default());
                 assert_eq!(
-                    cold.counts.solves, 1,
+                    cold.counts.frame_builds, 1,
                     "cold layout={multiple} size={size:?}"
                 );
                 assert_eq!(cold.counts.chrome, 1);
@@ -165,7 +166,7 @@ fn complete_shell_drag_frames_match_static_work_and_solve_once_for_each_stable_l
                 assert_eq!(
                     static_cost.counts,
                     Counts {
-                        solves: 0,
+                        frame_builds: 0,
                         chrome: 1,
                         cards: 1
                     }
@@ -211,7 +212,7 @@ fn complete_shell_drag_frames_match_static_work_and_solve_once_for_each_stable_l
     if let Some(path) = std::env::var_os("MOTION_WORKSPACE_COST_EVIDENCE") {
         std::fs::write(path, serde_json::to_vec_pretty(&samples).unwrap()).unwrap();
     }
-    println!("whole-shell steady drag samples={} (cold solves=1; warmed solves=0; chrome=1; cards=1; exact shape/glyph/order counts)", samples.len());
+    println!("whole-shell steady drag samples={} (cold frame_builds=1; warmed frame_builds=0; chrome=1; cards=1; exact shape/glyph/order counts)", samples.len());
 }
 
 fn layout_transition(
@@ -223,7 +224,7 @@ fn layout_transition(
     // The independent old solver does not warm the cache under test.
     let expected = calculate_frames(shell.workspace.display_root(), size);
     let changed = frame(shell, size, Input::default());
-    assert_eq!(changed.counts.solves, 1, "changed layout: {label}");
+    assert_eq!(changed.counts.frame_builds, 1, "changed layout: {label}");
     assert_eq!(changed.counts.chrome, 1, "changed layout: {label}");
     assert_eq!(changed.notifications, 0, "changed layout: {label}");
     let cached = frames(shell.workspace.display_root(), size);
@@ -234,7 +235,7 @@ fn layout_transition(
         assert_eq!(actual.content, original.content, "{label}");
     }
     let steady = frame(shell, size, Input::default());
-    assert_eq!(steady.counts.solves, 0, "unchanged layout: {label}");
+    assert_eq!(steady.counts.frame_builds, 0, "unchanged layout: {label}");
     assert_eq!(steady.counts.chrome, 1, "unchanged layout: {label}");
     assert_eq!(steady.notifications, 0, "unchanged layout: {label}");
     records.push(serde_json::json!({"label":label,"size":size,"changed":changed,"steady":steady}));
@@ -306,5 +307,5 @@ fn real_presets_resize_maximize_and_tab_changes_invalidate_once_without_stale_ge
     if let Some(path) = std::env::var_os("MOTION_LAYOUT_COST_EVIDENCE") {
         std::fs::write(path, serde_json::to_vec_pretty(&records).unwrap()).unwrap();
     }
-    println!("real preset layout transitions={} (changed solves=1; steady solves=0; chrome=1; exact original geometry)", records.len());
+    println!("real preset layout transitions={} (changed frame_builds=1; steady frame_builds=0; chrome=1; exact original geometry)", records.len());
 }

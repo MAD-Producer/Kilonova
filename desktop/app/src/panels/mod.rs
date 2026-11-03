@@ -184,7 +184,7 @@ pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
 
 fn calculate_frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
     #[cfg(test)]
-    workload_tests::record_solve();
+    workload_tests::record_frame_build();
     dock::solve(
         layout,
         Rect::new(
