@@ -3,12 +3,14 @@ use super::*;
 use motion_ui::input::Modifiers;
 use std::cell::RefCell;
 mod drag_geometry;
+mod collapse_geometry;
 mod input_geometry;
 mod viewport_geometry;
 
 #[derive(Default)]
 struct Probe {
     builds: usize,
+    port_resolutions: usize,
     painted: Option<String>,
 }
 thread_local! {
@@ -19,6 +21,13 @@ pub(super) fn record_build() {
     PROBE.with(|state| {
         if let Some(probe) = state.borrow_mut().as_mut() {
             probe.builds = probe.builds.saturating_add(1);
+        }
+    });
+}
+pub(super) fn record_port_resolution() {
+    PROBE.with(|state| {
+        if let Some(probe) = state.borrow_mut().as_mut() {
+            probe.port_resolutions = probe.port_resolutions.saturating_add(1);
         }
     });
 }
@@ -58,6 +67,15 @@ fn draw(
     input: Input,
     language: Language,
 ) -> usize {
+    draw_counts(editor, atlas, area, input, language).0
+}
+fn draw_counts(
+    editor: &mut NodeEditor,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    input: Input,
+    language: Language,
+) -> (usize, usize) {
     struct Reset;
     impl Drop for Reset {
         fn drop(&mut self) {
@@ -75,7 +93,7 @@ fn draw(
         geometry(&editor.cards(editor.last_canvas)),
         "paint must use the current document, ports and viewport"
     );
-    probe.builds
+    (probe.builds, probe.port_resolutions)
 }
 fn center(rect: Rect) -> [f32; 2] {
     [

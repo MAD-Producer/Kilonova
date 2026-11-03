@@ -10,18 +10,20 @@ impl NodeEditor {
             .nodes
             .iter()
             .map(|node| {
+                #[cfg(test)]
+                super::frame_cards_tests::record_port_resolution();
                 let ports = self.observed(
                     "canvas.sockets",
                     &node.id,
                     motion_graph::node_port_specs(node, &self.document.public_parameters),
                 );
+                let expanded_rows = ports.as_ref()
+                    .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
+                    .unwrap_or(1);
                 let height = if node.collapsed {
                     HEADER
                 } else {
-                    let rows = ports.as_ref()
-                        .map(|ports| port_row_count(node, ports.inputs.len(), ports.outputs.len()))
-                        .unwrap_or(1);
-                    expanded_node_height(node, &self.document, rows)
+                    expanded_node_height(node, &self.document, expanded_rows)
                 };
                 let point = self.view.world_to_screen(node.position, canvas);
                 let rect = Rect::new(
@@ -35,11 +37,9 @@ impl NodeEditor {
                     let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
-                            let row_y = if node.collapsed {
-                                HEADER * 0.5
-                            } else {
-                                HEADER + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5)
-                            };
+                            let row_y = HEADER
+                                + ROW * (port_row_index(node, inputs, output, index) as f32 + 0.5);
+                            let visible_row = if node.collapsed { HEADER * 0.5 } else { row_y };
                             sockets.push(Socket {
                                 connectable: !node.collapsed,
                                 port: PortRef::new(&node.id, port),
@@ -48,7 +48,7 @@ impl NodeEditor {
                                 spec,
                                 point: [
                                     if output { rect.max[0] } else { rect.min[0] },
-                                    rect.min[1] + row_y * self.view.zoom,
+                                    rect.min[1] + visible_row * self.view.zoom,
                                 ],
                                 row_y,
                             });
@@ -60,14 +60,17 @@ impl NodeEditor {
                     id: node.id.clone(),
                     rect,
                     world_height: height,
+                    expanded_rows,
+                    collapsed: node.collapsed,
                     sockets,
                 }
             })
             .collect()
     }
 
-    /// Reproject this draw's metadata after viewport or position-only changes.
-    /// The caller checks metadata revisions, including position-only commits.
+    /// Reproject this draw's metadata after viewport or presentation-only changes.
+    /// The caller checks epoch and preview revisions; nonsemantic revisions can
+    /// update positions or collapse state without resolving the ports again.
     /// Validate every identity before updating anything; never dereference the
     /// stored pointer or retain these cards beyond the current draw.
     pub(super) fn refresh_card_positions(&self, cards: &mut [Card], canvas: Rect) -> bool {
@@ -79,12 +82,22 @@ impl NodeEditor {
             return false;
         }
         for (card, node) in cards.iter_mut().zip(&self.document.nodes) {
+            if card.collapsed != node.collapsed {
+                card.world_height = if node.collapsed {
+                    HEADER
+                } else {
+                    expanded_node_height(node, &self.document, card.expanded_rows)
+                };
+                card.collapsed = node.collapsed;
+            }
             let point = self.view.world_to_screen(node.position, canvas);
             card.rect = Rect::new(point[0], point[1], NODE_WIDTH * self.view.zoom,
                 card.world_height * self.view.zoom);
             for socket in &mut card.sockets {
+                socket.connectable = !node.collapsed;
+                let row = if node.collapsed { HEADER * 0.5 } else { socket.row_y };
                 socket.point = [if socket.output { card.rect.max[0] } else { card.rect.min[0] },
-                    card.rect.min[1] + socket.row_y * self.view.zoom];
+                    card.rect.min[1] + row * self.view.zoom];
             }
         }
         true

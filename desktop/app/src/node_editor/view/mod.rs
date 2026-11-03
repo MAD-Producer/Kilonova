@@ -94,6 +94,7 @@ struct Socket {
     ty: ValueType,
     spec: motion_graph::PortSpec,
     point: [f32; 2],
+    // Expanded world row, retained while the node is collapsed.
     row_y: f32,
 }
 struct Card {
@@ -102,6 +103,8 @@ struct Card {
     id: String,
     rect: Rect,
     world_height: f32,
+    expanded_rows: usize,
+    collapsed: bool,
     sockets: Vec<Socket>,
 }
 pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
@@ -533,7 +536,7 @@ impl NodeEditor {
         let mut cards = match cards {
             Some(mut cards) => {
                 if current != geometry
-                    && ((current.0, current.1, current.2) != (geometry.0, geometry.1, geometry.2)
+                    && ((current.0, current.2) != (geometry.0, geometry.2)
                         || !self.refresh_card_positions(&mut cards, layout.canvas))
                 {
                     cards = self.cards(layout.canvas);
@@ -544,22 +547,15 @@ impl NodeEditor {
         };
         geometry = current;
         let moving_nodes = matches!(self.drag, Some(Drag::Nodes { .. }));
-        let semantic_revision = self.semantic_revision;
         if !self.minimap_input(layout.canvas, body_input, &styles) {
             self.canvas_input(&cards, layout.canvas, body_input, language);
         }
         let current = geometry_stamp(self);
         if moving_nodes || matches!(self.drag, Some(Drag::Nodes { .. })) || current != geometry {
-            // View changes and uncommitted moves preserve port metadata. A normal
-            // node release also commits a position-only revision; cancellation
-            // may replace the document and must still pass every identity check.
-            let position_commit = moving_nodes
-                && self.drag.is_none()
-                && body_input.released.is_some_and(|(button, _)| button == MouseButton::Left)
-                && self.semantic_revision == semantic_revision;
-            let same_metadata = current.0 == geometry.0
-                && current.2 == geometry.2
-                && (current.1 == geometry.1 || position_commit);
+            // Presentation-only commits preserve port metadata. A replacement
+            // document (including cancellation or group socket renaming) must
+            // still pass every node identity check before anything is updated.
+            let same_metadata = current.0 == geometry.0 && current.2 == geometry.2;
             if !same_metadata || !self.refresh_card_positions(&mut cards, layout.canvas) {
                 cards = self.cards(layout.canvas);
             }

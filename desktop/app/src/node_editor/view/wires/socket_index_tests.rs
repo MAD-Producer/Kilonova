@@ -180,6 +180,8 @@ fn socket_lookup_scaling_matches_the_linear_oracle() {
                     id: socket.port.node.clone(),
                     rect: Rect::default(),
                     world_height: 0.,
+                    expanded_rows: 0,
+                    collapsed: false,
                     sockets: vec![socket],
                 }
             })
