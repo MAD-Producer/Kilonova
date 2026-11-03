@@ -1,0 +1,49 @@
+{
+  "original_head": "68e1415ea919f8215acc03801d0dbb2312f957c8",
+  "run": 41599656365,
+  "job": 125795521444,
+  "cause": "job exceeded 90 minute limit while tests were still progressing",
+  "main_suite": {
+    "passed": 1626,
+    "failed": 0,
+    "ignored": 4,
+    "seconds": 3822.16
+  },
+  "configured_debug": {
+    "linux-x86_64": "line-tables-only",
+    "windows-x86_64": "2",
+    "macos-x86_64": "line-tables-only",
+    "macos-arm64": "line-tables-only"
+  },
+  "timeout_changed": false,
+  "test_selection_changed": false,
+  "post_change_macos_validation": "pending exact-head CI",
+  "archive_sha256": "fbff19da2166ff71893baca157878d3dcc21faf65c8828b9710c7cc5d3813476",
+  "records": [
+    {
+      "path": "pr602-macos.log",
+      "bytes": 752574,
+      "sha256": "1bf9dbe176d84076115cee047ad54df91af5c47e4ace1546941f80c54e464108"
+    },
+    {
+      "path": "pr602-macos-job.json",
+      "bytes": 9617,
+      "sha256": "8c6eabfd00e892c8450bc30136775f2725af85906acaa746c28c3af90defe517"
+    },
+    {
+      "path": "pr602-macos-annotations.json",
+      "bytes": 778,
+      "sha256": "c4fd4535b688a4c4fdaf14a260482d09bd6f137cf8a6215463193ddd94d27273"
+    },
+    {
+      "path": "ci-test-gaps.json",
+      "bytes": 358635,
+      "sha256": "0d4f4e3dff204909008b39492760c0f2192d4d699f2a4c30cd72eb5e8827c826"
+    },
+    {
+      "path": "analyze-ci.py",
+      "bytes": 1124,
+      "sha256": "1142652209dc8bb05758d8c7d4b47d6211b7be05abf8bb15bc2875b0e5b2220e"
+    }
+  ]
+}
