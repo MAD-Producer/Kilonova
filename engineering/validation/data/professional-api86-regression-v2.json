@@ -1,0 +1,20 @@
+{
+  "archive": "professional-api86-regression-v2.zip",
+  "sha256": "321fff7e1b9d448e653c8625581979965f3fe7281ea9e422d3975864a1b455f2",
+  "bytes": 1101995,
+  "members": 389,
+  "status": "selected_backend_regression_verified_native_stability_pending",
+  "totals": {
+    "passed": 1062,
+    "failed": 0,
+    "ignored": 3,
+    "summaries": 166
+  },
+  "limits": [
+    "Earlier native STATUS_HEAP_CORRUPTION is unresolved; later passes and eight launches under a debugger are not a fix",
+    "Debugger attachment can change timing and process heap behavior; an unhandled deliberate exception control proves capture, not the original fault mechanism",
+    "Raw control dump is retained locally but excluded from the archive; parsed exception/context metadata and SHA-256 are retained",
+    "Full selected backend excludes the desktop application, the render package test suite, Android and other platforms; existing manual ignored tests are not reported as executed",
+    "Current-head Windows CI log still shows five panel test fixture FrameRate type errors; panel scope is pending, no fixture assertions changed"
+  ]
+}

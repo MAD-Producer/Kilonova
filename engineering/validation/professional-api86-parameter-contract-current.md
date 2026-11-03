@@ -349,8 +349,77 @@ This fixture checks a procedural source with a fixed integer-aligned output
 extent and point-sampled quad edges. It does not accept photographic screen
 tracking, arbitrary fractional bounds/output scales, antialiasing or other
 precisions. Those remain real quality gaps, rather than excluded pixels silently
-being counted as accepted. Original full-backend coverage predates this addition
-and the earlier renderer fixes; it is not relabeled as current full regression.
+being counted as accepted. Original full-backend v1 coverage predates this
+addition and the earlier renderer fixes. The separate v2 record below executes
+the current source; it does not relabel the historical v1 run.
+
+## Native crash investigation after the screen increment
+
+The external Windows diagnostic launcher was checked against a separately
+authored control executable. The clean control exited normally without a dump.
+The deliberate unhandled exception `0xe0860001` produced a minidump whose parsed
+exception stream retained that exact code, the faulting thread and its 1232-byte
+context. This verifies capture for the control, not a heap-corruption fix or a
+guarantee that every fail-fast/termination will produce a dump. The launcher
+uses the installed Windows debug APIs and dynamically loads the system
+`dbghelp.dll`; it adds no product dependency or machine-wide debugger setting.
+
+Eight bounded, separate process launches then executed the actual screen GPU
+test with FFmpeg and explicit Vulkan. Each executed one test with zero failures
+or ignores, over 80.953 seconds in total, and source hashes remained unchanged.
+No original heap fault was reproduced, so no dump of that fault was obtained.
+Debugger attachment can change timing and process heap behavior; the record is
+explicitly `not_reproduced_native_issue_unresolved`, not a stability acceptance.
+The controller stops at the first failing launch rather than retrying it until
+green. Existing phase markers, assertions and error budgets remain unchanged.
+
+Current-head CI run `41595065004` at `6268a699` has separate raw Windows, Linux
+and Intel macOS logs confirming the same five panel test fixture type errors:
+`audio/tests.rs` (two), `auxiliary/render_queue/tests.rs`,
+`layer_sampling/tests.rs` and `project/tests.rs` each still initialize an integer
+where `FrameRate` is required. A refreshed five-line proposal passes
+`git apply --check`; it remains unapplied pending the user's panel-scope decision.
+It changes initializers only, not assertions or runtime behavior. This does not
+resolve the broader panel clock adoption still pending in PR #597.
+
+## Complete selected backend regression on current source
+
+`professional-api86-backend-regression-v2` completed on the Rust source at
+`6268a699`, including both renderer fixes and all five native professional API
+examples. The full selected model/core/host/desktop-media packages executed
+1062 passing tests, zero failures and three existing manual ignores, across 166
+test summaries. Elapsed time was 905.313 seconds including compilation; the
+controller verified all frozen Rust-source hashes remained unchanged.
+
+```sh
+cargo test -p motion-model -p motion-core -p motion-host -p motion-desktop-media --features motion-desktop-media/ffmpeg --no-fail-fast --locked --offline -- --test-threads=1
+```
+
+Default GPU test features and the actual FFmpeg runtime were enabled. The
+retained artifacts include the actual camera MP4, native/golden/frozen PNGs,
+editable projects and public command batches. The three ignored cases are
+`history_accounting_large_document_measurement`,
+`automatic_timing_survives_reopen_freeze_and_live_edits_in_actual_encoded_output`
+and `frozen_keyframe_timing_matches_reopened_pixels_and_differs_from_linear_and_removed_layer`.
+They are not counted as executed by this gate. Earlier explicit timing proofs
+belong to their own source snapshot and archive, not this current-source total.
+No assertion, budget or ignore annotation was changed for the regression.
+
+The immutable
+[`professional-api86-regression-v2.zip`](data/professional-api86-regression-v2.zip)
+and [SHA-256 receipt](data/professional-api86-regression-v2.json) retain 389
+members: the full regression, the eight-launch debugger investigation,
+diagnostic/control sources and parsed dump metadata, the three platform CI
+failure logs and the unapplied five-line fixture proposal. Every archived
+member was read back and its hash checked. The control dump itself stays local;
+its parsed exception/context metadata and SHA-256 are retained in the archive.
+
+This is complete coverage of the selected backend test packages on Windows,
+not the render package test suite, the desktop application or cross-platform
+acceptance. In particular, it does not resolve the previously observed native
+heap corruption, the pending panel clock scope, photographic quality or the
+current CI failures. Archive status is explicitly
+`selected_backend_regression_verified_native_stability_pending`.
 
 ## Evidence boundaries and remaining work
 
