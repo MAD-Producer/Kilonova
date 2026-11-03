@@ -1,0 +1,85 @@
+{
+  "status": "scoped_mcp_surface_stdio_passed_final_ci_pending",
+  "head": "f645ca3c36e44235ef146f8acfba52605abc7242",
+  "main": "77f61452",
+  "integratedParent": "265f6668d991070cb02eb36243d88d251676a03e",
+  "unchangedCrateTrees": {
+    "crates/motion-model": "e348dc74469370f1e9b24e64c2d48317f48a1b56",
+    "crates/motion-core": "5d66947081d7b8087cfaafe367bd5a7c4a9b4ed9",
+    "crates/motion-host": "d3b9abc2292ffc34a3638b5235822d2562754f66",
+    "crates/motion-media": "ab1d8099096575f26227482f16620e71fd86e57a",
+    "crates/motion-render": "a41d7cc4b0b60bc310c1b5bcdc0ee982916d1171"
+  },
+  "terminal": {
+    "buildSession": 87354,
+    "wireSession": 17299,
+    "bothTerminalConsumed": true,
+    "bothExitCode": 0
+  },
+  "binarySha256": "604d2b49fa00cdf3ac34d3d4ac6d39951cf900aa19949d66c242512b8c58cc7e",
+  "surface": {
+    "actualSurface": true,
+    "after": {
+      "compositionRenders": 5,
+      "compositionReuses": 2,
+      "lastPresentUs": 4696
+    },
+    "before": {
+      "compositionRenders": 2,
+      "compositionReuses": 0,
+      "lastPresentUs": 24058
+    },
+    "nativeFfmpeg": true,
+    "oneRevision": true,
+    "originalFrame": 24,
+    "pairedCommitInvalidatesFront": true,
+    "redoAndReopenRestoreNewPixels": true,
+    "reopened": {
+      "compositionRenders": 2,
+      "compositionReuses": 1,
+      "lastPresentUs": 2657
+    },
+    "scope": "committed preview front after actual Surface present; not physical scanout readback or photographed tracking quality",
+    "unchangedPresentReusesFront": true,
+    "undoRestoresOldPixels": true,
+    "wrongSolvePreservesFront": true
+  },
+  "surfaceChild": {
+    "elapsed_ms": 19211,
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "pid": 49904,
+    "schema_version": 1,
+    "started_unix_ms": 1793709237997,
+    "status": "exit code: 0",
+    "success": true
+  },
+  "unitPassed": 3,
+  "nativeSurfacePassed": 1,
+  "wireChecks": [
+    "real_stdio_advertises_five_actions",
+    "prepare_rejects_stale_context_and_unknown_fields",
+    "cancel_release_preserve_author_state",
+    "native_prepare_ready_does_not_publish_author_state",
+    "finish_rejects_stale_document_and_wrong_original",
+    "native_commit_is_one_revision_with_stable_ids_and_saved_project",
+    "wire_undo_redo_and_save_preserve_atomic_pair",
+    "default_info_start_error_file_and_stderr_with_pure_jsonrpc_stdout",
+    "new_process_reopens_saved_plate_and_solve",
+    "readonly_wire_denies_every_mutation_and_allows_status_dispatch"
+  ],
+  "editReplyCount": 22,
+  "readonlyReplyCount": 7,
+  "archive": {
+    "path": "tracking88-mcp-current-main-v1.zip",
+    "bytes": 467096,
+    "sha256": "b6692cbe60212312fca1b6db74127db178e094efd23fa2dedbba6fd03f7a98cb",
+    "members": 48
+  },
+  "limits": [
+    "Three actual MCP unit cases, one actual native Surface case and ten real stdio controls; not full workspace/desktop acceptance",
+    "Five full crate trees equal parent265f6668; parent tests retain their original source identity and are not counted again",
+    "Four native Surface images reviewed through before/after representative captures; not physical scanout or photographed tracker acceptance",
+    "Known earlier native crashes remain unresolved; current CI, issue85/86/88 and whole3D route incomplete; no Android acceptance"
+  ]
+}
