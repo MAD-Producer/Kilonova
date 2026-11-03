@@ -250,6 +250,7 @@ struct Drag {
     seed: Seed,
     time: Option<super::property_authoring::NumericTime>,
     position_key: Option<super::property_authoring::SpatialDraft>,
+    anchor_keys: super::properties::AnchorKeysDraft,
     pose: Pose,
     handle: Handle,
     begun: bool,
@@ -266,8 +267,11 @@ struct Drag {
 }
 impl Drag {
     fn at_time(seed: Seed, pose: Pose, handle: Handle, state: &Value) -> Option<Self> {
-        let time = observe!("transform.numeric_time_begin",
-            super::property_authoring::NumericTime::read(state, pose.object),
+        let (time,anchor_keys) = observe!("transform.numeric_time_begin",
+            super::property_authoring::NumericTime::read(state, pose.object).and_then(|time| {
+                let keys=if matches!(handle,Handle::Anchor) {super::properties::AnchorKeysDraft::read(state,pose.object)?} else {Default::default()};
+                Ok((time,keys))
+            }),
             "object={} phase=begin", pose.object).ok()?;
         let position_key = if matches!(handle, Handle::Move | Handle::Spatial(_, false)) {
             observe!("transform.spatial_key_begin",
@@ -276,6 +280,7 @@ impl Drag {
         } else { None };
         let mut drag = Self::new(seed, pose, handle)?;
         drag.time = time;
+        drag.anchor_keys = anchor_keys;
         drag.position_key = position_key;
         Some(drag)
     }
@@ -296,6 +301,7 @@ impl Drag {
         Some(Self {
             time: None,
             position_key: None,
+            anchor_keys: Default::default(),
             last_pointer: seed.point,
             last_anchor: pose.anchor,
             seed,
@@ -453,7 +459,7 @@ impl Drag {
                             && value.iter().all(|v| v.is_finite() && v.abs() <= 1000.)
                         {
                             self.last_anchor = value;
-                            out.push(Action::Edit(super::properties::anchor_command(state,self.pose.object,value)));
+                            out.push(Action::Edit(self.anchor_keys.command(super::properties::anchor_command(state,self.pose.object,value))));
                         }
                     }
                     _ => {}
@@ -653,7 +659,8 @@ impl Controls {
         }
         if self.drag.as_ref().is_some_and(|drag| {
             !matches!(observe!("transform.numeric_time_continue",
-                super::property_authoring::NumericTime::current(&drag.time, state, drag.pose.object),
+                super::property_authoring::NumericTime::current(&drag.time, state, drag.pose.object)
+                    .and_then(|valid|Ok(valid && drag.anchor_keys.current(state)?)),
                 "object={} phase=continue", drag.pose.object), Ok(true))
         }) {
             if self.cancel() { out.push(Action::History(4)); }
@@ -1048,3 +1055,6 @@ mod scale_tests;
 #[cfg(test)]
 #[path = "transform_controls_threshold_tests.rs"]
 mod threshold_tests;
+
+#[cfg(test)]
+mod anchor_key_tests;

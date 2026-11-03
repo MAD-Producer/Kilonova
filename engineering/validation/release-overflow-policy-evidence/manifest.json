@@ -1,0 +1,337 @@
+{
+  "codeCommit": "40272c4c07666b75e4c9da9d8d2cbee61e039f8f",
+  "tests": {
+    "restored-model": 28,
+    "effects-release": 37
+  },
+  "pythonWorkflowTests": 14,
+  "artifacts": [
+    {
+      "target": "composition_frame_mapping",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\composition_frame_mapping-2fdb815acb0d3d1f.exe",
+      "sha256": "43c9fe986824dd4cf7224dee505d290c44cd4e1691f043281d06db91924d412e",
+      "pdbBytes": 3526656
+    },
+    {
+      "target": "layer_time",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\layer_time-7ff515ff93cef8bd.exe",
+      "sha256": "3e6d47f30832ef1c936f3cbae25374f62416bf583b7ec53179674de0d27d8322",
+      "pdbBytes": 4616192
+    },
+    {
+      "target": "arithmetic_policy",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\arithmetic_policy-a18b5ca62cd15d08.exe",
+      "sha256": "f200b0410c55cba644d791cbe910e34ef9367b041db921d8731e2f9abd608a0f",
+      "pdbBytes": 2994176
+    },
+    {
+      "target": "node_resources",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\node_resources-24621e0d24ad6b8c.exe",
+      "sha256": "cd388cad4f4aa3b79ad41c1bfd15fe2ef72ce8c667979d4a528fcfbbdbe3b05f",
+      "pdbBytes": 3674112
+    },
+    {
+      "target": "loop_work",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\loop_work-6dbdae8db91dd067.exe",
+      "sha256": "522b99598b4c1c0ebf29d29d953f2a391caa939610c2fc281fb59c95f3f4986b",
+      "pdbBytes": 11685888
+    },
+    {
+      "target": "motion_effects",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": "line-tables-only",
+        "debug_assertions": false,
+        "overflow_checks": true,
+        "test": true
+      },
+      "path": "E:\\Dev\\aem\\.tools\\viewer-inspection\\native-target\\release\\deps\\motion_effects-73a310871f251d92.exe",
+      "sha256": "23744922d2d008d3e4bbc29d6f0e51a99316732978fdf9afc941ef92d2e2a92f",
+      "pdbBytes": 17207296
+    }
+  ],
+  "sources": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "436d98e1b7d08ff15d2a742703f59f48d2797ab985689bb300a16ba83a8375e7"
+    },
+    {
+      "path": "crates/motion-model/tests/arithmetic_policy.rs",
+      "sha256": "4f963f651d5cf3cd7cc2524c8077292bc88640f3e4a5f83f65ce62e02e9941f5"
+    },
+    {
+      "path": "engineering/release-profile.md",
+      "sha256": "e892a4fecf46b15887eaa17de219759f5016786297b0e834b52f68daa5f51b38"
+    }
+  ],
+  "stage": "local release acceptance passed; current-head remote CI pending",
+  "negativeControl": {
+    "exit": 101,
+    "cause": "unsigned add silently wrapped",
+    "override": "final test crate only: -C overflow-checks=off"
+  },
+  "retainedFailures": [
+    "initial rustc image STATUS_ACCESS_VIOLATION: no test execution",
+    "initial default Python lacks PyYAML; reuse existing 6.0.3 tools path later passed",
+    "cargo fmt --all --check: Windows os error 206, not a formatting pass"
+  ],
+  "pending": [
+    "current-head cross-platform CI",
+    "workspace fmt/clippy gates and remaining #125 invariants",
+    "continuous release invocation for model arithmetic policy",
+    "release archive symbol distribution and cross-platform symbolication",
+    "performance impact outside selected regression suites"
+  ],
+  "evidence": [
+    {
+      "path": "check_positive.py",
+      "sha256": "43c81fd68e9252af219a8adcc1c9395afac94d1efaa42cf5bdc214579fc1aea2",
+      "bytes": 1233
+    },
+    {
+      "path": "check_restored.py",
+      "sha256": "bfbe3998d539ab9077dcbb010b3c46d3cbf7a6cb307f968ff99503f2752104a3",
+      "bytes": 1224
+    },
+    {
+      "path": "diff-check.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "effects-release.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "effects-release.jsonl",
+      "sha256": "36de43c6fe864fde0adee5d6cfd29b18cfc6c65d984d03dfe091d0544c9a44ff",
+      "bytes": 92779
+    },
+    {
+      "path": "effects-release.stderr",
+      "sha256": "f4651ed33c21cc63f7ccd408fb266c0019de70e63c28119ac2040839dffdae29",
+      "bytes": 661
+    },
+    {
+      "path": "final-basis.json",
+      "sha256": "47a8bcf9119d54f420202f305de7191d27365e24e461eecbcfdc17c178fbc69e",
+      "bytes": 3534
+    },
+    {
+      "path": "final-model.exit",
+      "sha256": "bdc830287616dae1818ced3e7c186e1387155900ad30d5983ec02da1519c4a95",
+      "bytes": 5
+    },
+    {
+      "path": "final-model.jsonl",
+      "sha256": "3d3a896048c977e6aaaf5007899ab14b6e822d590aeccd41d4927d681f165cbe",
+      "bytes": 74156
+    },
+    {
+      "path": "final-model.stderr",
+      "sha256": "afd551161b6eb22d33852aaccf10a0b47aa2e441a242cee5862ef21a862aff0f",
+      "bytes": 4090
+    },
+    {
+      "path": "git-api-publication.json",
+      "sha256": "58fb57ba26a3850712d8a003f5f6910f4ab4056ae308ffeb4177fb535078b3cd",
+      "bytes": 264
+    },
+    {
+      "path": "negative-binary.json",
+      "sha256": "8fa00a8ff44ee0778b42f36a47d7b9259a6305a0dd60aadf7f2f47a1d99cd7e1",
+      "bytes": 234
+    },
+    {
+      "path": "negative-build.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "negative-build.jsonl",
+      "sha256": "0acc7cd222b9b61535d08335f3816930b7ee40787d0ba6cb7af83dad2083adfa",
+      "bytes": 82950
+    },
+    {
+      "path": "negative-build.stderr",
+      "sha256": "4e969a963f4f2bcb86735de98e08ff98e493076a7e4f4836bd0e1206e8f0306c",
+      "bytes": 172
+    },
+    {
+      "path": "negative-command.txt",
+      "sha256": "5bf5ef13c454e2a8d87afad49e61f08d4205320f2b95937a3d1bb0005b76aa87",
+      "bytes": 360
+    },
+    {
+      "path": "negative.exit",
+      "sha256": "bdc830287616dae1818ced3e7c186e1387155900ad30d5983ec02da1519c4a95",
+      "bytes": 5
+    },
+    {
+      "path": "negative.log",
+      "sha256": "62cb2b282b7d97c480c6630d105e9bc822787960c476f2d6069d44dc1b34f735",
+      "bytes": 598
+    },
+    {
+      "path": "package_evidence.py",
+      "sha256": "582423d517a36b79e08ccba5d09eec123ebf0729b842a3b8b8b6245be9e3f8cf",
+      "bytes": 3703
+    },
+    {
+      "path": "packaging-first-failure.txt",
+      "sha256": "6b7693501d4c08f5b1148a397ce516147270c9f72088a04574f59f48d33311dd",
+      "bytes": 350
+    },
+    {
+      "path": "positive-artifacts.json",
+      "sha256": "41606431605757b1822d2745f8baf237c6f939aa11d783fc7b59777904f48ed6",
+      "bytes": 1983
+    },
+    {
+      "path": "pr-body.md",
+      "sha256": "76a876d4b3097568042b0a131b9ffb33f5f0980f82b49da6ef162890c9a335f0",
+      "bytes": 1528
+    },
+    {
+      "path": "publish_api.py",
+      "sha256": "6c1a780d5e1d9b27765c6e59e7f173cd3f52f6910c19ce6d7083b36390968645",
+      "bytes": 3261
+    },
+    {
+      "path": "restored-artifacts.json",
+      "sha256": "97a38bbe80360638d86049ada2c313fd22cc354cd80a6e78247ac79c35e338da",
+      "bytes": 1983
+    },
+    {
+      "path": "restored-model.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "restored-model.jsonl",
+      "sha256": "117b1bfadaf4929b926c75125ccf03582b480a4884bd809186696eeff907b205",
+      "bytes": 88500
+    },
+    {
+      "path": "restored-model.stderr",
+      "sha256": "57bdc1a8e381c669ee37273c5d79da3ad440904f1f764e2a602c3ac0f05203aa",
+      "bytes": 1829
+    },
+    {
+      "path": "run_release.ps1",
+      "sha256": "448a9196878ef8907b46b07e036bde30176f77c5432724600bd91760a744b5cf",
+      "bytes": 772
+    },
+    {
+      "path": "rustc-version.txt",
+      "sha256": "7fad09dd8c16d49de37932475436003b5b1763c1015c5ce081ad7692db368ca3",
+      "bytes": 194
+    },
+    {
+      "path": "rustfmt-version.txt",
+      "sha256": "2c296b1cd25d723f6589a6b31e74ef9d790a0cb435dc3b36ed9d5c482234deec",
+      "bytes": 45
+    },
+    {
+      "path": "scoped-rustfmt.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "scoped-rustfmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "with-runtime-policy-model.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "with-runtime-policy-model.jsonl",
+      "sha256": "97bbc0bfca80ab140d3398d307b21419ba446b02ef57afead650916f0e04c66b",
+      "bytes": 88513
+    },
+    {
+      "path": "with-runtime-policy-model.stderr",
+      "sha256": "aa40cd72ee4bbf766c12dea9686bc181e75e9d67c0f7c8140135c64df8d6ff04",
+      "bytes": 2229
+    },
+    {
+      "path": "workflow-policy-tests.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "workflow-policy-tests.log",
+      "sha256": "76b6e0e982896b9ccbff0d4a9fc7fec20e6bc37e9cfc91d4c56640d382036cdd",
+      "bytes": 1026
+    },
+    {
+      "path": "workflow-validated-env.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "workflow-validated-env.log",
+      "sha256": "7251623404739e977de01488a42de9fc126d6852c59ba268ee68634a7a96fac2",
+      "bytes": 2572
+    },
+    {
+      "path": "workflow-yaml-version.log",
+      "sha256": "d285372c5ce8fdc5664030a081836ed15264001cdbaa4c037ef27268e3b81555",
+      "bytes": 7
+    },
+    {
+      "path": "workspace-fmt.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "workspace-fmt.log",
+      "sha256": "9c602a565e09dd98fe580dabfd5eb3a7dfc0a068016a052387b4df0f70a3ac58",
+      "bytes": 837
+    }
+  ]
+}

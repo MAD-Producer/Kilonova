@@ -52,6 +52,11 @@ fn fractional_scroll_draws_and_hits_both_partial_rows_without_leaking_outside() 
                 match shape {
                     Shape::Quad { points } => check_points(points, area),
                     Shape::Triangles { points } => check_points(points, area),
+                    Shape::Mesh(mesh) => {
+                        for point in mesh.points() {
+                            check_points(&[point], area);
+                        }
+                    }
                     Shape::Line { clip: Some(clip), .. }
                     | Shape::Stroke { clip: Some(clip), .. }
                     | Shape::Procedural { clip, .. } => assert!(area.contains_rect(*clip)),

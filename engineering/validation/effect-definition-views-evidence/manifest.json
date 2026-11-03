@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "Borrowed definition lookup and stable parameter traversal, actual effect and timeline draws",
+  "sources": {
+    "desktop/app/src/panels/effect_controls.rs": "6314b79c35a0af4dc50e764c50de886830d85664548cc308a1aa157cc5d71700",
+    "desktop/app/src/panels/effect_controls/definition.rs": "291f88c10911b98399ea645534ce6b71dd5eb15c98c4ef4ff286842ff773f8be",
+    "desktop/app/src/panels/effect_controls/track_cache_tests.rs": "9c9dd2da2dcf4f1f05326ddb86c796374154f751558cdd39f670ef74369af2c6",
+    "desktop/app/src/panels/effect_controls/track_cache_tests/definition_views.rs": "44675245216067477cd8cfd52a2479c3aa308f4e6e8846bced63191e0184896b",
+    "desktop/app/src/panels/effect_timeline.rs": "f9c5c37d9a1a2eda88c852d9f7b71b474aeb62c4c844eca629dc60a19be09ec1",
+    "desktop/app/tests/effect_definition_views.rs": "0a855a39c4bc23b05663a2d6a59a176cd95419e3c9bc2d7b40e009b43140ed12"
+  },
+  "archive_sha256": "86e0df6923ae39d52cc39ecbaaae0ea0660c90d85b457e57aa1a4ca1914d432a",
+  "tests": {
+    "distinct_passed": 118,
+    "new": 5,
+    "existing_manual_ignored": 4,
+    "original_complete_draw_comparisons": 32,
+    "changed_definition_controls": 16,
+    "original_sort_allocation_negative_exit": 101
+  },
+  "pending": [
+    "Exact-head CI",
+    "Whole issue134 acceptance",
+    "Other branch runtime integration",
+    "Full DESIGN acceptance"
+  ]
+}

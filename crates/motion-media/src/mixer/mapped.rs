@@ -5,15 +5,17 @@ use motion_model::composition::AudioVoice;
 
 const OUTPUT_CHUNK: usize = 256;
 const PHASES: i64 = 1024;
-// Adjacent direct samples (e.g. 2x speed) share a read. Even with every gap,
+// Adjacent sample windows share a read. Even with every gap,
 // each chunk reads at most OUTPUT_CHUNK * (64 + 32) native frames.
 const COALESCE_GAP: u64 = 32;
+mod filter;
 
 #[derive(Clone, Copy)]
 pub(super) struct Point {
     output: usize,
     native: u64,
     phase: usize,
+    rate: f64,
     gain: [f32; 2],
 }
 #[derive(Clone, Copy)]
@@ -26,6 +28,7 @@ pub(super) struct Window {
 pub(super) struct Scratch {
     pub points: Vec<Point>,
     pub windows: Vec<Window>,
+    filter: filter::Filter,
 }
 impl Scratch {
     pub fn mix_voice(
@@ -68,11 +71,12 @@ impl Scratch {
                 }
                 let native = fixed.div_euclid(PHASES) as u64;
                 let phase = fixed.rem_euclid(PHASES) as usize;
-                let direct = phase == 0 && asset.sample_rate <= OUTPUT_RATE as u32;
+                let direct = phase == 0 && mapped.native_rate.abs() <= 1.;
                 self.points.push(Point {
                     output: (sample - start_sample) as usize * 2,
                     native,
                     phase,
+                    rate: mapped.native_rate.abs(),
                     gain: mapped.gain,
                 });
                 self.windows.push(Window {
@@ -134,14 +138,15 @@ impl Scratch {
                         asset.id, point.native
                     ))
                 })?;
+                let direct = point.phase == 0 && point.rate <= 1.;
+                let weights = if direct {
+                    None
+                } else {
+                    Some(self.filter.weights(point.rate, point.phase))
+                };
                 for channel in 0..2 {
                     let source_channel = channel.min(channels - 1);
-                    let value = if point.phase == 0 && asset.sample_rate <= OUTPUT_RATE as u32 {
-                        samples[window.offset
-                            + (point.native - window.first) as usize * channels
-                            + source_channel]
-                    } else {
-                        let weights = &source.weights[point.phase];
+                    let value = if let Some(weights) = weights {
                         let mut value = 0.;
                         for (tap, weight) in weights.iter().enumerate() {
                             let native = point.native as i64 + tap as i64 - 31;
@@ -153,6 +158,10 @@ impl Scratch {
                             }
                         }
                         value
+                    } else {
+                        samples[window.offset
+                            + (point.native - window.first) as usize * channels
+                            + source_channel]
                     };
                     out[point.output + channel] += value * point.gain[channel];
                 }

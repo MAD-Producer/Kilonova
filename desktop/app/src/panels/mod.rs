@@ -87,6 +87,7 @@ mod key_selection;
 mod path_clipboard;
 pub(crate) mod numeric;
 mod observation;
+mod layer_identity;
 #[cfg(test)]
 mod observation_tests;
 pub(crate) mod parent_controls;

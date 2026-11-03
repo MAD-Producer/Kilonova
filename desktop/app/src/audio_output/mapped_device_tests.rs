@@ -29,9 +29,16 @@ fn fixture(root: &Path, case: &str) -> (Project, f32) {
     fs::create_dir_all(cache.parent().unwrap()).unwrap();
     let mut file = fs::File::create(cache).unwrap();
     for i in 0..48_000 {
-        // A quiet, deterministic signal. Fade the first 256 samples so slow
-        // interpolation does not turn the asset boundary into a peak oracle.
-        let sample = if i < 24_000 { LOW } else { HIGH } * (i as f32 / 256.).min(1.);
+        // Quiet plateaus exercise time mapping and gain in the real callback.
+        // Smooth every edge so a peak assertion measures those plateaus rather
+        // than the expected ringing of the speed-dependent low-pass filter.
+        let smooth = |distance: f32| {
+            let phase = (distance / 256.).clamp(0., 1.);
+            0.5 - 0.5 * (std::f32::consts::PI * phase).cos()
+        };
+        let transition = smooth(i as f32 - 23_872.);
+        let envelope = smooth(i as f32) * smooth((47_999 - i) as f32);
+        let sample = (LOW + (HIGH - LOW) * transition) * envelope;
         file.write_all(&sample.to_le_bytes().repeat(2)).unwrap();
     }
     drop(file);
