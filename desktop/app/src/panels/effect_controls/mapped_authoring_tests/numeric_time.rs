@@ -25,6 +25,7 @@ const CHANGES: [&str; 7] = [
     "unmap",
 ];
 mod faults;
+mod layer_identity;
 fn midpoint(rect: Rect) -> [f32; 2] {
     [
         (rect.min[0] + rect.max[0]) * 0.5,

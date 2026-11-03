@@ -1,0 +1,40 @@
+{
+  "status": "exact_rate_primitive_gate_passed_project_adoption_pending",
+  "startedUtc": "2026-11-03T00:22:26.066150+00:00",
+  "source": {
+    "crates/motion-model/src/frame_rate.rs": "62c116ea0a83572950e342f248b27f2f5d25308314e6419c5a5fd2aa8990e5d9",
+    "crates/motion-model/src/lib.rs": "0ebccd4dee74bcb97d593e10fdb54d3f1f920697f0bd84d9227f35cb1bcb7d02",
+    "crates/motion-model/tests/frame_rate.rs": "f576ee6deadeed66356587c75f31390d9157c3d911f7f8aa189c24200a269ae0"
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "motion-model",
+    "--test",
+    "frame_rate",
+    "--locked",
+    "--offline",
+    "--",
+    "--test-threads=1"
+  ],
+  "base": "84e0be9b7838b51867eecc5c00125866e335c245",
+  "scope": "Exact rate primitive and explicit quantized boundary conversions only; project/render/export adoption is unfinished",
+  "pid": 8648,
+  "exitCode": 0,
+  "completedUtc": "2026-11-03T00:24:07.231155+00:00",
+  "elapsedSeconds": 101.125,
+  "archive": {
+    "file": "frame-rate85-contract-v1.zip",
+    "sha256": "aa1f1dbb0b4096b4b9239fd110165e7b2e25deea1fbe93c5baaa39603e5e3848",
+    "members": {
+      "run/controller.py": "9467534b0bfbfd3cd46be8a01ac681c767624bc38aa142e169deb62972323f84",
+      "run/exit.json": "10a5a488fd1d3ea69e497f1bc0850d9db1f8373235ac68cd44be09c5949d7b1b",
+      "run/stderr.log": "bdd77fc4db4520d71acc9d0258ed9ea7b32d578c20c8997af8426fb73998df83",
+      "run/stdout.log": "708d9ae0fda7e41d97644e8674b5a207c1d81a316d81b94d8d33c5f722912fc4",
+      "source/crates/motion-model/src/frame_rate.rs": "62c116ea0a83572950e342f248b27f2f5d25308314e6419c5a5fd2aa8990e5d9",
+      "source/crates/motion-model/src/lib.rs": "0ebccd4dee74bcb97d593e10fdb54d3f1f920697f0bd84d9227f35cb1bcb7d02",
+      "source/crates/motion-model/tests/frame_rate.rs": "f576ee6deadeed66356587c75f31390d9157c3d911f7f8aa189c24200a269ae0"
+    }
+  }
+}

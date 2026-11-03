@@ -16,6 +16,7 @@ use motion_ui::{
 use serde_json::Value;
 use std::collections::HashMap;
 mod curve;
+pub(super) mod definition;
 mod dropdown_cache;
 mod key_navigation;
 mod library;
@@ -27,6 +28,8 @@ mod track_cache_tests;
 mod removal_tests;
 #[cfg(test)]
 mod identity_tests;
+#[cfg(test)]
+mod library_cache_tests;
 #[cfg(test)]
 mod mapped_authoring_tests;
 pub(crate) use library::{entries, Entry};
@@ -50,6 +53,7 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    layer_identity: super::layer_identity::Reader,
     pub(crate) presets: Vec<crate::animation_presets::Entry>,
     pub(crate) presets_busy: bool,
     pub(crate) library_targets: Vec<u64>,
@@ -66,6 +70,8 @@ pub struct Controls {
     pub choosing: bool,
     library_tab: usize,
     library_initialized: bool,
+    library_cache: super::effect_search::GroupedCache<Entry, Locale>,
+    chooser_cache: super::effect_search::GroupedCache<(Entry, String), Locale>,
     library_scroll: motion_ui::widgets::ScrollArea,
     library_selected: Option<String>,
     library_drag: Option<(Entry, [f32; 2])>,
@@ -402,19 +408,8 @@ impl Controls {
         self.dropdowns.close();
         begun
     }
-    pub(super) fn definition(&self, effect: &Value) -> Option<Value> {
-        self.catalogue["packages"].as_array()?.iter().find(|p| {
-            p["hash"] == effect["hash"]
-                && p["manifest"]["id"] == effect["plugin"]
-                && p["manifest"]["version"] == effect["version"]
-        })?["manifest"]["effects"]
-            .as_array()?
-            .iter()
-            .find(|d| d["id"] == effect["effect"])
-            .cloned()
-    }
     pub fn height(
-        &self,
+        &mut self,
         layer: &Value,
         styles: &motion_ui::style::StyleSheet,
         locale: Locale,
@@ -433,31 +428,34 @@ impl Controls {
             + styles.metric("effect.secondary.gap", 4.);
         let top = pad * 2. + toolbar;
         if self.choosing {
-            let mut counts: HashMap<String, usize> = HashMap::new();
-            let query = self.query.trim().to_lowercase();
-            for entry in entries(&self.catalogue, locale)
-                .into_iter()
-                .filter(|entry| entry.supported && entry.matches(&query))
-            {
-                if self.library_tab == 1 && !self.favorites.contains(&entry.key)
-                    || self.library_tab == 2 && !self.recent.contains(&entry.key)
-                {
-                    continue;
-                }
-                *counts.entry(entry.category).or_default() += 1;
-            }
+            let view = self.chooser_cache.grouped(
+                &self.catalogue,
+                locale,
+                &self.query,
+                super::effect_search::Selection {
+                    tab: self.library_tab,
+                    favorites: &self.favorites,
+                    recent: &self.recent,
+                    sort: super::effect_search::Sort::FavoritesFirst,
+                },
+                || library::chooser_projection(&self.catalogue, locale),
+                super::effect_search::Fields {
+                    key: |(entry, _)| &entry.key,
+                    name: |(entry, _)| &entry.id,
+                    category: |(entry, _)| &entry.category,
+                },
+            );
             return top
                 + toolbar
                 + secondary
-                + counts
-                    .iter()
-                    .map(|(category, count)| {
+                + view.groups()
+                    .map(|group| {
                         styles.metric("effect.category.height", 28.)
                             + styles.metric("effect.category.gap", 4.)
-                            + if self.collapsed_categories.contains(category) {
+                            + if self.collapsed_categories.contains(group.name()) {
                                 0.
                             } else {
-                                *count as f32 * styles.metric("row.height", 22.)
+                                group.len() as f32 * styles.metric("row.height", 22.)
                             }
                     })
                     .sum::<f32>();
@@ -479,7 +477,7 @@ impl Controls {
                         {
                             0.
                         } else {
-                            self.definition(effect).map_or(0., |definition| {
+                            definition::find(&self.catalogue, effect).map_or(0., |definition| {
                                 definition["params"]
                                     .as_array()
                                     .into_iter()
@@ -988,7 +986,11 @@ impl Controls {
         let mut overlays = list.child();
         self.cursor = false;
         self.drag_readout = None;
-        let object = layer["id"].as_u64().unwrap();
+        let Some(object) = self.layer_identity.read(layer, state, "effects.layer_id") else {
+            if self.cancel() { out.push(Action::History(4)); }
+            self.clear_key_channel();
+            return;
+        };
         let locked = layer["locked"].as_bool().unwrap_or(false) || state["observing"] == true;
         for ((owner, effect, parameter), editor) in &mut self.curve_editors {
             if (locked
@@ -1157,40 +1159,27 @@ impl Controls {
                 }
             }
             *y += secondary + secondary_gap;
-            let mut categories: HashMap<String, Vec<(String, String, String, String)>> =
-                HashMap::new();
-            let query = self.query.trim().to_lowercase();
-            for e in entries(&self.catalogue, locale)
-                .into_iter()
-                .filter(|e| e.supported && e.matches(&query))
-            {
-                if self.library_tab == 1 && !self.favorites.contains(&e.key)
-                    || self.library_tab == 2 && !self.recent.contains(&e.key)
-                {
-                    continue;
-                }
-                categories
-                    .entry(e.category)
-                    .or_default()
-                    .push((e.plugin, e.version, e.hash, e.id));
-            }
-            for effects in categories.values_mut() {
-                effects.sort_by_key(|(plugin, _, _, effect)| {
-                    (
-                        !self.favorites.contains(&format!("{plugin}/{effect}")),
-                        effect.clone(),
-                    )
-                });
-            }
-            // Sort categories alphabetically
-            let mut sorted_categories: Vec<_> = categories.iter().collect();
-            sorted_categories.sort_by_key(|(name, _)| *name);
+            let view = self.chooser_cache.grouped(
+                &self.catalogue,
+                locale,
+                &self.query,
+                super::effect_search::Selection {
+                    tab: self.library_tab,
+                    favorites: &self.favorites,
+                    recent: &self.recent,
+                    sort: super::effect_search::Sort::FavoritesFirst,
+                },
+                || library::chooser_projection(&self.catalogue, locale),
+                super::effect_search::Fields {
+                    key: |(entry, _)| &entry.key,
+                    name: |(entry, _)| &entry.id,
+                    category: |(entry, _)| &entry.category,
+                },
+            );
 
             // Render categorized effects with collapsible headers
-            for (category_name, effects) in sorted_categories {
-                if effects.is_empty() {
-                    continue;
-                }
+            for group in view.groups() {
+                let category_name = group.name();
 
                 let is_collapsed = self.collapsed_categories.contains(category_name);
                 let header_rect = Rect::new(
@@ -1233,12 +1222,11 @@ impl Controls {
                 );
 
                 // Effect count badge
-                let count_text = format!("{}", effects.len());
                 ui::text(
                     list,
                     atlas,
                     Rect::new(area.max[0] - pad - slot, *y, slot, category_row),
-                    &count_text,
+                    group.count_text(),
                     colors.TEXT_MUTED,
                     Align::Right,
                 );
@@ -1256,44 +1244,22 @@ impl Controls {
 
                 // Render effects if not collapsed
                 if !is_collapsed {
-                    for (plugin_id, version, hash, effect_id) in effects {
-                        // Find effect definition for display name
-                        let effect_name = self.catalogue["packages"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .find(|p| {
-                                p["manifest"]["id"].as_str() == Some(plugin_id)
-                                    && p["hash"].as_str() == Some(hash)
-                            })
-                            .and_then(|p| {
-                                p["manifest"]["effects"]
-                                    .as_array()?
-                                    .iter()
-                                    .find(|e| e["id"].as_str() == Some(effect_id))
-                            })
-                            .and_then(|e| {
-                                if locale == Locale::Zh {
-                                    e["name"].as_str()
-                                } else {
-                                    e["english_name"].as_str()
-                                }
-                            })
-                            .unwrap_or("Effect");
-
-                        let favorite_key = format!("{plugin_id}/{effect_id}");
+                    for (entry, effect_name) in group.iter() {
+                        let (plugin_id, version, hash, effect_id) =
+                            (&entry.plugin, &entry.version, &entry.hash, &entry.id);
+                        let favorite_key = &entry.key;
                         let star = Rect::new(area.max[0] - 32., *y, 20., 22.);
                         if let Some(value) = motion_ui::widgets::StarRating::draw(
                             list,
                             star,
-                            usize::from(self.favorites.contains(&favorite_key)),
+                            usize::from(self.favorites.contains(favorite_key)),
                             1,
                             input,
                             true,
                             false,
                         ) {
                             if value == 0 {
-                                self.favorites.remove(&favorite_key);
+                                self.favorites.remove(favorite_key);
                             } else {
                                 self.favorites.insert(favorite_key.clone());
                             }
@@ -1323,8 +1289,8 @@ impl Controls {
                             Align::Left,
                         );
                         if clicked(input, row) && !locked {
-                            self.recent.retain(|id| id != &favorite_key);
-                            self.recent.insert(0, favorite_key);
+                            self.recent.retain(|id| id != favorite_key);
+                            self.recent.insert(0, favorite_key.clone());
                             self.recent.truncate(24);
                             out.push(Action::Plugin(serde_json::json!({
                                 "op": "add",
@@ -1343,6 +1309,8 @@ impl Controls {
 
             return;
         }
+        // Keep this catalogue generation alive while controls mutate their drafts.
+        let catalogue = self.catalogue.clone();
         let mut invalid_identity = false;
         for (index, effect) in layer["effects"]
             .as_array()
@@ -1363,7 +1331,7 @@ impl Controls {
             *y += styles.metric("effect.group.gap", 8.);
             let Some(def) = observe!(
                 "effects.definition",
-                self.definition(effect).ok_or("no matching definition"),
+                definition::find(&catalogue, effect).ok_or("no matching definition"),
                 "object={object} effect={id} hash={} plugin={} version={} kind={}",
                 effect["hash"],
                 effect["plugin"],
@@ -1551,9 +1519,7 @@ impl Controls {
             }
 
             // Render effect parameters
-            let mut parameters: Vec<_> = def["params"].as_array().into_iter().flatten().collect();
-            parameters.sort_by_key(|parameter| parameter["kind"] == "curve");
-            for parameter in parameters {
+            for parameter in definition::parameters(def) {
                 let param = parameter["id"].as_str().unwrap();
                 if !super::modified_properties::effect_parameter_visible(
                     self.property_filter,&effect["params"][param],state,object,id,param) { continue; }

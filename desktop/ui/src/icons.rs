@@ -3,7 +3,7 @@
 //! Canonical SVGs live in `icons/`; their checked generated path data is compiled
 //! once into meshes. Drawing only transforms cached vertices in logical pixels.
 use crate::{
-    paint::{PaintList, Shape},
+    paint::{PaintList, Shape, StaticMesh},
     style::{State, States, StyleSheet},
     Color, Rect,
 };
@@ -202,13 +202,7 @@ pub fn draw(list: &mut PaintList, area: Rect, icon: Icon, size: f32, color: Colo
     if mesh.is_empty() {
         return;
     }
-    // Preserve the public owned triangle representation with one allocation.
-    // Exact capacity avoids geometric growth in flat_map's collection.
-    let mut points = Vec::with_capacity(mesh.len() * 3);
-    points.extend(mesh.iter().flat_map(|t| {
-        t.iter().map(|p| [origin[0] + p[0] * scale, origin[1] + p[1] * scale])
-    }));
-    list.push_shape(Shape::Triangles { points }, color);
+    list.push_shape(Shape::Mesh(StaticMesh::new(mesh, origin, scale)), color);
 }
 
 /// Shared style-state rendering; dispatch and pointer capture remain with widgets.
@@ -278,11 +272,11 @@ mod tests {
             28.,
             Color::grey(220),
         );
-        let Shape::Triangles { points } = &list.shapes[0] else {
+        let Shape::Mesh(mesh) = &list.shapes[0] else {
             panic!()
         };
-        assert!(points
-            .iter()
+        assert!(mesh
+            .points()
             .all(|p| p[0] >= 10. && p[0] <= 30. && p[1] >= 0. && p[1] <= 20.));
         let r = button(
             &mut list,

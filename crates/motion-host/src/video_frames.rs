@@ -1,4 +1,4 @@
-//! Exact PTS lookup with bounded forward prefetch, independent of render ticks.
+//! Exact PTS lookup with bounded source-clock prefetch, independent of render ticks.
 use crate::platform::VideoDecoder;
 use crate::video_cache::{FrameCache, LOOKAHEAD};
 use crate::video_frame::{DecodedFrame, PreparedVideoFrame};
@@ -18,6 +18,7 @@ mod memory;
 mod retirement;
 use retirement::RetiredStream;
 mod shutdown;
+mod mapped_prefetch;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
 #[derive(Clone, Copy)]
@@ -27,6 +28,15 @@ struct Request {
     source_time: u64,
     index: usize,
     sequence: u64,
+    lookahead: Option<[Option<u64>; LOOKAHEAD * 2]>,
+}
+impl Request {
+    fn retains(self, target: u64, pts: &[u64], prefetch: bool) -> bool {
+        target == self.time || Some(target) == self.next || (prefetch && match self.lookahead {
+            Some(times) => times.contains(&Some(target)),
+            None => target > self.time && target <= pts[(self.index + LOOKAHEAD).min(pts.len() - 1)],
+        })
+    }
 }
 #[derive(Clone, Copy)]
 struct DecodeFlight {
@@ -90,6 +100,9 @@ fn job(s: &State, pts: &[u64]) -> Option<(u64, bool)> {
     let expected = s.cache.find(r.time)?.bytes();
     if !s.cache.can_prefetch(expected) {
         return None;
+    }
+    if let Some(times) = r.lookahead {
+        return times.into_iter().flatten().find(|t| s.cache.find(*t).is_none()).map(|t| (t, true));
     }
     pts.iter()
         .skip(r.index + 1)
@@ -162,13 +175,7 @@ impl Stream {
                     let speculative = flight.speculative;
                     let check = || {
                         let s = copy.0.lock().map_err(|_| "video frame state poisoned")?;
-                        let valid = s.desired.is_some_and(|r| {
-                            target == r.time
-                                || Some(target) == r.next
-                                || (s.prefetch
-                                    && target > r.time
-                                    && target <= times[(r.index + LOOKAHEAD).min(times.len() - 1)])
-                        });
+                        let valid = s.desired.is_some_and(|r| r.retains(target, &times, s.prefetch));
                         if s.stop || !valid {
                             Err("video target superseded".into())
                         } else {
@@ -229,7 +236,6 @@ impl Stream {
                     }
                     let desired = s.desired.unwrap();
                     let required = target == desired.time || Some(target) == desired.next;
-                    let last = times[(desired.index + LOOKAHEAD).min(times.len() - 1)];
                     let phase = s.in_flight.map_or(flight.phase, |active| active.phase);
                     let mut failure = result.as_ref().err()
                         .filter(|error| error.to_string() != "video target superseded" && (required || !speculative))
@@ -241,7 +247,7 @@ impl Stream {
                     match result {
                         Ok(frame) => {
                             s.decoded += 1;
-                            if frame.pts >= desired.time && frame.pts <= last {
+                            if desired.retains(frame.pts, &times, s.prefetch) {
                                 let pinned = [desired.time, desired.next.unwrap_or(desired.time)];
                                 if !s.cache.insert_required(frame, &pinned) {
                                     if required {
@@ -299,7 +305,12 @@ impl Stream {
     fn request(&self, time: u64, sequence: u64, prefetch: bool) -> Result<Value> {
         self.request_blend(time, sequence, prefetch, false)
     }
+    #[cfg(test)]
     fn request_blend(&self, time: u64, sequence: u64, prefetch: bool, blend: bool) -> Result<Value> {
+        self.request_blend_plan(time, sequence, prefetch, blend, None)
+    }
+    fn request_blend_plan(&self, time: u64, sequence: u64, prefetch: bool, blend: bool,
+        future: Option<&mapped_prefetch::Times>) -> Result<Value> {
         if sequence == 0 || sequence > i64::MAX as u64 {
             return Err("video sequence must be a positive signed 64-bit value".into());
         }
@@ -307,6 +318,22 @@ impl Stream {
         let (time, index) = self.key(time)?;
         let next = blend.then(|| self.pts.get(index + 1).copied()).flatten()
             .filter(|next| source_time > time && *next < self.asset.video_end_us);
+        let lookahead = future.map(|future| -> Result<_> {
+            let mut targets = [None; LOOKAHEAD * 2];
+            let mut count = 0;
+            for source in future.iter().flatten() {
+                let (left, i) = self.key(*source)?;
+                let right = blend.then(|| self.pts.get(i + 1).copied()).flatten()
+                    .filter(|right| *source > left && *right < self.asset.video_end_us);
+                for target in std::iter::once(left).chain(right) {
+                    if target != time && Some(target) != next && !targets.contains(&Some(target)) {
+                        targets[count] = Some(target);
+                        count += 1;
+                    }
+                }
+            }
+            Ok(targets)
+        }).transpose()?;
         let mut s = self
             .shared
             .0
@@ -320,18 +347,22 @@ impl Stream {
                 return Err("video sequence already used for another target".into());
             }
         }
-        if s.desired.is_none_or(|r| r.sequence != sequence) {
+        let changed_plan = s.desired.is_none_or(|r| r.lookahead != lookahead);
+        let changed_generation = s.desired.is_none_or(|r| r.sequence != sequence);
+        if changed_generation {
             s.desired = Some(Request {
                 time,
                 next,
                 source_time,
                 index,
                 sequence,
+                lookahead,
             });
             s.error = None;
             s.failed_prefetch = None;
-            s.cache
-                .retain_window(time, self.pts[(index + LOOKAHEAD).min(self.pts.len() - 1)]);
+            if lookahead.is_none() {
+                s.cache.retain_window(time, self.pts[(index + LOOKAHEAD).min(self.pts.len() - 1)]);
+            }
             if s.cache.find(time).is_some() {
                 s.hits += 1;
             } else {
@@ -340,10 +371,17 @@ impl Stream {
         }
         if let Some(r) = &mut s.desired {
             r.source_time = source_time;
+            r.lookahead = lookahead;
             if r.next != next {
                 r.next = next;
                 s.error = None;
                 s.failed_prefetch = None;
+            }
+        }
+        if changed_plan || changed_generation {
+            if let Some(targets) = lookahead {
+                let retained: Vec<_> = [Some(time), next].into_iter().chain(targets).flatten().collect();
+                s.cache.retain_targets(&retained);
             }
         }
         s.cache.require_pair(self.asset.display_width, self.asset.display_height, next.is_some(),
@@ -444,6 +482,9 @@ fn status(s: &State) -> Value {
 }
 #[derive(Default)]
 pub struct VideoFrames {
+    // Per-reader consecutive prefetch-enabled planning attempts. A successful
+    // plan, including no mapped clips or no active video, resets this counter.
+    prefetch_planning: motion_render::observability::FailureCounter,
     streams: HashMap<u64, Stream>,
     // Public sequences never share a namespace with automatic preview generations.
     sequences: HashMap<u64, (u64, f64, u64)>,
@@ -612,7 +653,7 @@ impl VideoFrames {
         }
         let generation = self.generation(asset, object, source as u64)?;
         let mut result =
-            self.request_source(root, asset, object, source as u64, generation, false, false)?;
+            self.request_source(root, asset, object, source as u64, generation, false, false, None)?;
         self.sequences.insert(object, (sequence, frame, generation));
         result["sequence"] = json!(sequence);
         Ok(result)
@@ -646,6 +687,7 @@ impl VideoFrames {
         generation: u64,
         prefetch: bool,
         blend: bool,
+        future: Option<&mapped_prefetch::Times>,
     ) -> Result<Value> {
         self.reap_retired()?;
         if self.streams.get(&object).is_some_and(|s| s.asset != *asset) {
@@ -668,7 +710,7 @@ impl VideoFrames {
                 Stream::new(root.into(), asset.clone(), self.backend()?, object)?,
             );
         }
-        let mut result = self.streams[&object].request_blend(source, generation, prefetch, blend)?;
+        let mut result = self.streams[&object].request_blend_plan(source, generation, prefetch, blend, future)?;
         result["object"] = json!(object);
         result["width"] = json!(asset.display_width);
         result["height"] = json!(asset.display_height);
@@ -746,6 +788,19 @@ impl VideoFrames {
         retain_idle: bool,
     ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
         let layers=scene.video_decode_layers();
+        let plans = if prefetch {
+            match mapped_prefetch::plans(project, scene, &layers) {
+                Ok(plans) => { self.prefetch_planning.success(); Some(plans) }
+                Err(error) => {
+                    let composition: String = scene.composition_id.chars().take(64).collect();
+                    let reason: String = error.to_string().chars().take(2048).collect();
+                    self.prefetch_planning.failure("video_prefetch_plan", format_args!(
+                        "composition={composition} frame={} phase=plan reason={reason}", scene.frame));
+                    None
+                }
+            }
+        } else { Some(HashMap::new()) };
+        let no_prefetch = [None; LOOKAHEAD];
         let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
         if retain_idle {
             let missing=layers.iter().filter(|layer| !self.streams.contains_key(&layer.id)).count();
@@ -781,6 +836,7 @@ impl VideoFrames {
                 generation,
                 prefetch,
                 layer.sampling.frame_blend == motion_core::render_sampling::FrameBlend::Linear,
+                plans.as_ref().map_or(Some(&no_prefetch), |plans| plans.get(&layer.id)),
             )?;
             if retain_idle {
                 self.sampling_recent.retain(|id|*id!=layer.id && self.streams.contains_key(id));
@@ -875,7 +931,7 @@ mod generation_failure_tests {
             path: PathBuf::from(&asset.path),
             pts:Arc::new(vec![0,33333]),
             shared:Arc::new((Mutex::new(State {
-                desired:Some(Request {time:0,next:None,source_time:0,index:0,sequence:10}),
+                desired:Some(Request {time:0,next:None,source_time:0,index:0,sequence:10,lookahead:None}),
                 cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,prefetch_failures:0,last_prefetch_error:None,
                 hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
                 in_flight:None,pending_polls:0,worker_stopped:false,

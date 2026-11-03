@@ -75,6 +75,13 @@ fn named_schema(kind: &str) -> (bool, Value) {
             "bool" => json!({"type":"boolean"}),
             "Vec<u64>" => json!({"type":"array","minItems":1,"maxItems":crate::MAX_LAYERS,"uniqueItems":true,"items":{"type":"integer","minimum":1}}),
             "String" => json!({"type":"string"}),
+            "AnchorKeyBinding" => json!({"type":"object","additionalProperties":false,
+                "properties":{
+                    "anchor":{"anyOf":[{"type":"integer","minimum":1},{"type":"null"}]},
+                    "position":{"anyOf":[{"type":"integer","minimum":1},{"type":"null"}]}},
+                "anyOf":[
+                    {"required":["anchor"],"properties":{"anchor":{"type":"integer","minimum":1}}},
+                    {"required":["position"],"properties":{"position":{"type":"integer","minimum":1}}}]}),
             "TrackEdit" => json!({"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["kind","key","value"],"properties":{
                     "kind":{"const":"set_spatial_key"},"key":{"type":"integer","minimum":1},
@@ -373,7 +380,7 @@ registry! {
     Command::SetGuides { .. } => "set_guides" [("guides","Vec<Guide>",true)];
     Command::SetWorkingPrecision { .. } => "set_working_precision" [("precision","ChannelPrecision",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
-    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","f64",true), ("anchor",[f32; 2],true)];
+    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","f64",true), ("anchor",[f32; 2],true), ("keys","Option<AnchorKeyBinding>",false)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
     Command::CameraImported { .. } => "camera_imported" [("object","u64",false), ("binding","Option<ImportedCamera>",true)];
     Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","f64",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
