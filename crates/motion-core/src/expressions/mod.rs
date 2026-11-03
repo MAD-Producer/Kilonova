@@ -2,6 +2,8 @@
 mod sampling_tests;
 #[cfg(test)]
 mod invariant_tests;
+#[cfg(test)]
+mod preparation_tests;
 mod runtime;
 mod references;
 mod transpile;
@@ -217,9 +219,20 @@ pub trait ProjectExpressions {
 /// clock. Compilation does not execute user code; the existing frame and
 /// execution deadlines still apply to every later invocation.
 pub fn prepare_expression_sources(project: &Project) -> Result<()> {
+    prepare_expression_sources_at(project, 0., None)
+}
+fn prepare_expression_sources_at(
+    project: &Project,
+    frame: f64,
+    cancel: Option<&AtomicBool>,
+) -> Result<()> {
     for expression in project.expressions.iter().filter(|e| active(project, e)) {
+        if cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)) {
+            return Err(error(&expression.target, frame,
+                Error::Invalid("expression cancelled or frame budget exceeded".into())));
+        }
         runtime::compile(&expression.source)
-            .map_err(|cause| error(&expression.target, 0., cause))?;
+            .map_err(|cause| error(&expression.target, frame, cause))?;
     }
     Ok(())
 }
@@ -243,6 +256,10 @@ impl ProjectExpressions for Project {
             frame.is_finite() && frame >= 0.0 && frame < self.frames as f64,
             "invalid expression frame",
         )?;
+        // Direct Project callers need the same cold-source admission as native
+        // sessions: trusted compilation must finish before the frame clock.
+        // User execution retains the existing 20 ms and 100 ms deadlines.
+        prepare_expression_sources_at(self, frame, Some(cancel.as_ref()))?;
         let deadline = Instant::now() + Duration::from_millis(100);
         let session = std::rc::Rc::new(references::Session::new(self.clone()));
         let mut evaluated = self.clone();

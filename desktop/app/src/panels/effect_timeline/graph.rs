@@ -378,12 +378,13 @@ pub(in crate::panels) fn render(
         speed,
         unit: format!("{}:{unit}", target.hash),
     };
-    let fps = state["project"]["fps"].as_f64().unwrap_or(30.);
     let Some((layer, _)) = target.source(state) else {
         panels.timeline.graph_ranges.no_timeline_plot();
         return true;
     };
     let mapped_source = (|| -> motion_core::Result<_> {
+        let fps = crate::project_clock::read(state)
+            .map_err(|cause| motion_core::Error::Invalid(cause.to_string()))?.as_f64();
         let clock = super::super::key_selection::property_clock(state, target.object)?;
         let offset = if layer["timeline"].is_null() {
             0
@@ -395,9 +396,9 @@ pub(in crate::panels) fn render(
                     motion_core::Error::Invalid("effect graph clip offset invalid".into())
                 })?
         };
-        Ok((clock, offset))
+        Ok((clock, offset, fps))
     })();
-    let Some((clock, layer_offset)) = observe!(
+    let Some((clock, layer_offset, fps)) = observe!(
         "effect.graph_clock",
         mapped_source,
         "object={} effect={} param={} phase=clock generation={generation:?} revision={revision:?}",

@@ -279,8 +279,14 @@ pub(super) fn render(
         }
     }
     let mut graph = list.child();
-    let fps = state["project"]["fps"].as_f64().unwrap_or(30.);
     paint::rect(&mut graph, area, colors.SUNKEN);
+    let Some(rate) = project_rate(state) else {
+        observe_early_return(panels, out, "invalid_project_clock");
+        graph.clip_to(area);
+        list.append(graph);
+        return;
+    };
+    let fps=rate.as_f64();
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
         label(
             &mut graph,
@@ -852,9 +858,6 @@ pub(super) fn render(
                     colors.BORDER.with_alpha(0.3),
                 );
             }
-            let seconds = frame.max(0.) / fps;
-            let whole = seconds.floor() as u32;
-            let sub = ((seconds - seconds.floor()) * fps).round() as u32;
             ui::text(
                 &mut graph,
                 atlas,
@@ -864,7 +867,7 @@ pub(super) fn render(
                     56.,
                     22.,
                 ),
-                &format!("{whole}:{sub:02}"),
+                &super::helpers::compact_timecode(frame, Some(rate)),
                 colors.TEXT_MUTED,
                 Align::Center,
             );

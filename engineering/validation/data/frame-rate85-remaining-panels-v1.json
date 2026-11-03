@@ -1,0 +1,21 @@
+{
+  "status": "panel_clock_adoption_focused_passed_final_acceptance_pending",
+  "archive": "frame-rate85-remaining-panels-v1.zip",
+  "bytes": 526744,
+  "sha256": "93e85c307ea3c5245ff2f3afaefbc377f48d6b3382481a6f972589b89e49f326",
+  "members": 69,
+  "uniqueTests": 13,
+  "failed": 0,
+  "ignored": 0,
+  "limits": [
+    "Historical v1 validated the initial approved patch; v2 and graph gate validate the final ten-file source on aa4143f3",
+    "Thirteen unique CPU tests: three new regressions and ten existing tests; repeated v1/v2 tests count once",
+    "All desktop test targets compile; complete desktop runtime, real UI readouts/screenshots and final cross-platform CI remain pending",
+    "Observation counters are bounded process-lifetime sites, do not reset on success, and reset in a new process; 60 occurrences do not imply a duration",
+    "Actual default-level file/Error-stderr/stdout-isolation faults and healthy suppression were exercised in two fresh processes",
+    "No existing assertion, expected value, budget, ignore marker, layout, style, hit area or dependency changed",
+    "DESIGN 0.7 baseline retained: timeline coordinates preserved; path_controls/effect_controls untouched; no visual-remediation claim",
+    "The separate full renderer/desktop gate is still source-frozen on child162edfed and does not yet include these ten panel changes",
+    "Historical native heap corruption and broader issues85/86 acceptance remain unresolved; Android is not maintained or accepted"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "status": "cold_preparation_fixed_scoped_tests_passed_final_integration_pending",
+  "base": "162edfed2b90550b69d9ea59b42bb1138369e7a2",
+  "passed": 81,
+  "failed": 0,
+  "ignored": 1,
+  "limits": [
+    "Original Linux PR599 failure is retained; its generic budget error does not identify which original deadline elapsed",
+    "The controlled cold-compiler barrier reproduces that error class before the change and passes after it; compilation executes no user expression",
+    "Existing execution20ms/frame100ms limits, cache/memory bounds, original assertions and ignore annotations are unchanged",
+    "Test-only compile gate is absent from production builds; it blocks once on a fresh owning thread without mocking successful evaluation",
+    "Three new tests cover cold preparation, pre-cancelled admission and requested-frame/native-cause retention; existing public preparation and sandbox tests also pass",
+    "Independent worktree based on child162edfed plus recorded three-file change; original full GPU/desktop controller61610 remains on unmodified child162edfed",
+    "No panel, layout, dependency, asset, Android, worker timeout/restart, final combined-suite or final cross-platform acceptance claim"
+  ],
+  "archive": "expression-frame-preparation-v1.zip",
+  "bytes": 390251,
+  "sha256": "6c4986436b468a8d21a414316a13b66fa8b6e8dd32b96a3a697bb64b19f2806b",
+  "members": 23
+}

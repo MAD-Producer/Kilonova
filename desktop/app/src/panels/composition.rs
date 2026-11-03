@@ -424,7 +424,7 @@ fn render_active(list:&mut PaintList,atlas:&mut TextAtlas,area:Rect,v:Rect,panel
         super::tools::camera::button(list, camera_rect, panels, state, input, out);
     }
     if camera_rect.min[0] - gap - left_end >= time_width {
-        let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+        let fps = project_rate(state);
         motion_ui::style::text_style(
             list,
             atlas,

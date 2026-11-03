@@ -18,6 +18,17 @@ pub(super) use references::evaluate_linked;
 
 const MEMORY: usize = 64 * 1024 * 1024;
 const CACHE: usize = 256;
+#[cfg(test)]
+thread_local! {
+    static COMPILE_GATE: RefCell<Option<(std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>> = const { RefCell::new(None) };
+}
+#[cfg(test)]
+pub(super) fn pause_next_compilation(
+    entered: std::sync::mpsc::Sender<()>,
+    release: std::sync::mpsc::Receiver<()>,
+) {
+    COMPILE_GATE.with(|gate| *gate.borrow_mut() = Some((entered, release)));
+}
 // Runtime drops before bytecode: QuickJS may reference ROM_DATA until its heap is freed.
 struct JsEngine {
     runtime: Runtime,
@@ -36,6 +47,11 @@ impl JsEngine {
     fn compile(&mut self, source: &str) -> Result<()> {
         if self.code.contains_key(source) {
             return Ok(());
+        }
+        #[cfg(test)]
+        if let Some((entered, release)) = COMPILE_GATE.with(|gate| gate.borrow_mut().take()) {
+            entered.send(()).expect("controlled compilation observer remains alive");
+            release.recv().expect("controlled compilation release remains alive");
         }
         let body = transpile(source)?;
         // A full cache is still useful on a warm frame. Evict only when this
