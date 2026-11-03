@@ -1,7 +1,7 @@
 //! Flat package catalogue projected into metadata categories, never package headings.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Entry {
     pub key: String,
     pub name: String,
@@ -22,7 +22,11 @@ impl Entry {
         serde_json::json!({"op":"add","object":object,"plugin":self.plugin,"version":self.version,"hash":self.hash,"effect":self.id})
     }
     pub(crate) fn matches(&self, query: &str) -> bool {
-        let haystack = format!(
+        let haystack = self.search_terms();
+        query.split_whitespace().all(|term| haystack.contains(term))
+    }
+    pub(crate) fn search_terms(&self) -> String {
+        format!(
             "{} {} {} {} {} {} {} {} {}",
             self.name,
             self.english,
@@ -34,8 +38,7 @@ impl Entry {
             self.plugin,
             self.key
         )
-        .to_lowercase();
-        query.split_whitespace().all(|term| haystack.contains(term))
+        .to_lowercase()
     }
     pub(crate) fn can_apply(&self, layer: &Value) -> bool {
         self.supported
@@ -101,6 +104,30 @@ pub(crate) fn entries(catalogue: &Value, locale: Locale) -> Vec<Entry> {
         }
     }
     chosen.into_values().collect()
+}
+
+pub(super) fn projection(catalogue: &Value, locale: Locale) -> Vec<(Entry, String)> {
+    entries(catalogue, locale).into_iter().map(|entry| {
+        let terms = entry.search_terms();
+        (entry, terms)
+    }).collect()
+}
+
+pub(super) fn chooser_projection(catalogue: &Value, locale: Locale) -> Vec<((Entry, String), String)> {
+    entries(catalogue, locale).into_iter().filter(|entry| entry.supported).map(|entry| {
+        // The inline chooser historically has a different missing-name fallback
+        // from the library. Preserve that label, including an explicitly empty
+        // name and the first matching package, while projecting only once.
+        let label = catalogue["packages"].as_array().into_iter().flatten()
+            .find(|package| package["manifest"]["id"].as_str() == Some(entry.plugin.as_str())
+                && package["hash"].as_str() == Some(entry.hash.as_str()))
+            .and_then(|package| package["manifest"]["effects"].as_array()?.iter()
+                .find(|effect| effect["id"].as_str() == Some(entry.id.as_str())))
+            .and_then(|effect| if locale == Locale::Zh { effect["name"].as_str() } else { effect["english_name"].as_str() })
+            .unwrap_or("Effect").to_owned();
+        let terms = entry.search_terms();
+        ((entry, label), terms)
+    }).collect()
 }
 impl Controls {
     #[cfg(test)]
@@ -264,48 +291,44 @@ impl Controls {
             self.draw_presets(list, atlas, Rect::new(area.min[0], top, area.width(), area.max[1] - top), layer, input, locale, out);
             return;
         }
-        let query = self.query.trim().to_lowercase();
-        let all = entries(&self.catalogue, locale);
-        let total = all.len();
+        let view = self.library_cache.grouped(
+            &self.catalogue, locale, &self.query,
+            super::super::effect_search::Selection {
+                tab: self.library_tab, favorites: &self.favorites, recent: &self.recent,
+                sort: if self.library_tab == 2 { super::super::effect_search::Sort::Recent } else { super::super::effect_search::Sort::Name },
+            },
+            || projection(&self.catalogue, locale),
+            super::super::effect_search::Fields {
+                key: |entry| &entry.key,
+                name: |entry| &entry.name,
+                category: |entry| &entry.category,
+            },
+        );
+        let total = view.total();
         let selected_info = self
             .library_selected
             .as_ref()
-            .and_then(|key| all.iter().find(|e| &e.key == key))
+            .and_then(|key| view.all().find(|e| &e.key == key))
             .map(|e| format!("{} · {}", e.provider, e.version));
-        let mut groups: BTreeMap<String, Vec<Entry>> = BTreeMap::new();
-        for entry in all.into_iter().filter(|e| {
-            e.matches(&query)
-                && match self.library_tab {
-                    1 => self.favorites.contains(&e.key),
-                    2 => self.recent.contains(&e.key),
-                    _ => true,
-                }
-        }) {
-            groups
-                .entry(entry.category.clone())
-                .or_default()
-                .push(entry);
-        }
-        if !self.library_initialized && !groups.is_empty() {
-            self.collapsed_categories = groups.keys().cloned().collect();
+        if !self.library_initialized && view.groups().next().is_some() {
+            self.collapsed_categories = view.groups().map(|group| group.name().to_owned()).collect();
             self.library_initialized = true;
         }
         if response.changed {
             self.library_scroll.offset = 0.;
         }
-        let shown: usize = groups.values().map(Vec::len).sum();
+        let shown = view.shown;
         if self
             .library_selected
             .as_ref()
-            .is_some_and(|key| !groups.values().flatten().any(|e| &e.key == key))
+            .is_some_and(|key| !view.groups().any(|group| group.iter().any(|e| &e.key == key)))
         {
             self.library_selected = None;
         }
-        let height = groups
-            .iter()
-            .map(|(name, es)| {
-                row + if !query.is_empty() || !self.collapsed_categories.contains(name) {
-                    es.len() as f32 * row
+        let height = view.groups()
+            .map(|group| {
+                row + if view.searching || !self.collapsed_categories.contains(group.name()) {
+                    group.len() as f32 * row
                 } else {
                     0.
                 }
@@ -328,18 +351,9 @@ impl Controls {
             None
         };
         let mut apply = None;
-        for (name, mut effects) in groups {
-            effects.sort_by(|a, b| {
-                if self.library_tab == 2 {
-                    self.recent
-                        .iter()
-                        .position(|k| k == &a.key)
-                        .cmp(&self.recent.iter().position(|k| k == &b.key))
-                } else {
-                    a.name.cmp(&b.name).then_with(|| a.key.cmp(&b.key))
-                }
-            });
-            let expanded = !query.is_empty() || !self.collapsed_categories.contains(&name);
+        for group in view.groups() {
+            let name = group.name();
+            let expanded = view.searching || !self.collapsed_categories.contains(name);
             let header = Rect::new(
                 scroll.viewport.min[0] + 4.,
                 y,
@@ -364,7 +378,7 @@ impl Controls {
                 &mut content,
                 atlas,
                 Rect::new(header.min[0] + 22., y, (header.width() - 66.).max(1.), row),
-                &name,
+                name,
                 colors.TEXT,
                 Align::Left,
             );
@@ -372,22 +386,22 @@ impl Controls {
                 &mut content,
                 atlas,
                 Rect::new(header.max[0] - 36., y, 30., row),
-                &effects.len().to_string(),
+                group.count_text(),
                 colors.TEXT_MUTED.with_alpha(0.7),
                 Align::Right,
             );
             if clicked(child, header) {
                 if expanded {
-                    self.collapsed_categories.insert(name.clone());
+                    self.collapsed_categories.insert(name.to_owned());
                 } else {
-                    self.collapsed_categories.remove(&name);
+                    self.collapsed_categories.remove(name);
                 }
             }
             y += row;
             if !expanded {
                 continue;
             }
-            for e in effects {
+            for e in group.iter() {
                 let rect = Rect::new(
                     scroll.viewport.min[0] + 4.,
                     y,
@@ -477,7 +491,7 @@ impl Controls {
                         .any(|(k, _, _)| k == motion_ui::input::Key::Enter)
                     && e.can_apply(layer)
                 {
-                    apply = Some(e);
+                    apply = Some(e.clone());
                 }
                 y += row;
             }
