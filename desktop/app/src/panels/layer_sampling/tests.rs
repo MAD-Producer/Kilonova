@@ -405,7 +405,7 @@ fn declared_sampling_sources_agree_with_model_and_unreferenced_blur_is_not_a_bou
         name: "Child".into(),
         width: 64,
         height: 64,
-        fps: 60,
+        fps: motion_core::FrameRate::integer(60).unwrap(),
         frames: 120,
         work_area: motion_core::WorkArea::full(120),
         guides: Vec::new(),
