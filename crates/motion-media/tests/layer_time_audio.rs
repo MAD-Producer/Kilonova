@@ -9,6 +9,8 @@ use std::{
     fs,
     io::{Seek, SeekFrom, Write},
 };
+#[path = "mapped_audio_quality/reference.rs"]
+mod filter_reference;
 
 fn value(index: usize, channel: usize) -> f32 {
     let value = ((index % 97) as f32 - 48.) / 128.;
@@ -115,6 +117,7 @@ fn genuine_freezes_are_silent_and_outside_source_time_is_zero_padded() {
 fn nonmonotonic_remap_returns_from_the_source_end_without_reading_the_entire_span() {
     let (root, mut p) = fixture();
     p.layers[0].time_mapping = Some(remap(&[(0., 0.), (0.5, 1.), (1., 0.)]));
+    let voice = p.audio_voices().unwrap().remove(0);
     let mut mixer = AudioMixer::new(p, root.path()).unwrap();
     let mut output = vec![0.; 9_600];
     mixer.mix(0, &mut output).unwrap();
@@ -124,11 +127,25 @@ fn nonmonotonic_remap_returns_from_the_source_end_without_reading_the_entire_spa
         } else {
             9_599 - 2 * index
         };
+        let mapped = voice
+            .mapped_sample_at(index as u64, 48_000)
+            .unwrap()
+            .unwrap();
         assert_eq!(
-            &output[index * 2..index * 2 + 2],
-            [value(source, 0), value(source, 1)],
+            (mapped.position * 1024.).round() as i64,
+            source as i64 * 1024,
             "sample={index}"
         );
+        assert!((mapped.native_rate - if index < 2_400 { 2. } else { -2. }).abs() < 1e-12);
+        for channel in 0..2 {
+            let expected =
+                filter_reference::sample(source as f64, 2., 4_800, |n| value(n as usize, channel));
+            assert!(
+                (output[index * 2 + channel] - expected).abs() < 1e-7,
+                "sample={index} channel={channel} expected={expected} actual={}",
+                output[index * 2 + channel]
+            );
+        }
     }
     let memory = mixer.memory_info();
     // Existing one-second PCM scratch plus bounded per-chunk mapping/window data.
@@ -343,10 +360,24 @@ fn distant_source_windows_skip_poisoned_gaps_and_keep_pcm_scratch_bounded() {
     file.write_all(&0.25f32.to_le_bytes()).unwrap();
     drop(file);
     p.layers[0].time_mapping = Some(remap(&[(0., 0.), (0.5, 5_000.), (1., 0.)]));
+    let voice = p.audio_voices().unwrap().remove(0);
     let mut mixer = AudioMixer::new(p, root.path()).unwrap();
     let mut output = vec![0.; 9_600];
     mixer.mix(0, &mut output).unwrap();
-    assert_eq!(&output[4_800..4_802], &[0.25; 2]);
+    let mapped = voice.mapped_sample_at(2_400, 8_000).unwrap().unwrap();
+    assert_eq!(mapped.position, 3_999_999.);
+    assert!((mapped.native_rate + 10_000. / 6.).abs() < 1e-10);
+    let expected = filter_reference::sample(3_999_999., 10_000. / 6., 4_800_000, |n| {
+        if n == 3_999_999 {
+            0.25
+        } else {
+            0.
+        }
+    });
+    assert!(expected > 0.);
+    for actual in &output[4_800..4_802] {
+        assert!((*actual - expected).abs() < 1e-7);
+    }
     assert!(output.iter().all(|v| v.is_finite()));
     let memory = mixer.memory_info();
     assert!(memory.known_capacity_bytes < 2_000_000, "{memory:?}");

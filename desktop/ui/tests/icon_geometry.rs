@@ -59,7 +59,7 @@ fn allocations(run: impl FnOnce()) -> usize {
 }
 
 #[test]
-fn warmed_icons_allocate_only_their_owned_triangle_output() {
+fn warmed_icons_do_not_allocate_per_instance() {
     let mut list = PaintList::default();
     let mut draw = |count: usize| {
         list.clear();
@@ -79,14 +79,46 @@ fn warmed_icons_allocate_only_their_owned_triangle_output() {
     println!("icon allocations: one={one} two_hundred={many}");
     assert_eq!(
         (one, many),
-        (1, 200),
-        "only the public owned triangle output remains per icon"
+        (0, 0),
+        "immutable mesh instances must not allocate triangle copies"
     );
     assert_eq!(list.shapes.len(), 200);
     assert!(list
         .shapes
         .iter()
-        .all(|s| matches!(s, Shape::Triangles {points} if !points.is_empty())));
+        .all(|s| matches!(s, Shape::Mesh(mesh) if mesh.point_count() > 0)));
+}
+
+#[test]
+fn warmed_icon_instances_keep_zero_allocations_through_node_transform_and_clip() {
+    let mut list = PaintList::default();
+    let mut draw = |count: usize| {
+        list.clear();
+        for i in 0..count {
+            icons::draw(
+                &mut list,
+                Rect::new((i % 10) as f32 * 30., (i / 10) as f32 * 30., 24., 20.),
+                Icon::ALL[i % Icon::ALL.len()],
+                20.,
+                Color::grey(220),
+            );
+        }
+        for shape in &mut list.shapes {
+            let Shape::Mesh(mesh) = shape else {
+                panic!("shared icon placement required")
+            };
+            *shape = mesh.transformed([8.25, 9.5], 0.75);
+        }
+        list.clip_to(Rect::new(0., 0., 1000., 1000.));
+    };
+    draw(200);
+    let one = allocations(|| draw(1));
+    let many = allocations(|| draw(200));
+    println!("transformed contained icon allocations: one={one} two_hundred={many}");
+    assert_eq!((one, many), (0, 0));
+    assert_eq!(list.shapes.len(), 200);
+    assert_eq!(list.order.len(), 200);
+    assert!(list.shapes.iter().all(|s| matches!(s, Shape::Mesh(_))));
 }
 
 #[test]

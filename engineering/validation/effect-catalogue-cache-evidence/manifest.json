@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "Effect catalogue cache; no whole-frame zero-allocation or UI remediation claim",
+  "base": "7030e25c71ba929d22205d0a2df49bcc1d28d997",
+  "sources": {
+    "desktop/app/src/panels/effect_controls.rs": "70ef5376b11d8ed471967a5f3b125b8fb7481a4b8363d1a4c2608327d6baaf0c",
+    "desktop/app/src/panels/effect_controls/library.rs": "cd107cf9638e3d824c586a643e26d7bd436a6470928c71e9d5e6a567eb8cc367",
+    "desktop/app/src/panels/effect_controls/library_cache_tests.rs": "c8ba75a9bbcdaa833808b09eda3febf75a979ee02848e204c03a7a30937a150e",
+    "desktop/app/src/panels/effect_search.rs": "d20051380a8d17f766ab12c5cbd83961a50f12f0f94c3a73d8b67b57e6edf6f6",
+    "desktop/app/src/panels/effect_search/cache.rs": "edafcb4762364685e4c66b144153121086f30d49986869d31860333d266d64e0",
+    "desktop/app/tests/effect_search_cache.rs": "386b189edbb76802224a37ecbbc0f02fc8e77c7a6c2ca2376806340a065bc34b"
+  },
+  "archive_sha256": "6ded88a84ce057c46f65e5e3cc042c4834d4057a43164a5dfb035db54f4fbbf1",
+  "tests": {
+    "cache_passed": 5,
+    "panel_passed": 59,
+    "existing_manual_ignored": 1,
+    "gpu_comparisons": 8,
+    "changed_query_controls": 8,
+    "distinct_passed": 64
+  },
+  "pending": [
+    "Current-head CI",
+    "Existing unrelated manual mapped-authoring acceptance",
+    "Full DESIGN remediation and physical native-window input acceptance outside this data-cache change"
+  ]
+}

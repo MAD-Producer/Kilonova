@@ -7,6 +7,7 @@ use serde_json::json;
 #[cfg(target_os = "windows")]
 mod native;
 mod clipboard;
+mod layer_identity;
 
 pub(super) fn pointer(point: [f32; 2], pressed: bool, released: bool) -> Input {
     Input {

@@ -12,6 +12,7 @@ use motion_ui::{
 use serde_json::Value;
 use std::sync::Arc;
 mod cache;
+pub(crate) use cache::{Fields, GroupedCache, Selection, Sort};
 pub(crate) type Cache = cache::Cache<super::effect_controls::Entry, Locale>;
 
 fn entries(catalogue: &Value, locale: Locale) -> Vec<(super::effect_controls::Entry, String)> {
