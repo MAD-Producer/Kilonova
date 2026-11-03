@@ -93,7 +93,7 @@ fn exact_fractional_composition_anchor_preserves_parented_mirrored_pose_and_only
                     object: 2,
                     frame: 6.5,
                     anchor: value,
-                })
+                 keys: None })
                 .unwrap();
                 close(pose, model(e.project(), 6.5));
                 only_middle_keys_changed(&before, e.project(), value, shift + 3);
@@ -126,7 +126,7 @@ fn mapped_anchor_gesture_cancels_both_channels_and_commit_is_one_undo() {
                     object: 2,
                     frame: 6.5,
                     anchor,
-                })
+                 keys: None })
                 .unwrap();
                 close(pose, model(e.project(), 6.5));
             }
@@ -210,7 +210,7 @@ fn continuous_anchor_and_position_keep_stable_ids_at_exact_projected_time() {
             object: 2,
             frame,
             anchor: [0.7, 0.2],
-        })
+         keys: None })
         .unwrap();
         close(pose, model(e.project(), frame));
         assert_eq!(track_ids(e.project()), ids);
@@ -251,7 +251,7 @@ fn invalid_anchor_values_times_and_locked_layers_preserve_full_project_and_histo
                 object: 2,
                 frame,
                 anchor
-            })
+            , keys: None })
             .is_err());
         assert_eq!(e.snapshot(), before);
         assert!(!e.can_undo() && !e.can_redo());
@@ -294,7 +294,7 @@ fn static_separated_position_uses_owned_axis_values_at_fractional_local_time_wit
         object: 2,
         frame: 8.75,
         anchor: [0.7, 0.2],
-    })
+     keys: None })
     .unwrap();
     let after = e.project();
     close(pose, model(after, 8.75));
