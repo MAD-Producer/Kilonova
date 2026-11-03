@@ -1,0 +1,32 @@
+{
+  "status": "complete_renderer_passed_full_desktop_and_latest_main_pending",
+  "head": "b015ddad43ac8fc76b6ec049af2a3822edcbdc06",
+  "mainAtGateStart": "acaab00b74df3f61b278408050040d19133074be",
+  "terminal": {
+    "originalSession": 63700,
+    "terminalConsumed": true,
+    "exitCode": 0,
+    "gateReportSha256": "9c9e28d4e2706106d177df660df067cc7dfd4f0283cb285e1d54775fc7abdb60"
+  },
+  "sourceUnchangedAtPublication": true,
+  "expectedTargets": 121,
+  "docTargets": 1,
+  "totals": {
+    "passed": 957,
+    "failed": 0,
+    "ignored": 1
+  },
+  "elapsedSeconds": 1833.594,
+  "limits": [
+    "Gate source includes the approved ten panel clocks, cold expression preparation and native clock regression",
+    "Own PR581 merged to main c0e25eda during this gate; this is not proof for a subsequent main merge",
+    "Complete desktop original precision stack overflow and the separately unauthorized graph fixture remain unresolved",
+    "Original ignores, assertions, budgets and all targets retained; no Android acceptance"
+  ],
+  "archive": {
+    "path": "professional-api86-final-render-v1.zip",
+    "bytes": 270378,
+    "sha256": "5caaf1ef4d1593e584821e93040041ebfd091a1fb2083939c9b7fbf43d04c9bb",
+    "members": 12
+  }
+}
