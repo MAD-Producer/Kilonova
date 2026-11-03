@@ -466,6 +466,7 @@ fn reduce(list: &mut PaintList, scale: f32, origin: [f32; 2]) {
                     point(p)
                 }
             }
+            Shape::Mesh(mesh) => *shape = mesh.transformed(origin, scale),
             Shape::Procedural { area, clip, kind } => {
                 rect(area);
                 rect(clip);
@@ -510,5 +511,32 @@ fn reduce(list: &mut PaintList, scale: f32, origin: [f32; 2]) {
     }
     for image in &mut list.images {
         rect(&mut image.area);
+    }
+}
+
+#[cfg(test)]
+mod mesh_tests {
+    use super::*;
+
+    #[test]
+    fn thumbnail_reduction_keeps_shared_icons_and_exact_coordinates() {
+        for scale in [0.25, 0.5, 1.25] {
+            let mut list = PaintList::default();
+            for icon in motion_ui::icons::Icon::ALL {
+                motion_ui::icons::draw(&mut list, Rect::new(2.25, 3.5, 24., 20.),
+                    *icon, 18., motion_ui::Color::grey(220));
+            }
+            let expected: Vec<Vec<_>> = list.shapes.iter().map(|shape| {
+                let Shape::Mesh(mesh) = shape else { panic!("shared icon required") };
+                mesh.points().map(|p| [11.25 + p[0] * scale, 19.5 + p[1] * scale]).collect()
+            }).collect();
+            let order = list.order.clone();
+            reduce(&mut list, scale, [11.25, 19.5]);
+            assert_eq!(list.order, order);
+            for (shape, expected) in list.shapes.iter().zip(expected) {
+                let Shape::Mesh(mesh) = shape else { panic!("thumbnail must retain shared geometry") };
+                assert_eq!(mesh.points().collect::<Vec<_>>(), expected);
+            }
+        }
     }
 }
