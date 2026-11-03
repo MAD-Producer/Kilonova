@@ -16,6 +16,7 @@ rasterized source-mask / track-matte / flat-precompose shot.
 | XYZ separation | `separate_dimensions`, `set_component`, axis-specific `animate`, and existing `merge_dimensions` for accepted vector properties | Scalar properties reject separation; merging retains existing compatibility/error rules and does not resample unrelated keys | `motion-core/tests/separate_dimensions.rs`, `merge_dimensions.rs`; new native example animates only Y |
 | Effect parameters | Stable effect instance and parameter IDs; actual schema publishes Numeric, Hold and Color Curve LUT support | Schema support does not imply an unlocked/enabled instance or available shader package; resource bindings are not continuous tracks | [Parameter contract](effect-parameter-animation.md) and actual host tests |
 | Source relink | `missing_media_assets`, `start_asset_relink`, `media_status`, `finish_asset_relink`, `release_asset_relink`; bind a batch to the current revision and document generation | Decode in isolated staging before one atomic edit; references retain asset IDs; stale edits cancel; undo can restore an available original source but cannot recreate externally deleted files | Desktop `workflow/media_asset_tests/relink.rs`; native public-host PNG example below |
+| Projective screen insert | Existing `corner_pin` effect with animated `tl`, `tr`, `br`, `bl` Vec2 parameters in source-pixel coordinates | This maps supplied corners projectively; it does not detect or track a screen automatically. Bounds and sampling quality are separate acceptance concerns | Native public-host screen example below |
 
 Existing component tests are listed so maintainers can locate coverage; their
 current execution status belongs to the validation record, not this table.
@@ -189,3 +190,48 @@ ready before commit. The initial and recovered projects have all required source
 files in the artifact directory; the intermediate replaced project intentionally
 references files deleted during missing-media recovery. The complete Rust test
 is the executable operation script, including failure and recovery steps.
+
+## Executable animated projective screen insert
+
+[`professional_screen.rs`](../../crates/motion-desktop-media/tests/professional_screen.rs)
+inserts the existing `corner_pin` effect on a real, repository-authored PNG.
+The public JSON command batch sets/animates all four Vec2 corners at composition
+frames 5/15, stored at local 0/10 because the clip offset is 5. The source is a
+128x96 gradient plate over a blue background, with exact 30000/1001 project time.
+All four corners move, and the quad is not a parallelogram.
+
+The independent CPU oracle solves eight correspondence equations with pivoted
+f64 Gaussian elimination, maps each destination pixel center into source UV and
+bilinearly samples the authored plate. It does not reuse the renderer's analytic
+quad inverse or WGSL. Every RGBA channel is checked with a fixed three-unit
+Unorm8 budget; no edge pixels are excluded. The initial/final shapes and sampled
+fractional times deliberately keep integer-aligned output extents. Fractional
+bounding-box resampling quality therefore remains a separate requirement.
+
+Six nonmonotonic samples at 5, 7.5, 15, 0, 26 and 10 include interpolation and
+out-of-clip background. An independently rendered affine control must differ
+from the projective golden by more than the channel budget in at least 129
+pixels, so an affine substitute cannot satisfy this fixture. Undo restores the
+original no-insert project, redo restores exact native output, and save/load
+into a new Session preserves the model and every sampled pixel. Four separate
+frozen PNG plans export after deleting the live insert, removing its registered
+PNG source and closing both Sessions; their pixels and captured revisions must
+match the corresponding native samples.
+
+```sh
+cargo test -p motion-host -p motion-desktop-media --test layer_time_mapping --test professional_screen --no-default-features --features motion-desktop-media/gpu-tests --locked --offline -- --test-threads=1
+```
+
+Set `MOTION_PROFESSIONAL_SCREEN_ARTIFACTS` to retain the source PNG, initial and
+edited projects, actual `commands.json`, six native/golden PNG pairs, affine
+control, four frozen PNGs and comparison receipt. The saved `project.json`
+already contains the edits. For command replay, load `initial-project.json`
+with the retained assets and apply `commands.json` once. The Rust integration
+test is the complete executable script, including history and frozen export.
+This accepts an authored procedural screen insert; it does not certify
+photographed footage, automatic tracking, other working precisions, arbitrary
+output scales, antialiased edge coverage or desktop window presentation. This
+oracle evaluates a point-sampled raster contract. The
+[validation record](../validation/professional-api86-parameter-contract-current.md#projective-screen-pixels-verified-native-stability-pending)
+retains an earlier unexplained native process exit; successful pixel checks do
+not certify native stability.

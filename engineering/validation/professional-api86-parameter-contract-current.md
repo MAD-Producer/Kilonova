@@ -296,6 +296,62 @@ No panel changes are included in this branch; the prior panel-clock scope
 question remains unanswered. These logs do not certify the new relink commit,
 which requires its own CI.
 
+## Projective screen pixels verified; native stability pending
+
+`professional_screen.rs` uses the actual existing `corner_pin` effect and public
+host command parser with a decoded repository-authored PNG. Its four Vec2 corner
+tracks store local keys 0/10 for composition 5/15 with clip offset 5. All corners
+move over six nonmonotonic samples including 7.5 and out-of-range 0/26. The
+independent oracle solves eight correspondence equations by pivoted Gaussian
+elimination in f64, then bilinearly samples source pixels; it does not reuse the
+WGSL analytic inverse. Every RGBA channel, including edges, is checked against a
+predeclared maximum error of three Unorm8 units. Observed maximum is one.
+
+The affine control differs beyond that budget in 597 pixels, so a simple affine
+substitute fails this fixture. Animation changes 6654 pixels. Undo returns the
+original no-insert project, redo restores exact output, and save/reopen preserves
+all sampled images. Four independently frozen PNG plans retain their captured
+revision and exact native pixels after live insertion removal, registered source
+PNG deletion and both Session closures. The retained `commands.json`, initial
+project and source PNG form the replay script/assets; the saved edited project
+already contains the commands.
+
+| Gate | Actual result |
+| --- | --- |
+| Screen v1, FFmpeg disabled | 9 passed, 0 failed/ignored; screen example plus eight existing host tests, 17.532 seconds |
+| Screen-family v1, FFmpeg enabled | **Failed**: node/camera/matte/relink each passed, then screen process exited `0xc0000374 STATUS_HEAP_CORRUPTION`; host tests did not execute, 65.125 seconds |
+| Screen-diagnostic v1, FFmpeg enabled | 9 passed, 0 failed/ignored, 16.860 seconds; added pre-operation phase markers, unchanged assertions |
+| Screen-family v2, FFmpeg enabled | 13 passed, 0 failed/ignored across all five native examples and eight host tests, 44.422 seconds; final source and actual adapter retained |
+| Screen-backends v1 | Explicit Vulkan/no-FFmpeg: 9 passed, 14.359 seconds; explicit DX12/FFmpeg: 9 passed, 13.797 seconds; actual adapters assert the requested backends |
+
+The successful final gates retain unchanged Rust/WGSL/Python/workflow/manifest/
+lockfile hashes. Backend checks ran on an RTX 4070 Laptop GPU, Vulkan driver
+NVIDIA 591.86 and DX12 driver 32.0.15.9186. No product behavior, existing test,
+assertion, error budget or ignore annotation changes in this increment.
+
+**The first native heap-corruption exit remains unresolved.** Windows Event
+1000 and the filtered WER report confirm the owned screen test and exception;
+they name ntdll/StackHash but identify neither the corrupted allocation nor the
+responsible library/phase. No dump or native stack is available. Later passes,
+added test phase markers and backend comparisons do not prove a fix and are not
+an automatic retry workaround. Native stability and final-head acceptance remain
+open; no driver, FFmpeg or renderer root cause is claimed.
+
+The immutable
+[`professional-api86-screen-v1.zip`](data/professional-api86-screen-v1.zip) and
+[SHA-256 receipt](data/professional-api86-screen-v1.json) retain 451 members,
+including the failed run, original logs, filtered native crash evidence, all
+controllers, source snapshots, usable projects/assets/commands, native/golden/
+frozen images and comparison sheet. Every member hash was verified by readback.
+Its explicit status is `pixel_contract_verified_native_stability_pending`.
+
+This fixture checks a procedural source with a fixed integer-aligned output
+extent and point-sampled quad edges. It does not accept photographic screen
+tracking, arbitrary fractional bounds/output scales, antialiasing or other
+precisions. Those remain real quality gaps, rather than excluded pixels silently
+being counted as accepted. Original full-backend coverage predates this addition
+and the earlier renderer fixes; it is not relabeled as current full regression.
+
 ## Evidence boundaries and remaining work
 
 The parameter-only host example checks model/scene state without requesting a GPU surface or
@@ -315,8 +371,11 @@ mask/matte/precompose example now has independent full-frame geometric goldens.
 The relink example now proves real PNG decoding, source identity, history,
 missing-media recovery and frozen source isolation with independent full-frame
 goldens. Issue #86 still requires independently sourced or repository-authored
-shot goldens and scripts for roto, green screen/spill, screen replacement and
-more complex matte/precompose cases. Broader preview/frozen/export agreement, independent
+shot goldens and scripts for roto, green screen/spill, photographic screen
+replacement and more complex matte/precompose cases. The new projective insert
+fixture proves the fixed-extent procedural pixel contract, while its earlier
+native exit and broader image-quality acceptance remain open. Broader
+preview/frozen/export agreement, independent
 image quality goldens, other working precisions, complete desktop regression
 and final-head cross-platform CI remain unaccepted. The native camera example
 is not desktop window capture or acceptance of photographed footage.
