@@ -2363,6 +2363,7 @@ impl Renderer {
             )?;
         }
         self.matte_planning.prepare_coverage(&self.effect_gpu.builder.frame)?;
+        self.prepare_track_matte_uniforms(composition_size)?;
         let frame = &self.effect_gpu.builder.frame;
         self.geometry_upload.clear();
         self.geometry_upload
