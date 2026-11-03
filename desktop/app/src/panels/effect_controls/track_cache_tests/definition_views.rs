@@ -97,7 +97,83 @@ fn actual_definition_views_preserve_full_draw_height_hits_and_refresh_current_ca
             }
         }
     }
+    evidence.extend(timeline_snapshots());
     if let Some(path) = std::env::var_os("MOTION_DEFINITION_VIEW_EVIDENCE") {
         std::fs::write(path, serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
     }
+}
+
+fn timeline_snapshots() -> std::collections::BTreeMap<String, (String, String)> {
+    use crate::panels::{effect_timeline::tests, types::Panels};
+    use motion_ui::dock::{Node, Panel};
+    let (engine, catalogue) = tests::fixture();
+    let state = tests::state(&engine);
+    let mut evidence = std::collections::BTreeMap::new();
+    for locale in [Locale::En, Locale::Zh] {
+        for width in [900., 1400.] {
+            for floating in [false, true] {
+                let mut atlas = TextAtlas::from_system_language(12., locale == Locale::Zh).unwrap();
+                let mut panels = tests::setup(&catalogue, locale);
+                let mut draw = |panels: &mut Panels| {
+                    let mut paint = PaintList::default();
+                    let input = Input {
+                        mouse: [-100., -100.],
+                        ..Default::default()
+                    };
+                    let actions = if floating {
+                        crate::panels::floating_chrome(
+                            &mut paint,
+                            &mut atlas,
+                            Panel::Timeline,
+                            [width, 850.],
+                            panels,
+                            &state,
+                            &input,
+                        )
+                    } else {
+                        crate::panels::chrome(
+                            &mut paint,
+                            &mut atlas,
+                            [width, 850.],
+                            &Node::dock(Panel::Timeline.dock()),
+                            panels,
+                            &state,
+                            &input,
+                        )
+                    };
+                    assert!(actions.is_empty());
+                    assert!(!paint.glyphs.is_empty());
+                    let hits: std::collections::BTreeMap<_, _> =
+                        panels.effect_timeline.rects.iter().collect();
+                    format!(
+                        "{:?}",
+                        (paint.shapes, paint.colors, paint.glyphs, paint.order, hits)
+                    )
+                };
+                draw(&mut panels);
+                let old = draw(&mut panels);
+                assert_eq!(draw(&mut panels), old);
+                let mut replacement = catalogue.clone();
+                for package in replacement["packages"].as_array_mut().unwrap() {
+                    for effect in package["manifest"]["effects"].as_array_mut().unwrap() {
+                        effect["name"] = "替换定义".into();
+                        effect["english_name"] = "Replacement definition".into();
+                    }
+                }
+                panels.effect_controls.refresh_catalogue(replacement.into());
+                let changed = draw(&mut panels);
+                assert_ne!(changed, old);
+                panels
+                    .effect_controls
+                    .refresh_catalogue(catalogue.clone().into());
+                assert_eq!(draw(&mut panels), old);
+                assert_eq!(tests::state(&engine), state);
+                evidence.insert(
+                    format!("timeline-{locale:?}-{width}-{floating}"),
+                    (old, changed),
+                );
+            }
+        }
+    }
+    evidence
 }
