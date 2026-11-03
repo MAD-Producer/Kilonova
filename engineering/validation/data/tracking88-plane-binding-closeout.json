@@ -1,0 +1,53 @@
+{
+  "status": "accepted_planar_runtime_increment_not_full_issue",
+  "createdUtc": "2026-11-01T09:25:06.871382+00:00",
+  "parentCommit": "2c031293ad4fd04bc6ce33022d03a766ada924c0",
+  "source": {
+    "crates/motion-core/src/command_registry.rs": "0ece0f63b8b39d12dcdc113bb5f851f4ce9839682926faeb4f2e876dcf66fba5",
+    "crates/motion-core/src/editor.rs": "679b2c896d9e1d4e71331ac6de4987628748a041f3e589d0b4e9b2b3aaa7ca34",
+    "crates/motion-core/src/history_accounting.rs": "67d258daa9938e16d91f59280de6c46fe178bdee0062ba27f6d84e3ed18d286c",
+    "crates/motion-core/tests/tracking_plane.rs": "f0f2f53d5ef8ee7858ab500d86f15d617d573465b03477bac3c308ff812e5329",
+    "crates/motion-model/src/commands.rs": "38dbc8edb8b447c32bb5f8d73e8a6d11973a85c7129a9111df34ed72a866593d",
+    "crates/motion-model/src/lib.rs": "67ef5dc5fe69773ff3b3bb4f24339d7553450ba39074bdb9ef0bf49a0ed80f3d",
+    "crates/motion-model/src/model.rs": "c8d3ffd8f20b2fe627d617ffa4feb1ac8e663f2ee480e865b0bae53d7e55cd47",
+    "crates/motion-model/src/tracking.rs": "782a61980fcd4f16f2c8eb6f57f87b3ea313e09ccef7a0160b2eb34fa5dfe31a",
+    "crates/motion-model/src/tracking/plane.rs": "ea2bb9b97287ca6bad2bfd84531efe94f7571d7a59e0e0ec64af5bf6d30616a7",
+    "crates/motion-model/tests/support/tracking_plane.rs": "0aaf1908e326cef597f5f1661c6cd6f7df3e2cd82920ab2fb40b6b349302f40c",
+    "crates/motion-model/tests/tracking_plane.rs": "582cadf7581cfa8e270199296a53e412f251ca32faff18bb0a0349c696262e8d",
+    "crates/motion-render/src/scene.rs": "51b8424b77454c20b99753a52444fdd1104fa50322a5d9c42c3c4c4a67cefc99"
+  },
+  "archive": {
+    "path": "tracking88-plane-binding-v1.zip",
+    "sha256": "fcc9d8aafd7bcb1d9bf6b130e52496403780c95a759e3c24450cf9b9d53bc242",
+    "bytes": 968713,
+    "members": 82
+  },
+  "counts": {
+    "model": [
+      232,
+      0,
+      0
+    ],
+    "core": [
+      481,
+      0,
+      1
+    ],
+    "host-tracking": [
+      50,
+      0,
+      0
+    ]
+  },
+  "nativeExeSha256": "b10167d9c138c62553f2b70bed8ffa1c2df0800c4ad15e0f47d2f2deb11b2120",
+  "nativeStatus": "accepted_native_plane_increment_not_full_issue",
+  "regressionStatus": "accepted_targeted_plane_increment_not_full_issue",
+  "pending": [
+    "calibrated camera runtime",
+    "known-camera and real-footage reprojection",
+    "lens/output and relink/cache/exposure integration",
+    "full maintained desktop/workspace and cross-platform CI",
+    "previous native/compiler fault causes",
+    "#82 strict P95 and GPU coverage"
+  ]
+}

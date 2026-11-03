@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// The only project JSON schema accepted by this build.
-pub const CURRENT_PROJECT_VERSION: u32 = 33;
+pub const CURRENT_PROJECT_VERSION: u32 = 37;
 
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
@@ -157,6 +157,11 @@ pub struct Layer {
     pub content: Content,
     pub size: [f32; 2],
     pub transform: Transform,
+    /// Independent raw-source displacement; ordinary position is a manual correction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_point: Option<crate::tracking::point::PointBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_plane: Option<crate::tracking::plane::PlaneBinding>,
     pub visible: bool,
     pub locked: bool,
     /// Output isolation within this composition, shared by preview and export.
@@ -206,6 +211,8 @@ impl Layer {
             content: Content::Solid { color },
             size,
             transform: Transform::new(position),
+            tracking_point: None,
+            tracking_plane: None,
             visible: true,
             locked: false,
             solo: false,
@@ -318,6 +325,8 @@ pub struct Project {
     pub background: [f32; 4],
     pub assets: Vec<Asset>,
     pub model_assets: Vec<crate::ModelAsset>,
+    /// Original solve attachments are shared across compositions and retained for undo.
+    pub tracking_assets: Vec<crate::TrackingAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fonts: Vec<FontAsset>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -354,6 +363,7 @@ impl Project {
             background: [0.05, 0.06, 0.09, 1.0],
             assets: Vec::new(),
             model_assets: Vec::new(),
+            tracking_assets: Vec::new(),
             fonts: Vec::new(),
             audio_assets: Vec::new(),
             video_assets: Vec::new(),
@@ -458,8 +468,33 @@ impl Project {
             ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
             asset.validate()?;
         }
-        for camera in std::iter::once(&self.camera)
-            .chain(self.layers.iter().filter_map(Layer::camera_data)) {
+        ensure(self.tracking_assets.len() <= crate::tracking_assets::MAX_TRACKING_ASSETS,
+            "tracking asset limit exceeded")?;
+        for asset in &self.tracking_assets {
+            asset.validate()?;
+            ensure(asset_ids.insert(asset.id), "asset IDs must be unique and nonzero")?;
+            ensure(crate::media_assets::lookup(document, asset.source).is_some(),
+                "tracking source media is missing")?;
+            let extent = match crate::media_assets::lookup(document, asset.source) {
+                Some(crate::media_assets::MediaAsset::Image(a)) => {
+                    ensure(asset.data.source_pts.len() == 1, "one image requires one tracking timestamp")?;
+                    [a.width, a.height]
+                }
+                Some(crate::media_assets::MediaAsset::Video(a)) => {
+                    ensure(asset.data.source_pts.len() == a.frame_count as usize, "tracking timestamp count differs from video")?;
+                    [a.width, a.height]
+                }
+                _ => return Err(crate::Error::Invalid("tracking source media is missing".into())),
+            };
+            ensure(asset.data.source_extent.pixels() == extent, "tracking source extent differs from runtime data")?;
+        }
+        for (object,camera) in std::iter::once((0,&self.camera))
+            .chain(self.layers.iter().filter_map(|l|l.camera_data().map(|camera|(l.id,camera)))) {
+            if let Some(binding)=&camera.tracking {
+                binding.validate(self,camera).map_err(|source|crate::Error::TrackingCameraBinding {
+                    object,asset:binding.asset,track:binding.track.chars().filter(|c|!c.is_control()).take(128).collect(),source:Box::new(source),
+                })?;
+            }
             if let Some(imported) = &camera.imported {
                 ensure(self.model_assets.iter().any(|a| a.id == imported.asset),
                     "imported camera model asset missing")?;
@@ -578,6 +613,20 @@ impl Project {
                 ensure(range.covers(layer.clip(self.frames)),"integer clip bounds do not cover precise interval")?;
             }
             layer.transform.validate_local()?;
+            if let Some(binding) = &layer.tracking_plane {
+                binding.validate(self,layer).map_err(|source| crate::Error::TrackingPlaneBinding {
+                    object:layer.id,asset:binding.asset,track:binding.track.chars().filter(|c|!c.is_control()).take(128).collect(),source:Box::new(source),
+                })?;
+            }
+            if let Some(binding) = &layer.tracking_point {
+                (|| {
+                    ensure(!matches!(layer.content, Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment),
+                        "point tracking requires a spatial visual layer or null")?;
+                    binding.validate(self)
+                })().map_err(|source| crate::Error::TrackingBinding {
+                    object: layer.id, asset: binding.asset, track: binding.track.chars().take(128).collect(), source: Box::new(source),
+                })?;
+            }
             ensure(
                 layer.effects.len() <= motion_effects::MAX_EFFECTS_PER_LAYER,
                 "too many layer effects",

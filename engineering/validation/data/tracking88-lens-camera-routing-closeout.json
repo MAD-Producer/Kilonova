@@ -1,0 +1,496 @@
+{
+  "status": "accepted_camera_lens_increment_full_issue_pending",
+  "createdUtc": "2026-11-01T11:43:16.317344+00:00",
+  "baseCommit": "78d0e68bed37f8ac7df7bb2a29dee3c8f8fa72a9",
+  "counts": {
+    "model": [
+      242,
+      0,
+      0
+    ],
+    "core": [
+      485,
+      0,
+      1
+    ],
+    "render": [
+      168,
+      0,
+      0
+    ],
+    "host-tracking": [
+      50,
+      0,
+      0
+    ]
+  },
+  "archive": {
+    "path": "tracking88-lens-camera-routing-v1.zip",
+    "bytes": 1726844,
+    "members": 306,
+    "sha256": "912b823daa4b3d6be9819c99463af079f1fe325c0040baa9de23ece42397dfbd"
+  },
+  "source": {
+    "crates/motion-core/tests/acceptance.rs": "7e6d46003fa1aa2c6321ee8fc2d754e483b4e91b27f7fff64d517807288f738f",
+    "crates/motion-core/tests/camera_workflows.rs": "1137ec211e9abf5a7f0721301d94c22e5be335a8b59c4d58a07740364df84419",
+    "crates/motion-core/tests/preview_drag.rs": "c9b0913163b21f95c25908e25f5ba1e9a6e40bf4a95a9709bcaa851515ab4e25",
+    "crates/motion-host/src/ops/export.rs": "ee97c5596e29b2efe7b84f2a32e859040392e43651c4d823a3b10472140a0edb",
+    "crates/motion-host/src/ops/export_lens_tests.rs": "62365dfbfcad09ff6b8d0afe75d1318d8109d1cead86549c324e49d6b4556505",
+    "crates/motion-model/src/camera/imported.rs": "e435976213e5199ae1ededfcafd1bdf470b4bf8e1df41b94a9e2b61485258f77",
+    "crates/motion-model/src/tracking/camera.rs": "02ee190b77bc130b70507404f3e0e0279efe9d9dc86eae6ecbeb6ac8eaaa3d37",
+    "crates/motion-model/src/tracking/lens.rs": "816f4f5b9253a3f266c5f9b7efd563c1e8fe8b3e0ceb628801b2486ad84f2547",
+    "crates/motion-model/tests/tracking_camera.rs": "3c93bc35d4ca4c30f57e908d1b2d3195bc3953512a757f1b65aae1afd5a3aa59",
+    "crates/motion-render/src/effect_plan.rs": "42f839dfaadeb34de181b262eb1ce8436697675a2265f2d9572f92f86228df14",
+    "crates/motion-render/src/lens_output.rs": "52b065ab3425750208bc62783feb27abf305af637799250859508cee36105623",
+    "crates/motion-render/src/renderer.rs": "2b737c5fb1a592c752929ee013bafae860165ffca725c303e377821f1a910a4a",
+    "crates/motion-render/src/renderer/layer_raster.rs": "ae5f5a824fd869fb2112b7b1efbb83630d8651aed023c949fac0499cfc050497",
+    "crates/motion-render/src/renderer/model_layers.rs": "275a1e6df8775bfb64639f4e786cfec23dd7faed656a85dac8fd6f7d26660aea",
+    "crates/motion-render/src/renderer/model_layers/cameras.rs": "c930d66f315df0a4ebea0ac911693e45a0cdcf781d4a3e3ccb671a5b0011955a",
+    "crates/motion-render/src/renderer/model_layers/shared.rs": "e6c2bad96b8e62f3777096704908c716c396bf427121897c7a8c1f88d02b464d",
+    "crates/motion-render/src/scene.rs": "bab79bd1d4616b73dc59b773e2475044e8d165360fa46d1bb0d8c8569f6e8781",
+    "crates/motion-render/src/selection_geometry.rs": "48b59a0c8ff9e0dbec777c28e1f4cb8237d79ad4fd43bc16ac84733cf5c916d7",
+    "crates/motion-render/tests/tracking_lens.rs": "e6389bfee27960b84ee99230d176ea97ce7d1afd81ac14466113bfbbb5b4a300",
+    "crates/motion-render/tests/tracking_lens/ownership.rs": "c925461ce14589379d8ff69ecaffcf879b9412a307d998cef513b69aac30205e",
+    "crates/motion-render/tests/tracking_lens/routing.rs": "b3e51dc269ee66cafc353b16954a3ef412d3b52e7c40277ca35af966ec8180aa"
+  },
+  "oracle": [
+    {
+      "checked": 288684,
+      "maxByteError": 1,
+      "radial": 0.0,
+      "rotation": "None"
+    },
+    {
+      "checked": 289073,
+      "maxByteError": 1,
+      "radial": -0.018,
+      "rotation": "None"
+    },
+    {
+      "checked": 288586,
+      "maxByteError": 1,
+      "radial": 0.018,
+      "rotation": "None"
+    },
+    {
+      "checked": 288864,
+      "maxByteError": 1,
+      "radial": 0.0,
+      "rotation": "Clockwise90"
+    },
+    {
+      "checked": 288802,
+      "maxByteError": 1,
+      "radial": -0.018,
+      "rotation": "Clockwise90"
+    },
+    {
+      "checked": 288784,
+      "maxByteError": 1,
+      "radial": 0.018,
+      "rotation": "Clockwise90"
+    },
+    {
+      "checked": 288492,
+      "maxByteError": 1,
+      "radial": 0.0,
+      "rotation": "HalfTurn"
+    },
+    {
+      "checked": 288447,
+      "maxByteError": 1,
+      "radial": -0.018,
+      "rotation": "HalfTurn"
+    },
+    {
+      "checked": 288394,
+      "maxByteError": 1,
+      "radial": 0.018,
+      "rotation": "HalfTurn"
+    },
+    {
+      "checked": 288864,
+      "maxByteError": 1,
+      "radial": 0.0,
+      "rotation": "Clockwise270"
+    },
+    {
+      "checked": 288802,
+      "maxByteError": 1,
+      "radial": -0.018,
+      "rotation": "Clockwise270"
+    },
+    {
+      "checked": 288784,
+      "maxByteError": 1,
+      "radial": 0.018,
+      "rotation": "Clockwise270"
+    }
+  ],
+  "nativeExeSha256": "07c53adbc41b082a7b6f154499a93a38981ce80d2042b87bf8ce48581ae4bf07",
+  "nativeSamples": [
+    {
+      "frame": 0.0,
+      "markers": [
+        {
+          "id": 700,
+          "anchor": [
+            234.9532012939453,
+            222.208984375,
+            0.9991716742515564
+          ],
+          "expected": [
+            234.95320833333335,
+            222.20898765432102
+          ],
+          "quad": [
+            [
+              225.9305343333333,
+              211.53059476543208
+            ],
+            [
+              243.96440233333334,
+              211.54107180246913
+            ],
+            [
+              243.97012233333334,
+              232.88311387654323
+            ],
+            [
+              225.93721433333337,
+              232.87889461728395
+            ]
+          ],
+          "oracle": {
+            "interior": 238,
+            "exterior": 302186,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 701,
+          "anchor": [
+            333.5726623535156,
+            297.15325927734375,
+            0.9992907643318176
+          ],
+          "expected": [
+            333.5726355685131,
+            297.1532439261419
+          ],
+          "quad": [
+            [
+              325.8564329329446,
+              288.0048309115646
+            ],
+            [
+              341.28568951603495,
+              288.0090105034013
+            ],
+            [
+              341.2907274169096,
+              306.30479163459665
+            ],
+            [
+              325.8592037784257,
+              306.2997164159378
+            ]
+          ],
+          "oracle": {
+            "interior": 154,
+            "exterior": 302318,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 702,
+          "anchor": [
+            362.4962158203125,
+            246.67735290527344,
+            0.9993800520896912
+          ],
+          "expected": [
+            362.49620312499997,
+            246.6773541666667
+          ],
+          "quad": [
+            [
+              355.74326940624996,
+              238.67660716666666
+            ],
+            [
+              369.24873184375,
+              238.67804716666666
+            ],
+            [
+              369.25085809374997,
+              254.67930116666665
+            ],
+            [
+              355.74519315624997,
+              254.67594116666663
+            ]
+          ],
+          "oracle": {
+            "interior": 108,
+            "exterior": 302396,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        }
+      ],
+      "path": "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-lens-routing-native-v2\\reference.png",
+      "correction": false
+    },
+    {
+      "frame": 30.0,
+      "markers": [
+        {
+          "id": 700,
+          "anchor": [
+            167.5973358154297,
+            203.97328186035156,
+            0.9991540312767029
+          ],
+          "expected": [
+            167.59733942505454,
+            203.97327353562972
+          ],
+          "quad": [
+            [
+              157.67635230365218,
+              192.6287682239502
+            ],
+            [
+              177.45534692649997,
+              192.9062461386438
+            ],
+            [
+              177.47082061914213,
+              215.26852072525793
+            ],
+            [
+              157.69380329997853,
+              215.08442433507958
+            ]
+          ],
+          "oracle": {
+            "interior": 270,
+            "exterior": 302138,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 701,
+          "anchor": [
+            277.2395935058594,
+            283.8302001953125,
+            0.9992903470993042
+          ],
+          "expected": [
+            277.2396194051561,
+            283.83017501164375
+          ],
+          "quad": [
+            [
+              269.13783120151464,
+              274.4567186086643
+            ],
+            [
+              285.31883678703286,
+              274.41676182820555
+            ],
+            [
+              285.3156249687536,
+              293.17623635932773
+            ],
+            [
+              269.1326224168264,
+              293.275795434078
+            ]
+          ],
+          "oracle": {
+            "interior": 180,
+            "exterior": 302276,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 702,
+          "anchor": [
+            310.2113952636719,
+            233.40623474121094,
+            0.9993835091590881
+          ],
+          "expected": [
+            310.21140363160157,
+            233.4062332390754
+          ],
+          "quad": [
+            [
+              303.2138193536511,
+              225.19203731850382
+            ],
+            [
+              317.1885866614914,
+              225.29210413342696
+            ],
+            [
+              317.1900176373214,
+              241.59843711364405
+            ],
+            [
+              303.21530745838686,
+              241.5420268174918
+            ]
+          ],
+          "oracle": {
+            "interior": 130,
+            "exterior": 302358,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        }
+      ],
+      "path": "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-lens-routing-native-v2\\yaw-and-translation.png",
+      "correction": false
+    },
+    {
+      "frame": 30.0,
+      "markers": [
+        {
+          "id": 700,
+          "anchor": [
+            151.05442810058594,
+            203.779541015625,
+            0.9991515874862671
+          ],
+          "expected": [
+            151.0544477899995,
+            203.77954341179594
+          ],
+          "quad": [
+            [
+              141.05751801692182,
+              192.3935000435201
+            ],
+            [
+              160.98509653634756,
+              192.6753781370924
+            ],
+            [
+              161.0022143026166,
+              215.11530905493612
+            ],
+            [
+              141.07665756385055,
+              214.9287671576328
+            ]
+          ],
+          "oracle": {
+            "interior": 292,
+            "exterior": 302100,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 701,
+          "anchor": [
+            263.71807861328125,
+            283.8892517089844,
+            0.9992884397506714
+          ],
+          "expected": [
+            263.71807509845013,
+            283.8892557634974
+          ],
+          "quad": [
+            [
+              255.5724213021586,
+              274.49164010326814
+            ],
+            [
+              271.8419734180691,
+              274.44991245639335
+            ],
+            [
+              271.83709950631084,
+              293.2589676699699
+            ],
+            [
+              255.56552576040337,
+              293.3613594939247
+            ]
+          ],
+          "oracle": {
+            "interior": 180,
+            "exterior": 302276,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        },
+        {
+          "id": 702,
+          "anchor": [
+            298.5395812988281,
+            233.34088134765625,
+            0.9993821382522583
+          ],
+          "expected": [
+            298.53958471071405,
+            233.34086901322019
+          ],
+          "quad": [
+            [
+              291.5099862502665,
+              225.1079683175091
+            ],
+            [
+              305.54818882397456,
+              225.20877646778692
+            ],
+            [
+              305.5496670418958,
+              241.55143362508008
+            ],
+            [
+              291.5115260112444,
+              241.49496103970017
+            ]
+          ],
+          "oracle": {
+            "interior": 129,
+            "exterior": 302359,
+            "mismatched": 0,
+            "edgeExclusionPixels": 2.0,
+            "method": "independent analytic Newton rays"
+          }
+        }
+      ],
+      "path": "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-lens-routing-native-v2\\keyed-manual-correction.png",
+      "correction": true
+    }
+  ],
+  "allOwnedValidatorsTerminal": true,
+  "pending": [
+    "calibrated permitted-source real footage with independent measured residuals; the source-video controls use synthetic camera observations",
+    "vendor adapters, lens replacement/relink/cache invalidation",
+    "actual fractional camera shutter accumulation pixels beyond receiver ownership; nondefault spatial sampling requires an explicit path",
+    "lens plus aperture, spatial depth/masks/mattes/effects/custom blending/nested-3D boundaries explicitly refused until separately implemented",
+    "full maintained workspace/desktop regression and cross-platform CI",
+    "previous native/compiler crash causes and #82 strict P95/GPU coverage failures"
+  ]
+}

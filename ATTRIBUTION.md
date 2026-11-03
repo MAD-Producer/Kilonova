@@ -1,5 +1,32 @@
 # 第三方归属说明 / Third-party attribution
 
+## External photographed camera calibration acceptance data
+
+- Authors: OpenCV contributors; the sample photographs are distributed in the
+  official OpenCV repository. Individual photographers are not named upstream.
+- Source: `opencv/opencv`, tag `4.10.0`, commit
+  `71d3237a093b60a27601c20e9ee6c3e52154e8b1`,
+  [sample data](https://github.com/opencv/opencv/tree/71d3237a093b60a27601c20e9ee6c3e52154e8b1/samples/data):
+  `left01.jpg` through `left09.jpg` and `left11.jpg` through `left14.jpg`.
+- License: Apache-2.0, as distributed in the pinned repository's `LICENSE`;
+  retain the unmodified license and any applicable upstream notices beside
+  downloaded acceptance data. Per-file SHA-256 identities are recorded by the
+  calibration validation tool.
+  The unmodified upstream `COPYRIGHT` is also retained beside the license;
+  copyright holders and dates remain exactly as provided upstream.
+- Scope and modifications: external validation only, not shipped with the
+  product, effect packages, or UI. Original JPEGs remain byte-for-byte unchanged;
+  detected corners, calibrated parameters, annotated comparisons and replacement
+  renders are separately identified derived acceptance artifacts. Physical square
+  size is unknown, so all solves use checkerboard-square units, not surveyed
+  metric coordinates. The images show separate board poses, not a continuous
+  photographed camera-motion sequence.
+- Tooling: separately installed `opencv-python-headless` 5.0.0.93 and NumPy
+  2.4.6, already credited below; no product dependency is added. Calibration
+  and rendering validation code is independently authored. The
+  [official calibration tutorial](https://docs.opencv.org/4.10.0/dc/dbb/tutorial_py_calibration.html)
+  documents the sample photographs and square-unit convention.
+
 ## 插件作者工作区：可选本机 WGSL 语言服务
 
 - 作者：wgsl-analyzer contributors。

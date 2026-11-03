@@ -1,5 +1,11 @@
 # Motion Studio 来源说明 / Provenance
 
+The external #88 camera calibration qualification uses pinned OpenCV sample
+photographs under Apache-2.0, with unmodified license/copyright and file hashes
+retained. Derived corner measurements and independently authored replacement
+renders are acceptance data, not product assets. Sources, revision, tools, scale
+limitations and modification scope are recorded in ATTRIBUTION.md.
+
 插件作者工作区的可选 WGSL 辅助通过公开 LSP 标准连接独立安装的
 wgsl-analyzer。客户端及其故障夹具独立编写，不复制上游编辑器控件、图标或截图。
 固定验收版本、官方资产 hash、许可及修改范围记录在 ATTRIBUTION.md；

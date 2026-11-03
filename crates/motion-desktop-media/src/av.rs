@@ -11,6 +11,8 @@ use motion_media::{Error as MediaError, Result, VideoProbe};
 use motion_render::{VideoPlane, Yuv420Frame};
 use std::{path::Path, time::Instant};
 
+pub mod tracking;
+
 fn av_error(error: av::Error) -> MediaError {
     MediaError::backend("ffmpeg", error)
 }

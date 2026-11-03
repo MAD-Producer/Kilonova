@@ -378,6 +378,7 @@ impl AnimationPreset {
             .chain(candidate.audio_assets.iter().map(|a| a.id))
             .chain(candidate.video_assets.iter().map(|a| a.id))
             .chain(candidate.model_assets.iter().map(|a| a.id))
+            .chain(candidate.tracking_assets.iter().map(|a| a.id))
             .max()
             .unwrap_or(0);
         for source in &self.assets {

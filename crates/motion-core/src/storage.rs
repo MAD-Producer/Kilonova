@@ -11,6 +11,8 @@ use sha2::{Digest, Sha256};
 mod publication;
 mod animation_presets;
 mod node_resources;
+mod tracking_resources;
+pub use tracking_resources::{open_tracking_resource, read_tracking_resource};
 pub use node_resources::{open_node_resource, read_node_resource, resource_sha256, NodeResourceStage};
 pub use animation_presets::{read_animation_preset, save_animation_preset, stage_animation_preset, StagedAnimationPreset};
 #[cfg(test)]
@@ -45,6 +47,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
         .iter()
         .map(|a| (&a.path, MAX_ASSET, None))
         .chain(project.model_assets.iter().map(|a| (&a.path, crate::model_assets::MAX_MODEL_ASSET_BYTES, Some(a.bytes))))
+        .chain(project.tracking_assets.iter().map(|a| (&a.path, crate::tracking_assets::MAX_TRACKING_ASSET_BYTES, Some(a.bytes))))
         .chain(project.fonts.iter().map(|a| (&a.path, 32*1024*1024, None)))
         .chain(
             project
@@ -81,9 +84,12 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
             (asset_path.clone(), limit, bytes),
         );
         let owned_node = node_resources.iter().any(|resource| resource.path == *asset_path);
+        let owned_tracking = project.tracking_assets.iter().any(|resource| resource.path == *asset_path);
         let path = root.join(asset_path).canonicalize().map_err(|source| {
             if owned_node {
                 crate::Error::NodeResourceIo { phase: "resolve", path: asset_path.clone(), source }
+            } else if owned_tracking {
+                crate::Error::TrackingResourceIo { phase: "resolve", path: asset_path.clone(), source }
             } else {
                 crate::Error::Invalid(format!("素材无法读取：{asset_path} ({source})"))
             }
@@ -95,6 +101,8 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
         let meta = path.metadata().map_err(|source| {
             if owned_node {
                 crate::Error::NodeResourceIo { phase: "metadata", path: asset_path.clone(), source }
+            } else if owned_tracking {
+                crate::Error::TrackingResourceIo { phase: "metadata", path: asset_path.clone(), source }
             } else {
                 crate::Error::Io(source)
             }
@@ -109,6 +117,7 @@ pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
         )?;
     }
     for resource in &node_resources { open_node_resource(root, resource)?; }
+    for resource in &project.tracking_assets { open_tracking_resource(root, resource)?; }
     Ok(())
 }
 pub fn load(root: &Path) -> Result<Project> {
@@ -168,7 +177,7 @@ struct PackageSource {
     name: String,
     file: File,
     bytes: u64,
-    node_sha256: Option<String>,
+    verified_sha256: Option<String>,
 }
 /// Retains open source files and an immutable, canonical project description.
 /// Creating this snapshot is cheap; payload reads happen in `prepare`.
@@ -215,6 +224,7 @@ impl PackageSnapshot {
             .iter()
             .map(|a| (&a.path, MAX_ASSET, None))
             .chain(project.model_assets.iter().map(|a| (&a.path, crate::model_assets::MAX_MODEL_ASSET_BYTES, Some(a.bytes))))
+            .chain(project.tracking_assets.iter().map(|a| (&a.path, crate::tracking_assets::MAX_TRACKING_ASSET_BYTES, Some(a.bytes))))
         .chain(project.fonts.iter().map(|a| (&a.path, 32*1024*1024, None)))
             .chain(
                 project
@@ -253,7 +263,8 @@ impl PackageSnapshot {
                 name: name.clone(),
                 file,
                 bytes,
-                node_sha256: node_resources.iter().find(|r| r.path == *name).map(|r| r.sha256.clone()),
+                verified_sha256: node_resources.iter().find(|r| r.path == *name).map(|r| r.sha256.clone())
+                    .or_else(|| project.tracking_assets.iter().find(|r|r.path==*name).map(|r|r.sha256.clone())),
             });
         }
         Ok(Self {
@@ -323,7 +334,7 @@ impl PackageSnapshot {
                     .large_file(true),
             )?;
             let mut copied = 0;
-            let mut node_hash = source.node_sha256.as_ref().map(|_| Sha256::new());
+            let mut resource_hash = source.verified_sha256.as_ref().map(|_| Sha256::new());
             loop {
                 progress(done, self.total)?;
                 let n = source.file.read(&mut buffer)?;
@@ -333,13 +344,13 @@ impl PackageSnapshot {
                 copied += n as u64;
                 ensure(copied <= source.bytes, "source changed while packaging")?;
                 zip.write_all(&buffer[..n])?;
-                if let Some(hash) = &mut node_hash { hash.update(&buffer[..n]); }
+                if let Some(hash) = &mut resource_hash { hash.update(&buffer[..n]); }
                 done += n as u64;
             }
             ensure(copied == source.bytes, "source changed while packaging")?;
-            if let Some(hash) = node_hash {
-                ensure(source.node_sha256.as_deref() == Some(format!("{:x}", hash.finalize()).as_str()),
-                    &format!("node resource content changed while packaging: {}", source.name))?;
+            if let Some(hash) = resource_hash {
+                ensure(source.verified_sha256.as_deref() == Some(format!("{:x}", hash.finalize()).as_str()),
+                    &format!("{} resource content changed while packaging: {}", if source.name.starts_with("assets/tracking/") { "tracking" } else { "node" }, source.name))?;
             }
         }
         let file = zip.finish()?;
@@ -399,7 +410,8 @@ pub fn import_package_with_progress(
     )?;
     let mut zip = ZipArchive::new(input)?;
     ensure(
-        zip.len() <= crate::MAX_LAYERS * 3 + crate::node_resources::MAX_NODE_PROJECT_RESOURCES + 1,
+        zip.len() <= crate::MAX_LAYERS * 3 + crate::node_resources::MAX_NODE_PROJECT_RESOURCES
+            + crate::tracking_assets::MAX_TRACKING_ASSETS + 1,
         "too many package entries",
     )?;
     let mut total = 0u64;
@@ -427,6 +439,8 @@ pub fn import_package_with_progress(
         }
         let limit = if name == "project.json" {
             MAX_JSON
+        } else if name.starts_with("assets/tracking/") {
+            crate::tracking_assets::MAX_TRACKING_ASSET_BYTES
         } else {
             MAX_MEDIA_ASSET
         };
@@ -473,6 +487,7 @@ pub fn import_package_with_progress(
         .chain(project.audio_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.video_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.model_assets.iter().map(|a| a.path.to_lowercase()))
+        .chain(project.tracking_assets.iter().map(|a| a.path.to_lowercase()))
         .chain(project.fonts.iter().map(|a| a.path.to_lowercase()))
         .chain(project.node_resources()?.iter().map(|a| a.path.to_lowercase()))
         .chain(std::iter::once("project.json".into()))

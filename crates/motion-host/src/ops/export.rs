@@ -4,7 +4,14 @@ use motion_render::Scene;
 use motion_render::Renderer;
 use serde_json::json;
 
+#[cfg(test)]
+#[path = "export_lens_tests.rs"]
+mod lens_tests;
+
 pub(crate) fn require_portable_depth(scene: &Scene) -> Result<()> {
+    if scene.has_native_lens() {
+        return Err(format!("portable plane output cannot carry nonlinear camera lens output; composition={} frame={} phase=lens_pack; render natively or bake explicitly", scene.composition_id, scene.frame).into());
+    }
     if scene.has_calibrated_depth() {
         return Err("portable plane output cannot carry native calibrated depth geometry; bake explicitly".into());
     }

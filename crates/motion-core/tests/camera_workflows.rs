@@ -48,10 +48,10 @@ fn observation_zoom_changes_view_without_changing_the_project() {
     let mut observer = Observer::new(p.width, p.height);
     let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, Some(&observer), &motion_core::ExpressionEvaluator).unwrap();
-    let before = scene.project_point([700.0, 960.0, 0.0]);
+    let before = scene.project_point([700.0, 960.0, 0.0]).unwrap();
     observer.zoom(2.0).unwrap();
     scene.sample(&p, 0.0, Some(&observer), &motion_core::ExpressionEvaluator).unwrap();
-    let after = scene.project_point([700.0, 960.0, 0.0]);
+    let after = scene.project_point([700.0, 960.0, 0.0]).unwrap();
     assert!((after[0] - 540.0) > (before[0] - 540.0) * 1.9);
     assert_eq!(engine.project(), &p);
     assert_eq!(engine.revision(), 0);

@@ -364,7 +364,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             s.asset_relink = Some(batch);
             Ok(status)
         }),
-        Request::FinishAssetRelink { request_id } => crate::session::with_session(id, |s| relink::finish(s, &request_id)),
+        Request::FinishAssetRelink { request_id } => relink::finish(id, &request_id),
         Request::CancelAssetRelink { request_id } => crate::session::with_session(id, |s| {
             if request_id.is_empty() || request_id.len()>128 { return Err("invalid asset relink request id".into()); }
             let mut status=if let Some(batch)=s.asset_relink.as_mut().filter(|b|b.request==request_id) {

@@ -69,6 +69,12 @@ impl Platform for DesktopPlatform {
     }
 
     #[cfg(feature = "ffmpeg")]
+    fn verify_tracking_video(&self, path:&Path, video:&VideoAsset,
+        solve:&motion_host::tracking::asset::Asset, check:&dyn Fn()->Result<()>) -> Result<()> {
+        av::tracking::verify(path,video,solve,check)
+    }
+
+    #[cfg(feature = "ffmpeg")]
     fn probe_video(
         &self,
         path: &Path,

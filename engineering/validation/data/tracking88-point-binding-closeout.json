@@ -1,0 +1,116 @@
+{
+  "scope": "Independent point displacement increment; #88 and 3D route remain open",
+  "archive": {
+    "path": "tracking88-point-binding-v1.zip",
+    "sha256": "77f918624989f5d440278b141c900760f67f2282969c6fda733623f734ebb084",
+    "bytes": 555818,
+    "members": 78
+  },
+  "code": {
+    "crates/motion-core/src/command_registry.rs": "a0e81179aa97e6d561a2618ea5b79632a7e7b122014eac7650ae3e03e6272f7e",
+    "crates/motion-core/src/editor.rs": "619f0df6879725fa231069792760e95d59c3c094ba88c4d424ecb9365a52ac40",
+    "crates/motion-core/src/expressions/references.rs": "5920f8c669693ebd435684a9a7e1ca4f5030abbf69ba9995808da3bc8ccc50eb",
+    "crates/motion-core/src/history_accounting.rs": "fdc5a8cc64f06b282566bc4ad46ae123538ce4cf721f15fff775e241e58a4eef",
+    "crates/motion-core/src/lib.rs": "b6a3d21bc11fbe6a25c210920949f9331edd05771d06f463f8ae9167e194a553",
+    "crates/motion-core/src/storage/tracking_resources.rs": "25a4706bf048be330520339d15bfdd9bd8ed753b87935a0af0da833f422de9ac",
+    "crates/motion-host/Cargo.toml": "9166ef63d4f58f760b0933c2e45c88131f877d714764e0412c533eef5bc96edd",
+    "crates/motion-host/src/tracking.rs": "b91e930caf84c0643ac5f5247c1c9a9846d44dfce276320d0f05fee60c42498f",
+    "crates/motion-host/src/tracking/project.rs": "7284e80e20c4a24439dfae0858eec3900a199a518cc91ec43e1a49cb21c1be12",
+    "crates/motion-host/src/tracking/project_tests.rs": "1d122177b85098523efa348e02be3eba6341b8b052b8defe20aad1035252f0ad",
+    "crates/motion-model/Cargo.toml": "ffa837e5927be0908e462fd07ff2e479b7134d2990e21bbb9cb55e5838137c23",
+    "crates/motion-model/src/commands.rs": "696ab7d2737b95ab149352aeb2851484a22b3639f4ee1ff321fcaf1f0e2f6f47",
+    "crates/motion-model/src/geometry.rs": "2ed3d4e53805deb4cdd35b1dea8ca43d5891b5f1d1573a911983308a7bc2a86d",
+    "crates/motion-model/src/hierarchy.rs": "b60e462bdd6dd1d6c6aaa005432bcc61d541559d9d12cbe646eaf7934995faff",
+    "crates/motion-model/src/lib.rs": "a45b3803100c922317fb6ac94c096964b0c04938e1d36c35087aed5d15d39445",
+    "crates/motion-model/src/model.rs": "86a82b6fb5706788a14330c2cf0a37b83aba8297a33025ba43897f97fcf78596",
+    "crates/motion-model/src/tracking.rs": "35e5fe79545dc8a92462daa086ba8ce7b8c36d4df1d7137506589f3a8ceff29f",
+    "crates/motion-model/src/tracking/asset.rs": "e1665443c7dfb18781fd6b433d23029c040f10d96a63f97699296c144213ccd6",
+    "crates/motion-model/src/tracking/asset_tests.rs": "3b84706de957ff553430d4fd70218e0451c2f36e50aef4389e9d812f4c06fe58",
+    "crates/motion-model/src/tracking/decode.rs": "dd693b25fd7c6ebc67bff6fbeb9c5c091b11e152c33aff10ce53663bff0f4c4d",
+    "crates/motion-model/src/tracking/decode_tests.rs": "3d78ed9c60484c919226247a8feb98c27a3a65f880cfa815b1845acc540b1acc",
+    "crates/motion-model/src/tracking/encode.rs": "3f8a99976f9a10f9bce5b27e666a3eff37f10ade66e0f6dc1b17f5cddab5f611",
+    "crates/motion-model/src/tracking/encode_tests.rs": "e3a6bd93e1521389559513ace61505a27c72ba03f639815e2608ed4081ddc490",
+    "crates/motion-model/src/tracking/plate.rs": "6ffa05247d0905985e23911ecab3d46a735f26e4cbe554ec4a931ffc16600ace",
+    "crates/motion-model/src/tracking/plate_tests.rs": "0dabb97ef1b95947facb293366c9ef298ab7804f8920419c1b6efbc3b4be67cf",
+    "crates/motion-model/src/tracking/point.rs": "c08de1d0f39c409e0e0355c761d7f4e12f4a8be181ef6dca4ab0568e8b371767",
+    "crates/motion-model/src/tracking/pose.rs": "13cbf0bacb745f469dfa7e0676b8834c04cea972eb2c4db4e3e11b3c4268cf34",
+    "crates/motion-model/src/tracking/pose_tests.rs": "9dfeb7ae885abe8dd2a23a417424b2d1d4422729e170dc36f3d57615586279b7",
+    "crates/motion-model/src/tracking/shared.rs": "be2c4852fd2359d842b8e029f560646701f700f6d77a982cc71527f533453088",
+    "crates/motion-model/src/tracking/time.rs": "2651567bbe189f73acd2a16d46a51010367e6fb52cf9798566f3ae89a15da4f6",
+    "crates/motion-model/src/tracking/time_tests.rs": "01e0d1e6751b429bbe93d5b65715f3282ea8c13c203aa90bd98872c305e435dd",
+    "crates/motion-model/src/tracking_assets.rs": "9ce90157b927614e1758a25e81f24293e2ce9dbde89cbc471e6e111252a95108",
+    "crates/motion-model/tests/tracking_point.rs": "ec7491b0f5e62176232daa7c7b92ffccbb26be439eee4e6608d52bd0e1d608e3"
+  },
+  "model": {
+    "passed": 224,
+    "failed": 0,
+    "ignored": 0,
+    "evidence": "v3 complete logs and live completion; controller receipt damaged later"
+  },
+  "core": {
+    "passed": 479,
+    "failed": 0,
+    "ignored": 1,
+    "evidence": "v3 complete logs and live completion; pre-existing manual history measurement ignored"
+  },
+  "hostTracking": {
+    "passed": 49,
+    "failed": 0,
+    "ignored": 0,
+    "evidence": "v4 exit 0"
+  },
+  "desktopCheck": 0,
+  "nativeStatus": "accepted_native_point_increment_not_full_issue",
+  "samples": [
+    {
+      "frame": 0.0,
+      "anchor": [
+        220.0,
+        180.0,
+        0.9991421103477478
+      ],
+      "expected": [
+        220.0,
+        180.0
+      ],
+      "capture": {
+        "frame": 0.0,
+        "height": 480,
+        "path": "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-point-native-v1\\project\\exports\\frame-000000.png",
+        "width": 640
+      }
+    },
+    {
+      "frame": 30.0,
+      "anchor": [
+        304.5070495605469,
+        236.33804321289062,
+        0.9991421103477478
+      ],
+      "expected": [
+        304.50705177544245,
+        236.33803451696164
+      ],
+      "capture": {
+        "frame": 30.0,
+        "height": 480,
+        "path": "E:\\Dev\\aem\\artifacts\\pr-queue\\tracking88-point-native-v1\\project\\exports\\frame-000030.png",
+        "width": 640
+      }
+    }
+  ],
+  "static": {
+    "styleConsumers": "passed",
+    "panelsChanged": false,
+    "whitespace": "passed",
+    "newDependencies": false,
+    "androidExecuted": false
+  },
+  "remaining": [
+    "plane and camera runtime bindings",
+    "calibrated reprojection and real footage",
+    "relink/exposure/cache/full CI",
+    "earlier full-host native and MCP compiler faults",
+    "#82 strict performance failures"
+  ]
+}
